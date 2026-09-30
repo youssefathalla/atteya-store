@@ -13,7 +13,6 @@ import {
   DialogsTabComponent,
   LoadersTabComponent,
   BrandingTabComponent,
-  GeminiAiTabComponent,
   GsapTabComponent,
 } from './components';
 
@@ -22,7 +21,6 @@ import {
   imports: [
     PlaygroundHeaderComponent,
     GsapTabComponent,
-    GeminiAiTabComponent,
     ColorsTabComponent,
     TypographyTabComponent,
     ButtonsTabComponent,
