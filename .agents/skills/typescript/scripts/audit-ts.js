@@ -2,7 +2,7 @@
  * TypeScript convention audit.
  *
  * Run from the repository root; the directory argument is required:
- *   node .kiro/skills/typescript/scripts/audit-ts.js src/app
+ *   node .agents/skills/typescript/scripts/audit-ts.js src/app
  */
 import fs from 'node:fs';
 import path from 'node:path';

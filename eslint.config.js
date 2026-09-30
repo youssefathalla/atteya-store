@@ -6,7 +6,7 @@ import { defineConfig } from 'eslint/config';
 
 export default defineConfig([
   {
-    ignores: ['.agents/**', '.kiro/**', 'dist/**', 'coverage/**'],
+    ignores: ['.agents/**', 'dist/**', 'coverage/**'],
   },
   {
     files: ['**/*.ts'],

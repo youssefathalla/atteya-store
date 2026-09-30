@@ -26,7 +26,7 @@ Use this skill when:
 This skill ships a deterministic script. **Always prefer it over hand-editing** — it cross-pollinates every language pair, marks gaps, sorts, and writes with 2-space indentation in one pass:
 
 ```bash
-node .kiro/skills/sync-i18n/scripts/sync.js
+node .agents/skills/sync-i18n/scripts/sync.js
 ```
 
 Run it from the repository root; it resolves `public/i18n` relative to the working directory and processes every `*.json` it finds there. It aborts before writing if any file fails to parse, so a syntax error can never overwrite good data.

@@ -20,7 +20,7 @@ description: Translate a page or section to support multiple languages
 5. **Sync Both Locales**: Run the `sync-i18n` skill's script so `en.json` and `ar.json` stay key-identical and sorted:
 
    ```bash
-   node .kiro/skills/sync-i18n/scripts/sync.js
+   node .agents/skills/sync-i18n/scripts/sync.js
    ```
 
    Then replace any `__MISSING_TRANSLATION__` placeholder it inserted with a real translation.

@@ -38,7 +38,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 Two layers, no overlap:
 
-- **The contract** — `.kiro/steering/design-system.md`. Loads automatically for `.html`, `.css`, `.scss` and `.ts` (a third of this project's components use inline templates, so styling rules must travel with TypeScript too). Owns the token vocabulary and the hard bans.
+- **The contract** — `.agents/rules/design-system.md`. Loads automatically for `.html`, `.css`, `.scss` and `.ts` (a third of this project's components use inline templates, so styling rules must travel with TypeScript too). Owns the token vocabulary and the hard bans.
 - **The reference** — the **`design-system`** skill. Activate it for styling work, UI audits, or anything touching `src/styles/`. Owns the directory map, Material override workflow, style-file registration, and per-component input reference.
 
 The non-negotiables, repeated here because this guide is always in context:
@@ -106,7 +106,7 @@ Route requests to the appropriate specialized workspace or plugin skill:
 | **Code Review & QA**: Beast Mode architectural audits, quality checks, optimization                             | **`code-review`**       |
 | **Internationalization**: Sync translations (`en.json`, `ar.json`)                                              | **`sync-i18n`**         |
 
-### Steering & Workflow Modes (`.kiro/steering/`)
+### Rules & Workflow Modes (`.agents/rules/`, `.agents/workflows/`)
 
 | File               | Activation                             | Effect                                                         |
 | :----------------- | :------------------------------------- | :------------------------------------------------------------- |
@@ -117,15 +117,7 @@ Route requests to the appropriate specialized workspace or plugin skill:
 
 > `ask` and `teacher` deliberately suppress code generation. They are **manual-only** and must never be set to always-on inclusion, or they will conflict with the directives above.
 
-### Editing Agent Documentation
+### Agent Documentation
 
-`.kiro/` is the **single source of truth**. `.agents/` is a generated mirror for other agents.
-
-- **Never hand-edit `.agents/rules|workflows|skills`** — the next sync overwrites it. (`.agents/hooks.json` is not generated and stays editable.)
-- Edit `.kiro/steering/*` or `.kiro/skills/**`, then run `npm run sync:agents`.
-- `npm run sync:agents:check` exits non-zero on drift and runs as part of `setup.sh`.
-- **Enforced in both IDEs:**
-  - Kiro — `.kiro/hooks/sync-agent-docs.json`, a `PostFileSave` hook on `.kiro/steering|skills`.
-  - Antigravity — `.agents/hooks.json`: a `PreToolUse` guard that blocks writes into the generated mirror and names the correct source file, plus a `PostToolUse` sync. Antigravity has no file-save event, so these fire on the agent's write tools; human edits still need `npm run sync:agents`.
-- Front matter is **per-tool and never synced** — Kiro uses `inclusion:`, `.agents/rules` uses `trigger: glob`, `.agents/workflows` uses `description` only. Only bodies are mirrored.
-- Keep each layer in its lane: put vocabulary and bans in steering, architecture and API reference in skills. Do not restate one in the other.
+`.agents/` is the single source of truth for all agent skills (`.agents/skills/`), rules (`.agents/rules/`), and workflows (`.agents/workflows/`).
+Keep each layer in its lane: put vocabulary and bans in rules, workflows in workflows, and architecture and API reference in skills. Do not restate one in the other.

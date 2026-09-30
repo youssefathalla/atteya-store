@@ -14,9 +14,7 @@
     "tool:intro": "node server/tools/intro_function_calling.js",
     "eval:support": "node server/evals/support_eval.js",
     "eval:meeting": "node server/evals/meeting_eval.js",
-    "eval:opt": "node server/evals/prompt_optimization_eval.js",
-    "sync:agents": "node scripts/sync-agent-docs.mjs",
-    "sync:agents:check": "node scripts/sync-agent-docs.mjs --check"
+    "eval:opt": "node server/evals/prompt_optimization_eval.js"
   },
   "private": true,
   "packageManager": "npm@11.17.0",

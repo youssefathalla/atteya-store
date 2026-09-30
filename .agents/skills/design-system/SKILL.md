@@ -7,7 +7,7 @@ description: The Design Authority for styling and UI. Enforces strict Tailwind v
 
 This skill is the **Design Authority** for the project: the architecture, workflows and full component reference behind the design system.
 
-> **Division of responsibility.** The token vocabulary and hard bans live in `.kiro/steering/design-system.md`, which loads automatically for `.html`, `.css`, `.scss` and `.ts` files. This skill carries what that contract deliberately omits: the style directory map, the Material override workflow, style-file registration, per-component input reference, and the audit checklist. The two compose — do not duplicate content between them.
+> **Division of responsibility.** The token vocabulary and hard bans live in `.agents/rules/design-system.md`, which loads automatically for `.html`, `.css`, `.scss` and `.ts` files. This skill carries what that contract deliberately omits: the style directory map, the Material override workflow, style-file registration, per-component input reference, and the audit checklist. The two compose — do not duplicate content between them.
 
 ---
 
@@ -172,7 +172,7 @@ Extract it into a reusable component class under `src/styles/tailwind/components
 
 ### Syntax Rules & Token Vocabulary
 
-Config-less — there is no `tailwind.config.js`. The suffix-`!`, `size-{N}`, slash-opacity and semantic-token rules, plus the full typography / color / utility vocabulary, live in the always-loaded contract at `.kiro/steering/design-system.md`. Read it if it is not already in context.
+Config-less — there is no `tailwind.config.js`. The suffix-`!`, `size-{N}`, slash-opacity and semantic-token rules, plus the full typography / color / utility vocabulary, live in the always-loaded contract at `.agents/rules/design-system.md`. Read it if it is not already in context.
 
 ---
 

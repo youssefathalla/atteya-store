@@ -28,9 +28,6 @@ npx ng build --configuration=development --progress=false
 # 5. Skip Tests (As requested: Jules ignores testing)
 echo "⏩ Skipping tests for snapshot..."
 
-# 6. Verify agent docs are mirrored (.kiro -> .agents)
-echo "🔁 Checking agent documentation sync..."
-npm run sync:agents:check
 
 echo "✅ Setup complete! Environment is ready for snapshot."
 # Check for forbidden 3rd party testing libs that Jules keeps trying to add

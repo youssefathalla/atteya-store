@@ -57,4 +57,4 @@ Define your store in this exact order:
 
 - **Canonical example**: `examples/book.store.ts` (in this skill folder) shows the full pipeline in the mandated order.
 - **Cheatsheet**: `resources/cheatsheet.md`.
-- **Audit**: `node .kiro/skills/ngrx-signal-store/scripts/audit-store.js src/app` — flags `inject()` inside `withMethods` and manually managed arrays that should use `withEntities`. The path argument is optional and defaults to `src/app`.
+- **Audit**: `node .agents/skills/ngrx-signal-store/scripts/audit-store.js src/app` — flags `inject()` inside `withMethods` and manually managed arrays that should use `withEntities`. The path argument is optional and defaults to `src/app`.

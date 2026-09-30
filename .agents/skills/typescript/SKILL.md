@@ -53,7 +53,7 @@ The rules above are not in conflict — pick by who needs access:
 Run from the repository root. The directory argument is **required** — omitting it only prints usage:
 
 ```bash
-node .kiro/skills/typescript/scripts/audit-ts.js src/app
+node .agents/skills/typescript/scripts/audit-ts.js src/app
 ```
 
 It reports `: any`, `private` fields that should be `#`, and publicly writable signals, with file and line numbers.
