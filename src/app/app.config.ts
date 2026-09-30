@@ -7,6 +7,7 @@ import { provideTransloco } from '@jsverse/transloco';
 
 import { routes } from './app.routes';
 import { translocoConfig } from '@core/i18n/transloco.config';
+import { provideClientHydration } from '@angular/platform-browser';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -20,6 +21,6 @@ export const appConfig: ApplicationConfig = {
     // Use the self-hosted Material Symbols Outlined font (see src/styles/_fonts.scss)
     // instead of the default 'material-icons' class, which requires the Google Fonts CDN.
     { provide: MAT_ICON_DEFAULT_OPTIONS, useValue: { fontSet: 'material-symbols-outlined' } },
+    provideClientHydration(),
   ],
 };
-
