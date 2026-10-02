@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "angular-lab-dev",
+    "dev": "angular-lab-dev",
+    "prod": "angular-lab-prod"
+  }
+}

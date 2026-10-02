@@ -1,5 +1,21 @@
-export const environment = {
+import { Environment } from './environment.model';
+
+export const environment: Environment = {
   production: true,
+  baseUrl: 'https://your-production-domain.com',
   googleMapsApiKey: '',
-  baseUrl: '',
+  useEmulators: false,
+  firebase: {
+    apiKey: 'AIzaSy-PROD-API-KEY',
+    authDomain: 'angular-lab-prod.firebaseapp.com',
+    projectId: 'angular-lab-prod',
+    storageBucket: 'angular-lab-prod.firebasestorage.app',
+    messagingSenderId: '000000000000',
+    appId: '1:000000000000:web:0000000000000000000000',
+  },
+  appCheck: {
+    siteKey: 'RECAPTCHA_ENTERPRISE_PROD_SITE_KEY',
+    isTokenAutoRefreshEnabled: true,
+    debug: false,
+  },
 };

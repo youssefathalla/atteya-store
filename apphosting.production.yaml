@@ -1,0 +1,9 @@
+# Production override for Firebase App Hosting
+# Automatically merged by Firebase when deploying to the production environment.
+runConfig:
+  minInstances: 1 # Keeps 1 container warm at all times (eliminates cold starts)
+  maxInstances: 5 # Allows scaling up to 5 instances under heavy user traffic
+
+env:
+  - variable: NODE_ENV
+    value: production

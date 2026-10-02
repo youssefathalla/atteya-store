@@ -1,0 +1,12 @@
+# Base configuration for Firebase App Hosting
+# Used for development, staging, and automated PR preview branches.
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0 # Scales to 0 when idle to eliminate idle costs
+  maxInstances: 2 # Protects dev environment from accidental runaway costs
+  concurrency: 80
+
+env:
+  - variable: NODE_ENV
+    value: development

@@ -9,7 +9,15 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "lint": "eslint .",
-    "serve:ssr:angular-lab": "node dist/angular-lab/server/server.mjs"
+    "serve:ssr:angular-lab": "node dist/angular-lab/server/server.mjs",
+    "fb:use:dev": "firebase use dev",
+    "fb:use:prod": "firebase use prod",
+    "fb:deploy:dev": "ng build -c development && firebase deploy -P dev",
+    "fb:deploy:prod": "ng build -c production && firebase deploy -P prod",
+    "fb:fn:dev": "firebase deploy --only functions -P dev",
+    "fb:fn:prod": "firebase deploy --only functions -P prod",
+    "fb:rules:dev": "firebase deploy --only firestore:rules,storage -P dev",
+    "fb:rules:prod": "firebase deploy --only firestore:rules,storage -P prod"
   },
   "private": true,
   "packageManager": "npm@11.17.0",
