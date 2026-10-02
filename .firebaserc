@@ -2,6 +2,6 @@
   "projects": {
     "default": "atteya-store-dev",
     "dev": "atteya-store-dev",
-    "prod": "atteya-store-prod"
+    "prod": "attiya-store"
   }
 }

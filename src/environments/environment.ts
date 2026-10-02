@@ -6,12 +6,13 @@ export const environment: Environment = {
   googleMapsApiKey: '',
   useEmulators: false,
   firebase: {
-    apiKey: 'AIzaSy-DEV-API-KEY',
+    apiKey: 'AIzaSyApJbkIpT18TA0Qi1qNZETVFqnX3Gqm--g',
     authDomain: 'atteya-store-dev.firebaseapp.com',
     projectId: 'atteya-store-dev',
     storageBucket: 'atteya-store-dev.firebasestorage.app',
-    messagingSenderId: '000000000000',
-    appId: '1:000000000000:web:0000000000000000000000',
+    messagingSenderId: '367756769746',
+    appId: '1:367756769746:web:4f7741e4ab4058b563b00b',
+    measurementId: 'G-90WCCKNBGF',
   },
   appCheck: {
     siteKey: 'RECAPTCHA_ENTERPRISE_DEV_SITE_KEY',
