@@ -8,5 +8,5 @@ import { PlaygroundComponent } from '@features/playground/playground.component';
   styleUrl: './app.scss',
 })
 export class App {
-  protected readonly title = signal('angular-lab');
+  protected readonly title = signal('atteya-store');
 }

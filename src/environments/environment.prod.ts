@@ -7,9 +7,9 @@ export const environment: Environment = {
   useEmulators: false,
   firebase: {
     apiKey: 'AIzaSy-PROD-API-KEY',
-    authDomain: 'angular-lab-prod.firebaseapp.com',
-    projectId: 'angular-lab-prod',
-    storageBucket: 'angular-lab-prod.firebasestorage.app',
+    authDomain: 'atteya-store-prod.firebaseapp.com',
+    projectId: 'atteya-store-prod',
+    storageBucket: 'atteya-store-prod.firebasestorage.app',
     messagingSenderId: '000000000000',
     appId: '1:000000000000:web:0000000000000000000000',
   },

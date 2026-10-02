@@ -33,7 +33,7 @@ export class FormsTabComponent {
   // Signal Form Model & Definition
   protected readonly formModel = signal({
     fullName: 'Alexander Wright',
-    email: 'alex.wright@angular-lab.dev',
+    email: 'alex.wright@atteya-store.dev',
     password: 'LabSecurePassword!2026',
     role: 'administrator',
     preferredDate: '2026-04-15',

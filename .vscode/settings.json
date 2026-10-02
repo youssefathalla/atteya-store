@@ -28,5 +28,8 @@
     "activityBarTop.activeBorder": "#e7e7e7",
     "statusBar.inactiveBackground": "#222d26"
   },
-  "peacock.color": "#222d26"
+  "peacock.color": "#222d26",
+  "cSpell.words": [
+    "atteya"
+  ]
 }

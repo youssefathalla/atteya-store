@@ -1,7 +1,7 @@
 {
   "projects": {
-    "default": "angular-lab-dev",
-    "dev": "angular-lab-dev",
-    "prod": "angular-lab-prod"
+    "default": "atteya-store-dev",
+    "dev": "atteya-store-dev",
+    "prod": "atteya-store-prod"
   }
 }

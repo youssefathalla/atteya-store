@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "angular-lab": {
+    "atteya-store": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -98,10 +98,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "angular-lab:build:production"
+              "buildTarget": "atteya-store:build:production"
             },
             "development": {
-              "buildTarget": "angular-lab:build:development"
+              "buildTarget": "atteya-store:build:development"
             }
           },
           "defaultConfiguration": "development"
