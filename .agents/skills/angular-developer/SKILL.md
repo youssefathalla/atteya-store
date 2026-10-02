@@ -1,6 +1,6 @@
 ---
 name: angular-developer
-description: Generates Angular code and provides architectural guidance. Trigger when creating projects, components, services, or HTTP communication, or for best practices on reactivity (signals, linkedSignal, resource, httpResource), forms, dependency injection, routing, SSR, accessibility (ARIA), animations, styling (component styles, Tailwind CSS), testing, naming conventions, or CLI tooling.
+description: Generates Angular code and provides architectural guidance. Trigger when creating projects, components, services, or HTTP communication, or for best practices on reactivity (signals, linkedSignal, resource, httpResource), forms, dependency injection, routing, SSR, accessibility (ARIA), animations, naming conventions, or CLI tooling. (For styling, Tailwind v4, and Material tokens, use design-system).
 license: MIT
 metadata:
   author: Copyright 2026 Google LLC
@@ -70,14 +70,9 @@ When communicating with backend services, use Angular HTTP APIs and consult the 
 
 ## Forms
 
-In most cases for new apps, **prefer signal forms**. When making a forms decision, analyze the project and consider the following guidelines:
+This project strictly uses **Signal Forms** (`@angular/forms/signals`).
 
-- If the application is using v22 or newer and this is a new form, **prefer Signal Forms**.
-- For older applications or when working with existing forms, use the appropriate form type that matches the applications current form strategy.
-
-- **Signal Forms**: Use signals for form state management. Read [signal-forms.md](references/signal-forms.md)
-- **Template-driven forms**: Use for simple forms. Read [template-driven-forms.md](references/template-driven-forms.md)
-- **Reactive forms**: Use for complex forms. Read [reactive-forms.md](references/reactive-forms.md)
+- **Signal Forms**: Use signals for form state management and custom form controls. Read [signal-forms.md](references/signal-forms.md)
 
 ## Dependency Injection
 
@@ -95,12 +90,6 @@ When formatting values in templates, creating custom pipes, or reusing pipe-like
 
 - **Pipes**: Built-in pipe imports, custom pipe naming and implementation, pure vs impure pipes, and TypeScript reuse patterns using standalone formatting functions or extracted plain functions. Read [pipes.md](references/pipes.md)
 
-## Angular Aria
-
-When building accessible custom components for any of the following patterns: Accordion, Listbox, Combobox, Menu, Tabs, Toolbar, Tree, Grid, consult the following reference:
-
-- **Angular Aria Components**: Building headless, accessible components (Accordion, Listbox, Combobox, Menu, Tabs, Toolbar, Tree, Grid) and styling ARIA attributes. Read [angular-aria.md](references/angular-aria.md)
-
 ## Routing
 
 When implementing navigation in Angular, consult the following references:
@@ -113,32 +102,19 @@ When implementing navigation in Angular, consult the following references:
 - **Data Resolvers**: Pre-fetching data before route activation with `ResolveFn`. Read [data-resolvers.md](references/data-resolvers.md)
 - **Router Lifecycle and Events**: Chronological order of navigation events and debugging. Read [router-lifecycle.md](references/router-lifecycle.md)
 - **Rendering Strategies**: CSR, SSG (Prerendering), and SSR with hydration. Read [rendering-strategies.md](references/rendering-strategies.md)
-- **Route Transition Animations**: Enabling and customizing the View Transitions API. Read [route-animations.md](references/route-animations.md)
+- **Route Transition Animations**: Enabling and customizing native View Transitions API (`withViewTransitions()`). Read [route-animations.md](references/route-animations.md)
 
 If you require deeper documentation or more context, visit the [official Angular Routing guide](https://angular.dev/guide/routing).
 
 ## Styling and Animations
 
-When implementing styling and animations in Angular, consult the following references:
-
-- **Using Tailwind CSS with Angular**: Integrating Tailwind CSS into Angular projects. Read [tailwind-css.md](references/tailwind-css.md)
-- **Angular Animations**: Using native CSS (recommended) or the legacy DSL for dynamic effects. Read [angular-animations.md](references/angular-animations.md)
-- **Styling components**: Best practices for component styles and encapsulation. Read [component-styling.md](references/component-styling.md)
-
-## Testing
-
-When writing or updating tests, consult the following references based on the task:
-
-- **Fundamentals**: Best practices for unit testing (Vitest), async patterns, and `TestBed`. Read [testing-fundamentals.md](references/testing-fundamentals.md)
-- **Component Harnesses**: Standard patterns for robust component interaction. Read [component-harnesses.md](references/component-harnesses.md)
-- **Router Testing**: Using `RouterTestingHarness` for reliable navigation tests. Read [router-testing.md](references/router-testing.md)
-- **End-to-End (E2E) Testing**: Setting up and running E2E tests. Read [e2e-testing.md](references/e2e-testing.md)
+- **Styling**: Governed strictly by the **`design-system`** skill and `.agents/rules/design-system.md` (Tailwind CSS v4 + Angular Material M3 semantic tokens).
+- **Element Animations (Angular 22+)**: Native template animations (`animate.enter`, `animate.leave`) and GSAP integration hooks. Read [angular-animations.md](references/angular-animations.md)
+- **Complex GSAP Choreography**: Governed by the dedicated **`gsap-*`** skills (GSAP core, ScrollTrigger, Timelines).
 
 ## Tooling
 
 When working with Angular tooling, consult the following references:
 
 - **Angular CLI**: Creating applications, generating code (components, routes, services), serving, and building. Read [cli.md](references/cli.md)
-- **Code Modernization**: Automatically refactoring to modern standards using migrations. Read [migrations.md](references/migrations.md)
-- **Angular MCP Server**: Available tools, configuration, and experimental features. Read [mcp.md](references/mcp.md)
 - **Environment Configuration**: Strategies for build-time and runtime configuration. Read [environment-configuration.md](references/environment-configuration.md)

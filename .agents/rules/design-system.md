@@ -1,6 +1,6 @@
 ---
 trigger: glob
-globs: '**/*.{html,css,scss}'
+globs: '**/*.{html,css,scss,ts}'
 ---
 
 # 🎨 Design System Contract

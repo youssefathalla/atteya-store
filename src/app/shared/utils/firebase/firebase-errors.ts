@@ -86,8 +86,8 @@ export const functionsErrors = (error: FirebaseError): string => {
 export const firebaseErrors = (error: unknown): string => {
   if (!isFirebaseError(error)) {
     // This is a pure mapping function with no injection context, so it can't use
-    // LoggerService directly. Callers (e.g. runInContextHelper$) are expected to
-    // log the raw error themselves before/after mapping it to a display key.
+    // LoggerService directly. Callers are expected to log the raw error themselves
+    // before/after mapping it to a display key.
     return 'errors.generic';
   }
 

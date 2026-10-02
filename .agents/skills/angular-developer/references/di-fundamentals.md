@@ -1,13 +1,13 @@
 # Dependency Injection (DI) Fundamentals
 
-Dependency Injection (DI) is a design pattern used to organize and share code across an application by allowing you to "inject" features into different parts. This improves code maintainability, scalability, and testability.
+Dependency Injection (DI) is a design pattern used to organize and share code across an application by allowing you to "inject" features into different parts. This improves code maintainability, modularity, and scalability.
 
 ## How DI Works in Angular
 
 There are two primary ways code interacts with Angular's DI system:
 
-1.  **Providing**: Making values (objects, functions, primitives) available to the DI system.
-2.  **Injecting**: Asking the DI system for those values.
+1. **Providing**: Making values (objects, functions, primitives) available to the DI system.
+2. **Injecting**: Asking the DI system for those values.
 
 Angular components, directives, and services automatically participate in DI.
 
@@ -74,10 +74,10 @@ You can call `inject()` in an **injection context**. The most common injection c
 
 Valid places to call `inject()`:
 
-1.  **Class field initializers** (Recommended)
-2.  **Constructor body**
-3.  **Route guards and resolvers** (which are executed in an injection context)
-4.  **Factory functions** used in providers
+1. **Class field initializers** (Recommended)
+2. **Constructor body**
+3. **Route guards and resolvers** (which are executed in an injection context)
+4. **Factory functions** used in providers
 
 ```typescript
 import {Component, Directive, Service, inject, ElementRef} from '@angular/core';

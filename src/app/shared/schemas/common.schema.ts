@@ -1,28 +1,27 @@
+import { Timestamp } from 'firebase/firestore';
 import * as v from 'valibot';
 
+export const timestampToDate = v.pipe(
+  v.instance(Timestamp),
+  v.transform((ts) => ts.toDate()),
+);
+export const EMAIL_REQUIRED_MSG = 'Email is required';
 export const emailError = 'Please enter a valid email address';
 export const emailSchema = v.optional(
-  v.pipe(v.string(), v.trim(), v.nonEmpty('Email is required'), v.email(emailError)),
+  v.pipe(v.string(), v.trim(), v.nonEmpty(EMAIL_REQUIRED_MSG), v.email(emailError)),
   '',
 );
-export const passwordSchema = v.optional(
-  v.pipe(
-    v.string(),
-    v.nonEmpty('Password is required'),
-    v.minLength(8, 'Password must be at least 8 characters'),
-  ),
-  '',
-);
-export const minLengthError = (min: number) => `Minimum length is ${min} characters`;
-export const maxLengthError = (max: number) => `Maximum length is ${max} characters`;
+
+export const minLengthMsg = (min: number) => `Minimum length is ${min} characters`;
+export const maxLengthMsg = (max: number) => `Maximum length is ${max} characters`;
 export const requiredString = (errMsg: string, min = 3, max = 15) =>
   v.optional(
     v.pipe(
       v.string(),
       v.trim(),
       v.nonEmpty(errMsg),
-      v.minLength(min, minLengthError(min)),
-      v.maxLength(max, maxLengthError(max)),
+      v.minLength(min, minLengthMsg(min)),
+      v.maxLength(max, maxLengthMsg(max)),
     ),
     '',
   );
@@ -32,8 +31,8 @@ export const phoneSchema = v.optional(
     v.trim(),
     v.nonEmpty('Phone number is required'),
     v.regex(/^[+]?[0-9\s\-()]+$/, 'Please enter a valid phone number'),
-    v.minLength(8, minLengthError(8)),
-    v.maxLength(20, maxLengthError(20)),
+    v.minLength(8, minLengthMsg(8)),
+    v.maxLength(20, maxLengthMsg(20)),
   ),
   '',
 );
@@ -50,4 +49,15 @@ export const futureDateSchema = v.nonNullish(
     }, 'Date cannot be in the past'),
   ),
   'Please select a preferred date',
+);
+
+export const PASSWORD_REQUIRED_MSG = 'Password is required';
+export const MIN_LEN_PASS = 8;
+export const passwordSchema = v.optional(
+  v.pipe(
+    v.string(),
+    v.nonEmpty(PASSWORD_REQUIRED_MSG),
+    v.minLength(MIN_LEN_PASS, minLengthMsg(MIN_LEN_PASS)),
+  ),
+  '',
 );

@@ -26,11 +26,8 @@ Audit every file against these 5 pillars. If a rule is broken, flag it with the 
 ### 2. 🛡️ Security & Data (`firebase`)
 
 - [ ] **Validation**: Is external data piped through `v.safeParse(Schema)`? Do schemas follow the four Valibot rules in the **`typescript`** skill (optional defaults, pointer factory for objects/arrays, `v.fallback` only as an API safety net, `v.pipe` for chains)?
-
-> [!NOTE]
-> Firebase is **not installed** in this project yet (no `firebase` / `@angular/fire`; `auth.service.ts` is commented out). Do NOT raise the checks below as violations on current code — apply them only to code that actually talks to Firestore.
-
-- [ ] **Injection Context**: Is `runInContext()` (from `@shared/utils/injection.utils`) used for AngularFire calls inside async callbacks?
+- [ ] **Native SDK**: Is the Native Firebase JS SDK (`firebase/*`) used directly? (No `@angular/fire` and zero `runInContext()` injection wrappers).
+- [ ] **Signals Integration**: Are native Firebase promises/listeners feeding directly into Angular Signals (`signal()`, `computed()`) or `resource()`?
 - [ ] **Cost**: Does the query have `limit()`? Is `getCountFromServer` used for counts?
 - [ ] **Pagination**: Is logic paginated (cursor-based)?
 
@@ -49,12 +46,6 @@ Audit every file against these 5 pillars. If a rule is broken, flag it with the 
 - [ ] **Icons**: `<mat-icon name="x" />` (NOT content projection), and is `SharedIconModule` in the component `imports`?
 - [ ] **Shared UI Inputs**: Are bindings to shared components verified against the component source (chips `[(value)]`, table `[paginationService]`, form controls `[formField]`)? Flag any guessed input name.
 - [ ] **Reuse**: Was `src/app/shared/ui|directives|pipes/` checked before hand-rolling a control, pipe, or directive?
-
-### 5. 🧪 Testing (`vitest`)
-
-- [ ] **Behavioral**: Does it test *what it does*, not *how it does it*?
-- [ ] **Harnesses**: Are component harnesses used?
-- [ ] **Async**: `async/await` and `flushEffects()` used?
 
 ## 🚨 Response Format
 

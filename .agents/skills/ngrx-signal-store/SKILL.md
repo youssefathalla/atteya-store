@@ -49,10 +49,6 @@ Define your store in this exact order:
 
 - **Initialization**: Use `withHooks { onInit }` to trigger initial data loads. **DO NOT** call methods in the constructor of the component using the store. The store should own its startup logic.
 
-## 🧪 Testing Strategy
-
-- Because you used `withProps`, you can easily override dependencies using the `{ providers: [] }` option in `TestBed` or by mocking the factory if using functional creation.
-
 ## 📄 Reference & Scripts
 
 - **Canonical example**: `examples/book.store.ts` (in this skill folder) shows the full pipeline in the mandated order.

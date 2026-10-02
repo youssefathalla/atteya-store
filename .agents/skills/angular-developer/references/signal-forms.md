@@ -491,7 +491,6 @@ form(
       },
     );
   },
-  {injector: TestBed.inject(Injector)},
 );
 ```
 
@@ -510,7 +509,6 @@ form(
       },
     );
   },
-  {injector: TestBed.inject(Injector)},
 );
 ```
 

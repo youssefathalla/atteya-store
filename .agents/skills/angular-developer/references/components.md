@@ -42,8 +42,8 @@ To use a component, add it to the `imports` array of the consuming component and
 ```ts
 @Component({
   selector: 'app-root',
-  imports: [Profile],
   template: `<app-profile />`,
+  imports: [Profile],
 })
 export class App {}
 ```

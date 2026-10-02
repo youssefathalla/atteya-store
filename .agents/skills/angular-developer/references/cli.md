@@ -9,7 +9,7 @@ The Angular CLI (`ng`) is the primary tool for managing an Angular workspace. Al
 ```bash
 ng add @angular/material
 ng add tailwindcss
-ng add @angular/fire
+ng add @angular/localize
 ```
 
 To update the application and its dependencies (which automatically runs code migrations):
@@ -46,12 +46,15 @@ ng serve
 To proxy API requests during development (e.g., rerouting `/api` to a local Node server):
 
 1. Create `src/proxy.conf.json`:
+
    ```json
    {
      "/api/**": {"target": "http://localhost:3000", "secure": false}
    }
    ```
+
 2. Update `angular.json` under the `serve` target:
+
    ```json
    "serve": {
      "builder": "@angular/build:dev-server",
@@ -70,17 +73,12 @@ ng build
 - `ng build` defaults to the production configuration, which enables Ahead-of-Time (AOT) compilation, minification, and tree-shaking.
 - Target specific configurations defined in `angular.json` using `--configuration`: `ng build --configuration=staging`.
 
-## 5. Testing
-
-- **Unit Tests**: Run `ng test` to execute unit tests via the configured test runner (e.g., Karma or Vitest).
-- **End-to-End (E2E)**: Run `ng e2e`. If no E2E framework is configured, the CLI will prompt to install one (Cypress, Playwright, Puppeteer, etc.).
-
-## 6. Deployment
+## 5. Deployment
 
 To deploy an application, you must first add a deployment builder, then run the deploy command:
 
 ```bash
-# Example for Firebase
-ng add @angular/fire
+# Example for deployment
+ng add angular-cli-ghpages
 ng deploy
 ```

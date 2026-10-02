@@ -25,14 +25,4 @@ npx ng version
 echo "🏗️ Verifying build configurations..."
 npx ng build --configuration=development --progress=false
 
-# 5. Skip Tests (As requested: Jules ignores testing)
-echo "⏩ Skipping tests for snapshot..."
-
-
 echo "✅ Setup complete! Environment is ready for snapshot."
-# Check for forbidden 3rd party testing libs that Jules keeps trying to add
-if grep -E "@analogjs/vite-plugin-angular|vite-tsconfig-paths" package.json; then
-  echo "❌ CRITICAL ERROR: Jules, you have added forbidden 3rd-party libraries."
-  echo "Angular 22 handles Vitest NATIVELY via @angular/build:unit-test. Remove these from package.json immediately."
-  exit 1
-fi

@@ -1,160 +1,131 @@
-# Angular Animations
+# Modern Angular Animations (Angular 22+)
 
-When animating elements in Angular, **first analyze the project's Angular version** in `package.json`.
-For modern applications (**Angular v20.2 and above**), prefer using native CSS with `animate.enter` and `animate.leave`. For older applications, you may need to use the deprecated `@angular/animations` package.
+Angular 22+ replaces the legacy `@angular/animations` package with **native template animation primitives** (`animate.enter` and `animate.leave`) and programmatic hooks that integrate seamlessly with native CSS and libraries like **GSAP**.
 
-## 1. Native CSS Animations (v20.2+ Recommended)
+---
 
-Modern Angular provides `animate.enter` and `animate.leave` to animate elements as they enter or leave the DOM. They apply CSS classes at the appropriate times.
+## 1. Native Template Animations
+
+Angular provides built-in attributes on elements inside control flow (`@if`, `@for`) to manage enter and leave transitions cleanly without extra packages:
 
 ### `animate.enter` and `animate.leave`
 
-Use these directly on elements to apply CSS classes during the enter or leave phase. Angular automatically removes the enter classes when the animation completes. For `animate.leave`, Angular waits for the animation to finish before removing the element from the DOM.
-
-`animate.enter` example:
+* **`animate.enter="css-class"`**: Applied when an element enters the DOM. Angular automatically strips the class once the CSS transition or animation finishes.
+* **`animate.leave="css-class"`**: Applied when an element is removed. Angular **waits for the animation/transition to complete** before detaching the element from the DOM.
 
 ```html
 @if (isShown()) {
-<div class="enter-container" animate.enter="enter-animation">
-  <p>The box is entering.</p>
-</div>
+  <div
+    class="card-box"
+    animate.enter="fade-in"
+    animate.leave="fade-out"
+  >
+    <p>Animated content</p>
+  </div>
 }
 ```
 
 ```css
-/* Ensure you have a starting style if using transitions instead of keyframes */
-.enter-container {
-  border: 1px solid #dddddd;
-  margin-top: 1em;
-  padding: 20px;
-  font-weight: bold;
-  font-size: 20px;
+.card-box {
+  transition: opacity 250ms ease-out, transform 250ms ease-out;
 }
-.enter-container p {
-  margin: 0;
+
+.fade-in {
+  animation: slideIn 250ms cubic-bezier(0, 0, 0.2, 1) forwards;
 }
-.enter-animation {
-  animation: slide-fade 1s;
+
+.fade-out {
+  animation: slideOut 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
-@keyframes slide-fade {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
 }
 ```
 
-_Note: `animate.leave` may be added to child elements being removed._
+---
 
-### Event Bindings and Third-party Libraries
+## 2. GSAP & JavaScript Integration
 
-You can bind to `(animate.enter)` and `(animate.leave)` to call functions or use JS libraries like GSAP.
+For rich animations, bind to the `(animate.enter)` and `(animate.leave)` event hooks:
 
 ```html
-@if(show()) {
-<div (animate.leave)="onLeave($event)">...</div>
+@if (isOpen()) {
+  <div
+    (animate.enter)="animateEnter($event)"
+    (animate.leave)="animateLeave($event)"
+  >
+    Modal Content
+  </div>
 }
 ```
 
-```ts
-import { AnimationCallbackEvent } from '@angular/core';
-
-onLeave(event: AnimationCallbackEvent) {
-  // Custom animation logic here
-  // CRITICAL: You MUST call animationComplete() when done so Angular removes the element!
-  event.animationComplete();
-}
-```
-
-## 2. Advanced CSS Animations
-
-CSS offers robust tools for advanced animation sequences.
-
-### Animating State and Styles
-
-Toggle CSS classes on elements using property binding to trigger transitions.
-
-```html
-<div [class.open]="isOpen">...</div>
-```
-
-```css
-div {
-  transition: height 0.3s ease-out;
-  height: 100px;
-}
-div.open {
-  height: 200px;
-}
-```
-
-### Animating Auto Height
-
-You can use `css-grid` to animate to auto height.
-
-```css
-.container {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s;
-}
-.container.open {
-  grid-template-rows: 1fr;
-}
-.container > div {
-  overflow: hidden;
-}
-```
-
-### Staggering and Parallel Animations
-
-- **Staggering**: Use `animation-delay` or `transition-delay` with different values for items in a list.
-- **Parallel**: Apply multiple animations in the `animation` shorthand (e.g., `animation: rotate 3s, fade-in 2s;`).
-
-### Programmatic Control
-
-Retrieve animations directly using standard Web APIs:
-
-```ts
-const animations = element.getAnimations();
-animations.forEach((anim) => anim.pause());
-```
-
-## 3. Legacy Animations DSL (Deprecated)
-
-For older projects (pre v20.2 or where `@angular/animations` is already heavily used), you use the component metadata DSL.
-
-**Important:** Do not mix legacy animations and `animate.enter`/`leave` in the same component.
-
-### Setup
-
-```ts
-bootstrapApplication(App, {
-  providers: [provideAnimationsAsync()],
-});
-```
-
-### Defining Transitions
-
-```ts
-import {signal} from '@angular/core';
-import {trigger, state, style, animate, transition} from '@angular/animations';
+```typescript
+import { Component, AnimationCallbackEvent } from '@angular/core';
+import { gsap } from 'gsap';
 
 @Component({
-  animations: [
-    trigger('openClose', [
-      state('open', style({opacity: 1})),
-      state('closed', style({opacity: 0})),
-      transition('open <=> closed', [animate('0.5s')]),
-    ]),
-  ],
-  template: `<div [@openClose]="isOpen() ? 'open' : 'closed'">...</div>`,
+  selector: 'app-dialog-box',
+  templateUrl: './dialog-box.component.html',
 })
-export class OpenClose {
-  protected readonly isOpen = signal(true);
+export class DialogBoxComponent {
+  animateEnter(event: AnimationCallbackEvent): void {
+    gsap.fromTo(
+      event.target,
+      { opacity: 0, scale: 0.95 },
+      {
+        opacity: 1,
+        scale: 1,
+        duration: 0.3,
+        ease: 'power2.out',
+        onComplete: () => event.animationComplete(),
+      }
+    );
+  }
+
+  animateLeave(event: AnimationCallbackEvent): void {
+    // CRITICAL: You MUST call event.animationComplete() when finished
+    // so Angular knows when to safely remove the element from the DOM!
+    gsap.to(event.target, {
+      opacity: 0,
+      scale: 0.9,
+      duration: 0.2,
+      ease: 'power2.in',
+      onComplete: () => event.animationComplete(),
+    });
+  }
 }
 ```
+
+---
+
+## 3. Modern CSS `@starting-style`
+
+Modern browsers support CSS `@starting-style` to animate entry styles directly without extra keyframes:
+
+```css
+.card {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.3s, transform 0.3s;
+
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+```
+
+---
+
+## Summary
+
+* **Do NOT install `@angular/animations`**: It is deprecated in favor of native CSS and template attributes.
+* **Use `animate.enter` & `animate.leave`** for standard CSS animations.
+* **Use `(animate.leave)="onLeave($event)"` + `event.animationComplete()`** when driving animations with **GSAP**.

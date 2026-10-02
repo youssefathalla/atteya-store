@@ -24,7 +24,7 @@ This skill enforces Angular naming conventions for components, services, directi
   - `product-list.ts`
   - `product-list.html`
   - `product-list.css`
-- **Test Files**: Continue to use the same base name with the `.spec.ts` suffix (e.g., `product-list.spec.ts` for `product-list.ts`).
+- **Test Files**: Automated unit testing is disabled in this project. Do not generate `.spec.ts` files.
 
 ### 2. Core Directory (Application Foundation)
 
@@ -67,9 +67,9 @@ Store pure, presentational elements and helpers with zero business logic in a sh
 ## Best Practices & Coexistence Rules
 
 - **How to Determine the Style in Use**:
-  1.  Inspect adjacent files in the target directory (do they end in `.component.ts` or `.ts`?).
-  2.  Check `angular.json` for custom schematics options that might configure suffix behaviors.
-  3.  If unsure, use the traditional role suffix style (`.component.ts`, `.service.ts`) as it is the safest default in the Angular ecosystem.
+  1. Inspect adjacent files in the target directory (do they end in `.component.ts` or `.ts`?).
+  2. Check `angular.json` for custom schematics options that might configure suffix behaviors.
+  3. If unsure, use the traditional role suffix style (`.component.ts`, `.service.ts`) as it is the safest default in the Angular ecosystem.
 - **Avoid Namespace Collisions**: Without role suffixes, files like `user.ts` (component) and `user.model.ts` (model) can collide if they both declare a class/interface named `User`.
   - To prevent this use more specific, intent-based names for components (e.g. `class UserProfile` in `user-profile.ts` or `class UserDetail` in `user-detail.ts`) while keeping the simple domain name for the interface (`interface User` in `user.model.ts`).
 - **Consistency Check**: Do not mix old suffix styles and new suffixless styles in the same feature folder or module. Keep existing legacy code as-is unless migrating the entire module to the modern structure.

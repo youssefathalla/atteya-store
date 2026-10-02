@@ -4,7 +4,6 @@
  * RxJS retry configuration for Firebase operations with transient errors.
  */
 
-// import { AuthError } from '@angular/fire/auth';
 import { throwError, timer } from 'rxjs';
 
 /**

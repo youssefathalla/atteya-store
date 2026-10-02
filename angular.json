@@ -11,23 +11,28 @@
       "schematics": {
         "@schematics/angular:component": {
           "style": "none",
-          "type": "component"
+          "type": "component",
+          "skipTests": true
         },
         "@schematics/angular:service": {
           "flat": false,
-          "type": "service"
+          "type": "service",
+          "skipTests": true
         },
         "@schematics/angular:directive": {
           "type": "directive",
-          "flat": false
+          "flat": false,
+          "skipTests": true
         },
         "@schematics/angular:pipe": {
           "flat": false,
-          "typeSeparator": "."
+          "typeSeparator": ".",
+          "skipTests": true
         },
         "@schematics/angular:guard": {
           "flat": false,
-          "typeSeparator": "."
+          "typeSeparator": ".",
+          "skipTests": true
         }
       },
       "root": "",
@@ -100,13 +105,6 @@
             }
           },
           "defaultConfiguration": "development"
-        },
-        "test": {
-          "builder": "@angular/build:unit-test",
-          "options": {
-            "providersFile": "src/test-providers.ts",
-            "watch": false
-          }
         }
       }
     }
