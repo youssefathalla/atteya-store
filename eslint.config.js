@@ -72,6 +72,7 @@ export default defineConfig([
       // 6. Clean Templates
       '@angular-eslint/template/prefer-self-closing-tags': 'error',
       '@angular-eslint/template/conditional-complexity': ['error', { maxComplexity: 3 }],
+      '@angular-eslint/template/button-has-type': 'error',
     },
   },
 ]);

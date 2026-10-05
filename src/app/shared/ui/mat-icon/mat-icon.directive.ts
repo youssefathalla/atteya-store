@@ -22,9 +22,9 @@ export class MatIconDirective {
    */
   readonly size = input<IconSize>('2xl');
   /**
-   * @default 500
+   * @default 700
    */
-  readonly weight = input<Weight>('500');
+  readonly weight = input<Weight>('700');
   /**
    * @default Google's default icon color
    */

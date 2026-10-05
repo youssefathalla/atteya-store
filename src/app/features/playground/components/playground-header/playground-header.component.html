@@ -29,9 +29,21 @@
 
     <!-- Quick Actions -->
     <div class="flex items-center gap-3 w-full sm:w-auto">
+      <!-- Back to Storefront Link -->
+      <a
+        routerLink="/"
+        matButton="outlined"
+        matTooltip="Back to Atteya Store Homepage"
+        class="flex-1 sm:flex-initial flex items-center justify-center gap-2"
+      >
+        <mat-icon name="storefront" size="xl" />
+        <span>Storefront</span>
+      </a>
+
       <!-- Light / Dark Theme Switcher -->
       <button
         matButton="outlined"
+        type="button"
         (click)="themeService.toggleTheme()"
         [matTooltip]="isDarkMode() ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
         class="flex-1 sm:flex-initial flex items-center justify-center gap-2"
@@ -44,7 +56,7 @@
         <span>{{ isDarkMode() ? 'Light Mode' : 'Dark Mode' }}</span>
       </button>
 
-      <button matButton="filled" (click)="triggerToast()" class="flex-1 sm:flex-initial flex items-center justify-center gap-2">
+      <button matButton="filled" type="button" (click)="triggerToast()" class="flex-1 sm:flex-initial flex items-center justify-center gap-2">
         <mat-icon name="notifications" size="xl" />
         <span>Test Toast</span>
       </button>

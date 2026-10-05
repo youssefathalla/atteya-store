@@ -4,10 +4,6 @@
 
   <!-- Main Content Container -->
   <main class="max-w-9xl w-full mx-auto py-6 px-4 flex flex-col gap-12">
-    @if (activeTab() === 'all' || activeTab() === 'gsap') {
-      <app-gsap-tab />
-    }
-
     @if (activeTab() === 'all' || activeTab() === 'colors') {
       <app-colors-tab />
     }
@@ -50,6 +46,10 @@
 
     @if (activeTab() === 'all' || activeTab() === 'branding') {
       <app-branding-tab />
+    }
+
+    @if (activeTab() === 'all' || activeTab() === 'gsap') {
+      <app-gsap-tab />
     }
   </main>
 </div>

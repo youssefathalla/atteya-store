@@ -3,14 +3,14 @@
 :root {
   //* Global Button Shape (M3)
   @include mat.button-overrides((
-    filled-container-shape: 4px,
-    outlined-container-shape: 4px,
-    protected-container-shape: 4px, // elevated
-    text-container-shape: 4px,
-    tonal-container-shape: 4px
+    filled-container-shape: 0px,
+    outlined-container-shape: 0px,
+    protected-container-shape: 0px, // elevated
+    text-container-shape: 0px,
+    tonal-container-shape: 0px
   ));
     @include mat.fab-overrides((
-    extended-container-shape: 4px,
+    extended-container-shape: 0px,
   ));
 }
 

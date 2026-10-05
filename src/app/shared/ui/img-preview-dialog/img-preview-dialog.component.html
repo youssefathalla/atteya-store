@@ -3,7 +3,7 @@
   <h2 mat-dialog-title>
     {{ data.title || 'common.documentPreview' }}
   </h2>
-  <button matIconButton mat-dialog-close aria-label="Close image preview">
+  <button matIconButton type="button" mat-dialog-close aria-label="Close image preview">
     <mat-icon name="close" iconColor="error" />
   </button>
 </div>
@@ -42,13 +42,13 @@
   <div
     class="flex gap-2 items-center px-4 py-2 backdrop-blur-xl bg-surface-container-lowest rounded-full mat-border-subtle shadow-mat-1"
   >
-    <button matIconButton (click)="zoomOut()" [matTooltip]="'common.zoomOut'" aria-label="Zoom out">
+    <button matIconButton type="button" (click)="zoomOut()" [matTooltip]="'common.zoomOut'" aria-label="Zoom out">
       <mat-icon name="remove" />
     </button>
 
     <span class="w-12 font-body-sm font-mono text-center" aria-live="polite"> {{ scalePercentage() }}% </span>
 
-    <button matIconButton (click)="zoomIn()" [matTooltip]="'common.zoomIn'" aria-label="Zoom in">
+    <button matIconButton type="button" (click)="zoomIn()" [matTooltip]="'common.zoomIn'" aria-label="Zoom in">
       <mat-icon name="add" />
     </button>
 
@@ -56,6 +56,7 @@
 
     <button
       matIconButton
+      type="button"
       (click)="rotateCcw()"
       [matTooltip]="'Rotate 90° CCW'"
       aria-label="Rotate image 90 degrees counter-clockwise"
@@ -65,6 +66,7 @@
 
     <button
       matIconButton
+      type="button"
       (click)="rotateCw()"
       [matTooltip]="'Rotate 90° CW'"
       aria-label="Rotate image 90 degrees clockwise"
@@ -74,6 +76,7 @@
 
     <button
       matIconButton
+      type="button"
       (click)="reset()"
       [matTooltip]="'common.resetView'"
       aria-label="Reset view"

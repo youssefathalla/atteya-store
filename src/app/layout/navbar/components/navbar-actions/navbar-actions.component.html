@@ -1,0 +1,55 @@
+<div class="flex items-center gap-1.5 sm:gap-2.5">
+  <!-- Quick Search Trigger -->
+  <button
+    matIconButton
+    matTooltip="Search"
+    type="button"
+    (click)="toggleSearch()"
+    aria-label="Open search dialog"
+  >
+    <mat-icon name="search" size="3xl" />
+  </button>
+
+  <!-- Cart with Badge -->
+  <button
+    matIconButton
+    matTooltip="Cart"
+    type="button"
+    aria-label="Shopping Cart"
+    [matBadge]="cartCount()"
+    [matBadgeHidden]="cartCount() === 0"
+    [matBadgeDescription]="cartCount() + ' items in cart'"
+  >
+    <mat-icon name="shopping_bag" size="3xl" />
+  </button>
+
+  <!-- User Account -->
+  <button
+    matIconButton
+    matTooltip="Profile"
+    [matMenuTriggerFor]="menu"
+    type="button"
+    aria-label="Profile"
+  >
+    <mat-icon name="person_outline" size="3xl" />
+  </button>
+</div>
+
+<mat-menu #menu="matMenu" xPosition="before">
+  <button mat-menu-item type="button">
+    <mat-icon name="person" />
+    <span>Profile</span>
+  </button>
+  <button mat-menu-item type="button">
+    <mat-icon name="favorite" />
+    <span>Favorite</span>
+  </button>
+  <button mat-menu-item type="button">
+    <mat-icon name="orders" />
+    <span>Orders</span>
+  </button>
+  <button mat-menu-item type="button">
+    <mat-icon name="logout" />
+    <span>Logout</span>
+  </button>
+</mat-menu>

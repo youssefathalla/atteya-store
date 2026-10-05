@@ -1,0 +1,74 @@
+<nav class="hidden md:flex h-full items-center pt-4" aria-label="Main Store Navigation">
+  <ul class="flex h-full items-center">
+    @for (category of categories(); track category.id) {
+      <li
+        class="relative h-full flex items-center font-bold! border-b-4 px-4 cursor-pointer"
+        [class.border-primary]="activeCategoryId() === category.id"
+        [class.border-transparent]="activeCategoryId() !== category.id"
+        (mouseenter)="onCategoryMouseEnter(category.id)"
+        (mouseleave)="onCategoryMouseLeave()"
+      >
+        <a
+          [routerLink]="category.path"
+          (click)="onCategoryClick(category, $event)"
+          role="menuitem"
+        >
+          <span>{{ category.label }}</span>
+        </a>
+      </li>
+    }
+  </ul>
+</nav>
+
+@if (activeCategory(); as currentCategory) {
+  <div
+    class="absolute left-0 top-full w-full bg-on-primary inset-shadow-sm shadow-md z-10"
+    (mouseenter)="onMenuMouseEnter()"
+    (mouseleave)="onMenuMouseLeave()"
+  >
+    <div [style.paddingLeft.px]="navLeft()" class="w-full py-8">
+      <div class="flex flex-row">
+        <!-- Columns Generated from Data -->
+        @for (column of currentCategory.megaMenu; track column.title || $index) {
+          <div
+            class="flex flex-col border-r-2 border-outline-variant px-8 first:pl-4 last:border-r-0"
+          >
+            @if (column.title) {
+              <h3
+                class="mb-2 pb-1 border-b border-outline-variant font-label-lg font-bold!"
+              >
+                {{ column.title }}
+              </h3>
+            }
+
+            <ul class="flex flex-col gap-2.5">
+              @for (link of column.links; track link.label) {
+                <li>
+                  <a
+                    [routerLink]="link.path"
+                    (click)="closeMegaMenuImmediate()"
+                    class="group inline-flex items-center gap-2 font-body-md tracking-wide transition-all"
+                    [class.font-bold]="link.isBrand"
+                    role="menuitem"
+                  >
+                    <span
+                      class="group-hover:text-primary text-primary/60 group-hover:underline"
+                    >
+                      {{ link.label }}
+                    </span>
+
+                    @if (link.badge) {
+                      <span class="font-body-sm bg-amber-400! px-1 text-primary">
+                        {{ link.badge }}
+                      </span>
+                    }
+                  </a>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

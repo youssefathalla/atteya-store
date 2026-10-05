@@ -24,6 +24,7 @@
       <button
         matPrefix
         matIconButton
+        type="button"
         matTooltip="Search in Database"
         (click)="onSearchSubmit()"
         aria-label="Search in Database"
@@ -40,7 +41,7 @@
         (keyup.enter)="onSearchSubmit()"
       />
       @if (searchTerm().length > 0) {
-        <button matSuffix matIconButton aria-label="Clear search" (click)="clearSearch()">
+        <button matSuffix matIconButton type="button" aria-label="Clear search" (click)="clearSearch()">
           <mat-icon name="close" />
         </button>
       }
@@ -80,6 +81,7 @@
             <button
               class="ms-1 customIcon"
               matIconButton
+              type="button"
               [matMenuTriggerFor]="columnMenu"
               (click)="$event.stopPropagation()"
               (menuOpened)="onMenuOpened(column)"
@@ -123,7 +125,7 @@
           @if (hasActiveFilters()) {
             <div class="flex flex-col items-center justify-center gap-2 p-4">
               <span class="font-medium">No data found, please clear filters</span>
-              <button matButton="tonal" theme="info" (click)="clearAllFilters()">
+              <button matButton="tonal" theme="info" type="button" (click)="clearAllFilters()">
                 <mat-icon name="filter_alt_off" />
                 Clear Filters
               </button>
@@ -147,7 +149,7 @@
         </div>
 
         <!-- Clear Filter Button -->
-        <button mat-menu-item (click)="clearColumnFilter()">
+        <button mat-menu-item type="button" (click)="clearColumnFilter()">
           <mat-icon name="clear_all" />
           <span>Clear Filter</span>
         </button>
@@ -157,6 +159,7 @@
           @for (option of filterOptions(); track option.value) {
             <button
               mat-menu-item
+              type="button"
               (click)="applyColumnFilter(option.value)"
               id="clear-filter-button"
             >

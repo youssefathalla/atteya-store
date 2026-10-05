@@ -1,12 +1,12 @@
-<button matButton [matMenuTriggerFor]="menu">
+<button matButton type="button" [matMenuTriggerFor]="menu">
   <mat-icon name="language" />
   <span class="ml-2">{{ 'language' | transloco }}</span>
 </button>
 <mat-menu #menu="matMenu">
-  <button mat-menu-item (click)="switchLanguage('en')">
+  <button mat-menu-item type="button" (click)="switchLanguage('en')">
     <span>{{ 'english' | transloco }}</span>
   </button>
-  <button mat-menu-item (click)="switchLanguage('ar')">
+  <button mat-menu-item type="button" (click)="switchLanguage('ar')">
     <span>{{ 'arabic' | transloco }}</span>
   </button>
 </mat-menu>

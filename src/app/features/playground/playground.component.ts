@@ -36,5 +36,5 @@ import {
   templateUrl: './playground.component.html',
 })
 export class PlaygroundComponent {
-  protected readonly activeTab = signal<PlaygroundTab>('gsap');
+  protected readonly activeTab = signal<PlaygroundTab>('all');
 }
