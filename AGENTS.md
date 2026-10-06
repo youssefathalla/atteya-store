@@ -34,6 +34,8 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 ### 🎨 Design System & Styling
 
 - **The Contract**: Governed strictly by `.agents/rules/design-system.md` (auto-loaded for `.html`, `.css`, `.scss`, and `.ts`). Adhere to all semantic tokens, M3 overrides, `<mat-icon name="icon" />` with `SharedIconModule`, and utility extraction rules.
+- **Zero Tailwind on Angular Material**: Angular Material components (`button[matButton]`, `button[matIconButton]`, `<mat-icon>`, `<mat-menu>`, `<mat-drawer>`, etc.) are already fully styled by the M3 theme. **NEVER** apply Tailwind styling, color, transition, or hover classes to Material components. Only style **native HTML elements** (`<div>`, `<nav>`, `<section>`, `<ul>`, `<a>`, etc.) unless explicitly instructed by the user.
+- **Monochrome (Black & White) Identity**: Brand aesthetic is strictly Black & White. `primary` is black; default text is `text-on-surface` (black). Never add redundant child color overrides (e.g. `<span class="text-primary">.</span>`), and inherit colors cleanly.
 - **The Reference**: Activate the **`design-system`** skill for the styling directory map, token registration, Material overrides, and component APIs.
 
 ### 🛡️ Data Validation (active) & Firebase (target state)

@@ -7,7 +7,7 @@ $handset-landscape: '(max-width: 959.98px) and (orientation: landscape)';
   //* sidenav
   @include mat.sidenav-overrides((
     container-shape: 0,
-    container-width: 20rem,
+    // container-width: 40rem,
     container-background-color: var(--mat-sys-primary-container),
     container-text-color: var(--mat-sys-on-primary-container),
   ));
@@ -16,7 +16,7 @@ $handset-landscape: '(max-width: 959.98px) and (orientation: landscape)';
 @media #{$handset-portrait}, #{$handset-landscape} {
   :root {
     @include mat.sidenav-overrides((
-      container-width: min(100%, 360px),
+      container-width: min(100%, 37.5rem),
     ));
   }
 }

@@ -1,4 +1,4 @@
-import { NavCategory } from './navbar.model';
+import { NavCategory } from '../models/nav.model';
 
 export const NAV_CATEGORIES: readonly NavCategory[] = [
   {

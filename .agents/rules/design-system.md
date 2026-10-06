@@ -17,8 +17,10 @@ This file is deliberately lookup-free: everything here you can use immediately. 
 
 | ❌ Never | ✅ Always |
 | :--- | :--- |
+| Tailwind classes on Angular Material components (`text-*`, `hover:*`, `bg-*` on `matIconButton`, `matButton`, `mat-icon`, `mat-menu`, etc.) | **NEVER** style Material components. They are already styled. Style **only native HTML elements** (`div`, `nav`, `section`, `a`, etc.) unless explicitly asked. |
 | `::ng-deep`, component CSS on Material internals | `@include mat.<component>-overrides(( ... ))` in `src/styles/ng-material/components/` |
 | Raw colors: `bg-red-500`, `text-white`, `#fff` | Semantic tokens: `bg-primary`, `text-on-surface` |
+| Redundant color classes (e.g. `text-primary` inside `text-on-surface`, `<span class="text-primary">.</span>`) | Inherit parent color; design is strictly Monochrome (Black & White) |
 | Prefix important: `!hidden` | Suffix important: `hidden!` |
 | `w-10 h-10` | `size-10` |
 | `bg-opacity-50` | `bg-black/50` |
@@ -26,6 +28,12 @@ This file is deliberately lookup-free: everything here you can use immediately. 
 | `color="primary"` on Material components | `theme="success \| warning \| error \| info"` |
 | `<mat-icon>home</mat-icon>` | `<mat-icon name="home" />` |
 | `tailwind.config.js` (does not exist — v4 is config-less) | `@theme` / `@utility` / `@layer components` in `src/styles/tailwind/` |
+
+> [!CAUTION]
+> **STRICT RULE — ZERO TAILWIND ON ANGULAR MATERIAL COMPONENTS**:
+> Angular Material components (`button[matButton]`, `button[matIconButton]`, `<mat-icon>`, `<mat-menu>`, `<mat-drawer>`, `<mat-checkbox>`, etc.) are already fully themed and styled. **NEVER** apply Tailwind styling, color, transition, or hover classes to Material components. You may only style **native HTML elements** (`<div>`, `<nav>`, `<section>`, `<ul>`, `<a>`, etc.) for layout and spacing.
+
+**Monochrome (Black & White) Identity**: `primary` is black, and base content text is already black (`text-on-surface`). Never wrap punctuation or words in redundant color spans (e.g. write `ATTEYA.` cleanly, not `ATTEYA<span class="text-primary">.</span>`). Inherit colors naturally from parent containers.
 
 **Material first**: let Angular Material own structure, text sizes and elevation. Use Tailwind for layout, spacing and page composition.
 

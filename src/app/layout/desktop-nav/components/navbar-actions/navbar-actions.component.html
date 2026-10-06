@@ -1,4 +1,4 @@
-<div class="flex items-center gap-1.5 sm:gap-2.5">
+<div class="flex items-center gap-1.5 sm:gap-2.5 icon-btn-lg">
   <!-- Quick Search Trigger -->
   <button
     matIconButton
@@ -16,6 +16,7 @@
     matTooltip="Cart"
     type="button"
     aria-label="Shopping Cart"
+    (click)="toggleCart()"
     [matBadge]="cartCount()"
     [matBadgeHidden]="cartCount() === 0"
     [matBadgeDescription]="cartCount() + ' items in cart'"

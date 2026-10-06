@@ -8,7 +8,7 @@ import { RouterLink } from '@angular/router';
   template: `
     <!-- Brand Logo -->
     <a routerLink="/" matTooltip="Home" matTooltipPosition="below">
-      <img src="img/logo/logo.png" alt="Atteya Store" class="md:size-12 size-10" />
+      <img src="img/logo/logo.png" alt="Atteya Store" class="lg:size-12 size-10" />
     </a>
   `,
 })

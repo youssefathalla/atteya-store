@@ -11,13 +11,13 @@ import {
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavCategory } from '../../navbar.model';
-import { NAV_CATEGORIES } from '../../navbar.data';
+import { NavCategory } from '../../../models/nav.model';
+import { NAV_CATEGORIES } from '../../../data/nav.data';
 
 @Component({
-  selector: 'app-desktop-nav',
+  selector: 'app-nav-links',
   imports: [RouterLink],
-  templateUrl: './desktop-nav.component.html',
+  templateUrl: './nav-links.component.html',
   host: {
     class: 'h-full hidden lg:flex items-center z-20',
     '(window:resize)': 'updateNavLeft()',
@@ -25,7 +25,7 @@ import { NAV_CATEGORIES } from '../../navbar.data';
     '(document:click)': 'onDocumentClick($event)',
   },
 })
-export class DesktopNavComponent {
+export class NavLinksComponent {
   readonly #elementRef = inject(ElementRef<HTMLElement>);
   readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);

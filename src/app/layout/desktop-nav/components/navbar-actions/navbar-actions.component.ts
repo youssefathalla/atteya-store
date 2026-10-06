@@ -1,9 +1,10 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { DrawerService } from '../../../../core/services/drawer/drawer.service';
 
 @Component({
   imports: [
@@ -17,9 +18,14 @@ import { MatTooltipModule } from '@angular/material/tooltip';
   templateUrl: './navbar-actions.component.html',
 })
 export class NavbarActionsComponent {
-  protected readonly cartCount = signal<number>(2);
+  readonly #drawerService = inject(DrawerService);
+  readonly cartCount = signal<number>(2);
 
-  toggleSearch() {
+  toggleSearch(): void {
     console.log('Toggle search');
+  }
+
+  toggleCart(): void {
+    this.#drawerService.toggle('cart');
   }
 }

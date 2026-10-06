@@ -9,11 +9,19 @@
     text-container-shape: 0px,
     tonal-container-shape: 0px
   ));
-    @include mat.fab-overrides((
+
+  //- fab
+  @include mat.fab-overrides((
     extended-container-shape: 0px,
   ));
 }
 
+.icon-btn-lg{
+  @include mat.icon-button-overrides((
+    icon-size: 30px,
+    state-layer-size: 42px
+  ));
+}
 /* Target the label ONLY when the button contains a spinner */
 button:has(mat-spinner) .mdc-button__label,
 button.twoIcons .mdc-button__label {
@@ -40,3 +48,5 @@ button.twoIcons .mdc-button__label {
     tonal-label-text-size: 12px,
   ));
 }
+
+

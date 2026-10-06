@@ -1,0 +1,66 @@
+<div class="h-full flex flex-col bg-surface text-on-surface">
+  <!-- Cart Header -->
+  <header
+    class="flex items-center justify-between px-5 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] lg:pt-4 pb-4 border-b border-outline-variant bg-surface-container-lowest"
+  >
+    <div class="flex items-center gap-2">
+      <mat-icon name="shopping_bag" size="xl" />
+      <h2 class="font-title-md font-bold tracking-tight">Shopping Bag</h2>
+    </div>
+
+    <button
+      matIconButton
+      type="button"
+      (click)="drawerService.close()"
+      aria-label="Close shopping bag"
+    >
+      <mat-icon name="close" size="xl" />
+    </button>
+  </header>
+
+  <!-- Cart Content (Empty State or Items) -->
+  <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center text-center">
+    <div
+      class="size-20 rounded-full bg-surface-container-high elements-center mb-4 text-on-surface-variant"
+    >
+      <mat-icon name="shopping_cart" size="4xl" />
+    </div>
+
+    <h3 class="font-title-md font-bold text-on-surface mb-1">Your bag is empty</h3>
+    <p class="font-body-md text-on-surface-variant max-w-60 mb-6">
+      Explore our premium padel rackets, shoes, and gear to get started.
+    </p>
+
+    <button
+      matButton="filled"
+      type="button"
+      routerLink="/category/rackets"
+      (click)="drawerService.close()"
+    >
+      Explore Rackets
+    </button>
+  </div>
+
+  <!-- Cart Footer / Summary -->
+  <footer
+    class="p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] lg:pb-5 border-t border-outline-variant bg-surface-container-lowest space-y-3"
+  >
+    <div class="flex items-center justify-between font-label-lg text-on-surface-variant">
+      <span>Subtotal</span>
+      <span class="font-title-sm font-bold text-on-surface">$0.00</span>
+    </div>
+
+    <p class="font-label-sm text-on-surface-variant text-center">
+      Taxes and shipping calculated at checkout
+    </p>
+
+    <button
+      matButton="filled"
+      type="button"
+      class="w-full"
+      disabled
+    >
+      Checkout
+    </button>
+  </footer>
+</div>

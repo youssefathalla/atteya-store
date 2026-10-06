@@ -1,0 +1,82 @@
+<nav
+  class="fixed bottom-0 inset-x-0 z-50 lg:hidden bg-surface-container-lowest/95 backdrop-blur-md border-t border-outline-variant px-3 py-1.5 pb-[calc(env(safe-area-inset-bottom,0px)+0.375rem)] shadow-mat-2 select-none"
+  aria-label="Mobile navigation"
+>
+  <div class="elements-between py-2 px-1 sm:px-2 icon-btn-lg">
+    <!-- 1. Search -->
+    <button matIconButton type="button" (click)="toggleSearch()" aria-label="Search">
+      <mat-icon name="search" size="3xl" />
+    </button>
+
+    <!-- 2. Bag / Cart with Badge (Toggles between bag and close icon) -->
+    <button
+      matIconButton
+      type="button"
+      (click)="toggleCart()"
+      aria-label="Shopping Cart"
+      [matBadge]="cartCount()"
+      [matBadgeHidden]="cartCount() === 0 || isCartOpen()"
+      [matBadgeDescription]="cartCount() + ' items in cart'"
+    >
+      <mat-icon [name]="isCartOpen() ? 'close' : 'shopping_bag'" size="3xl" />
+    </button>
+
+    <!-- 3. CENTER: Brand Logo / Home Anchor -->
+    <app-logo />
+
+    <!-- 4. Profile / Account -->
+    <button
+      matIconButton
+      type="button"
+      [matMenuTriggerFor]="profileMenu"
+      aria-label="User Account"
+    >
+      <mat-icon name="person_outline" size="3xl" />
+    </button>
+
+    <!-- 5. Menu / All Categories (Toggles between menu and close icon) -->
+    <button
+      matIconButton
+      type="button"
+      (click)="toggleMenu()"
+      aria-label="Toggle navigation menu"
+    >
+      <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" size="3xl" />
+    </button>
+  </div>
+</nav>
+
+<!-- Profile Menu Popup (Opens upwards above the bottom bar) -->
+<mat-menu #profileMenu="matMenu" yPosition="above" xPosition="before">
+  <button mat-menu-item type="button">
+    <mat-icon name="person" />
+    <span>Profile</span>
+  </button>
+  <button mat-menu-item type="button">
+    <mat-icon name="favorite" />
+    <span>Favorite</span>
+  </button>
+  <button mat-menu-item type="button">
+    <mat-icon name="orders" />
+    <span>Orders</span>
+  </button>
+  <button mat-menu-item type="button">
+    <mat-icon name="logout" />
+    <span>Logout</span>
+  </button>
+</mat-menu>
+
+<!-- Mobile Fullscreen Slide-Up Menu Panel (z-40: sits cleanly under z-50 bottom bar) -->
+<app-mobile-menu />
+
+<!-- Mobile Fullscreen Slide-Up Cart Panel (z-40: sits cleanly under z-50 bottom bar) -->
+<div
+  class="fixed inset-0 z-40 flex flex-col bg-surface h-dvh w-full transition-transform duration-200 ease-out lg:hidden pb-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]"
+  [class.translate-y-0]="isCartOpen()"
+  [class.translate-y-full]="!isCartOpen()"
+  [class.pointer-events-auto]="isCartOpen()"
+  [class.pointer-events-none]="!isCartOpen()"
+  aria-label="Shopping Cart"
+>
+  <app-cart-drawer />
+</div>

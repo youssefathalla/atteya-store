@@ -1,0 +1,11 @@
+@use '@angular/material' as mat;
+
+:root {
+  @include mat.badge-overrides((
+    container-overlap-offset: -16px,
+  ));
+}
+
+.mat-badge-content {
+  z-index: 1;
+}
