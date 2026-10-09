@@ -11,9 +11,7 @@ import {
 import { provideClientHydration } from '@angular/platform-browser';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
-import { provideTransloco } from '@jsverse/transloco';
 import { routes } from './app.routes';
-import { translocoConfig } from '@core/i18n/transloco.config';
 import { environment } from '@env/environment';
 import {
   provideFirebaseApp,
@@ -44,7 +42,6 @@ export const appConfig: ApplicationConfig = {
     provideClientHydration(),
 
     provideNativeDateAdapter(),
-    provideTransloco(translocoConfig),
     { provide: MAT_ICON_DEFAULT_OPTIONS, useValue: { fontSet: 'material-symbols-outlined' } },
 
     // Modular Firebase Suite

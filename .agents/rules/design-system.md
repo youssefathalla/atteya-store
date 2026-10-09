@@ -19,12 +19,13 @@ This file is deliberately lookup-free: everything here you can use immediately. 
 | :--- | :--- |
 | Tailwind classes on Angular Material components (`text-*`, `hover:*`, `bg-*` on `matIconButton`, `matButton`, `mat-icon`, `mat-menu`, etc.) | **NEVER** style Material components. They are already styled. Style **only native HTML elements** (`div`, `nav`, `section`, `a`, etc.) unless explicitly asked. |
 | `::ng-deep`, component CSS on Material internals | `@include mat.<component>-overrides(( ... ))` in `src/styles/ng-material/components/` |
-| Raw colors: `bg-red-500`, `text-white`, `#fff` | Semantic tokens: `bg-primary`, `text-on-surface` |
-| Redundant color classes (e.g. `text-primary` inside `text-on-surface`, `<span class="text-primary">.</span>`) | Inherit parent color; design is strictly Monochrome (Black & White) |
+| `text-on-surface` on any element | **NEVER write `text-on-surface`**. `body` already sets `color: var(--mat-sys-on-surface)`. Text color is inherited naturally across all elements. Writing it is banned as class bloat. |
+| Raw colors: `bg-red-500`, `text-white`, `#fff` | Semantic tokens: `bg-primary`, `bg-surface-container-*` |
+| Redundant color classes (e.g. `<span class="text-primary">.</span>`) | Inherit parent color; design is strictly Monochrome (Black & White) |
+| Arbitrary text sizes & weights (`text-xs`, `text-sm`, `text-3xl`, `font-medium`, `font-semibold`, `font-black`, `font-bold`) | Use M3 `font-*-*` tokens only. To make text bold, **always use `font-bold!`** (with trailing `!` to override M3 `font:` shorthand). |
 | Prefix important: `!hidden` | Suffix important: `hidden!` |
 | `w-10 h-10` | `size-10` |
 | `bg-opacity-50` | `bg-black/50` |
-| `text-2xl font-bold` for headings | `font-headline-md` |
 | `color="primary"` on Material components | `theme="success \| warning \| error \| info"` |
 | `<mat-icon>home</mat-icon>` | `<mat-icon name="home" />` |
 | `tailwind.config.js` (does not exist — v4 is config-less) | `@theme` / `@utility` / `@layer components` in `src/styles/tailwind/` |
@@ -33,7 +34,7 @@ This file is deliberately lookup-free: everything here you can use immediately. 
 > **STRICT RULE — ZERO TAILWIND ON ANGULAR MATERIAL COMPONENTS**:
 > Angular Material components (`button[matButton]`, `button[matIconButton]`, `<mat-icon>`, `<mat-menu>`, `<mat-drawer>`, `<mat-checkbox>`, etc.) are already fully themed and styled. **NEVER** apply Tailwind styling, color, transition, or hover classes to Material components. You may only style **native HTML elements** (`<div>`, `<nav>`, `<section>`, `<ul>`, `<a>`, etc.) for layout and spacing.
 
-**Monochrome (Black & White) Identity**: `primary` is black, and base content text is already black (`text-on-surface`). Never wrap punctuation or words in redundant color spans (e.g. write `ATTEYA.` cleanly, not `ATTEYA<span class="text-primary">.</span>`). Inherit colors naturally from parent containers.
+**Monochrome (Black & White) Identity**: `primary` is black, and base content text is already black (inherited `var(--mat-sys-on-surface)` from `body`). **NEVER write `text-on-surface` on HTML elements**. Never wrap punctuation or words in redundant color spans (e.g. write `ATTEYA.` cleanly, not `ATTEYA<span class="text-primary">.</span>`). Inherit colors naturally from parent containers.
 
 **Material first**: let Angular Material own structure, text sizes and elevation. Use Tailwind for layout, spacing and page composition.
 
@@ -43,13 +44,18 @@ This file is deliberately lookup-free: everything here you can use immediately. 
 
 ## 2. Typography
 
-| Scale | Classes |
-| :--- | :--- |
-| Display | `font-display-lg` \| `font-display-md` \| `font-display-sm` |
-| Headline | `font-headline-lg` \| `font-headline-md` \| `font-headline-sm` |
-| Title | `font-title-lg` \| `font-title-md` \| `font-title-sm` |
-| Body | `font-body-lg` \| `font-body-md` \| `font-body-sm` |
-| Label | `font-label-lg` \| `font-label-md` \| `font-label-sm` |
+Always use Material M3 typography tokens. Never use arbitrary Tailwind text sizing (`text-xs`, `text-sm`, `text-2xl`, etc.). For bold weight, always append `!` (`font-bold!`).
+
+| Scale | Token Classes | Standard Role |
+| :--- | :--- | :--- |
+| Display | `font-display-lg` \| `font-display-md` \| `font-display-sm` | Hero sections, high-impact branding |
+| Headline | `font-headline-lg` \| `font-headline-md` \| `font-headline-sm` | Page headers, major section headers |
+| Title | `font-title-lg` \| `font-title-md` \| `font-title-sm` | Card headers, table headers, group titles |
+| Body | `font-body-lg` \| `font-body-md` \| `font-body-sm` | Descriptions, paragraphs, content text |
+| Label | `font-label-lg` \| `font-label-md` \| `font-label-sm` | Breadcrumbs, badges, chips, captions, buttons |
+
+> [!IMPORTANT]
+> **Bold Weight Overrides**: Because M3 tokens apply `font: var(--mat-sys-...)` shorthand (which includes font-weight), you MUST write `font-bold!` (with trailing `!`) when bolding is required (e.g. `<h1 class="font-display-md font-bold! uppercase">` or `<span class="font-label-sm font-bold!">`). Never write `font-bold` without `!`, and never use `font-medium`, `font-semibold`, or `font-black`.
 
 ---
 

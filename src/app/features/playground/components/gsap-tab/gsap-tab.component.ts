@@ -1,4 +1,4 @@
-import { Component, afterNextRender } from '@angular/core';
+import { Component } from '@angular/core';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 

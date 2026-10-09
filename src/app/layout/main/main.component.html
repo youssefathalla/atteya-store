@@ -1,17 +1,16 @@
-<mat-drawer-container hasBackdrop="true" class="min-h-screen bg-surface text-on-surface">
+<mat-drawer-container hasBackdrop="true" class="min-h-screen bg-surface">
   <!-- 1. END DRAWER: Slide-Over Cart (Desktop Only) -->
   <mat-drawer
     position="end"
     mode="over"
     [opened]="isDesktop() && drawerService.activeDrawer() === 'cart'"
     (closed)="drawerService.close()"
-    class="w-full sm:max-w-md bg-surface border-s border-outline-variant shadow-mat-3 hidden lg:block"
   >
     <app-cart-drawer />
   </mat-drawer>
 
   <!-- 2. MAIN PAGE CONTENT -->
-  <mat-drawer-content class="min-h-screen flex flex-col bg-surface text-on-surface">
+  <mat-drawer-content class="min-h-screen flex flex-col bg-surface">
     <!-- Store Desktop Navigation Header -->
     <app-desktop-nav />
 
@@ -22,33 +21,40 @@
 
     <!-- Store Minimal Footer -->
     <footer
-      class="w-full bg-surface-container-lowest text-on-surface-variant border-t border-outline-variant py-10 pb-24 lg:pb-10 px-4 sm:px-6 lg:px-8 mt-auto select-none"
+      class="w-full bg-surface-container-lowest border-t border-outline-variant py-10 pb-24 lg:pb-10 px-4 sm:px-6 lg:px-8 mt-auto select-none"
     >
       <div
         class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6"
       >
         <div class="flex items-center gap-2">
           <span
-            class="font-display-sm text-lg font-black tracking-widest text-on-surface uppercase"
+            class="font-display-sm font-bold! tracking-widest uppercase"
           >
             ATTEYA.
           </span>
-          <span class="font-label-sm text-on-surface-variant font-mono">
+          <span class="font-label-sm font-mono opacity-80">
             | Premier Padel & Sports Store
           </span>
         </div>
 
         <div
-          class="flex items-center gap-6 font-label-md font-semibold tracking-wider uppercase text-on-surface-variant"
+          class="flex items-center gap-6 font-label-md font-bold! tracking-wider uppercase opacity-80"
         >
           <span>Official Dealer</span>
           <span>100% Authentic</span>
           <span>Express Shipping</span>
         </div>
 
-        <p class="font-label-sm text-on-surface-variant">
-          &copy; 2026 Atteya Store. All rights reserved.
-        </p>
+        <div class="flex items-center gap-3 font-label-sm opacity-80">
+          <p>&copy; 2026 Atteya Store. All rights reserved.</p>
+          <span>&bull;</span>
+          <a
+            routerLink="/admin/navigation"
+            class="transition-colors underline-offset-4 hover:underline"
+          >
+            Admin Portal
+          </a>
+        </div>
       </div>
     </footer>
 

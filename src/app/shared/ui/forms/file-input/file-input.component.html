@@ -1,6 +1,6 @@
 <div class="flex flex-col gap-1.5 w-full">
   @if (label()) {
-    <label [for]="inputId" class="font-body-sm font-medium text-on-surface">
+    <label [for]="inputId" class="font-body-sm font-bold!">
       {{ label() }}
     </label>
   }
@@ -22,7 +22,7 @@
       <!-- PREVIEW STATE -->
       @if (isImage()) {
         <div
-          class="relative w-24 h-24 rounded-corner-xs overflow-hidden border border-outline-variant shadow-mat-1"
+          class="relative size-24 rounded-corner-xs overflow-hidden border border-outline-variant shadow-mat-1"
         >
           <img
             [ngSrc]="previewUrl() || ''"
@@ -32,7 +32,7 @@
           />
         </div>
       } @else {
-        <div class="flex items-center gap-2 text-on-surface">
+        <div class="flex items-center gap-2">
           <mat-icon name="description" size="2xl" iconColor="primary" />
           <span class="font-body-sm truncate max-w-50">{{
             fileName() || 'File selected'
@@ -43,10 +43,11 @@
         matButton="outlined"
         type="button"
         (click)="triggerUpload()"
-        class="flex items-center gap-2"
       >
-        <mat-icon name="edit" size="sm" />
-        <span>Change File</span>
+        <span class="flex items-center gap-2">
+          <mat-icon name="edit" size="sm" />
+          <span>Change File</span>
+        </span>
       </button>
     } @else {
       <!-- EMPTY STATE: Centered normal button with label and max size -->
@@ -54,12 +55,13 @@
         matButton="outlined"
         type="button"
         (click)="triggerUpload()"
-        class="flex items-center gap-2"
       >
-        <mat-icon name="upload_file" size="lg" />
-        <span>Choose File</span>
+        <span class="flex items-center gap-2">
+          <mat-icon name="upload_file" size="lg" />
+          <span>Choose File</span>
+        </span>
       </button>
-      <span class="font-label-sm text-on-surface-variant">
+      <span class="font-label-sm opacity-70">
         Max size: {{ (maxSizeBytes() / (1024 * 1024)).toFixed(0) }}MB
       </span>
     }
@@ -68,7 +70,7 @@
   <!-- Error Message -->
   @if (localError() || showError()) {
     <div class="flex items-center gap-1.5 px-1 animate-slide-down">
-      <mat-icon name="error" size="sm" class="text-error" />
+      <mat-icon name="error" size="sm" iconColor="error" />
       <span class="text-error font-body-sm">
         {{ errorMessage() }}
       </span>

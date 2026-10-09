@@ -59,10 +59,11 @@
           matButton="outlined"
           type="button"
           (click)="customIconType.set(customIconType() === 'fill' ? 'outline' : 'fill')"
-          class="flex items-center gap-2"
         >
-          <mat-icon name="contrast" size="sm" />
-          <span>Style: {{ customIconType() === 'fill' ? 'Solid Fill' : 'Outline' }}</span>
+          <span class="flex items-center gap-2">
+            <mat-icon name="contrast" size="sm" />
+            <span>Style: {{ customIconType() === 'fill' ? 'Solid Fill' : 'Outline' }}</span>
+          </span>
         </button>
       </div>
     </div>

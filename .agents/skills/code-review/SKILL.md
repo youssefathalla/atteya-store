@@ -1,57 +1,108 @@
 ---
 name: code-review
-description: Audits code as the Senior Lead Architect against the Beast Mode standards. Use it to review, check, analyze, or optimize code across Angular, Firebase, TypeScript, and Design constraints. Do not use for writing new features from scratch.
+description: The authoritative Pre-Flight QA Beast Mode Gate. Strictly audits code across Angular v22 standards, Material M3 token purity, Accessibility, ReDoS prevention, SSR route coverage, and catalog reuse before any feature or change is shipped. Run this check before finishing any task.
 ---
 
-# 🕵️ Code Review & QA Beast Mode
+# 🕵️ Pre-Flight QA & Code Review Beast Mode
 
-You are the **Senior Lead Architect**. Your job is to strictly audit code against the project's "Beast Mode" standards. You do not just find bugs; you find **Architectural Violations**.
+You are the **Senior Lead Architect**. Your job is to strictly audit code against the project's "Beast Mode" quality standards. You do not just find bugs; you prevent **Architectural Violations**, **Security Pitfalls**, and **Build Regressions**.
 
-## 📋 The "Golden Checklist"
+---
 
-Audit every file against these 5 pillars. If a rule is broken, flag it with the corresponding emoji.
+## 🚦 The Pre-Flight Execution Protocol
 
-### 1. 🅰️ Angular & Performance (`angular`)
+Before approving any task, completing a feature, or declaring code ready:
 
-- [ ] **Strict Standalone**: Are `imports: [...]` used? (No `standalone: true`).
+1. **Step 1: Run the Automated Pre-Flight Check**:
+
+   ```bash
+   npm run preflight
+   ```
+
+   (Executes both `node scripts/pre-flight-check.mjs` and `eslint .`. Must output `✅ Pre-Flight Check PASSED: 0 errors` with zero failures and 0 ESLint errors).
+
+2. **Step 2: Run the SSR Build Test**:
+
+   ```bash
+   npm run build
+   ```
+
+   (Must complete with code 0 and generate static prerendered bundles).
+
+3. **Step 3: Audit Against the Golden 7-Point Checklist** below.
+
+---
+
+## 📋 The Golden 7-Point Audit Checklist
+
+### 1. 🅰️ Angular & Signals Architecture
+
+- [ ] **Strict Standalone**: Are `imports: [...]` used? (Zero redundant `standalone: true`).
+- [ ] **Change Detection**: Is `changeDetection: ChangeDetectionStrategy.OnPush` omitted? (It is default in Angular 22).
 - [ ] **Services**: Is `@Service()` used from `@angular/core`? (No legacy `@Injectable({ providedIn: 'root' })`).
-- [ ] **Change Detection**: Is `changeDetection: ChangeDetectionStrategy.OnPush` omitted? (It is the default in Angular 22).
-- [ ] **Signals**: Is `input()` / `output()` / `computed()` / `signal()` used for EVERYTHING? (No `@Input`).
-- [ ] **Route Data**: Do routed components read params / query params / resolver data via `input()`? Flag any `inject(ActivatedRoute)` used just to read the component's own params — `withComponentInputBinding()` is enabled. `ActivatedRoute` is only valid inside resolvers/guards or for parent-route state.
-- [ ] **Optional Route Inputs**: Is `input.required<T>()` used only for params the path guarantees? Optional query params must use `input()` with a default or `transform`, since unmatched keys are set to `undefined`.
-- [ ] **Control Flow**: Are `@if`, `@for`, `@let` used? (No `*ngIf`).
-- [ ] **Image LCP**: Is `NgOptimizedImage` used for static images?
-- [ ] **Cleanup**: No `ngOnDestroy`? (Use `DestroyRef` or `takeUntilDestroyed`).
+- [ ] **Signals Everywhere**: Is `input()` / `output()` / `computed()` / `signal()` used for all state? (Zero `@Input()`).
+- [ ] **Route Data Binding**: Do components read route params via `input()`? Flag any `inject(ActivatedRoute)` used just to read the component's own params — `withComponentInputBinding()` is enabled.
+- [ ] **Cleanup**: Zero `ngOnDestroy`? (Use `DestroyRef` or `takeUntilDestroyed`).
 
-### 2. 🛡️ Security & Data (`firebase`)
+### 2. 🎨 Material M3 & Design System Purity
 
-- [ ] **Validation**: Is external data piped through `v.safeParse(Schema)`? Do schemas follow the four Valibot rules in the **`typescript`** skill (optional defaults, pointer factory for objects/arrays, `v.fallback` only as an API safety net, `v.pipe` for chains)?
-- [ ] **Native SDK**: Is the Native Firebase JS SDK (`firebase/*`) used directly? (No `@angular/fire` and zero `runInContext()` injection wrappers).
-- [ ] **Signals Integration**: Are native Firebase promises/listeners feeding directly into Angular Signals (`signal()`, `computed()`) or `resource()`?
-- [ ] **Cost**: Does the query have `limit()`? Is `getCountFromServer` used for counts?
-- [ ] **Pagination**: Is logic paginated (cursor-based)?
+- [ ] **Zero Tailwind on Material Components**: Are `button[matButton]`, `button[matIconButton]`, `<mat-icon>`, `<mat-menu>`, `<mat-drawer>` free of Tailwind styling (`text-*`, `bg-*`, `hover:*`) and layout classes (`flex`, `items-*`, `gap-*`, `w-full`)?
+- [ ] **No `::ng-deep`**: Do all Material component overrides live in `src/styles/ng-material/components/_{name}.scss` using `@include mat.<name>-overrides(( ... ))`?
+- [ ] **Monochrome Identity**: Is `primary` black? Are content texts defaulting to `text-on-surface` without redundant color spans?
+- [ ] **Semantic Tokens**: Are all surfaces using `bg-surface`, `bg-surface-container-*`? Flag any raw colors (`bg-red-500`, `text-emerald-400`, `bg-amber-400`) or inverted tokens (`bg-on-primary` on containers).
+- [ ] **Tailwind v4 Syntax**: Is `!` placed as suffix (`hidden!`, never `!hidden`)? Is `size-{N}` used instead of `w-{N} h-{N}`?
 
-### 3. 🟦 TypeScript & Data (`typescript`)
+### 3. ♿ Accessibility (A11y) & Semantic HTML
 
-- [ ] **Strict Types**: ZERO `any`. Usage of `unknown` + guards?
-- [ ] **Immutability**: Are public properties `readonly`?
-- [ ] **Naming**: `kebab-case.ts`, `PascalCase` classes?
-- [ ] **Utils**: Usage of `Record`, `Pick`, `Omit`? (No duplicate interfaces).
+- [ ] **No Fake Buttons**: Are all clickable triggers native `<button type="button">`? Flag any `<div role="button">` or `<a role="button">`.
+- [ ] **No Nested Interactive Elements**: Are buttons free of nested buttons or clickable child elements?
+- [ ] **Valid ARIA Roles**: Is `role="none"` absent? Are `role="menubar"`, `role="menu"` excluded from standard web navigation links?
+- [ ] **Semantic Landmarks**: Are `<section>`, `<nav>`, `<header>` used instead of `<div role="region">`?
+- [ ] **Mandatory Labels**: Do all icon-only buttons (`<button matIconButton>`) and search inputs have descriptive `aria-label` or `aria-labelledby` attributes?
 
-### 4. 🎨 Design & A11y (`design-system`)
+### 4. 🌐 SSR & Routing Integrity
 
-- [ ] **Tailwind v4**: Is `!` a **suffix** (`hidden!`) and never a prefix (`!hidden`)? No generic colors (`bg-red-500`, `text-white`)? `size-{N}` instead of `w-N h-N`?
-- [ ] **Material**: Usage of `matButton="..."` variants and `theme="..."` (never `color="primary"`)? No `::ng-deep`? Overrides live in `src/styles/ng-material/components/`?
-- [ ] **A11y**: Do icon-only buttons have `aria-label`? Do images have `alt`?
-- [ ] **Icons**: `<mat-icon name="x" />` (NOT content projection), and is `SharedIconModule` in the component `imports`?
-- [ ] **Shared UI Inputs**: Are bindings to shared components verified against the component source (chips `[(value)]`, table `[paginationService]`, form controls `[formField]`)? Flag any guessed input name.
-- [ ] **Reuse**: Was `src/app/shared/ui|directives|pipes/` checked before hand-rolling a control, pipe, or directive?
+- [ ] **Server Route Coverage**: Are all parameterized routes (`:slug`, `:id`) and wildcard routes in `app.routes.ts` mapped in `src/app/app.routes.server.ts` with `RenderMode.Server` (or `getPrerenderParams`)?
+- [ ] **Template Complexity**: Is conditional complexity $\le 3$? Are complex expressions extracted into `@let` variables?
+- [ ] **Deferred Content**: Is heavy below-the-fold content wrapped in `@defer (hydrate on viewport)`? Is above-the-fold content NOT deferred?
+
+### 5. 🔒 Security & ReDoS Prevention
+
+- [ ] **Regex Safety**: Are string normalizers and slugifiers free from unbounded quantifiers next to anchors (`/^-+|-+$/`, `/(a+)+/`)? Are native string methods (`startsWith`, `endsWith`, `slice`) used instead?
+- [ ] **Validation**: Is external data parsed via `v.safeParse()` using Valibot schemas from `schemas/`?
+- [ ] **Native Firebase JS SDK**: Is the native Firebase JS SDK used directly without `@angular/fire`?
+
+### 6. 📚 Catalog Reuse & "2+ Duplication Rule"
+
+- [ ] **Shared UI Checked**: Were existing shared controls (`<app-text-input>`, `<app-reusable-table>`, `<app-status-badge>`, `<app-chips>`) reused rather than duplicated?
+- [ ] **The 2+ Rule**: If a chain of 4+ utilities appears on 2 or more elements, was it extracted into `src/styles/tailwind/components/` and documented in `reusable-catalog`?
+
+### 7. 🎯 Feature Completeness
+
+- [ ] **Backend-to-UI Sync**: Are all fields defined in the schema and fetched by the service properly represented and displayed in the UI? (Prevents ghost CMS data).
+
+---
 
 ## 🚨 Response Format
 
-When providing a review, structure it like this:
+When performing a pre-flight code review, format your report as follows:
 
-1. **Summary**: Pass/Fail grade (e.g., "Grade: B-").
-2. **Critical Violations** (🛑): Must fix immediately.
-3. **Suggestions** (⚠️): Improvements for "Beast Mode".
-4. **Refactored Snippet**: Provide the *corrected* code block applying the fixes.
+```markdown
+## 🕵️ Pre-Flight Beast Mode Audit Report
+
+### 1. Automated Checks
+- Pre-flight Script: [PASS / FAIL] (0 errors)
+- SSR Production Build: [PASS / FAIL] (Exit code 0)
+
+### 2. Audit Findings
+- 🛑 **Critical Violations** (Must fix before shipping):
+  - [File:Line] Description of issue
+- ⚠️ **Suggestions & Optimizations**:
+  - [File:Line] Description of improvement
+
+### 3. Refactored Snippet
+Provide the exact, corrected code block resolving any violations.
+
+### 4. Verdict
+[APPROVED FOR SHIPMENT / REVISION REQUIRED]
+```

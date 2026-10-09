@@ -15,7 +15,13 @@ import { BaseFormControl } from '../base-form-control.directive';
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()" class="w-full">
       <mat-label>{{ label() }}</mat-label>
       @if (prefixIcon()) {
-        <button matIconButton matPrefix (click)="prefixAction.emit()" type="button">
+        <button
+          matIconButton
+          matPrefix
+          [attr.aria-label]="prefixAriaLabel() || prefixIcon()!"
+          (click)="prefixAction.emit()"
+          type="button"
+        >
           <mat-icon [name]="prefixIcon()!" />
         </button>
       }
@@ -30,7 +36,13 @@ import { BaseFormControl } from '../base-form-control.directive';
         [placeholder]="placeholder()"
       />
       @if (suffixIcon()) {
-        <button matIconButton matSuffix (click)="suffixAction.emit()" type="button">
+        <button
+          matIconButton
+          matSuffix
+          [attr.aria-label]="suffixAriaLabel() || suffixIcon()!"
+          (click)="suffixAction.emit()"
+          type="button"
+        >
           <mat-icon [name]="suffixIcon()!" />
         </button>
       }
@@ -45,7 +57,9 @@ export class TextInputComponent extends BaseFormControl<string | number> {
   readonly inputMode = input<InputMode>('text');
   readonly icon = input<string | null>(null);
   readonly prefixIcon = input<string | null>(null);
+  readonly prefixAriaLabel = input<string>();
   readonly prefixAction = output<void>();
   readonly suffixIcon = input<string | null>(null);
+  readonly suffixAriaLabel = input<string>();
   readonly suffixAction = output<void>();
 }

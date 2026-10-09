@@ -5,4 +5,5 @@
 @import './styles/tailwind/components/images';
 @import './styles/tailwind/components/overlays';
 @import './styles/tailwind/components/status';
+@import './styles/tailwind/components/navigation';
 @import './styles/tailwind/utils-base';

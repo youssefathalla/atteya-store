@@ -4,10 +4,10 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
-import { DesktopNavComponent } from '../desktop-nav/desktop-nav.component';
-import { MobileNavComponent } from '../mobile-nav/mobile-nav.component';
+import { DesktopNavComponent } from '../navbar/desktop-nav/desktop-nav.component';
+import { MobileNavComponent } from '../navbar/mobile-nav/mobile-nav.component';
 import { CartDrawerComponent } from '../cart-drawer/cart-drawer.component';
-import { DrawerService } from '../../core/services/drawer/drawer.service';
+import { DrawerService } from '@core/services/drawer/drawer.service';
 
 @Component({
   selector: 'app-main-layout',

@@ -1,0 +1,85 @@
+<div class="space-y-8 select-none">
+  <!-- Breadcrumb Navigation -->
+  <nav aria-label="Breadcrumb" class="flex items-center gap-2 font-label-sm">
+    <a routerLink="/" class="hover:underline transition-colors">Home</a>
+    <span>/</span>
+    @if (isBrandRoute()) {
+      <a routerLink="/brands" class="hover:underline transition-colors uppercase">Brands</a>
+      <span>/</span>
+      <span class="font-bold! uppercase">
+        {{ displayTitle() }}
+      </span>
+    } @else {
+      <a
+        [routerLink]="'/category/' + slug()"
+        class="hover:underline transition-colors uppercase"
+      >
+        {{ category()?.label || slug() }}
+      </a>
+      @if (subSlug()) {
+        <span>/</span>
+        <span class="font-bold! uppercase">
+          {{ displayTitle() }}
+        </span>
+      }
+    }
+  </nav>
+
+  <!-- Category Hero Header -->
+  <header class="border-b border-outline-variant pb-6">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div>
+        <h1 class="font-display-md font-bold! uppercase">
+          {{ displayTitle() }}
+        </h1>
+        <p class="font-body-md mt-2 max-w-2xl opacity-80">
+          Discover our curated collection of tournament-grade
+          {{ displayTitle().toLowerCase() }} designed for elite padel and tennis players.
+        </p>
+      </div>
+
+      <div class="font-label-sm font-mono opacity-80">
+        <span>Route: </span>
+        <code class="px-2 py-1 rounded bg-surface-container font-label-sm font-bold!">
+          {{ currentRoutePath() }}
+        </code>
+      </div>
+    </div>
+
+    <!-- Subcategory Quick Pills (from Mega Menu if available) -->
+    @if (category()?.megaMenu; as columns) {
+      <div class="flex items-center gap-2 mt-6 overflow-x-auto pb-2 scrollbar-none">
+        @for (col of columns; track col.title || $index) {
+          @for (link of col.links; track link.path) {
+            <a
+              [routerLink]="link.path"
+              class="px-3.5 py-1.5 rounded-full border border-outline-variant font-label-sm hover:bg-surface-container transition-colors shrink-0"
+            >
+              {{ link.label }}
+            </a>
+          }
+        }
+      </div>
+    }
+  </header>
+
+  <!-- Products Placeholder Grid -->
+  <section
+    class="py-12 text-center border-2 border-dashed border-outline-variant rounded-2xl p-8"
+  >
+    <div
+      class="size-16 rounded-full bg-surface-container elements-center mx-auto mb-4"
+    >
+      <mat-icon [name]="catalogIcon()" size="3xl" />
+    </div>
+    <h2 class="font-title-md font-bold! mb-1">
+      {{ displayTitle() }} Catalog
+    </h2>
+    <p class="font-body-sm opacity-80 max-w-md mx-auto mb-6">
+      {{ catalogDescription() }}
+    </p>
+    <a matButton="outlined" routerLink="/">
+      <span>Return to Home</span>
+    </a>
+  </section>
+</div>

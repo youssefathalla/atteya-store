@@ -20,3 +20,11 @@ $handset-landscape: '(max-width: 959.98px) and (orientation: landscape)';
     ));
   }
 }
+
+mat-drawer {
+  width: 100%;
+  max-width: 28rem;
+  background-color: var(--mat-sys-surface);
+  border-inline-start: 1px solid var(--mat-sys-outline-variant);
+  box-shadow: var(--mat-sys-level3, 0 8px 10px -5px rgba(0, 0, 0, 0.2));
+}

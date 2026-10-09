@@ -79,16 +79,16 @@
 
           @if (column.hasMenu) {
             <button
-              class="ms-1 customIcon"
               matIconButton
               type="button"
+              [attr.aria-label]="'Filter ' + column.label"
               [matMenuTriggerFor]="columnMenu"
               (click)="$event.stopPropagation()"
               (menuOpened)="onMenuOpened(column)"
             >
               <mat-icon
                 [name]="isColumnFiltered(column) ? 'filter_list_off' : 'filter_list'"
-                [class.text-primary]="isColumnFiltered(column)"
+                [iconColor]="isColumnFiltered(column) ? 'primary' : undefined"
               />
             </button>
           }

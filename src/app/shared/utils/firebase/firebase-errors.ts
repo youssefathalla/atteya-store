@@ -3,7 +3,7 @@ export interface FirebaseError {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Type Guar
+// Type Guard
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isFirebaseError = (err: unknown): err is FirebaseError => {
@@ -11,94 +11,89 @@ export const isFirebaseError = (err: unknown): err is FirebaseError => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Error Key Mappings (Transloco Keys)
+// Error Message Mappings (Direct English)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AUTH_ERROR_KEYS: Record<string, string> = {
-  'auth/email-already-in-use': 'errors.auth.emailInUse',
-  'auth/weak-password': 'errors.auth.weakPassword',
-  'auth/invalid-email': 'errors.auth.invalidEmail',
-  'auth/user-not-found': 'errors.auth.userNotFound',
-  'auth/wrong-password': 'errors.auth.wrongPassword',
-  'auth/invalid-credential': 'errors.auth.invalidCredential',
-  'auth/network-request-failed': 'errors.auth.networkError',
-  'auth/too-many-requests': 'errors.auth.tooManyRequests',
-  'auth/operation-not-allowed': 'errors.auth.operationNotAllowed',
-  'auth/requires-recent-login': 'errors.auth.requiresRecentLogin',
-  'auth/user-disabled': 'errors.auth.userDisabled',
-  'auth/popup-closed-by-user': 'errors.auth.popupClosed',
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  'auth/email-already-in-use': 'This email is already registered.',
+  'auth/weak-password': 'Password is too weak. Use at least 8 characters.',
+  'auth/invalid-email': 'Please enter a valid email address.',
+  'auth/user-not-found': 'Email not found. Please check your spelling or sign up.',
+  'auth/wrong-password': 'Incorrect password. Try again or reset it.',
+  'auth/invalid-credential': 'Invalid email or password. Please try again.',
+  'auth/network-request-failed': 'Network connection error. Check your internet.',
+  'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
+  'auth/operation-not-allowed': 'This sign-in method is not allowed.',
+  'auth/requires-recent-login': 'Please log in again to perform this action.',
+  'auth/user-disabled': 'This account has been disabled.',
+  'auth/popup-closed-by-user': 'Sign-in cancelled.',
 };
 
-const FIRESTORE_ERROR_KEYS: Record<string, string> = {
-  'permission-denied': 'errors.firestore.permissionDenied',
-  unavailable: 'errors.firestore.unavailable',
-  'not-found': 'errors.firestore.notFound',
-  aborted: 'errors.firestore.aborted',
-  'deadline-exceeded': 'errors.firestore.deadlineExceeded',
-  'already-exists': 'errors.firestore.alreadyExists',
+const FIRESTORE_ERROR_MESSAGES: Record<string, string> = {
+  'permission-denied': "You don't have permission to perform this action.",
+  unavailable: 'The service is temporarily unavailable. Please try again.',
+  'not-found': 'The requested item could not be found.',
+  aborted: 'The operation was aborted. Please try again.',
+  'deadline-exceeded': 'The request took too long. Please try again.',
+  'already-exists': 'This item already exists.',
 };
 
-const STORAGE_ERROR_KEYS: Record<string, string> = {
-  'storage/unauthorized': 'errors.storage.unauthorized',
-  'storage/object-not-found': 'errors.storage.objectNotFound',
-  'storage/canceled': 'errors.storage.canceled',
-  'storage/quota-exceeded': 'errors.storage.quotaExceeded',
-  'storage/retry-limit-exceeded': 'errors.storage.retryLimitExceeded',
+const STORAGE_ERROR_MESSAGES: Record<string, string> = {
+  'storage/unauthorized': "You don't have permission to access this file.",
+  'storage/object-not-found': 'The requested file could not be found.',
+  'storage/canceled': 'The upload was cancelled.',
+  'storage/quota-exceeded': 'Storage quota exceeded.',
+  'storage/retry-limit-exceeded': 'Upload failed after multiple attempts. Please try again.',
 };
 
-const FUNCTIONS_ERROR_KEYS: Record<string, string> = {
-  unauthenticated: 'errors.functions.unauthenticated',
-  'permission-denied': 'errors.functions.permissionDenied',
-  'not-found': 'errors.functions.notFound',
-  'already-exists': 'errors.functions.alreadyExists',
-  'invalid-argument': 'errors.functions.invalidArgument',
-  'resource-exhausted': 'errors.functions.resourceExhausted',
-  cancelled: 'errors.functions.cancelled',
-  'data-loss': 'errors.functions.dataLoss',
-  unknown: 'errors.functions.unknown',
-  internal: 'errors.functions.internal',
-  unavailable: 'errors.functions.unavailable',
-  'deadline-exceeded': 'errors.functions.deadlineExceeded',
+const FUNCTIONS_ERROR_MESSAGES: Record<string, string> = {
+  unauthenticated: 'You must be signed in to do that.',
+  'permission-denied': "You don't have permission to perform this action.",
+  'not-found': 'The requested resource could not be found.',
+  'already-exists': 'This resource already exists.',
+  'invalid-argument': 'Invalid request. Please check your input.',
+  'resource-exhausted': 'Too many requests. Please try again later.',
+  cancelled: 'The operation was cancelled.',
+  'data-loss': 'Data was lost during the operation.',
+  unknown: 'An unknown error occurred.',
+  internal: 'An internal server error occurred.',
+  unavailable: 'The service is temporarily unavailable. Please try again.',
+  'deadline-exceeded': 'The request took too long. Please try again.',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mapper Functions (Return Transloco Keys)
+// Mapper Functions
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const authErrors = (error: FirebaseError): string =>
-  AUTH_ERROR_KEYS[error.code] ?? 'errors.auth.default';
+  AUTH_ERROR_MESSAGES[error.code] ?? 'Authentication failed. Please try again.';
 
 export const firestoreErrors = (error: FirebaseError): string =>
-  FIRESTORE_ERROR_KEYS[error.code] ?? 'errors.firestore.default';
+  FIRESTORE_ERROR_MESSAGES[error.code] ?? 'A database error occurred. Please try again.';
 
 export const storageErrors = (error: FirebaseError): string =>
-  STORAGE_ERROR_KEYS[error.code] ?? 'errors.storage.default';
+  STORAGE_ERROR_MESSAGES[error.code] ?? 'A storage error occurred. Please try again.';
 
 export const functionsErrors = (error: FirebaseError): string => {
   const code = error.code.replace('functions/', '');
-  return FUNCTIONS_ERROR_KEYS[code] ?? 'errors.functions.default';
+  return FUNCTIONS_ERROR_MESSAGES[code] ?? 'The request failed. Please try again.';
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Dispatcher (Returns Transloco Key)
+// Main Dispatcher
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const firebaseErrors = (error: unknown): string => {
   if (!isFirebaseError(error)) {
-    // This is a pure mapping function with no injection context, so it can't use
-    // LoggerService directly. Callers are expected to log the raw error themselves
-    // before/after mapping it to a display key.
-    return 'errors.generic';
+    return 'Something went wrong. Please try again.';
   }
 
   if (error.code.startsWith('auth/')) return authErrors(error);
-
   if (error.code.startsWith('storage/')) return storageErrors(error);
-
   if (error.code.startsWith('functions/')) return functionsErrors(error);
 
   return firestoreErrors(error);
 };
 
 export const mapFirebaseError = firebaseErrors;
-
+export const handleFirebaseError = firebaseErrors;

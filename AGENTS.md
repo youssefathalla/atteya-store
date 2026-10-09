@@ -35,7 +35,8 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 - **The Contract**: Governed strictly by `.agents/rules/design-system.md` (auto-loaded for `.html`, `.css`, `.scss`, and `.ts`). Adhere to all semantic tokens, M3 overrides, `<mat-icon name="icon" />` with `SharedIconModule`, and utility extraction rules.
 - **Zero Tailwind on Angular Material**: Angular Material components (`button[matButton]`, `button[matIconButton]`, `<mat-icon>`, `<mat-menu>`, `<mat-drawer>`, etc.) are already fully styled by the M3 theme. **NEVER** apply Tailwind styling, color, transition, or hover classes to Material components. Only style **native HTML elements** (`<div>`, `<nav>`, `<section>`, `<ul>`, `<a>`, etc.) unless explicitly instructed by the user.
-- **Monochrome (Black & White) Identity**: Brand aesthetic is strictly Black & White. `primary` is black; default text is `text-on-surface` (black). Never add redundant child color overrides (e.g. `<span class="text-primary">.</span>`), and inherit colors cleanly.
+- **Monochrome (Black & White) Identity**: Brand aesthetic is strictly Black & White. `primary` is black; default text is naturally `text-on-surface` (inherited from `body`). **NEVER write `text-on-surface` on any element** — it is already the default inherited color and writing it is banned as redundant class bloat. Never add redundant child color overrides (e.g. `<span class="text-primary">.</span>`), and inherit colors cleanly.
+- **Strict Typography Scale**: Only use Material M3 typography tokens (`font-display-*`, `font-headline-*`, `font-title-*`, `font-body-*`, `font-label-*`). Never mix arbitrary Tailwind font sizes (`text-xs`, `text-sm`, `text-3xl`) or weights (`font-medium`, `font-semibold`, `font-black`). To make text bold, **always use `font-bold!`** (with trailing `!` to override the M3 `font:` shorthand).
 - **The Reference**: Activate the **`design-system`** skill for the styling directory map, token registration, Material overrides, and component APIs.
 
 ### 🛡️ Data Validation (active) & Firebase (target state)
@@ -66,8 +67,11 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 Activate the dedicated skills from `.agents/skills/` on demand:
 
+- **`new-feature`** for the end-to-end feature lifecycle, LIFT folder structure, and orchestration.
+- **`reusable-catalog`** for the living index of shared UI components, extracted Tailwind classes, and the "2+ Duplication Rule".
+- **`ui-design-rules`** for the Component Decision Matrix (Shared UI vs Material vs Tailwind), monochrome identity, and token rules.
+- **`quality-standards`** for A11y guardrails (no fake buttons), ReDoS prevention, and SSR server route registration.
+- **`code-review`** (Pre-Flight Beast Mode Gate) for `npm run preflight` automated audit and the 7-Point Quality Gate before shipping.
 - **`angular-developer`** for architecture, components, signals, forms, DI, HTTP, and routing.
-- **`design-system`** for Tailwind v4, Material M3 token overrides, and UI components.
+- **`design-system`** for Tailwind v4, Material M3 token overrides, and style partial workflows.
 - **`typescript`** for strict types, Valibot schemas, pure models, and logic utilities.
-- **`code-review`** for Beast Mode quality audits and architectural checks.
-- **`sync-i18n`** for synchronizing Transloco locale keys (`en.json`, `ar.json`).

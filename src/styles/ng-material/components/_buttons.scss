@@ -16,10 +16,16 @@
   ));
 }
 
-.icon-btn-lg{
+.icon-btn-lg {
   @include mat.icon-button-overrides((
     icon-size: 30px,
     state-layer-size: 42px
+  ));
+}
+.icon-btn-md {
+  @include mat.icon-button-overrides((
+    icon-size: 20px,
+    state-layer-size: 36px
   ));
 }
 /* Target the label ONLY when the button contains a spinner */

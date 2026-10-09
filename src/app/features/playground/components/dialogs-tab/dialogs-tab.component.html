@@ -29,19 +29,21 @@
           matButton="filled"
           type="button"
           (click)="openConfirmModal()"
-          class="flex items-center gap-2"
         >
-          <mat-icon name="help_outline" />
-          <span>Open Confirmation Dialog</span>
+          <span class="flex items-center gap-2">
+            <mat-icon name="help_outline" />
+            <span>Open Confirmation Dialog</span>
+          </span>
         </button>
         <button
           matButton="outlined"
           type="button"
           (click)="openImagePreviewModal()"
-          class="flex items-center gap-2"
         >
-          <mat-icon name="zoom_in" />
-          <span>Open Image Zoom & Pan Modal</span>
+          <span class="flex items-center gap-2">
+            <mat-icon name="zoom_in" />
+            <span>Open Image Zoom & Pan Modal</span>
+          </span>
         </button>
       </div>
     </div>
@@ -60,39 +62,44 @@
           theme="success"
           type="button"
           (click)="triggerSnackbar('success')"
-          class="flex items-center gap-2"
         >
-          <mat-icon name="check_circle" />
-          <span>Success Toast</span>
+          <span class="flex items-center gap-2">
+            <mat-icon name="check_circle" />
+            <span>Success Toast</span>
+          </span>
         </button>
         <button
           matButton="filled"
           theme="warning"
           type="button"
           (click)="triggerSnackbar('warning')"
-          class="flex items-center gap-2"
         >
-          <mat-icon name="warning" />
-          <span>Warning Toast</span>
+          <span class="flex items-center gap-2">
+            <mat-icon name="warning" />
+            <span>Warning Toast</span>
+          </span>
         </button>
         <button
           matButton="filled"
           theme="info"
           type="button"
           (click)="triggerSnackbar('info')"
-          class="flex items-center gap-2"
         >
-          <mat-icon name="info" />
-          <span>Info Toast</span>
+          <span class="flex items-center gap-2">
+            <mat-icon name="info" />
+            <span>Info Toast</span>
+          </span>
         </button>
         <button
           matButton="filled"
+          theme="error"
           type="button"
-          class="bg-error! text-on-error! flex items-center gap-2"
           (click)="triggerSnackbar('error')"
         >
-          <mat-icon name="error" />
-          <span>Error Toast</span>
+          <span class="flex items-center gap-2">
+            <mat-icon name="error" />
+            <span>Error Toast</span>
+          </span>
         </button>
       </div>
     </div>

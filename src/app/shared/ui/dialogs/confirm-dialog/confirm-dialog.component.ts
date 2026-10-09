@@ -7,6 +7,7 @@ export interface ConfirmDialogData {
   message: string;
   confirmText?: string;
   cancelText?: string;
+  theme?: 'error' | 'primary' | 'warning' | 'info' | 'success';
 }
 
 @Component({
@@ -18,8 +19,8 @@ export interface ConfirmDialogData {
       <p>{{ data.message }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button matButton="text" [mat-dialog-close]="false">{{ data.cancelText || 'Cancel' }}</button>
-      <button matButton="filled" [mat-dialog-close]="true" class="bg-error! text-on-error!">
+      <button matButton="text" type="button" [mat-dialog-close]="false">{{ data.cancelText || 'Cancel' }}</button>
+      <button matButton="filled" [attr.theme]="data.theme || 'error'" type="button" [mat-dialog-close]="true">
         {{ data.confirmText || 'Delete' }}
       </button>
     </mat-dialog-actions>

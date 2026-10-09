@@ -19,7 +19,7 @@ import { InfoCardData } from './info-card.model';
           <ul class="flex flex-col gap-3">
             @for (item of items; track item) {
               <li class="flex items-start gap-2 text-secondary font-body-md">
-                <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary "></span>
+                <span class="mt-1.5 size-1.5 rounded-full bg-primary"></span>
                 <span>{{ item }}</span>
               </li>
             }

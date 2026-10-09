@@ -13,14 +13,14 @@
       </div>
       <div class="flex flex-col gap-1 min-w-0">
         <div class="flex flex-wrap items-center gap-2">
-          <h1 class="font-headline-sm text-on-surface">Design System & Component Playground</h1>
+          <h1 class="font-headline-sm font-bold!">Design System & Component Playground</h1>
           <span
-            class="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary border border-primary/20 whitespace-nowrap"
+            class="px-2 py-0.5 font-label-sm font-bold! rounded-full bg-primary/10 text-primary border border-primary/20 whitespace-nowrap"
           >
             Angular v22 Zoneless
           </span>
         </div>
-        <p class="font-body-sm text-on-surface-variant">
+        <p class="font-body-sm opacity-80">
           Live catalog of Material 3 design tokens, semantic utilities, and custom &#64;shared UI
           components.
         </p>
@@ -28,16 +28,17 @@
     </div>
 
     <!-- Quick Actions -->
-    <div class="flex items-center gap-3 w-full sm:w-auto">
+    <div class="flex items-center gap-3 w-full sm:w-auto *:flex-1 sm:*:flex-initial">
       <!-- Back to Storefront Link -->
       <a
         routerLink="/"
         matButton="outlined"
         matTooltip="Back to Atteya Store Homepage"
-        class="flex-1 sm:flex-initial flex items-center justify-center gap-2"
       >
-        <mat-icon name="storefront" size="xl" />
-        <span>Storefront</span>
+        <span class="flex items-center justify-center gap-2">
+          <mat-icon name="storefront" size="xl" />
+          <span>Storefront</span>
+        </span>
       </a>
 
       <!-- Light / Dark Theme Switcher -->
@@ -46,19 +47,22 @@
         type="button"
         (click)="themeService.toggleTheme()"
         [matTooltip]="isDarkMode() ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
-        class="flex-1 sm:flex-initial flex items-center justify-center gap-2"
       >
-        <mat-icon
-          [name]="isDarkMode() ? 'light_mode' : 'dark_mode'"
-          [iconColor]="isDarkMode() ? 'warning' : 'primary'"
-          size="xl"
-        />
-        <span>{{ isDarkMode() ? 'Light Mode' : 'Dark Mode' }}</span>
+        <span class="flex items-center justify-center gap-2">
+          <mat-icon
+            [name]="isDarkMode() ? 'light_mode' : 'dark_mode'"
+            [iconColor]="isDarkMode() ? 'warning' : 'primary'"
+            size="xl"
+          />
+          <span>{{ isDarkMode() ? 'Light Mode' : 'Dark Mode' }}</span>
+        </span>
       </button>
 
-      <button matButton="filled" type="button" (click)="triggerToast()" class="flex-1 sm:flex-initial flex items-center justify-center gap-2">
-        <mat-icon name="notifications" size="xl" />
-        <span>Test Toast</span>
+      <button matButton="filled" type="button" (click)="triggerToast()">
+        <span class="flex items-center justify-center gap-2">
+          <mat-icon name="notifications" size="xl" />
+          <span>Test Toast</span>
+        </span>
       </button>
     </div>
   </div>

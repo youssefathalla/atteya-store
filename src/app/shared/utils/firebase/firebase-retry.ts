@@ -48,3 +48,32 @@ export const firestoreRetryConfig = {
     return isRetryable ? timer(1000) : throwError(() => error);
   },
 };
+
+export interface RetryOptions {
+  maxRetries?: number;
+  initialDelayMs?: number;
+  backoffFactor?: number;
+}
+
+/**
+ * Retries an idempotent async Promise operation with exponential backoff.
+ */
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = {},
+): Promise<T> {
+  const { maxRetries = 3, initialDelayMs = 500, backoffFactor = 2 } = options;
+  let delay = initialDelayMs;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay *= backoffFactor;
+    }
+  }
+  throw new Error('Retry limit reached');
+}
+
