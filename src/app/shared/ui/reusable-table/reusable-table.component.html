@@ -2,7 +2,7 @@
 @if (showHeaderControls()) {
   <div class="flex flex-col gap-1.5">
     <!--* title & subtitle -->
-    <div class="flex flex-wrap gap-4 justify-between items-center mb-1">
+    <div class="elements-between flex-wrap gap-4 mb-1">
       <div class="flex gap-2 items-center ms-1.5 flex-wrap">
         @if (headerIcon()) {
           <mat-icon [name]="headerIcon()!" class="md:block! hidden!" />
@@ -54,7 +54,7 @@
 <div class="relative grow overflow-auto custom-scrollbar">
   <!-- Loading Overlay -->
   @if (isLoading()) {
-    <div class="absolute inset-0 flex justify-center items-center bg-surface z-10">
+    <div class="absolute inset-0 elements-center bg-surface z-10">
       <mat-spinner [diameter]="100" />
     </div>
   }
@@ -123,8 +123,8 @@
       <td class="px-2 py-10 text-center" [attr.colspan]="displayedColumns().length">
         @if (data().length === 0) {
           @if (hasActiveFilters()) {
-            <div class="flex flex-col items-center justify-center gap-2 p-4">
-              <span class="font-medium">No data found, please clear filters</span>
+            <div class="elements-center flex-col gap-2 p-4">
+              <span class="font-body-md">No data found, please clear filters</span>
               <button matButton="tonal" theme="info" type="button" (click)="clearAllFilters()">
                 <mat-icon name="filter_alt_off" />
                 Clear Filters

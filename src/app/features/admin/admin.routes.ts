@@ -17,7 +17,7 @@ export const ADMIN_ROUTES: Routes = [
           import('./pages/navigation-manager/navigation-manager.component').then(
             (m) => m.NavigationManagerComponent,
           ),
-        title: 'Navigation CMS | Atteya Admin',
+        title: 'Navigation & Menus | Atteya Admin',
       },
     ],
   },

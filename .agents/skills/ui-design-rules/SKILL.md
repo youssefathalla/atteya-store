@@ -111,3 +111,6 @@ Only use semantic status tokens. Never use arbitrary Tailwind palette colors:
 7. **Icon Projection**:
    - ❌ `<mat-icon>shopping_bag</mat-icon>`
    - ✅ `<mat-icon name="shopping_bag" />` (with `SharedIconModule` imported).
+8. **Layout Alignment Shortcuts**:
+   - ❌ `class="flex items-center justify-center"`, `class="flex items-center justify-between"`, `class="flex items-center justify-start"`, `class="flex items-center justify-end"`
+   - ✅ `class="elements-center"`, `class="elements-between"`, `class="elements-start"`, `class="elements-end"`

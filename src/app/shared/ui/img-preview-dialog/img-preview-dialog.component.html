@@ -1,5 +1,5 @@
 <!-- Header -->
-<div class="flex z-50 justify-between items-center px-6 py-4">
+<div class="elements-between z-50 px-6 py-4">
   <h2 mat-dialog-title>
     {{ data.title || 'common.documentPreview' }}
   </h2>
@@ -10,7 +10,7 @@
 
 <!-- Main Content (Image Area) -->
 <section
-  class="flex overflow-hidden relative flex-1 justify-center items-center w-full min-h-105 bg-transparent cursor-move select-none p-4"
+  class="elements-center overflow-hidden relative flex-1 w-full min-h-105 bg-transparent cursor-move select-none p-4"
   aria-label="Image preview area"
   (wheel)="onWheel($event)"
   (mousedown)="startPanning($event)"
@@ -19,7 +19,7 @@
   (mouseleave)="stopPanning()"
 >
   <div
-    class="will-change-transform relative flex items-center justify-center"
+    class="will-change-transform relative elements-center"
     [class.transition-transform]="!panning()"
     [class.duration-100]="!panning()"
     [class.ease-out]="!panning()"
@@ -38,7 +38,7 @@
 </section>
 
 <!-- Bottom Controls -->
-<div class="flex z-50 justify-center items-center py-6">
+<div class="elements-center z-50 py-6">
   <div
     class="flex gap-2 items-center px-4 py-2 backdrop-blur-xl bg-surface-container-lowest rounded-full mat-border-subtle shadow-mat-1"
   >

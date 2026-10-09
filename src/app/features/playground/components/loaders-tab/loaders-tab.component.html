@@ -66,14 +66,14 @@
           type="text"
           [ngModel]="loaderMessage()"
           (ngModelChange)="loaderMessage.set($event)"
-          class="w-full px-3 py-2 rounded-corner-xs bg-surface border border-outline-variant text-on-surface text-sm focus:border-primary outline-none"
+          class="w-full px-3 py-2 rounded-corner-xs bg-surface border border-outline-variant font-body-md focus:border-primary outline-none"
         />
       </div>
     </div>
 
     <!-- Live Loader Preview -->
     <div
-      class="md:col-span-2 bg-surface-container-low p-6 rounded-corner-xs border border-outline-variant flex flex-col items-center justify-center overflow-hidden"
+      class="md:col-span-2 bg-surface-container-low p-6 rounded-corner-xs border border-outline-variant elements-center flex-col overflow-hidden"
     >
       <app-loader
         [diameter]="loaderDiameter()"

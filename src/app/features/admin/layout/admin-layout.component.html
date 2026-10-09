@@ -1,13 +1,11 @@
 <div class="flex min-h-screen bg-surface-container-lowest" theme="info">
-  <!-- 1. LEFT ADMIN SIDEBAR -->
+  <!-- 1. LEFT ADMIN SIDEBAR (Visible on Desktop lg+) -->
   <aside
-    class="w-64 border-r border-outline-variant bg-surface-container-lowest flex flex-col shrink-0 select-none"
+    class="hidden lg:flex w-64 border-r border-outline-variant bg-surface-container-lowest flex-col shrink-0 select-none"
   >
     <!-- Brand / Admin Header -->
     <div class="h-16 flex items-center gap-2.5 px-6 border-b border-outline-variant">
-      <span
-        class="font-display-sm font-bold! tracking-widest uppercase"
-      >
+      <span class="font-display-sm font-bold! tracking-widest uppercase">
         ATTEYA.
       </span>
       <span
@@ -17,37 +15,57 @@
       </span>
     </div>
 
-    <!-- Navigation Menu -->
-    <nav class="flex-1 px-3 py-4 space-y-1" aria-label="Admin navigation">
-      <a
-        routerLink="/admin/navigation"
-        routerLinkActive="bg-surface-container-high font-bold!"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg opacity-80 hover:opacity-100 hover:bg-surface-container transition-colors font-body-sm"
-      >
-        <mat-icon name="menu" size="sm" />
-        <span>Navigation CMS</span>
-      </a>
+    <!-- Navigation Menu (Structured Categories & Sub-items) -->
+    <nav class="flex-1 px-3 py-4 space-y-4 overflow-y-auto" aria-label="Admin desktop navigation">
+      @for (category of adminCategories(); track category.id) {
+        <div class="space-y-1">
+          <!-- Category Group Header -->
+          <div class="px-3 py-1 font-label-sm font-bold! opacity-50 uppercase tracking-widest">
+            {{ category.label }}
+          </div>
 
-      <!-- Future Admin Features (Stubs) -->
-      <div
-        class="flex items-center justify-between px-3 py-2.5 rounded-lg opacity-40 font-body-sm cursor-not-allowed"
-      >
-        <div class="flex items-center gap-3">
-          <mat-icon name="inventory_2" size="sm" />
-          <span>Products</span>
+          <!-- Category Sub-Items -->
+          @if (category.subItems) {
+            @for (item of category.subItems; track item.id) {
+              @if (item.disabled) {
+                <div
+                  class="elements-between px-3 py-2 rounded-lg opacity-40 font-body-sm cursor-not-allowed"
+                >
+                  <div class="flex items-center gap-3">
+                    @if (item.icon) {
+                      <mat-icon [name]="item.icon" size="sm" />
+                    }
+                    <span>{{ item.label }}</span>
+                  </div>
+                  @if (item.badge) {
+                    <span class="font-label-sm font-mono text-[10px] uppercase">{{ item.badge }}</span>
+                  }
+                </div>
+              } @else {
+                <a
+                  [routerLink]="item.path"
+                  routerLinkActive="bg-surface-container-high font-bold!"
+                  class="elements-between px-3 py-2 rounded-lg opacity-80 hover:opacity-100 hover:bg-surface-container transition-colors font-body-sm"
+                >
+                  <div class="flex items-center gap-3">
+                    @if (item.icon) {
+                      <mat-icon [name]="item.icon" size="sm" />
+                    }
+                    <span>{{ item.label }}</span>
+                  </div>
+                  @if (item.badge) {
+                    <span
+                      class="font-label-sm font-mono text-[10px] uppercase font-bold! px-1.5 py-0.5 rounded bg-surface-container-highest"
+                    >
+                      {{ item.badge }}
+                    </span>
+                  }
+                </a>
+              }
+            }
+          }
         </div>
-        <span class="font-label-sm font-mono text-[10px] uppercase">Soon</span>
-      </div>
-
-      <div
-        class="flex items-center justify-between px-3 py-2.5 rounded-lg opacity-40 font-body-sm cursor-not-allowed"
-      >
-        <div class="flex items-center gap-3">
-          <mat-icon name="shopping_cart" size="sm" />
-          <span>Orders</span>
-        </div>
-        <span class="font-label-sm font-mono text-[10px] uppercase">Soon</span>
-      </div>
+      }
     </nav>
 
     <!-- Admin Footer / Version info -->
@@ -70,26 +88,29 @@
 
   <!-- 2. MAIN VIEWPORT -->
   <div class="flex-1 flex flex-col min-w-0">
-    <!-- Topbar -->
+    <!-- Topbar (Responsive for mobile & desktop) -->
     <header
-      class="h-16 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between px-4 sm:px-8 select-none"
+      class="h-16 border-b border-outline-variant bg-surface-container-lowest elements-between px-4 sm:px-8 select-none"
     >
-      <div class="flex items-center gap-4">
-        <h1 class="font-title-md font-bold! tracking-tight">
-          Navigation Manager
+      <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+        <span class="lg:hidden font-display-sm font-bold! tracking-widest uppercase shrink-0">
+          ATTEYA.
+        </span>
+        <h1 class="font-title-sm sm:font-title-md font-bold! tracking-tight truncate">
+          Navigation & Menus
         </h1>
 
         <!-- Live Sync Status Chip -->
         @if (navService.isLive()) {
           <div
-            class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-outline-variant bg-surface-container-high font-label-sm font-bold!"
+            class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-outline-variant bg-surface-container-high font-label-sm font-bold! shrink-0"
           >
             <span class="size-2 rounded-full bg-success animate-pulse"></span>
             <span>Firestore Live</span>
           </div>
         } @else {
           <div
-            class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-outline-variant bg-surface-container-high font-label-sm font-bold!"
+            class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-outline-variant bg-surface-container-high font-label-sm font-bold! shrink-0"
           >
             <span class="size-2 rounded-full bg-warning"></span>
             <span>Local Fallback</span>
@@ -97,17 +118,23 @@
         }
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
         <a matButton="outlined" routerLink="/" target="_blank" rel="noopener">
           <mat-icon name="open_in_new" size="sm" />
-          <span>Preview Store</span>
+          <span class="hidden sm:inline">Preview Store</span>
         </a>
       </div>
     </header>
 
-    <!-- Page Content -->
-    <main class="flex-1 max-w-9xl mx-auto px-4 py-6 overflow-y-auto">
+    <!-- Page Content (pb-24 on mobile ensures no overlap from bottom bar) -->
+    <main class="flex-1 max-w-9xl mx-auto w-full px-4 py-6 overflow-y-auto pb-24 lg:pb-6">
       <router-outlet />
     </main>
   </div>
 </div>
+
+<!-- 3. MOBILE BOTTOM NAVIGATION (Visible only < lg) -->
+<app-admin-mobile-nav />
+
+<!-- 4. MOBILE SLIDE-UP DRILL-DOWN MENU -->
+<app-admin-mobile-menu />

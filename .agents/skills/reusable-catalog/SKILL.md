@@ -106,6 +106,16 @@ Located in `src/styles/tailwind/components/`. Use these classes directly in your
 | | `.form-card` | Styled container for forms and inputs |
 | | `.bg-circle` | Circular icon / avatar wrapper container |
 
+### 📐 Layout & Alignment Shortcuts (`src/styles/tailwind/utilities/layout.css`)
+
+| Utility Class | Expansion | Usage |
+| :--- | :--- | :--- |
+| `elements-center` | `flex justify-center items-center` | Centered flex containers, icon badges, dialog centers |
+| `elements-start` | `flex justify-start items-center` | Left-aligned flex row with centered vertical items |
+| `elements-end` | `flex justify-end items-center` | Right-aligned flex row with centered vertical items |
+| `elements-between` | `flex justify-between items-center` | Space-between headers, navbars, rows with actions |
+| `form-space` | `flex flex-col gap-4 pt-4` | Standard form field vertical spacing |
+
 ---
 
 ## 3. Core Shared Services

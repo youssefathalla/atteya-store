@@ -25,6 +25,7 @@ This file is deliberately lookup-free: everything here you can use immediately. 
 | Arbitrary text sizes & weights (`text-xs`, `text-sm`, `text-3xl`, `font-medium`, `font-semibold`, `font-black`, `font-bold`) | Use M3 `font-*-*` tokens only. To make text bold, **always use `font-bold!`** (with trailing `!` to override M3 `font:` shorthand). |
 | Prefix important: `!hidden` | Suffix important: `hidden!` |
 | `w-10 h-10` | `size-10` |
+| Verbose flex chains (`flex items-center justify-center`, `flex items-center justify-between`, etc.) | Shortcuts: `elements-center`, `elements-start`, `elements-end`, `elements-between` |
 | `bg-opacity-50` | `bg-black/50` |
 | `color="primary"` on Material components | `theme="success \| warning \| error \| info"` |
 | `<mat-icon>home</mat-icon>` | `<mat-icon name="home" />` |

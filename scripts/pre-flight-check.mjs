@@ -102,6 +102,25 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
           `Un-postfixed 'font-bold' detected in class string: "${classStr}". Always use 'font-bold!' with suffix '!' to override M3 font shorthand.`
         );
       }
+
+      // Rule: Prefer elements-center, elements-start, elements-end, elements-between shortcuts
+      const classWords = classStr.split(/\s+/);
+      if (classWords.includes('flex') && classWords.includes('items-center')) {
+        for (const [justCls, shortcut] of [
+          ['justify-center', 'elements-center'],
+          ['justify-start', 'elements-start'],
+          ['justify-end', 'elements-end'],
+          ['justify-between', 'elements-between'],
+        ]) {
+          if (classWords.includes(justCls)) {
+            logError(
+              filePath,
+              tagLine,
+              `Verbose flex alignment detected: 'flex items-center ${justCls}' in "${classStr}". Use '${shortcut}' shortcut instead.`
+            );
+          }
+        }
+      }
     }
 
     // Rule: Zero Tailwind on Material Components
