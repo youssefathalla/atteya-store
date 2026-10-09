@@ -22,7 +22,7 @@
 
 @if (activeCategory(); as currentCategory) {
   <section
-    class="absolute left-0 top-full w-full bg-surface inset-shadow-xs shadow-sm z-10"
+    class="absolute left-0 top-full w-full bg-surface inset-shadow-sm shadow-md z-10"
     (mouseenter)="onMenuMouseEnter()"
     (mouseleave)="onMenuMouseLeave()"
     [attr.aria-label]="currentCategory.label + ' Mega Menu'"
@@ -46,9 +46,9 @@
                   <a
                     [routerLink]="link.path"
                     (click)="closeMegaMenuImmediate()"
-                    class="nav-menu-link group"
+                    class="nav-menu-link"
                   >
-                    <span class="group-hover:underline">
+                    <span class="nav-label">
                       {{ link.label }}
                     </span>
 

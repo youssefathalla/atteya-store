@@ -6,6 +6,20 @@ mat-icon {
   height: fit-content !important;
   font-variation-settings: 'FILL' 0;
 }
+// *icon button sizes
+.icon-btn-lg {
+  @include mat.icon-button-overrides((
+    icon-size: 30px,
+    state-layer-size: 44px
+  ));
+}
+
+.icon-btn-md {
+  @include mat.icon-button-overrides((
+    icon-size: 20px,
+    state-layer-size: 36px
+  ));
+}
 
 //* icons
 [iconColor="primary"] {

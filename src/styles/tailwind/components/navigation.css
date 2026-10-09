@@ -1,17 +1,23 @@
 @layer components {
   /* Navigation & Mega Menu Column Title */
   .nav-column-title {
-    @apply font-label-md font-bold! uppercase tracking-wider opacity-70 pb-1 border-b border-outline-variant;
+    @apply font-label-md font-bold! uppercase tracking-wider pb-1 border-b border-outline-variant;
   }
 
   /* Mega Menu Link Item */
   .nav-menu-link {
-    @apply inline-flex items-center gap-2 font-body-sm opacity-80 hover:opacity-100 hover:text-primary transition-all;
-  }
+    @apply inline-flex items-center gap-2 font-body-sm;
 
+    &:hover .nav-label {
+      @apply text-on-surface underline;
+    }
+  }
+  .nav-label {
+    @apply text-on-surface/60 transition-colors duration-100;
+  }
   /* Navigation Badge (Warning highlight) */
   .nav-badge {
-    @apply font-label-sm font-bold! px-1.5 py-0.5 rounded bg-on-warning text-warning uppercase;
+    @apply font-label-sm font-bold! px-1.5 py-0.5 bg-on-warning text-warning uppercase;
   }
 
   /* Desktop Top Navigation Tab Item */
@@ -26,6 +32,6 @@
 
   /* Standard Admin Panel Card Container */
   .nav-admin-card {
-    @apply p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-xs;
+    @apply p-6 bg-surface-container-lowest border border-outline-variant shadow-xs;
   }
 }
