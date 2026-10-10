@@ -29,7 +29,8 @@ This file is deliberately lookup-free: everything here you can use immediately. 
 | `bg-opacity-50` | `bg-black/50` |
 | `color="primary"` on Material components | `theme="success \| warning \| error \| info"` |
 | `<mat-icon>home</mat-icon>` | `<mat-icon name="home" />` |
-| `tailwind.config.js` (does not exist — v4 is config-less) | `@theme` / `@utility` / `@layer components` in `src/styles/tailwind/` |
+| Arbitrary corner radii (`rounded-lg`, `rounded-xl`, `rounded-2xl`) | Single source of truth: `border-shape` (governed by `--border-shape` in `:root`) |
+| Technical, internal, or implementation jargon in UI copy | Human-first, outcome-focused plain language (simple everyday words focused on user intent and clear actions) |
 
 > [!CAUTION]
 > **STRICT RULE — ZERO TAILWIND ON ANGULAR MATERIAL COMPONENTS**:
@@ -72,7 +73,7 @@ Each of `primary`, `secondary`, `tertiary`, `error` exposes the full M3 set:
 
 **Outline**: `border-outline`, `border-outline-variant`
 
-**Elevation**: `shadow-mat-1` … `shadow-mat-5`  ·  **Radius**: `rounded-corner-xs` … `rounded-corner-xl`
+**Elevation**: `shadow-mat-1` … `shadow-mat-5`  ·  **United Shape**: `border-shape` (governed by `--border-shape` in `:root`)
 
 **Status themes** — set as an attribute to cascade a palette onto a component or container:
 `theme="success"` (spring green) · `theme="warning"` (yellow) · `theme="info"` (azure) · `theme="error"` (red)
@@ -81,8 +82,10 @@ Each of `primary`, `secondary`, `tertiary`, `error` exposes the full M3 set:
 
 ## 4. Custom Utilities
 
+- **Borders & Shapes**: `border-shape` (governed by single source of truth `--border-shape: 2px`)
 - **Layout**: `elements-center`, `elements-start`, `elements-end`, `elements-between`, `form-space`
 - **Viewport height**: `dvh-10` … `dvh-full`, and `dvh-page-10` … `dvh-page-full` (subtracts header/footer)
+- **Safe Area**: `pb-safe-bottom` (handles mobile home indicator / navigation bar padding)
 - **Icon fill**: `ms-fill`
 
 ---
@@ -130,3 +133,14 @@ Check `src/app/shared/ui/`, `shared/directives/`, and `shared/pipes/` first. Ver
 ## 8. Going Deeper
 
 Activate the **`design-system`** skill for the style directory map, the Material M3 override workflow and its one documented exception, how to register new style files, per-component input reference, and the pre-commit quality checklist.
+
+---
+
+## 9. Human-First Microcopy & Plain Language
+
+All user-facing copy — including button labels, confirmation dialogs, toast/snackbar notifications, helper hints, and empty states — must follow a **Human-First Communication** standard:
+
+1. **Outcome over Mechanism**: Always describe what happens from the user's perspective, never how the system performs it under the hood. Focus on the content, setting, or action itself rather than the technical infrastructure executing it.
+2. **Simple, Universal Language**: Use familiar, everyday language that non-technical users, store owners, and shoppers understand instantly. Prefer short, clear action verbs and straightforward descriptions over technical jargon or system concepts.
+3. **Constructive & Reassuring Feedback**: When an action succeeds, is in progress, or fails, explain the outcome in friendly, plain terms with clear next steps. Keep technical diagnostic details strictly in developer console logs.
+

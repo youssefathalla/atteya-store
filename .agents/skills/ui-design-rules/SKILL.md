@@ -114,3 +114,9 @@ Only use semantic status tokens. Never use arbitrary Tailwind palette colors:
 8. **Layout Alignment Shortcuts**:
    - ❌ `class="flex items-center justify-center"`, `class="flex items-center justify-between"`, `class="flex items-center justify-start"`, `class="flex items-center justify-end"`
    - ✅ `class="elements-center"`, `class="elements-between"`, `class="elements-start"`, `class="elements-end"`
+9. **Human-First Plain-Language Microcopy**:
+   - Write for everyday people, not engineers. Focus on user intent, outcome, and simple actions rather than backend mechanics or system terminology.
+   - Use simple, active verbs (`Save`, `Reset`, `Update`, `Publish`, `Discard`, `Remove`).
+   - Frame feedback around the user's task with clear next steps (`Changes saved successfully`, `Unable to save changes. Please try again.`). Technical implementation and diagnostic details belong solely in developer console logs.
+
+

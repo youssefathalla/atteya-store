@@ -17,7 +17,8 @@ This skill is the **Single Source of Truth** for reusable assets across Atteya S
 3. [Core Shared Services (`src/app/core/services/`)](#3-core-shared-services)
 4. [Shared Directives & Pipes (`src/app/shared/`)](#4-shared-directives--pipes)
 5. [Shared Schemas & Firebase Utilities (`src/app/shared/`)](#5-shared-schemas--firebase-utilities)
-6. [The "2+ Duplication Rule" Extraction Protocol](#6-the-2-duplication-rule-protocol)
+6. [Shared Logic & Breakpoint Utilities (`src/app/shared/utils/`)](#6-shared-logic--breakpoint-utilities)
+7. [The "2+ Duplication Rule" Protocol](#7-the-2-duplication-rule-protocol)
 
 ---
 
@@ -105,6 +106,8 @@ Located in `src/styles/tailwind/components/`. Use these classes directly in your
 | `components-base.css` | `.base-card` | Base border, rounded corner, and surface container styling |
 | | `.form-card` | Styled container for forms and inputs |
 | | `.bg-circle` | Circular icon / avatar wrapper container |
+| | `.panel-border` | United border framing (`border border-outline-variant border-shape`) |
+| | `.surface-card` | Unified card shell (`bg-surface-container-lowest panel-border shadow-sm`) |
 
 ### 📐 Layout & Alignment Shortcuts (`src/styles/tailwind/utilities/layout.css`)
 
@@ -115,6 +118,20 @@ Located in `src/styles/tailwind/components/`. Use these classes directly in your
 | `elements-end` | `flex justify-end items-center` | Right-aligned flex row with centered vertical items |
 | `elements-between` | `flex justify-between items-center` | Space-between headers, navbars, rows with actions |
 | `form-space` | `flex flex-col gap-4 pt-4` | Standard form field vertical spacing |
+
+### 🔲 Borders & United Shape (`src/styles/tailwind/utilities/borders.css`)
+
+| Utility Class | Expansion | Usage |
+| :--- | :--- | :--- |
+| `border-shape` | `border-radius: var(--border-shape, 2px)` | **Single source of truth** for corner radius/shape across all cards, panels, containers, and rows |
+
+### 📱 Safe Area Utilities (`src/styles/tailwind/utilities/safe-area.css`)
+
+| Utility Class | Expansion | Usage |
+| :--- | :--- | :--- |
+| `pb-safe-bottom` | `padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.375rem)` | Fixed bottom navigation bar padding for iPhone/Android home indicator |
+| `pb-safe-drawer` | `padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem)` | Fullscreen slide-up drawer padding to prevent overlapping bottom nav |
+| `pt-safe-top` | `padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem)` | Modal and drawer top padding clearing status bar notch |
 
 ---
 
@@ -146,7 +163,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `login(email, pass)`, `register(email, pass)`, `logout()`, `sendPasswordReset(email)`.
 - **`NavService`** (`src/app/layout/navbar/nav.service.ts`):
   - `categories`: Computed signal for live navigation catalog with fallback.
-  - `isLive` / `isLoading`: Computed state signals.
+  - `isLoading`: Computed state signal.
   - `updateNavigation(categories)`, `seedDefaultNavigation()`.
 
 ---
@@ -191,7 +208,21 @@ Located in `src/app/shared/schemas/` and `src/app/shared/utils/firebase/`:
 
 ---
 
-## 6. The "2+ Duplication Rule" Protocol
+## 6. Shared Logic & Breakpoint Utilities
+
+Located in `src/app/shared/utils/`:
+
+- **`useBreakpoint`** (`src/app/shared/utils/breakpoint.utils.ts`):
+  - Returns a reactive `Signal<boolean>` indicating whether the media query matches.
+  - Automatically wraps Angular CDK `BreakpointObserver` in `toSignal()`.
+  - Usage: `readonly isDesktop = useBreakpoint(1280);` or `useBreakpoint('(min-width: 1024px)')`.
+- **`useStepperOrientation`** (`src/app/shared/utils/stepper-orientation.utils.ts`):
+  - Returns a reactive `Signal<StepperOrientation>` (`'horizontal' | 'vertical'`) for Material Stepper components.
+  - Usage: `readonly stepperOrientation = useStepperOrientation(800);`
+
+---
+
+## 7. The "2+ Duplication Rule" Protocol
 
 Whenever you find a combination of 4 or more utility classes that is repeated **2 or more times**:
 

@@ -30,10 +30,8 @@ export class NavigationManagerComponent {
   readonly #snackbar = inject(SnackbarService);
   readonly #dialog = inject(MatDialog);
   readonly draft = inject(NavigationDraftService);
-  readonly isLive = this.#navService.isLive;
-  readonly isLoading = this.#navService.isLoading;
   readonly isSaving = signal<boolean>(false);
-  readonly isSeeding = signal<boolean>(false);
+  readonly isResetting = signal<boolean>(false);
 
   constructor() {
     effect(() => {
@@ -48,7 +46,7 @@ export class NavigationManagerComponent {
     });
   }
 
-  async publishToFirestore(): Promise<void> {
+  async publishChanges(): Promise<void> {
     const categories = this.draft.draftCategories();
 
     const validationError = validateNavigationDraft(categories);
@@ -61,24 +59,24 @@ export class NavigationManagerComponent {
     try {
       await this.#navService.updateNavigation(categories);
       this.draft.markSaved();
-      this.#snackbar.success('Published! Navigation updated in Firestore.');
+      this.#snackbar.success('Published! Navigation updated successfully.');
     } catch (err) {
-      console.error('Failed to publish navigation to Firestore:', err);
-      this.#snackbar.error('Failed to save to Firestore. Check permissions.');
+      console.error('Failed to publish navigation:', err);
+      this.#snackbar.error('Failed to save changes. Please try again.');
     } finally {
       this.isSaving.set(false);
     }
   }
 
-  async seedFromDefaults(): Promise<void> {
+  async resetToDefaults(): Promise<void> {
     const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
       ConfirmDialogComponent,
       {
         data: {
-          title: 'Seed Navigation Database',
+          title: 'Reset to Defaults',
           message:
-            'Are you sure you want to seed the database? This will populate settings/navigation in Firestore with the default store catalog.',
-          confirmText: 'Seed Database',
+            'Are you sure you want to reset the navigation? This will restore the default store catalog.',
+          confirmText: 'Reset to Defaults',
           cancelText: 'Cancel',
           theme: 'primary',
         },
@@ -90,17 +88,17 @@ export class NavigationManagerComponent {
     const confirmed = await firstValueFrom(dialogRef.afterClosed());
     if (!confirmed) return;
 
-    this.isSeeding.set(true);
+    this.isResetting.set(true);
     try {
-      await this.#navService.seedDefaultNavigation();
+      await this.#navService.resetDefaultNavigation();
       this.draft.markSaved();
-      this.#snackbar.success('Firestore settings/navigation seeded successfully!');
+      this.#snackbar.success('Default navigation restored successfully!');
       this.draft.resetDraftFromSource(NAV_CATEGORIES);
     } catch (err) {
-      console.error('Failed to seed navigation:', err);
-      this.#snackbar.error('Failed to seed navigation.');
+      console.error('Failed to reset navigation:', err);
+      this.#snackbar.error('Failed to reset navigation.');
     } finally {
-      this.isSeeding.set(false);
+      this.isResetting.set(false);
     }
   }
 

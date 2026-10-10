@@ -51,19 +51,43 @@ src/app/features/[feature-name]/
 ├── models/
 │   └── [feature].model.ts           # Pure TypeScript types inferred from schemas
 ├── services/
-│   └── [feature].service.ts         # Angular v22 @Service() with Signals / Firestore SDK
+│   ├── [feature].service.ts         # Backend/Firestore @Service() (fetching, mutation)
+│   └── [feature]-draft.service.ts   # Local UI State @Service() (staged draft mutations, reordering)
+├── utils/
+│   ├── [feature].utils.ts           # Pure functions (slugify, formatters, path builders)
+│   └── [feature].validator.ts       # Decomposed validator functions (Cognitive Complexity <= 10)
 ├── pages/
-│   └── [feature]-page/              # Routed smart components (handles route inputs & SEO)
+│   └── [feature]-page/              # Routed smart shell (orchestration ONLY, <= 100 lines)
 │       ├── [feature]-page.component.ts
-│       ├── [feature]-page.component.html
-│       └── [feature]-page.component.scss
-├── components/                      # Dumb / presentation sub-components
+│       └── [feature]-page.component.html
+├── components/                      # Dumb / presentation sub-components (born from Day 1)
 │   └── [sub-feature]/
 │       ├── [sub-feature].component.ts
-│       ├── [sub-feature].component.html
-│       └── [sub-feature].component.scss
+│       └── [sub-feature].component.html
 └── [feature].routes.ts              # Feature child routes
 ```
+
+### 🏛️ The 4 Core Clean-Architecture Guardrails
+
+1. **The 100-Line Component Budget**:
+   - Routed page components (`pages/`) are **strictly shells / orchestrators** ($\le 100$ lines HTML, $\le 120$ lines TS).
+   - Any visual region $\ge 40$ lines or containing its own actions/drag-drop (e.g. sidebars, lists, forms, toolbars) **MUST be created as a sub-component in `components/` right from the start**. Never dump monolithic markup into a page to refactor later.
+
+2. **Local Feature Draft State Store (`services/`)**:
+   - When a page has staged edits (drafts, CDK drag-drop reordering, adding/deleting items before committing to Firestore), **NEVER place array mutations inside the component class**.
+   - Encapsulate reactive draft signals (`draftItems`, `isDirty`, `selectedId`) and mutation methods inside a dedicated local `@Service()` (e.g. `[feature]-draft.service.ts`).
+
+3. **Cognitive Complexity & Pure Utilities (`utils/`)**:
+   - Keep function Cognitive Complexity strictly $\le 15$ (ideally $\le 10$).
+   - Never write triple-nested validation loops in component methods. Extract them into pure single-purpose functions in `[feature].validator.ts`.
+   - Extract string manipulation, URL/slug generation, and normalization into pure functions in `[feature].utils.ts`.
+
+4. **Symmetrical Layout Structure**:
+   - When designing layout shells (e.g. `features/admin/layout/`):
+     - `sidebar/`: Desktop sidebar sub-component
+     - `header/`: Desktop topbar sub-component
+     - `mobile-nav/`: Mobile bottom nav and slide-up drawer sub-components
+     - The layout root component is strictly a container wiring viewports and responsiveness.
 
 ---
 

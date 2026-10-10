@@ -66,7 +66,8 @@
   --shadow-mat-4: var(--mat-sys-level4);
   --shadow-mat-5: var(--mat-sys-level5);
 
-  /* Radius Utilities */
+  /* Radius / Shape Utilities */
+  --radius-shape: var(--border-shape, 2px);
   --radius-corner-xs: var(--mat-sys-corner-extra-small);
   --radius-corner-sm: var(--mat-sys-corner-small);
   --radius-corner-md: var(--mat-sys-corner-medium);
@@ -77,5 +78,8 @@
   --container-8xl: 90rem;
   --container-9xl: 100rem;
 
+  /* fonts */
+  --font-satoshi: 'Satoshi', sans-serif;
+  --font-chillax: 'Chillax', sans-serif;
+  --font-zodiak: 'Zodiak', serif;
 }
-

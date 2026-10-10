@@ -1,51 +1,21 @@
 <nav
-  class="fixed bottom-0 inset-x-0 z-50 lg:hidden bg-surface-container-lowest/95 backdrop-blur-md border-t border-outline-variant px-4 py-1.5 pb-[calc(env(safe-area-inset-bottom,0px)+0.375rem)] shadow-mat-2 select-none"
+  class="fixed bottom-0 inset-x-0 z-50 xl:hidden bg-surface border-t border-outline-variant px-4 py-1.5 pb-safe-bottom shadow-md select-none"
   aria-label="Admin mobile navigation"
 >
   <div class="elements-between py-1 px-1 sm:px-2 icon-btn-lg">
-    <!-- 1. Primary Shortcut: Navigation & Menus -->
-    <a
-      matIconButton
-      routerLink="/admin/navigation"
-      routerLinkActive="bg-surface-container-high"
-      aria-label="Navigation & Menus"
-    >
-      <mat-icon name="menu" size="3xl" />
+    <!-- 1. Storefront Preview Link -->
+    <a matIconButton routerLink="/" target="_blank" rel="noopener" aria-label="Preview Storefront">
+      <mat-icon name="store" size="3xl" />
     </a>
 
-    <!-- 2. Firestore Sync Indicator (Compact) -->
-    <div
-      class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-outline-variant bg-surface-container-high font-label-sm font-bold!"
-      aria-label="Database sync status"
-    >
-      @if (isLive()) {
-        <span class="size-2 rounded-full bg-success animate-pulse"></span>
-        <span>Live</span>
-      } @else {
-        <span class="size-2 rounded-full bg-warning"></span>
-        <span>Local</span>
-      }
-    </div>
-
-    <!-- 3. Storefront Preview -->
-    <a
-      matIconButton
-      routerLink="/"
-      target="_blank"
-      rel="noopener"
-      aria-label="Preview Storefront"
-    >
-      <mat-icon name="open_in_new" size="3xl" />
-    </a>
-
-    <!-- 4. Menu / Modules Toggle -->
+    <!-- 2. Menu / Modules Toggle (menu <-> close) -->
     <button
       matIconButton
       type="button"
       (click)="toggleMenu()"
       aria-label="Toggle admin navigation menu"
     >
-      <mat-icon [name]="isMenuOpen() ? 'close' : 'grid_view'" size="3xl" />
+      <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" size="3xl" />
     </button>
   </div>
 </nav>

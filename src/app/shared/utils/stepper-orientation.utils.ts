@@ -1,25 +1,16 @@
-import { inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { BreakpointObserver } from '@angular/cdk/layout';
-import { map } from 'rxjs';
+import { computed, Signal } from '@angular/core';
 import { StepperOrientation } from '@angular/material/stepper';
+import { useBreakpoint } from './breakpoint.utils';
 
 /**
  * Returns a signal that emits `'horizontal'` or `'vertical'` based on viewport size.
+ * Must be called in an injection context.
  *
- * @param breakpoint - The min-width breakpoint.
- *   - If `number`: treated as pixels (e.g. `800` -> `'(min-width: 800px)'`).
- *   - If `string`: treated as a raw CSS media query (e.g. `'(min-width: 800px)'`).
- *   Defaults to `800`.
+ * @param breakpoint - The min-width breakpoint (pixel number or media query string). Defaults to `800`.
  */
-export function useStepperOrientation(breakpoint: number | string = 800) {
-  const breakpointObserver = inject(BreakpointObserver);
-  const query = typeof breakpoint === 'number' ? `(min-width: ${breakpoint}px)` : breakpoint;
-
-  return toSignal(
-    breakpointObserver
-      .observe(query)
-      .pipe(map(({ matches }): StepperOrientation => (matches ? 'horizontal' : 'vertical'))),
-    { initialValue: 'horizontal' as StepperOrientation },
-  );
+export function useStepperOrientation(
+  breakpoint: number | string = 800,
+): Signal<StepperOrientation> {
+  const isWide = useBreakpoint(breakpoint, true);
+  return computed<StepperOrientation>(() => (isWide() ? 'horizontal' : 'vertical'));
 }

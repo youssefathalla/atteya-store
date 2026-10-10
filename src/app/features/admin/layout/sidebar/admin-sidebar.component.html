@@ -1,0 +1,81 @@
+<aside class="h-full flex flex-col">
+  <!-- Brand / Admin Header (Full-height sidebar header, h-16) -->
+  <div class="h-16 elements-start gap-2.5 px-6 border-b border-outline-variant">
+    <a routerLink="/admin">
+      <span class="font-display-sm font-medium! text-primary tracking-widest"> ATTEYA </span>
+    </a>
+  </div>
+
+  <!-- Navigation Menu (Structured Categories & Sub-items) -->
+  <nav
+    class="flex-1 px-3 py-4 space-y-4 overflow-y-auto"
+    aria-label="Admin desktop navigation"
+  >
+    @for (category of categories(); track category.id) {
+      <div class="space-y-1">
+        <!-- Category Group Header -->
+        <div class="px-3 py-1 font-label-sm font-bold! opacity-50 uppercase tracking-widest">
+          {{ category.label }}
+        </div>
+
+        <!-- Category Sub-Items -->
+        @if (category.subItems) {
+          @for (item of category.subItems; track item.id) {
+            @if (item.disabled) {
+              <div
+                class="elements-between px-3 py-2 border-shape opacity-40 font-body-sm cursor-not-allowed"
+              >
+                <div class="flex items-center gap-3">
+                  @if (item.icon) {
+                    <mat-icon [name]="item.icon" size="sm" />
+                  }
+                  <span>{{ item.label }}</span>
+                </div>
+                @if (item.badge) {
+                  <span class="font-label-sm font-mono text-[10px] uppercase">
+                    {{ item.badge }}
+                  </span>
+                }
+              </div>
+            } @else {
+              <a
+                [routerLink]="item.path"
+                routerLinkActive="bg-surface-container-high font-bold!"
+                class="elements-between px-3 py-2 border-shape opacity-80 hover:opacity-100 hover:bg-surface-container transition-colors font-body-sm"
+              >
+                <div class="flex items-center gap-3">
+                  @if (item.icon) {
+                    <mat-icon [name]="item.icon" size="sm" />
+                  }
+                  <span>{{ item.label }}</span>
+                </div>
+                @if (item.badge) {
+                  <span
+                    class="font-label-sm font-mono text-[10px] uppercase font-bold! px-1.5 py-0.5 rounded bg-surface-container-highest"
+                  >
+                    {{ item.badge }}
+                  </span>
+                }
+              </a>
+            }
+          }
+        }
+      </div>
+    }
+  </nav>
+
+  <!-- Admin Footer / Operator Profile -->
+  <div class="p-4 border-t border-outline-variant shrink-0">
+    <div class="flex items-center gap-3 px-2 py-2">
+      <div
+        class="size-8 rounded-full bg-surface-container-high elements-center font-label-sm font-bold!"
+      >
+        AD
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="font-label-md font-bold! truncate">CMS Operator</div>
+        <div class="font-label-sm font-mono opacity-60 truncate">v1.0.0-rc</div>
+      </div>
+    </div>
+  </div>
+</aside>

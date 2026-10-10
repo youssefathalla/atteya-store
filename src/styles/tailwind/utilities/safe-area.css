@@ -1,0 +1,16 @@
+/*! SAFE AREA UTILITIES (iOS Home Indicator & Status Bar Notch) */
+
+/* Bottom navigation bar safe padding (home indicator + 0.375rem / 6px) */
+@utility pb-safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.375rem);
+}
+
+/* Fullscreen slide-up drawers/menus clearance above bottom nav (home indicator + 4.5rem) */
+@utility pb-safe-drawer {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
+}
+
+/* Modal and drawer top safe padding (status bar / notch + 0.75rem) */
+@utility pt-safe-top {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+}

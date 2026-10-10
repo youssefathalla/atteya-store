@@ -31,7 +31,7 @@ function validateCategory(cat: NavCategory): string | null {
 }
 
 /**
- * Validates the navigation draft before publishing to Firestore.
+ * Validates the navigation draft before publishing.
  * Reduces cognitive complexity by breaking category, column, and link validations
  * into focused, single-purpose functions.
  *

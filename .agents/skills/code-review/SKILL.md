@@ -41,7 +41,9 @@ Before approving any task, completing a feature, or declaring code ready:
 - [ ] **Change Detection**: Is `changeDetection: ChangeDetectionStrategy.OnPush` omitted? (It is default in Angular 22).
 - [ ] **Services**: Is `@Service()` used from `@angular/core`? (No legacy `@Injectable({ providedIn: 'root' })`).
 - [ ] **Signals Everywhere**: Is `input()` / `output()` / `computed()` / `signal()` used for all state? (Zero `@Input()`).
-- [ ] **Route Data Binding**: Do components read route params via `input()`? Flag any `inject(ActivatedRoute)` used just to read the component's own params — `withComponentInputBinding()` is enabled.
+- [ ] **Component Budget & Decomposing**: Are routed page components shells ($\le 100$ lines HTML, $\le 120$ lines TS)? Are distinct panels, lists, or forms decomposed into presentation sub-components in `components/`?
+- [ ] **Draft State Isolation**: Are staged in-memory edits, reordering, and array mutations encapsulated in a local `@Service()` (e.g. `[feature]-draft.service.ts`) rather than in component classes?
+- [ ] **Cognitive Complexity Guardrail**: Are all functions strictly $\le 15$ Cognitive Complexity (ideally $\le 10$)? Are multi-level validation loops extracted into pure functions in `[feature].validator.ts`?
 - [ ] **Cleanup**: Zero `ngOnDestroy`? (Use `DestroyRef` or `takeUntilDestroyed`).
 
 ### 2. 🎨 Material M3 & Design System Purity
@@ -50,7 +52,7 @@ Before approving any task, completing a feature, or declaring code ready:
 - [ ] **No `::ng-deep`**: Do all Material component overrides live in `src/styles/ng-material/components/_{name}.scss` using `@include mat.<name>-overrides(( ... ))`?
 - [ ] **Monochrome Identity**: Is `primary` black? Are content texts defaulting to `text-on-surface` without redundant color spans?
 - [ ] **Semantic Tokens**: Are all surfaces using `bg-surface`, `bg-surface-container-*`? Flag any raw colors (`bg-red-500`, `text-emerald-400`, `bg-amber-400`) or inverted tokens (`bg-on-primary` on containers).
-- [ ] **Tailwind v4 Syntax**: Is `!` placed as suffix (`hidden!`, never `!hidden`)? Is `size-{N}` used instead of `w-{N} h-{N}`?
+- [ ] **Human-First Plain Language**: Does all user-facing microcopy (buttons, dialogs, toasts, empty states) use simple, everyday language focused on user intent and outcomes rather than technical mechanics or system jargon?
 
 ### 3. ♿ Accessibility (A11y) & Semantic HTML
 

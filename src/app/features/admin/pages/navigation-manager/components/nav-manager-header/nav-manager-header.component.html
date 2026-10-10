@@ -1,6 +1,6 @@
 <!-- Top Header & Primary Sync Actions -->
 <div
-  class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-surface-container-lowest border border-outline-variant shadow-xs"
+  class="surface-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5"
 >
   <div>
     <h2 class="font-title-lg font-bold!">Store Navigation Hierarchy</h2>
@@ -11,25 +11,34 @@
   </div>
 
   <div class="flex items-center gap-2.5 flex-wrap">
-    <!-- Seed Database Button -->
+    <!-- Reset to Defaults Button -->
     <button
-      matButton="outlined"
+      matButton="tonal"
       type="button"
-      (click)="seedDefaults.emit()"
-      [disabled]="isSeeding() || isSaving()"
+      theme="error"
+      (click)="resetDefaults.emit()"
+      [disabled]="isResetting() || isSaving()"
+      [showProgress]="isResetting()"
     >
-      <mat-icon name="cloud_upload" size="sm" />
-      <span>{{ isSeeding() ? 'Seeding...' : 'Seed Defaults' }}</span>
+      <mat-icon name="restart_alt" size="sm" />
+      <span>Reset to Defaults</span>
+      <mat-progress-spinner
+        progressIndicator
+        mode="indeterminate"
+        diameter="18"
+        aria-label="Resetting to defaults..."
+      />
     </button>
 
     <!-- Discard Changes -->
     <button
-      matButton="text"
+      matButton="tonal"
       type="button"
+      theme="warning"
       (click)="discard.emit()"
       [disabled]="isSaving()"
     >
-      <span>Discard</span>
+      <span>Discard Changes</span>
     </button>
 
     <!-- Publish Changes -->
@@ -38,9 +47,16 @@
       type="button"
       (click)="publish.emit()"
       [disabled]="isSaving()"
+      [showProgress]="isSaving()"
     >
       <mat-icon name="check_circle" size="sm" />
-      <span>{{ isSaving() ? 'Publishing...' : 'Publish to Storefront' }}</span>
+      <span>Publish to Store</span>
+      <mat-progress-spinner
+        progressIndicator
+        mode="indeterminate"
+        diameter="18"
+        aria-label="Publishing to store..."
+      />
     </button>
   </div>
 </div>

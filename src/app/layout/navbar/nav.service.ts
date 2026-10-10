@@ -16,7 +16,10 @@ export class NavService {
   );
 
   readonly #navDoc = signalDoc(this.#navDocRef);
-
+  /**
+   * Indicates whether the live document is currently being fetched.
+   */
+  readonly isLoading = computed<boolean>(() => this.#navDoc() === undefined);
   /**
    * Evaluates to live categories from Firestore;
    * Seamlessly falls back to bundled NAV_CATEGORIES while loading or if unseeded.
@@ -30,29 +33,21 @@ export class NavService {
   });
 
   /**
-   * Indicates whether the live document is currently being fetched.
+   * Resets the store navigation document with default categories.
    */
-  readonly isLoading = computed<boolean>(() => this.#navDoc() === undefined);
-
-  /**
-   * Indicates whether data is actively resolved from Firestore.
-   */
-  readonly isLive = computed<boolean>(() => {
-    const docData = this.#navDoc();
-    return Boolean(docData?.categories && docData.categories.length > 0);
-  });
-
-  /**
-   * Seeds the navigation document in Firestore with default categories.
-   */
-  async seedDefaultNavigation(
-    categories: readonly NavCategory[] = NAV_CATEGORIES,
-  ): Promise<void> {
+  async resetDefaultNavigation(categories: readonly NavCategory[] = NAV_CATEGORIES): Promise<void> {
     await this.updateNavigation(categories);
   }
 
   /**
-   * Publishes updated navigation categories to Firestore.
+   * @deprecated Use resetDefaultNavigation instead.
+   */
+  async seedDefaultNavigation(categories: readonly NavCategory[] = NAV_CATEGORIES): Promise<void> {
+    await this.resetDefaultNavigation(categories);
+  }
+
+  /**
+   * Publishes updated navigation categories.
    */
   async updateNavigation(categories: readonly NavCategory[]): Promise<void> {
     const payload: NavSettings = {

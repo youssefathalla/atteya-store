@@ -42,13 +42,27 @@
   <div
     class="flex gap-2 items-center px-4 py-2 backdrop-blur-xl bg-surface-container-lowest rounded-full mat-border-subtle shadow-mat-1"
   >
-    <button matIconButton type="button" (click)="zoomOut()" [matTooltip]="'common.zoomOut'" aria-label="Zoom out">
+    <button
+      matIconButton
+      type="button"
+      (click)="zoomOut()"
+      [matTooltip]="'common.zoomOut'"
+      aria-label="Zoom out"
+    >
       <mat-icon name="remove" />
     </button>
 
-    <span class="w-12 font-body-sm font-mono text-center" aria-live="polite"> {{ scalePercentage() }}% </span>
+    <span class="w-12 font-body-sm font-mono text-center" aria-live="polite">
+      {{ scalePercentage() }}%
+    </span>
 
-    <button matIconButton type="button" (click)="zoomIn()" [matTooltip]="'common.zoomIn'" aria-label="Zoom in">
+    <button
+      matIconButton
+      type="button"
+      (click)="zoomIn()"
+      [matTooltip]="'common.zoomIn'"
+      aria-label="Zoom in"
+    >
       <mat-icon name="add" />
     </button>
 

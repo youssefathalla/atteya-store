@@ -1,5 +1,11 @@
 @use "@angular/material" as mat;
-
+:root {
+  @include mat.expansion-overrides((
+    container-elevation-shadow: 0,
+    header-hover-state-layer-color: var(--mat-sys-surface-container-high),
+    container-shape: var(--border-shape, 2px),
+  ));
+}
 .side-nav {
   @include mat.expansion-overrides((
     container-background-color: var(--mat-sys-surface),

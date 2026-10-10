@@ -1,0 +1,6 @@
+/*! UNITED BORDER & SHAPE UTILITIES */
+/* Single Source of Truth for unified border-shape across cards, buttons, dialogs, and containers */
+
+@utility border-shape {
+  border-radius: var(--border-shape, 2px);
+}

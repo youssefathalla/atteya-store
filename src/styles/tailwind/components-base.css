@@ -4,13 +4,20 @@
   }
 
   .base-card {
-    @apply block w-full h-full duration-300 border hover:border-primary border-outline-variant rounded-corner-xs shadow-mat-1 overflow-hidden;
+    @apply block w-full h-full duration-300 border hover:border-primary border-outline-variant border-shape shadow-mat-1 overflow-hidden;
   }
 
   .form-card {
     @apply
-    form-space mb-6 gap-8 p-6 max-sm:p-3 bg-surface-container-low rounded-corner-xs duration-200
+    form-space mb-6 gap-8 p-6 max-sm:p-3 bg-surface-container-low border-shape duration-200
     shadow-mat-1 hover:shadow-mat-2 hover:ring-1 hover:ring-primary/50;
   }
 
+  .panel-border {
+    @apply border border-outline-variant border-shape;
+  }
+
+  .surface-card {
+    @apply bg-surface-container-lowest border border-outline-variant border-shape shadow-sm;
+  }
 }

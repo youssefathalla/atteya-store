@@ -2,7 +2,7 @@
 <!-- SLIDE-UP FULLSCREEN MENU CONTAINER                                        -->
 <!-- ========================================================================= -->
 <nav
-  class="fixed inset-0 z-40 flex flex-col bg-surface h-dvh w-full transition-transform duration-200 ease-out lg:hidden pb-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]"
+  class="fixed inset-0 z-40 flex flex-col bg-surface h-dvh w-full transition-transform duration-200 ease-out lg:hidden pb-safe-drawer"
   [class.translate-y-0]="isOpen()"
   [class.translate-y-full]="!isOpen()"
   [class.pointer-events-auto]="isOpen()"
@@ -21,7 +21,7 @@
     >
       <!-- Level 1 Header -->
       <div
-        class="elements-between px-5 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 border-b border-outline-variant bg-surface-container-lowest"
+        class="elements-between px-5 pt-safe-top pb-3 border-b border-outline-variant bg-surface-container-lowest"
       >
         <div class="flex items-center gap-2">
           <span
@@ -118,7 +118,7 @@
       @if (selectedCategory(); as cat) {
         <!-- Level 2 Header with Back Navigation -->
         <div
-          class="elements-between px-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 border-b border-outline-variant bg-surface-container-lowest"
+          class="elements-between px-4 pt-safe-top pb-3 border-b border-outline-variant bg-surface-container-lowest"
         >
           <button
             type="button"

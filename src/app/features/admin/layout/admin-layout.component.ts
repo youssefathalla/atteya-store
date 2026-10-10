@@ -1,9 +1,10 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { SharedIconModule } from '@shared/ui/mat-icon';
-import { NavService } from '@layout/navbar/nav.service';
+import { RouterOutlet } from '@angular/router';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { useBreakpoint } from '@shared/utils/breakpoint.utils';
 import { AdminNavService } from './admin-nav.service';
+import { AdminSidebarComponent } from './sidebar/admin-sidebar.component';
+import { AdminHeaderComponent } from './header/admin-header.component';
 import { AdminMobileNavComponent } from './mobile-nav/admin-mobile-nav.component';
 import { AdminMobileMenuComponent } from './mobile-nav/admin-mobile-menu.component';
 
@@ -11,10 +12,9 @@ import { AdminMobileMenuComponent } from './mobile-nav/admin-mobile-menu.compone
   selector: 'app-admin-layout',
   imports: [
     RouterOutlet,
-    RouterLink,
-    RouterLinkActive,
-    MatButtonModule,
-    SharedIconModule,
+    MatSidenavModule,
+    AdminSidebarComponent,
+    AdminHeaderComponent,
     AdminMobileNavComponent,
     AdminMobileMenuComponent,
   ],
@@ -24,8 +24,21 @@ import { AdminMobileMenuComponent } from './mobile-nav/admin-mobile-menu.compone
   },
 })
 export class AdminLayoutComponent {
-  readonly navService = inject(NavService);
   readonly adminNavService = inject(AdminNavService);
 
   readonly adminCategories = this.adminNavService.categories;
+  readonly isDesktopSidebarOpen = this.adminNavService.isDesktopSidebarOpen;
+  readonly currentPageTitle = this.adminNavService.currentPageTitle;
+
+  readonly isDesktop = useBreakpoint(1280);
+
+  toggleDesktopSidebar(): void {
+    this.adminNavService.toggleDesktopSidebar();
+  }
+
+  onDesktopSidebarOpenedChange(open: boolean): void {
+    if (this.isDesktop()) {
+      this.adminNavService.setDesktopSidebarOpen(open);
+    }
+  }
 }

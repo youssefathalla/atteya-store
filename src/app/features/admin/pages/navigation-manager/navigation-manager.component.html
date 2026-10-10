@@ -1,14 +1,14 @@
 <app-nav-manager-header
   [isSaving]="isSaving()"
-  [isSeeding]="isSeeding()"
-  (seedDefaults)="seedFromDefaults()"
+  [isResetting]="isResetting()"
+  (resetDefaults)="resetToDefaults()"
   (discard)="discardDraft()"
-  (publish)="publishToFirestore()"
+  (publish)="publishChanges()"
 />
 
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-  <!-- Left Panel: Category Tree List (4 cols on lg, 3 cols on 2xl) -->
-  <div class="lg:col-span-4 2xl:col-span-3">
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start pt-6">
+  <!-- Left Panel: Category Tree List (4 cols on xl, 3 cols on 2xl) -->
+  <div class="xl:col-span-4 2xl:col-span-3 xl:sticky xl:top-22 xl:z-10 shadow-sm">
     <app-nav-category-list
       [categories]="draft.draftCategories()"
       [selectedCategoryId]="draft.selectedCategoryId()"
@@ -20,8 +20,8 @@
     />
   </div>
 
-  <!-- Right Panel: Category & Mega Menu Detail Editor (8 cols on lg, 9 cols on 2xl) -->
-  <div class="lg:col-span-8 2xl:col-span-9 space-y-6">
+  <!-- Right Panel: Category & Mega Menu Detail Editor (8 cols on xl, 9 cols on 2xl) -->
+  <div class="xl:col-span-8 2xl:col-span-9 space-y-6 shadow-sm">
     @if (draft.selectedCategory(); as category) {
       <app-nav-category-details
         [category]="category"
@@ -46,7 +46,7 @@
       />
     } @else {
       <div
-        class="p-12 text-center bg-surface-container-lowest border border-outline-variant rounded-2xl font-body-md opacity-70"
+        class="surface-card p-12 text-center font-body-md opacity-70"
       >
         Select a category from the left or click "Add" to start editing.
       </div>

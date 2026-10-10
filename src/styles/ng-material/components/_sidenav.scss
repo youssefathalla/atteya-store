@@ -7,7 +7,7 @@ $handset-landscape: '(max-width: 959.98px) and (orientation: landscape)';
   //* sidenav
   @include mat.sidenav-overrides((
     container-shape: 0,
-    // container-width: 40rem,
+    container-width: 18rem,
     container-background-color: var(--mat-sys-primary-container),
     container-text-color: var(--mat-sys-on-primary-container),
   ));
@@ -28,3 +28,20 @@ mat-drawer {
   border-inline-start: 1px solid var(--mat-sys-outline-variant);
   box-shadow: var(--mat-sys-level3, 0 8px 10px -5px rgba(0, 0, 0, 0.2));
 }
+
+app-admin-layout {
+  @include mat.sidenav-overrides((
+    container-shape: 0,
+    container-elevation-shadow: none,
+    container-background-color: var(--mat-sys-surface-container-lowest),
+    container-divider-color: var(--mat-sys-outline-variant),
+    content-background-color: var(--mat-sys-surface-container-lowest),
+  ));
+
+  mat-sidenav {
+    background-color: var(--mat-sys-surface-container-lowest);
+    border-inline-end: 1px solid var(--mat-sys-outline-variant);
+    box-shadow: none;
+  }
+}
+

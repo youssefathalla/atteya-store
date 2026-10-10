@@ -1,0 +1,31 @@
+<header
+  class="h-16 border-b border-outline-variant elements-between px-4 sm:px-6 shrink-0 select-none"
+>
+  <!-- Left: Toggle Button (Desktop) + Page Title -->
+  <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+    <!-- Desktop Sidenav Toggle Button: inside top navbar before title -->
+    <div class="hidden xl:block shrink-0">
+      <button
+        matIconButton
+        type="button"
+        (click)="toggleSidebar.emit()"
+        aria-label="Toggle navigation sidebar"
+      >
+        <mat-icon [name]="isSidebarOpen() ? 'menu_open' : 'menu'" />
+      </button>
+    </div>
+
+    <!-- Dynamic Page Title -->
+    <h1 class="font-title-lg font-semibold! tracking-tight truncate">
+      {{ pageTitle() }}
+    </h1>
+  </div>
+
+  <!-- Right Section: Store Preview (Visible on desktop > xl, removed on mobile < xl) -->
+  <div class="hidden xl:flex items-center gap-2 sm:gap-3 shrink-0">
+    <a matButton="filled" routerLink="/" target="_blank" rel="noopener">
+      <mat-icon name="store" size="lg" />
+      <span>Go to Store</span>
+    </a>
+  </div>
+</header>

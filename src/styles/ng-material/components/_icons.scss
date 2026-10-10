@@ -16,7 +16,7 @@ mat-icon {
 
 .icon-btn-md {
   @include mat.icon-button-overrides((
-    icon-size: 20px,
+    icon-size: 18px,
     state-layer-size: 36px
   ));
 }

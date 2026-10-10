@@ -2,7 +2,7 @@
 
 :root {
   @include mat.dialog-overrides((
-    container-shape: var(--mat-sys-corner-extra-small),
+    container-shape: var(--border-shape, 2px),
   ));
 }
 

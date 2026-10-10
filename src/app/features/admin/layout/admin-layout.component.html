@@ -1,136 +1,29 @@
-<div class="flex min-h-screen bg-surface-container-lowest">
-  <!-- 1. LEFT ADMIN SIDEBAR (Visible on Desktop lg+) -->
-  <aside
-    class="hidden lg:flex w-64 border-r border-outline-variant bg-surface-container-lowest flex-col shrink-0 select-none"
-  >
-    <!-- Brand / Admin Header -->
-    <div class="h-16 flex items-center gap-2.5 px-6 border-b border-outline-variant">
-      <span class="font-display-sm font-bold! tracking-widest uppercase">
-        ATTEYA.
-      </span>
-      <span
-        class="font-label-sm font-mono font-bold! px-1.5 py-0.5 rounded bg-surface-container-high uppercase tracking-wider opacity-80"
-      >
-        Admin
-      </span>
-    </div>
-
-    <!-- Navigation Menu (Structured Categories & Sub-items) -->
-    <nav class="flex-1 px-3 py-4 space-y-4 overflow-y-auto" aria-label="Admin desktop navigation">
-      @for (category of adminCategories(); track category.id) {
-        <div class="space-y-1">
-          <!-- Category Group Header -->
-          <div class="px-3 py-1 font-label-sm font-bold! opacity-50 uppercase tracking-widest">
-            {{ category.label }}
-          </div>
-
-          <!-- Category Sub-Items -->
-          @if (category.subItems) {
-            @for (item of category.subItems; track item.id) {
-              @if (item.disabled) {
-                <div
-                  class="elements-between px-3 py-2 rounded-lg opacity-40 font-body-sm cursor-not-allowed"
-                >
-                  <div class="flex items-center gap-3">
-                    @if (item.icon) {
-                      <mat-icon [name]="item.icon" size="sm" />
-                    }
-                    <span>{{ item.label }}</span>
-                  </div>
-                  @if (item.badge) {
-                    <span class="font-label-sm font-mono text-[10px] uppercase">{{ item.badge }}</span>
-                  }
-                </div>
-              } @else {
-                <a
-                  [routerLink]="item.path"
-                  routerLinkActive="bg-surface-container-high font-bold!"
-                  class="elements-between px-3 py-2 rounded-lg opacity-80 hover:opacity-100 hover:bg-surface-container transition-colors font-body-sm"
-                >
-                  <div class="flex items-center gap-3">
-                    @if (item.icon) {
-                      <mat-icon [name]="item.icon" size="sm" />
-                    }
-                    <span>{{ item.label }}</span>
-                  </div>
-                  @if (item.badge) {
-                    <span
-                      class="font-label-sm font-mono text-[10px] uppercase font-bold! px-1.5 py-0.5 rounded bg-surface-container-highest"
-                    >
-                      {{ item.badge }}
-                    </span>
-                  }
-                </a>
-              }
-            }
-          }
-        </div>
-      }
-    </nav>
-
-    <!-- Admin Footer / Version info -->
-    <div class="p-4 border-t border-outline-variant">
-      <div class="flex items-center gap-3 px-2 py-2">
-        <div
-          class="size-8 rounded-full bg-surface-container-high elements-center font-label-sm font-bold!"
-        >
-          AD
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="font-label-md font-bold! truncate">CMS Operator</div>
-          <div class="font-label-sm font-mono opacity-60 truncate">
-            v1.0.0-rc
-          </div>
-        </div>
-      </div>
-    </div>
-  </aside>
-
-  <!-- 2. MAIN VIEWPORT -->
-  <div class="flex-1 flex flex-col min-w-0">
-    <!-- Topbar (Responsive for mobile & desktop) -->
-    <header
-      class="h-16 border-b border-outline-variant bg-surface-container-lowest elements-between px-4 sm:px-8 select-none"
+<div class="h-screen overflow-hidden flex flex-col">
+  <!-- 1. FULL-HEIGHT SIDENAV CONTAINER -->
+  <mat-sidenav-container class="flex-1 min-h-0 bg-surface-container-lowest" [hasBackdrop]="false">
+    <!-- FULL-HEIGHT Angular Material Sidenav (Desktop lg+) -->
+    <mat-sidenav
+      mode="side"
+      [opened]="isDesktop() && isDesktopSidebarOpen()"
+      (openedChange)="onDesktopSidebarOpenedChange($event)"
     >
-      <div class="flex items-center gap-3 sm:gap-4 min-w-0">
-        <span class="lg:hidden font-display-sm font-bold! tracking-widest uppercase shrink-0">
-          ATTEYA.
-        </span>
-        <h1 class="font-title-sm sm:font-title-md font-bold! tracking-tight truncate">
-          Navigation & Menus
-        </h1>
+      <app-admin-sidebar [categories]="adminCategories()" />
+    </mat-sidenav>
 
-        <!-- Live Sync Status Chip -->
-        @if (navService.isLive()) {
-          <div
-            class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-outline-variant bg-surface-container-high font-label-sm font-bold! shrink-0"
-          >
-            <span class="size-2 rounded-full bg-success animate-pulse"></span>
-            <span>Firestore Live</span>
-          </div>
-        } @else {
-          <div
-            class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-outline-variant bg-surface-container-high font-label-sm font-bold! shrink-0"
-          >
-            <span class="size-2 rounded-full bg-warning"></span>
-            <span>Local Fallback</span>
-          </div>
-        }
-      </div>
+    <!-- 2. MAIN VIEWPORT & TOP NAVBAR -->
+    <mat-sidenav-content class="min-h-full min-w-0 bg-surface-container-lowest">
+      <app-admin-header
+        [pageTitle]="currentPageTitle()"
+        [isSidebarOpen]="isDesktopSidebarOpen()"
+        (toggleSidebar)="toggleDesktopSidebar()"
+      />
 
-      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-        <a matButton="outlined" routerLink="/" target="_blank" rel="noopener">
-          <mat-icon name="open_in_new" size="sm" />
-          <span class="hidden sm:inline">Preview Store</span>
-        </a>
-      </div>
-    </header>
-
-    <!-- Page Content (pb-24 on mobile ensures no overlap from bottom bar) -->
-    <main class="flex-1 max-w-9xl mx-auto w-full px-4 py-6 overflow-y-auto pb-24 lg:pb-6">
-      <router-outlet />
-    </main>
-  </div>
+      <!-- Page Content Viewport (full flow inside sidenav-content) -->
+      <main class="max-w-9xl mx-auto w-full px-4 sm:px-6 py-6 pb-24 xl:pb-6">
+        <router-outlet />
+      </main>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
 </div>
 
 <!-- 3. MOBILE BOTTOM NAVIGATION (Visible only < lg) -->
