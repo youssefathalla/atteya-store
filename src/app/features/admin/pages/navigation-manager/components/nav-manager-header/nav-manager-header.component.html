@@ -1,0 +1,46 @@
+<!-- Top Header & Primary Sync Actions -->
+<div
+  class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-surface-container-lowest border border-outline-variant shadow-xs"
+>
+  <div>
+    <h2 class="font-title-lg font-bold!">Store Navigation Hierarchy</h2>
+    <p class="font-body-sm opacity-80">
+      Configure categories, mega menu link groups, and featured release cards in
+      real-time.
+    </p>
+  </div>
+
+  <div class="flex items-center gap-2.5 flex-wrap">
+    <!-- Seed Database Button -->
+    <button
+      matButton="outlined"
+      type="button"
+      (click)="seedDefaults.emit()"
+      [disabled]="isSeeding() || isSaving()"
+    >
+      <mat-icon name="cloud_upload" size="sm" />
+      <span>{{ isSeeding() ? 'Seeding...' : 'Seed Defaults' }}</span>
+    </button>
+
+    <!-- Discard Changes -->
+    <button
+      matButton="text"
+      type="button"
+      (click)="discard.emit()"
+      [disabled]="isSaving()"
+    >
+      <span>Discard</span>
+    </button>
+
+    <!-- Publish Changes -->
+    <button
+      matButton="filled"
+      type="button"
+      (click)="publish.emit()"
+      [disabled]="isSaving()"
+    >
+      <mat-icon name="check_circle" size="sm" />
+      <span>{{ isSaving() ? 'Publishing...' : 'Publish to Storefront' }}</span>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,51 @@
+<div
+  class="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-xs space-y-4"
+>
+  <div class="elements-between border-b border-outline-variant pb-3">
+    <h3 class="font-title-md font-bold!">Category Details</h3>
+    <span class="font-label-sm font-mono opacity-70">
+      ID: {{ category().id }}
+    </span>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <!-- Display Label -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Display Label</mat-label>
+      <input
+        matInput
+        id="cat-display-label"
+        name="cat-display-label"
+        aria-label="Display Label"
+        [ngModel]="category().label"
+        (ngModelChange)="labelChange.emit($event)"
+        placeholder="e.g. RACKETS"
+      />
+    </mat-form-field>
+
+    <!-- Route Path (Flexible for categories, brands, or custom pages) -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Route / URL Path</mat-label>
+      <input
+        matInput
+        id="cat-route-path"
+        name="cat-route-path"
+        aria-label="Route / URL Path"
+        [ngModel]="category().path"
+        (ngModelChange)="pathChange.emit($event)"
+        placeholder="e.g. /category/bottles or /brands"
+      />
+      <button
+        matIconButton
+        matSuffix
+        type="button"
+        (click)="generatePath.emit()"
+        matTooltip="Auto-generate /category/:slug from label"
+        aria-label="Generate path from label"
+      >
+        <mat-icon name="auto_fix_high" size="sm" />
+      </button>
+      <mat-hint>Storefront URL: {{ category().path || '/category' }}</mat-hint>
+    </mat-form-field>
+  </div>
+</div>

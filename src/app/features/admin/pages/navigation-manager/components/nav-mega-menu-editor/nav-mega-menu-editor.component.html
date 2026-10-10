@@ -1,0 +1,224 @@
+<div
+  class="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-xs space-y-6"
+>
+  <div class="elements-between border-b border-outline-variant pb-3">
+    <div>
+      <h3 class="font-title-md font-bold!">Mega Menu Columns</h3>
+      <p class="font-body-sm opacity-70">
+        Columns displayed in the dropdown drawer on hover/click.
+      </p>
+    </div>
+    <button matButton="outlined" type="button" (click)="columnAdd.emit()">
+      <mat-icon name="add" size="sm" />
+      <span>Add Column</span>
+    </button>
+  </div>
+
+  <div
+    cdkDropList
+    (cdkDropListDropped)="columnDrop.emit($event)"
+    class="space-y-6"
+  >
+    @for (column of columns(); track $index; let colIdx = $index) {
+      <div
+        cdkDrag
+        class="p-4 rounded-xl border border-outline-variant bg-surface-container-low space-y-3"
+      >
+        <!-- Column Header -->
+        <div class="elements-between gap-3">
+          <div class="flex items-center gap-2 flex-1 max-w-sm">
+            <span
+              cdkDragHandle
+              class="drag-handle-wrapper"
+              matTooltip="Drag to reorder column"
+            >
+              <mat-icon name="drag_indicator" size="sm" />
+            </span>
+            <mat-form-field
+              appearance="outline"
+              class="w-full"
+              subscriptSizing="dynamic"
+            >
+              <mat-label>Column Title</mat-label>
+              <input
+                matInput
+                [id]="'col-title-' + colIdx"
+                [name]="'col-title-' + colIdx"
+                aria-label="Column Title"
+                [ngModel]="column.title"
+                (ngModelChange)="
+                  columnTitleChange.emit({ colIndex: colIdx, title: $event })
+                "
+                placeholder="e.g. HIGHLIGHTS, PLAYING STYLE"
+              />
+            </mat-form-field>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              matButton="text"
+              type="button"
+              (click)="linkAdd.emit(colIdx)"
+            >
+              <mat-icon name="add" />
+              <span>Add Link</span>
+            </button>
+            <button
+              matIconButton
+              theme="error"
+              type="button"
+              (click)="columnDelete.emit(colIdx)"
+              aria-label="Delete column"
+            >
+              <mat-icon name="delete_forever" iconColor="error" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Links List -->
+        <div
+          cdkDropList
+          (cdkDropListDropped)="linkDrop.emit({ colIndex: colIdx, event: $event })"
+          class="space-y-2 pt-2"
+        >
+          @for (link of column.links; track $index; let linkIdx = $index) {
+            <div
+              cdkDrag
+              class="flex items-center gap-2 p-3 sm:p-4 rounded-xl bg-surface border border-outline-variant/60"
+            >
+              <!-- Drag Handle -->
+              <span
+                cdkDragHandle
+                class="drag-handle-wrapper"
+                matTooltip="Drag to reorder link"
+              >
+                <mat-icon name="drag_indicator" size="sm" />
+              </span>
+
+              <!-- Link Form Fields Grid -->
+              <div
+                class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center flex-1"
+              >
+                <!-- Link Label -->
+                <mat-form-field
+                  appearance="outline"
+                  class="w-full md:col-span-5"
+                  subscriptSizing="dynamic"
+                >
+                  <mat-label>Link Label</mat-label>
+                  <input
+                    matInput
+                    [id]="'link-label-' + colIdx + '-' + linkIdx"
+                    [name]="'link-label-' + colIdx + '-' + linkIdx"
+                    aria-label="Link Label"
+                    [ngModel]="link.label"
+                    (ngModelChange)="
+                      linkFieldChange.emit({
+                        colIndex: colIdx,
+                        linkIndex: linkIdx,
+                        field: 'label',
+                        value: $event,
+                      })
+                    "
+                    placeholder="Link Label"
+                  />
+                </mat-form-field>
+
+                <!-- Link Path -->
+                <mat-form-field
+                  appearance="outline"
+                  class="w-full md:col-span-4"
+                  subscriptSizing="dynamic"
+                >
+                  <mat-label>Target Path</mat-label>
+                  <input
+                    matInput
+                    [id]="'link-path-' + colIdx + '-' + linkIdx"
+                    [name]="'link-path-' + colIdx + '-' + linkIdx"
+                    aria-label="Target Path"
+                    [ngModel]="link.path"
+                    (ngModelChange)="
+                      linkFieldChange.emit({
+                        colIndex: colIdx,
+                        linkIndex: linkIdx,
+                        field: 'path',
+                        value: $event,
+                      })
+                    "
+                    placeholder="/category/path"
+                  />
+                  <button
+                    matIconButton
+                    matSuffix
+                    type="button"
+                    (click)="
+                      linkGenerateSlug.emit({
+                        colIndex: colIdx,
+                        linkIndex: linkIdx,
+                      })
+                    "
+                    matTooltip="Auto-generate URL from label"
+                    aria-label="Generate URL from label"
+                  >
+                    <mat-icon name="auto_fix_high" size="xs" />
+                  </button>
+                </mat-form-field>
+
+                <!-- Badge tag (optional) -->
+                <mat-form-field
+                  appearance="outline"
+                  class="w-full md:col-span-2"
+                  subscriptSizing="dynamic"
+                >
+                  <mat-label>Badge</mat-label>
+                  <input
+                    matInput
+                    [id]="'link-badge-' + colIdx + '-' + linkIdx"
+                    [name]="'link-badge-' + colIdx + '-' + linkIdx"
+                    aria-label="Badge"
+                    [ngModel]="link.badge ?? ''"
+                    (ngModelChange)="
+                      linkFieldChange.emit({
+                        colIndex: colIdx,
+                        linkIndex: linkIdx,
+                        field: 'badge',
+                        value: $event,
+                      })
+                    "
+                    placeholder="NEW"
+                  />
+                </mat-form-field>
+
+                <!-- Delete Link -->
+                <div class="elements-center icon-btn-md md:col-span-1">
+                  <button
+                    matIconButton
+                    theme="error"
+                    type="button"
+                    (click)="
+                      linkDelete.emit({
+                        colIndex: colIdx,
+                        linkIndex: linkIdx,
+                      })
+                    "
+                    aria-label="Delete link"
+                  >
+                    <mat-icon name="delete" iconColor="error" size="xl" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          } @empty {
+            <div class="p-3 text-center font-body-sm opacity-70 italic">
+              No links in this column. Click "Add Link" above.
+            </div>
+          }
+        </div>
+      </div>
+    } @empty {
+      <div class="p-8 text-center font-body-sm opacity-70">
+        No mega menu columns configured for this category.
+      </div>
+    }
+  </div>
+</div>

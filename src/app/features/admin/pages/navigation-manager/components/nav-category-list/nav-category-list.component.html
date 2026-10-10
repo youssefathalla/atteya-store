@@ -1,0 +1,92 @@
+<div
+  class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-xs flex flex-col"
+>
+  <div
+    class="p-4 border-b border-outline-variant elements-between bg-surface-container-low"
+  >
+    <span class="font-label-lg font-bold! uppercase tracking-wider">
+      Categories ({{ categories().length }})
+    </span>
+    <button matButton="outlined" type="button" (click)="categoryAdd.emit()">
+      <mat-icon name="add" size="sm" />
+      <span>Add</span>
+    </button>
+  </div>
+
+  <div
+    cdkDropList
+    (cdkDropListDropped)="categoryDrop.emit($event)"
+    class="divide-y divide-outline-variant max-h-175 overflow-y-auto"
+  >
+    @for (cat of categories(); track cat.id; let idx = $index) {
+      <div
+        cdkDrag
+        class="p-2 sm:p-2.5 elements-between gap-1 transition-colors hover:bg-surface-container bg-surface-container-lowest"
+        [class.bg-surface-container-high]="selectedCategoryId() === cat.id"
+      >
+        <!-- Drag Handle -->
+        <span
+          cdkDragHandle
+          class="drag-handle-wrapper p-1"
+          matTooltip="Drag to reorder"
+        >
+          <mat-icon name="drag_indicator" size="xs" />
+        </span>
+
+        <!-- Category Select Action (Native button) -->
+        <button
+          type="button"
+          (click)="categorySelect.emit(cat.id)"
+          class="flex items-center gap-2 min-w-0 flex-1 text-left p-1.5 rounded-lg hover:bg-surface-container-highest/50 transition-colors"
+          [class.font-bold!]="selectedCategoryId() === cat.id"
+        >
+          <span class="font-label-sm font-mono opacity-60 w-4 shrink-0">
+            {{ idx + 1 }}
+          </span>
+          <div class="truncate flex-1">
+            <div class="elements-start font-body-sm truncate">
+              {{ cat.label || 'Untitled Category' }}
+            </div>
+            <div class="font-label-sm font-mono opacity-70 truncate">
+              {{ cat.path }}
+            </div>
+          </div>
+        </button>
+
+        <!-- Reorder & Delete Actions -->
+        <div class="flex items-center gap-0.5 shrink-0">
+          <button
+            matIconButton
+            type="button"
+            (click)="categoryMove.emit({ index: idx, direction: 'up' })"
+            [disabled]="idx === 0"
+            aria-label="Move up"
+          >
+            <mat-icon name="arrow_upward" size="xs" />
+          </button>
+          <button
+            matIconButton
+            type="button"
+            (click)="categoryMove.emit({ index: idx, direction: 'down' })"
+            [disabled]="idx === categories().length - 1"
+            aria-label="Move down"
+          >
+            <mat-icon name="arrow_downward" size="xs" />
+          </button>
+          <button
+            matIconButton
+            type="button"
+            (click)="categoryDelete.emit(cat.id)"
+            aria-label="Delete category"
+          >
+            <mat-icon name="delete" size="xs" />
+          </button>
+        </div>
+      </div>
+    } @empty {
+      <div class="p-8 text-center font-body-sm opacity-70">
+        No categories found. Click "Add" or "Seed Defaults" to begin.
+      </div>
+    }
+  </div>
+</div>
