@@ -5,10 +5,10 @@
   }
 
   .badge-overlay {
-    @apply absolute px-2.5 py-1 rounded-corner-xs elements-center bg-primary text-on-primary font-label-md border border-outline/50 shadow-mat-2;
+    @apply absolute px-2.5 py-1 border-shape elements-center bg-primary text-on-primary font-label-md border border-outline/50 shadow-mat-2;
   }
 
   .icon-overlay {
-    @apply absolute p-2 rounded-corner-xs elements-center bg-secondary-container border border-outline/50 shadow-mat-2;
+    @apply absolute p-2 border-shape elements-center bg-secondary-container border border-outline/50 shadow-mat-2;
   }
 }

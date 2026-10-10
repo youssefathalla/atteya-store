@@ -23,30 +23,42 @@ src/
 │   ├── ng-material/                    # Angular Material M3 Design Token Overrides
 │   │   ├── _index.scss                 # Master barrel export importing all component overrides
 │   │   └── components/
-│   │       ├── _accordion.scss         # mat.expansion-overrides, mat.checkbox-overrides
-│   │       ├── _buttons.scss           # mat.button-overrides, mat.fab-overrides, spinner gap
-│   │       ├── _cards.scss             # mat.card-overrides
+│   │       ├── _accordion.scss         # mat.expansion-overrides, mat.checkbox-overrides, mobile header query
+│   │       ├── _autocomplete.scss      # mat.autocomplete-overrides (container-shape)
+│   │       ├── _buttons.scss           # mat.button-overrides, mat.fab-overrides, container-shape, spinner gap
+│   │       ├── _cards.scss             # mat.card-overrides (elevated, outlined, filled container-shape)
+│   │       ├── _chips.scss             # mat.chips-overrides (container-shape)
+│   │       ├── _datepicker.scss        # mat.datepicker-overrides (container-shape)
 │   │       ├── _dialog.scss            # mat.dialog-overrides, backdrop blurs
+│   │       ├── _drag-drop.scss         # Angular CDK Drag & Drop overrides, .drag-handle-wrapper
+│   │       ├── _form-field.scss        # mat.form-field-overrides (filled, outlined container-shape)
 │   │       ├── _icons.scss             # mat.icon-overrides, mat.list-overrides, iconColor mappings
-│   │       ├── _list-items.scss        # mat.list-overrides
+│   │       ├── _list-items.scss        # mat.list-overrides (active-indicator-shape, list-item-container-shape)
+│   │       ├── _menu.scss              # mat.menu-overrides (container-shape)
+│   │       ├── _select.scss            # mat.select-overrides (container-shape)
 │   │       ├── _sidenav.scss           # mat.sidenav-overrides
-│   │       ├── _snackbars.scss         # mat.snack-bar-overrides for status snackbars
+│   │       ├── _snackbars.scss         # mat.snack-bar-overrides (container-shape) for status snackbars
 │   │       ├── _status.scss            # Theme palettes ([theme="..."]) and status badges
 │   │       ├── _stepper.scss           # ⚠️ EXCEPTION: scoped layout fix on mat-stepper internals (no override mixin exists for it)
 │   │       ├── _table.scss             # mat.table-overrides, .dashboard-table
-│   │       └── _toolbar.scss           # mat.toolbar-overrides, toolbar headers
+│   │       ├── _timepicker.scss        # mat.timepicker-overrides (container-shape)
+│   │       ├── _toolbar.scss           # mat.toolbar-overrides, toolbar headers
+│   │       └── _tooltip.scss           # mat.tooltip-overrides (container-shape)
 │   └── tailwind/                       # Tailwind CSS v4 System
 │       ├── theme.css                   # Theme tokens (@theme) mapping to Material sys variables
-│       ├── components-base.css         # Core component layer (.base-card, .form-card, .bg-circle)
+│       ├── components-base.css         # Core component layer (.base-card, .form-card, .bg-circle, .panel-border, .surface-card)
 │       ├── utils-base.css              # Imports utilities/
 │       ├── components/                 # Reusable multi-utility patterns (@layer components)
 │       │   ├── images.css              # .image-mask, .hero-image
+│       │   ├── navigation.css          # .nav-mobile-bottom-bar, .nav-desktop-tab, .nav-admin-card, .nav-badge
 │       │   ├── overlays.css            # .loading-overlay, .badge-overlay, .icon-overlay
 │       │   ├── spacing.css             # .container-content, .hero-space, .section-space
 │       │   └── status.css              # .status-badge, .vehicle-status, .chip, .chip-icon-wrapper
 │       └── utilities/                  # Single-purpose custom utility definitions (@utility)
+│           ├── borders.css             # border-shape (Single Source of Truth for corner shape)
 │           ├── fonts.css               # font-display-*, font-headline-*, font-title-*, font-body-*, font-label-*, ms-fill
-│           ├── layout.css              # elements-center, elements-start, elements-end, elements-between, form-space
+│           ├── layout.css              # elements-center(-col), elements-start(-col), elements-end(-col), elements-between(-col), form-space
+│           ├── safe-area.css           # pb-safe-bottom, pb-safe-drawer, pt-safe-top
 │           └── sizing.css              # dvh-10..full, dvh-page-10..full
 └── app/shared/                         # Reusable building blocks — CHECK BEFORE WRITING ANYTHING NEW
     ├── ui/                             # UI components & directives
@@ -157,7 +169,7 @@ Extract it into a reusable component class under `src/styles/tailwind/components
   ```css
   @layer components {
     .feature-card {
-      @apply block w-full duration-300 border hover:border-primary border-outline-variant rounded-corner-xs shadow-mat-1 p-6 bg-surface-container-low;
+      @apply block w-full duration-300 border hover:border-primary border-outline-variant border-shape shadow-mat-1 p-6 bg-surface-container-low;
     }
   }
   ```
@@ -165,7 +177,10 @@ Extract it into a reusable component class under `src/styles/tailwind/components
 ### Utilities vs Components
 
 - **`src/styles/tailwind/utilities/`**: For single-concept, reusable helper utilities using `@utility <name> { ... }`.
-  - Layout: `elements-center`, `elements-start`, `elements-end`, `elements-between`, `form-space`
+  - Borders: `border-shape` (Single Source of Truth, `--border-shape: 2px`)
+  - Layout (Row): `elements-center`, `elements-start`, `elements-end`, `elements-between`
+  - Layout (Column): `elements-center-col`, `elements-start-col`, `elements-end-col`, `elements-between-col`, `form-space`
+  - Safe Area: `pb-safe-bottom`, `pb-safe-drawer`, `pt-safe-top`
   - Sizing: `dvh-10` ... `dvh-full`, `dvh-page-10` ... `dvh-page-full`
   - Typography: `font-headline-lg`, `font-title-md`, `font-body-md`, `font-label-sm`, `ms-fill`
 - **`src/styles/tailwind/components/`**: For composite UI patterns using `@layer components { .class-name { @apply ...; } }`.

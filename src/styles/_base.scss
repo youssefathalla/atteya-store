@@ -3,6 +3,8 @@
 :root {
   // Single Source of Truth for United Border Shape
   --border-shape: 2px;
+  --mat-sys-corner-extra-small: var(--border-shape);
+  --mat-sys-corner-small: var(--border-shape);
   interpolate-size: allow-keywords;
 
   //! overrides
@@ -35,6 +37,6 @@ body {
   }
   &::-webkit-scrollbar-thumb {
     background-color: var(--mat-sys-primary);
-    border-radius: var(--mat-sys-corner-small);
+    border-radius: var(--border-shape);
   }
 }

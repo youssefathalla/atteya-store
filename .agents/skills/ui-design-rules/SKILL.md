@@ -112,11 +112,20 @@ Only use semantic status tokens. Never use arbitrary Tailwind palette colors:
    - ❌ `<mat-icon>shopping_bag</mat-icon>`
    - ✅ `<mat-icon name="shopping_bag" />` (with `SharedIconModule` imported).
 8. **Layout Alignment Shortcuts**:
-   - ❌ `class="flex items-center justify-center"`, `class="flex items-center justify-between"`, `class="flex items-center justify-start"`, `class="flex items-center justify-end"`
-   - ✅ `class="elements-center"`, `class="elements-between"`, `class="elements-start"`, `class="elements-end"`
+   - ❌ Row: `class="flex items-center justify-center"`, `class="flex items-center justify-between"`, `class="flex items-center justify-start"`, `class="flex items-center justify-end"`
+   - ✅ Row: `class="elements-center"`, `class="elements-between"`, `class="elements-start"`, `class="elements-end"`
+   - ❌ Column: `class="flex flex-col items-center justify-center"`, `class="flex flex-col items-start justify-center"`, `class="flex flex-col items-end justify-center"`, `class="flex flex-col items-center justify-between"`
+   - ✅ Column: `class="elements-center-col"`, `class="elements-start-col"`, `elements-end-col"`, `elements-between-col"`
 9. **Human-First Plain-Language Microcopy**:
    - Write for everyday people, not engineers. Focus on user intent, outcome, and simple actions rather than backend mechanics or system terminology.
    - Use simple, active verbs (`Save`, `Reset`, `Update`, `Publish`, `Discard`, `Remove`).
    - Frame feedback around the user's task with clear next steps (`Changes saved successfully`, `Unable to save changes. Please try again.`). Technical implementation and diagnostic details belong solely in developer console logs.
+10. **United Border Shape (`border-shape`)**:
+   - Single source of truth for corner radius across all elements is `border-shape` (`border-radius: var(--border-shape, 2px)`).
+   - ❌ Never use `rounded`, `rounded-corner-xs`, `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl`.
+   - ✅ Always use `border-shape`.
+11. **Responsive Action Toolbars & Mobile Button Patterns**:
+   - On compact/mobile screens (`< sm`), buttons in action headers or expansion panels must expand to full width (`<div class="w-full sm:w-auto [&>button]:w-full">`) or switch cleanly between full buttons and icon buttons using responsive utilities (`sm:hidden` / `hidden sm:block`).
+   - Never cram multiple small inline buttons on narrow screens without proper wrapping or responsive stacking.
 
 

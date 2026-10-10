@@ -1,19 +1,35 @@
 /*! LAYOUT & ALIGNMENT UTILITIES */
 
 @utility elements-center {
-  @apply flex justify-center items-center;
+  @apply flex flex-row justify-center items-center;
+}
+
+@utility elements-center-col {
+  @apply flex flex-col justify-center items-center;
 }
 
 @utility elements-start {
-  @apply flex justify-start items-center;
+  @apply flex flex-row justify-start items-center;
+}
+
+@utility elements-start-col {
+  @apply flex flex-col justify-center items-start;
 }
 
 @utility elements-end {
-  @apply flex justify-end items-center;
+  @apply flex flex-row justify-end items-center;
+}
+
+@utility elements-end-col {
+  @apply flex flex-col justify-center items-end;
 }
 
 @utility elements-between {
-  @apply flex justify-between items-center;
+  @apply flex flex-row justify-between items-center;
+}
+
+@utility elements-between-col {
+  @apply flex flex-col justify-between items-center;
 }
 
 @utility form-space {

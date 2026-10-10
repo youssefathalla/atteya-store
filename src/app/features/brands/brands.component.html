@@ -20,7 +20,7 @@
 
       <div class="font-label-sm font-mono opacity-80">
         <span>Directory: </span>
-        <code class="px-2 py-1 rounded bg-surface-container font-label-sm font-bold!">
+        <code class="px-2 py-1 border-shape bg-surface-container font-label-sm font-bold!">
           {{ totalBrandCount() }} Brands Available
         </code>
       </div>
@@ -35,7 +35,7 @@
           <h2 class="font-title-md font-bold! uppercase tracking-wider">
             {{ group.title }}
           </h2>
-          <span class="font-label-sm font-mono px-2 py-0.5 rounded-full bg-surface-container-high">
+          <span class="font-label-sm font-mono px-2 py-0.5 border-shape bg-surface-container-high">
             {{ group.brands.length }}
           </span>
         </div>
@@ -44,10 +44,10 @@
           @for (brand of group.brands; track brand.path) {
             <a
               [routerLink]="brand.path"
-              class="group block p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl hover:border-primary transition-all duration-200 hover:shadow-md cursor-pointer"
+              class="group block p-6 bg-surface-container-lowest border border-outline-variant border-shape hover:border-primary transition-all duration-200 hover:shadow-md cursor-pointer"
             >
               <div class="flex items-start justify-between">
-                <div class="size-10 rounded-xl bg-surface-container-low elements-center border border-outline-variant group-hover:border-primary transition-colors">
+                <div class="size-10 border-shape bg-surface-container-low elements-center border border-outline-variant group-hover:border-primary transition-colors">
                   <mat-icon name="verified" size="sm" />
                 </div>
                 <span class="font-label-sm uppercase group-hover:text-primary transition-colors">

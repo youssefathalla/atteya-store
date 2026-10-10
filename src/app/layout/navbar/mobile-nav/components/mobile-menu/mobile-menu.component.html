@@ -35,7 +35,7 @@
       <!-- Search Input Bar -->
       <div class="p-4 border-b border-outline-variant bg-surface">
         <div
-          class="flex items-center gap-2.5 rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2"
+          class="flex items-center gap-2.5 border-shape border border-outline-variant bg-surface-container-high px-3 py-2"
         >
           <mat-icon name="search" size="sm" />
           <input
@@ -56,7 +56,7 @@
               <button
                 type="button"
                 (click)="selectCategory(category)"
-                class="w-full elements-between px-3 py-3 rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                class="w-full elements-between px-3 py-3 border-shape hover:bg-surface-container-high transition-colors text-left"
               >
                 <span class="font-title-sm font-bold! tracking-wider uppercase">
                   {{ category.label }}
@@ -70,7 +70,7 @@
               <a
                 [routerLink]="category.path"
                 (click)="closeMenu()"
-                class="w-full elements-between px-3 py-3 rounded-lg hover:bg-surface-container-high transition-colors"
+                class="w-full elements-between px-3 py-3 border-shape hover:bg-surface-container-high transition-colors"
               >
                 <span class="font-title-sm font-bold! tracking-wider uppercase">
                   {{ category.label }}
@@ -88,7 +88,7 @@
           <a
             routerLink="/playground"
             (click)="closeMenu()"
-            class="elements-between rounded-lg bg-surface-container-high p-3 hover:bg-surface-container-highest transition-colors"
+            class="elements-between border-shape bg-surface-container-high p-3 hover:bg-surface-container-highest transition-colors"
           >
             <div class="flex items-center gap-2.5">
               <mat-icon name="science" size="sm" />
@@ -97,7 +97,7 @@
               >
             </div>
             <span
-              class="font-label-sm bg-primary-container text-on-primary-container px-2 py-0.5 rounded font-bold!"
+              class="font-label-sm bg-primary-container text-on-primary-container px-2 py-0.5 border-shape font-bold!"
             >
               Lab
             </span>
@@ -167,7 +167,7 @@
                     <a
                       [routerLink]="link.path"
                       (click)="closeMenu()"
-                      class="elements-between px-3 py-2 rounded-lg hover:bg-surface-container-high transition-colors font-body-md"
+                      class="elements-between px-3 py-2 border-shape hover:bg-surface-container-high transition-colors font-body-md"
                     >
                       <span>{{ link.label }}</span>
                       @if (link.badge) {

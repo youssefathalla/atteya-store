@@ -4,6 +4,7 @@
   @include mat.card-overrides((
     elevated-container-shape: var(--border-shape, 2px),
     outlined-container-shape: var(--border-shape, 2px),
+    filled-container-shape: var(--border-shape, 2px),
   ));
 }
 

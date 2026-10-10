@@ -1,0 +1,10 @@
+@use '@angular/material' as mat;
+
+// Angular Material Select Panel Shape Overrides
+div.mat-mdc-select-panel {
+  border-radius: var(--border-shape, 2px) !important;
+}
+
+.mat-mdc-select-panel-above div.mat-mdc-select-panel {
+  border-radius: var(--border-shape, 2px) !important;
+}

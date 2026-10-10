@@ -56,14 +56,19 @@ src/app/features/[feature-name]/
 ├── utils/
 │   ├── [feature].utils.ts           # Pure functions (slugify, formatters, path builders)
 │   └── [feature].validator.ts       # Decomposed validator functions (Cognitive Complexity <= 10)
-├── pages/
-│   └── [feature]-page/              # Routed smart shell (orchestration ONLY, <= 100 lines)
-│       ├── [feature]-page.component.ts
-│       └── [feature]-page.component.html
+├── dialogs/                         # Feature-specific dialog modals
 ├── components/                      # Dumb / presentation sub-components (born from Day 1)
 │   └── [sub-feature]/
 │       ├── [sub-feature].component.ts
 │       └── [sub-feature].component.html
+├── pages/
+│   └── [feature]-page/              # Routed smart shell (orchestration ONLY, <= 100 lines)
+│       ├── components/              # Page presentation sub-components
+│       ├── dialogs/                 # Modals & confirmation dialogs
+│       ├── services/                # Local draft & dialog orchestration services
+│       ├── utils/                   # Page-specific pure helpers & validators
+│       ├── [feature]-page.component.ts
+│       └── [feature]-page.component.html
 └── [feature].routes.ts              # Feature child routes
 ```
 

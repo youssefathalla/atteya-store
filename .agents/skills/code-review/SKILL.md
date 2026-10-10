@@ -41,7 +41,7 @@ Before approving any task, completing a feature, or declaring code ready:
 - [ ] **Change Detection**: Is `changeDetection: ChangeDetectionStrategy.OnPush` omitted? (It is default in Angular 22).
 - [ ] **Services**: Is `@Service()` used from `@angular/core`? (No legacy `@Injectable({ providedIn: 'root' })`).
 - [ ] **Signals Everywhere**: Is `input()` / `output()` / `computed()` / `signal()` used for all state? (Zero `@Input()`).
-- [ ] **Component Budget & Decomposing**: Are routed page components shells ($\le 100$ lines HTML, $\le 120$ lines TS)? Are distinct panels, lists, or forms decomposed into presentation sub-components in `components/`?
+- [ ] **Component Budget & Decomposing**: Are routed page components shells ($\le 100$ lines HTML, $\le 120$ lines TS)? Are distinct panels, lists, or forms decomposed into presentation sub-components in `components/`? Are page services, pure utils, and dialogs placed in dedicated subfolders (`services/`, `utils/`, `dialogs/`) rather than loose root files?
 - [ ] **Draft State Isolation**: Are staged in-memory edits, reordering, and array mutations encapsulated in a local `@Service()` (e.g. `[feature]-draft.service.ts`) rather than in component classes?
 - [ ] **Cognitive Complexity Guardrail**: Are all functions strictly $\le 15$ Cognitive Complexity (ideally $\le 10$)? Are multi-level validation loops extracted into pure functions in `[feature].validator.ts`?
 - [ ] **Cleanup**: Zero `ngOnDestroy`? (Use `DestroyRef` or `takeUntilDestroyed`).
@@ -52,6 +52,9 @@ Before approving any task, completing a feature, or declaring code ready:
 - [ ] **No `::ng-deep`**: Do all Material component overrides live in `src/styles/ng-material/components/_{name}.scss` using `@include mat.<name>-overrides(( ... ))`?
 - [ ] **Monochrome Identity**: Is `primary` black? Are content texts defaulting to `text-on-surface` without redundant color spans?
 - [ ] **Semantic Tokens**: Are all surfaces using `bg-surface`, `bg-surface-container-*`? Flag any raw colors (`bg-red-500`, `text-emerald-400`, `bg-amber-400`) or inverted tokens (`bg-on-primary` on containers).
+- [ ] **United Border Shape (`border-shape`)**: Are all cards, panels, containers, badges, dialogs using `border-shape`? (Zero arbitrary `rounded`, `rounded-corner-xs`, `rounded-sm`, `rounded-md`, `rounded-lg`).
+- [ ] **Layout Shortcuts**: Are row flex chains using `elements-center`, `elements-start`, `elements-end`, `elements-between`, and column flex chains using `elements-center-col`, `elements-start-col`, `elements-end-col`, `elements-between-col`?
+- [ ] **Mobile Responsive Action Toolbars**: Are action buttons on mobile screens wrapped in full-width containers (`[&>button]:w-full`) or toggled to icon buttons on small screens?
 - [ ] **Human-First Plain Language**: Does all user-facing microcopy (buttons, dialogs, toasts, empty states) use simple, everyday language focused on user intent and outcomes rather than technical mechanics or system jargon?
 
 ### 3. ♿ Accessibility (A11y) & Semantic HTML

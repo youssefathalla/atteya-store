@@ -1,0 +1,8 @@
+@use '@angular/material' as mat;
+
+:root {
+  @include mat.datepicker-overrides((
+    calendar-container-shape: var(--border-shape, 2px),
+    calendar-container-touch-shape: var(--border-shape, 2px),
+  ));
+}

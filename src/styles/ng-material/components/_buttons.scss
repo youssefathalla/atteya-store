@@ -12,7 +12,9 @@
 
   //- fab
   @include mat.fab-overrides((
+    container-shape: var(--border-shape, 2px),
     extended-container-shape: var(--border-shape, 2px),
+    small-container-shape: var(--border-shape, 2px),
   ));
 }
 

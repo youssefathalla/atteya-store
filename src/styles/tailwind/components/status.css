@@ -1,14 +1,14 @@
 @layer components {
   .status-badge {
-    @apply px-2 py-0.5 font-body-md rounded-corner-xs border gap-0.75 elements-center min-w-22.5;
+    @apply px-2 py-0.5 font-body-md border-shape border gap-0.75 elements-center min-w-22.5;
   }
 
   .vehicle-status {
-    @apply elements-start rounded-corner-xs border border-outline-variant/50 p-3;
+    @apply elements-start border-shape border border-outline-variant/50 p-3;
   }
 
   .chip {
-    @apply rounded-corner-xs max-[325px]:px-1.5 px-3 py-1 border border-outline-variant font-label-lg h-8 justify-center
+    @apply border-shape max-[325px]:px-1.5 px-3 py-1 border border-outline-variant font-label-lg h-8 justify-center
       transition-all inline-flex items-center duration-200 ease-in-out cursor-pointer hover:bg-secondary-container;
 
     &.selected {

@@ -1,0 +1,85 @@
+<form (ngSubmit)="submit()" class="elements-start-col gap-1">
+  <div class="px-6 pt-6 pb-2">
+    <h2 mat-dialog-title class="font-title-lg font-bold! p-0!">Add Navigation Link</h2>
+    <p class="font-body-sm opacity-70 pt-1">
+      @if (data?.columnTitle) {
+        Add a destination link inside <span class="font-bold!">{{ data.columnTitle }}</span>.
+      } @else {
+        Add a destination link under this mega menu column.
+      }
+    </p>
+  </div>
+
+  <mat-dialog-content class="space-y-4 py-2!">
+    <!-- Link Label -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Link Label</mat-label>
+      <input
+        matInput
+        id="new-link-label"
+        name="new-link-label"
+        aria-label="Link Label"
+        [ngModel]="label()"
+        (ngModelChange)="onLabelChange($event)"
+        placeholder="e.g. Tennis Shoes"
+        required
+        cdkFocusInitial
+      />
+      <mat-hint>Text displayed to users</mat-hint>
+    </mat-form-field>
+
+    <!-- Target Path -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Target Path / URL</mat-label>
+      <input
+        matInput
+        id="new-link-path"
+        name="new-link-path"
+        aria-label="Target Path / URL"
+        [ngModel]="path()"
+        (ngModelChange)="onPathChange($event)"
+        placeholder="/category/shoes/tennis"
+        required
+      />
+      <button
+        matIconButton
+        matSuffix
+        type="button"
+        (click)="generateSlug()"
+        matTooltip="Auto-generate path from label"
+        aria-label="Auto-generate path"
+      >
+        <mat-icon name="auto_fix_high" size="sm" />
+      </button>
+      <mat-hint>Destination route URL</mat-hint>
+    </mat-form-field>
+
+    <!-- Optional Badge -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Badge Tag (Optional)</mat-label>
+      <input
+        matInput
+        id="new-link-badge"
+        name="new-link-badge"
+        aria-label="Badge Tag"
+        [ngModel]="badge()"
+        (ngModelChange)="badge.set($event)"
+        placeholder="e.g. NEW"
+      />
+      <mat-hint>Optional highlight chip shown beside link</mat-hint>
+    </mat-form-field>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">
+    <button matButton="text" type="button" (click)="cancel()">
+      Cancel
+    </button>
+    <button
+      matButton="filled"
+      type="submit"
+      [disabled]="!isValid()"
+    >
+      <span>Create Link</span>
+    </button>
+  </mat-dialog-actions>
+</form>

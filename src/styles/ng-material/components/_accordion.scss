@@ -18,6 +18,40 @@
   ));
 }
 
+@media (max-width: 767.98px) {
+  .mat-expansion-panel-header {
+    padding-inline: 12px !important;
+    padding-block: 8px !important;
+    height: auto !important;
+
+    .mat-content {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 6px !important;
+      overflow: visible !important;
+      margin-right: 12px !important;
+    }
+
+    .mat-expansion-panel-header-title,
+    .mat-expansion-panel-header-description {
+      margin-right: 0 !important;
+      width: 100% !important;
+      flex-basis: auto !important;
+      flex-grow: 1 !important;
+    }
+
+    .mat-expansion-indicator {
+      align-self: flex-start !important;
+      margin-top: 18px !important;
+    }
+  }
+
+  .mat-expansion-panel-body {
+    padding: 0 8px 12px !important;
+  }
+}
+
 @include mat.checkbox-overrides((
   label-text-size: 18px,
 ));
+

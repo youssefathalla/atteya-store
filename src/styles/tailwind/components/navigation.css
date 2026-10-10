@@ -17,7 +17,7 @@
   }
   /* Navigation Badge (Warning highlight) */
   .nav-badge {
-    @apply font-label-sm font-bold! px-1.5 py-0.5 bg-on-warning text-warning uppercase;
+    @apply font-label-sm font-bold! px-1.5 py-0.5 bg-on-warning text-warning uppercase border-shape;
   }
 
   /* Desktop Top Navigation Tab Item */
@@ -32,6 +32,6 @@
 
   /* Standard Admin Panel Card Container */
   .nav-admin-card {
-    @apply p-6 bg-surface-container-lowest border border-outline-variant shadow-xs;
+    @apply p-6 bg-surface-container-lowest border border-outline-variant border-shape shadow-xs;
   }
 }

@@ -16,7 +16,7 @@ export interface ImgPreviewData {
   imports: [MatDialogModule, MatButtonModule, SharedIconModule, MatTooltipModule, NgOptimizedImage],
   templateUrl: './img-preview-dialog.component.html',
   host: {
-    class: 'flex flex-col w-full h-full overflow-hidden rounded-xl backdrop-blur',
+    class: 'flex flex-col w-full h-full overflow-hidden border-shape backdrop-blur',
     '(keydown)': 'onKeydown($event)',
   },
 })

@@ -113,10 +113,14 @@ Located in `src/styles/tailwind/components/`. Use these classes directly in your
 
 | Utility Class | Expansion | Usage |
 | :--- | :--- | :--- |
-| `elements-center` | `flex justify-center items-center` | Centered flex containers, icon badges, dialog centers |
-| `elements-start` | `flex justify-start items-center` | Left-aligned flex row with centered vertical items |
-| `elements-end` | `flex justify-end items-center` | Right-aligned flex row with centered vertical items |
-| `elements-between` | `flex justify-between items-center` | Space-between headers, navbars, rows with actions |
+| `elements-center` | `flex flex-row justify-center items-center` | Centered flex containers, icon badges, dialog centers |
+| `elements-start` | `flex flex-row justify-start items-center` | Left-aligned flex row with centered vertical items |
+| `elements-end` | `flex flex-row justify-end items-center` | Right-aligned flex row with centered vertical items |
+| `elements-between` | `flex flex-row justify-between items-center` | Space-between headers, navbars, rows with actions |
+| `elements-center-col` | `flex flex-col justify-center items-center` | Centered column stack, mobile modal bodies |
+| `elements-start-col` | `flex flex-col justify-center items-start` | Left-aligned column stack, vertical header titles |
+| `elements-end-col` | `flex flex-col justify-center items-end` | Right-aligned column stack |
+| `elements-between-col` | `flex flex-col justify-between items-center` | Space-between vertical cards/sidebars |
 | `form-space` | `flex flex-col gap-4 pt-4` | Standard form field vertical spacing |
 
 ### 🔲 Borders & United Shape (`src/styles/tailwind/utilities/borders.css`)
@@ -133,7 +137,11 @@ Located in `src/styles/tailwind/components/`. Use these classes directly in your
 | `pb-safe-drawer` | `padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem)` | Fullscreen slide-up drawer padding to prevent overlapping bottom nav |
 | `pt-safe-top` | `padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem)` | Modal and drawer top padding clearing status bar notch |
 
----
+### 🪟 Drag & Drop Utilities (`src/styles/ng-material/components/_drag-drop.scss`)
+
+| Utility / Class | Description | Usage |
+| :--- | :--- | :--- |
+| `.drag-handle-wrapper` | Cursor grab/grabbing, element center, hover effect for CDK drag handles | `<span cdkDragHandle class="drag-handle-wrapper"><mat-icon name="drag_indicator" size="lg" /></span>` |
 
 ## 3. Core Shared Services
 
@@ -238,7 +246,7 @@ Whenever you find a combination of 4 or more utility classes that is repeated **
    ```css
    @layer components {
      .custom-feature-card {
-       @apply block w-full p-6 bg-surface-container-low border border-outline-variant rounded-corner-xs shadow-mat-1 hover:border-primary transition-all duration-300;
+       @apply block w-full p-6 bg-surface-container-low border border-outline-variant border-shape shadow-mat-1 hover:border-primary transition-all duration-300;
      }
    }
    ```

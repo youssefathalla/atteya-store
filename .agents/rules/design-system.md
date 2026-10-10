@@ -25,11 +25,11 @@ This file is deliberately lookup-free: everything here you can use immediately. 
 | Arbitrary text sizes & weights (`text-xs`, `text-sm`, `text-3xl`, `font-medium`, `font-semibold`, `font-black`, `font-bold`) | Use M3 `font-*-*` tokens only. To make text bold, **always use `font-bold!`** (with trailing `!` to override M3 `font:` shorthand). |
 | Prefix important: `!hidden` | Suffix important: `hidden!` |
 | `w-10 h-10` | `size-10` |
-| Verbose flex chains (`flex items-center justify-center`, `flex items-center justify-between`, etc.) | Shortcuts: `elements-center`, `elements-start`, `elements-end`, `elements-between` |
+| Verbose flex chains (`flex items-center justify-center`, `flex flex-col items-center justify-center`, etc.) | Layout shortcuts: `elements-center`, `elements-start`, `elements-end`, `elements-between` (row) and `elements-center-col`, `elements-start-col`, `elements-end-col`, `elements-between-col` (col) |
 | `bg-opacity-50` | `bg-black/50` |
 | `color="primary"` on Material components | `theme="success \| warning \| error \| info"` |
 | `<mat-icon>home</mat-icon>` | `<mat-icon name="home" />` |
-| Arbitrary corner radii (`rounded-lg`, `rounded-xl`, `rounded-2xl`) | Single source of truth: `border-shape` (governed by `--border-shape` in `:root`) |
+| Arbitrary corner radii (`rounded`, `rounded-corner-xs`, `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl`) | Single source of truth: `border-shape` (governed by `--border-shape` in `:root` and `@utility border-shape`) |
 | Technical, internal, or implementation jargon in UI copy | Human-first, outcome-focused plain language (simple everyday words focused on user intent and clear actions) |
 
 > [!CAUTION]
@@ -83,9 +83,11 @@ Each of `primary`, `secondary`, `tertiary`, `error` exposes the full M3 set:
 ## 4. Custom Utilities
 
 - **Borders & Shapes**: `border-shape` (governed by single source of truth `--border-shape: 2px`)
-- **Layout**: `elements-center`, `elements-start`, `elements-end`, `elements-between`, `form-space`
+- **Layout (Row)**: `elements-center`, `elements-start`, `elements-end`, `elements-between`
+- **Layout (Column)**: `elements-center-col`, `elements-start-col`, `elements-end-col`, `elements-between-col`, `form-space`
 - **Viewport height**: `dvh-10` … `dvh-full`, and `dvh-page-10` … `dvh-page-full` (subtracts header/footer)
-- **Safe Area**: `pb-safe-bottom` (handles mobile home indicator / navigation bar padding)
+- **Safe Area Insets**: `pb-safe-bottom` (mobile bottom nav), `pb-safe-drawer` (slide-up drawer over bottom nav), `pt-safe-top` (top notch padding)
+- **Drag & Drop**: `.drag-handle-wrapper` (styled cursor and hover for `cdkDragHandle`)
 - **Icon fill**: `ms-fill`
 
 ---

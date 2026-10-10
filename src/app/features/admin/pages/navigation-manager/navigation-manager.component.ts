@@ -1,19 +1,14 @@
 import { Component, effect, inject, signal, untracked } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
-import { MatDialog } from '@angular/material/dialog';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { NavService } from '@layout/navbar/nav.service';
 import { NAV_CATEGORIES } from '@layout/navbar/nav.data';
-import {
-  ConfirmDialogComponent,
-  ConfirmDialogData,
-} from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { NavManagerHeaderComponent } from './components/nav-manager-header/nav-manager-header.component';
 import { NavCategoryListComponent } from './components/nav-category-list/nav-category-list.component';
 import { NavCategoryDetailsComponent } from './components/nav-category-details/nav-category-details.component';
 import { NavMegaMenuEditorComponent } from './components/nav-mega-menu-editor/nav-mega-menu-editor.component';
-import { NavigationDraftService } from './navigation-draft.service';
-import { validateNavigationDraft } from './navigation-manager.validator';
+import { NavigationDraftService } from './services/navigation-draft.service';
+import { NavigationDialogService } from './services/navigation-dialog.service';
+import { validateNavigationDraft } from './utils/navigation-manager.validator';
 
 @Component({
   selector: 'app-navigation-manager',
@@ -28,7 +23,7 @@ import { validateNavigationDraft } from './navigation-manager.validator';
 export class NavigationManagerComponent {
   readonly #navService = inject(NavService);
   readonly #snackbar = inject(SnackbarService);
-  readonly #dialog = inject(MatDialog);
+  readonly #dialogs = inject(NavigationDialogService);
   readonly draft = inject(NavigationDraftService);
   readonly isSaving = signal<boolean>(false);
   readonly isResetting = signal<boolean>(false);
@@ -46,6 +41,53 @@ export class NavigationManagerComponent {
     });
   }
 
+  // --- Category Dialog Handlers ---
+  async openAddCategoryDialog(): Promise<void> {
+    const result = await this.#dialogs.openAddCategory();
+    if (result) this.draft.addCategory(result);
+  }
+
+  async confirmDeleteCategory(id: string): Promise<void> {
+    const cat = this.draft.draftCategories().find((c) => c.id === id);
+    if (await this.#dialogs.confirmDeleteCategory(cat?.label || 'Untitled Category')) {
+      this.draft.deleteCategory(id);
+    }
+  }
+
+  // --- Column Dialog Handlers ---
+  async openAddColumnDialog(): Promise<void> {
+    const result = await this.#dialogs.openAddColumn(this.draft.selectedCategory()?.label);
+    if (result) this.draft.addColumn(result);
+  }
+
+  async confirmDeleteColumn(colIndex: number): Promise<void> {
+    const col = this.draft.selectedCategory()?.megaMenu?.[colIndex];
+    const confirmed = await this.#dialogs.confirmDeleteColumn(
+      col?.title || `Column ${colIndex + 1}`,
+      col?.links?.length ?? 0,
+    );
+    if (confirmed) this.draft.deleteColumn(colIndex);
+  }
+
+  // --- Link Dialog Handlers ---
+  async openAddLinkDialog(colIndex: number): Promise<void> {
+    const current = this.draft.selectedCategory();
+    const col = current?.megaMenu?.[colIndex];
+    const result = await this.#dialogs.openAddLink(
+      col?.title || `Column ${colIndex + 1}`,
+      current?.path,
+    );
+    if (result) this.draft.addLink(colIndex, result);
+  }
+
+  async confirmDeleteLink(colIndex: number, linkIndex: number): Promise<void> {
+    const link = this.draft.selectedCategory()?.megaMenu?.[colIndex]?.links?.[linkIndex];
+    if (await this.#dialogs.confirmDeleteLink(link?.label || `Link ${linkIndex + 1}`)) {
+      this.draft.deleteLink(colIndex, linkIndex);
+    }
+  }
+
+  // --- Header Persistence Actions ---
   async publishChanges(): Promise<void> {
     const categories = this.draft.draftCategories();
 
@@ -69,23 +111,7 @@ export class NavigationManagerComponent {
   }
 
   async resetToDefaults(): Promise<void> {
-    const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
-      ConfirmDialogComponent,
-      {
-        data: {
-          title: 'Reset to Defaults',
-          message:
-            'Are you sure you want to reset the navigation? This will restore the default store catalog.',
-          confirmText: 'Reset to Defaults',
-          cancelText: 'Cancel',
-          theme: 'primary',
-        },
-        width: '500px',
-        maxWidth: '90vw',
-      },
-    );
-
-    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    const confirmed = await this.#dialogs.confirmResetDefaults();
     if (!confirmed) return;
 
     this.isResetting.set(true);
@@ -102,7 +128,11 @@ export class NavigationManagerComponent {
     }
   }
 
-  discardDraft(): void {
+  async discardDraft(): Promise<void> {
+    if (this.draft.isDraftDirty()) {
+      const confirmed = await this.#dialogs.confirmDiscardDraft();
+      if (!confirmed) return;
+    }
     this.draft.discardDraft(this.#navService.categories());
   }
 }

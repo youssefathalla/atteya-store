@@ -103,9 +103,18 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         );
       }
 
+      // Rule: Ban legacy rounded-corner-xs in favor of unified border-shape
+      if (/(?:^|\s)rounded-corner-xs(?!\S)/.test(classStr)) {
+        logError(
+          filePath,
+          tagLine,
+          `Deprecated 'rounded-corner-xs' detected: "${classStr}". Use the unified 'border-shape' utility instead.`
+        );
+      }
+
       // Rule: Prefer elements-center, elements-start, elements-end, elements-between shortcuts
       const classWords = classStr.split(/\s+/);
-      if (classWords.includes('flex') && classWords.includes('items-center')) {
+      if (classWords.includes('flex') && classWords.includes('items-center') && !classWords.includes('flex-col')) {
         for (const [justCls, shortcut] of [
           ['justify-center', 'elements-center'],
           ['justify-start', 'elements-start'],
@@ -117,6 +126,24 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
               filePath,
               tagLine,
               `Verbose flex alignment detected: 'flex items-center ${justCls}' in "${classStr}". Use '${shortcut}' shortcut instead.`
+            );
+          }
+        }
+      }
+
+      // Rule: Prefer elements-*-col column layout shortcuts
+      if (classWords.includes('flex') && classWords.includes('flex-col')) {
+        for (const [itemsCls, justCls, shortcut] of [
+          ['items-center', 'justify-center', 'elements-center-col'],
+          ['items-start', 'justify-center', 'elements-start-col'],
+          ['items-end', 'justify-center', 'elements-end-col'],
+          ['items-center', 'justify-between', 'elements-between-col'],
+        ]) {
+          if (classWords.includes(itemsCls) && classWords.includes(justCls)) {
+            logError(
+              filePath,
+              tagLine,
+              `Verbose flex column alignment detected: 'flex flex-col ${itemsCls} ${justCls}' in "${classStr}". Use '${shortcut}' shortcut instead.`
             );
           }
         }

@@ -1,0 +1,43 @@
+<form (ngSubmit)="submit()" class="elements-start-col gap-1">
+  <div class="px-6 pt-6 pb-2">
+    <h2 mat-dialog-title class="font-title-lg font-bold! p-0!">Add Column</h2>
+    <p class="font-body-sm opacity-70 pt-1">
+      @if (data?.categoryLabel) {
+        Add a link group column inside <span class="font-bold!">{{ data.categoryLabel }}</span> mega menu.
+      } @else {
+        Add a link group column inside the mega menu dropdown.
+      }
+    </p>
+  </div>
+
+  <mat-dialog-content class="space-y-4 py-2!">
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Column Title</mat-label>
+      <input
+        matInput
+        id="new-col-title"
+        name="new-col-title"
+        aria-label="Column Title"
+        [ngModel]="title()"
+        (ngModelChange)="title.set($event)"
+        placeholder="e.g. Featured"
+        required
+        cdkFocusInitial
+      />
+      <mat-hint>Heading displayed above the group of links</mat-hint>
+    </mat-form-field>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">
+    <button matButton="text" type="button" (click)="cancel()">
+      Cancel
+    </button>
+    <button
+      matButton="filled"
+      type="submit"
+      [disabled]="!isValid()"
+    >
+      <span>Create Column</span>
+    </button>
+  </mat-dialog-actions>
+</form>

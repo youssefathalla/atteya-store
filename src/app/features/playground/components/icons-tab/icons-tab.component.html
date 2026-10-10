@@ -8,7 +8,7 @@
       </p>
     </div>
     <span
-      class="text-xs px-2.5 py-1 rounded bg-surface-container-high text-on-surface-variant font-mono"
+      class="text-xs px-2.5 py-1 border-shape bg-surface-container-high text-on-surface-variant font-mono"
     >
       &lt;mat-icon name="..." [iconColor]="..." size="..." /&gt;
     </span>
@@ -16,7 +16,7 @@
 
   <!-- Interactive Icon Tester -->
   <div
-    class="bg-surface-container-low p-6 rounded-corner-xs border border-outline-variant flex flex-col md:flex-row gap-6 items-center"
+    class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col md:flex-row gap-6 items-center"
   >
     <div class="flex-1 flex flex-col gap-4 w-full">
       <span class="font-title-sm text-primary">Live Icon Tester</span>
@@ -31,7 +31,7 @@
             [ngModel]="customIconName()"
             (ngModelChange)="customIconName.set($event)"
             placeholder="e.g. rocket_launch, terminal, bolt"
-            class="w-full px-3 py-2 rounded-corner-xs bg-surface border border-outline-variant text-on-surface font-mono text-sm focus:border-primary outline-none"
+            class="w-full px-3 py-2 border-shape bg-surface border border-outline-variant text-on-surface font-mono text-sm focus:border-primary outline-none"
           />
         </div>
         <div>
@@ -42,7 +42,7 @@
             id="custom-icon-color"
             [ngModel]="customIconColor()"
             (ngModelChange)="customIconColor.set($event)"
-            class="w-full px-3 py-2 rounded-corner-xs bg-surface border border-outline-variant text-on-surface text-sm focus:border-primary outline-none"
+            class="w-full px-3 py-2 border-shape bg-surface border border-outline-variant text-on-surface text-sm focus:border-primary outline-none"
           >
             <option value="primary">Primary</option>
             <option value="secondary">Secondary</option>
@@ -70,7 +70,7 @@
 
     <!-- Preview Card -->
     <div
-      class="bg-surface p-6 rounded-corner-md border border-primary/30 elements-center flex-col min-w-50 shadow-mat-2"
+      class="bg-surface p-6 border-shape border border-primary/30 elements-center flex-col min-w-50 shadow-mat-2"
     >
       <mat-icon
         [name]="customIconName()"
@@ -87,7 +87,7 @@
 
   <!-- Icon Sizes Scale -->
   <div
-    class="bg-surface-container-low p-6 rounded-corner-xs border border-outline-variant flex flex-col gap-4"
+    class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4"
   >
     <div class="elements-between">
       <span class="font-title-sm text-primary">T-Shirt Sizing Scale</span>

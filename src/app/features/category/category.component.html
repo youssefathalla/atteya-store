@@ -40,7 +40,7 @@
 
       <div class="font-label-sm font-mono opacity-80">
         <span>Route: </span>
-        <code class="px-2 py-1 rounded bg-surface-container font-label-sm font-bold!">
+        <code class="px-2 py-1 border-shape bg-surface-container font-label-sm font-bold!">
           {{ currentRoutePath() }}
         </code>
       </div>
@@ -53,7 +53,7 @@
           @for (link of col.links; track link.path) {
             <a
               [routerLink]="link.path"
-              class="px-3.5 py-1.5 rounded-full border border-outline-variant font-label-sm hover:bg-surface-container transition-colors shrink-0"
+              class="px-3.5 py-1.5 border-shape border border-outline-variant font-label-sm hover:bg-surface-container transition-colors shrink-0"
             >
               {{ link.label }}
             </a>
@@ -65,10 +65,10 @@
 
   <!-- Products Placeholder Grid -->
   <section
-    class="py-12 text-center border-2 border-dashed border-outline-variant rounded-2xl p-8"
+    class="py-12 text-center border-2 border-dashed border-outline-variant border-shape p-8"
   >
     <div
-      class="size-16 rounded-full bg-surface-container elements-center mx-auto mb-4"
+      class="size-16 border-shape bg-surface-container elements-center mx-auto mb-4"
     >
       <mat-icon [name]="catalogIcon()" size="3xl" />
     </div>

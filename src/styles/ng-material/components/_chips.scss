@@ -1,0 +1,7 @@
+@use '@angular/material' as mat;
+
+:root {
+  @include mat.chips-overrides((
+    container-shape-radius: var(--border-shape, 2px),
+  ));
+}

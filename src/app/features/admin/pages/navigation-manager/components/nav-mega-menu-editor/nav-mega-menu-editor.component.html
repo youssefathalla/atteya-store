@@ -1,5 +1,5 @@
-<div class="surface-card p-6 space-y-6">
-  <div class="elements-between border-b border-outline-variant pb-3">
+<div class="surface-card p-3 md:p-6 space-y-6">
+  <div class="sm:elements-between elements-start-col gap-4 border-b border-outline-variant pb-6">
     <div>
       <h3 class="font-title-md font-bold!">Mega Menu Columns</h3>
       <p class="font-body-sm opacity-70">
@@ -17,11 +17,15 @@
       <mat-expansion-panel cdkDrag #panel class="my-4!">
         <mat-expansion-panel-header collapsedHeight="auto" expandedHeight="auto">
           <mat-panel-title>
-            <div class="flex items-center gap-2 flex-1 max-w-xs sm:max-w-sm py-2">
-              <span cdkDragHandle class="drag-handle-wrapper" matTooltip="Drag to reorder column">
+            <div class="flex items-center gap-2 flex-1 w-full md:max-w-xs py-1">
+              <span
+                cdkDragHandle
+                class="drag-handle-wrapper shrink-0"
+                matTooltip="Drag to reorder column"
+              >
                 <mat-icon name="drag_indicator" size="lg" />
               </span>
-              <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
+              <mat-form-field appearance="outline" class="w-full flex-1" subscriptSizing="dynamic">
                 <mat-label>Column Title</mat-label>
                 <input
                   matInput
@@ -32,38 +36,70 @@
                   (ngModelChange)="columnTitleChange.emit({ colIndex: colIdx, title: $event })"
                   (click)="$event.stopPropagation()"
                   (keydown)="$event.stopPropagation()"
-                  placeholder="e.g. HIGHLIGHTS, PLAYING STYLE"
+                  placeholder="e.g. Featured"
                 />
               </mat-form-field>
             </div>
           </mat-panel-title>
 
           <mat-panel-description>
-            <div class="elements-between gap-3 w-full flex-wrap">
-              <span class="font-label-sm opacity-70">
-                {{ column.links.length }} {{ column.links.length === 1 ? 'link' : 'links' }}
-              </span>
-
-              <div class="flex items-center gap-2">
+            <div class="elements-between gap-3 w-full pl-8 md:pl-0">
+              <!-- Mobile Actions (< md) -->
+              <div class="elements-between gap-2 md:hidden w-full">
                 <button
-                  matButton="tonal"
+                  matIconButton
                   type="button"
                   theme="success"
                   (click)="$event.stopPropagation(); panel.open(); linkAdd.emit(colIdx)"
+                  matTooltip="Add link"
+                  aria-label="Add link"
                 >
-                  <mat-icon name="add" size="lg" />
-                  <span>Add Link</span>
+                  <mat-icon name="add" iconColor="success" size="xl" />
                 </button>
+
                 <button
-                  matButton="tonal"
+                  matIconButton
                   theme="error"
                   type="button"
                   (click)="$event.stopPropagation(); columnDelete.emit(colIdx)"
-                  aria-label="Delete column"
+                  matTooltip="Delete list"
+                  aria-label="Delete list"
                 >
-                  <span>Delete List</span>
-                  <mat-icon name="delete_forever" iconColor="error" size="lg" />
+                  <mat-icon name="delete_forever" iconColor="error" size="xl" />
                 </button>
+
+                <span class="font-label-md">
+                  {{ column.links.length }} {{ column.links.length === 1 ? 'link' : 'links' }}
+                </span>
+              </div>
+
+              <!-- Desktop Actions (>= md) -->
+              <div class="hidden md:elements-between w-full">
+                <span class="font-label-md">
+                  {{ column.links.length }} {{ column.links.length === 1 ? 'link' : 'links' }}
+                </span>
+
+                <div class="flex items-center gap-2 shrink-0">
+                  <button
+                    matButton="tonal"
+                    type="button"
+                    theme="success"
+                    (click)="$event.stopPropagation(); panel.open(); linkAdd.emit(colIdx)"
+                  >
+                    <mat-icon name="add" size="lg" />
+                    <span>Add Link</span>
+                  </button>
+                  <button
+                    matButton="tonal"
+                    theme="error"
+                    type="button"
+                    (click)="$event.stopPropagation(); columnDelete.emit(colIdx)"
+                    aria-label="Delete column"
+                  >
+                    <span>Delete List</span>
+                    <mat-icon name="delete_forever" iconColor="error" size="lg" />
+                  </button>
+                </div>
               </div>
             </div>
           </mat-panel-description>
@@ -83,7 +119,7 @@
               </span>
 
               <!-- Link Form Fields Grid (adaptive 2-row on compact, 1-row on 2xl) -->
-              <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center flex-1">
+              <div class="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center flex-1 pt-4">
                 <!-- Link Label -->
                 <mat-form-field
                   appearance="outline"
@@ -176,22 +212,34 @@
 
                 <!-- Delete Link -->
                 <div
-                  class="elements-center icon-btn-md sm:col-span-3 2xl:col-span-1 justify-end sm:justify-center"
+                  class="w-full sm:w-auto sm:col-span-3 2xl:col-span-1 elements-center icon-btn-md"
                 >
-                  <button
-                    matIconButton
-                    theme="error"
-                    type="button"
-                    (click)="
-                      linkDelete.emit({
-                        colIndex: colIdx,
-                        linkIndex: linkIdx,
-                      })
-                    "
-                    aria-label="Delete link"
-                  >
-                    <mat-icon name="delete" iconColor="error" size="xl" />
-                  </button>
+                  <!-- Mobile Full Width (< sm) -->
+                  <div class="w-full sm:hidden [&>button]:w-full">
+                    <button
+                      matButton="tonal"
+                      theme="error"
+                      type="button"
+                      (click)="linkDelete.emit({ colIndex: colIdx, linkIndex: linkIdx })"
+                      aria-label="Delete link"
+                    >
+                      <mat-icon name="delete" iconColor="error" size="lg" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+
+                  <!-- Desktop Icon Button (>= sm) -->
+                  <div class="hidden sm:block">
+                    <button
+                      matIconButton
+                      theme="error"
+                      type="button"
+                      (click)="linkDelete.emit({ colIndex: colIdx, linkIndex: linkIdx })"
+                      aria-label="Delete link"
+                    >
+                      <mat-icon name="delete" iconColor="error" size="xl" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

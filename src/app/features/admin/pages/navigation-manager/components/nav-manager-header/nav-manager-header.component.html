@@ -1,62 +1,65 @@
 <!-- Top Header & Primary Sync Actions -->
-<div
-  class="surface-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5"
->
+<div class="surface-card xl:elements-between elements-start-col gap-4 p-5">
   <div>
     <h2 class="font-title-lg font-bold!">Store Navigation Hierarchy</h2>
     <p class="font-body-sm opacity-80">
-      Configure categories, mega menu link groups, and featured release cards in
-      real-time.
+      Configure categories, mega menu link groups, and featured release cards in real-time.
     </p>
   </div>
 
-  <div class="flex items-center gap-2.5 flex-wrap">
+  <div class="elements-start-col sm:elements-between max-sm:w-full gap-2.5">
     <!-- Reset to Defaults Button -->
-    <button
-      matButton="tonal"
-      type="button"
-      theme="error"
-      (click)="resetDefaults.emit()"
-      [disabled]="isResetting() || isSaving()"
-      [showProgress]="isResetting()"
-    >
-      <mat-icon name="restart_alt" size="sm" />
-      <span>Reset to Defaults</span>
-      <mat-progress-spinner
-        progressIndicator
-        mode="indeterminate"
-        diameter="18"
-        aria-label="Resetting to defaults..."
-      />
-    </button>
+    <div class="w-full sm:w-45 [&>button]:w-full">
+      <button
+        matButton="tonal"
+        type="button"
+        theme="error"
+        (click)="resetDefaults.emit()"
+        [disabled]="isResetting() || isSaving()"
+        [showProgress]="isResetting()"
+      >
+        <mat-icon name="restart_alt" size="sm" />
+        <span>Reset to Defaults</span>
+        <mat-progress-spinner
+          progressIndicator
+          mode="indeterminate"
+          diameter="18"
+          aria-label="Resetting to defaults..."
+        />
+      </button>
+    </div>
 
     <!-- Discard Changes -->
-    <button
-      matButton="tonal"
-      type="button"
-      theme="warning"
-      (click)="discard.emit()"
-      [disabled]="isSaving()"
-    >
-      <span>Discard Changes</span>
-    </button>
+    <div class="w-full sm:w-45 [&>button]:w-full">
+      <button
+        matButton="tonal"
+        type="button"
+        theme="warning"
+        (click)="discard.emit()"
+        [disabled]="isSaving()"
+      >
+        <span>Discard Changes</span>
+      </button>
+    </div>
 
     <!-- Publish Changes -->
-    <button
-      matButton="filled"
-      type="button"
-      (click)="publish.emit()"
-      [disabled]="isSaving()"
-      [showProgress]="isSaving()"
-    >
-      <mat-icon name="check_circle" size="sm" />
-      <span>Publish to Store</span>
-      <mat-progress-spinner
-        progressIndicator
-        mode="indeterminate"
-        diameter="18"
-        aria-label="Publishing to store..."
-      />
-    </button>
+    <div class="w-full sm:w-45 [&>button]:w-full">
+      <button
+        matButton="filled"
+        type="button"
+        (click)="publish.emit()"
+        [disabled]="isSaving()"
+        [showProgress]="isSaving()"
+      >
+        <mat-icon name="check_circle" size="sm" />
+        <span>Publish to Store</span>
+        <mat-progress-spinner
+          progressIndicator
+          mode="indeterminate"
+          diameter="18"
+          aria-label="Publishing to store..."
+        />
+      </button>
+    </div>
   </div>
 </div>

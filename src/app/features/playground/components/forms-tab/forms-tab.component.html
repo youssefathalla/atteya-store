@@ -16,7 +16,7 @@
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- Live Form Controls Card -->
     <div
-      class="lg:col-span-2 bg-surface-container-low p-6 rounded-corner-xs border border-outline-variant flex flex-col gap-4"
+      class="lg:col-span-2 bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4"
     >
       <span class="font-title-md text-primary mb-2">Interactive Custom Input Components</span>
 
@@ -85,14 +85,14 @@
 
     <!-- Live Signal Model State Inspector -->
     <div
-      class="bg-surface-container-high p-6 rounded-corner-xs border border-outline-variant flex flex-col gap-3"
+      class="bg-surface-container-high p-6 border-shape border border-outline-variant flex flex-col gap-3"
     >
       <div class="elements-between">
         <span class="font-title-sm text-primary flex items-center gap-1.5">
           <mat-icon name="data_object" size="sm" iconColor="primary" />
           Live Signal Model
         </span>
-        <span class="font-label-sm font-bold! px-2 py-0.5 rounded bg-primary/20 text-primary font-mono">
+        <span class="font-label-sm font-bold! px-2 py-0.5 border-shape bg-primary/20 text-primary font-mono">
           Reactive
         </span>
       </div>
@@ -104,7 +104,7 @@
         [snapToItems]="false"
         [wheelSpeed]="2.0"
         [dragSpeed]="1.5"
-        class="flex-1 p-4 rounded bg-surface-container text-success font-mono text-xs leading-relaxed overflow-x-auto max-h-120 shadow-inner select-none cursor-grab"
+        class="flex-1 p-4 border-shape bg-surface-container text-success font-mono text-xs leading-relaxed overflow-x-auto max-h-120 shadow-inner select-none cursor-grab"
         >{{ formModel() | json }}
       </pre>
     </div>

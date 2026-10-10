@@ -2,7 +2,7 @@ import { computed, inject, Service, signal } from '@angular/core';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { MegaMenuColumn, MegaMenuLink, NavCategory } from '@layout/navbar/nav.model';
-import { normalizePath, slugify } from './navigation-manager.utils';
+import { normalizePath, slugify } from '../utils/navigation-manager.utils';
 
 function computeAutoSyncPath(
   link: MegaMenuLink,
@@ -55,19 +55,24 @@ export class NavigationDraftService {
     this.selectedCategoryId.set(id);
   }
 
-  addCategory(): void {
+  addCategory(data?: { label: string; path: string }): void {
     this.isDraftDirty.set(true);
     const newId = `cat-${crypto.randomUUID().slice(0, 8)}`;
+    const label = data?.label?.trim() ?? '';
+    const path = data?.path?.trim() ? normalizePath(data.path) : `/category/${newId}`;
+
     const newCat: NavCategory = {
       id: newId,
-      label: '',
-      path: `/category/${newId}`,
+      label,
+      path,
       megaMenu: [],
     };
 
     this.draftCategories.update((list) => [...list, newCat]);
     this.selectedCategoryId.set(newId);
-    this.#snackbar.info('New category added to draft.');
+    this.#snackbar.info(
+      label ? `Category "${label}" added to draft.` : 'New category added to draft.',
+    );
   }
 
   deleteCategory(id: string): void {
@@ -139,8 +144,12 @@ export class NavigationDraftService {
   }
 
   // --- Mega Menu Column Management ---
-  addColumn(): void {
-    this.#updateColumns((cols) => [...cols, { title: '', links: [] }]);
+  addColumn(data?: { title: string }): void {
+    const title = data?.title?.trim() ?? '';
+    this.#updateColumns((cols) => [...cols, { title, links: [] }]);
+    this.#snackbar.info(
+      title ? `Column "${title}" added to mega menu.` : 'New column added to mega menu.',
+    );
   }
 
   deleteColumn(colIndex: number): void {
@@ -163,13 +172,27 @@ export class NavigationDraftService {
   }
 
   // --- Link Management ---
-  addLink(colIndex: number): void {
+  addLink(
+    colIndex: number,
+    data?: { label: string; path: string; badge?: string },
+  ): void {
+    const label = data?.label?.trim() ?? '';
+    const path = data?.path?.trim() ? normalizePath(data.path) : '';
+    const badge = data?.badge?.trim() ? data.badge.trim() : undefined;
+
+    const newLink: MegaMenuLink = {
+      label,
+      path,
+      ...(badge ? { badge } : {}),
+    };
+
     this.#updateColumns((cols) =>
       cols.map((col, idx) =>
-        idx === colIndex
-          ? { ...col, links: [...col.links, { label: '', path: '' }] }
-          : col,
+        idx === colIndex ? { ...col, links: [...col.links, newLink] } : col,
       ),
+    );
+    this.#snackbar.info(
+      label ? `Link "${label}" added to column.` : 'New link added to column.',
     );
   }
 

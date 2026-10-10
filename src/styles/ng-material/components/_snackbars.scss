@@ -1,5 +1,11 @@
 @use '@angular/material' as mat;
 
+:root {
+  @include mat.snack-bar-overrides((
+    container-shape: var(--border-shape, 2px),
+  ));
+}
+
 //` SnackBars
 .success-snackbar {
   @include mat.theme((color: mat.$spring-green-palette));
