@@ -4,7 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { LogoComponent } from '@shared/ui/logo/logo.component';
-import { DrawerService } from '../../../core/services/drawer/drawer.service';
+import { DrawerService } from '@core/services/drawer/drawer.service';
 import { MobileMenuComponent } from './components/mobile-menu/mobile-menu.component';
 import { CartDrawerComponent } from '../../cart-drawer/cart-drawer.component';
 

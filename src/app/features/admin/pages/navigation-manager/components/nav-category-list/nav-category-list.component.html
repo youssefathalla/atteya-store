@@ -4,7 +4,7 @@
       Categories ({{ categories().length }})
     </span>
     <button matButton="tonal" theme="success" type="button" (click)="categoryAdd.emit()">
-      <mat-icon name="add" size="lg" />
+      <mat-icon name="add" />
       <span>Add</span>
     </button>
   </div>
@@ -17,7 +17,7 @@
     @for (cat of categories(); track cat.id; let idx = $index) {
       <div
         cdkDrag
-        class="p-2 sm:p-2.5 elements-between gap-1 transition-colors hover:bg-surface-container"
+        class="p-2 sm:p-2.5 elements-between gap-1 transition-colors hover:bg-surface-container cursor-pointer"
         [class.bg-surface-container]="selectedCategoryId() === cat.id"
       >
         <!-- Drag Handle -->
@@ -29,7 +29,7 @@
         <button
           type="button"
           (click)="categorySelect.emit(cat.id)"
-          class="flex items-center gap-2 min-w-0 flex-1 text-left px-4 py-2"
+          class="flex items-center gap-2 min-w-0 flex-1 text-left px-4 py-2 cursor-pointer"
           [class.font-bold!]="selectedCategoryId() === cat.id"
         >
           <span class="font-label-sm font-mono opacity-60 w-4 shrink-0">
@@ -54,7 +54,7 @@
             [disabled]="idx === 0"
             aria-label="Move up"
           >
-            <mat-icon name="arrow_upward" size="lg" />
+            <mat-icon name="arrow_upward" />
           </button>
           <button
             matIconButton
@@ -63,7 +63,7 @@
             [disabled]="idx === categories().length - 1"
             aria-label="Move down"
           >
-            <mat-icon name="arrow_downward" size="lg" />
+            <mat-icon name="arrow_downward" />
           </button>
           <button
             matIconButton
@@ -72,7 +72,7 @@
             (click)="categoryDelete.emit(cat.id)"
             aria-label="Delete category"
           >
-            <mat-icon name="delete_forever" size="lg" iconColor="error" />
+            <mat-icon name="delete_forever" iconColor="error" />
           </button>
         </div>
       </div>

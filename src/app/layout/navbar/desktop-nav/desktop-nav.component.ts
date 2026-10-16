@@ -3,7 +3,7 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 import { LogoComponent } from '@shared/ui/logo/logo.component';
 import { MatButtonModule } from '@angular/material/button';
 import { DrawerService } from '@core/services/drawer/drawer.service';
-import { NavService } from '../nav.service';
+import { NavService } from '@core/services/navigation';
 import { NavbarActionsComponent } from '../components/navbar-actions/navbar-actions.component';
 import { NavLinksComponent } from './components/nav-links/nav-links.component';
 

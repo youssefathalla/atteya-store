@@ -1,0 +1,311 @@
+<div class="surface-card p-6 space-y-6">
+  <!-- Section Title -->
+  <div class="border-b border-outline-variant pb-3 elements-between">
+    <div>
+      <h3 class="font-title-md font-bold!">Hero Banner Configuration</h3>
+      <p class="font-body-sm opacity-70">
+        Configure the main showcase banner at the top of the store homepage.
+      </p>
+    </div>
+    <span class="px-2 py-0.5 rounded-full bg-surface-container-high font-label-sm font-mono opacity-80">
+      Section 1
+    </span>
+  </div>
+
+  <!-- 1. Text Copy Section -->
+  <div class="space-y-4">
+    <span class="font-label-md font-bold! tracking-wider uppercase opacity-80">
+      Banner Copy & Typography
+    </span>
+
+    <div class="grid grid-cols-1 gap-4">
+      <!-- Headline Input -->
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Primary Headline</mat-label>
+        <input
+          matInput
+          id="hero-headline-input"
+          name="hero-headline-input"
+          autocomplete="off"
+          aria-label="Primary Headline"
+          [ngModel]="hero().headline"
+          (ngModelChange)="headlineChange.emit($event)"
+          placeholder="e.g. Performance-grade gear."
+          required
+        />
+        <mat-hint>Bold, high-impact heading displayed over the hero banner</mat-hint>
+      </mat-form-field>
+
+      <!-- Subtitle Input -->
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Subtitle / Description</mat-label>
+        <textarea
+          matInput
+          rows="2"
+          id="hero-subtitle-input"
+          name="hero-subtitle-input"
+          autocomplete="off"
+          aria-label="Subtitle / Description"
+          [ngModel]="hero().subtitle"
+          (ngModelChange)="subtitleChange.emit($event)"
+          placeholder="e.g. Apparel and shoes for however you train."
+          required
+        ></textarea>
+        <mat-hint>Supporting copy displayed beneath the headline</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <!-- 2. Image Asset Section -->
+  <div class="space-y-4 border-t border-outline-variant pt-4">
+    <div class="elements-between">
+      <div>
+        <span class="font-label-md font-bold! tracking-wider uppercase opacity-80">
+          Background Visual Media
+        </span>
+        <p class="font-body-sm opacity-70">
+          Uploaded directly to Firebase and optimized through ImageKit CDN.
+        </p>
+      </div>
+
+      <!-- Toggle manual path input if needed -->
+      <button
+        matButton
+        type="button"
+        (click)="toggleManualUrl()"
+        [matTooltip]="
+          showManualUrlInput() ? 'Hide manual URL field' : 'Enter a manual image path or external URL'
+        "
+      >
+        <mat-icon [name]="showManualUrlInput() ? 'visibility_off' : 'link'" />
+        <span>{{ showManualUrlInput() ? 'Hide URL Field' : 'Manual URL' }}</span>
+      </button>
+    </div>
+
+    <!-- Upload Card & Live Thumbnail Preview -->
+    <div
+      class="p-4 bg-surface-container-low border border-outline-variant border-shape elements-between flex-wrap gap-4"
+    >
+      <div class="elements-start gap-4 min-w-0">
+        <!-- Thumbnail preview -->
+        <div
+          class="relative size-20 sm:size-24 shrink-0 overflow-hidden border border-outline-variant border-shape bg-surface-container-lowest elements-center"
+        >
+          @if (previewPath()) {
+            <img
+              [ngSrc]="previewPath()"
+              alt="Hero banner preview"
+              width="96"
+              height="96"
+              class="size-full object-cover object-center"
+            />
+          } @else {
+            <mat-icon name="image" class="opacity-40" />
+          }
+        </div>
+
+        <!-- File details -->
+        <div class="min-w-0 space-y-1">
+          <span class="font-label-md font-bold! block truncate">
+            {{ hero().imageUrl ? hero().imageUrl : 'No image selected' }}
+          </span>
+          <span class="font-label-sm font-mono opacity-70 block truncate">
+            {{
+              previewPath()
+                ? 'ik.imagekit.io/atteyastore/' + previewPath()
+                : 'Select an image to preview CDN link'
+            }}
+          </span>
+          <span class="font-label-xs opacity-60 block">
+            Saved in Firebase Storage & optimized via ImageKit
+          </span>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="elements-center gap-2">
+        <input
+          #fileInput
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/avif"
+          class="hidden"
+          (change)="onFileSelected($event)"
+        />
+
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="isUploading()"
+          (click)="fileInput.click()"
+          [attr.aria-label]="isUploading() ? 'Uploading image...' : null"
+        >
+          @if (isUploading()) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <mat-icon name="cloud_upload" />
+          }
+          @if (!isUploading()) {
+            <span>Upload Image</span>
+          }
+        </button>
+      </div>
+    </div>
+
+    <!-- Optional Web Import / Manual Path input when toggled -->
+    @if (showManualUrlInput()) {
+      <div class="p-4 bg-surface-container-low border border-outline-variant border-shape space-y-3">
+        <span class="font-label-sm font-bold! opacity-80 block"> Import Web Image or Enter Path </span>
+        <div class="elements-start flex-wrap gap-3">
+          <mat-form-field appearance="outline" class="grow min-w-64">
+            <mat-label>Paste Web Image URL or Storage Path</mat-label>
+            <input
+              matInput
+              id="hero-image-url-input"
+              name="hero-image-url-input"
+              autocomplete="off"
+              aria-label="Paste Web Image URL or Storage Path"
+              [ngModel]="manualUrlInput()"
+              (ngModelChange)="manualUrlInput.set($event)"
+              placeholder="https://images.unsplash.com/... or hero/banner.jpg"
+            />
+            <mat-hint
+              >Paste any web image URL to download & save it permanently to your Firebase bucket</mat-hint
+            >
+          </mat-form-field>
+
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="isImporting() || !manualUrlInput().trim()"
+            (click)="importFromWebUrl()"
+            [attr.aria-label]="isImporting() ? 'Importing image...' : null"
+          >
+            @if (isImporting()) {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <mat-icon [name]="isExternalUrlInput() ? 'cloud_download' : 'check'" />
+            }
+            @if (!isImporting()) {
+              <span>{{ isExternalUrlInput() ? 'Import & Save' : 'Apply Path' }}</span>
+            }
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Accessible Alt Text Field -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Accessible Image Description (Alt)</mat-label>
+      <input
+        matInput
+        id="hero-image-alt-input"
+        name="hero-image-alt-input"
+        autocomplete="off"
+        aria-label="Accessible Image Description (Alt)"
+        [ngModel]="hero().imageAlt || ''"
+        (ngModelChange)="imageAltChange.emit($event)"
+        placeholder="e.g. Athlete training in performance sportswear"
+      />
+      <mat-hint>Important for accessibility and screen readers</mat-hint>
+    </mat-form-field>
+  </div>
+
+  <!-- 3. Action Buttons Section -->
+  <div class="space-y-4 border-t border-outline-variant pt-4">
+    <div class="elements-between">
+      <div>
+        <span class="font-label-md font-bold! tracking-wider uppercase opacity-80">
+          Call-To-Action (CTA) Buttons
+        </span>
+        <p class="font-body-sm opacity-70">Manage pill action buttons positioned on the bottom left.</p>
+      </div>
+
+      <button matButton="tonal" type="button" (click)="actionAdd.emit()">
+        <mat-icon name="add" />
+        <span>Add Button</span>
+      </button>
+    </div>
+
+    @if (hero().actions.length === 0) {
+      <div class="surface-card p-6 text-center font-body-sm opacity-70 border-dashed border">
+        No call-to-action buttons configured. Click "Add Button" to add one.
+      </div>
+    } @else {
+      <div class="space-y-2.5">
+        @for (
+          action of hero().actions;
+          track action.label;
+          let idx = $index;
+          let isFirst = $first;
+          let isLast = $last
+        ) {
+          <div
+            class="p-3.5 bg-surface-container-low border border-outline-variant border-shape elements-between gap-3"
+          >
+            <div class="elements-start gap-3 min-w-0">
+              <span class="size-7 rounded-full bg-surface elements-center font-label-sm font-bold! shrink-0">
+                {{ idx + 1 }}
+              </span>
+              <div class="min-w-0">
+                <span class="font-label-md font-bold! block truncate">
+                  {{ action.label }}
+                </span>
+                <span class="font-label-sm font-mono opacity-70 block truncate">
+                  {{ action.link }}
+                </span>
+              </div>
+            </div>
+
+            <div class="elements-end gap-1 shrink-0">
+              <!-- Reorder Up -->
+              <button
+                matIconButton
+                type="button"
+                [disabled]="isFirst"
+                (click)="actionMove.emit({ index: idx, direction: 'up' })"
+                matTooltip="Move button up"
+                aria-label="Move button up"
+              >
+                <mat-icon name="arrow_upward" />
+              </button>
+
+              <!-- Reorder Down -->
+              <button
+                matIconButton
+                type="button"
+                [disabled]="isLast"
+                (click)="actionMove.emit({ index: idx, direction: 'down' })"
+                matTooltip="Move button down"
+                aria-label="Move button down"
+              >
+                <mat-icon name="arrow_downward" />
+              </button>
+
+              <!-- Edit Button -->
+              <button
+                matIconButton
+                type="button"
+                (click)="actionEdit.emit({ index: idx, action })"
+                matTooltip="Edit button label and destination link"
+                aria-label="Edit button"
+              >
+                <mat-icon name="edit" />
+              </button>
+
+              <!-- Delete Button -->
+              <button
+                matIconButton
+                type="button"
+                (click)="actionDelete.emit(idx)"
+                matTooltip="Delete button"
+                aria-label="Delete button"
+              >
+                <mat-icon name="delete" />
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

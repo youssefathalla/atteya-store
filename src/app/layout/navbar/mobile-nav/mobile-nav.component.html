@@ -5,7 +5,7 @@
   <div class="elements-between py-2 px-1 sm:px-2 icon-btn-lg">
     <!-- 1. Search -->
     <button matIconButton type="button" (click)="toggleSearch()" aria-label="Search">
-      <mat-icon name="search" size="3xl" />
+      <mat-icon name="search" />
     </button>
 
     <!-- 2. Bag / Cart with Badge (Fill when open, Outline when closed) -->
@@ -21,7 +21,6 @@
     >
       <mat-icon
         name="shopping_bag"
-        size="3xl"
         [type]="isCartOpen() ? 'fill' : 'outline'"
       />
     </button>
@@ -36,7 +35,7 @@
       [matMenuTriggerFor]="profileMenu"
       aria-label="User Account"
     >
-      <mat-icon name="person_outline" size="3xl" />
+      <mat-icon name="person_outline" />
     </button>
 
     <!-- 5. Menu / All Categories (Toggles between menu and close icon) -->
@@ -46,7 +45,7 @@
       (click)="toggleMenu()"
       aria-label="Toggle navigation menu"
     >
-      <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" size="3xl" />
+      <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" />
     </button>
   </div>
 </nav>

@@ -1,9 +1,10 @@
-<form (ngSubmit)="submit()" class="elements-start-col gap-1">
+<form (ngSubmit)="submit()" autocomplete="off">
   <div class="px-6 pt-6 pb-2">
     <h2 mat-dialog-title class="font-title-lg font-bold! p-0!">Add Navigation Link</h2>
     <p class="font-body-sm opacity-70 pt-1">
       @if (data?.columnTitle) {
-        Add a destination link inside <span class="font-bold!">{{ data.columnTitle }}</span>.
+        Add a destination link inside <span class="font-bold!">{{ data.columnTitle }}</span
+        >.
       } @else {
         Add a destination link under this mega menu column.
       }
@@ -18,6 +19,7 @@
         matInput
         id="new-link-label"
         name="new-link-label"
+        autocomplete="off"
         aria-label="Link Label"
         [ngModel]="label()"
         (ngModelChange)="onLabelChange($event)"
@@ -35,6 +37,7 @@
         matInput
         id="new-link-path"
         name="new-link-path"
+        autocomplete="off"
         aria-label="Target Path / URL"
         [ngModel]="path()"
         (ngModelChange)="onPathChange($event)"
@@ -49,7 +52,7 @@
         matTooltip="Auto-generate path from label"
         aria-label="Auto-generate path"
       >
-        <mat-icon name="auto_fix_high" size="sm" />
+        <mat-icon name="auto_fix_high" />
       </button>
       <mat-hint>Destination route URL</mat-hint>
     </mat-form-field>
@@ -61,6 +64,7 @@
         matInput
         id="new-link-badge"
         name="new-link-badge"
+        autocomplete="off"
         aria-label="Badge Tag"
         [ngModel]="badge()"
         (ngModelChange)="badge.set($event)"
@@ -71,14 +75,8 @@
   </mat-dialog-content>
 
   <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">
-    <button matButton="text" type="button" (click)="cancel()">
-      Cancel
-    </button>
-    <button
-      matButton="filled"
-      type="submit"
-      [disabled]="!isValid()"
-    >
+    <button matButton="text" type="button" (click)="cancel()">Cancel</button>
+    <button matButton="filled" type="submit" [disabled]="!isValid()">
       <span>Create Link</span>
     </button>
   </mat-dialog-actions>

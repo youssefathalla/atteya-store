@@ -9,23 +9,26 @@
 
   <div class="elements-start-col sm:elements-between max-sm:w-full gap-2.5">
     <!-- Reset to Defaults Button -->
-    <div class="w-full sm:w-45 [&>button]:w-full">
+    <div class="w-full sm:w-50 [&>button]:w-full text-xl">
       <button
         matButton="tonal"
         type="button"
         theme="error"
         (click)="resetDefaults.emit()"
         [disabled]="isResetting() || isSaving()"
-        [showProgress]="isResetting()"
+        [attr.aria-label]="isResetting() ? 'Resetting to defaults...' : null"
       >
-        <mat-icon name="restart_alt" size="sm" />
-        <span>Reset to Defaults</span>
-        <mat-progress-spinner
-          progressIndicator
-          mode="indeterminate"
-          diameter="18"
-          aria-label="Resetting to defaults..."
-        />
+        @if (isResetting()) {
+          <mat-progress-spinner
+            mode="indeterminate"
+            diameter="18"
+          />
+        } @else {
+          <mat-icon name="restart_alt" />
+        }
+        @if (!isResetting()) {
+          <span>Reset to Defaults</span>
+        }
       </button>
     </div>
 
@@ -49,16 +52,19 @@
         type="button"
         (click)="publish.emit()"
         [disabled]="isSaving()"
-        [showProgress]="isSaving()"
+        [attr.aria-label]="isSaving() ? 'Publishing to store...' : null"
       >
-        <mat-icon name="check_circle" size="sm" />
-        <span>Publish to Store</span>
-        <mat-progress-spinner
-          progressIndicator
-          mode="indeterminate"
-          diameter="18"
-          aria-label="Publishing to store..."
-        />
+        @if (isSaving()) {
+          <mat-progress-spinner
+            mode="indeterminate"
+            diameter="18"
+          />
+        } @else {
+          <mat-icon name="check_circle" />
+        }
+        @if (!isSaving()) {
+          <span>Publish to Store</span>
+        }
       </button>
     </div>
   </div>

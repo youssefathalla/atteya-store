@@ -18,7 +18,8 @@ This skill is the **Single Source of Truth** for reusable assets across Atteya S
 4. [Shared Directives & Pipes (`src/app/shared/`)](#4-shared-directives--pipes)
 5. [Shared Schemas & Firebase Utilities (`src/app/shared/`)](#5-shared-schemas--firebase-utilities)
 6. [Shared Logic & Breakpoint Utilities (`src/app/shared/utils/`)](#6-shared-logic--breakpoint-utilities)
-7. [The "2+ Duplication Rule" Protocol](#7-the-2-duplication-rule-protocol)
+7. [Image Optimization & Delivery System (ImageKit + Firebase)](#7-image-optimization--delivery-system-imagekit--firebase)
+8. [The "2+ Duplication Rule" Protocol](#8-the-2-duplication-rule-protocol)
 
 ---
 
@@ -100,6 +101,7 @@ Located in `src/styles/tailwind/components/`. Use these classes directly in your
 | | `.section-space` | Vertical spacing between page sections |
 | `images.css` | `.image-mask` | Image clipping and gradient mask |
 | | `.hero-image` | Full-width responsive hero image container |
+| | `.hero-pill-btn` | High-contrast pill button for hero banner CTA actions |
 | `overlays.css` | `.loading-overlay` | Full-screen semi-transparent loading backdrop |
 | | `.badge-overlay` | Absolute-positioned badge over an image or card |
 | | `.icon-overlay` | Absolute-positioned icon container over an image or card |
@@ -173,6 +175,12 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `categories`: Computed signal for live navigation catalog with fallback.
   - `isLoading`: Computed state signal.
   - `updateNavigation(categories)`, `seedDefaultNavigation()`.
+- **`StorageUploadService`** (`src/app/core/services/storage/storage-upload.service.ts`):
+  - `uploadImage(file, folder = 'hero')`: Uploads image (`File`) to Firebase Storage via native SDK `uploadBytes()` with a sanitized unique timestamped path, returning `{ path: string; fullUrl: string }`.
+  - `importFromUrl(url, folder = 'hero')`: Downloads any external web image URL as a blob and uploads it permanently to Firebase Storage, returning `{ path: string; fullUrl: string }`.
+  - `deleteImage(pathOrUrl)`: Deletes a specific file from Firebase Storage via native SDK `deleteObject()`. Safely ignores local assets (`/img/`) or external URLs.
+  - `isUploading`: Reactive `Signal<boolean>` tracking active upload status.
+  - `uploadError`: Reactive `Signal<string | null>` for upload failure messages.
 
 ---
 
@@ -227,10 +235,65 @@ Located in `src/app/shared/utils/`:
 - **`useStepperOrientation`** (`src/app/shared/utils/stepper-orientation.utils.ts`):
   - Returns a reactive `Signal<StepperOrientation>` (`'horizontal' | 'vertical'`) for Material Stepper components.
   - Usage: `readonly stepperOrientation = useStepperOrientation(800);`
+- **`normalizeImageKitPath`** (`src/app/shared/utils/image.utils.ts`):
+  - Normalizes full Firebase Storage URLs, Google Cloud URLs, or ImageKit URLs into a clean relative path suitable for Angular's `NgOptimizedImage` (`[ngSrc]`).
+  - Usage: `readonly imagePath = computed(() => normalizeImageKitPath(this.item().imageUrl));`
 
 ---
 
-## 7. The "2+ Duplication Rule" Protocol
+## 7. Image Optimization & Delivery System (ImageKit + Firebase)
+
+All storefront visual media (hero banners, product showcases, category headers) are delivered through ImageKit CDN, while master assets are securely stored in Firebase Cloud Storage.
+
+### 🌐 Dual Environment Endpoints
+
+- **Development**: `https://ik.imagekit.io/atteyastore/dev/` (Origin: `atteya-store-dev.firebasestorage.app`)
+- **Production**: `https://ik.imagekit.io/atteyastore/` (Origin: `attiya-store.firebasestorage.app`)
+- Configured in `app.config.ts`: `provideImageKitLoader(environment.imageKitUrl)`.
+
+### ⚡ Angular NgOptimizedImage Guidelines
+
+- **Always use `NgOptimizedImage` (`[ngSrc]`)**. Raw `<img [src]>` is strictly forbidden for media assets.
+- **Hero / Above-The-Fold / LCP**:
+
+  ```html
+  @if (imagePath()) {
+    <img
+      [ngSrc]="imagePath()"
+      [alt]="item().headline"
+      fill
+      priority
+      sizes="100vw"
+      class="object-cover object-center"
+    />
+  }
+  ```
+
+- **Grid / Cards / Thumbnails**:
+
+  ```html
+  @if (imagePath()) {
+    <img
+      [ngSrc]="imagePath()"
+      [alt]="item().name"
+      fill
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+      class="object-cover object-center"
+    />
+  }
+  ```
+
+- **Auto Transformations**: ImageKit automatically negotiates AVIF/WebP formats, applies quality compression, and resizes to the exact screen breakpoint requested via `sizes`.
+
+### 📤 Image Uploads (`StorageUploadService`)
+
+- Inject `StorageUploadService` from `@core/services/storage`.
+- Call `await this.storageUpload.uploadImage(file, 'hero')` (or `'products'`, `'categories'`).
+- Stores the relative path (e.g. `hero/1729000000-banner.jpg`) in Firestore.
+
+---
+
+## 8. The "2+ Duplication Rule" Protocol
 
 Whenever you find a combination of 4 or more utility classes that is repeated **2 or more times**:
 

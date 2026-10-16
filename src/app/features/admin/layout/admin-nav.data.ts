@@ -7,6 +7,14 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
     icon: 'storefront',
     subItems: [
       {
+        id: 'home-page',
+        label: 'Home Page',
+        path: '/admin/home',
+        icon: 'view_quilt',
+        badge: 'Live',
+        description: 'Hero banners, promo sections, and homepage showcase',
+      },
+      {
         id: 'navigation-menus',
         label: 'Navigation & Menus',
         path: '/admin/navigation',

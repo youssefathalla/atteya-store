@@ -2,7 +2,7 @@ import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import { DrawerService } from '../../core/services/drawer/drawer.service';
+import { DrawerService } from '@core/services/drawer/drawer.service';
 
 @Component({
   selector: 'app-cart-drawer',

@@ -1,0 +1,47 @@
+<section class="relative w-full overflow-hidden select-none" aria-label="Featured Training Gear">
+  <!-- 1. Full-Width Background Hero Image -->
+  <div
+    class="relative w-full aspect-16/10 sm:aspect-video lg:aspect-21/9 min-h-130 lg:min-h-155 max-h-[85vh]"
+  >
+    @if (imagePath()) {
+      <img
+        [ngSrc]="imagePath()"
+        [alt]="hero().imageAlt || hero().headline"
+        fill
+        priority
+        sizes="100vw"
+        (error)="handleImageError()"
+        class="object-cover object-center"
+      />
+    }
+
+    <!-- 2. Dark Gradient Overlay for Maximum Text Legibility -->
+    <div
+      class="absolute inset-0 bg-linear-to-t from-black/80 via-black/25 to-transparent pointer-events-none"
+      aria-hidden="true"
+    ></div>
+
+    <!-- 3. Bottom-Left Content Placement (No Container, Full-Bleed Margin) -->
+    <div
+      class="absolute inset-x-0 bottom-0 elements-start-col px-6 py-8 sm:px-12 sm:py-12 lg:px-16 lg:py-14 gap-3 z-10"
+    >
+      <h1
+        class="font-display-md sm:font-display-lg lg:font-display-xl font-bold! text-on-primary tracking-tight"
+      >
+        {{ hero().headline }}
+      </h1>
+
+      <p class="font-title-sm sm:font-title-md text-on-primary/90 max-w-xl font-normal leading-relaxed">
+        {{ hero().subtitle }}
+      </p>
+
+      <div class="elements-start flex-wrap gap-3 pt-2">
+        @for (action of hero().actions; track action.label) {
+          <a [routerLink]="action.link" class="hero-pill-btn">
+            {{ action.label }}
+          </a>
+        }
+      </div>
+    </div>
+  </div>
+</section>

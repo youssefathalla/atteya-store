@@ -7,7 +7,7 @@
       </p>
     </div>
     <button matButton="tonal" theme="success" type="button" (click)="columnAdd.emit()">
-      <mat-icon name="add" size="lg" />
+      <mat-icon name="add" />
       <span>Add Column</span>
     </button>
   </div>
@@ -31,6 +31,7 @@
                   matInput
                   [id]="'col-title-' + colIdx"
                   [name]="'col-title-' + colIdx"
+                  autocomplete="off"
                   aria-label="Column Title"
                   [ngModel]="column.title"
                   (ngModelChange)="columnTitleChange.emit({ colIndex: colIdx, title: $event })"
@@ -54,7 +55,7 @@
                   matTooltip="Add link"
                   aria-label="Add link"
                 >
-                  <mat-icon name="add" iconColor="success" size="xl" />
+                  <mat-icon name="add" iconColor="success" />
                 </button>
 
                 <button
@@ -65,7 +66,7 @@
                   matTooltip="Delete list"
                   aria-label="Delete list"
                 >
-                  <mat-icon name="delete_forever" iconColor="error" size="xl" />
+                  <mat-icon name="delete_forever" iconColor="error" />
                 </button>
 
                 <span class="font-label-md">
@@ -86,7 +87,7 @@
                     theme="success"
                     (click)="$event.stopPropagation(); panel.open(); linkAdd.emit(colIdx)"
                   >
-                    <mat-icon name="add" size="lg" />
+                    <mat-icon name="add" />
                     <span>Add Link</span>
                   </button>
                   <button
@@ -97,7 +98,7 @@
                     aria-label="Delete column"
                   >
                     <span>Delete List</span>
-                    <mat-icon name="delete_forever" iconColor="error" size="lg" />
+                    <mat-icon name="delete_forever" iconColor="error" />
                   </button>
                 </div>
               </div>
@@ -131,6 +132,7 @@
                     matInput
                     [id]="'link-label-' + colIdx + '-' + linkIdx"
                     [name]="'link-label-' + colIdx + '-' + linkIdx"
+                    autocomplete="off"
                     aria-label="Link Label"
                     [ngModel]="link.label"
                     (ngModelChange)="
@@ -156,6 +158,7 @@
                     matInput
                     [id]="'link-path-' + colIdx + '-' + linkIdx"
                     [name]="'link-path-' + colIdx + '-' + linkIdx"
+                    autocomplete="off"
                     aria-label="Target Path"
                     [ngModel]="link.path"
                     (ngModelChange)="
@@ -181,7 +184,7 @@
                     matTooltip="Auto-generate URL from label"
                     aria-label="Generate URL from label"
                   >
-                    <mat-icon name="auto_fix_high" size="xs" />
+                    <mat-icon name="auto_fix_high" />
                   </button>
                 </mat-form-field>
 
@@ -196,6 +199,7 @@
                     matInput
                     [id]="'link-badge-' + colIdx + '-' + linkIdx"
                     [name]="'link-badge-' + colIdx + '-' + linkIdx"
+                    autocomplete="off"
                     aria-label="Badge"
                     [ngModel]="link.badge ?? ''"
                     (ngModelChange)="
@@ -223,7 +227,7 @@
                       (click)="linkDelete.emit({ colIndex: colIdx, linkIndex: linkIdx })"
                       aria-label="Delete link"
                     >
-                      <mat-icon name="delete" iconColor="error" size="lg" />
+                      <mat-icon name="delete" iconColor="error" />
                       <span>Delete</span>
                     </button>
                   </div>
@@ -237,7 +241,7 @@
                       (click)="linkDelete.emit({ colIndex: colIdx, linkIndex: linkIdx })"
                       aria-label="Delete link"
                     >
-                      <mat-icon name="delete" iconColor="error" size="xl" />
+                      <mat-icon name="delete" iconColor="error" />
                     </button>
                   </div>
                 </div>

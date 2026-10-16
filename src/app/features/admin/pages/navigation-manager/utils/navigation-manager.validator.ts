@@ -1,4 +1,4 @@
-import { MegaMenuColumn, MegaMenuLink, NavCategory } from '@layout/navbar/nav.model';
+import { MegaMenuColumn, MegaMenuLink, NavCategory } from '@core/services/navigation';
 
 function validateLink(link: MegaMenuLink): string | null {
   if (!link.label.trim()) return 'A link is missing a label.';

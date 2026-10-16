@@ -1,7 +1,7 @@
 import { computed, inject, Service, signal } from '@angular/core';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
-import { MegaMenuColumn, MegaMenuLink, NavCategory } from '@layout/navbar/nav.model';
+import { MegaMenuColumn, MegaMenuLink, NavCategory } from '@core/services/navigation';
 import { normalizePath, slugify } from '../utils/navigation-manager.utils';
 
 function computeAutoSyncPath(

@@ -55,6 +55,7 @@ Before approving any task, completing a feature, or declaring code ready:
 - [ ] **United Border Shape (`border-shape`)**: Are all cards, panels, containers, badges, dialogs using `border-shape`? (Zero arbitrary `rounded`, `rounded-corner-xs`, `rounded-sm`, `rounded-md`, `rounded-lg`).
 - [ ] **Layout Shortcuts**: Are row flex chains using `elements-center`, `elements-start`, `elements-end`, `elements-between`, and column flex chains using `elements-center-col`, `elements-start-col`, `elements-end-col`, `elements-between-col`?
 - [ ] **Mobile Responsive Action Toolbars**: Are action buttons on mobile screens wrapped in full-width containers (`[&>button]:w-full`) or toggled to icon buttons on small screens?
+- [ ] **Button Loading State**: When an action button is loading (`isSaving()`, `isUploading()`), does it render **only the spinner** (`<mat-progress-spinner mode="indeterminate" diameter="18" />`), with no text alongside it, plus `[attr.aria-label]` for accessibility?
 - [ ] **Human-First Plain Language**: Does all user-facing microcopy (buttons, dialogs, toasts, empty states) use simple, everyday language focused on user intent and outcomes rather than technical mechanics or system jargon?
 
 ### 3. ♿ Accessibility (A11y) & Semantic HTML
@@ -85,6 +86,10 @@ Before approving any task, completing a feature, or declaring code ready:
 ### 7. 🎯 Feature Completeness
 
 - [ ] **Backend-to-UI Sync**: Are all fields defined in the schema and fetched by the service properly represented and displayed in the UI? (Prevents ghost CMS data).
+
+### 8. 📝 Living Documentation Sync
+
+- [ ] **Catalog & Contract Synchronization**: If any new service, utility, model, external integration, or extracted CSS class was added, is it indexed in `reusable-catalog` and documented in `AGENTS.md`? (Run `/sync-docs` to audit).
 
 ---
 

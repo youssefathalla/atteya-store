@@ -2,7 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import { NavService } from '@layout/navbar/nav.service';
+import { NavService } from '@core/services/navigation';
 
 interface BrandCardItem {
   readonly label: string;

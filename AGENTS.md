@@ -38,6 +38,8 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 - **Monochrome (Black & White) Identity**: Brand aesthetic is strictly Black & White. `primary` is black; default text is naturally `text-on-surface` (inherited from `body`). **NEVER write `text-on-surface` on any element** — it is already the default inherited color and writing it is banned as redundant class bloat. Never add redundant child color overrides (e.g. `<span class="text-primary">.</span>`), and inherit colors cleanly.
 - **Layout Alignment Shortcuts**: Always use custom layout shortcuts instead of writing verbose flex classes: Row: `elements-center`, `elements-start`, `elements-end`, `elements-between`. Column: `elements-center-col`, `elements-start-col`, `elements-end-col`, `elements-between-col`.
 - **United Border Shape (`border-shape`)**: Single source of truth for corner radius across all elements is `border-shape` (`border-radius: var(--border-shape, 2px)`). Arbitrary `rounded`, `rounded-corner-xs`, `rounded-sm`, `rounded-md`, `rounded-lg` are strictly banned.
+- **Button Loading State Standard**: During action loading (`isSaving()`, `isUploading()`, etc.), render **only the spinner** (`<mat-progress-spinner mode="indeterminate" diameter="18" />`). Never display text alongside a spinner. Swap the label/icon cleanly with `@if (isLoading()) { <mat-progress-spinner ... /> } @else { <mat-icon ... /> <span>Label</span> }` and provide `[attr.aria-label]="isLoading() ? 'Action...' : null"` for screen readers.
+- **United Button Icon Sizing**: All `<mat-icon>` placed inside buttons (`matButton`, `matIconButton`, or native `<button>`) automatically default to `DEFAULT_BUTTON_ICON_SIZE` (`'lg'`) via `MatIconDirective` and `.mat-mdc-button-base mat-icon`. Never write `size="..."` on any icon inside a button.
 - **Universal Plain-Language Microcopy**: All user- and admin-facing copy (buttons, dialogs, snackbars, alerts, hints, empty states) must speak the natural, everyday language of general users. Always communicate user intent and real-world outcomes rather than technical mechanisms, developer jargon, or underlying systems. Keep action labels simple, familiar, and active, and ensure all feedback is constructive, reassuring, and intuitive.
 - **The Reference**: Activate the **`design-system`** skill for the styling directory map, token registration, Material overrides, and component APIs.
 
@@ -62,6 +64,27 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
   - Below-the-fold content: `@defer (hydrate on viewport)`.
   - Completely static content: `@defer (hydrate never)`.
   - Above-the-fold / Hero / LCP content: Do NOT defer.
+
+### 🖼️ Image Delivery & Optimization Architecture (ImageKit + Firebase Storage)
+
+- **Proxy Architecture**: Master media files reside permanently in Firebase Cloud Storage. ImageKit acts as an external Web Folder origin, intercepting requests to perform real-time resizing, WebP/AVIF compression, and global CDN delivery.
+- **Environment Isolation**:
+  - **Dev (`environment.ts`)**: `https://ik.imagekit.io/atteyastore/dev/` fetching from `atteya-store-dev.firebasestorage.app`.
+  - **Prod (`environment.prod.ts`)**: `https://ik.imagekit.io/atteyastore/` fetching from `attiya-store.firebasestorage.app`.
+  - Dev uploads, previews, and tests never collide with or affect production assets or cache.
+- **Angular Image Standards**:
+  - Provided via `provideImageKitLoader(environment.imageKitUrl)` in `app.config.ts`.
+  - **Strictly use `NgOptimizedImage` (`[ngSrc]`)** for all storefront and preview media. Raw `<img [src]>` for media assets is banned.
+  - Required directives: `fill` or explicit `width`/`height`, `priority` on above-the-fold/LCP images, and responsive `sizes` (e.g. `sizes="100vw"`).
+  - Use `normalizeImageKitPath()` from `@shared/utils/image.utils` to sanitize input strings (strips Firebase/GCS domain prefixes).
+- **Media Uploads**:
+  - Use `StorageUploadService` (`@core/services/storage`) via native Firebase JS SDK (`uploadBytes()`).
+  - Storage paths are organized by domain (e.g. `hero/<timestamp>-<filename>`, `products/<timestamp>-<filename>`).
+
+### 📝 Living Documentation Directive
+
+- All agent documentation (`AGENTS.md`, `.agents/skills/`, `.agents/rules/`) is a living contract.
+- Any new technology, service, utility, or architectural pattern added must be documented immediately in the relevant `.agents/skills/` files (`reusable-catalog`, `new-feature`, etc.) and `AGENTS.md` before concluding the task.
 
 ---
 

@@ -11,6 +11,7 @@ export const MegaMenuColumnSchema = v.object({
   title: v.optional(v.string()),
   links: v.array(MegaMenuLinkSchema),
 });
+
 export const NavCategorySchema = v.object({
   id: v.string(),
   label: v.string(),

@@ -2,35 +2,26 @@
 
 :root {
   //* Global Button Shape (M3)
-  @include mat.button-overrides((
-    filled-container-shape: var(--border-shape, 2px),
-    outlined-container-shape: var(--border-shape, 2px),
-    protected-container-shape: var(--border-shape, 2px), // elevated
-    text-container-shape: var(--border-shape, 2px),
-    tonal-container-shape: var(--border-shape, 2px)
-  ));
+  @include mat.button-overrides(
+    (
+      filled-container-shape: var(--border-shape, 2px),
+      outlined-container-shape: var(--border-shape, 2px),
+      protected-container-shape: var(--border-shape, 2px),
+      // elevated
+      text-container-shape: var(--border-shape, 2px),
+      tonal-container-shape: var(--border-shape, 2px),
+    )
+  );
 
   //- fab
-  @include mat.fab-overrides((
-    container-shape: var(--border-shape, 2px),
-    extended-container-shape: var(--border-shape, 2px),
-    small-container-shape: var(--border-shape, 2px),
-  ));
+  @include mat.fab-overrides(
+    (
+      container-shape: var(--border-shape, 2px),
+      extended-container-shape: var(--border-shape, 2px),
+      small-container-shape: var(--border-shape, 2px),
+    )
+  );
 }
-
-
-/* Target the label ONLY when the button contains a spinner */
-// button:has(mat-spinner) .mdc-button__label,
-// button.twoIcons .mdc-button__label {
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-//   gap: 0.5rem;
-//   @include mat.progress-spinner-overrides((
-//       active-indicator-color: var(--mat-sys-primary),
-//   ));
-// }
-
 .mat-mdc-form-field-icon-suffix {
   padding-inline-end: 0.5rem !important;
 }
@@ -40,10 +31,10 @@
 
 //-Table buttons
 .table-btn {
-  @include mat.button-overrides((
-    tonal-container-height: 34px,
-    tonal-label-text-size: 12px,
-  ));
+  @include mat.button-overrides(
+    (
+      tonal-container-height: 34px,
+      tonal-label-text-size: 12px,
+    )
+  );
 }
-
-

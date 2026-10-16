@@ -1,4 +1,4 @@
-<form (ngSubmit)="submit()" class="elements-start-col gap-1">
+<form (ngSubmit)="submit()" autocomplete="off">
   <div class="px-6 pt-6 pb-2">
     <h2 mat-dialog-title class="font-title-lg font-bold! p-0!">Add New Category</h2>
     <p class="font-body-sm opacity-70 pt-1">
@@ -14,6 +14,7 @@
         matInput
         id="new-cat-label"
         name="new-cat-label"
+        autocomplete="off"
         aria-label="Category Name"
         [ngModel]="label()"
         (ngModelChange)="onLabelChange($event)"
@@ -31,6 +32,7 @@
         matInput
         id="new-cat-path"
         name="new-cat-path"
+        autocomplete="off"
         aria-label="Route / URL Path"
         [ngModel]="path()"
         (ngModelChange)="onPathChange($event)"
@@ -45,7 +47,7 @@
         matTooltip="Auto-generate path from name"
         aria-label="Auto-generate path"
       >
-        <mat-icon name="auto_fix_high" size="sm" />
+        <mat-icon name="auto_fix_high" />
       </button>
       <mat-hint>Destination link path</mat-hint>
     </mat-form-field>

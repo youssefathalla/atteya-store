@@ -14,6 +14,7 @@
         matInput
         id="cat-display-label"
         name="cat-display-label"
+        autocomplete="off"
         aria-label="Display Label"
         [ngModel]="category().label"
         (ngModelChange)="labelChange.emit($event)"
@@ -28,6 +29,7 @@
         matInput
         id="cat-route-path"
         name="cat-route-path"
+        autocomplete="off"
         aria-label="Route / URL Path"
         [ngModel]="category().path"
         (ngModelChange)="pathChange.emit($event)"
@@ -41,7 +43,7 @@
         matTooltip="Auto-generate /category/:slug from label"
         aria-label="Generate path from label"
       >
-        <mat-icon name="auto_fix_high" size="sm" />
+        <mat-icon name="auto_fix_high" />
       </button>
       <mat-hint>Storefront URL: {{ category().path || '/category' }}</mat-hint>
     </mat-form-field>

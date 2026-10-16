@@ -1,7 +1,6 @@
 import { Component, effect, inject, signal, untracked } from '@angular/core';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
-import { NavService } from '@layout/navbar/nav.service';
-import { NAV_CATEGORIES } from '@layout/navbar/nav.data';
+import { NAV_CATEGORIES, NavService } from '@core/services/navigation';
 import { NavManagerHeaderComponent } from './components/nav-manager-header/nav-manager-header.component';
 import { NavCategoryListComponent } from './components/nav-category-list/nav-category-list.component';
 import { NavCategoryDetailsComponent } from './components/nav-category-details/nav-category-details.component';

@@ -3,8 +3,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { DrawerService } from '@core/services/drawer/drawer.service';
-import { NavCategory } from '../../../nav.model';
-import { NavService } from '../../../nav.service';
+import { NavCategory, NavService } from '@core/services/navigation';
 
 @Component({
   selector: 'app-mobile-menu',

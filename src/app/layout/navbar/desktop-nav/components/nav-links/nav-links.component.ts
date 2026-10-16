@@ -11,8 +11,7 @@ import {
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavCategory } from '../../../nav.model';
-import { NAV_CATEGORIES } from '../../../nav.data';
+import { NavCategory, NAV_CATEGORIES } from '@core/services/navigation';
 
 @Component({
   selector: 'app-nav-links',

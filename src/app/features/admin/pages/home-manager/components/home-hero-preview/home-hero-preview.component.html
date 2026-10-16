@@ -1,0 +1,52 @@
+<div class="surface-card p-6 space-y-4">
+  <div class="elements-between border-b border-outline-variant pb-3">
+    <div>
+      <h3 class="font-title-md font-bold!">Live Storefront Preview</h3>
+      <p class="font-body-sm opacity-70">Previewing hero section in real-time before publishing.</p>
+    </div>
+    <span class="px-2.5 py-0.5 rounded-full bg-surface-container-high font-label-sm font-bold! opacity-80">
+      Preview Mode
+    </span>
+  </div>
+
+  <!-- Responsive Banner Simulation Box -->
+  <div
+    class="relative w-full aspect-video sm:aspect-21/9 min-h-85 max-h-115 overflow-hidden border border-outline-variant border-shape bg-surface-container-lowest"
+  >
+    <!-- Image -->
+    @if (imagePath()) {
+      <img
+        [ngSrc]="imagePath()"
+        [alt]="hero().imageAlt || hero().headline"
+        fill
+        sizes="(max-width: 1024px) 100vw, 60vw"
+        class="object-cover object-center"
+      />
+    }
+
+    <!-- Dark Contrast Gradient -->
+    <div
+      class="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent pointer-events-none"
+      aria-hidden="true"
+    ></div>
+
+    <!-- Bottom-Left Content -->
+    <div class="absolute inset-x-0 bottom-0 elements-start-col p-6 sm:p-8 lg:p-10 gap-2.5 z-10">
+      <h2 class="font-display-sm sm:font-display-md font-bold! text-on-primary tracking-tight leading-tight">
+        {{ hero().headline }}
+      </h2>
+
+      <p class="font-body-sm sm:font-body-md text-on-primary/90 max-w-lg leading-snug line-clamp-2">
+        {{ hero().subtitle }}
+      </p>
+
+      <div class="elements-start flex-wrap gap-2 pt-1">
+        @for (action of hero().actions; track action.label) {
+          <span class="hero-pill-btn pointer-events-none">
+            {{ action.label }}
+          </span>
+        }
+      </div>
+    </div>
+  </div>
+</div>

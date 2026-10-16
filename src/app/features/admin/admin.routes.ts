@@ -12,6 +12,14 @@ export const ADMIN_ROUTES: Routes = [
         redirectTo: 'navigation',
       },
       {
+        path: 'home',
+        loadComponent: () =>
+          import('./pages/home-manager/home-manager.component').then(
+            (m) => m.HomeManagerComponent,
+          ),
+        title: 'Home Page Manager | Atteya Admin',
+      },
+      {
         path: 'navigation',
         loadComponent: () =>
           import('./pages/navigation-manager/navigation-manager.component').then(

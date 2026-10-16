@@ -15,3 +15,14 @@ export const ICON_SIZE_CLASSES: Record<IconSize, string> = {
   '6xl': 'text-[length:var(--text-6xl)]!',
   '7xl': 'text-[length:var(--text-7xl)]!',
 };
+
+/**
+ * Default icon size inside any button (matButton, matIconButton, or native button).
+ * Single source of truth for all button icons across the application.
+ */
+export const DEFAULT_BUTTON_ICON_SIZE: IconSize = 'lg';
+
+/**
+ * Default icon size for standalone icons placed outside buttons.
+ */
+export const DEFAULT_STANDALONE_ICON_SIZE: IconSize = '2xl';

@@ -311,7 +311,7 @@ When generating or editing any template, style, or component, verify:
 2. [ ] **No `::ng-deep`**: Are Material modifications placed in `src/styles/ng-material/components/_{name}.scss` using `@include mat.<name>-overrides`?
 3. [ ] **No Class Bloat Duplication**: Are repeated utility chains (2+ times) extracted to `src/styles/tailwind/components/`?
 4. [ ] **Icons**: Are all icons using `<mat-icon name="..." />` with `iconColor`, `size`, `type` inputs (zero content projection), AND is `SharedIconModule` in the component's `imports`?
-5. [ ] **Buttons**: Are button variants using `matButton="filled|outlined|elevated|text"` and `theme="..."` (zero `color="primary"`)?
+5. [ ] **Buttons & Loading**: Are button variants using `matButton="filled|outlined|elevated|text"` and `theme="..."` (zero `color="primary"`)? When loading, is ONLY the spinner rendered (`<mat-progress-spinner mode="indeterminate" diameter="18" />`), with no text alongside it, plus `[attr.aria-label]` for accessibility?
 6. [ ] **Typography**: Are headings and body text using semantic utilities (`font-headline-*`, `font-title-*`, `font-body-*`, `font-label-*`)?
 7. [ ] **Sizing**: Is `size-{N}` used instead of `w-{N} h-{N}` for square/equal dimensions?
 8. [ ] **Important Syntax**: Is `!` placed as suffix (e.g. `hidden!`, `p-4!`)?

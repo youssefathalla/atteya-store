@@ -2,7 +2,7 @@ import { Component, computed, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import { NavService } from '@layout/navbar/nav.service';
+import { NavService } from '@core/services/navigation';
 
 @Component({
   selector: 'app-category',
@@ -59,9 +59,7 @@ export class CategoryComponent {
       const cat = this.category();
       if (cat?.megaMenu) {
         for (const col of cat.megaMenu) {
-          const match = col.links.find(
-            (l) => l.path.toLowerCase().endsWith(`/${sub.toLowerCase()}`),
-          );
+          const match = col.links.find((l) => l.path.toLowerCase().endsWith(`/${sub.toLowerCase()}`));
           if (match) return match.label;
         }
       }
@@ -71,11 +69,10 @@ export class CategoryComponent {
   });
 
   readonly currentRoutePath = computed(() => {
-    if (this.isBrandRoute()) {
-      return `/brand/${this.slug()}`;
-    }
+    if (this.isBrandRoute()) return `/brand/${this.slug()}`;
     const sub = this.subSlug();
-    return `/category/${this.slug()}${sub ? `/${sub}` : ''}`;
+    if (sub) return `/category/${this.slug()}/${sub}`;
+    return `/category/${this.slug()}`;
   });
 
   readonly catalogIcon = computed(() => (this.isBrandRoute() ? 'verified' : 'category'));

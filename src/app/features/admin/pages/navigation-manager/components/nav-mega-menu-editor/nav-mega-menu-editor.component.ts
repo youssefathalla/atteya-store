@@ -12,7 +12,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import { MegaMenuColumn, MegaMenuLink } from '@layout/navbar/nav.model';
+import { MegaMenuColumn, MegaMenuLink } from '@core/services/navigation';
 import {MatDividerModule} from '@angular/material/divider';
 @Component({
   selector: 'app-nav-mega-menu-editor',

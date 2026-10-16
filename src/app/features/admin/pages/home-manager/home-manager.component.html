@@ -1,0 +1,30 @@
+<app-home-manager-header
+  [isSaving]="isSaving()"
+  [isResetting]="isResetting()"
+  [isDirty]="draft.isDirty()"
+  (resetDefaults)="resetToDefaults()"
+  (discard)="discardDraft()"
+  (publish)="publishChanges()"
+/>
+
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start pt-6">
+  <!-- Left Column: Form Editor Panel (7 cols on xl) -->
+  <div class="xl:col-span-7 space-y-6">
+    <app-home-hero-editor
+      [hero]="draft.draftHero()"
+      (headlineChange)="draft.updateHeadline($event)"
+      (subtitleChange)="draft.updateSubtitle($event)"
+      (imageUrlChange)="draft.updateImageUrl($event)"
+      (imageAltChange)="draft.updateImageAlt($event)"
+      (actionAdd)="openAddActionDialog()"
+      (actionEdit)="openEditActionDialog($event.index, $event.action)"
+      (actionDelete)="confirmDeleteAction($event)"
+      (actionMove)="draft.moveAction($event.index, $event.direction)"
+    />
+  </div>
+
+  <!-- Right Column: Live Simulator Preview (5 cols on xl, sticky) -->
+  <div class="xl:col-span-5 xl:sticky xl:top-22 xl:z-10">
+    <app-home-hero-preview [hero]="draft.draftHero()" />
+  </div>
+</div>

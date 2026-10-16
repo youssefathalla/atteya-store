@@ -36,7 +36,7 @@
         matTooltip="Back to Atteya Store Homepage"
       >
         <span class="elements-center gap-2">
-          <mat-icon name="storefront" size="xl" />
+          <mat-icon name="storefront" />
           <span>Storefront</span>
         </span>
       </a>
@@ -52,7 +52,6 @@
           <mat-icon
             [name]="isDarkMode() ? 'light_mode' : 'dark_mode'"
             [iconColor]="isDarkMode() ? 'warning' : 'primary'"
-            size="xl"
           />
           <span>{{ isDarkMode() ? 'Light Mode' : 'Dark Mode' }}</span>
         </span>
@@ -60,7 +59,7 @@
 
       <button matButton="filled" type="button" (click)="triggerToast()">
         <span class="elements-center gap-2">
-          <mat-icon name="notifications" size="xl" />
+          <mat-icon name="notifications" />
           <span>Test Toast</span>
         </span>
       </button>
@@ -84,7 +83,7 @@
         [class.text-on-surface-variant]="activeTab() !== tab.id"
         [class.hover:bg-surface-container-highest]="activeTab() !== tab.id"
       >
-        <mat-icon [name]="tab.icon" size="sm" />
+        <mat-icon [name]="tab.icon" />
         <span>{{ tab.label }}</span>
       </button>
     }

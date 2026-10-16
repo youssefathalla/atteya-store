@@ -5,7 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import { NavCategory } from '@layout/navbar/nav.model';
+import { NavCategory } from '@core/services/navigation';
 
 @Component({
   selector: 'app-nav-category-details',

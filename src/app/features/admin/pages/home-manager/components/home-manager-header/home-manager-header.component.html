@@ -1,0 +1,72 @@
+<!-- Top Header & Primary Action Toolbar -->
+<div class="surface-card xl:elements-between elements-start-col gap-4 p-5">
+  <div>
+    <div class="elements-start gap-3">
+      <h2 class="font-title-lg font-bold!">Home Page Manager</h2>
+      @if (isDirty()) {
+        <span class="px-2.5 py-0.5 rounded-full bg-warning/20 text-warning font-label-sm font-bold!">
+          Unsaved Changes
+        </span>
+      } @else {
+        <span class="px-2.5 py-0.5 rounded-full bg-success/20 text-success font-label-sm font-bold!">
+          Published
+        </span>
+      }
+    </div>
+    <p class="font-body-sm opacity-80 pt-1">
+      Configure hero showcase banners, merchandising copy, and call-to-action buttons.
+    </p>
+  </div>
+
+  <div class="elements-start-col sm:elements-between max-sm:w-full gap-2.5">
+    <!-- Reset to Defaults Button -->
+    <div class="w-full sm:w-45 [&>button]:w-full">
+      <button
+        matButton="tonal"
+        type="button"
+        theme="error"
+        (click)="resetDefaults.emit()"
+        [disabled]="isResetting() || isSaving()"
+      >
+        <mat-icon name="restart_alt" />
+        <span>Reset Defaults</span>
+      </button>
+    </div>
+
+    <!-- Discard Changes -->
+    <div class="w-full sm:w-45 [&>button]:w-full">
+      <button
+        matButton="tonal"
+        type="button"
+        theme="warning"
+        (click)="discard.emit()"
+        [disabled]="!isDirty() || isSaving()"
+      >
+        <span>Discard Changes</span>
+      </button>
+    </div>
+
+    <!-- Publish Changes -->
+    <div class="w-full sm:w-45 [&>button]:w-full">
+      <button
+        matButton="filled"
+        type="button"
+        (click)="publish.emit()"
+        [disabled]="!isDirty() || isSaving()"
+        [attr.aria-label]="isSaving() ? 'Publishing to store...' : null"
+      >
+        @if (isSaving()) {
+          <mat-progress-spinner
+            mode="indeterminate"
+            diameter="18"
+          />
+        } @else {
+          <mat-icon name="check_circle" />
+        }
+        @if (!isSaving()) {
+          <span>Publish to Store</span>
+        }
+      </button>
+    </div>
+  </div>
+</div>

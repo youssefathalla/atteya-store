@@ -149,6 +149,11 @@ src/app/features/[feature-name]/
 3. **Template Access**:
    - Template members can be `private`.
    - Angular v22 defaults: do NOT write `standalone: true` or `ChangeDetectionStrategy.OnPush`.
+4. **Image Optimization & Uploads**:
+   - For all storefront images: use Angular `NgOptimizedImage` (`[ngSrc]`). Never use raw `<img [src]>` for media assets.
+   - Always wrap with `@if (imagePath())` and use `normalizeImageKitPath(item.imageUrl)` from `@shared/utils/image.utils`.
+   - Provide `fill` (or explicit `width`/`height`), `priority` on above-the-fold/hero elements, and responsive `sizes` (e.g. `sizes="100vw"`).
+   - For uploading images: inject `StorageUploadService` from `@core/services/storage` and call `await this.storageUpload.uploadImage(file, folder)`.
 
 ---
 

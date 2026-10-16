@@ -5,7 +5,7 @@
   <div class="elements-between py-1 px-1 sm:px-2 icon-btn-lg">
     <!-- 1. Storefront Preview Link -->
     <a matIconButton routerLink="/" target="_blank" rel="noopener" aria-label="Preview Storefront">
-      <mat-icon name="store" size="3xl" />
+      <mat-icon name="store" />
     </a>
 
     <!-- 2. Menu / Modules Toggle (menu <-> close) -->
@@ -15,7 +15,7 @@
       (click)="toggleMenu()"
       aria-label="Toggle admin navigation menu"
     >
-      <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" size="3xl" />
+      <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" />
     </button>
   </div>
 </nav>

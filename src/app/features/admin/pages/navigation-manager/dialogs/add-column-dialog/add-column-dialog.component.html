@@ -1,4 +1,4 @@
-<form (ngSubmit)="submit()" class="elements-start-col gap-1">
+<form (ngSubmit)="submit()" autocomplete="off">
   <div class="px-6 pt-6 pb-2">
     <h2 mat-dialog-title class="font-title-lg font-bold! p-0!">Add Column</h2>
     <p class="font-body-sm opacity-70 pt-1">
@@ -17,6 +17,7 @@
         matInput
         id="new-col-title"
         name="new-col-title"
+        autocomplete="off"
         aria-label="Column Title"
         [ngModel]="title()"
         (ngModelChange)="title.set($event)"

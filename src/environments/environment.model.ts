@@ -6,6 +6,7 @@ export interface Environment {
   googleMapsApiKey: string;
   useEmulators?: boolean;
   firebase: FirebaseOptions;
+  imageKitUrl: string;
   appCheck?: {
     siteKey: string;
     isTokenAutoRefreshEnabled?: boolean;
