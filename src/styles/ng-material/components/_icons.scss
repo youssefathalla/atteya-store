@@ -9,8 +9,8 @@ mat-icon {
 // *icon button sizes
 .icon-btn-lg {
   @include mat.icon-button-overrides((
-    icon-size: 30px,
-    state-layer-size: 44px
+    icon-size: 24px,
+    state-layer-size: 40px
   ));
 }
 

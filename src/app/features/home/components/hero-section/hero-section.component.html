@@ -1,47 +1,129 @@
+@let count = hero().layoutCount;
+
 <section class="relative w-full overflow-hidden select-none" aria-label="Featured Training Gear">
-  <!-- 1. Full-Width Background Hero Image -->
-  <div
-    class="relative w-full aspect-16/10 sm:aspect-video lg:aspect-21/9 min-h-130 lg:min-h-155 max-h-[85vh]"
-  >
-    @if (imagePath()) {
-      <img
-        [ngSrc]="imagePath()"
-        [alt]="hero().imageAlt || hero().headline"
-        fill
-        priority
-        sizes="100vw"
-        (error)="handleImageError()"
-        class="object-cover object-center"
-      />
-    }
+  <div class="scroll-row" [attr.data-layout]="count">
+    @for (slide of visibleSlides(); track $index; let idx = $index) {
+      @let imgSrc = getSlideDisplaySrc(slide, idx);
+      @let isInteractive = previewMode() && count > 1;
+      @let isSelectedSlot = isInteractive && activeSlotIndex() === idx;
 
-    <!-- 2. Dark Gradient Overlay for Maximum Text Legibility -->
-    <div
-      class="absolute inset-0 bg-linear-to-t from-black/80 via-black/25 to-transparent pointer-events-none"
-      aria-hidden="true"
-    ></div>
-
-    <!-- 3. Bottom-Left Content Placement (No Container, Full-Bleed Margin) -->
-    <div
-      class="absolute inset-x-0 bottom-0 elements-start-col px-6 py-8 sm:px-12 sm:py-12 lg:px-16 lg:py-14 gap-3 z-10"
-    >
-      <h1
-        class="font-display-md sm:font-display-lg lg:font-display-xl font-bold! text-on-primary tracking-tight"
+      <article
+        class="scroll-row-item overflow-hidden bg-primary text-on-primary min-h-120 lg:min-h-145 max-h-[85vh] transition-all"
+        [class.cursor-pointer]="isInteractive"
+        [class.hover:brightness-105]="isInteractive && !isSelectedSlot"
+        [class.aspect-16/10]="count === 1"
+        [class.sm:aspect-video]="count === 1"
+        [class.lg:aspect-21/9]="count === 1"
+        [class.aspect-4/5]="count > 1"
+        [class.sm:aspect-16/10]="count === 2"
+        [class.ring-2]="isSelectedSlot"
+        [class.ring-primary]="isSelectedSlot"
+        [attr.role]="isInteractive ? 'button' : null"
+        [attr.tabindex]="isInteractive ? 0 : null"
+        [attr.aria-label]="isInteractive ? 'Select banner to edit' : null"
+        (click)="onBannerClick(idx)"
+        (keydown.enter)="onBannerClick(idx)"
       >
-        {{ hero().headline }}
-      </h1>
-
-      <p class="font-title-sm sm:font-title-md text-on-primary/90 max-w-xl font-normal leading-relaxed">
-        {{ hero().subtitle }}
-      </p>
-
-      <div class="elements-start flex-wrap gap-3 pt-2">
-        @for (action of hero().actions; track action.label) {
-          <a [routerLink]="action.link" class="hero-pill-btn">
-            {{ action.label }}
-          </a>
+        @if (imgSrc) {
+          @if (isDirectFallback(idx)) {
+            <img
+              [src]="imgSrc"
+              [alt]="slide.imageAlt || slide.headline"
+              class="absolute inset-0 size-full object-cover object-center"
+            />
+          } @else {
+            <img
+              [ngSrc]="imgSrc"
+              [alt]="slide.imageAlt || slide.headline"
+              fill
+              priority
+              sizes="100vw"
+              (error)="handleImageError(slide, idx)"
+              class="object-cover object-center"
+            />
+          }
+        } @else {
+          <!-- Clean Monochrome Placeholder when no image is uploaded yet -->
+          <div
+            class="absolute inset-0 elements-center-col p-6 pb-36 text-center gap-2 bg-primary text-on-primary"
+          >
+            <div
+              class="p-4 border border-dashed border-on-primary/30 border-shape elements-center-col gap-2 max-w-xs"
+            >
+              <mat-icon name="add_photo_alternate" size="3xl" />
+              <span class="font-label-lg font-bold! text-on-primary">
+                Banner #{{ idx + 1 }} • No Image Uploaded
+              </span>
+              @if (previewMode()) {
+                <span class="font-body-sm text-on-primary/70">
+                  Upload a photo in the Banner #{{ idx + 1 }} image panel below
+                </span>
+              }
+            </div>
+          </div>
         }
-      </div>
-    </div>
+
+        <!-- Active Editing Indicator Badge in Preview Mode (when 2 or 3 banners) -->
+        @if (previewMode() && count > 1) {
+          <div class="absolute top-4 left-4 z-20 pointer-events-none">
+            <span
+              class="px-3 py-1 border-shape font-label-sm font-bold! select-none transition-colors"
+              [class.bg-surface]="isSelectedSlot"
+              [class.text-primary]="isSelectedSlot"
+              [class.bg-black/60]="!isSelectedSlot"
+              [class.text-on-primary]="!isSelectedSlot"
+            >
+              Banner #{{ idx + 1 }}{{ isSelectedSlot ? ' • Editing' : '' }}
+            </span>
+          </div>
+        }
+
+        <!-- Dark Gradient Overlay for Maximum Text Legibility -->
+        <div
+          class="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent pointer-events-none"
+          aria-hidden="true"
+        ></div>
+
+        <!-- Bottom-Left Content Placement -->
+        <div
+          class="absolute inset-x-0 bottom-0 elements-start-col z-10 gap-3"
+          [class.p-6]="count === 1"
+          [class.lg:px-16]="count === 1"
+          [class.lg:py-14]="count === 1"
+          [class.2xl:p-12]="count > 1"
+          [class.px-4]="count > 1"
+          [class.py-6]="count > 1"
+        >
+          <div class="elements-start-col w-full">
+            <h1
+              [class.font-headline-lg]="count === 1"
+              [class.sm:font-display-md]="count === 1"
+              [class.lg:font-display-lg]="count === 1"
+              [class.font-headline-md]="count > 1"
+              [class.2xl:font-display-md]="count > 1"
+            >
+              {{ slide.headline }}
+            </h1>
+            <p class="font-body-md md:font-body-lg text-on-primary/80 max-w-xl">
+              {{ slide.subtitle }}
+            </p>
+          </div>
+
+          <div class="elements-start flex-wrap gap-3 pt-2">
+            @for (action of slide.actions; track $index) {
+              @if (previewMode()) {
+                <button matButton="elevated" type="button">
+                  {{ action.label }}
+                </button>
+              } @else {
+                <a [routerLink]="action.link" matButton="elevated">
+                  {{ action.label }}
+                </a>
+              }
+            }
+          </div>
+        </div>
+      </article>
+    }
   </div>
 </section>

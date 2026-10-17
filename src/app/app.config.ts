@@ -9,7 +9,7 @@ import {
   PreloadAllModules,
 } from '@angular/router';
 import { provideClientHydration } from '@angular/platform-browser';
-import { provideImageKitLoader } from '@angular/common';
+import { IMAGE_CONFIG, provideImageKitLoader } from '@angular/common';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 import { routes } from './app.routes';
@@ -43,6 +43,12 @@ export const appConfig: ApplicationConfig = {
     provideClientHydration(),
 
     provideImageKitLoader(environment.imageKitUrl),
+    {
+      provide: IMAGE_CONFIG,
+      useValue: {
+        breakpoints: [16, 32, 48, 64, 96, 128, 256, 384, 640, 750, 828, 1080, 1200, 1920, 2048],
+      },
+    },
 
     provideNativeDateAdapter(),
     { provide: MAT_ICON_DEFAULT_OPTIONS, useValue: { fontSet: 'material-symbols-outlined' } },

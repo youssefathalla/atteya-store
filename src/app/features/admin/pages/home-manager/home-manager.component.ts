@@ -26,9 +26,12 @@ export class HomeManagerComponent {
   readonly #dialogs = inject(HomeDialogService);
   readonly #storageUpload = inject(StorageUploadService);
 
+  readonly #isSaving = signal<boolean>(false);
+  readonly #isResetting = signal<boolean>(false);
+
   readonly draft = inject(HomeDraftService);
-  readonly isSaving = signal<boolean>(false);
-  readonly isResetting = signal<boolean>(false);
+  readonly isSaving = this.#isSaving.asReadonly();
+  readonly isResetting = this.#isResetting.asReadonly();
 
   constructor() {
     effect(() => {
@@ -54,7 +57,7 @@ export class HomeManagerComponent {
   }
 
   async confirmDeleteAction(index: number): Promise<void> {
-    const action = this.draft.draftHero().actions[index];
+    const action = this.draft.activeSlide().actions[index];
     if (!action) return;
     const confirmed = await this.#dialogs.confirmDeleteAction(action.label);
     if (confirmed) this.draft.removeAction(index);
@@ -68,23 +71,21 @@ export class HomeManagerComponent {
       return;
     }
 
-    this.isSaving.set(true);
+    this.#isSaving.set(true);
     try {
       const oldHero = this.#homeService.hero();
-      await this.#homeService.updateHero(hero);
+      const orphanedPaths = this.draft.getOrphanedPathsForPublish(oldHero);
 
-      // Clean up previous image file from Firebase Storage if replaced
-      if (oldHero.imageUrl && oldHero.imageUrl !== hero.imageUrl) {
-        await this.#storageUpload.deleteImage(oldHero.imageUrl);
-      }
+      await this.#homeService.updateHero(hero);
+      await this.#storageUpload.deleteImages(orphanedPaths);
 
       this.draft.markSaved();
-      this.#snackbar.success('Published! Home page hero banner updated successfully.');
+      this.#snackbar.success('Published! Your homepage banner is now live.');
     } catch (err) {
       console.error('Failed to update home page hero:', err);
-      this.#snackbar.error('Failed to save changes. Please try again.');
+      this.#snackbar.error('Unable to publish changes. Please try again.');
     } finally {
-      this.isSaving.set(false);
+      this.#isSaving.set(false);
     }
   }
 
@@ -92,23 +93,21 @@ export class HomeManagerComponent {
     const confirmed = await this.#dialogs.confirmResetDefaults();
     if (!confirmed) return;
 
-    this.isResetting.set(true);
+    this.#isResetting.set(true);
     try {
       const oldHero = this.#homeService.hero();
-      await this.#homeService.resetDefaultHero();
+      const orphanedPaths = this.draft.getOrphanedPathsForReset(oldHero);
 
-      // Clean up previous uploaded image if not the default asset
-      if (oldHero.imageUrl && oldHero.imageUrl !== DEFAULT_HOME_HERO.imageUrl) {
-        await this.#storageUpload.deleteImage(oldHero.imageUrl);
-      }
+      await this.#homeService.resetDefaultHero();
+      await this.#storageUpload.deleteImages(orphanedPaths);
 
       this.draft.resetDraftFromSource(DEFAULT_HOME_HERO);
-      this.#snackbar.success('Default hero banner restored successfully!');
+      this.#snackbar.success('Default homepage banner restored.');
     } catch (err) {
       console.error('Failed to reset hero banner:', err);
-      this.#snackbar.error('Failed to reset hero banner.');
+      this.#snackbar.error('Unable to restore default banner. Please try again.');
     } finally {
-      this.isResetting.set(false);
+      this.#isResetting.set(false);
     }
   }
 
@@ -117,6 +116,9 @@ export class HomeManagerComponent {
       const confirmed = await this.#dialogs.confirmDiscardDraft();
       if (!confirmed) return;
     }
-    this.draft.discardDraft(this.#homeService.hero());
+    const liveHero = this.#homeService.hero();
+    const orphanedPaths = this.draft.getOrphanedPathsForDiscard(liveHero);
+    await this.#storageUpload.deleteImages(orphanedPaths);
+    this.draft.discardDraft(liveHero);
   }
 }

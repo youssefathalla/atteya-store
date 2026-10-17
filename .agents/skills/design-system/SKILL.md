@@ -52,6 +52,7 @@ src/
 │       │   ├── images.css              # .image-mask, .hero-image
 │       │   ├── navigation.css          # .nav-mobile-bottom-bar, .nav-desktop-tab, .nav-admin-card, .nav-badge
 │       │   ├── overlays.css            # .loading-overlay, .badge-overlay, .icon-overlay
+│       │   ├── scroll-row.css          # .scroll-row, .scroll-row-item (horizontal snap carousel with card peek)
 │       │   ├── spacing.css             # .container-content, .hero-space, .section-space
 │       │   └── status.css              # .status-badge, .vehicle-status, .chip, .chip-icon-wrapper
 │       └── utilities/                  # Single-purpose custom utility definitions (@utility)

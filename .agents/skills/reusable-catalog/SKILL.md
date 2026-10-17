@@ -101,7 +101,7 @@ Located in `src/styles/tailwind/components/`. Use these classes directly in your
 | | `.section-space` | Vertical spacing between page sections |
 | `images.css` | `.image-mask` | Image clipping and gradient mask |
 | | `.hero-image` | Full-width responsive hero image container |
-| | `.hero-pill-btn` | High-contrast pill button for hero banner CTA actions |
+| `scroll-row.css` | `.scroll-row` + `.scroll-row-item` | Horizontal snap-scroll row with "card peek". Tune via `--scroll-cols`, `--scroll-peek` (`0px` when all cards fit), `--scroll-gap`; make responsive with Tailwind, e.g. `scroll-row md:[--scroll-cols:2] xl:[--scroll-cols:3] xl:[--scroll-peek:0px]` |
 | `overlays.css` | `.loading-overlay` | Full-screen semi-transparent loading backdrop |
 | | `.badge-overlay` | Absolute-positioned badge over an image or card |
 | | `.icon-overlay` | Absolute-positioned icon container over an image or card |
@@ -178,7 +178,8 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 - **`StorageUploadService`** (`src/app/core/services/storage/storage-upload.service.ts`):
   - `uploadImage(file, folder = 'hero')`: Uploads image (`File`) to Firebase Storage via native SDK `uploadBytes()` with a sanitized unique timestamped path, returning `{ path: string; fullUrl: string }`.
   - `importFromUrl(url, folder = 'hero')`: Downloads any external web image URL as a blob and uploads it permanently to Firebase Storage, returning `{ path: string; fullUrl: string }`.
-  - `deleteImage(pathOrUrl)`: Deletes a specific file from Firebase Storage via native SDK `deleteObject()`. Safely ignores local assets (`/img/`) or external URLs.
+  - `deleteImage(pathOrUrl)`: Deletes a specific file from Firebase Storage via native SDK `deleteObject()`. Safely ignores local assets (`/img/`), external URLs, or `'hero/default-hero.jpg'`.
+  - `deleteImages(paths)`: Deletes multiple files from Firebase Storage in parallel (`Promise.allSettled`).
   - `isUploading`: Reactive `Signal<boolean>` tracking active upload status.
   - `uploadError`: Reactive `Signal<string | null>` for upload failure messages.
 

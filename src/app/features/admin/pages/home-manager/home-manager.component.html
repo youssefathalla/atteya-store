@@ -7,24 +7,29 @@
   (publish)="publishChanges()"
 />
 
-<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start pt-6">
-  <!-- Left Column: Form Editor Panel (7 cols on xl) -->
-  <div class="xl:col-span-7 space-y-6">
-    <app-home-hero-editor
-      [hero]="draft.draftHero()"
-      (headlineChange)="draft.updateHeadline($event)"
-      (subtitleChange)="draft.updateSubtitle($event)"
-      (imageUrlChange)="draft.updateImageUrl($event)"
-      (imageAltChange)="draft.updateImageAlt($event)"
-      (actionAdd)="openAddActionDialog()"
-      (actionEdit)="openEditActionDialog($event.index, $event.action)"
-      (actionDelete)="confirmDeleteAction($event)"
-      (actionMove)="draft.moveAction($event.index, $event.direction)"
-    />
-  </div>
+<div class="space-y-6 pt-6">
+  <!-- 1. Top Full-Width Real Storefront Preview -->
+  <app-home-hero-preview
+    [hero]="draft.draftHero()"
+    [activeSlotIndex]="draft.activeSlotIndex()"
+    (layoutCountChange)="draft.setLayoutCount($event)"
+    (activeSlotChange)="draft.setActiveSlot($event)"
+  />
 
-  <!-- Right Column: Live Simulator Preview (5 cols on xl, sticky) -->
-  <div class="xl:col-span-5 xl:sticky xl:top-22 xl:z-10">
-    <app-home-hero-preview [hero]="draft.draftHero()" />
-  </div>
+  <!-- 2. Full-Width 3-Column Banner Configuration Editor -->
+  <app-home-hero-editor
+    [layoutCount]="draft.layoutCount()"
+    [activeSlotIndex]="draft.activeSlotIndex()"
+    [slide]="draft.activeSlide()"
+    (activeSlotChange)="draft.setActiveSlot($event)"
+    (headlineChange)="draft.updateHeadline($event)"
+    (subtitleChange)="draft.updateSubtitle($event)"
+    (imageUrlChange)="draft.updateImageUrl($event)"
+    (imageAltChange)="draft.updateImageAlt($event)"
+    (sessionUpload)="draft.registerSessionUpload($event)"
+    (actionAdd)="openAddActionDialog()"
+    (actionEdit)="openEditActionDialog($event.index, $event.action)"
+    (actionDelete)="confirmDeleteAction($event)"
+    (actionMove)="draft.moveAction($event.index, $event.direction)"
+  />
 </div>

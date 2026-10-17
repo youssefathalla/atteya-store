@@ -1,8 +1,8 @@
 <!-- Top Header & Primary Action Toolbar -->
 <div class="surface-card xl:elements-between elements-start-col gap-4 p-5">
   <div>
-    <div class="elements-start gap-3">
-      <h2 class="font-title-lg font-bold!">Home Page Manager</h2>
+    <div class="elements-start flex-wrap gap-3 pb-2">
+      <h2 class="sm:font-title-lg font-title-md font-bold!">Home Page Manager</h2>
       @if (isDirty()) {
         <span class="px-2.5 py-0.5 rounded-full bg-warning/20 text-warning font-label-sm font-bold!">
           Unsaved Changes
@@ -56,10 +56,7 @@
         [attr.aria-label]="isSaving() ? 'Publishing to store...' : null"
       >
         @if (isSaving()) {
-          <mat-progress-spinner
-            mode="indeterminate"
-            diameter="18"
-          />
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
         } @else {
           <mat-icon name="check_circle" />
         }

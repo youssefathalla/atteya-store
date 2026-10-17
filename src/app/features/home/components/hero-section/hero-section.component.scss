@@ -1,0 +1,33 @@
+// Hero-specific only: how many banners fit per breakpoint.
+// All scroll/snap/peek math lives in the shared `.scroll-row` / `.scroll-row-item` classes.
+
+// 1 banner: full width, no peek ever
+.scroll-row[data-layout='1'] {
+  --scroll-cols: 1;
+  --scroll-peek: 0px;
+}
+
+// 2 banners: peek on mobile, both fit side-by-side from tablet up
+.scroll-row[data-layout='2'] {
+  --scroll-peek: 2.5rem;
+
+  @media (min-width: 768px) {
+    --scroll-cols: 2;
+    --scroll-peek: 0px;
+  }
+}
+
+// 3 banners: peek on mobile, 2 + peek on tablet, all 3 fit from 1280px
+.scroll-row[data-layout='3'] {
+  --scroll-peek: 2.5rem;
+
+  @media (min-width: 768px) {
+    --scroll-cols: 2;
+    --scroll-peek: 3.5rem;
+  }
+
+  @media (min-width: 1280px) {
+    --scroll-cols: 3;
+    --scroll-peek: 0px;
+  }
+}

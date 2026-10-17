@@ -1,41 +1,90 @@
-import { HomeHero, HeroAction } from '../models/home-manager.model';
+import { normalizeImageKitPath } from '@shared/utils/image.utils';
+import { HeroAction, HeroSlide, HomeHero } from '../models/home-manager.model';
 
 /**
  * Validates a single hero action button.
- * Cognitive Complexity: 2
  */
-export function validateHeroAction(action: HeroAction, index: number): string | null {
+export function validateHeroAction(
+  action: HeroAction,
+  actionIndex: number,
+  prefix: string,
+): string | null {
   if (!action.label || action.label.trim().length === 0) {
-    return `Action #${index + 1} requires a button label.`;
+    return `${prefix}Action #${actionIndex + 1} requires a button label.`;
   }
   if (!action.link || action.link.trim().length === 0) {
-    return `Action "${action.label}" requires a destination URL or route path.`;
+    return `${prefix}Button "${action.label}" requires a destination link.`;
   }
   return null;
 }
 
 /**
- * Validates hero banner draft before publishing.
- * Cognitive Complexity: 4
+ * Validates a single hero card/slide.
  */
-export function validateHomeHeroDraft(hero: HomeHero): string | null {
-  if (!hero.headline || hero.headline.trim().length < 3) {
-    return 'Hero banner headline must be at least 3 characters long.';
+export function validateHeroSlide(
+  slide: HeroSlide,
+  slideIndex: number,
+  totalSlides: number,
+): string | null {
+  const prefix = totalSlides > 1 ? `Banner #${slideIndex + 1}: ` : '';
+
+  if (!slide.headline || slide.headline.trim().length < 3) {
+    return `${prefix}Headline must be at least 3 characters long.`;
   }
-  if (!hero.subtitle || hero.subtitle.trim().length === 0) {
-    return 'Hero banner subtitle cannot be empty.';
+  if (!slide.subtitle || slide.subtitle.trim().length === 0) {
+    return `${prefix}Subtitle cannot be empty.`;
   }
-  if (!hero.imageUrl || hero.imageUrl.trim().length === 0) {
-    return 'Hero background image path/URL cannot be empty.';
+  if (!slide.imageUrl || slide.imageUrl.trim().length === 0) {
+    return `${prefix}Background image cannot be empty.`;
   }
-  if (!hero.actions || hero.actions.length === 0) {
-    return 'Hero banner must have at least one call-to-action button.';
+  if (!slide.actions || slide.actions.length === 0) {
+    return `${prefix}Please add at least one action button.`;
   }
 
-  for (let i = 0; i < hero.actions.length; i++) {
-    const err = validateHeroAction(hero.actions[i], i);
+  for (let i = 0; i < slide.actions.length; i++) {
+    const err = validateHeroAction(slide.actions[i], i, prefix);
     if (err) return err;
   }
 
   return null;
 }
+
+/**
+ * Validates all active hero slides before publishing.
+ */
+export function validateHomeHeroDraft(hero: HomeHero): string | null {
+  const activeSlides = hero.slides.slice(0, hero.layoutCount);
+  if (activeSlides.length < hero.layoutCount) {
+    return 'Please complete all active banner cards before publishing.';
+  }
+
+  for (let i = 0; i < activeSlides.length; i++) {
+    const err = validateHeroSlide(activeSlides[i], i, hero.layoutCount);
+    if (err) return err;
+  }
+
+  return null;
+}
+
+/**
+ * Computes Firebase Storage paths that are no longer referenced by the kept slides.
+ */
+export function collectOrphanedStoragePaths(
+  candidatePaths: readonly string[],
+  keptSlides: readonly HeroSlide[],
+): string[] {
+  const keptSet = new Set(
+    keptSlides.map((s) => normalizeImageKitPath(s.imageUrl)).filter(Boolean),
+  );
+  const orphans = new Set<string>();
+
+  for (const rawPath of candidatePaths) {
+    const normalized = normalizeImageKitPath(rawPath);
+    if (normalized && !keptSet.has(normalized) && normalized !== 'hero/default-hero.jpg') {
+      orphans.add(normalized);
+    }
+  }
+
+  return Array.from(orphans);
+}
+

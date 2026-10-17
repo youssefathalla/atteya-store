@@ -1,0 +1,46 @@
+/**
+ * Horizontal scroll row ("card peek" carousel).
+ *
+ * Usage:
+ *   <div class="scroll-row md:[--scroll-cols:2] xl:[--scroll-cols:3] xl:[--scroll-peek:0px]">
+ *     <article class="scroll-row-item">...</article>
+ *   </div>
+ *
+ * Tunable CSS variables (set on the `.scroll-row` element, responsive via Tailwind variants):
+ *   --scroll-cols  Cards fully visible at once            (default: 1)
+ *   --scroll-peek  Strip of the next card left visible    (default: 2.5rem). Use `0px` when all cards fit.
+ *   --scroll-gap   Space between cards                    (default: 0.375rem)
+ */
+@layer components {
+  .scroll-row {
+    --scroll-cols: 1;
+    --scroll-peek: 0px;
+    --scroll-gap: 0.375rem;
+
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    gap: var(--scroll-gap);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+  }
+
+  .scroll-row-item {
+    position: relative;
+    flex: 0 0
+      calc(
+        (100% - (var(--scroll-cols) - 1) * var(--scroll-gap) - var(--scroll-peek)) /
+          var(--scroll-cols)
+      );
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  /* When only 1 card exists, never leave a peek margin */
+  .scroll-row-item:only-child {
+    flex: 0 0 100%;
+    width: 100%;
+  }
+}

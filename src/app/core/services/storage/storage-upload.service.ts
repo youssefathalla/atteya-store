@@ -117,8 +117,13 @@ export class StorageUploadService {
 
     const cleanPath = normalizeImageKitPath(pathOrUrl);
     // Safety guard: only delete files residing inside managed storage folders (e.g. 'hero/', 'products/')
-    // Never attempt to delete external URLs or local public images (/img/)
-    if (!cleanPath || cleanPath.startsWith('http') || cleanPath.startsWith('img/')) {
+    // Never attempt to delete external URLs, local public images (/img/), or the default hero fallback
+    if (
+      !cleanPath ||
+      cleanPath.startsWith('http') ||
+      cleanPath.startsWith('img/') ||
+      cleanPath === 'hero/default-hero.jpg'
+    ) {
       return false;
     }
 
@@ -132,4 +137,13 @@ export class StorageUploadService {
       return false;
     }
   }
+
+  /**
+   * Deletes multiple files from Firebase Storage in parallel.
+   */
+  async deleteImages(paths: readonly string[]): Promise<void> {
+    if (!paths.length) return;
+    await Promise.allSettled(paths.map((p) => this.deleteImage(p)));
+  }
 }
+

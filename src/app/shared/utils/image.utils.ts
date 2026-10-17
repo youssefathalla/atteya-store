@@ -51,9 +51,9 @@ export function normalizeImageKitPath(urlOrPath: string): string {
     return decodeURIComponent(fbMatch[1]);
   }
 
-  // Handle already prefixed ImageKit URLs:
-  // https://ik.imagekit.io/<imagekit-id>/<path>
-  const ikMatch = trimmed.match(/^https:\/\/ik\.imagekit\.io\/[^/]+\/(.+)$/);
+  // Handle already prefixed ImageKit URLs (supporting optional subpaths like /dev/):
+  // https://ik.imagekit.io/<imagekit-id>/[dev/]<path>
+  const ikMatch = trimmed.match(/^https:\/\/ik\.imagekit\.io\/[^/]+(?:\/dev)?\/(.+)$/);
   if (ikMatch && ikMatch[1]) {
     return ikMatch[1].replace(/\?.*$/, '');
   }
@@ -61,3 +61,15 @@ export function normalizeImageKitPath(urlOrPath: string): string {
   // If relative path with leading slash, remove it for NgOptimizedImage
   return trimmed.replace(/^\/+/, '');
 }
+
+/**
+ * Builds a direct Firebase Cloud Storage public download URL as a zero-failure fallback
+ * if ImageKit CDN encounters an issue or is still syncing.
+ */
+export function getFirebaseStorageUrl(pathOrUrl: string, bucket = 'atteya-store-dev.firebasestorage.app'): string {
+  const cleanPath = normalizeImageKitPath(pathOrUrl);
+  if (!cleanPath) return '';
+  if (cleanPath.startsWith('http')) return cleanPath;
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(cleanPath)}?alt=media`;
+}
+

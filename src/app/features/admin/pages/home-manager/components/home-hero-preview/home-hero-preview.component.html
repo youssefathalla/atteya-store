@@ -1,52 +1,48 @@
-<div class="surface-card p-6 space-y-4">
-  <div class="elements-between border-b border-outline-variant pb-3">
+<section class="surface-card p-5 sm:p-6 space-y-4" aria-label="Live Storefront Preview">
+  <div class="elements-between flex-wrap gap-4 border-b border-outline-variant pb-4">
     <div>
-      <h3 class="font-title-md font-bold!">Live Storefront Preview</h3>
-      <p class="font-body-sm opacity-70">Previewing hero section in real-time before publishing.</p>
-    </div>
-    <span class="px-2.5 py-0.5 rounded-full bg-surface-container-high font-label-sm font-bold! opacity-80">
-      Preview Mode
-    </span>
-  </div>
-
-  <!-- Responsive Banner Simulation Box -->
-  <div
-    class="relative w-full aspect-video sm:aspect-21/9 min-h-85 max-h-115 overflow-hidden border border-outline-variant border-shape bg-surface-container-lowest"
-  >
-    <!-- Image -->
-    @if (imagePath()) {
-      <img
-        [ngSrc]="imagePath()"
-        [alt]="hero().imageAlt || hero().headline"
-        fill
-        sizes="(max-width: 1024px) 100vw, 60vw"
-        class="object-cover object-center"
-      />
-    }
-
-    <!-- Dark Contrast Gradient -->
-    <div
-      class="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent pointer-events-none"
-      aria-hidden="true"
-    ></div>
-
-    <!-- Bottom-Left Content -->
-    <div class="absolute inset-x-0 bottom-0 elements-start-col p-6 sm:p-8 lg:p-10 gap-2.5 z-10">
-      <h2 class="font-display-sm sm:font-display-md font-bold! text-on-primary tracking-tight leading-tight">
-        {{ hero().headline }}
-      </h2>
-
-      <p class="font-body-sm sm:font-body-md text-on-primary/90 max-w-lg leading-snug line-clamp-2">
-        {{ hero().subtitle }}
-      </p>
-
-      <div class="elements-start flex-wrap gap-2 pt-1">
-        @for (action of hero().actions; track action.label) {
-          <span class="hero-pill-btn pointer-events-none">
-            {{ action.label }}
-          </span>
-        }
+      <div class="elements-start gap-2.5">
+        <h3 class="font-title-md font-bold!">Live Storefront Preview</h3>
+        <span
+          class="px-2.5 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold! opacity-80"
+        >
+          Section 1 •
+          {{ hero().layoutCount === 1 ? 'Single Full Width' : hero().layoutCount + ' Side-by-Side' }}
+        </span>
       </div>
+      <p class="font-body-sm opacity-70 pt-0.5">
+        Full-width real storefront preview. Switch between 1, 2, or 3 banners to see how your homepage looks
+        live.
+      </p>
+    </div>
+
+    <!-- Layout Mode Switcher (1 / 2 / 3) -->
+    <div
+      class="sm:elements-start flex-wrap gap-2 elements-start-col max-sm:w-full max-sm:[&>button]:w-full"
+      role="group"
+      aria-label="Select banner layout mode"
+    >
+      @for (opt of layoutOptions; track opt.count) {
+        <button
+          [matButton]="hero().layoutCount === opt.count ? 'filled' : 'tonal'"
+          type="button"
+          [attr.aria-pressed]="hero().layoutCount === opt.count"
+          (click)="layoutCountChange.emit(opt.count)"
+        >
+          <mat-icon [name]="opt.icon" />
+          <span>{{ opt.label }}</span>
+        </button>
+      }
     </div>
   </div>
-</div>
+
+  <!-- Real Full-Width Storefront Hero Section -->
+  <div class="w-full overflow-hidden border border-outline-variant border-shape bg-surface-container-lowest">
+    <app-hero-section
+      [hero]="hero()"
+      [previewMode]="true"
+      [activeSlotIndex]="activeSlotIndex()"
+      (slotSelect)="activeSlotChange.emit($event)"
+    />
+  </div>
+</section>
