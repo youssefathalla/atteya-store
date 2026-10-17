@@ -10,3 +10,8 @@ runConfig:
 env:
   - variable: NODE_ENV
     value: development
+  - variable: APP_HOSTING_ENV
+    value: dev
+    availability:
+      - BUILD
+      - RUNTIME

@@ -86,6 +86,21 @@
                 }
               ]
             },
+            "dev": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "2MB",
+                  "maximumError": "3MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,

@@ -3,7 +3,7 @@
 <section class="relative w-full overflow-hidden select-none" aria-label="Featured Training Gear">
   <div class="scroll-row" [attr.data-layout]="count">
     @for (slide of visibleSlides(); track $index; let idx = $index) {
-      @let imgSrc = getSlideDisplaySrc(slide, idx);
+      @let imgSrc = getSlideDisplaySrc(slide);
       @let isInteractive = previewMode() && count > 1;
       @let isSelectedSlot = isInteractive && activeSlotIndex() === idx;
 
@@ -25,27 +25,19 @@
         (keydown.enter)="onBannerClick(idx)"
       >
         @if (imgSrc) {
-          @if (isDirectFallback(idx)) {
-            <img
-              [src]="imgSrc"
-              [alt]="slide.imageAlt || slide.headline"
-              class="absolute inset-0 size-full object-cover object-center"
-            />
-          } @else {
-            <img
-              [ngSrc]="imgSrc"
-              [alt]="slide.imageAlt || slide.headline"
-              fill
-              priority
-              sizes="100vw"
-              (error)="handleImageError(slide, idx)"
-              class="object-cover object-center"
-            />
-          }
+          <img
+            [ngSrc]="imgSrc"
+            [appImageFallback]="imgSrc"
+            [alt]="slide.imageAlt || slide.headline"
+            fill
+            priority
+            sizes="100vw"
+            class="object-cover object-center"
+          />
         } @else {
           <!-- Clean Monochrome Placeholder when no image is uploaded yet -->
           <div
-            class="absolute inset-0 elements-center-col p-6 pb-36 text-center gap-2 bg-primary text-on-primary"
+            class="absolute inset-0 elements-center-col p-6 text-center gap-2 bg-primary text-on-primary"
           >
             <div
               class="p-4 border border-dashed border-on-primary/30 border-shape elements-center-col gap-2 max-w-xs"
@@ -78,51 +70,53 @@
           </div>
         }
 
-        <!-- Dark Gradient Overlay for Maximum Text Legibility -->
-        <div
-          class="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent pointer-events-none"
-          aria-hidden="true"
-        ></div>
+        @if (imgSrc) {
+          <!-- Dark Gradient Overlay for Maximum Text Legibility -->
+          <div
+            class="absolute inset-0 bg-linear-to-t from-black via-black/10 to-transparent pointer-events-none"
+            aria-hidden="true"
+          ></div>
 
-        <!-- Bottom-Left Content Placement -->
-        <div
-          class="absolute inset-x-0 bottom-0 elements-start-col z-10 gap-3"
-          [class.p-6]="count === 1"
-          [class.lg:px-16]="count === 1"
-          [class.lg:py-14]="count === 1"
-          [class.2xl:p-12]="count > 1"
-          [class.px-4]="count > 1"
-          [class.py-6]="count > 1"
-        >
-          <div class="elements-start-col w-full">
-            <h1
-              [class.font-headline-lg]="count === 1"
-              [class.sm:font-display-md]="count === 1"
-              [class.lg:font-display-lg]="count === 1"
-              [class.font-headline-md]="count > 1"
-              [class.2xl:font-display-md]="count > 1"
-            >
-              {{ slide.headline }}
-            </h1>
-            <p class="font-body-md md:font-body-lg text-on-primary/80 max-w-xl">
-              {{ slide.subtitle }}
-            </p>
-          </div>
+          <!-- Bottom-Left Content Placement -->
+          <div
+            class="absolute inset-x-0 bottom-0 elements-start-col z-10 gap-3"
+            [class.p-6]="count === 1"
+            [class.lg:px-16]="count === 1"
+            [class.lg:py-14]="count === 1"
+            [class.2xl:p-12]="count > 1"
+            [class.px-4]="count > 1"
+            [class.py-6]="count > 1"
+          >
+            <div class="elements-start-col w-full">
+              <h1
+                [class.font-headline-lg]="count === 1"
+                [class.sm:font-display-md]="count === 1"
+                [class.lg:font-display-lg]="count === 1"
+                [class.font-headline-md]="count > 1"
+                [class.2xl:font-display-md]="count > 1"
+              >
+                {{ slide.headline }}
+              </h1>
+              <p class="font-body-md md:font-body-lg text-on-primary/80 max-w-xl">
+                {{ slide.subtitle }}
+              </p>
+            </div>
 
-          <div class="elements-start flex-wrap gap-3 pt-2">
-            @for (action of slide.actions; track $index) {
-              @if (previewMode()) {
-                <button matButton="elevated" type="button">
-                  {{ action.label }}
-                </button>
-              } @else {
-                <a [routerLink]="action.link" matButton="elevated">
-                  {{ action.label }}
-                </a>
+            <div class="elements-start flex-wrap gap-3 pt-2">
+              @for (action of slide.actions; track $index) {
+                @if (previewMode()) {
+                  <button matButton="elevated" type="button">
+                    {{ action.label }}
+                  </button>
+                } @else {
+                  <a [routerLink]="action.link" matButton="elevated">
+                    {{ action.label }}
+                  </a>
+                }
               }
-            }
+            </div>
           </div>
-        </div>
+        }
       </article>
     }
   </div>

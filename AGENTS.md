@@ -65,21 +65,26 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
   - Completely static content: `@defer (hydrate never)`.
   - Above-the-fold / Hero / LCP content: Do NOT defer.
 
-### 🖼️ Image Delivery & Optimization Architecture (ImageKit + Firebase Storage)
+### 🖼️ Image Delivery & Optimization Architecture (ImageKit + Firebase Storage + Cloud Functions)
 
-- **Proxy Architecture**: Master media files reside permanently in Firebase Cloud Storage. ImageKit acts as an external Web Folder origin, intercepting requests to perform real-time resizing, WebP/AVIF compression, and global CDN delivery.
+- **Proxy Architecture**: Master media files reside permanently in Firebase Cloud Storage. ImageKit acts as an external Web Folder origin (`https://storage.googleapis.com/<bucket>/`), intercepting requests to perform real-time resizing, WebP/AVIF compression, and global CDN delivery.
 - **Environment Isolation**:
   - **Dev (`environment.ts`)**: `https://ik.imagekit.io/atteyastore/dev/` fetching from `atteya-store-dev.firebasestorage.app`.
   - **Prod (`environment.prod.ts`)**: `https://ik.imagekit.io/atteyastore/` fetching from `attiya-store.firebasestorage.app`.
   - Dev uploads, previews, and tests never collide with or affect production assets or cache.
-- **Angular Image Standards**:
+- **Angular Image & Fallback Standards**:
   - Provided via `provideImageKitLoader(environment.imageKitUrl)` in `app.config.ts`.
-  - **Strictly use `NgOptimizedImage` (`[ngSrc]`)** for all storefront and preview media. Raw `<img [src]>` for media assets is banned.
-  - Required directives: `fill` or explicit `width`/`height`, `priority` on above-the-fold/LCP images, and responsive `sizes` (e.g. `sizes="100vw"`).
-  - Use `normalizeImageKitPath()` from `@shared/utils/image.utils` to sanitize input strings (strips Firebase/GCS domain prefixes).
-- **Media Uploads**:
-  - Use `StorageUploadService` (`@core/services/storage`) via native Firebase JS SDK (`uploadBytes()`).
-  - Storage paths are organized by domain (e.g. `hero/<timestamp>-<filename>`, `products/<timestamp>-<filename>`).
+  - **Strictly use `NgOptimizedImage` (`[ngSrc]`) paired with `AppImageFallbackDirective` (`[appImageFallback]`)** for all storefront and preview media. Raw `<img [src]>` for media assets is banned.
+  - `[appImageFallback]` automatically renders a monochrome `.skeleton` shimmer while loading and fails over once to `buildStorageUrl()` if ImageKit CDN fails or is still syncing.
+  - Never build Storage or ImageKit URLs by hand; always use `normalizeImageKitPath()`, `buildImageKitUrl()`, and `buildStorageUrl()` from `@shared/utils/image`.
+- **Media Uploads, Galleries & Validation**:
+  - Use `ImageAssetSchema` / `ImageGallerySchema` (`@shared/schemas`) with required SEO alt text (max 125 chars) and raster formats only (JPG, PNG, WebP, AVIF — SVG is banned).
+  - Use `<app-image-picker>` (`@shared/ui/image-picker`) for single images and `<app-image-gallery-editor>` (`@shared/ui/image-gallery-editor`) for multi-image galleries (max 8 images, index 0 = Main image, pre-generated ID folder `products/<productId>`).
+  - Use `ImageSourceService` (`@core/services/storage`) for validating uploads, probing ImageKit via CORS-safe `new Image()`, and importing external web links via the `importImageFromUrl` Callable Cloud Function (`functions/`).
+  - Track uncommitted session uploads per draft using `StorageAssetTracker` (`@core/services/storage`).
+- **Skeleton Placeholders vs Blocking Spinners**:
+  - Use `<app-skeleton>` (`@shared/ui/skeleton`) or `.skeleton` for layout/content placeholders (`@defer` placeholders, `resource.isLoading()` cards/lists/text) to prevent Cumulative Layout Shift (CLS).
+  - Reserve `<mat-progress-spinner>` and `<app-loader>` for active button actions or blocking overlays.
 
 ### 📝 Living Documentation Directive
 

@@ -1,4 +1,5 @@
 import { computed, Service, signal } from '@angular/core';
+import { StorageAssetTracker } from '@core/services/storage';
 import { DEFAULT_HERO_SLIDES } from '@features/home/data/home.data';
 import {
   HeroAction,
@@ -6,7 +7,6 @@ import {
   HeroSlide,
   HomeHero,
 } from '../models/home-manager.model';
-import { collectOrphanedStoragePaths } from '../utils/home-manager.validator';
 
 function cloneSlide(slide: HeroSlide): HeroSlide {
   return {
@@ -29,7 +29,7 @@ export class HomeDraftService {
   );
   readonly #activeSlotIndex = signal<number>(0);
   readonly #isDirty = signal<boolean>(false);
-  readonly #sessionUploadedPaths = signal<readonly string[]>([]);
+  readonly #assetTracker = new StorageAssetTracker();
 
   readonly layoutCount = computed<HeroLayoutCount>(() => this.#layoutCount());
   readonly activeSlotIndex = computed<number>(() => this.#activeSlotIndex());
@@ -133,10 +133,7 @@ export class HomeDraftService {
    * so it can be cleaned up if replaced, discarded, or trimmed on publish.
    */
   registerSessionUpload(path: string): void {
-    if (!path) return;
-    this.#sessionUploadedPaths.update((prev) =>
-      prev.includes(path) ? prev : [...prev, path],
-    );
+    this.#assetTracker.register(path);
   }
 
   /**
@@ -144,11 +141,10 @@ export class HomeDraftService {
    * that are NOT part of the newly published `draftHero()` so they can be deleted.
    */
   getOrphanedPathsForPublish(previousLiveHero: HomeHero): string[] {
-    const candidatePaths = [
-      ...previousLiveHero.slides.map((s) => s.imageUrl),
-      ...this.#sessionUploadedPaths(),
-    ];
-    return collectOrphanedStoragePaths(candidatePaths, this.draftHero().slides);
+    return this.#assetTracker.orphansOnPublish(
+      previousLiveHero.slides.map((s) => s.imageUrl),
+      this.draftHero().slides.map((s) => s.imageUrl),
+    );
   }
 
   /**
@@ -156,7 +152,9 @@ export class HomeDraftService {
    * so they can be deleted when discarding draft changes.
    */
   getOrphanedPathsForDiscard(liveHero: HomeHero): string[] {
-    return collectOrphanedStoragePaths(this.#sessionUploadedPaths(), liveHero.slides);
+    return this.#assetTracker.orphansOnDiscard(
+      liveHero.slides.map((s) => s.imageUrl),
+    );
   }
 
   /**
@@ -164,18 +162,16 @@ export class HomeDraftService {
    * so they can be deleted when resetting to factory defaults.
    */
   getOrphanedPathsForReset(liveHero: HomeHero): string[] {
-    const candidatePaths = [
-      ...liveHero.slides.map((s) => s.imageUrl),
-      ...this.#sessionUploadedPaths(),
-    ];
-    return collectOrphanedStoragePaths(candidatePaths, []);
+    return this.#assetTracker.orphansOnReset(
+      liveHero.slides.map((s) => s.imageUrl),
+    );
   }
 
   resetDraftFromSource(hero: HomeHero): void {
     this.#layoutCount.set(hero.layoutCount);
     this.#slots.set(buildThreeSlots(hero));
     this.#activeSlotIndex.set(0);
-    this.#sessionUploadedPaths.set([]);
+    this.#assetTracker.clear();
     this.#isDirty.set(false);
   }
 
@@ -184,8 +180,7 @@ export class HomeDraftService {
   }
 
   markSaved(): void {
-    this.#sessionUploadedPaths.set([]);
+    this.#assetTracker.clear();
     this.#isDirty.set(false);
   }
 }
-

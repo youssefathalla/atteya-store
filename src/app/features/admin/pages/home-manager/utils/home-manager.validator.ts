@@ -1,4 +1,4 @@
-import { normalizeImageKitPath } from '@shared/utils/image.utils';
+import { diffOrphanedPaths } from '@shared/utils/image';
 import { HeroAction, HeroSlide, HomeHero } from '../models/home-manager.model';
 
 /**
@@ -37,6 +37,9 @@ export function validateHeroSlide(
   if (!slide.imageUrl || slide.imageUrl.trim().length === 0) {
     return `${prefix}Background image cannot be empty.`;
   }
+  if (!slide.imageAlt || slide.imageAlt.trim().length === 0) {
+    return `${prefix}Please provide an image description (alt text) for accessibility and SEO.`;
+  }
   if (!slide.actions || slide.actions.length === 0) {
     return `${prefix}Please add at least one action button.`;
   }
@@ -73,18 +76,8 @@ export function collectOrphanedStoragePaths(
   candidatePaths: readonly string[],
   keptSlides: readonly HeroSlide[],
 ): string[] {
-  const keptSet = new Set(
-    keptSlides.map((s) => normalizeImageKitPath(s.imageUrl)).filter(Boolean),
+  return diffOrphanedPaths(
+    candidatePaths,
+    keptSlides.map((s) => s.imageUrl),
   );
-  const orphans = new Set<string>();
-
-  for (const rawPath of candidatePaths) {
-    const normalized = normalizeImageKitPath(rawPath);
-    if (normalized && !keptSet.has(normalized) && normalized !== 'hero/default-hero.jpg') {
-      orphans.add(normalized);
-    }
-  }
-
-  return Array.from(orphans);
 }
-

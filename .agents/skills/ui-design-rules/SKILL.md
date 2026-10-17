@@ -22,7 +22,8 @@ It answers:
 | :--- | :--- | :--- | :--- |
 | **Text & Form Inputs** | **Shared UI Forms** | `<app-text-input [formField]="f.name" label="Name" />` | Powered by Signal Forms. Errors render automatically. **Never** write manual `mat-form-field` or `mat-error`. |
 | **Select Dropdowns** | **Shared UI Forms** | `<app-select-input [formField]="f.category" [options]="opts" label="Category" />` | Accessible, handles dark mode and validation. |
-| **File / Media Uploads** | **Shared UI Forms** | `<app-file-input [formField]="f.avatar" label="Upload Logo" />` | Drag & drop, preview, size checks included. |
+| **File / Media Uploads** | **Shared UI Media & Forms** | `<app-image-picker>`, `<app-image-gallery-editor>`, or `<app-file-input>` | Use `ImagePicker` (single image + alt text) or `ImageGalleryEditor` (up to 8 images, reorder, Main image) for storefront media. |
+| **Skeleton Placeholders** | **Shared UI Skeleton** | `<app-skeleton class="w-full aspect-4/5" />` or `<img [ngSrc]="..." [appImageFallback]="..." />` | Monochrome M3 shimmer for cards, text (`variant="text" [lines]="3"`), avatars (`variant="circle"`), and loading images. |
 | **Action & Icon Buttons** | **Angular Material M3** | `<button matButton="filled">Save</button>` or `<button matIconButton aria-label="Cart"><mat-icon name="shopping_bag" /></button>` | Fully themed by M3. **ZERO Tailwind classes** on the button element. Icon buttons require `aria-label`. Loading state: show **only the spinner** (`<mat-progress-spinner mode="indeterminate" diameter="18" />`), never spinner + text. |
 | **Status / State Badges** | **Shared UI Badge** | `<app-status-badge [value]="status" [statusConfig]="config" />` | Standardized colors and icons across storefront and admin. |
 | **Filter Chips** | **Shared UI Chips** | `<app-chips [chips]="list" [(value)]="selected" />` | Two-way model binding `[(value)]`. Single-select radiogroup semantics. |

@@ -1,0 +1,155 @@
+<div class="p-5 bg-surface-container-low panel-border flex flex-col justify-between gap-4 h-full">
+  <div class="space-y-4">
+    <div class="elements-between flex-wrap gap-2">
+      <div>
+        <span class="font-label-md font-bold! tracking-wider uppercase opacity-80 block">
+          {{ label() }}
+        </span>
+        <p class="font-body-sm opacity-70">{{ subtitle() }}</p>
+      </div>
+
+      <div class="elements-end gap-1.5">
+        <button
+          matButton="outlined"
+          type="button"
+          (click)="toggleManualUrl()"
+          [matTooltip]="
+            showManualUrlInput() ? 'Hide web URL import field' : 'Import an image from a web link'
+          "
+        >
+          <mat-icon [name]="showManualUrlInput() ? 'visibility_off' : 'link'" />
+          <span>{{ showManualUrlInput() ? 'Hide Link' : 'Web Link' }}</span>
+        </button>
+
+        @if (allowRemove() && asset()?.path) {
+          <button
+            matIconButton
+            theme="error"
+            type="button"
+            (click)="removeAsset()"
+            matTooltip="Remove image"
+            aria-label="Remove image"
+          >
+            <mat-icon name="delete" />
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Visual Image Preview / Upload Placeholder Box -->
+    <div
+      [class]="
+        'relative w-full overflow-hidden panel-border bg-surface-container-lowest elements-center mb-6 ' +
+        aspectClass()
+      "
+    >
+      @let previewImg = validPreviewPath();
+      @if (previewImg) {
+        <img
+          [ngSrc]="previewImg"
+          [appImageFallback]="previewImg"
+          (imageFailed)="onImageFailed()"
+          [alt]="asset()?.alt || 'Image preview'"
+          fill
+          sizes="(max-width: 1280px) 100vw, 33vw"
+          class="object-cover object-center"
+        />
+      } @else {
+        <div class="elements-center-col p-6 text-center gap-2">
+          <mat-icon name="add_photo_alternate" size="3xl" />
+          <span class="font-label-md font-bold! block">No image uploaded yet</span>
+          <span class="font-label-sm opacity-70 block">
+            Use "Upload Image" below to choose a photo
+          </span>
+        </div>
+      }
+    </div>
+
+    <!-- Optional Web Import / Manual Path input when toggled -->
+    @if (showManualUrlInput()) {
+      <div class="p-3.5 bg-surface panel-border space-y-3">
+        <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
+          <mat-label>Paste Web Image URL or Path</mat-label>
+          <input
+            matInput
+            [id]="urlInputId"
+            [name]="urlInputId"
+            autocomplete="off"
+            aria-label="Paste Web Image URL or Path"
+            [ngModel]="manualUrlInput()"
+            (ngModelChange)="setManualUrlInput($event)"
+            placeholder="https://images.unsplash.com/..."
+          />
+        </mat-form-field>
+
+        <div class="w-full [&>button]:w-full">
+          <button
+            theme="success"
+            matButton="tonal"
+            type="button"
+            [disabled]="isResolvingUrl() || !manualUrlInput().trim()"
+            (click)="applyManualInput()"
+            [attr.aria-label]="isResolvingUrl() ? 'Importing image...' : null"
+          >
+            @if (isResolvingUrl()) {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <mat-icon [name]="isExternalUrlInput() ? 'cloud_download' : 'check'" />
+            }
+            @if (!isResolvingUrl()) {
+              <span>{{ isExternalUrlInput() ? 'Import & Save Image' : 'Apply Path' }}</span>
+            }
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Accessible Alt Text Field -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Image Description (Alt Text)</mat-label>
+      <input
+        matInput
+        [id]="altInputId"
+        [name]="altInputId"
+        autocomplete="off"
+        aria-label="Image Description"
+        [maxLength]="maxAltLength"
+        [ngModel]="asset()?.alt || ''"
+        (ngModelChange)="onAltChange($event)"
+        [placeholder]="altPlaceholder()"
+        required
+      />
+      <mat-hint>Required for screen readers & SEO (max {{ maxAltLength }} chars)</mat-hint>
+    </mat-form-field>
+  </div>
+
+  <!-- Bottom Upload Action Button -->
+  <div class="pt-2">
+    <input
+      #fileInput
+      type="file"
+      accept="image/png,image/jpeg,image/webp,image/avif"
+      class="hidden"
+      (change)="onFileSelected($event)"
+    />
+
+    <div class="w-full [&>button]:w-full">
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="isUploadingFile()"
+        (click)="fileInput.click()"
+        [attr.aria-label]="isUploadingFile() ? 'Uploading image...' : null"
+      >
+        @if (isUploadingFile()) {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <mat-icon name="cloud_upload" />
+        }
+        @if (!isUploadingFile()) {
+          <span>Upload Image</span>
+        }
+      </button>
+    </div>
+  </div>
+</div>

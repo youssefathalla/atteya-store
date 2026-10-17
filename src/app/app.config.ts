@@ -58,7 +58,10 @@ export const appConfig: ApplicationConfig = {
     provideAuth({ useEmulator: environment.useEmulators }),
     provideFirestore({ useEmulator: environment.useEmulators }),
     provideStorage({ useEmulator: environment.useEmulators }),
-    provideFunctions({ useEmulator: environment.useEmulators }),
+    provideFunctions({
+      regionOrCustomDomain: 'europe-west3',
+      useEmulator: environment.useEmulators,
+    }),
     provideAppCheck(environment.appCheck),
   ],
 };

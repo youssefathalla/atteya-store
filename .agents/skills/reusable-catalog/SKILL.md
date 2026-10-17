@@ -18,7 +18,7 @@ This skill is the **Single Source of Truth** for reusable assets across Atteya S
 4. [Shared Directives & Pipes (`src/app/shared/`)](#4-shared-directives--pipes)
 5. [Shared Schemas & Firebase Utilities (`src/app/shared/`)](#5-shared-schemas--firebase-utilities)
 6. [Shared Logic & Breakpoint Utilities (`src/app/shared/utils/`)](#6-shared-logic--breakpoint-utilities)
-7. [Image Optimization & Delivery System (ImageKit + Firebase)](#7-image-optimization--delivery-system-imagekit--firebase)
+7. [Image Optimization & Delivery System (ImageKit + Firebase + Cloud Functions)](#7-image-optimization--delivery-system-imagekit--firebase--cloud-functions)
 8. [The "2+ Duplication Rule" Protocol](#8-the-2-duplication-rule-protocol)
 
 ---
@@ -72,11 +72,14 @@ All controls integrate seamlessly with **Angular 22 Signal Forms**.
 - `<app-confirm-dialog>`: Ready-to-use confirmation dialog (Delete, Cancel, Proceed).
 - `<app-img-preview-dialog>`: Lightbox image preview modal.
 
-### 💎 Brand & Visual Identity
+### 💎 Brand, Loaders & Media Editors
 
 - `<mat-icon name="home" />`: Always import `SharedIconModule` from `@shared/ui/mat-icon`.
 - `<app-logo [size]="'sm' | 'md' | 'lg'" />`: App branding logo SVG.
-- `<app-loader>`: Standardized loading spinner overlay.
+- `<app-loader>`: Standardized loading spinner overlay for blocking actions/overlays.
+- `<app-skeleton [variant]="'rect' | 'circle' | 'text'" [lines]="3" [inverse]="false" />` (`src/app/shared/ui/skeleton/`): Reusable monochrome M3 shimmer placeholder for cards, text blocks, avatars, and deferred views.
+- `<app-image-picker folder="hero" [asset]="asset()" (assetChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-picker/`): Single-image uploader + web URL importer + required SEO alt text field + live preview.
+- `<app-image-gallery-editor [folder]="'products/' + productId" [images]="images()" (imagesChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-gallery-editor/`): Multi-image gallery editor (up to 8 images, CDK drag-drop reorder, index 0 badged as "Main Image", required per-image alt text).
 
 ---
 
@@ -84,65 +87,67 @@ All controls integrate seamlessly with **Angular 22 Signal Forms**.
 
 Located in `src/styles/tailwind/components/`. Use these classes directly in your templates.
 
-| File | Reusable Classes | Description |
-| :--- | :--- | :--- |
-| `navigation.css` | `.nav-column-title` | Uppercase category/column headers with bottom border |
-| | `.nav-menu-link` | Interactive nav item link with hover state and transitions |
-| | `.nav-badge` | Small badge indicator for menu links |
-| | `.nav-category-tab` | Top-level category tab button in navigation bar |
-| | `.drag-handle-wrapper` | Drag handles for re-ordering items in admin dashboards |
-| | `.nav-admin-card` | Styled card for admin navigation items |
-| `status.css` | `.status-badge` | Badge background, padding, and text formatting |
-| | `.chip` | Rounded interactive filter chip |
-| | `.chip-icon-wrapper` | Icon container inside filter chips |
-| | `.vehicle-status` | Card container with outline-variant border and padding |
-| `spacing.css` | `.container-content` | Responsive page container max-width and padding (`px-4 sm:px-6 lg:px-8`) |
-| | `.hero-space` | Standard hero section spacing |
-| | `.section-space` | Vertical spacing between page sections |
-| `images.css` | `.image-mask` | Image clipping and gradient mask |
-| | `.hero-image` | Full-width responsive hero image container |
-| `scroll-row.css` | `.scroll-row` + `.scroll-row-item` | Horizontal snap-scroll row with "card peek". Tune via `--scroll-cols`, `--scroll-peek` (`0px` when all cards fit), `--scroll-gap`; make responsive with Tailwind, e.g. `scroll-row md:[--scroll-cols:2] xl:[--scroll-cols:3] xl:[--scroll-peek:0px]` |
-| `overlays.css` | `.loading-overlay` | Full-screen semi-transparent loading backdrop |
-| | `.badge-overlay` | Absolute-positioned badge over an image or card |
-| | `.icon-overlay` | Absolute-positioned icon container over an image or card |
-| `components-base.css` | `.base-card` | Base border, rounded corner, and surface container styling |
-| | `.form-card` | Styled container for forms and inputs |
-| | `.bg-circle` | Circular icon / avatar wrapper container |
-| | `.panel-border` | United border framing (`border border-outline-variant border-shape`) |
-| | `.surface-card` | Unified card shell (`bg-surface-container-lowest panel-border shadow-sm`) |
+| File                  | Reusable Classes                   | Description                                                                                                                                                                                                                                          |
+| :-------------------- | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `navigation.css`      | `.nav-column-title`                | Uppercase category/column headers with bottom border                                                                                                                                                                                                 |
+|                       | `.nav-menu-link`                   | Interactive nav item link with hover state and transitions                                                                                                                                                                                           |
+|                       | `.nav-badge`                       | Small badge indicator for menu links                                                                                                                                                                                                                 |
+|                       | `.nav-category-tab`                | Top-level category tab button in navigation bar                                                                                                                                                                                                      |
+|                       | `.drag-handle-wrapper`             | Drag handles for re-ordering items in admin dashboards                                                                                                                                                                                               |
+|                       | `.nav-admin-card`                  | Styled card for admin navigation items                                                                                                                                                                                                               |
+| `status.css`          | `.status-badge`                    | Badge background, padding, and text formatting                                                                                                                                                                                                       |
+|                       | `.chip`                            | Rounded interactive filter chip                                                                                                                                                                                                                      |
+|                       | `.chip-icon-wrapper`               | Icon container inside filter chips                                                                                                                                                                                                                   |
+|                       | `.vehicle-status`                  | Card container with outline-variant border and padding                                                                                                                                                                                               |
+| `spacing.css`         | `.container-content`               | Responsive page container max-width and padding (`px-4 sm:px-6 lg:px-8`)                                                                                                                                                                             |
+|                       | `.hero-space`                      | Standard hero section spacing                                                                                                                                                                                                                        |
+|                       | `.section-space`                   | Vertical spacing between page sections                                                                                                                                                                                                               |
+| `images.css`          | `.image-mask`                      | Image clipping and gradient mask                                                                                                                                                                                                                     |
+|                       | `.hero-image`                      | Full-width responsive hero image container                                                                                                                                                                                                           |
+| `scroll-row.css`      | `.scroll-row` + `.scroll-row-item` | Horizontal snap-scroll row with "card peek". Tune via `--scroll-cols`, `--scroll-peek` (`0px` when all cards fit), `--scroll-gap`; make responsive with Tailwind, e.g. `scroll-row md:[--scroll-cols:2] xl:[--scroll-cols:3] xl:[--scroll-peek:0px]` |
+| `skeleton.css`        | `.skeleton`                        | Monochrome M3 shimmer surface (`surface-container-high` to `surface-container-highest`, `border-shape`, reduced-motion safe)                                                                                                                         |
+|                       | `.skeleton-inverse`                | Dark surface shimmer variant for `bg-primary` containers                                                                                                                                                                                             |
+| `overlays.css`        | `.loading-overlay`                 | Full-screen semi-transparent loading backdrop                                                                                                                                                                                                        |
+|                       | `.badge-overlay`                   | Absolute-positioned badge over an image or card                                                                                                                                                                                                      |
+|                       | `.icon-overlay`                    | Absolute-positioned icon container over an image or card                                                                                                                                                                                             |
+| `components-base.css` | `.base-card`                       | Base border, rounded corner, and surface container styling                                                                                                                                                                                           |
+|                       | `.form-card`                       | Styled container for forms and inputs                                                                                                                                                                                                                |
+|                       | `.bg-circle`                       | Circular icon / avatar wrapper container                                                                                                                                                                                                             |
+|                       | `.panel-border`                    | United border framing (`border border-outline-variant border-shape`)                                                                                                                                                                                 |
+|                       | `.surface-card`                    | Unified card shell (`bg-surface-container-lowest panel-border shadow-sm`)                                                                                                                                                                            |
 
 ### 📐 Layout & Alignment Shortcuts (`src/styles/tailwind/utilities/layout.css`)
 
-| Utility Class | Expansion | Usage |
-| :--- | :--- | :--- |
-| `elements-center` | `flex flex-row justify-center items-center` | Centered flex containers, icon badges, dialog centers |
-| `elements-start` | `flex flex-row justify-start items-center` | Left-aligned flex row with centered vertical items |
-| `elements-end` | `flex flex-row justify-end items-center` | Right-aligned flex row with centered vertical items |
-| `elements-between` | `flex flex-row justify-between items-center` | Space-between headers, navbars, rows with actions |
-| `elements-center-col` | `flex flex-col justify-center items-center` | Centered column stack, mobile modal bodies |
-| `elements-start-col` | `flex flex-col justify-center items-start` | Left-aligned column stack, vertical header titles |
-| `elements-end-col` | `flex flex-col justify-center items-end` | Right-aligned column stack |
-| `elements-between-col` | `flex flex-col justify-between items-center` | Space-between vertical cards/sidebars |
-| `form-space` | `flex flex-col gap-4 pt-4` | Standard form field vertical spacing |
+| Utility Class          | Expansion                                    | Usage                                                 |
+| :--------------------- | :------------------------------------------- | :---------------------------------------------------- |
+| `elements-center`      | `flex flex-row justify-center items-center`  | Centered flex containers, icon badges, dialog centers |
+| `elements-start`       | `flex flex-row justify-start items-center`   | Left-aligned flex row with centered vertical items    |
+| `elements-end`         | `flex flex-row justify-end items-center`     | Right-aligned flex row with centered vertical items   |
+| `elements-between`     | `flex flex-row justify-between items-center` | Space-between headers, navbars, rows with actions     |
+| `elements-center-col`  | `flex flex-col justify-center items-center`  | Centered column stack, mobile modal bodies            |
+| `elements-start-col`   | `flex flex-col justify-center items-start`   | Left-aligned column stack, vertical header titles     |
+| `elements-end-col`     | `flex flex-col justify-center items-end`     | Right-aligned column stack                            |
+| `elements-between-col` | `flex flex-col justify-between items-center` | Space-between vertical cards/sidebars                 |
+| `form-space`           | `flex flex-col gap-4 pt-4`                   | Standard form field vertical spacing                  |
 
 ### 🔲 Borders & United Shape (`src/styles/tailwind/utilities/borders.css`)
 
-| Utility Class | Expansion | Usage |
-| :--- | :--- | :--- |
+| Utility Class  | Expansion                                 | Usage                                                                                             |
+| :------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------ |
 | `border-shape` | `border-radius: var(--border-shape, 2px)` | **Single source of truth** for corner radius/shape across all cards, panels, containers, and rows |
 
 ### 📱 Safe Area Utilities (`src/styles/tailwind/utilities/safe-area.css`)
 
-| Utility Class | Expansion | Usage |
-| :--- | :--- | :--- |
+| Utility Class    | Expansion                                                           | Usage                                                                 |
+| :--------------- | :------------------------------------------------------------------ | :-------------------------------------------------------------------- |
 | `pb-safe-bottom` | `padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.375rem)` | Fixed bottom navigation bar padding for iPhone/Android home indicator |
-| `pb-safe-drawer` | `padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem)` | Fullscreen slide-up drawer padding to prevent overlapping bottom nav |
-| `pt-safe-top` | `padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem)` | Modal and drawer top padding clearing status bar notch |
+| `pb-safe-drawer` | `padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem)`   | Fullscreen slide-up drawer padding to prevent overlapping bottom nav  |
+| `pt-safe-top`    | `padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem)`        | Modal and drawer top padding clearing status bar notch                |
 
 ### 🪟 Drag & Drop Utilities (`src/styles/ng-material/components/_drag-drop.scss`)
 
-| Utility / Class | Description | Usage |
-| :--- | :--- | :--- |
+| Utility / Class        | Description                                                             | Usage                                                                                                 |
+| :--------------------- | :---------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
 | `.drag-handle-wrapper` | Cursor grab/grabbing, element center, hover effect for CDK drag handles | `<span cdkDragHandle class="drag-handle-wrapper"><mat-icon name="drag_indicator" size="lg" /></span>` |
 
 ## 3. Core Shared Services
@@ -175,18 +180,26 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `categories`: Computed signal for live navigation catalog with fallback.
   - `isLoading`: Computed state signal.
   - `updateNavigation(categories)`, `seedDefaultNavigation()`.
+- **`ImageSourceService`** (`src/app/core/services/storage/image-source.service.ts`):
+  - **Primary entry point for admin image uploads & URL resolution.**
+  - `uploadFile(file, folder)`: Validates format (JPG/PNG/WebP/AVIF, max 10MB, no SVG), reads local dimensions, uploads to Storage, and probes ImageKit delivery.
+  - `resolveInput(raw, folder)`: Parses user input (`parseImageInput`), verifies managed paths via a CORS-safe `new Image()` ImageKit probe, or imports external URLs via the `importImageFromUrl` Cloud Function. Throws plain-language `ImageInputError`.
 - **`StorageUploadService`** (`src/app/core/services/storage/storage-upload.service.ts`):
-  - `uploadImage(file, folder = 'hero')`: Uploads image (`File`) to Firebase Storage via native SDK `uploadBytes()` with a sanitized unique timestamped path, returning `{ path: string; fullUrl: string }`.
-  - `importFromUrl(url, folder = 'hero')`: Downloads any external web image URL as a blob and uploads it permanently to Firebase Storage, returning `{ path: string; fullUrl: string }`.
-  - `deleteImage(pathOrUrl)`: Deletes a specific file from Firebase Storage via native SDK `deleteObject()`. Safely ignores local assets (`/img/`), external URLs, or `'hero/default-hero.jpg'`.
-  - `deleteImages(paths)`: Deletes multiple files from Firebase Storage in parallel (`Promise.allSettled`).
-  - `isUploading`: Reactive `Signal<boolean>` tracking active upload status.
-  - `uploadError`: Reactive `Signal<string | null>` for upload failure messages.
+  - `uploadImage(file, folder = 'hero')`: Uploads image (`File`) to Firebase Storage via `uploadBytes()`, returning `{ path: string }` (does not call `getDownloadURL()`).
+  - `importFromUrl(url, folder = 'hero')`: Calls the `importImageFromUrl` 2nd-gen Callable Cloud Function (`functions/src/import-image.fn.ts`) to fetch external URLs server-side without browser CORS issues and save directly to Storage.
+  - `deleteImage(pathOrUrl)` / `deleteImages(paths)`: Deletes managed Storage files while ignoring `/img/`, external URLs, or `PROTECTED_STORAGE_PATHS`.
+  - `isUploading`: Read-only `Signal<boolean>` tracking active upload status.
+- **`StorageAssetTracker`** (`src/app/core/services/storage/storage-asset-tracker.ts`):
+  - Per-draft session upload tracker (instantiated per feature draft service, e.g. `new StorageAssetTracker()`).
+  - Methods: `register(path)`, `clear()`, `orphansOnPublish(previousLive, kept)`, `orphansOnDiscard(live)`, `orphansOnReset(live)`.
 
 ---
 
 ## 4. Shared Directives & Pipes
 
+- **`AppImageFallbackDirective`** (`src/app/shared/directives/image-fallback`):
+  - Selector: `img[appImageFallback]` (bind `<img [ngSrc]="path" [appImageFallback]="path" ... />`).
+  - Automatically displays a monochrome `.skeleton` shimmer while the image loads, and fails over once to `buildStorageUrl(path)` if ImageKit CDN fails or is still syncing.
 - **`HorizontalScrollDirective`** (`src/app/shared/directives/horizontal-scroll`):
   - Enables smooth drag-to-scroll and mouse-wheel horizontal scrolling.
   - `<div appHorizontalScroll [snapToItems]="false" [wheelSpeed]="2.0" [dragSpeed]="1.5">`
@@ -203,6 +216,9 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 
 Located in `src/app/shared/schemas/` and `src/app/shared/utils/firebase/`:
 
+- **Image Schemas** (`src/app/shared/schemas/image.schema.ts`):
+  - `ImageAssetSchema` / `ImageAsset`: `{ path: string; alt: string; width?: number; height?: number }` with required trimmed alt text (max 125 chars).
+  - `ImageGallerySchema` / `ImageGallery`: `ImageAsset[]` capped at `IMAGE_LIMITS.maxGallerySize` (8 images, index 0 = Main image).
 - **Common Schemas** (`src/app/shared/schemas/common.schema.ts`):
   - `idSchema` / `IdSchema`: Non-empty trimmed string ID validator.
   - `slugSchema` / `SlugSchema`: URL-safe slug validator.
@@ -236,13 +252,18 @@ Located in `src/app/shared/utils/`:
 - **`useStepperOrientation`** (`src/app/shared/utils/stepper-orientation.utils.ts`):
   - Returns a reactive `Signal<StepperOrientation>` (`'horizontal' | 'vertical'`) for Material Stepper components.
   - Usage: `readonly stepperOrientation = useStepperOrientation(800);`
-- **`normalizeImageKitPath`** (`src/app/shared/utils/image.utils.ts`):
-  - Normalizes full Firebase Storage URLs, Google Cloud URLs, or ImageKit URLs into a clean relative path suitable for Angular's `NgOptimizedImage` (`[ngSrc]`).
-  - Usage: `readonly imagePath = computed(() => normalizeImageKitPath(this.item().imageUrl));`
+- **Image Pipeline Utilities** (`src/app/shared/utils/image/` — re-exported via `@shared/utils/image` and `@shared/utils/image.utils`):
+  - `IMAGE_LIMITS`, `IMAGE_FOLDERS`, `ImageFolderPath`, `PROTECTED_STORAGE_PATHS`.
+  - `normalizeImageKitPath(urlOrPath)`: Normalizes managed Storage/ImageKit URLs (verifying `environment.firebase.storageBucket`) into relative paths for `NgOptimizedImage`.
+  - `buildStorageUrl(pathOrUrl)`: Direct Google Cloud Storage URL (`https://storage.googleapis.com/<bucket>/<path>`) using the active environment bucket.
+  - `buildImageKitUrl(pathOrUrl, tr?)`: Explicit ImageKit CDN URL for probes, `og:image`, and JSON-LD.
+  - `parseImageInput(raw)`: Pure ReDoS-safe classifier returning `external-url`, `managed-path`, or `invalid`.
+  - `diffOrphanedPaths(candidates, kept, protectedPaths?)`: Computes unreferenced Storage paths for cleanup.
+  - `sanitizeAltFromFilename(filename)`: Pre-fills clean, human-readable alt text from filenames.
 
 ---
 
-## 7. Image Optimization & Delivery System (ImageKit + Firebase)
+## 7. Image Optimization & Delivery System (ImageKit + Firebase + Cloud Functions)
 
 All storefront visual media (hero banners, product showcases, category headers) are delivered through ImageKit CDN, while master assets are securely stored in Firebase Cloud Storage.
 
@@ -252,21 +273,22 @@ All storefront visual media (hero banners, product showcases, category headers) 
 - **Production**: `https://ik.imagekit.io/atteyastore/` (Origin: `attiya-store.firebasestorage.app`)
 - Configured in `app.config.ts`: `provideImageKitLoader(environment.imageKitUrl)`.
 
-### ⚡ Angular NgOptimizedImage Guidelines
+### ⚡ Angular NgOptimizedImage + AppImageFallbackDirective Guidelines
 
-- **Always use `NgOptimizedImage` (`[ngSrc]`)**. Raw `<img [src]>` is strictly forbidden for media assets.
+- **Always use `NgOptimizedImage` (`[ngSrc]`) paired with `[appImageFallback]`**. Raw `<img [src]>` is strictly forbidden for media assets.
 - **Hero / Above-The-Fold / LCP**:
 
   ```html
   @if (imagePath()) {
-    <img
-      [ngSrc]="imagePath()"
-      [alt]="item().headline"
-      fill
-      priority
-      sizes="100vw"
-      class="object-cover object-center"
-    />
+  <img
+    [ngSrc]="imagePath()"
+    [appImageFallback]="imagePath()"
+    [alt]="item().imageAlt || item().headline"
+    fill
+    priority
+    sizes="100vw"
+    class="object-cover object-center"
+  />
   }
   ```
 
@@ -274,23 +296,21 @@ All storefront visual media (hero banners, product showcases, category headers) 
 
   ```html
   @if (imagePath()) {
-    <img
-      [ngSrc]="imagePath()"
-      [alt]="item().name"
-      fill
-      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-      class="object-cover object-center"
-    />
+  <img
+    [ngSrc]="imagePath()"
+    [appImageFallback]="imagePath()"
+    [alt]="item().alt"
+    fill
+    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+    class="object-cover object-center"
+  />
   }
   ```
 
-- **Auto Transformations**: ImageKit automatically negotiates AVIF/WebP formats, applies quality compression, and resizes to the exact screen breakpoint requested via `sizes`.
+### 📤 Image Uploads & Admin Pickers (`ImageSourceService` / `ImagePicker` / `ImageGalleryEditor`)
 
-### 📤 Image Uploads (`StorageUploadService`)
-
-- Inject `StorageUploadService` from `@core/services/storage`.
-- Call `await this.storageUpload.uploadImage(file, 'hero')` (or `'products'`, `'categories'`).
-- Stores the relative path (e.g. `hero/1729000000-banner.jpg`) in Firestore.
+- In admin forms, use `<app-image-picker>` for single images or `<app-image-gallery-editor>` for multi-image galleries (up to 8 images, `products/<productId>/` folder).
+- Track session uploads with `StorageAssetTracker` so discarded or replaced files are automatically cleaned up from Firebase Storage.
 
 ---
 

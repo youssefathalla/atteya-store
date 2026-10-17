@@ -1,25 +1,87 @@
-<section id="loaders" class="flex flex-col gap-6">
+<section id="loaders" class="flex flex-col gap-8">
   <div class="flex flex-col items-start gap-3 border-b border-outline-variant pb-4 px-3">
     <mat-icon name="progress_activity" size="3xl" iconColor="primary" />
     <div class="flex flex-col gap-1">
-      <h2 class="font-headline-sm">Loaders & Overlays</h2>
+      <h2 class="font-headline-sm">Loaders, Skeletons &amp; Media Pipeline</h2>
       <p class="font-body-sm text-on-surface-variant">
-        Accessible loading spinners with configurable diameter, height, and messaging
+        Accessible loading spinners, monochrome M3 layout skeletons, and the shared multi-image gallery editor
       </p>
     </div>
-    <span
-      class="text-xs px-2.5 py-1 border-shape bg-surface-container-high text-on-surface-variant font-mono"
-    >
-      &lt;app-loader&gt;
-    </span>
+    <div class="elements-start flex-wrap gap-2">
+      <span
+        class="font-label-sm px-2.5 py-1 border-shape bg-surface-container-high text-on-surface-variant font-mono"
+      >
+        &lt;app-loader&gt;
+      </span>
+      <span
+        class="font-label-sm px-2.5 py-1 border-shape bg-surface-container-high text-on-surface-variant font-mono"
+      >
+        &lt;app-skeleton&gt;
+      </span>
+      <span
+        class="font-label-sm px-2.5 py-1 border-shape bg-surface-container-high text-on-surface-variant font-mono"
+      >
+        &lt;app-image-gallery-editor&gt;
+      </span>
+    </div>
   </div>
 
+  <!-- 1. Reusable Monochrome Skeleton System (Images & Non-Images) -->
+  <div class="surface-card p-6 space-y-5">
+    <div>
+      <h3 class="font-title-md font-bold!">Reusable Skeleton Placeholders (&lt;app-skeleton&gt;)</h3>
+      <p class="font-body-sm opacity-70">
+        Monochrome M3 shimmer blocks for product cards, text lines, avatars, and image containers (`aria-busy="true"`).
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" aria-busy="true">
+      <!-- Product Card Skeleton -->
+      <div class="p-4 bg-surface-container-low panel-border space-y-4">
+        <span class="font-label-sm font-bold! uppercase opacity-70 block">Product Card Skeleton</span>
+        <app-skeleton class="w-full aspect-4/5" />
+        <app-skeleton variant="text" [lines]="2" />
+        <div class="elements-between pt-1">
+          <app-skeleton class="h-6 w-20" />
+          <app-skeleton class="h-9 w-28" />
+        </div>
+      </div>
+
+      <!-- Profile / Review Card Skeleton -->
+      <div class="p-4 bg-surface-container-low panel-border space-y-4">
+        <span class="font-label-sm font-bold! uppercase opacity-70 block">Review / Profile Skeleton</span>
+        <div class="elements-start gap-3">
+          <app-skeleton variant="circle" class="size-12 shrink-0" />
+          <div class="flex-1">
+            <app-skeleton variant="text" [lines]="2" />
+          </div>
+        </div>
+        <app-skeleton variant="text" [lines]="4" />
+      </div>
+
+      <!-- Dark Inverse Skeleton (e.g. Hero / Dark Banner) -->
+      <div class="p-4 bg-primary text-on-primary panel-border space-y-4">
+        <span class="font-label-sm font-bold! uppercase opacity-80 block">Inverse Dark Surface Skeleton</span>
+        <app-skeleton [inverse]="true" class="w-full h-36" />
+        <app-skeleton [inverse]="true" variant="text" [lines]="3" />
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Shared Multi-Image Gallery Editor (Products Preview) -->
+  <app-image-gallery-editor
+    folder="hero"
+    [images]="demoGallery()"
+    (imagesChange)="updateDemoGallery($event)"
+  />
+
+  <!-- 3. Blocking Action / Section Spinner (<app-loader>) -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
     <!-- Controls -->
     <div
       class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4"
     >
-      <span class="font-title-sm text-primary">Loader Configuration</span>
+      <span class="font-title-sm text-primary">Spinner Overlay Configuration</span>
 
       <div>
         <label for="loader-diameter" class="font-label-sm text-on-surface-variant block mb-1"
@@ -45,7 +107,7 @@
           id="loader-height"
           [ngModel]="loaderHeight()"
           (ngModelChange)="loaderHeight.set($event)"
-          class="w-full px-3 py-2 border-shape bg-surface border border-outline-variant text-on-surface text-sm focus:border-primary outline-none"
+          class="w-full px-3 py-2 border-shape bg-surface border border-outline-variant font-body-sm focus:border-primary outline-none"
         >
           <option value="10">Height 10 (10dvh / ~100px)</option>
           <option value="20">Height 20 (20dvh / ~200px)</option>

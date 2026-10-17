@@ -7,9 +7,13 @@
 /bazel-out
 
 # Node
-/node_modules
+node_modules/
 npm-debug.log
 yarn-error.log
+
+# Cloud Functions
+/functions/lib/
+/functions/node_modules/
 
 # IDEs and editors
 .idea/
