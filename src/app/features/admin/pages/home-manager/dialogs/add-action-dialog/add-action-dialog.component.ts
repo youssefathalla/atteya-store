@@ -1,11 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import {
-  MAT_DIALOG_DATA,
-  MatDialogModule,
-  MatDialogRef,
-} from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { HeroAction } from '../../models/home-manager.model';
@@ -19,13 +15,7 @@ export type AddActionDialogResult = HeroAction;
 @Component({
   selector: 'app-add-action-dialog',
   templateUrl: './add-action-dialog.component.html',
-  imports: [
-    FormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-  ],
+  imports: [FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
 })
 export class AddActionDialogComponent {
   readonly #dialogRef = inject(MatDialogRef<AddActionDialogComponent, AddActionDialogResult | null>);

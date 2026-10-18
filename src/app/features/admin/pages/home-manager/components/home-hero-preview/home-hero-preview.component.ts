@@ -11,6 +11,7 @@ import { HeroLayoutCount, HomeHero } from '../../models/home-manager.model';
 })
 export class HomeHeroPreviewComponent {
   readonly hero = input.required<HomeHero>();
+  readonly isLoading = input<boolean>(false);
   readonly activeSlotIndex = input<number>(0);
 
   readonly layoutCountChange = output<HeroLayoutCount>();

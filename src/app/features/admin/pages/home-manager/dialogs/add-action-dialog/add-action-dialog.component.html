@@ -1,5 +1,5 @@
-<form (ngSubmit)="submit()" autocomplete="off">
-  <div class="px-6 pt-6 pb-2">
+<form (ngSubmit)="submit()" autocomplete="off" class="flex flex-col">
+  <div class="px-6 pb-2">
     <h2 mat-dialog-title class="font-title-lg font-bold! p-0!">
       @if (isEdit()) {
         Edit Action Button
@@ -7,12 +7,10 @@
         Add Action Button
       }
     </h2>
-    <p class="font-body-sm opacity-70 pt-1">
-      Configure button text and storefront route link.
-    </p>
+    <p class="font-body-sm opacity-70 pt-1">Configure button text and storefront route link.</p>
   </div>
 
-  <mat-dialog-content class="space-y-4 py-2!">
+  <mat-dialog-content class="space-y-6 py-2!">
     <!-- Action Label -->
     <mat-form-field appearance="outline" class="w-full">
       <mat-label>Button Label</mat-label>
@@ -45,19 +43,13 @@
         placeholder="/category/apparel?gender=men"
         required
       />
-      <mat-hint>Storefront route (e.g. /category/apparel or /category/rackets)</mat-hint>
+      <mat-hint>Storefront route (e.g. /category/apparel)</mat-hint>
     </mat-form-field>
   </mat-dialog-content>
 
   <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">
-    <button matButton="text" type="button" (click)="cancel()">
-      Cancel
-    </button>
-    <button
-      matButton="filled"
-      type="submit"
-      [disabled]="!isValid()"
-    >
+    <button matButton="text" type="button" (click)="cancel()">Cancel</button>
+    <button matButton="filled" type="submit" [disabled]="!isValid()">
       <span>{{ isEdit() ? 'Update Button' : 'Add Button' }}</span>
     </button>
   </mat-dialog-actions>

@@ -30,6 +30,7 @@ export class HomeManagerComponent {
   readonly #isResetting = signal<boolean>(false);
 
   readonly draft = inject(HomeDraftService);
+  readonly isLoading = this.#homeService.isLoading;
   readonly isSaving = this.#isSaving.asReadonly();
   readonly isResetting = this.#isResetting.asReadonly();
 

@@ -13,6 +13,7 @@ export class HomeComponent implements OnInit {
   readonly #seoService = inject(SeoService);
 
   readonly hero = this.#homeService.hero;
+  readonly isLoading = this.#homeService.isLoading;
 
   ngOnInit(): void {
     this.#seoService.setPageMetadata({

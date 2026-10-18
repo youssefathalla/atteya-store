@@ -7,6 +7,32 @@ import { HomeSettingsSchema } from '../schemas/home.schema';
 import { HomeHero, HomeSettings } from '../models/home.model';
 import { DEFAULT_HOME_HERO } from '../data/home.data';
 
+const HERO_STORAGE_KEY = 'atteya_store_home_hero';
+
+function readStoredHero(): HomeHero | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(HERO_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.layoutCount === 'number' && Array.isArray(parsed.slides)) {
+      return parsed as HomeHero;
+    }
+  } catch {
+    // Ignore storage parse issues
+  }
+  return null;
+}
+
+function persistStoredHero(hero: HomeHero): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(HERO_STORAGE_KEY, JSON.stringify(hero));
+  } catch {
+    // Ignore storage quota issues
+  }
+}
+
 @Service()
 export class HomeService {
   readonly #firestore = injectFirestore();
@@ -24,14 +50,15 @@ export class HomeService {
 
   /**
    * Evaluates to live hero configuration from Firestore;
-   * Falls back gracefully to DEFAULT_HOME_HERO when unseeded or loading.
+   * Falls back gracefully to cached hero or DEFAULT_HOME_HERO when unseeded or loading.
    */
   readonly hero = computed<HomeHero>(() => {
     const docData = this.#homeDoc();
     if (docData?.hero) {
+      persistStoredHero(docData.hero);
       return docData.hero;
     }
-    return DEFAULT_HOME_HERO;
+    return readStoredHero() ?? DEFAULT_HOME_HERO;
   });
 
   /**

@@ -6,3 +6,14 @@
     outlined-container-shape: var(--border-shape, 2px),
   ));
 }
+
+// Allow multi-line hints and errors to expand naturally without clipping or triggering premature overflow
+// .mat-mdc-form-field-subscript-wrapper {
+//   height: auto;
+// }
+
+// .mat-mdc-form-field-hint-wrapper,
+// .mat-mdc-form-field-error-wrapper {
+//   position: relative !important;
+// }
+

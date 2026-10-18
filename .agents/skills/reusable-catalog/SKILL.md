@@ -77,7 +77,7 @@ All controls integrate seamlessly with **Angular 22 Signal Forms**.
 - `<mat-icon name="home" />`: Always import `SharedIconModule` from `@shared/ui/mat-icon`.
 - `<app-logo [size]="'sm' | 'md' | 'lg'" />`: App branding logo SVG.
 - `<app-loader>`: Standardized loading spinner overlay for blocking actions/overlays.
-- `<app-skeleton [variant]="'rect' | 'circle' | 'text'" [lines]="3" [inverse]="false" />` (`src/app/shared/ui/skeleton/`): Reusable monochrome M3 shimmer placeholder for cards, text blocks, avatars, and deferred views.
+- `<app-skeleton [overlay]="false" [zIndex]="50" [variant]="'rect' | 'circle' | 'text'" [lines]="3" [width]="'100%'" [height]="'24px'" [size]="'48px'" [inverse]="false" [rounded]="'none' | 'shape' | 'full'" [animate]="true" [inline]="false" />` (`src/app/shared/ui/skeleton/`): Reusable universal monochrome M3 shimmer placeholder & overlay veil. When `[overlay]="true"`, becomes an `absolute inset-0 size-full z-50` veil that covers buttons and text underneath so nothing shows through or can be clicked while loading. Also scales as a layout placeholder for all components big (cards, banners, images) and small (buttons, badges, circular avatars, text).
 - `<app-image-picker folder="hero" [asset]="asset()" (assetChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-picker/`): Single-image uploader + web URL importer + required SEO alt text field + live preview.
 - `<app-image-gallery-editor [folder]="'products/' + productId" [images]="images()" (imagesChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-gallery-editor/`): Multi-image gallery editor (up to 8 images, CDK drag-drop reorder, index 0 badged as "Main Image", required per-image alt text).
 

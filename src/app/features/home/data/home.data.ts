@@ -32,6 +32,10 @@ export const DEFAULT_HERO_SLIDES: readonly HeroSlide[] = [
 ];
 
 export const DEFAULT_HOME_HERO: HomeHero = {
-  layoutCount: 1,
-  slides: [{ ...DEFAULT_HERO_SLIDES[0], actions: [...DEFAULT_HERO_SLIDES[0].actions] }],
+  layoutCount: 3,
+  slides: [
+    { ...DEFAULT_HERO_SLIDES[0], actions: [...DEFAULT_HERO_SLIDES[0].actions] },
+    { ...DEFAULT_HERO_SLIDES[1], actions: [...DEFAULT_HERO_SLIDES[1].actions] },
+    { ...DEFAULT_HERO_SLIDES[2], actions: [...DEFAULT_HERO_SLIDES[2].actions] },
+  ],
 };

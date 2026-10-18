@@ -40,7 +40,7 @@ export function signalDoc<T>(
 
     destroyRef.onDestroy(unsubscribe);
   } else {
-    // In SSR, leave as undefined or null to prevent hanging WebSockets
+    // In SSR, initialize with null to prevent hanging loading states
     data.set(null);
   }
 
@@ -76,6 +76,7 @@ export function signalCollection<T>(
 
     destroyRef.onDestroy(unsubscribe);
   } else {
+    // In SSR, initialize with empty array
     data.set([]);
   }
 

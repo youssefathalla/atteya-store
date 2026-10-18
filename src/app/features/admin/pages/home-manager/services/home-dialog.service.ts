@@ -25,6 +25,7 @@ export class HomeDialogService {
       data: { action },
       width: '460px',
       maxWidth: '92vw',
+      maxHeight: '80vh',
     });
 
     const result = await firstValueFrom(dialogRef.afterClosed());
@@ -78,7 +79,8 @@ export class HomeDialogService {
       {
         data: {
           title: 'Discard Draft Changes',
-          message: 'Are you sure you want to discard your unsaved changes? All modifications will revert to the live version.',
+          message:
+            'Are you sure you want to discard your unsaved changes? All modifications will revert to the live version.',
           confirmText: 'Discard Changes',
           cancelText: 'Keep Editing',
           theme: 'warning',

@@ -35,7 +35,7 @@
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" aria-busy="true">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6" aria-busy="true">
       <!-- Product Card Skeleton -->
       <div class="p-4 bg-surface-container-low panel-border space-y-4">
         <span class="font-label-sm font-bold! uppercase opacity-70 block">Product Card Skeleton</span>
@@ -64,6 +64,21 @@
         <span class="font-label-sm font-bold! uppercase opacity-80 block">Inverse Dark Surface Skeleton</span>
         <app-skeleton [inverse]="true" class="w-full h-36" />
         <app-skeleton [inverse]="true" variant="text" [lines]="3" />
+      </div>
+
+      <!-- Overlay Veil Skeleton (z-50 sits on top of buttons and content) -->
+      <div class="relative p-4 bg-surface-container-low panel-border space-y-4 overflow-hidden elements-between-col">
+        <app-skeleton overlay />
+        <div>
+          <span class="font-label-sm font-bold! uppercase opacity-70 block">Overlay Veil Skeleton (z-50)</span>
+          <p class="font-body-sm opacity-70 pt-1">
+            Component stays rendered underneath, but buttons and text are hidden by z-50 shimmer.
+          </p>
+        </div>
+        <div class="elements-between pt-4 w-full">
+          <button matButton="tonal" type="button">Covered</button>
+          <button matButton="filled" type="button">Covered</button>
+        </div>
       </div>
     </div>
   </div>

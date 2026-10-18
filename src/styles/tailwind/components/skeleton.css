@@ -1,37 +1,71 @@
 @keyframes skeleton-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
+  to {
     background-position: -200% 0;
   }
 }
 
 @layer components {
+  :root {
+    --skeleton-base: light-dark(
+      color-mix(in srgb, var(--mat-sys-on-surface) 10%, var(--mat-sys-surface)),
+      color-mix(in srgb, var(--mat-sys-on-surface) 8%, var(--mat-sys-surface))
+    );
+    --skeleton-highlight: light-dark(
+      color-mix(in srgb, var(--mat-sys-on-surface) 2%, var(--mat-sys-surface)),
+      color-mix(in srgb, var(--mat-sys-on-surface) 22%, var(--mat-sys-surface))
+    );
+    --skeleton-inverse-base: color-mix(in srgb, var(--mat-sys-on-primary) 10%, var(--mat-sys-primary));
+    --skeleton-inverse-highlight: color-mix(in srgb, var(--mat-sys-on-primary) 26%, var(--mat-sys-primary));
+  }
+
   .skeleton {
-    @apply border-shape select-none pointer-events-none;
-    background-color: var(--mat-sys-surface-container-high);
-    background-image: linear-gradient(
+    @apply border-shape select-none pointer-events-none text-transparent;
+    background: linear-gradient(
       90deg,
-      var(--mat-sys-surface-container-high) 0%,
-      var(--mat-sys-surface-container-highest) 50%,
-      var(--mat-sys-surface-container-high) 100%
+      var(--skeleton-base) 25%,
+      var(--skeleton-highlight) 50%,
+      var(--skeleton-base) 75%
     );
     background-size: 200% 100%;
-    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+    animation: skeleton-shimmer 1.5s linear infinite;
   }
 
   .skeleton-inverse {
-    @apply border-shape select-none pointer-events-none;
-    background-color: color-mix(in srgb, var(--mat-sys-on-primary) 12%, transparent);
-    background-image: linear-gradient(
+    @apply border-shape select-none pointer-events-none text-transparent;
+    background: linear-gradient(
       90deg,
-      color-mix(in srgb, var(--mat-sys-on-primary) 10%, transparent) 0%,
-      color-mix(in srgb, var(--mat-sys-on-primary) 22%, transparent) 50%,
-      color-mix(in srgb, var(--mat-sys-on-primary) 10%, transparent) 100%
+      var(--skeleton-inverse-base) 25%,
+      var(--skeleton-inverse-highlight) 50%,
+      var(--skeleton-inverse-base) 75%
     );
     background-size: 200% 100%;
-    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+    animation: skeleton-shimmer 1.5s linear infinite;
+  }
+
+  /* Full-bleed overlay veil covering buttons and content */
+  .skeleton-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 50 !important;
+    pointer-events: auto !important;
+    background-color: var(--mat-sys-surface) !important;
+  }
+
+  .skeleton-overlay.skeleton-inverse {
+    background-color: var(--mat-sys-primary) !important;
+  }
+
+  /* Safe sizing fallbacks for <app-skeleton> when neither utility classes nor inputs specify size */
+  app-skeleton:not([variant='text']):not([data-variant='text']):not([class*='h-']):not([class*='size-']):not([class*='aspect-']):not([style*='height']) {
+    min-height: 1.25rem;
+  }
+
+  app-skeleton[variant='circle']:not([class*='size-']):not([class*='w-']):not([class*='h-']),
+  app-skeleton[data-variant='circle']:not([class*='size-']):not([class*='w-']):not([class*='h-']) {
+    width: 2.5rem;
+    height: 2.5rem;
   }
 
   @media (prefers-reduced-motion: reduce) {

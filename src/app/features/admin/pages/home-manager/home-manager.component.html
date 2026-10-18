@@ -11,6 +11,7 @@
   <!-- 1. Top Full-Width Real Storefront Preview -->
   <app-home-hero-preview
     [hero]="draft.draftHero()"
+    [isLoading]="isLoading()"
     [activeSlotIndex]="draft.activeSlotIndex()"
     (layoutCountChange)="draft.setLayoutCount($event)"
     (activeSlotChange)="draft.setActiveSlot($event)"

@@ -40,6 +40,7 @@
   <div class="w-full overflow-hidden border border-outline-variant border-shape bg-surface-container-lowest">
     <app-hero-section
       [hero]="hero()"
+      [isLoading]="isLoading()"
       [previewMode]="true"
       [activeSlotIndex]="activeSlotIndex()"
       (slotSelect)="activeSlotChange.emit($event)"

@@ -19,6 +19,7 @@ import { buildStorageUrl } from '@shared/utils/image';
  */
 @Directive({
   selector: 'img[appImageFallback]',
+  exportAs: 'appImageFallback',
   host: {
     '[class.skeleton]': 'isLoading()',
     '(load)': 'onLoad()',
@@ -36,7 +37,7 @@ export class AppImageFallbackDirective {
   readonly #isLoading = signal(true);
   #triedFallback = false;
 
-  protected readonly isLoading = this.#isLoading.asReadonly();
+  readonly isLoading = this.#isLoading.asReadonly();
 
   constructor() {
     effect(() => {
