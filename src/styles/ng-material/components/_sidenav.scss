@@ -21,14 +21,17 @@ $handset-landscape: '(max-width: 959.98px) and (orientation: landscape)';
   }
 }
 
-mat-drawer-container,
-.mat-drawer-container {
-  overflow: clip !important;
-}
+// Storefront: Allow sticky positioning by letting the window handle the scroll
+app-main-layout {
+  mat-drawer-container,
+  .mat-drawer-container {
+    overflow: clip !important;
+  }
 
-mat-drawer-content,
-.mat-drawer-content {
-  overflow: visible !important;
+  mat-drawer-content,
+  .mat-drawer-content {
+    overflow: visible !important;
+  }
 }
 
 mat-drawer {
@@ -52,6 +55,11 @@ app-admin-layout {
     background-color: var(--mat-sys-surface-container-lowest);
     border-inline-end: 1px solid var(--mat-sys-outline-variant);
     box-shadow: none;
+  }
+
+  mat-sidenav-content,
+  .mat-drawer-content {
+    overflow-y: auto !important;
   }
 }
 

@@ -36,91 +36,87 @@
     </div>
   </div>
 
-  <!-- 2-Column Editor Grid on xl+ -->
-  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
-    <!-- COLUMN 1: Shared Image Picker -->
+  <!-- 3-Column Side-by-Side Editor Grid on xl+ (Stacked on < xl) -->
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
+    <!-- COLUMN 1: Shared Image Picker (Matches Section 1 compact aspect ratio) -->
     <app-image-picker
       folder="categories"
-      aspectClass="aspect-4/5"
       [label]="pickerLabel()"
       [asset]="cardAsset()"
       (assetChange)="onAssetChange($event)"
       (uploaded)="sessionUpload.emit($event)"
     />
 
-    <!-- COLUMN 2: Section Heading & Card Button Settings -->
-    <div class="p-5 bg-surface-container-low panel-border space-y-6">
-      <!-- Section Heading Input -->
-      <div class="space-y-3 border-b border-outline-variant pb-5">
-        <div>
-          <span class="font-label-md font-bold! tracking-wider uppercase opacity-80 block">
-            Section Heading
-          </span>
-          <p class="font-body-sm opacity-70">
-            Heading displayed above the 3 category cards on the homepage.
-          </p>
-        </div>
-
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>Section Title</mat-label>
-          <input
-            matInput
-            id="shop-categories-title-input"
-            name="shop-categories-title-input"
-            autocomplete="off"
-            aria-label="Section Title"
-            [ngModel]="sectionTitle()"
-            (ngModelChange)="titleChange.emit($event)"
-            placeholder="e.g. Shop"
-            required
-          />
-          <mat-hint>Displayed at the top-left of Section 2 (default: "Shop")</mat-hint>
-        </mat-form-field>
+    <!-- COLUMN 2: Section Heading Settings -->
+    <div class="p-5 bg-surface-container-low panel-border space-y-4">
+      <div>
+        <span class="font-label-md font-bold! tracking-wider uppercase opacity-80 block">
+          2. Section Heading
+        </span>
+        <p class="font-body-sm opacity-70">
+          Heading displayed above the 3 category cards on the homepage.
+        </p>
       </div>
 
-      <!-- Active Card Button Configuration -->
-      <div class="space-y-4">
-        <div>
-          <span class="font-label-md font-bold! tracking-wider uppercase opacity-80 block">
-            2. Card #{{ activeCardIndex() + 1 }} Button &amp; Link
-          </span>
-          <p class="font-body-sm opacity-70">
-            Configure the button label and page destination for Card #{{ activeCardIndex() + 1 }}.
-          </p>
-        </div>
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Section Title</mat-label>
+        <input
+          matInput
+          id="shop-categories-title-input"
+          name="shop-categories-title-input"
+          autocomplete="off"
+          aria-label="Section Title"
+          [ngModel]="sectionTitle()"
+          (ngModelChange)="titleChange.emit($event)"
+          placeholder="e.g. Shop"
+          required
+        />
+        <mat-hint>Displayed at the top-left of Section 2 (default: "Shop")</mat-hint>
+      </mat-form-field>
+    </div>
 
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>Button Label</mat-label>
-          <input
-            matInput
-            id="shop-card-button-label-input"
-            name="shop-card-button-label-input"
-            autocomplete="off"
-            aria-label="Button Label"
-            [ngModel]="activeCard().buttonLabel"
-            (ngModelChange)="buttonLabelChange.emit($event)"
-            placeholder="e.g. Shoes, Apparel, Accessories"
-            required
-          />
-          <mat-hint>Text shown inside the bottom-left button on Card #{{ activeCardIndex() + 1 }}</mat-hint>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>Button Destination Link</mat-label>
-          <input
-            matInput
-            id="shop-card-button-link-input"
-            name="shop-card-button-link-input"
-            autocomplete="off"
-            aria-label="Button Destination Link"
-            [ngModel]="activeCard().buttonLink"
-            (ngModelChange)="buttonLinkChange.emit($event)"
-            placeholder="e.g. /category/shoes"
-            required
-          />
-          <mat-hint>Storefront route opened when a shopper clicks this button</mat-hint>
-        </mat-form-field>
+    <!-- COLUMN 3: Active Card Button & Destination Settings -->
+    <div class="p-5 bg-surface-container-low panel-border space-y-4">
+      <div>
+        <span class="font-label-md font-bold! tracking-wider uppercase opacity-80 block">
+          3. Card #{{ activeCardIndex() + 1 }} Button &amp; Link
+        </span>
+        <p class="font-body-sm opacity-70">
+          Configure the button label and page destination for Card #{{ activeCardIndex() + 1 }}.
+        </p>
       </div>
+
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Button Label</mat-label>
+        <input
+          matInput
+          id="shop-card-button-label-input"
+          name="shop-card-button-label-input"
+          autocomplete="off"
+          aria-label="Button Label"
+          [ngModel]="activeCard().buttonLabel"
+          (ngModelChange)="buttonLabelChange.emit($event)"
+          placeholder="e.g. Shoes, Apparel, Accessories"
+          required
+        />
+        <mat-hint>Text shown inside the bottom-left button on Card #{{ activeCardIndex() + 1 }}</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Button Destination Link</mat-label>
+        <input
+          matInput
+          id="shop-card-button-link-input"
+          name="shop-card-button-link-input"
+          autocomplete="off"
+          aria-label="Button Destination Link"
+          [ngModel]="activeCard().buttonLink"
+          (ngModelChange)="buttonLinkChange.emit($event)"
+          placeholder="e.g. /category/shoes"
+          required
+        />
+        <mat-hint>Storefront route opened when a shopper clicks this button</mat-hint>
+      </mat-form-field>
     </div>
   </div>
 </section>
