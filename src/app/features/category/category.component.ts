@@ -1,25 +1,43 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, effect, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { NavService } from '@core/services/navigation';
+import { SeoService } from '@core/services/seo';
 
 @Component({
   selector: 'app-category',
   imports: [RouterLink, MatButtonModule, SharedIconModule],
   templateUrl: './category.component.html',
   host: {
-    class: 'block w-full min-h-[60vh] py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto',
+    class: 'block w-full min-h-[60vh] container-content',
   },
 })
 export class CategoryComponent {
   readonly slug = input.required<string>();
   readonly subSlug = input<string>();
+  readonly isBrand = input<boolean>(false);
 
   readonly #navService = inject(NavService);
   readonly #router = inject(Router);
+  readonly #seoService = inject(SeoService);
 
-  readonly isBrandRoute = computed(() => this.#router.url.startsWith('/brand/'));
+  constructor() {
+    effect(() => {
+      const title = this.displayTitle();
+      const isBrand = this.isBrandRoute();
+      this.#seoService.setPageMetadata({
+        title: `${title} | Atteya Store`,
+        description: isBrand
+          ? `Discover official tournament equipment and performance gear from ${title} at Atteya Store.`
+          : `Discover our curated collection of tournament-grade ${title.toLowerCase()} designed for elite padel and tennis players.`,
+      });
+    });
+  }
+
+  readonly isBrandRoute = computed(
+    () => this.isBrand() || this.#router.url.startsWith('/brand/'),
+  );
 
   readonly matchedBrand = computed(() => {
     if (!this.isBrandRoute()) return null;
@@ -65,7 +83,7 @@ export class CategoryComponent {
       }
       return sub.replaceAll('-', ' ');
     }
-    return this.category()?.label || this.slug();
+    return this.category()?.label || this.slug().replaceAll('-', ' ');
   });
 
   readonly currentRoutePath = computed(() => {

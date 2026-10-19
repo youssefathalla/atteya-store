@@ -124,7 +124,7 @@
                 <!-- Link Label -->
                 <mat-form-field
                   appearance="outline"
-                  class="w-full sm:col-span-6 2xl:col-span-5"
+                  class="w-full sm:col-span-6 2xl:col-span-4"
                   subscriptSizing="dynamic"
                 >
                   <mat-label>Link Label</mat-label>
@@ -191,7 +191,7 @@
                 <!-- Badge tag (optional) -->
                 <mat-form-field
                   appearance="outline"
-                  class="w-full sm:col-span-9 2xl:col-span-2"
+                  class="w-full sm:col-span-5 2xl:col-span-2"
                   subscriptSizing="dynamic"
                 >
                   <mat-label>Badge</mat-label>
@@ -213,6 +213,25 @@
                     placeholder="NEW"
                   />
                 </mat-form-field>
+
+                <!-- Brand Link Checkbox -->
+                <div class="w-full sm:col-span-4 2xl:col-span-1 elements-center">
+                  <mat-checkbox
+                    [id]="'link-is-brand-' + colIdx + '-' + linkIdx"
+                    [name]="'link-is-brand-' + colIdx + '-' + linkIdx"
+                    [ngModel]="link.isBrand ?? false"
+                    (ngModelChange)="
+                      linkFieldChange.emit({
+                        colIndex: colIdx,
+                        linkIndex: linkIdx,
+                        field: 'isBrand',
+                        value: $event || undefined,
+                      })
+                    "
+                  >
+                    <span>Brand</span>
+                  </mat-checkbox>
+                </div>
 
                 <!-- Delete Link -->
                 <div

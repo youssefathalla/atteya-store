@@ -1,11 +1,19 @@
 import { computed, Service, signal } from '@angular/core';
 import { StorageAssetTracker } from '@core/services/storage';
-import { DEFAULT_HERO_SLIDES } from '@features/home/data/home.data';
+import {
+  DEFAULT_HERO_SLIDES,
+  DEFAULT_HOME_SHOP_CATEGORIES,
+  DEFAULT_SHOP_CATEGORY_CARDS,
+  SHOP_CATEGORIES_CARD_COUNT,
+} from '@features/home/data/home.data';
 import {
   HeroAction,
   HeroLayoutCount,
   HeroSlide,
   HomeHero,
+  HomeSectionTab,
+  HomeShopCategories,
+  ShopCategoryCard,
 } from '../models/home-manager.model';
 
 function cloneSlide(slide: HeroSlide): HeroSlide {
@@ -15,22 +23,48 @@ function cloneSlide(slide: HeroSlide): HeroSlide {
   };
 }
 
-function buildThreeSlots(source: HomeHero): HeroSlide[] {
+function buildThreeHeroSlots(source: HomeHero): HeroSlide[] {
   return [0, 1, 2].map((idx) =>
     cloneSlide(source.slides[idx] ?? DEFAULT_HERO_SLIDES[idx] ?? DEFAULT_HERO_SLIDES[0]),
   );
 }
 
+function cloneCategoryCard(card: ShopCategoryCard): ShopCategoryCard {
+  return { ...card };
+}
+
+function buildThreeCategoryCards(source: HomeShopCategories): ShopCategoryCard[] {
+  return [0, 1, 2].map((idx) =>
+    cloneCategoryCard(
+      source.cards[idx] ??
+        DEFAULT_SHOP_CATEGORY_CARDS[idx] ??
+        DEFAULT_SHOP_CATEGORY_CARDS[0],
+    ),
+  );
+}
+
 @Service()
 export class HomeDraftService {
+  readonly #activeSection = signal<HomeSectionTab>('hero');
+
+  // Section 1: Hero State
   readonly #layoutCount = signal<HeroLayoutCount>(1);
   readonly #slots = signal<readonly HeroSlide[]>(
     DEFAULT_HERO_SLIDES.map((s) => cloneSlide(s)),
   );
   readonly #activeSlotIndex = signal<number>(0);
+
+  // Section 2: Shop Categories State
+  readonly #shopTitle = signal<string>(DEFAULT_HOME_SHOP_CATEGORIES.title);
+  readonly #shopCards = signal<readonly ShopCategoryCard[]>(
+    DEFAULT_SHOP_CATEGORY_CARDS.map((c) => cloneCategoryCard(c)),
+  );
+  readonly #activeShopCardIndex = signal<number>(0);
+
   readonly #isDirty = signal<boolean>(false);
   readonly #assetTracker = new StorageAssetTracker();
 
+  readonly activeSection = this.#activeSection.asReadonly();
   readonly layoutCount = computed<HeroLayoutCount>(() => this.#layoutCount());
   readonly activeSlotIndex = computed<number>(() => this.#activeSlotIndex());
 
@@ -42,16 +76,33 @@ export class HomeDraftService {
     () => this.#slots()[this.#activeSlotIndex()] ?? this.#slots()[0],
   );
 
-  /**
-   * Represents the exact HomeHero payload that will be rendered in the preview
-   * and persisted to Firestore on Publish (trimmed to `layoutCount`).
-   */
   readonly draftHero = computed<HomeHero>(() => ({
     layoutCount: this.#layoutCount(),
     slides: this.activeSlides(),
   }));
 
+  readonly shopTitle = this.#shopTitle.asReadonly();
+  readonly activeShopCardIndex = this.#activeShopCardIndex.asReadonly();
+  readonly shopCards = computed<readonly ShopCategoryCard[]>(() =>
+    this.#shopCards().slice(0, SHOP_CATEGORIES_CARD_COUNT),
+  );
+
+  readonly activeShopCard = computed<ShopCategoryCard>(
+    () => this.#shopCards()[this.#activeShopCardIndex()] ?? this.#shopCards()[0],
+  );
+
+  readonly draftShopCategories = computed<HomeShopCategories>(() => ({
+    title: this.#shopTitle(),
+    cards: [...this.shopCards()],
+  }));
+
   readonly isDirty = computed(() => this.#isDirty());
+
+  setActiveSection(section: HomeSectionTab): void {
+    this.#activeSection.set(section);
+  }
+
+  // --- Section 1: Hero Mutations ---
 
   setLayoutCount(count: HeroLayoutCount): void {
     if (this.#layoutCount() === count) return;
@@ -128,55 +179,99 @@ export class HomeDraftService {
     });
   }
 
-  /**
-   * Records a newly uploaded Storage path in the current editing session
-   * so it can be cleaned up if replaced, discarded, or trimmed on publish.
-   */
+  // --- Section 2: Shop Categories Mutations ---
+
+  setActiveShopCard(index: number): void {
+    if (index >= 0 && index < SHOP_CATEGORIES_CARD_COUNT) {
+      this.#activeShopCardIndex.set(index);
+    }
+  }
+
+  updateShopTitle(title: string): void {
+    this.#shopTitle.set(title);
+    this.#isDirty.set(true);
+  }
+
+  #updateCurrentShopCard(updater: (card: ShopCategoryCard) => ShopCategoryCard): void {
+    const idx = this.#activeShopCardIndex();
+    this.#shopCards.update((prev) =>
+      prev.map((card, i) => (i === idx ? updater(card) : card)),
+    );
+    this.#isDirty.set(true);
+  }
+
+  updateShopCardImageUrl(imageUrl: string): void {
+    this.#updateCurrentShopCard((card) => ({ ...card, imageUrl }));
+  }
+
+  updateShopCardImageAlt(imageAlt: string): void {
+    this.#updateCurrentShopCard((card) => ({ ...card, imageAlt }));
+  }
+
+  updateShopCardButtonLabel(buttonLabel: string): void {
+    this.#updateCurrentShopCard((card) => ({ ...card, buttonLabel }));
+  }
+
+  updateShopCardButtonLink(buttonLink: string): void {
+    this.#updateCurrentShopCard((card) => ({ ...card, buttonLink }));
+  }
+
+  // --- Session Upload Tracking & Orphan Cleanup ---
+
   registerSessionUpload(path: string): void {
     this.#assetTracker.register(path);
   }
 
-  /**
-   * Computes all Storage paths (from previous live version + current draft session)
-   * that are NOT part of the newly published `draftHero()` so they can be deleted.
-   */
-  getOrphanedPathsForPublish(previousLiveHero: HomeHero): string[] {
-    return this.#assetTracker.orphansOnPublish(
-      previousLiveHero.slides.map((s) => s.imageUrl),
-      this.draftHero().slides.map((s) => s.imageUrl),
-    );
+  getOrphanedPathsForPublish(
+    previousLiveHero: HomeHero,
+    previousLiveShop: HomeShopCategories,
+  ): string[] {
+    const previousUrls = [
+      ...previousLiveHero.slides.map((s) => s.imageUrl),
+      ...previousLiveShop.cards.map((c) => c.imageUrl),
+    ];
+    const keptUrls = [
+      ...this.draftHero().slides.map((s) => s.imageUrl),
+      ...this.draftShopCategories().cards.map((c) => c.imageUrl),
+    ];
+    return this.#assetTracker.orphansOnPublish(previousUrls, keptUrls);
   }
 
-  /**
-   * Computes all uncommitted session uploads that are not in the live hero
-   * so they can be deleted when discarding draft changes.
-   */
-  getOrphanedPathsForDiscard(liveHero: HomeHero): string[] {
-    return this.#assetTracker.orphansOnDiscard(
-      liveHero.slides.map((s) => s.imageUrl),
-    );
+  getOrphanedPathsForDiscard(
+    liveHero: HomeHero,
+    liveShop: HomeShopCategories,
+  ): string[] {
+    return this.#assetTracker.orphansOnDiscard([
+      ...liveHero.slides.map((s) => s.imageUrl),
+      ...liveShop.cards.map((c) => c.imageUrl),
+    ]);
   }
 
-  /**
-   * Computes all uploaded images from both live hero and draft session
-   * so they can be deleted when resetting to factory defaults.
-   */
-  getOrphanedPathsForReset(liveHero: HomeHero): string[] {
-    return this.#assetTracker.orphansOnReset(
-      liveHero.slides.map((s) => s.imageUrl),
-    );
+  getOrphanedPathsForReset(
+    liveHero: HomeHero,
+    liveShop: HomeShopCategories,
+  ): string[] {
+    return this.#assetTracker.orphansOnReset([
+      ...liveHero.slides.map((s) => s.imageUrl),
+      ...liveShop.cards.map((c) => c.imageUrl),
+    ]);
   }
 
-  resetDraftFromSource(hero: HomeHero): void {
+  resetDraftFromSource(hero: HomeHero, shopCategories: HomeShopCategories): void {
     this.#layoutCount.set(hero.layoutCount);
-    this.#slots.set(buildThreeSlots(hero));
+    this.#slots.set(buildThreeHeroSlots(hero));
     this.#activeSlotIndex.set(0);
+
+    this.#shopTitle.set(shopCategories.title || DEFAULT_HOME_SHOP_CATEGORIES.title);
+    this.#shopCards.set(buildThreeCategoryCards(shopCategories));
+    this.#activeShopCardIndex.set(0);
+
     this.#assetTracker.clear();
     this.#isDirty.set(false);
   }
 
-  discardDraft(sourceHero: HomeHero): void {
-    this.resetDraftFromSource(sourceHero);
+  discardDraft(sourceHero: HomeHero, sourceShop: HomeShopCategories): void {
+    this.resetDraftFromSource(sourceHero, sourceShop);
   }
 
   markSaved(): void {

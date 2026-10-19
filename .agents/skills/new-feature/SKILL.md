@@ -146,9 +146,12 @@ src/app/features/[feature-name]/
    - No raw colors (`bg-red-500`, `text-emerald-400`). Use semantic M3 tokens (`bg-primary`, `bg-surface`, `text-on-surface`, `bg-success`).
    - Suffix `!` (`hidden!`, never `!hidden`).
    - `size-{N}` instead of `w-{N} h-{N}`.
-3. **Template Access**:
+3. **Template Access & Host Sizing**:
    - Template members can be `private`.
    - Angular v22 defaults: do NOT write `standalone: true` or `ChangeDetectionStrategy.OnPush`.
+   - All section and page components (`app-*-section`, `app-*`) MUST define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
+   - Use `.container-content` (`p-[5cqw]` querying `<main class="@container">`) as the single unified class for page sections. Never combine `.container-content` with `.section-space` or `@container` on the same element.
+   - Full-viewport hero sections directly below the header must use `h-[calc(100dvh-56px)]` (accounting for the 56px / `h-14` navbar) without `aspect-*` classes on slide containers.
 4. **Image Optimization & Uploads**:
    - For all storefront images: use Angular `NgOptimizedImage` (`[ngSrc]`). Never use raw `<img [src]>` for media assets.
    - Always wrap with `@if (imagePath())` and use `normalizeImageKitPath(item.imageUrl)` from `@shared/utils/image.utils`.

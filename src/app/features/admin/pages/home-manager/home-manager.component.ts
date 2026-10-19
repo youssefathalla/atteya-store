@@ -1,23 +1,37 @@
 import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { StorageUploadService } from '@core/services/storage';
 import { HomeService } from '@features/home/services/home.service';
-import { DEFAULT_HOME_HERO } from '@features/home/data/home.data';
+import {
+  DEFAULT_HOME_HERO,
+  DEFAULT_HOME_SHOP_CATEGORIES,
+} from '@features/home/data/home.data';
 import { HomeManagerHeaderComponent } from './components/home-manager-header/home-manager-header.component';
 import { HomeHeroEditorComponent } from './components/home-hero-editor/home-hero-editor.component';
 import { HomeHeroPreviewComponent } from './components/home-hero-preview/home-hero-preview.component';
+import { HomeCategoriesPreviewComponent } from './components/home-categories-preview/home-categories-preview.component';
+import { HomeCategoriesEditorComponent } from './components/home-categories-editor/home-categories-editor.component';
 import { HomeDraftService } from './services/home-draft.service';
 import { HomeDialogService } from './services/home-dialog.service';
-import { validateHomeHeroDraft } from './utils/home-manager.validator';
+import {
+  validateHomeHeroDraft,
+  validateHomeShopCategoriesDraft,
+} from './utils/home-manager.validator';
 import { HeroAction } from './models/home-manager.model';
 
 @Component({
   selector: 'app-home-manager',
   templateUrl: './home-manager.component.html',
   imports: [
+    MatButtonModule,
+    SharedIconModule,
     HomeManagerHeaderComponent,
     HomeHeroEditorComponent,
     HomeHeroPreviewComponent,
+    HomeCategoriesPreviewComponent,
+    HomeCategoriesEditorComponent,
   ],
 })
 export class HomeManagerComponent {
@@ -39,9 +53,10 @@ export class HomeManagerComponent {
       if (this.#homeService.isLoading()) return;
 
       const liveHero = this.#homeService.hero();
+      const liveShop = this.#homeService.shopCategories();
       if (!this.draft.isDirty()) {
         untracked(() => {
-          this.draft.resetDraftFromSource(liveHero);
+          this.draft.resetDraftFromSource(liveHero, liveShop);
         });
       }
     });
@@ -66,24 +81,35 @@ export class HomeManagerComponent {
 
   async publishChanges(): Promise<void> {
     const hero = this.draft.draftHero();
-    const error = validateHomeHeroDraft(hero);
-    if (error) {
-      this.#snackbar.error(error);
+    const shopCategories = this.draft.draftShopCategories();
+
+    const heroError = validateHomeHeroDraft(hero);
+    if (heroError) {
+      this.draft.setActiveSection('hero');
+      this.#snackbar.error(heroError);
+      return;
+    }
+
+    const shopError = validateHomeShopCategoriesDraft(shopCategories);
+    if (shopError) {
+      this.draft.setActiveSection('categories');
+      this.#snackbar.error(shopError);
       return;
     }
 
     this.#isSaving.set(true);
     try {
       const oldHero = this.#homeService.hero();
-      const orphanedPaths = this.draft.getOrphanedPathsForPublish(oldHero);
+      const oldShop = this.#homeService.shopCategories();
+      const orphanedPaths = this.draft.getOrphanedPathsForPublish(oldHero, oldShop);
 
-      await this.#homeService.updateHero(hero);
+      await this.#homeService.updateHomeSettings(hero, shopCategories);
       await this.#storageUpload.deleteImages(orphanedPaths);
 
       this.draft.markSaved();
-      this.#snackbar.success('Published! Your homepage banner is now live.');
+      this.#snackbar.success('Published! Your homepage sections are now live.');
     } catch (err) {
-      console.error('Failed to update home page hero:', err);
+      console.error('Failed to update home page settings:', err);
       this.#snackbar.error('Unable to publish changes. Please try again.');
     } finally {
       this.#isSaving.set(false);
@@ -97,16 +123,17 @@ export class HomeManagerComponent {
     this.#isResetting.set(true);
     try {
       const oldHero = this.#homeService.hero();
-      const orphanedPaths = this.draft.getOrphanedPathsForReset(oldHero);
+      const oldShop = this.#homeService.shopCategories();
+      const orphanedPaths = this.draft.getOrphanedPathsForReset(oldHero, oldShop);
 
-      await this.#homeService.resetDefaultHero();
+      await this.#homeService.resetDefaultHomeSettings();
       await this.#storageUpload.deleteImages(orphanedPaths);
 
-      this.draft.resetDraftFromSource(DEFAULT_HOME_HERO);
-      this.#snackbar.success('Default homepage banner restored.');
+      this.draft.resetDraftFromSource(DEFAULT_HOME_HERO, DEFAULT_HOME_SHOP_CATEGORIES);
+      this.#snackbar.success('Default homepage sections restored.');
     } catch (err) {
-      console.error('Failed to reset hero banner:', err);
-      this.#snackbar.error('Unable to restore default banner. Please try again.');
+      console.error('Failed to reset home sections:', err);
+      this.#snackbar.error('Unable to restore default sections. Please try again.');
     } finally {
       this.#isResetting.set(false);
     }
@@ -118,8 +145,9 @@ export class HomeManagerComponent {
       if (!confirmed) return;
     }
     const liveHero = this.#homeService.hero();
-    const orphanedPaths = this.draft.getOrphanedPathsForDiscard(liveHero);
+    const liveShop = this.#homeService.shopCategories();
+    const orphanedPaths = this.draft.getOrphanedPathsForDiscard(liveHero, liveShop);
     await this.#storageUpload.deleteImages(orphanedPaths);
-    this.draft.discardDraft(liveHero);
+    this.draft.discardDraft(liveHero, liveShop);
   }
 }

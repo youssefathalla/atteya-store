@@ -1,0 +1,28 @@
+<section class="surface-card p-5 sm:p-6 space-y-4" aria-label="Live Shop Categories Preview">
+  <div class="elements-between flex-wrap gap-4 border-b border-outline-variant pb-4">
+    <div>
+      <div class="elements-start gap-2.5">
+        <h3 class="font-title-md font-bold!">Live Storefront Preview</h3>
+        <span
+          class="px-2.5 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold! opacity-80"
+        >
+          Section 2 • 3 Category Cards
+        </span>
+      </div>
+      <p class="font-body-sm opacity-70 pt-0.5">
+        Click any card in the preview below to select and customize its photo and button.
+      </p>
+    </div>
+  </div>
+
+  <!-- Real Full-Width Storefront Shop Categories Section -->
+  <div class="w-full overflow-hidden border border-outline-variant border-shape bg-surface-container-lowest @container">
+    <app-shop-categories-section
+      [shopCategories]="shopCategories()"
+      [isLoading]="isLoading()"
+      [previewMode]="true"
+      [activeCardIndex]="activeCardIndex()"
+      (cardSelect)="activeCardChange.emit($event)"
+    />
+  </div>
+</section>

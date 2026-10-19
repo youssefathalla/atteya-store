@@ -36,6 +36,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/category/category.component').then((m) => m.CategoryComponent),
         title: 'Brand | Atteya Store',
+        data: { isBrand: true },
       },
     ],
   },

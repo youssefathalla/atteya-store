@@ -7,8 +7,7 @@
 html {
   height: 100%;
   color-scheme: light;
-  @include mat.theme(
-    (
+  @include mat.theme((
       color: (
         theme-type: color-scheme,
         primary: tc.$primary-palette,
@@ -16,6 +15,6 @@ html {
       ),
       typography: 'Google Sans Flex',
       density: 0,
-    )
-  );
+  ));
 }
+// Rebuild styles

@@ -43,6 +43,19 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 - **Universal Plain-Language Microcopy**: All user- and admin-facing copy (buttons, dialogs, snackbars, alerts, hints, empty states) must speak the natural, everyday language of general users. Always communicate user intent and real-world outcomes rather than technical mechanisms, developer jargon, or underlying systems. Keep action labels simple, familiar, and active, and ensure all feedback is constructive, reassuring, and intuitive.
 - **The Reference**: Activate the **`design-system`** skill for the styling directory map, token registration, Material overrides, and component APIs.
 
+### 📐 Layout & Viewport Sizing Standards
+
+1. **Top-Level Query Container**:
+   - `<main>` inside `main.component.html` carries `@container`. Page-level sections and cards must use `cqw` to remain fluid relative to drawer open/close and responsive main layouts.
+   - Never place `@container` on the same element where `cqw` padding is declared (CSS cannot query itself).
+2. **Angular Component Host Sizing**:
+   - All section and page components (`app-*-section`, `app-*`) must define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
+3. **Full-Viewport Sections**:
+   - Full-screen heroes directly below the header must use `h-[calc(100dvh-56px)]` (accounting for the 56px / `h-14` navbar).
+   - When a full-height hero is specified, do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to the slide containers, as `aspect-ratio` overrides height in modern CSS.
+4. **Section Spacing**:
+   - Use `.container-content` as the single unified class for page section layout and responsive container padding (`p-[5cqw]`). Do not append `.section-space` to elements that already have `.container-content`.
+
 ### 🛡️ Data Validation (active) & Firebase (target state)
 
 - **Strict Validation — ACTIVE**: `valibot` is installed and in use (`src/app/shared/schemas/`, `src/app/shared/ui/status-badge/status.model.ts`). Pipe all external data through a schema (`v.parse()` / `v.safeParse()`) before use. Use `createValibotConverter()` for Firestore documents. See the **`typescript`** skill for the schema rules.

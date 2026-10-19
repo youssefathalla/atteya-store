@@ -23,7 +23,7 @@ It answers:
 | **Text & Form Inputs** | **Shared UI Forms** | `<app-text-input [formField]="f.name" label="Name" />` | Powered by Signal Forms. Errors render automatically. **Never** write manual `mat-form-field` or `mat-error`. |
 | **Select Dropdowns** | **Shared UI Forms** | `<app-select-input [formField]="f.category" [options]="opts" label="Category" />` | Accessible, handles dark mode and validation. |
 | **File / Media Uploads** | **Shared UI Media & Forms** | `<app-image-picker>`, `<app-image-gallery-editor>`, or `<app-file-input>` | Use `ImagePicker` (single image + alt text) or `ImageGalleryEditor` (up to 8 images, reorder, Main image) for storefront media. |
-| **Skeleton Placeholders** | **Shared UI Skeleton** | `<app-skeleton class="w-full aspect-4/5" />` or `<img [ngSrc]="..." [appImageFallback]="..." />` | Monochrome M3 shimmer for cards, text (`variant="text" [lines]="3"`), avatars (`variant="circle"`), and loading images. |
+| **Skeleton Placeholders** | **Shared UI Skeleton** | `<app-skeleton class="w-full aspect-4/5" />` or `<app-skeleton overlay />` | Light-mode M3 shimmer for any aspect ratio (`aspect-4/5`, `aspect-16/9`, `aspect-square`) or card overlay veil (`overlay`). |
 | **Action & Icon Buttons** | **Angular Material M3** | `<button matButton="filled">Save</button>` or `<button matIconButton aria-label="Cart"><mat-icon name="shopping_bag" /></button>` | Fully themed by M3. **ZERO Tailwind classes** on the button element. Icon buttons require `aria-label`. Loading state: show **only the spinner** (`<mat-progress-spinner mode="indeterminate" diameter="18" />`), never spinner + text. |
 | **Status / State Badges** | **Shared UI Badge** | `<app-status-badge [value]="status" [statusConfig]="config" />` | Standardized colors and icons across storefront and admin. |
 | **Filter Chips** | **Shared UI Chips** | `<app-chips [chips]="list" [(value)]="selected" />` | Two-way model binding `[(value)]`. Single-select radiogroup semantics. |
@@ -128,5 +128,11 @@ Only use semantic status tokens. Never use arbitrary Tailwind palette colors:
 11. **Responsive Action Toolbars & Mobile Button Patterns**:
    - On compact/mobile screens (`< sm`), buttons in action headers or expansion panels must expand to full width (`<div class="w-full sm:w-auto [&>button]:w-full">`) or switch cleanly between full buttons and icon buttons using responsive utilities (`sm:hidden` / `hidden sm:block`).
    - Never cram multiple small inline buttons on narrow screens without proper wrapping or responsive stacking.
+12. **Layout & Viewport Sizing Standards**:
+   - **Top-Level Query Container**: `<main>` inside `main.component.html` carries `@container`. Page-level sections and cards must use `cqw` to remain fluid relative to drawer open/close and responsive main layouts. Never place `@container` on the same element where `cqw` padding is declared.
+   - **Angular Component Host Sizing**: All section and page components (`app-*-section`, `app-*`) must define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
+   - **Full-Viewport Sections**: Full-screen heroes directly below the header must use `h-[calc(100dvh-56px)]` (accounting for the 56px / `h-14` navbar). Do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to full-height hero slide containers, as `aspect-ratio` overrides height in modern CSS.
+   - **Section Spacing**: Use `.container-content` as the single unified class for page section layout and responsive container padding (`p-[5cqw]`). Do not append `.section-space` to elements that already have `.container-content`.
+
 
 

@@ -72,9 +72,19 @@ export class NavigationManagerComponent {
   async openAddLinkDialog(colIndex: number): Promise<void> {
     const current = this.draft.selectedCategory();
     const col = current?.megaMenu?.[colIndex];
+    const colTitle = col?.title?.toLowerCase() ?? '';
+    const hasExistingBrandLinks = col?.links?.some((l) => l.isBrand) ?? false;
+    const isBrandCategory =
+      current?.id?.toLowerCase() === 'brands' || current?.path === '/brands';
+    const isBrandContext =
+      hasExistingBrandLinks ||
+      colTitle.includes('brand') ||
+      (isBrandCategory && !colTitle.includes('discover'));
+
     const result = await this.#dialogs.openAddLink(
       col?.title || `Column ${colIndex + 1}`,
       current?.path,
+      isBrandContext,
     );
     if (result) this.draft.addLink(colIndex, result);
   }

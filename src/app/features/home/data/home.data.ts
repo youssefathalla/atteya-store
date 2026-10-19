@@ -1,4 +1,9 @@
-import { HeroSlide, HomeHero } from '../models/home.model';
+import {
+  HeroSlide,
+  HomeHero,
+  HomeShopCategories,
+  ShopCategoryCard,
+} from '../models/home.model';
 
 export const DEFAULT_HERO_SLIDES: readonly HeroSlide[] = [
   {
@@ -38,4 +43,32 @@ export const DEFAULT_HOME_HERO: HomeHero = {
     { ...DEFAULT_HERO_SLIDES[1], actions: [...DEFAULT_HERO_SLIDES[1].actions] },
     { ...DEFAULT_HERO_SLIDES[2], actions: [...DEFAULT_HERO_SLIDES[2].actions] },
   ],
+};
+
+export const SHOP_CATEGORIES_CARD_COUNT = 3;
+
+export const DEFAULT_SHOP_CATEGORY_CARDS: readonly ShopCategoryCard[] = [
+  {
+    imageUrl: '',
+    imageAlt: 'Performance athletic and court shoes',
+    buttonLabel: 'Shoes',
+    buttonLink: '/category/shoes',
+  },
+  {
+    imageUrl: '',
+    imageAlt: 'Lightweight breathable training apparel',
+    buttonLabel: 'Apparel',
+    buttonLink: '/category/apparel',
+  },
+  {
+    imageUrl: '',
+    imageAlt: 'Pro padel bags, caps, and athletic accessories',
+    buttonLabel: 'Accessories',
+    buttonLink: '/category/accessories',
+  },
+];
+
+export const DEFAULT_HOME_SHOP_CATEGORIES: HomeShopCategories = {
+  title: 'Shop',
+  cards: DEFAULT_SHOP_CATEGORY_CARDS.map((card) => ({ ...card })),
 };

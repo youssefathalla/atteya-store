@@ -26,53 +26,41 @@
     </div>
   </div>
 
-  <!-- 1. Reusable Monochrome Skeleton System (Images & Non-Images) -->
+  <!-- 1. Reusable Monochrome Skeleton System (Any Aspect Ratio & Overlay Mode) -->
   <div class="surface-card p-6 space-y-5">
     <div>
       <h3 class="font-title-md font-bold!">Reusable Skeleton Placeholders (&lt;app-skeleton&gt;)</h3>
       <p class="font-body-sm opacity-70">
-        Monochrome M3 shimmer blocks for product cards, text lines, avatars, and image containers (`aria-busy="true"`).
+        Light-mode M3 shimmer blocks that adapt to any container aspect ratio (`aspect-16/9`, `aspect-4/5`, `aspect-square`) or cover cards via `overlay`.
       </p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6" aria-busy="true">
-      <!-- Product Card Skeleton -->
-      <div class="p-4 bg-surface-container-low panel-border space-y-4">
-        <span class="font-label-sm font-bold! uppercase opacity-70 block">Product Card Skeleton</span>
+      <!-- 4/5 Portrait Card Skeleton -->
+      <div class="p-4 bg-surface-container-low panel-border space-y-3">
+        <span class="font-label-sm font-bold! uppercase opacity-70 block">Portrait Card (4:5)</span>
         <app-skeleton class="w-full aspect-4/5" />
-        <app-skeleton variant="text" [lines]="2" />
-        <div class="elements-between pt-1">
-          <app-skeleton class="h-6 w-20" />
-          <app-skeleton class="h-9 w-28" />
-        </div>
       </div>
 
-      <!-- Profile / Review Card Skeleton -->
-      <div class="p-4 bg-surface-container-low panel-border space-y-4">
-        <span class="font-label-sm font-bold! uppercase opacity-70 block">Review / Profile Skeleton</span>
-        <div class="elements-start gap-3">
-          <app-skeleton variant="circle" class="size-12 shrink-0" />
-          <div class="flex-1">
-            <app-skeleton variant="text" [lines]="2" />
-          </div>
-        </div>
-        <app-skeleton variant="text" [lines]="4" />
+      <!-- 1:1 Square Skeleton -->
+      <div class="p-4 bg-surface-container-low panel-border space-y-3">
+        <span class="font-label-sm font-bold! uppercase opacity-70 block">Square Image (1:1)</span>
+        <app-skeleton class="w-full aspect-square" />
       </div>
 
-      <!-- Dark Inverse Skeleton (e.g. Hero / Dark Banner) -->
-      <div class="p-4 bg-primary text-on-primary panel-border space-y-4">
-        <span class="font-label-sm font-bold! uppercase opacity-80 block">Inverse Dark Surface Skeleton</span>
-        <app-skeleton [inverse]="true" class="w-full h-36" />
-        <app-skeleton [inverse]="true" variant="text" [lines]="3" />
+      <!-- 16:9 Widescreen Banner Skeleton -->
+      <div class="p-4 bg-surface-container-low panel-border space-y-3">
+        <span class="font-label-sm font-bold! uppercase opacity-70 block">Widescreen Banner (16:9)</span>
+        <app-skeleton class="w-full aspect-video" />
       </div>
 
       <!-- Overlay Veil Skeleton (z-50 sits on top of buttons and content) -->
-      <div class="relative p-4 bg-surface-container-low panel-border space-y-4 overflow-hidden elements-between-col">
+      <div class="relative p-4 bg-surface-container-low panel-border space-y-4 overflow-hidden elements-between-col min-h-60">
         <app-skeleton overlay />
         <div>
           <span class="font-label-sm font-bold! uppercase opacity-70 block">Overlay Veil Skeleton (z-50)</span>
           <p class="font-body-sm opacity-70 pt-1">
-            Component stays rendered underneath, but buttons and text are hidden by z-50 shimmer.
+            Component stays rendered underneath, while the z-50 shimmer veil covers all content until ready.
           </p>
         </div>
         <div class="elements-between pt-4 w-full">

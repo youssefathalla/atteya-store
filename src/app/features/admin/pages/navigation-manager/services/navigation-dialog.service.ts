@@ -100,7 +100,11 @@ export class NavigationDialogService {
     return !!confirmed;
   }
 
-  async openAddLink(columnTitle?: string, categoryPath?: string): Promise<AddLinkDialogResult | null> {
+  async openAddLink(
+    columnTitle?: string,
+    categoryPath?: string,
+    isBrand?: boolean,
+  ): Promise<AddLinkDialogResult | null> {
     const dialogRef = this.#dialog.open<
       AddLinkDialogComponent,
       AddLinkDialogData,
@@ -109,6 +113,7 @@ export class NavigationDialogService {
       data: {
         columnTitle,
         categoryPath,
+        isBrand,
       },
       width: '480px',
       maxWidth: '92vw',

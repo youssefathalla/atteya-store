@@ -28,6 +28,10 @@ Lookup-free quick reference. For style directory map, SCSS mixins, and component
 | `<mat-icon>home</mat-icon>`                                                                                                         | `<mat-icon name="home" />` with `SharedIconModule`                                                                                      |
 | Arbitrary corner radii (`rounded`, `rounded-sm`, `rounded-md`, `rounded-lg`)                                                        | Single source of truth: `border-shape` (`border-radius: var(--border-shape, 2px)`)                                                      |
 | Raw unoptimized `<img>` for media assets                                                                                            | `NgOptimizedImage` (`[ngSrc]`, `fill`, `priority`, `sizes`) with ImageKit CDN and `normalizeImageKitPath()`                             |
+| `@container` on the same element as `cqw` / `.container-content`                                                                    | Keep `@container` on `<main>` (or preview wrapper); use `.container-content` (`p-[5cqw]`) on child sections                             |
+| Combining `.container-content` and `.section-space` on the same element                                                             | Use `.container-content` alone (already includes `p-[5cqw]`)                                                                            |
+| Missing `host: { class: 'block w-full' }` on section/page components                                                                | Always declare `host: { class: 'block w-full' }` on `app-*-section` and page components to prevent inline width/height collapse         |
+| Adding `aspect-*` to full-height hero containers (`h-[calc(100dvh-56px)]`)                                                          | Omit `aspect-*` on full-viewport hero slides so `aspect-ratio` does not override `h-full`                                               |
 | Technical jargon in UI copy                                                                                                         | Human-first, outcome-focused plain language (simple everyday words, clear intent)                                                       |
 
 > **The "2+ Duplication Rule"**: If a chain of ~4+ utilities appears on **2 or more** elements, extract a class into `src/styles/tailwind/components/`.
@@ -63,7 +67,22 @@ Always use Material M3 typography tokens. Never use arbitrary Tailwind text sizi
 
 ---
 
-## 4. Custom Utilities
+## 4. Layout & Viewport Sizing Standards
+
+1. **Top-Level Query Container**:
+   - `<main>` inside `main.component.html` carries `@container`. Page-level sections and cards must use `cqw` to remain fluid relative to drawer open/close and responsive main layouts.
+   - Never place `@container` on the same element where `cqw` padding is declared (CSS cannot query itself).
+2. **Angular Component Host Sizing**:
+   - All section and page components (`app-*-section`, `app-*`) must define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
+3. **Full-Viewport Sections**:
+   - Full-screen heroes directly below the header must use `h-[calc(100dvh-56px)]` (accounting for the 56px / `h-14` navbar).
+   - When a full-height hero is specified, do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to the slide containers, as `aspect-ratio` overrides height in modern CSS.
+4. **Section Spacing**:
+   - Use `.container-content` as the single unified class for page section layout and responsive container padding (`p-[5cqw]`). Do not append `.section-space` to elements that already have `.container-content`.
+
+---
+
+## 5. Custom Utilities
 
 - **Borders & Shapes**: `border-shape`
 - **Layout (Row)**: `elements-center`, `elements-start`, `elements-end`, `elements-between`

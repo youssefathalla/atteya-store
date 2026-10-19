@@ -2,10 +2,10 @@
   class="fixed bottom-0 inset-x-0 z-50 lg:hidden bg-surface-container-lowest/95 backdrop-blur-md border-t border-outline-variant px-3 py-1.5 pb-safe-bottom shadow-mat-2 select-none"
   aria-label="Mobile navigation"
 >
-  <div class="elements-between py-2 px-1 sm:px-2 icon-btn-lg">
+  <div class="elements-between py-2 px-1 sm:px-2 icon-btn-lg text">
     <!-- 1. Search -->
     <button matIconButton type="button" (click)="toggleSearch()" aria-label="Search">
-      <mat-icon name="search" />
+      <mat-icon name="search" size="2xl" />
     </button>
 
     <!-- 2. Bag / Cart with Badge (Fill when open, Outline when closed) -->
@@ -17,35 +17,21 @@
       [matBadge]="cartCount()"
       [matBadgeHidden]="cartCount() === 0"
       [matBadgeDescription]="cartCount() + ' items in cart'"
-      
     >
-      <mat-icon
-        name="shopping_bag"
-        [type]="isCartOpen() ? 'fill' : 'outline'"
-      />
+      <mat-icon name="shopping_bag" [type]="isCartOpen() ? 'fill' : 'outline'" size="2xl" />
     </button>
 
     <!-- 3. CENTER: Brand Logo / Home Anchor -->
     <app-logo />
 
     <!-- 4. Profile / Account -->
-    <button
-      matIconButton
-      type="button"
-      [matMenuTriggerFor]="profileMenu"
-      aria-label="User Account"
-    >
-      <mat-icon name="person_outline" />
+    <button matIconButton type="button" [matMenuTriggerFor]="profileMenu" aria-label="User Account">
+      <mat-icon name="person_outline" size="2xl" />
     </button>
 
     <!-- 5. Menu / All Categories (Toggles between menu and close icon) -->
-    <button
-      matIconButton
-      type="button"
-      (click)="toggleMenu()"
-      aria-label="Toggle navigation menu"
-    >
-      <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" />
+    <button matIconButton type="button" (click)="toggleMenu()" aria-label="Toggle navigation menu">
+      <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" size="2xl" />
     </button>
   </div>
 </nav>

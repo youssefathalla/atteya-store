@@ -5,7 +5,6 @@ import {
   input,
   output,
   PLATFORM_ID,
-  signal,
 } from '@angular/core';
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -19,6 +18,9 @@ import { MatAnchor, MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-hero-section',
+  host: {
+    class: 'block w-full',
+  },
   templateUrl: './hero-section.component.html',
   styleUrl: './hero-section.component.scss',
   imports: [
@@ -32,7 +34,7 @@ import { MatAnchor, MatButtonModule } from '@angular/material/button';
   ],
 })
 export class HeroSectionComponent {
-  readonly #platformId = inject(PLATFORM_ID);
+  readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly hero = input.required<HomeHero>();
   readonly isLoading = input<boolean>(false);
@@ -40,9 +42,6 @@ export class HeroSectionComponent {
   readonly activeSlotIndex = input<number>(0);
 
   readonly slotSelect = output<number>();
-
-  /** Tracks indices of hero banner images that have completed loading or failed over */
-  readonly #loadedImages = signal<Set<number>>(new Set());
 
   readonly visibleSlides = computed<readonly HeroSlide[]>(() => {
     const { layoutCount, slides } = this.hero();
@@ -52,34 +51,6 @@ export class HeroSectionComponent {
     }
     return result;
   });
-
-  /**
-   * Card-level loading check:
-   * Returns false during SSR so prerendered HTML contains full semantic content and headings.
-   * In browser, verifies that the image has loaded before removing the shimmer veil.
-   */
-  isCardLoading(index: number, imgSrc: string | null): boolean {
-    if (!isPlatformBrowser(this.#platformId)) return false;
-    if (this.isLoading()) return true;
-    if (!imgSrc) return false;
-    return !this.#loadedImages().has(index);
-  }
-
-  onImageLoaded(index: number): void {
-    this.#loadedImages.update((current) => {
-      const next = new Set(current);
-      next.add(index);
-      return next;
-    });
-  }
-
-  onImageFailed(index: number): void {
-    this.#loadedImages.update((current) => {
-      const next = new Set(current);
-      next.add(index);
-      return next;
-    });
-  }
 
   getSlideDisplaySrc(slide: HeroSlide): string | null {
     const path = normalizeImageKitPath(slide.imageUrl);

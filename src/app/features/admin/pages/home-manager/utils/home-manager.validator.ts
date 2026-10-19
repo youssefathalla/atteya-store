@@ -1,5 +1,12 @@
 import { diffOrphanedPaths } from '@shared/utils/image';
-import { HeroAction, HeroSlide, HomeHero } from '../models/home-manager.model';
+import { SHOP_CATEGORIES_CARD_COUNT } from '@features/home/data/home.data';
+import {
+  HeroAction,
+  HeroSlide,
+  HomeHero,
+  HomeShopCategories,
+  ShopCategoryCard,
+} from '../models/home-manager.model';
 
 /**
  * Validates a single hero action button.
@@ -63,6 +70,54 @@ export function validateHomeHeroDraft(hero: HomeHero): string | null {
 
   for (let i = 0; i < activeSlides.length; i++) {
     const err = validateHeroSlide(activeSlides[i], i, hero.layoutCount);
+    if (err) return err;
+  }
+
+  return null;
+}
+
+/**
+ * Validates a single Shop Category card in Section 2.
+ */
+export function validateShopCategoryCard(
+  card: ShopCategoryCard,
+  cardIndex: number,
+): string | null {
+  const prefix = `Section 2 • Card #${cardIndex + 1}: `;
+
+  if (!card.buttonLabel || card.buttonLabel.trim().length === 0) {
+    return `${prefix}Button label cannot be empty.`;
+  }
+  if (!card.buttonLink || card.buttonLink.trim().length === 0) {
+    return `${prefix}Button "${card.buttonLabel}" requires a destination link.`;
+  }
+  if (!card.imageUrl || card.imageUrl.trim().length === 0) {
+    return `${prefix}Please upload an image for "${card.buttonLabel}".`;
+  }
+  if (!card.imageAlt || card.imageAlt.trim().length === 0) {
+    return `${prefix}Please provide an image description (alt text) for "${card.buttonLabel}".`;
+  }
+
+  return null;
+}
+
+/**
+ * Validates Section 2 (Shop Categories) before publishing.
+ */
+export function validateHomeShopCategoriesDraft(
+  shopCategories: HomeShopCategories,
+): string | null {
+  if (!shopCategories.title || shopCategories.title.trim().length === 0) {
+    return 'Section 2: Section title cannot be empty (e.g. "Shop").';
+  }
+
+  const cards = shopCategories.cards.slice(0, SHOP_CATEGORIES_CARD_COUNT);
+  if (cards.length < SHOP_CATEGORIES_CARD_COUNT) {
+    return 'Section 2: Please configure all 3 category cards before publishing.';
+  }
+
+  for (let i = 0; i < cards.length; i++) {
+    const err = validateShopCategoryCard(cards[i], i);
     if (err) return err;
   }
 

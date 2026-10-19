@@ -1,8 +1,9 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { NavService } from '@core/services/navigation';
+import { SeoService } from '@core/services/seo';
 
 interface BrandCardItem {
   readonly label: string;
@@ -15,11 +16,20 @@ interface BrandCardItem {
   imports: [RouterLink, MatButtonModule, SharedIconModule],
   templateUrl: './brands.component.html',
   host: {
-    class: 'block w-full min-h-[60vh] py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto',
+    class: 'block w-full min-h-[60vh] container-content',
   },
 })
-export class BrandsComponent {
+export class BrandsComponent implements OnInit {
   readonly #navService = inject(NavService);
+  readonly #seoService = inject(SeoService);
+
+  ngOnInit(): void {
+    this.#seoService.setPageMetadata({
+      title: 'Featured Brands | Atteya Store',
+      description:
+        "Discover our curated collection of tournament-grade equipment, padel rackets, and performance apparel from the world's most prestigious athletic brands.",
+    });
+  }
 
   readonly brandGroups = computed(() => {
     const brandsCategory = this.#navService

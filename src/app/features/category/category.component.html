@@ -33,8 +33,13 @@
           {{ displayTitle() }}
         </h1>
         <p class="font-body-md mt-2 max-w-2xl opacity-80">
-          Discover our curated collection of tournament-grade
-          {{ displayTitle().toLowerCase() }} designed for elite padel and tennis players.
+          @if (isBrandRoute()) {
+            Discover official tournament equipment and performance gear from
+            {{ displayTitle() }} at Atteya Store.
+          } @else {
+            Discover our curated collection of tournament-grade
+            {{ displayTitle().toLowerCase() }} designed for elite padel and tennis players.
+          }
         </p>
       </div>
 

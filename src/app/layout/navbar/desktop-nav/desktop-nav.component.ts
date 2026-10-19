@@ -9,13 +9,7 @@ import { NavLinksComponent } from './components/nav-links/nav-links.component';
 
 @Component({
   selector: 'app-desktop-nav',
-  imports: [
-    SharedIconModule,
-    NavbarActionsComponent,
-    LogoComponent,
-    NavLinksComponent,
-    MatButtonModule,
-  ],
+  imports: [SharedIconModule, NavbarActionsComponent, LogoComponent, NavLinksComponent, MatButtonModule],
   templateUrl: './desktop-nav.component.html',
   host: {
     class: 'hidden lg:block w-full sticky top-0 z-50',

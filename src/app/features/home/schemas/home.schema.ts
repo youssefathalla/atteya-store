@@ -30,10 +30,22 @@ const LegacyHomeHeroSchema = v.pipe(
 
 export const HomeHeroSchema = v.union([ModernHomeHeroSchema, LegacyHomeHeroSchema]);
 
+export const ShopCategoryCardSchema = v.object({
+  imageUrl: v.pipe(v.string(), v.trim()),
+  imageAlt: v.optional(v.pipe(v.string(), v.trim()), ''),
+  buttonLabel: v.pipe(v.string(), v.trim()),
+  buttonLink: v.pipe(v.string(), v.trim()),
+});
+
+export const HomeShopCategoriesSchema = v.object({
+  title: v.optional(v.pipe(v.string(), v.trim()), 'Shop'),
+  cards: v.array(ShopCategoryCardSchema),
+});
+
 export const HomeSettingsSchema = v.object({
   id: v.optional(v.string()),
   hero: HomeHeroSchema,
+  shopCategories: v.optional(HomeShopCategoriesSchema),
   updatedAt: v.optional(v.unknown()),
   updatedBy: v.optional(v.string()),
 });
-

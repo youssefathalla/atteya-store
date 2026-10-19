@@ -112,8 +112,29 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         );
       }
 
-      // Rule: Prefer elements-center, elements-start, elements-end, elements-between shortcuts
+      // Rule: Do not combine .container-content and .section-space on the same element
       const classWords = classStr.split(/\s+/);
+      if (classWords.includes('container-content') && classWords.includes('section-space')) {
+        logError(
+          filePath,
+          tagLine,
+          `Redundant 'section-space' combined with 'container-content' in "${classStr}". '.container-content' already applies 'p-[5cqw]'.`
+        );
+      }
+
+      // Rule: Never place @container on the same element where container-content or cqw padding is declared
+      if (
+        classWords.includes('@container') &&
+        (classWords.includes('container-content') || /\bcqw\b/.test(classStr))
+      ) {
+        logError(
+          filePath,
+          tagLine,
+          `'@container' cannot be placed on the same element as 'container-content' or 'cqw' sizing ("${classStr}") because a CSS container cannot query itself.`
+        );
+      }
+
+      // Rule: Prefer elements-center, elements-start, elements-end, elements-between shortcuts
       if (classWords.includes('flex') && classWords.includes('items-center') && !classWords.includes('flex-col')) {
         for (const [justCls, shortcut] of [
           ['justify-center', 'elements-center'],
@@ -354,6 +375,15 @@ function auditTypeScript(files) {
         );
       }
     });
+
+    // Ensure *-section.component.ts defines host: { class: 'block w-full' }
+    if (filePath.endsWith('-section.component.ts') && !/host:\s*\{[\s\S]*?\bblock\b[\s\S]*?\bw-full\b/.test(content)) {
+      logError(
+        filePath,
+        1,
+        `Section component must define "host: { class: 'block w-full' }" in @Component() to prevent inline width/height collapse.`
+      );
+    }
   }
 }
 

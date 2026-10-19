@@ -1,11 +1,20 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { HomeService } from './services/home.service';
 import { HeroSectionComponent } from './components/hero-section/hero-section.component';
+import { ShopCategoriesSectionComponent } from './components/shop-categories-section/shop-categories-section.component';
+import { SkeletonComponent } from '@shared/ui/skeleton';
 import { SeoService } from '@core/services/seo';
 
 @Component({
   selector: 'app-home',
-  imports: [HeroSectionComponent],
+  host: {
+    class: 'block w-full',
+  },
+  imports: [
+    HeroSectionComponent,
+    ShopCategoriesSectionComponent,
+    SkeletonComponent,
+  ],
   templateUrl: './home.component.html',
 })
 export class HomeComponent implements OnInit {
@@ -13,6 +22,7 @@ export class HomeComponent implements OnInit {
   readonly #seoService = inject(SeoService);
 
   readonly hero = this.#homeService.hero;
+  readonly shopCategories = this.#homeService.shopCategories;
   readonly isLoading = this.#homeService.isLoading;
 
   ngOnInit(): void {

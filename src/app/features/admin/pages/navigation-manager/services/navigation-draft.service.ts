@@ -10,18 +10,38 @@ function computeAutoSyncPath(
   value: unknown,
   basePath: string,
 ): string | undefined {
-  if (field !== 'label' || typeof value !== 'string' || !value.trim()) {
-    return undefined;
-  }
-  const oldSlug = slugify(link.label);
-  const currentPath = link.path;
-  const isAutoSyncCandidate =
-    !currentPath ||
-    currentPath === '/category' ||
-    currentPath.endsWith(`/${oldSlug}`) ||
-    currentPath.endsWith('/new-link');
+  if (field === 'label' && typeof value === 'string' && value.trim()) {
+    const oldSlug = slugify(link.label);
+    const currentPath = link.path;
+    const isAutoSyncCandidate =
+      !currentPath ||
+      currentPath === '/category' ||
+      currentPath === '/brand' ||
+      currentPath.endsWith(`/${oldSlug}`) ||
+      currentPath.endsWith('/new-link');
 
-  return isAutoSyncCandidate ? `${basePath}/${slugify(value)}` : undefined;
+    const effectiveBasePath = link.isBrand ? '/brand' : basePath;
+    return isAutoSyncCandidate ? `${effectiveBasePath}/${slugify(value)}` : undefined;
+  }
+
+  if (field === 'isBrand') {
+    const isBrand = Boolean(value);
+    const slug = slugify(link.label);
+    const currentPath = link.path;
+    const isAutoSyncCandidate =
+      !currentPath ||
+      currentPath === '/category' ||
+      currentPath === '/brand' ||
+      (Boolean(slug) && currentPath.endsWith(`/${slug}`)) ||
+      currentPath.endsWith('/new-link');
+
+    if (isAutoSyncCandidate) {
+      const effectiveBasePath = isBrand ? '/brand' : basePath;
+      return slug ? `${effectiveBasePath}/${slug}` : `${effectiveBasePath}/`;
+    }
+  }
+
+  return undefined;
 }
 
 @Service()
@@ -174,16 +194,18 @@ export class NavigationDraftService {
   // --- Link Management ---
   addLink(
     colIndex: number,
-    data?: { label: string; path: string; badge?: string },
+    data?: { label: string; path: string; badge?: string; isBrand?: boolean },
   ): void {
     const label = data?.label?.trim() ?? '';
     const path = data?.path?.trim() ? normalizePath(data.path) : '';
     const badge = data?.badge?.trim() ? data.badge.trim() : undefined;
+    const isBrand = data?.isBrand;
 
     const newLink: MegaMenuLink = {
       label,
       path,
       ...(badge ? { badge } : {}),
+      ...(isBrand ? { isBrand: true } : {}),
     };
 
     this.#updateColumns((cols) =>
@@ -224,8 +246,9 @@ export class NavigationDraftService {
     const link = current.megaMenu[colIndex]?.links[linkIndex];
     if (!link) return;
 
-    const basePath =
-      current.path || `/category/${slugify(current.label || current.id)}`;
+    const basePath = link.isBrand
+      ? '/brand'
+      : (current.path || `/category/${slugify(current.label || current.id)}`);
     const slug = slugify(link.label || 'item');
     this.updateLinkField(colIndex, linkIndex, 'path', `${basePath}/${slug}`);
   }
@@ -248,11 +271,18 @@ export class NavigationDraftService {
         const updatedLinks = col.links.map((link, lIdx) => {
           if (lIdx !== linkIndex) return link;
           const autoPath = computeAutoSyncPath(link, field, value, basePath);
-          return {
+          const updatedLink: MegaMenuLink = {
             ...link,
             [field]: value,
             ...(autoPath ? { path: autoPath } : {}),
           };
+          if (!updatedLink.isBrand) {
+            delete updatedLink.isBrand;
+          }
+          if (!updatedLink.badge) {
+            delete updatedLink.badge;
+          }
+          return updatedLink;
         });
         return { ...col, links: updatedLinks };
       }),

@@ -72,6 +72,21 @@
       />
       <mat-hint>Optional highlight chip shown beside link</mat-hint>
     </mat-form-field>
+
+    <!-- Brand Link Checkbox -->
+    <div class="pt-1">
+      <mat-checkbox
+        id="new-link-is-brand"
+        name="new-link-is-brand"
+        [ngModel]="isBrand()"
+        (ngModelChange)="onIsBrandChange($event)"
+      >
+        <span>Brand Link</span>
+      </mat-checkbox>
+      <p class="font-body-xs opacity-70 pl-8">
+        Marks this item as an official brand link (routes to /brand/:slug)
+      </p>
+    </div>
   </mat-dialog-content>
 
   <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">
