@@ -190,7 +190,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `resolveInput(raw, folder)`: Parses user input (`parseImageInput`), verifies managed paths via a CORS-safe `new Image()` ImageKit probe, or imports external URLs via the `importImageFromUrl` Cloud Function. Throws plain-language `ImageInputError`.
 - **`StorageUploadService`** (`src/app/core/services/storage/storage-upload.service.ts`):
   - `uploadImage(file, folder = 'hero')`: Uploads image (`File`) to Firebase Storage via `uploadBytes()`, returning `{ path: string }` (does not call `getDownloadURL()`).
-  - `importFromUrl(url, folder = 'hero')`: Calls the `importImageFromUrl` 2nd-gen Callable Cloud Function (`functions/src/import-image.fn.ts`) to fetch external URLs server-side without browser CORS issues and save directly to Storage.
+  - `importFromUrl(url, folder = 'hero')`: Calls the `importImageFromUrl` 2nd-gen Callable Cloud Function (`functions/src/import-image.fn.ts`) to fetch external URLs server-side without browser CORS issues and save directly to Storage. The function rejects callers who are not `role: 'admin'`.
   - `deleteImage(pathOrUrl)` / `deleteImages(paths)`: Deletes managed Storage files while ignoring `/img/`, external URLs, or `PROTECTED_STORAGE_PATHS`.
   - `isUploading`: Read-only `Signal<boolean>` tracking active upload status.
 - **`StorageAssetTracker`** (`src/app/core/services/storage/storage-asset-tracker.ts`):
@@ -315,6 +315,10 @@ All storefront visual media (hero banners, product showcases, category headers) 
 
 - In admin forms, use `<app-image-picker>` for single images or `<app-image-gallery-editor>` for multi-image galleries (up to 8 images, `products/<productId>/` folder).
 - Track session uploads with `StorageAssetTracker` so discarded or replaced files are automatically cleaned up from Firebase Storage.
+
+### Admin role
+
+The custom claim `role: 'admin'` is the only admin grant. `AdminRolesService` (`src/app/features/admin/pages/settings/services/admin-roles.service.ts`) calls `listAdmins` and `setUserRole` and reads the latest 20 `auditLogs`. The Admins tab is `/admin/settings/admins`. The repo copy of the bootstrap script is `functions/scripts/set-admin.mjs` (`--role`, `--show`, `--list`). `--list` and `listAdmins` read Auth claims, so they work when `roles/{uid}` was never written. `setUserRole` refuses to remove the last admin, writes one audit record, and revokes refresh tokens on removal. App Check enforcement stays off until `APP_CHECK_ENFORCED` is set.
 
 ---
 
