@@ -1,0 +1,91 @@
+@let titleText = title();
+@let current = activeIndex();
+
+<section class="container-content" (pointerenter)="mountRemaining()" (focusin)="mountRemaining()">
+  <div class="mx-auto flex w-full max-w-7xl justify-between">
+    <nav class="w-full lg:w-fit lg:shrink-0" [attr.aria-labelledby]="titleId">
+      <h2 [id]="titleId" class="sr-only">{{ titleText }}</h2>
+      <ul class="nav-list">
+        @for (item of items(); track $index; let idx = $index) {
+          <li>
+            @if (previewMode()) {
+              <button
+                type="button"
+                class="nav-list-link"
+                [class.ring-2]="isEdited(idx)"
+                [class.ring-inset]="isEdited(idx)"
+                [class.ring-primary]="isEdited(idx)"
+                [attr.aria-pressed]="isEdited(idx)"
+                (mouseenter)="activate(idx)"
+                (focusin)="activate(idx)"
+                (click)="selectItem(idx)"
+              >
+                <ng-container
+                  [ngTemplateOutlet]="rowLabel"
+                  [ngTemplateOutletContext]="{ $implicit: item, active: current === idx }"
+                />
+              </button>
+            } @else {
+              <a
+                class="nav-list-link"
+                [routerLink]="item.link"
+                (mouseenter)="activate(idx)"
+                (focusin)="activate(idx)"
+              >
+                <ng-container
+                  [ngTemplateOutlet]="rowLabel"
+                  [ngTemplateOutletContext]="{ $implicit: item, active: current === idx }"
+                />
+              </a>
+            }
+          </li>
+        }
+      </ul>
+    </nav>
+
+    <div class="nav-list-panel" aria-hidden="true">
+      @if (showPhotos()) {
+        @for (item of items(); track $index; let idx = $index) {
+          @if (isMounted(idx)) {
+            <div
+              class="nav-list-photo"
+              data-nav-photo
+              [attr.data-nav-index]="idx"
+              [class.is-active]="current === idx"
+            >
+              @if (imagePath(item); as src) {
+                <img
+                  [ngSrc]="src"
+                  ngSrcset="520w, 1040w"
+                  [appImageFallback]="src"
+                  alt=""
+                  fill
+                  sizes="(min-width: 1024px) 520px, 100vw"
+                  class="object-cover object-center"
+                />
+              } @else {
+                <div class="absolute inset-0 skeleton"></div>
+              }
+            </div>
+          }
+        }
+      }
+
+      @if (isBrowser && isLoading()) {
+        <app-skeleton overlay />
+      }
+    </div>
+  </div>
+</section>
+
+<ng-template #rowLabel let-item let-active="active">
+  <span class="min-w-0">{{ item.label || 'Untitled' }}</span>
+  <span class="lg:hidden" aria-hidden="true">
+    <mat-icon name="arrow_forward" />
+  </span>
+  @if (active) {
+    <span class="hidden lg:inline-flex" aria-hidden="true">
+      <mat-icon name="arrow_forward" />
+    </span>
+  }
+</ng-template>

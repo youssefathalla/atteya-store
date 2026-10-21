@@ -99,6 +99,11 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
   - Use `<app-skeleton>` (`@shared/ui/skeleton`) or `.skeleton` for layout/content placeholders (`@defer` placeholders, `resource.isLoading()` cards/lists/text) to prevent Cumulative Layout Shift (CLS).
   - Reserve `<mat-progress-spinner>` and `<app-loader>` for active button actions or blocking overlays.
 
+### Storefront motion (GSAP)
+
+- `app-navigation-list-section` is the first storefront GSAP animation. Load `gsap` inside `afterNextRender` (never during server rendering), scope tweens with `gsap.context` on the component host, and `revert()` that context on destroy.
+- The server HTML marks the first link active. Photos mount only after the browser confirms the desktop layout, so a phone never requests them. Once that panel is up, CSS shows the first photo until GSAP runs. `prefers-reduced-motion` swaps instantly with no scale. See `reusable-catalog` for the inputs, the `settings/home.navList` field, and the `.nav-list*` classes.
+
 ### 📝 Living Documentation Directive
 
 - All agent documentation (`AGENTS.md`, `.agents/skills/`, `.cursor/rules/`) is a living contract. Skills stay in `.agents/skills/` (Cursor loads that folder). Only Cursor-specific files live in `.cursor/`: the design-system rule, and the `ask`, `sync-docs`, and `teacher` skills (Cursor does not load `.agents/workflows`).

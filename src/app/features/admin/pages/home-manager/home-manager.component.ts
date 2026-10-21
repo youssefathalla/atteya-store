@@ -3,9 +3,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { StorageUploadService } from '@core/services/storage';
+import { NavService } from '@core/services/navigation';
 import { HomeService } from '@features/home/services/home.service';
 import {
   DEFAULT_HOME_HERO,
+  DEFAULT_HOME_NAV_LIST,
   DEFAULT_HOME_SHOP_CATEGORIES,
 } from '@features/home/data/home.data';
 import { HomeManagerHeaderComponent } from './components/home-manager-header/home-manager-header.component';
@@ -13,10 +15,13 @@ import { HomeHeroEditorComponent } from './components/home-hero-editor/home-hero
 import { HomeHeroPreviewComponent } from './components/home-hero-preview/home-hero-preview.component';
 import { HomeCategoriesPreviewComponent } from './components/home-categories-preview/home-categories-preview.component';
 import { HomeCategoriesEditorComponent } from './components/home-categories-editor/home-categories-editor.component';
+import { HomeNavListPreviewComponent } from './components/home-nav-list-preview/home-nav-list-preview.component';
+import { HomeNavListEditorComponent } from './components/home-nav-list-editor/home-nav-list-editor.component';
 import { HomeDraftService } from './services/home-draft.service';
 import { HomeDialogService } from './services/home-dialog.service';
 import {
   validateHomeHeroDraft,
+  validateHomeNavListDraft,
   validateHomeShopCategoriesDraft,
 } from './utils/home-manager.validator';
 import { HeroAction } from './models/home-manager.model';
@@ -32,10 +37,13 @@ import { HeroAction } from './models/home-manager.model';
     HomeHeroPreviewComponent,
     HomeCategoriesPreviewComponent,
     HomeCategoriesEditorComponent,
+    HomeNavListPreviewComponent,
+    HomeNavListEditorComponent,
   ],
 })
 export class HomeManagerComponent {
   readonly #homeService = inject(HomeService);
+  readonly #navService = inject(NavService);
   readonly #snackbar = inject(SnackbarService);
   readonly #dialogs = inject(HomeDialogService);
   readonly #storageUpload = inject(StorageUploadService);
@@ -54,9 +62,10 @@ export class HomeManagerComponent {
 
       const liveHero = this.#homeService.hero();
       const liveShop = this.#homeService.shopCategories();
+      const liveNav = this.#homeService.navList();
       if (!this.draft.isDirty()) {
         untracked(() => {
-          this.draft.resetDraftFromSource(liveHero, liveShop);
+          this.draft.resetDraftFromSource(liveHero, liveShop, liveNav);
         });
       }
     });
@@ -79,9 +88,28 @@ export class HomeManagerComponent {
     if (confirmed) this.draft.removeAction(index);
   }
 
+  async confirmRemoveNavItem(index: number): Promise<void> {
+    const item = this.draft.navItems()[index];
+    if (!item) return;
+    const confirmed = await this.#dialogs.confirmRemoveNavItem(item.label);
+    if (confirmed) this.draft.removeNavItem(index);
+  }
+
+  async importNavFromMenu(): Promise<void> {
+    if (this.draft.navItems().length > 0) {
+      const confirmed = await this.#dialogs.confirmImportNavFromMenu();
+      if (!confirmed) return;
+    }
+    const imported = this.draft.importNavItems(this.#navService.categories());
+    if (imported === 0) {
+      this.#snackbar.info('No menu links are ready to import yet.');
+    }
+  }
+
   async publishChanges(): Promise<void> {
     const hero = this.draft.draftHero();
     const shopCategories = this.draft.draftShopCategories();
+    const navList = this.draft.draftNavList();
 
     const heroError = validateHomeHeroDraft(hero);
     if (heroError) {
@@ -97,13 +125,21 @@ export class HomeManagerComponent {
       return;
     }
 
+    const navError = validateHomeNavListDraft(navList);
+    if (navError) {
+      this.draft.setActiveSection('navList');
+      this.#snackbar.error(navError);
+      return;
+    }
+
     this.#isSaving.set(true);
     try {
       const oldHero = this.#homeService.hero();
       const oldShop = this.#homeService.shopCategories();
-      const orphanedPaths = this.draft.getOrphanedPathsForPublish(oldHero, oldShop);
+      const oldNav = this.#homeService.navList();
+      const orphanedPaths = this.draft.getOrphanedPathsForPublish(oldHero, oldShop, oldNav);
 
-      await this.#homeService.updateHomeSettings(hero, shopCategories);
+      await this.#homeService.updateHomeSettings({ hero, shopCategories, navList });
       await this.#storageUpload.deleteImages(orphanedPaths);
 
       this.draft.markSaved();
@@ -124,12 +160,17 @@ export class HomeManagerComponent {
     try {
       const oldHero = this.#homeService.hero();
       const oldShop = this.#homeService.shopCategories();
-      const orphanedPaths = this.draft.getOrphanedPathsForReset(oldHero, oldShop);
+      const oldNav = this.#homeService.navList();
+      const orphanedPaths = this.draft.getOrphanedPathsForReset(oldHero, oldShop, oldNav);
 
       await this.#homeService.resetDefaultHomeSettings();
       await this.#storageUpload.deleteImages(orphanedPaths);
 
-      this.draft.resetDraftFromSource(DEFAULT_HOME_HERO, DEFAULT_HOME_SHOP_CATEGORIES);
+      this.draft.resetDraftFromSource(
+        DEFAULT_HOME_HERO,
+        DEFAULT_HOME_SHOP_CATEGORIES,
+        DEFAULT_HOME_NAV_LIST,
+      );
       this.#snackbar.success('Default homepage sections restored.');
     } catch (err) {
       console.error('Failed to reset home sections:', err);
@@ -146,8 +187,9 @@ export class HomeManagerComponent {
     }
     const liveHero = this.#homeService.hero();
     const liveShop = this.#homeService.shopCategories();
-    const orphanedPaths = this.draft.getOrphanedPathsForDiscard(liveHero, liveShop);
+    const liveNav = this.#homeService.navList();
+    const orphanedPaths = this.draft.getOrphanedPathsForDiscard(liveHero, liveShop, liveNav);
     await this.#storageUpload.deleteImages(orphanedPaths);
-    this.draft.discardDraft(liveHero, liveShop);
+    this.draft.discardDraft(liveHero, liveShop, liveNav);
   }
 }

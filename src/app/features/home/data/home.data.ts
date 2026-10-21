@@ -1,6 +1,8 @@
 import {
   HeroSlide,
   HomeHero,
+  HomeNavList,
+  HomeNavListItem,
   HomeShopCategories,
   ShopCategoryCard,
 } from '../models/home.model';
@@ -71,4 +73,23 @@ export const DEFAULT_SHOP_CATEGORY_CARDS: readonly ShopCategoryCard[] = [
 export const DEFAULT_HOME_SHOP_CATEGORIES: HomeShopCategories = {
   title: 'Shop',
   cards: DEFAULT_SHOP_CATEGORY_CARDS.map((card) => ({ ...card })),
+};
+
+export const NAV_LIST_MAX_ITEMS = 10;
+
+const DEFAULT_NAV_LIST_ITEMS: readonly HomeNavListItem[] = [
+  { label: 'Rackets', link: '/category/rackets', imageUrl: '', imageAlt: '' },
+  { label: 'Shoes', link: '/category/shoes', imageUrl: '', imageAlt: '' },
+  { label: 'Bags', link: '/category/bags', imageUrl: '', imageAlt: '' },
+  { label: 'Accessories', link: '/category/accessories', imageUrl: '', imageAlt: '' },
+  { label: 'Socks', link: '/category/socks', imageUrl: '', imageAlt: '' },
+  { label: 'Bundles', link: '/category/bundles', imageUrl: '', imageAlt: '' },
+  { label: 'Shorts', link: '/category/shorts', imageUrl: '', imageAlt: '' },
+  // No all-products route exists in the app. Shoppers go to /category/all.
+  { label: 'Shop all', link: '/category/all', imageUrl: '', imageAlt: '' },
+];
+
+export const DEFAULT_HOME_NAV_LIST: HomeNavList = {
+  title: 'Shop by category',
+  items: DEFAULT_NAV_LIST_ITEMS.map((item) => ({ ...item })),
 };

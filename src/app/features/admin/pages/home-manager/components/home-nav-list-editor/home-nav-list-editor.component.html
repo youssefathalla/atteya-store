@@ -1,0 +1,168 @@
+<section class="surface-card p-5 sm:p-6 space-y-6" aria-label="Category list configuration">
+  <div class="border-b border-outline-variant pb-4 elements-between flex-wrap gap-4">
+    <div>
+      <div class="elements-start gap-2.5">
+        <h3 class="font-title-md font-bold!">Category list</h3>
+        <span class="px-2.5 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold! opacity-80">
+          {{ items().length }} / {{ maxItems }} links
+        </span>
+      </div>
+      <p class="font-body-sm opacity-70 pt-0.5">
+        Drag a link to reorder it, or use the up and down buttons. Add up to {{ maxItems }} links.
+      </p>
+    </div>
+
+    <div class="elements-start flex-wrap gap-2 max-sm:w-full max-sm:[&>button]:w-full">
+      <button matButton="tonal" type="button" (click)="importMenu.emit()">
+        <mat-icon name="menu" />
+        <span>Import from menu</span>
+      </button>
+      <button matButton="filled" type="button" [disabled]="isFull()" (click)="itemAdd.emit()">
+        <mat-icon name="add" />
+        <span>Add link</span>
+      </button>
+    </div>
+  </div>
+
+  <mat-form-field appearance="outline" class="w-full">
+    <mat-label>Heading</mat-label>
+    <input
+      matInput
+      id="nav-list-title-input"
+      name="nav-list-title-input"
+      autocomplete="off"
+      aria-label="Category list heading"
+      [ngModel]="sectionTitle()"
+      (ngModelChange)="titleChange.emit($event)"
+      placeholder="Shop by category"
+      required
+    />
+    <mat-hint>Read by screen readers. Shoppers see the links, not this heading.</mat-hint>
+  </mat-form-field>
+
+  @if (items().length === 0) {
+    <div class="p-8 bg-surface-container-low panel-border text-center font-body-sm opacity-70">
+      No links yet. Add one, or import the links from your menu.
+    </div>
+  } @else {
+    <div
+      cdkDropList
+      (cdkDropListDropped)="itemDrop.emit($event)"
+      class="divide-y divide-outline-variant border border-outline-variant border-shape"
+      aria-label="Category links"
+    >
+      @for (item of items(); track $index; let idx = $index; let isFirst = $first; let isLast = $last) {
+        <div
+          cdkDrag
+          class="p-2 sm:p-2.5 elements-between gap-1"
+          [class.bg-surface-container]="activeItemIndex() === idx"
+        >
+          <span cdkDragHandle class="drag-handle-wrapper p-1" matTooltip="Drag to reorder">
+            <mat-icon name="drag_indicator" size="lg" />
+          </span>
+
+          <button
+            type="button"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 bg-transparent px-2 py-2 text-left"
+            [class.font-bold!]="activeItemIndex() === idx"
+            (click)="activeItemChange.emit(idx)"
+          >
+            <span class="font-label-sm w-4 shrink-0 opacity-60">{{ idx + 1 }}</span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate font-body-sm">{{ item.label || 'Untitled' }}</span>
+              <span class="block truncate font-label-sm opacity-70">{{ item.link || 'No link yet' }}</span>
+            </span>
+          </button>
+
+          <div class="icon-btn-md elements-center shrink-0">
+            <button
+              matIconButton
+              type="button"
+              (click)="itemMove.emit({ index: idx, direction: 'up' })"
+              [disabled]="isFirst"
+              aria-label="Move up"
+            >
+              <mat-icon name="arrow_upward" />
+            </button>
+            <button
+              matIconButton
+              type="button"
+              (click)="itemMove.emit({ index: idx, direction: 'down' })"
+              [disabled]="isLast"
+              aria-label="Move down"
+            >
+              <mat-icon name="arrow_downward" />
+            </button>
+            <button
+              matIconButton
+              theme="error"
+              type="button"
+              (click)="itemRemove.emit(idx)"
+              [attr.aria-label]="'Remove ' + (item.label || 'link')"
+            >
+              <mat-icon name="delete_forever" iconColor="error" />
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (items().length > 0) {
+    <div class="grid grid-cols-1 items-stretch gap-6 xl:grid-cols-2">
+      <app-image-picker
+        folder="categories"
+        aspectClass="aspect-4/5"
+        [altOptional]="true"
+        [label]="pickerLabel()"
+        subtitle="Upload a photo or paste a web link. This photo is decorative."
+        altPlaceholder="Leave blank. The link name is enough."
+        [asset]="itemAsset()"
+        (assetChange)="onAssetChange($event)"
+        (uploaded)="sessionUpload.emit($event)"
+      />
+
+      <div class="space-y-4 bg-surface-container-low p-5 panel-border">
+        <div>
+          <span class="block font-label-md font-bold! uppercase tracking-wider opacity-80">
+            Link {{ activeItemIndex() + 1 }}
+          </span>
+          <p class="font-body-sm opacity-70">Name the link and choose the page it opens.</p>
+        </div>
+
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>Name</mat-label>
+          <input
+            matInput
+            id="nav-list-label-input"
+            name="nav-list-label-input"
+            autocomplete="off"
+            aria-label="Link name"
+            maxlength="40"
+            [ngModel]="activeItem().label"
+            (ngModelChange)="labelChange.emit($event)"
+            placeholder="Rackets"
+            required
+          />
+          <mat-hint>Shown on the homepage. Up to 40 characters.</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>Page link</mat-label>
+          <input
+            matInput
+            id="nav-list-link-input"
+            name="nav-list-link-input"
+            autocomplete="off"
+            aria-label="Page link"
+            [ngModel]="activeItem().link"
+            (ngModelChange)="linkChange.emit($event)"
+            placeholder="/category/rackets"
+            required
+          />
+          <mat-hint>A page on this site, starting with /.</mat-hint>
+        </mat-form-field>
+      </div>
+    </div>
+  }
+</section>

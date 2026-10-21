@@ -20,6 +20,7 @@ This skill is the **Single Source of Truth** for reusable assets across Atteya S
 6. [Shared Logic & Breakpoint Utilities (`src/app/shared/utils/`)](#6-shared-logic--breakpoint-utilities)
 7. [Image Optimization & Delivery System (ImageKit + Firebase + Cloud Functions)](#7-image-optimization--delivery-system-imagekit--firebase--cloud-functions)
 8. [The "2+ Duplication Rule" Protocol](#8-the-2-duplication-rule-protocol)
+9. [Homepage category list](#9-homepage-category-list)
 
 ---
 
@@ -78,7 +79,7 @@ All controls integrate seamlessly with **Angular 22 Signal Forms**.
 - `<app-logo [size]="'sm' | 'md' | 'lg'" />`: App branding logo SVG.
 - `<app-loader>`: Standardized loading spinner overlay for blocking actions/overlays.
 - `<app-skeleton [overlay]="false" />` (`src/app/shared/ui/skeleton/`): Reusable light-mode M3 shimmer placeholder (`aspect-4/5`, `aspect-16/9`, `aspect-square`, etc.) & overlay veil. When `overlay` is present (`<app-skeleton overlay />`), becomes an `absolute inset-0 size-full z-50 bg-surface` veil that covers buttons and text underneath so nothing shows through or can be clicked while loading.
-- `<app-image-picker folder="hero" [asset]="asset()" (assetChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-picker/`): Single-image uploader + web URL importer + required SEO alt text field + live preview.
+- `<app-image-picker folder="hero" [asset]="asset()" (assetChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-picker/`): Single-image uploader + web URL importer + alt text field + live preview. Alt text is required unless `[altOptional]="true"` (decorative photos, such as the homepage category list). `[aspectClass]` sets the preview frame (`aspect-4/5` for that list). Folder `categories` is allowed.
 - `<app-image-gallery-editor [folder]="'products/' + productId" [images]="images()" (imagesChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-gallery-editor/`): Multi-image gallery editor (up to 8 images, CDK drag-drop reorder, index 0 badged as "Main Image", required per-image alt text).
 
 ---
@@ -90,6 +91,9 @@ Located in `src/styles/tailwind/components/`. Use these classes directly in your
 | File                  | Reusable Classes                   | Description                                                                                                                                                                                                                                          |
 | :-------------------- | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `navigation.css`      | `.nav-column-title`                | Uppercase category/column headers with bottom border                                                                                                                                                                                                 |
+|                       | `.nav-list`                        | Homepage category-list rows. Bordered full-width stack below `lg`; content-width from `lg` up                                                                                                                                                      |
+|                       | `.nav-list-link`                   | Category link or preview button. Full-width row below `lg` (arrow at the row end). From `lg` up the link is only as wide as its label, and the arrow sits directly after the words |
+|                       | `.nav-list-panel`                  | 4:5 photo column (max 520px). `hidden` below `lg`. The image itself is not rendered until the browser confirms the desktop layout                                                                                   |
 |                       | `.nav-menu-link`                   | Interactive nav item link with hover state and transitions                                                                                                                                                                                           |
 |                       | `.nav-badge`                       | Small badge indicator for menu links                                                                                                                                                                                                                 |
 |                       | `.nav-category-tab`                | Top-level category tab button in navigation bar                                                                                                                                                                                                      |
@@ -176,7 +180,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `user`: Signal holding `User | null | undefined`.
   - `isAuthenticated`: Computed boolean.
   - `login(email, pass)`, `register(email, pass)`, `logout()`, `sendPasswordReset(email)`.
-- **`NavService`** (`src/app/layout/navbar/nav.service.ts`):
+- **`NavService`** (`src/app/core/services/navigation/nav.service.ts`):
   - `categories`: Computed signal for live navigation catalog with fallback.
   - `isLoading`: Computed state signal.
   - `updateNavigation(categories)`, `seedDefaultNavigation()`.
@@ -337,3 +341,16 @@ Whenever you find a combination of 4 or more utility classes that is repeated **
 
 4. **Use the new class** in your templates.
 5. **Update this catalog** with the new class name.
+
+---
+
+## 9. Homepage category list
+
+`NavigationListSectionComponent` (`app-navigation-list-section`, `src/app/features/home/components/navigation-list-section/`) is Section 3 on the storefront home page and the admin live preview.
+
+- **Inputs**: `navList` (required `HomeNavList`), `isLoading`, `previewMode`, `activeItemIndex`.
+- **Output**: `itemSelect` — emitted in preview mode instead of navigating.
+- **Data**: optional `settings/home.navList`, then localStorage `atteya_store_home_nav_list`, then `DEFAULT_HOME_NAV_LIST`.
+- **Motion**: first storefront GSAP use. `import('gsap')` runs inside `afterNextRender`. Tweens live in a `gsap.context` scoped to the host and `revert()` on destroy. The server HTML marks the first link active. Once the desktop panel mounts, CSS shows that photo until GSAP runs. `prefers-reduced-motion` swaps with no scale.
+- **Photos**: no `<img>` until `matchMedia('(min-width: 1024px)')` confirms the desktop layout, so phones never request one. Only index 0 mounts at first. The rest mount on the first `pointerenter` or `focusin`, and `activate(i)` also mounts `i`. The panel is `aria-hidden` and images use `alt=""`. Nothing is `priority`. `sizes` includes a fixed 520px column, so the image sets `ngSrcset` directly.
+- **Admin**: Home Manager tab "Section 3: Category list" (`home-nav-list-preview`, `home-nav-list-editor`). Draft mutations live on `HomeDraftService`.

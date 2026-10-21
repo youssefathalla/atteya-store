@@ -48,6 +48,8 @@ export class ImagePickerComponent {
   readonly altPlaceholder = input<string>('e.g. Athlete training in performance sportswear');
   readonly aspectClass = input<string>('aspect-video');
   readonly allowRemove = input<boolean>(false);
+  /** Decorative photos can skip a description. Shop cards keep this off. */
+  readonly altOptional = input<boolean>(false);
 
   readonly uploaded = output<string>();
 

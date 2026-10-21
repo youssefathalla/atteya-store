@@ -1,0 +1,23 @@
+<section class="surface-card p-5 sm:p-6 space-y-4" aria-label="Live category list preview">
+  <div class="border-b border-outline-variant pb-4">
+    <div class="elements-start gap-2.5">
+      <h3 class="font-title-md font-bold!">Live storefront preview</h3>
+      <span class="px-2.5 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold! opacity-80">
+        Section 3 • Category list
+      </span>
+    </div>
+    <p class="font-body-sm opacity-70 pt-0.5">
+      Hover a link to see its photo. Click a link to edit it. The outlined link is the one you are editing.
+    </p>
+  </div>
+
+  <div class="w-full overflow-hidden border border-outline-variant border-shape bg-surface-container-lowest @container">
+    <app-navigation-list-section
+      [navList]="navList()"
+      [isLoading]="isLoading()"
+      [previewMode]="true"
+      [activeItemIndex]="activeItemIndex()"
+      (itemSelect)="activeItemChange.emit($event)"
+    />
+  </div>
+</section>
