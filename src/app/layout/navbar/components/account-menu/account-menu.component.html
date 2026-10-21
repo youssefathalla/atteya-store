@@ -1,0 +1,34 @@
+<button
+  matIconButton
+  type="button"
+  [matMenuTriggerFor]="menu"
+  [matTooltip]="tooltip()"
+  [matTooltipDisabled]="!tooltip()"
+  aria-label="Account"
+>
+  <mat-icon name="person_outline" size="2xl" />
+</button>
+
+<mat-menu #menu="matMenu" [yPosition]="yPosition()" xPosition="before">
+  @if (isAuthenticated()) {
+    <button mat-menu-item type="button" disabled>
+      <mat-icon name="person" />
+      <span>{{ accountLabel() }}</span>
+    </button>
+    @if (isAdmin()) {
+      <a mat-menu-item routerLink="/admin">
+        <mat-icon name="dashboard" />
+        <span>Admin dashboard</span>
+      </a>
+    }
+    <button mat-menu-item type="button" (click)="signOut()">
+      <mat-icon name="logout" />
+      <span>Sign out</span>
+    </button>
+  } @else {
+    <a mat-menu-item routerLink="/login" [queryParams]="signInParams()">
+      <mat-icon name="login" />
+      <span>Sign in</span>
+    </a>
+  }
+</mat-menu>
