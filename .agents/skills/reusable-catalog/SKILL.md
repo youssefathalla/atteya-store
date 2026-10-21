@@ -269,7 +269,7 @@ Located in `src/app/shared/utils/`:
 
 ## 7. Image Optimization & Delivery System (ImageKit + Firebase + Cloud Functions)
 
-All storefront visual media (hero banners, product showcases, category headers) are delivered through ImageKit CDN, while master assets are securely stored in Firebase Cloud Storage.
+All storefront visual media (hero banners, product showcases, category headers) are delivered through ImageKit CDN, while master assets are securely stored in Firebase Cloud Storage. ImageKit's web-folder origin and `buildStorageUrl()` both request `https://storage.googleapis.com/<bucket>/<path>`, which does not evaluate `firebase/storage.rules`. Category showcase images uploaded with `folder="categories"` therefore do not need a public Storage-rule read; `/hero` is the only public SDK read, and that rule is not what serves the storefront.
 
 ### 🌐 Dual Environment Endpoints
 

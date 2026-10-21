@@ -63,6 +63,8 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 > [!IMPORTANT]
 > **Native Firebase JS SDK (`firebase`) is standard.** Do NOT install or use `@angular/fire`. Native Firebase SDK functions (`getDoc`, `signInWithEmailAndPassword`, `onSnapshot`) are framework-agnostic, take explicit instances, and do NOT require an Angular injection context or `runInContext()` wrappers.
 
+- **Storefront Firestore reads**: `firebase/firestore.rules` allows unauthenticated `read` on documents directly in `settings` (`settings/home`, `settings/navigation`, and any later sibling). Writes on those documents stay `request.auth != null`. There is no admin custom claim and no `admins` collection — `AuthService.checkIsAdmin()` is not implemented — so do not require an admin check until one exists. Every other collection, including subcollections under `settings`, stays behind the authenticated catch-all. Do not widen `match /{document=**}` to a public read.
+
 - **Signals & Resources Integration**:
   - One-off reads (`getDoc`, `getDocs`): Feed directly into `resource()`.
   - Dynamic queries: Feed `onSnapshot` into `rxResource()`.
@@ -80,7 +82,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### 🖼️ Image Delivery & Optimization Architecture (ImageKit + Firebase Storage + Cloud Functions)
 
-- **Proxy Architecture**: Master media files reside permanently in Firebase Cloud Storage. ImageKit acts as an external Web Folder origin (`https://storage.googleapis.com/<bucket>/`), intercepting requests to perform real-time resizing, WebP/AVIF compression, and global CDN delivery.
+- **Proxy Architecture**: Master media files reside permanently in Firebase Cloud Storage. ImageKit acts as an external Web Folder origin (`https://storage.googleapis.com/<bucket>/`), intercepting requests to perform real-time resizing, WebP/AVIF compression, and global CDN delivery. That Google Cloud Storage URL is authorized by bucket IAM, not by `firebase/storage.rules`. Shop-category images are stored under `categories/` and follow the same path (`NgOptimizedImage` → ImageKit, then `buildStorageUrl()` on failure). Public `allow read` in storage rules only covers Firebase SDK and `firebasestorage.googleapis.com` reads (today, `/hero` only). Do not add public Storage-rule reads for `categories/`, `products/`, or `brands/` to unblock storefront images.
 - **Environment Isolation**:
   - **Dev (`environment.ts`)**: `https://ik.imagekit.io/atteyastore/dev/` fetching from `atteya-store-dev.firebasestorage.app`.
   - **Prod (`environment.prod.ts`)**: `https://ik.imagekit.io/atteyastore/` fetching from `attiya-store.firebasestorage.app`.
