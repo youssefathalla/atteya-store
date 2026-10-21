@@ -59,6 +59,21 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
     ],
   },
   {
+    id: 'settings',
+    label: 'Settings',
+    icon: 'settings',
+    subItems: [
+      {
+        id: 'admins',
+        label: 'Admins',
+        path: '/admin/settings/admins',
+        icon: 'admin_panel_settings',
+        badge: 'Live',
+        description: 'Choose who can manage the store',
+      },
+    ],
+  },
+  {
     id: 'sales',
     label: 'Sales & Orders',
     icon: 'shopping_cart',

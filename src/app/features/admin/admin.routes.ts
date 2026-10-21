@@ -27,6 +27,27 @@ export const ADMIN_ROUTES: Routes = [
           ),
         title: 'Navigation & Menus | Atteya Admin',
       },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
+        title: 'Settings | Atteya Admin',
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            redirectTo: 'admins',
+          },
+          {
+            path: 'admins',
+            loadComponent: () =>
+              import('./pages/settings/admins/admins-tab.component').then(
+                (m) => m.AdminsTabComponent,
+              ),
+            title: 'Admins | Atteya Admin',
+          },
+        ],
+      },
     ],
   },
 ];

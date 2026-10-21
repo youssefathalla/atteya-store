@@ -6,25 +6,39 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Published storefront content: settings/home, settings/navigation, and
-    // any other document directly in settings. Anonymous visitors and an
-    // unauthenticated server read must be able to load these.
-    //
-    // Writes stay at the previous bar (any signed-in user). The app has no
-    // admin custom claim and no admins collection to check yet. The commented
-    // admin guard calls AuthService.checkIsAdmin(), which is not implemented.
-    // Subcollections under settings are not covered here; they fall through
-    // to the authenticated catch-all below.
-    match /settings/{docId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'admin';
     }
 
-    // Every other collection stays behind a signed-in user. This catch-all
-    // also still allows signed-in reads and writes of settings (rules are
-    // OR-ed). Do not widen this match to a public read.
-    match /{document=**} {
-      allow read, write: if isSignedIn();
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Storefront content: settings/home, settings/navigation, and sibling docs.
+    // Visitors can read these. Only an admin custom claim can write them.
+    // Subcollections are not public; they fall through to the admin catch-all.
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Role mirror and audit trail. The Admin SDK (script and callables) is the
+    // only writer. Clients, including admins, cannot create or edit these.
+    match /roles/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if false;
+    }
+
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Deny by default. Admins can reach future collections, but a matching
+    // {document=**} rule is OR-ed with the rules above, so roles and auditLogs
+    // stay closed even for admins.
+    match /{collection}/{document=**} {
+      allow read, write: if isAdmin() && !(collection in ['roles', 'auditLogs']);
     }
   }
 }

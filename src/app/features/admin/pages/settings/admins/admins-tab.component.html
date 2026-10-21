@@ -1,0 +1,96 @@
+<div class="elements-start-col gap-6">
+  <section class="surface-card p-5 w-full" aria-label="Add an admin">
+    <h2 class="font-title-lg font-bold!">Add an admin</h2>
+    <p class="font-body-md pt-1 pb-4">
+      They need an account already. Ask them to sign in with Google once, or create their account first.
+    </p>
+    <form class="elements-end flex-wrap gap-3" novalidate (submit)="onGrant($event)">
+      <div class="w-full sm:max-w-md sm:flex-1">
+        <app-text-input
+          [formField]="grantForm.email"
+          label="Email"
+          type="email"
+          inputMode="email"
+          placeholder="name@example.com"
+        />
+      </div>
+      <button
+        matButton="filled"
+        type="submit"
+        [disabled]="isGranting()"
+        [attr.aria-label]="isGranting() ? 'Granting admin access' : null"
+      >
+        @if (isGranting()) {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <span>Grant</span>
+        }
+      </button>
+    </form>
+  </section>
+
+  <section class="surface-card p-5 w-full" aria-label="Current admins">
+    <h2 class="font-title-lg font-bold!">Current admins</h2>
+    <p class="font-body-md pt-1 pb-4">People who can manage the store.</p>
+
+    @if (loadError()) {
+      <p class="font-body-md pb-4" role="alert">{{ loadError() }}</p>
+    }
+
+    @if (showSkeleton()) {
+      <div class="elements-start-col gap-3" aria-hidden="true">
+        <app-skeleton class="h-12 w-full" />
+        <app-skeleton class="h-12 w-full" />
+      </div>
+    } @else if (rows().length > 0 || !loadError()) {
+      @if (rows().length === 1) {
+        <p class="font-body-sm pb-3">Add another admin before removing this one.</p>
+      }
+      <app-reusable-table
+        [data]="rows()"
+        [columns]="columns()"
+        [showHeaderControls]="false"
+        [isLoading]="false"
+      >
+        <p noDataContent class="font-body-md">No admins yet.</p>
+      </app-reusable-table>
+    }
+  </section>
+
+  <section class="surface-card p-5 w-full" aria-label="Recent admin changes">
+    <h2 class="font-title-lg font-bold!">Recent changes</h2>
+    @if (changesLoading()) {
+      <div class="pt-4" aria-hidden="true">
+        <app-skeleton class="h-12 w-full" />
+      </div>
+    } @else if (changes().length === 0) {
+      <p class="font-body-md pt-2">Changes to admin access will show up here.</p>
+    } @else {
+      <ul class="elements-start-col gap-3 pt-4">
+        @for (change of changes(); track change.id) {
+          <li class="w-full border-b border-outline-variant pb-3">
+            <p class="font-body-md">{{ change.summary }}</p>
+            <p class="font-label-md opacity-70">{{ change.when }}</p>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>
+
+<ng-template #removeCell [templateType]="sampleRow" let-row>
+  <button
+    matButton="text"
+    type="button"
+    theme="error"
+    [disabled]="removingUid() !== null"
+    [attr.aria-label]="removingUid() === row.id ? 'Removing admin access' : 'Remove admin access for ' + row.email"
+    (click)="removeAdmin(row)"
+  >
+    @if (removingUid() === row.id) {
+      <mat-progress-spinner mode="indeterminate" diameter="18" />
+    } @else {
+      <span>Remove admin</span>
+    }
+  </button>
+</ng-template>

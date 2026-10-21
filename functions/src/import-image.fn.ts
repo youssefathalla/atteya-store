@@ -1,5 +1,7 @@
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { getStorage } from 'firebase-admin/storage';
+import { adminCallableOptions } from './auth/callable-options.js';
+import { requireRole } from './auth/require-role.js';
 
 const ALLOWED_FOLDERS = new Set(['hero', 'products', 'brands', 'categories']);
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -76,8 +78,9 @@ function parseRemoteImageUrl(raw: unknown): URL {
  * and saves it directly into the active Firebase Storage bucket.
  */
 export const importImageFromUrl = onCall(
-  { region: 'europe-west3', cors: true, timeoutSeconds: 30, memory: '256MiB' },
+  adminCallableOptions({ timeoutSeconds: 30, memory: '256MiB' }),
   async (request): Promise<ImportImageResponse> => {
+    requireRole(request, 'admin');
     const body = (request.data ?? {}) as ImportImageRequest;
     const parsedUrl = parseRemoteImageUrl(body.url);
     const folder = sanitizeFolder(body.folder ?? 'hero');
