@@ -2,9 +2,29 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default security rule: require authentication
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Published storefront content: settings/home, settings/navigation, and
+    // any other document directly in settings. Anonymous visitors and an
+    // unauthenticated server read must be able to load these.
+    //
+    // Writes stay at the previous bar (any signed-in user). The app has no
+    // admin custom claim and no admins collection to check yet. The commented
+    // admin guard calls AuthService.checkIsAdmin(), which is not implemented.
+    // Subcollections under settings are not covered here; they fall through
+    // to the authenticated catch-all below.
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Every other collection stays behind a signed-in user. This catch-all
+    // also still allows signed-in reads and writes of settings (rules are
+    // OR-ed). Do not widen this match to a public read.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
   }
 }
