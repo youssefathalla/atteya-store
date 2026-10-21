@@ -1,0 +1,22 @@
+.nav-list-photo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  transform: scale(1.03);
+  transform-origin: center;
+  will-change: opacity, transform;
+
+  &.is-active {
+    z-index: 1;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-list-photo {
+    transform: none;
+    will-change: auto;
+  }
+}

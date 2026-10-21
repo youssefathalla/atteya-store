@@ -117,9 +117,13 @@
         [ngModel]="asset()?.alt || ''"
         (ngModelChange)="onAltChange($event)"
         [placeholder]="altPlaceholder()"
-        required
+        [required]="!altOptional()"
       />
-      <mat-hint>Required for screen readers & SEO (max {{ maxAltLength }} chars)</mat-hint>
+      @if (altOptional()) {
+        <mat-hint>Optional. Shoppers use the link name, not this description.</mat-hint>
+      } @else {
+        <mat-hint>Required for screen readers & SEO (max {{ maxAltLength }} chars)</mat-hint>
+      }
     </mat-form-field>
   </div>
 

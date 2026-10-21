@@ -35,9 +35,21 @@
       <mat-icon name="grid_view" />
       <span>Section 2: Shop Categories</span>
     </button>
+
+    <button
+      [matButton]="draft.activeSection() === 'navList' ? 'filled' : 'tonal'"
+      type="button"
+      role="tab"
+      [attr.aria-selected]="draft.activeSection() === 'navList'"
+      (click)="draft.setActiveSection('navList')"
+    >
+      <mat-icon name="format_list_bulleted" />
+      <span>Section 3: Category list</span>
+    </button>
   </div>
 
-  @if (draft.activeSection() === 'hero') {
+  @switch (draft.activeSection()) {
+    @case ('hero') {
     <!-- Section 1: Hero Banner Preview & Editor -->
     <app-home-hero-preview
       [hero]="draft.draftHero()"
@@ -62,7 +74,8 @@
       (actionDelete)="confirmDeleteAction($event)"
       (actionMove)="draft.moveAction($event.index, $event.direction)"
     />
-  } @else {
+    }
+    @case ('categories') {
     <!-- Section 2: Shop Categories Preview & Editor -->
     <app-home-categories-preview
       [shopCategories]="draft.draftShopCategories()"
@@ -84,5 +97,34 @@
       (buttonLinkChange)="draft.updateShopCardButtonLink($event)"
       (sessionUpload)="draft.registerSessionUpload($event)"
     />
+    }
+    @case ('navList') {
+    <app-home-nav-list-preview
+      [navList]="draft.draftNavList()"
+      [isLoading]="isLoading()"
+      [activeItemIndex]="draft.activeNavIndex()"
+      (activeItemChange)="draft.setActiveNavItem($event)"
+    />
+
+    <app-home-nav-list-editor
+      [sectionTitle]="draft.navTitle()"
+      [items]="draft.navItems()"
+      [activeItemIndex]="draft.activeNavIndex()"
+      [activeItem]="draft.activeNavItem()"
+      [isFull]="draft.navListIsFull()"
+      (activeItemChange)="draft.setActiveNavItem($event)"
+      (titleChange)="draft.updateNavTitle($event)"
+      (labelChange)="draft.updateNavLabel($event)"
+      (linkChange)="draft.updateNavLink($event)"
+      (imageUrlChange)="draft.updateNavImageUrl($event)"
+      (imageAltChange)="draft.updateNavImageAlt($event)"
+      (sessionUpload)="draft.registerSessionUpload($event)"
+      (itemAdd)="draft.addNavItem()"
+      (itemRemove)="confirmRemoveNavItem($event)"
+      (itemMove)="draft.moveNavItem($event.index, $event.direction)"
+      (itemDrop)="draft.dropNavItem($event)"
+      (importMenu)="importNavFromMenu()"
+    />
+    }
   }
 </div>

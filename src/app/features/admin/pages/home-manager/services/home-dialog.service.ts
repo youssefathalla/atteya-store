@@ -52,6 +52,48 @@ export class HomeDialogService {
     return !!confirmed;
   }
 
+  async confirmRemoveNavItem(label: string): Promise<boolean> {
+    const name = label.trim() || 'this link';
+    const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Remove category link',
+          message: `Remove "${name}" from the category list?`,
+          confirmText: 'Remove',
+          cancelText: 'Keep',
+          theme: 'error',
+        },
+        width: '440px',
+        maxWidth: '90vw',
+      },
+    );
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
+
+  async confirmImportNavFromMenu(): Promise<boolean> {
+    const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Use menu links',
+          message:
+            'Replace this list with the links from your menu? Photos on these links will be cleared.',
+          confirmText: 'Replace links',
+          cancelText: 'Keep editing',
+          theme: 'warning',
+        },
+        width: '480px',
+        maxWidth: '90vw',
+      },
+    );
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
+
   async confirmResetDefaults(): Promise<boolean> {
     const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
       ConfirmDialogComponent,
@@ -59,7 +101,7 @@ export class HomeDialogService {
         data: {
           title: 'Reset to Defaults',
           message:
-            'Are you sure you want to reset the home hero banner to its default branding? Any unpublished changes will be overwritten.',
+            'This restores the original hero, shop cards, and category list. Any unpublished changes will be lost.',
           confirmText: 'Reset to Defaults',
           cancelText: 'Cancel',
           theme: 'primary',

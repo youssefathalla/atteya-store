@@ -6,16 +6,25 @@ import { signalDoc } from '@shared/utils/firebase/firestore-signals';
 import { HomeSettingsSchema } from '../schemas/home.schema';
 import {
   HomeHero,
+  HomeNavList,
   HomeSettings,
   HomeShopCategories,
 } from '../models/home.model';
 import {
   DEFAULT_HOME_HERO,
+  DEFAULT_HOME_NAV_LIST,
   DEFAULT_HOME_SHOP_CATEGORIES,
 } from '../data/home.data';
 
 const HERO_STORAGE_KEY = 'atteya_store_home_hero';
 const SHOP_CATEGORIES_STORAGE_KEY = 'atteya_store_home_shop_categories';
+const NAV_LIST_STORAGE_KEY = 'atteya_store_home_nav_list';
+
+export interface HomeSettingsUpdate {
+  readonly hero: HomeHero;
+  readonly shopCategories: HomeShopCategories;
+  readonly navList: HomeNavList;
+}
 
 function readStoredHero(): HomeHero | null {
   if (typeof window === 'undefined') return null;
@@ -65,6 +74,30 @@ function persistStoredShopCategories(shopCategories: HomeShopCategories): void {
   }
 }
 
+function readStoredNavList(): HomeNavList | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(NAV_LIST_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.title === 'string' && Array.isArray(parsed.items)) {
+      return parsed as HomeNavList;
+    }
+  } catch {
+    // Ignore storage parse issues
+  }
+  return null;
+}
+
+function persistStoredNavList(navList: HomeNavList): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(NAV_LIST_STORAGE_KEY, JSON.stringify(navList));
+  } catch {
+    // Ignore storage quota issues
+  }
+}
+
 @Service()
 export class HomeService {
   readonly #firestore = injectFirestore();
@@ -107,16 +140,28 @@ export class HomeService {
   });
 
   /**
-   * Publishes updated home settings (Section 1 Hero + Section 2 Shop Categories) to Firestore.
+   * Evaluates to live Section 3 (category list) configuration from Firestore.
+   * A settings/home document without navList falls through to the cached list,
+   * then to DEFAULT_HOME_NAV_LIST.
    */
-  async updateHomeSettings(
-    hero: HomeHero,
-    shopCategories: HomeShopCategories,
-  ): Promise<void> {
+  readonly navList = computed<HomeNavList>(() => {
+    const docData = this.#homeDoc();
+    if (docData?.navList) {
+      persistStoredNavList(docData.navList);
+      return docData.navList;
+    }
+    return readStoredNavList() ?? DEFAULT_HOME_NAV_LIST;
+  });
+
+  /**
+   * Publishes the homepage hero, shop cards, and category list together.
+   */
+  async updateHomeSettings(settings: HomeSettingsUpdate): Promise<void> {
     const payload: HomeSettings = {
       id: 'home',
-      hero,
-      shopCategories,
+      hero: settings.hero,
+      shopCategories: settings.shopCategories,
+      navList: settings.navList,
       updatedAt: serverTimestamp(),
     };
     await setDoc(this.#homeDocRef, payload, { merge: true });
@@ -126,6 +171,10 @@ export class HomeService {
    * Resets all home page sections to factory defaults.
    */
   async resetDefaultHomeSettings(): Promise<void> {
-    await this.updateHomeSettings(DEFAULT_HOME_HERO, DEFAULT_HOME_SHOP_CATEGORIES);
+    await this.updateHomeSettings({
+      hero: DEFAULT_HOME_HERO,
+      shopCategories: DEFAULT_HOME_SHOP_CATEGORIES,
+      navList: DEFAULT_HOME_NAV_LIST,
+    });
   }
 }

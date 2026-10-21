@@ -1,9 +1,11 @@
 import { diffOrphanedPaths } from '@shared/utils/image';
-import { SHOP_CATEGORIES_CARD_COUNT } from '@features/home/data/home.data';
+import { NAV_LIST_MAX_ITEMS, SHOP_CATEGORIES_CARD_COUNT } from '@features/home/data/home.data';
 import {
   HeroAction,
   HeroSlide,
   HomeHero,
+  HomeNavList,
+  HomeNavListItem,
   HomeShopCategories,
   ShopCategoryCard,
 } from '../models/home-manager.model';
@@ -121,6 +123,59 @@ export function validateHomeShopCategoriesDraft(
     if (err) return err;
   }
 
+  return null;
+}
+
+function isInternalLink(value: string): boolean {
+  return value.startsWith('/') && !value.startsWith('//');
+}
+
+/**
+ * Validates one category-list link. The photo is decorative, so a description is optional.
+ */
+export function validateNavListItem(
+  item: HomeNavListItem,
+  itemIndex: number,
+): string | null {
+  const name = item.label.trim();
+  const prefix = `Section 3, link ${itemIndex + 1}: `;
+
+  if (!name) {
+    return `${prefix}Add a name.`;
+  }
+  if (name.length > 40) {
+    return `${prefix}Use 40 characters or fewer.`;
+  }
+  if (!isInternalLink(item.link.trim())) {
+    return `${name} needs a link that starts with /.`;
+  }
+  if (!item.imageUrl.trim()) {
+    return `${name} needs a photo.`;
+  }
+  return null;
+}
+
+/**
+ * Validates Section 3 before publishing.
+ */
+export function validateHomeNavListDraft(navList: HomeNavList): string | null {
+  const title = navList.title.trim();
+  if (!title) {
+    return 'Add a heading for the category list.';
+  }
+
+  const items = navList.items.slice(0, NAV_LIST_MAX_ITEMS);
+  if (items.length < 2) {
+    return 'Add at least two categories before publishing this list.';
+  }
+  if (navList.items.length > NAV_LIST_MAX_ITEMS) {
+    return 'You can show up to 10 categories in this list.';
+  }
+
+  for (let i = 0; i < items.length; i++) {
+    const err = validateNavListItem(items[i], i);
+    if (err) return err;
+  }
   return null;
 }
 

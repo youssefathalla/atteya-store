@@ -3,11 +3,13 @@ import {
   HeroLayoutCount,
   HeroSlide,
   HomeHero,
+  HomeNavList,
+  HomeNavListItem,
   HomeShopCategories,
   ShopCategoryCard,
 } from '@features/home/models/home.model';
 
-export type HomeSectionTab = 'hero' | 'categories';
+export type HomeSectionTab = 'hero' | 'categories' | 'navList';
 
 export interface ActionMoveEvent {
   readonly index: number;
@@ -21,4 +23,6 @@ export type {
   HeroLayoutCount,
   HomeShopCategories,
   ShopCategoryCard,
+  HomeNavList,
+  HomeNavListItem,
 };
