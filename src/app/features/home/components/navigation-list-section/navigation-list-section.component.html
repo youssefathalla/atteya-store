@@ -1,13 +1,9 @@
 @let titleText = title();
 @let current = activeIndex();
 
-<section
-  class="container-content"
-  (pointerenter)="mountRemaining()"
-  (focusin)="mountRemaining()"
->
-  <div class="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
-    <nav class="min-w-0 w-full lg:flex-1" [attr.aria-labelledby]="titleId">
+<section class="container-content" (pointerenter)="mountRemaining()" (focusin)="mountRemaining()">
+  <div class="mx-auto flex w-full max-w-7xl justify-between">
+    <nav class="w-full lg:w-fit lg:shrink-0" [attr.aria-labelledby]="titleId">
       <h2 [id]="titleId" class="sr-only">{{ titleText }}</h2>
       <ul class="nav-list">
         @for (item of items(); track $index; let idx = $index) {
