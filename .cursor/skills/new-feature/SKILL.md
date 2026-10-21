@@ -30,13 +30,13 @@ graph TD
 
 ## 📂 Step 1: Check Existing Building Blocks First
 >
-> 👉 **Delegate to**: [reusable-catalog](file:///.agents/skills/reusable-catalog/SKILL.md)
+> 👉 **Delegate to**: [reusable-catalog](../reusable-catalog/SKILL.md)
 
 Before writing any new component, service, dialog, form control, or CSS utility:
 
-1. Open the [reusable-catalog](file:///.agents/skills/reusable-catalog/SKILL.md).
+1. Open the [reusable-catalog](../reusable-catalog/SKILL.md).
 2. Check if an existing component (`src/app/shared/ui/`), extracted class (`src/styles/tailwind/components/`), or service (`DrawerService`, `SnackbarService`) already handles this need.
-3. If a UI pattern repeats 2 or more times, follow the **2+ Duplication Rule** in [reusable-catalog](file:///.agents/skills/reusable-catalog/SKILL.md) to extract it.
+3. If a UI pattern repeats 2 or more times, follow the **2+ Duplication Rule** in [reusable-catalog](../reusable-catalog/SKILL.md) to extract it.
 
 ---
 
@@ -98,7 +98,7 @@ src/app/features/[feature-name]/
 
 ## 🛡️ Step 3: Valibot Schema & Pure TypeScript Model
 >
-> 👉 **Delegate to**: [typescript](file:///.agents/skills/typescript/SKILL.md)
+> 👉 **Delegate to**: [typescript](../typescript/SKILL.md)
 
 1. **Schema (`schemas/[feature].schema.ts`)**:
    - Pipe external data through `v.safeParse()`.
@@ -122,7 +122,7 @@ src/app/features/[feature-name]/
 
 ## ⚡ Step 4: Signal-First Service
 >
-> 👉 **Delegate to**: [angular-developer](file:///.agents/skills/angular-developer/SKILL.md)
+> 👉 **Delegate to**: [angular-developer](../angular-developer/SKILL.md)
 
 - Use `@Service()` from `@angular/core` (never legacy `@Injectable({ providedIn: 'root' })`).
 - Use Native Firebase JS SDK (`getDoc`, `getDocs`, `onSnapshot`) or `HttpClient`. Zero `@angular/fire`.
@@ -135,7 +135,7 @@ src/app/features/[feature-name]/
 
 ## 🎨 Step 5: Compose UI & Styling
 >
-> 👉 **Delegate to**: [ui-design-rules](file:///.agents/skills/ui-design-rules/SKILL.md) and [design-system](file:///.agents/skills/design-system/SKILL.md)
+> 👉 **Delegate to**: [ui-design-rules](../ui-design-rules/SKILL.md) and [design-system](../design-system/SKILL.md)
 
 1. **Component Selection Matrix**:
    - Form inputs -> `<app-text-input>`, `<app-select-input>`, etc. (Signal Forms).
@@ -162,7 +162,7 @@ src/app/features/[feature-name]/
 
 ## 🧭 Step 6: Routing & SSR Server Routes Registration
 >
-> 👉 **Delegate to**: [quality-standards](file:///.agents/skills/quality-standards/SKILL.md)
+> 👉 **Delegate to**: [quality-standards](../quality-standards/SKILL.md)
 
 1. **Feature Routes (`[feature].routes.ts`)**:
    - Route state flows as `input()` into components (enabled by `withComponentInputBinding()`).
@@ -175,10 +175,10 @@ src/app/features/[feature-name]/
 
 ## 🏁 Step 7: Pre-Flight Beast Mode Gate
 >
-> 👉 **Delegate to**: [code-review](file:///.agents/skills/code-review/SKILL.md)
+> 👉 **Delegate to**: [code-review](../code-review/SKILL.md)
 
 Before marking any feature as complete:
 
 1. Run `npm run preflight` to verify zero errors across project rules and ESLint (`node scripts/pre-flight-check.mjs && eslint .`).
 2. Run `npm run build` to verify SSR prerendering passes with code 0.
-3. Run the **Golden 7-Point Audit** in [code-review](file:///.agents/skills/code-review/SKILL.md).
+3. Run the **Golden 7-Point Audit** in [code-review](../code-review/SKILL.md).
