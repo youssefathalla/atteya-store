@@ -63,7 +63,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 > [!IMPORTANT]
 > **Native Firebase JS SDK (`firebase`) is standard.** Do NOT install or use `@angular/fire`. Native Firebase SDK functions (`getDoc`, `signInWithEmailAndPassword`, `onSnapshot`) are framework-agnostic, take explicit instances, and do NOT require an Angular injection context or `runInContext()` wrappers.
 
-- **Storefront Firestore reads**: `firebase/firestore.rules` allows unauthenticated `read` on documents directly in `settings` (`settings/home`, `settings/navigation`, and any later sibling). Writes on those documents stay `request.auth != null`. There is no admin custom claim and no `admins` collection — `AuthService.checkIsAdmin()` is not implemented — so do not require an admin check until one exists. Every other collection, including subcollections under `settings`, stays behind the authenticated catch-all. Do not widen `match /{document=**}` to a public read. Rules tests live in `firebase/tests/firestore.rules.test.mjs` (`npm run test:rules`).
+- **Storefront Firestore reads**: `firebase/firestore.rules` allows unauthenticated `read` on documents directly in `settings` (`settings/home`, `settings/navigation`, and any later sibling). Writes on those documents stay `request.auth != null`. There is no admin custom claim and no `admins` collection — `AuthService.checkIsAdmin()` is not implemented — so do not require an admin check until one exists. Every other collection, including subcollections under `settings`, stays behind the authenticated catch-all. Do not widen `match /{document=**}` to a public read.
 
 - **Signals & Resources Integration**:
   - One-off reads (`getDoc`, `getDocs`): Feed directly into `resource()`.

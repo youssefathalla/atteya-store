@@ -20,8 +20,7 @@
     "fb:fn:dev": "firebase deploy --only functions -P dev",
     "fb:fn:prod": "firebase deploy --only functions -P prod",
     "fb:rules:dev": "firebase deploy --only firestore:rules,storage -P dev",
-    "fb:rules:prod": "firebase deploy --only firestore:rules,storage -P prod",
-    "test:rules": "firebase emulators:exec --project demo-atteya --only firestore \"node --test firebase/tests/firestore.rules.test.mjs\""
+    "fb:rules:prod": "firebase deploy --only firestore:rules,storage -P prod"
   },
   "private": true,
   "packageManager": "npm@11.17.0",
@@ -51,7 +50,6 @@
     "@angular/cli": "^22.2.0",
     "@angular/compiler-cli": "^22.2.0",
     "@eslint/js": "^10.0.1",
-    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/express": "^5.0.1",
     "@types/google.maps": "^3.66.0",
     "@types/node": "^22.12.0",
