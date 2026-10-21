@@ -12,7 +12,7 @@ It answers:
 2. **What tokens and colors to use?**
 3. **What is strictly forbidden to override?**
 
-> 🔗 **Pointers**: Token vocabulary and hard bans are enforced in [design-system.mdc](../../rules/design-system.mdc). Full M3 override mixins and SCSS partial workflows live in [design-system](../design-system/SKILL.md).
+> 🔗 **Pointers**: Token vocabulary and hard bans are enforced in [design-system.mdc](../../../.cursor/rules/design-system.mdc). Full M3 override mixins and SCSS partial workflows live in [design-system](../design-system/SKILL.md).
 
 ---
 

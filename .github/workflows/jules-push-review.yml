@@ -11,7 +11,7 @@ on:
   pull_request:
     types: [opened, synchronize, labeled]
 
-# Permissions are critical for Jules to post comments and read your .cursor folder
+# Permissions are critical for Jules to post comments and read .agents and .cursor
 permissions:
   contents: read
   pull-requests: write
@@ -40,7 +40,7 @@ jobs:
             Context:
             - This is a zoneless, signal-first Angular 22 project (Tailwind CSS v4 + Angular Material M3).
             - Read `AGENTS.md` at the repository root first — it is the master guide.
-            - Follow all rules in `.cursor/rules/` and the skills in `.cursor/skills/`.
+            - Follow the rule in `.cursor/rules/` and the skills in `.agents/skills/`. `ask`, `sync-docs`, and `teacher` live in `.cursor/skills/`.
             - Focus on:
               1. Signal-first patterns: signal/computed/effect, input()/output(), @if/@for, @Service().
               2. Design system adherence: Material M3 token overrides (no ::ng-deep), semantic Tailwind

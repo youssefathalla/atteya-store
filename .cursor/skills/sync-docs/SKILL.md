@@ -7,7 +7,7 @@ description: Audit recent codebase changes and automatically synchronize all mar
 
 > **Activation**: Run `/sync-docs` in chat whenever you finish a task, or during feature pre-flight reviews.
 
-This workflow audits your workspace changes against the documentation contract (`AGENTS.md`, `.cursor/skills/reusable-catalog/SKILL.md`, `.cursor/rules/design-system.mdc`, and `.cursor/skills/new-feature/SKILL.md`), identifies any undocumented building blocks, and automatically updates them.
+This workflow audits your workspace changes against the documentation contract (`AGENTS.md`, `.agents/skills/reusable-catalog/SKILL.md`, `.cursor/rules/design-system.mdc`, and `.agents/skills/new-feature/SKILL.md`), identifies any undocumented building blocks, and automatically updates them.
 
 ---
 
