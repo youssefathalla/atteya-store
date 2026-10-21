@@ -16,6 +16,7 @@ yarn-error.log
 /functions/node_modules/
 
 # IDEs and editors
+.cursor/hooks/state/
 .idea/
 .project
 .classpath
