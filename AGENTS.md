@@ -18,7 +18,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 - **HTTP Configuration**: `HttpClient` is provided in root by default. `provideHttpClient(...)` is optional and only needed when registering interceptors (`withInterceptors`), XSRF protection, or `withXhr()`. FetchBackend is the default engine (`withFetch()` is deprecated).
 - **Services**: Use `@Service()` from `@angular/core` instead of legacy `@Injectable({ providedIn: 'root' })`.
 - **Forms**: Prefer Signal Forms for modern state management.
-- **Deep Reference**: Activate the **`angular-developer`** skill and review `.agents/skills/angular-developer/references/angular-version-matrix.md`.
+- **Deep Reference**: Activate the **`angular-developer`** skill and review `.cursor/skills/angular-developer/references/angular-version-matrix.md`.
 
 ### 🧭 Routing & Route Data
 
@@ -33,7 +33,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### 🎨 Design System & Styling
 
-- **The Contract**: Governed strictly by `.agents/rules/design-system.md` (auto-loaded for `.html`, `.css`, `.scss`, and `.ts`). Adhere to all semantic tokens, M3 overrides, `<mat-icon name="icon" />` with `SharedIconModule`, and utility extraction rules.
+- **The Contract**: Governed strictly by `.cursor/rules/design-system.mdc` (auto-loaded for `.html`, `.css`, `.scss`, and `.ts`). Adhere to all semantic tokens, M3 overrides, `<mat-icon name="icon" />` with `SharedIconModule`, and utility extraction rules.
 - **Zero Tailwind on Angular Material**: Angular Material components (`button[matButton]`, `button[matIconButton]`, `<mat-icon>`, `<mat-menu>`, `<mat-drawer>`, etc.) are already fully styled by the M3 theme. **NEVER** apply Tailwind styling, color, transition, or hover classes to Material components. Only style **native HTML elements** (`<div>`, `<nav>`, `<section>`, `<ul>`, `<a>`, etc.) unless explicitly instructed by the user.
 - **Monochrome (Black & White) Identity**: Brand aesthetic is strictly Black & White. `primary` is black; default text is naturally `text-on-surface` (inherited from `body`). **NEVER write `text-on-surface` on any element** — it is already the default inherited color and writing it is banned as redundant class bloat. Never add redundant child color overrides (e.g. `<span class="text-primary">.</span>`), and inherit colors cleanly.
 - **Layout Alignment Shortcuts**: Always use custom layout shortcuts instead of writing verbose flex classes: Row: `elements-center`, `elements-start`, `elements-end`, `elements-between`. Column: `elements-center-col`, `elements-start-col`, `elements-end-col`, `elements-between-col`.
@@ -101,14 +101,14 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### 📝 Living Documentation Directive
 
-- All agent documentation (`AGENTS.md`, `.agents/skills/`, `.agents/rules/`) is a living contract.
-- Any new technology, service, utility, or architectural pattern added must be documented immediately in the relevant `.agents/skills/` files (`reusable-catalog`, `new-feature`, etc.) and `AGENTS.md` before concluding the task.
+- All agent documentation (`AGENTS.md`, `.cursor/skills/`, `.cursor/rules/`) is a living contract.
+- Any new technology, service, utility, or architectural pattern added must be documented immediately in the relevant `.cursor/skills/` files (`reusable-catalog`, `new-feature`, etc.) and `AGENTS.md` before concluding the task.
 
 ---
 
 ## 🧠 3. Specialized Skills
 
-Activate the dedicated skills from `.agents/skills/` on demand:
+Activate the dedicated skills from `.cursor/skills/` on demand:
 
 - **`new-feature`** for the end-to-end feature lifecycle, LIFT folder structure, and orchestration.
 - **`reusable-catalog`** for the living index of shared UI components, extracted Tailwind classes, and the "2+ Duplication Rule".
@@ -118,3 +118,6 @@ Activate the dedicated skills from `.agents/skills/` on demand:
 - **`angular-developer`** for architecture, components, signals, forms, DI, HTTP, and routing.
 - **`design-system`** for Tailwind v4, Material M3 token overrides, and style partial workflows.
 - **`typescript`** for strict types, Valibot schemas, pure models, and logic utilities.
+- **`sync-docs`** to audit recent changes and keep living catalogs in sync.
+- **`ask`** (manual) for discussion-only brainstorming without file edits.
+- **`teacher`** (manual) to guide implementation instead of writing the solution.

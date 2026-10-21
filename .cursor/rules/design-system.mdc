@@ -1,9 +1,10 @@
 ---
-trigger: glob
-globs: '**/*.{html,css,scss,ts}'
+description: Design system hard bans, semantic tokens, and layout shortcuts
+globs: "**/*.{html,css,scss,ts}"
+alwaysApply: false
 ---
 
-# 🎨 Design System Contract
+# Design System Contract
 
 The **vocabulary and hard bans** for any markup or style in Atteya Store. Zero styling randomness.
 Lookup-free quick reference. For style directory map, SCSS mixins, and component APIs, activate the **`design-system`** or **`reusable-catalog`** skills.

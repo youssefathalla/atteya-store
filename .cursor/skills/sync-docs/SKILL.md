@@ -1,16 +1,17 @@
 ---
-description: Audit recent codebase changes and automatically synchronize all markdown documentation, living catalogs, and agent skills.
+name: sync-docs
+description: Audit recent codebase changes and automatically synchronize all markdown documentation, living catalogs, and agent skills. Use when finishing a task, during feature pre-flight reviews, or when the user asks to sync docs.
 ---
 
-# 📚 Living Documentation Sync Workflow (`/sync-docs`)
+# Living Documentation Sync Workflow (`/sync-docs`)
 
 > **Activation**: Run `/sync-docs` in chat whenever you finish a task, or during feature pre-flight reviews.
 
-This workflow audits your workspace changes against the documentation contract (`AGENTS.md`, `.agents/skills/reusable-catalog/SKILL.md`, `.agents/rules/design-system.md`, and `.agents/skills/new-feature/SKILL.md`), identifies any undocumented building blocks, and automatically updates them.
+This workflow audits your workspace changes against the documentation contract (`AGENTS.md`, `.cursor/skills/reusable-catalog/SKILL.md`, `.cursor/rules/design-system.mdc`, and `.cursor/skills/new-feature/SKILL.md`), identifies any undocumented building blocks, and automatically updates them.
 
 ---
 
-## 🔍 Execution Protocol
+## Execution Protocol
 
 When `/sync-docs` is triggered, execute these 5 steps in order:
 
@@ -51,7 +52,7 @@ Check each newly added or updated item against the living docs:
    - Did we add or alter an external integration (ImageKit, Firebase Storage, Auth, etc.)?
    - Is the architecture documented under **Core Architectural Directives** in `AGENTS.md`?
    - Is the feature lifecycle updated in `new-feature/SKILL.md`?
-   - Are styling guardrails reflected in `.agents/rules/design-system.md`?
+   - Are styling guardrails reflected in `.cursor/rules/design-system.mdc`?
 
 ---
 
@@ -79,7 +80,7 @@ npm run preflight
 Provide a clean summary of what was checked and updated:
 
 ```markdown
-## 📚 Living Documentation Sync Report
+## Living Documentation Sync Report
 
 ### 1. Scanned Changes
 - [List of detected services, utilities, components, or classes]
@@ -88,7 +89,7 @@ Provide a clean summary of what was checked and updated:
 - ✅ **reusable-catalog**: [Up to date / Added: ServiceName, utilityName]
 - ✅ **AGENTS.md**: [Up to date / Updated architectural directives]
 - ✅ **new-feature**: [Up to date / Updated lifecycle steps]
-- ✅ **design-system.md**: [Up to date]
+- ✅ **design-system.mdc**: [Up to date]
 
 ### 3. Verification
 - `npm run preflight`: PASSED (0 errors, 0 warnings)

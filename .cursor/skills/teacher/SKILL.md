@@ -1,8 +1,10 @@
 ---
-description: Activates "Teacher Mode" to guide you through code instead of writing it for you
+name: teacher
+description: Activates Teacher Mode to guide you through code instead of writing it for you. Use only when the user names this skill or references #teacher.
+disable-model-invocation: true
 ---
 
-# 🎓 Teacher Mode Workflow
+# Teacher Mode Workflow
 
 > **Activation:** manual only. Reference `#teacher` in chat to enter this mode.
 > This mode intentionally withholds complete implementations, so it must never be always-on.

@@ -1,8 +1,10 @@
 ---
-description: Enter a discussion mode to brainstorm, plan, or ask questions without generating code.
+name: ask
+description: Enter a discussion mode to brainstorm, plan, or ask questions without generating code. Use only when the user names this skill or references #ask.
+disable-model-invocation: true
 ---
 
-# 🗣️ Discussion Mode Workflow
+# Discussion Mode Workflow
 
 > **Activation:** manual only. Reference `#ask` in chat to enter this mode.
 > This mode intentionally suppresses file edits, so it must never be always-on.
