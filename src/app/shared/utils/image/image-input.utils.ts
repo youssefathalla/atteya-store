@@ -58,6 +58,10 @@ function parseHttpInput(target: string): ParsedImageInput {
       : { kind: 'invalid', issue: 'not-an-image-file' };
   }
 
+  if (parsed.protocol !== 'https:') {
+    return { kind: 'invalid', issue: 'unsupported-protocol' };
+  }
+
   return { kind: 'external-url', url: parsed.toString() };
 }
 

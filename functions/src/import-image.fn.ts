@@ -1,7 +1,9 @@
-import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { getStorage } from 'firebase-admin/storage';
+import { logger } from 'firebase-functions';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from './auth/callable-options.js';
 import { requireRole } from './auth/require-role.js';
+import { assertSafeUrl, fetchImage, ImageFetchError, type FetchedImage } from './images/safe-image-fetch.js';
 
 const ALLOWED_FOLDERS = new Set(['hero', 'products', 'brands', 'categories']);
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -22,21 +24,6 @@ interface ImportImageResponse {
   readonly path: string;
 }
 
-function isBlockedHostname(hostname: string): boolean {
-  const lower = hostname.toLowerCase();
-  return (
-    lower === 'localhost' ||
-    lower === '0.0.0.0' ||
-    lower === '127.0.0.1' ||
-    lower === '::1' ||
-    lower === 'metadata.google.internal' ||
-    lower.endsWith('.local') ||
-    lower.startsWith('10.') ||
-    lower.startsWith('192.168.') ||
-    lower.startsWith('169.254.')
-  );
-}
-
 function sanitizeFolder(raw: unknown): string {
   if (typeof raw !== 'string') {
     throw new HttpsError('invalid-argument', 'A valid storage folder is required.');
@@ -53,63 +40,55 @@ function sanitizeFolder(raw: unknown): string {
   return trimmed;
 }
 
-function parseRemoteImageUrl(raw: unknown): URL {
-  if (typeof raw !== 'string' || !raw.trim()) {
-    throw new HttpsError('invalid-argument', 'Please provide a valid web image link.');
-  }
-  let parsed: URL;
+function hostForLog(raw: unknown): string {
+  if (typeof raw !== 'string') return 'invalid';
   try {
-    parsed = new URL(raw.trim());
+    return new URL(raw.trim()).hostname;
   } catch {
-    throw new HttpsError('invalid-argument', 'The provided image link is not a valid URL.');
+    return 'invalid';
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new HttpsError('invalid-argument', 'Only HTTP and HTTPS image links are supported.');
-  }
-  if (isBlockedHostname(parsed.hostname)) {
-    throw new HttpsError('invalid-argument', 'Private or local network addresses are not allowed.');
-  }
-  return parsed;
 }
 
 /**
- * 2nd-gen Callable Cloud Function that fetches an external image URL server-to-server
- * (bypassing browser CORS restrictions), validates its MIME type and byte size,
- * and saves it directly into the active Firebase Storage bucket.
+ * 2nd-gen Callable Cloud Function that fetches an external https image
+ * server-to-server, checks its type and size, and saves it into Storage.
+ * Admin only. The fetch refuses private networks, odd ports, and redirects
+ * that were not checked again.
  */
 export const importImageFromUrl = onCall(
   adminCallableOptions({ timeoutSeconds: 30, memory: '256MiB' }),
   async (request): Promise<ImportImageResponse> => {
     await requireRole(request, 'admin');
     const body = (request.data ?? {}) as ImportImageRequest;
-    const parsedUrl = parseRemoteImageUrl(body.url);
     const folder = sanitizeFolder(body.folder ?? 'hero');
 
-    let response: Response;
+    const host = hostForLog(body.url);
+    const uid = request.auth?.uid;
+    let image: FetchedImage;
     try {
-      response = await fetch(parsedUrl.toString(), {
-        headers: {
-          Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.8',
-          'User-Agent': 'AtteyaStoreImageImporter/1.0',
-        },
-        redirect: 'follow',
+      if (typeof body.url !== 'string' || !body.url.trim()) {
+        throw new HttpsError('invalid-argument', 'Please provide a valid web image link.');
+      }
+
+      const parsedUrl = assertSafeUrl(body.url.trim());
+      image = await fetchImage(parsedUrl, {
+        maxBytes: MAX_IMAGE_BYTES,
+        allowedTypes: new Set(Object.keys(MIME_TO_EXT)),
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      if (error instanceof ImageFetchError) {
+        logger.warn('Blocked image import', { uid, host, reason: error.logReason });
+        throw new HttpsError(error.code, error.message);
+      }
+      logger.warn('Blocked image import', { uid, host, reason: 'unreachable' });
       throw new HttpsError(
         'unavailable',
         'Could not reach that website to download the image. Please check the link or upload the file from your device.',
       );
     }
 
-    if (!response.ok) {
-      throw new HttpsError(
-        'failed-precondition',
-        `That website refused the download (HTTP ${response.status}). Please save the image to your device and use Upload Image.`,
-      );
-    }
-
-    const contentTypeHeader = (response.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-    const ext = MIME_TO_EXT[contentTypeHeader];
+    const ext = MIME_TO_EXT[image.contentType];
     if (!ext) {
       throw new HttpsError(
         'invalid-argument',
@@ -117,25 +96,19 @@ export const importImageFromUrl = onCall(
       );
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    if (arrayBuffer.byteLength === 0) {
-      throw new HttpsError('invalid-argument', 'The downloaded image file is empty.');
-    }
-    if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
-      throw new HttpsError('invalid-argument', 'The image is larger than the 10MB limit.');
-    }
-
     const uniquePath = `${folder}/imported-${Date.now()}.${ext}`;
-    const bucket = getStorage().bucket();
-    const file = bucket.file(uniquePath);
-
-    await file.save(Buffer.from(arrayBuffer), {
-      resumable: false,
-      metadata: {
-        contentType: contentTypeHeader,
-        cacheControl: 'public, max-age=31536000, immutable',
-      },
-    });
+    try {
+      await getStorage().bucket().file(uniquePath).save(image.buffer, {
+        resumable: false,
+        metadata: {
+          contentType: image.contentType,
+          cacheControl: 'public, max-age=31536000, immutable',
+        },
+      });
+    } catch {
+      logger.warn('Image import could not be saved', { uid, host, reason: 'storage-write' });
+      throw new HttpsError('unavailable', 'The image could not be saved. Please try again.');
+    }
 
     return { path: uniquePath };
   },

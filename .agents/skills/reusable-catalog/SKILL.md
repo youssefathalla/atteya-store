@@ -180,10 +180,13 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - SSR-safe. Firebase Auth runs in the browser only. On the server, `user` is `null` and `role` is `'anon'`.
   - `user`: `Signal<User | null>`, set only after the ID token role is known.
   - `isAuthReady`, `isAuthenticated`, `role` (`'anon' | 'user' | 'admin'`), `isAdmin`.
-  - `login(email, password)`, `loginWithGoogle()` (popup, then redirect if the popup is blocked), `linkPendingGoogle(email, password)` for `auth/account-exists-with-different-credential`, `logout()`, `sendPasswordReset(email)`, `refreshRole(force?)`, `redirectIfNoLongerAdmin(returnUrl)`.
+  - `login(email, password)`, `loginWithGoogle()` (popup, then redirect if the popup is blocked), `linkPendingGoogle(email, password)` for `auth/account-exists-with-different-credential`, `logout()`, `sendPasswordReset(email)`, `refreshRole(force?)`, `redirectIfNoLongerAdmin(returnUrl)`, `watchAdminAccess()`.
+  - A token change during `refreshRole` is applied when that refresh settles. Sign-out clears `user` and sets `role` to `'anon'` immediately.
+  - `redirectIfNoLongerAdmin` sends a signed-in non-admin home with `NOT_ADMIN_MESSAGE`. `watchAdminAccess()` (called from the admin layout) does the same if admin access disappears while `/admin` is open, and sends a signed-out person to `/login`.
   - No self sign-up. Do not call `createUserWithEmailAndPassword`.
   - While signed in, an `rxResource` listens to `roles/{uid}` and calls `getIdToken(true)` when the mirror role differs from the token.
-  - `/login` is `features/auth/login`. The navbar account menu is `app-account-menu`.
+  - `adminGuard` (`src/app/core/guards/admin/admin.guard.ts`) is `canActivate` and `canActivateChild` on the admin layout. It force-refreshes the claim on entry from outside `/admin`. Visitors go to `/login`. Signed-in non-admins go home with `NOT_ADMIN_MESSAGE` (`src/app/features/auth/utils/login-exit.ts`).
+  - `/login` is `features/auth/login`. The navbar account menu is `app-account-menu`. The server and the first browser render both show a disabled placeholder. Sign in or the account actions appear only after `isAuthReady()` in the browser, so prerendered HTML hydrates cleanly.
 - **`NavService`** (`src/app/core/services/navigation/nav.service.ts`):
   - `categories`: Computed signal for live navigation catalog with fallback.
   - `isLoading`: Computed state signal.
@@ -194,7 +197,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `resolveInput(raw, folder)`: Parses user input (`parseImageInput`), verifies managed paths via a CORS-safe `new Image()` ImageKit probe, or imports external URLs via the `importImageFromUrl` Cloud Function. Throws plain-language `ImageInputError`, including `NOT_ALLOWED` when Storage or the callable rejects the caller.
 - **`StorageUploadService`** (`src/app/core/services/storage/storage-upload.service.ts`):
   - `uploadImage(file, folder = 'hero')`: Uploads image (`File`) to Firebase Storage via `uploadBytes()`, returning `{ path: string }` (does not call `getDownloadURL()`).
-  - `importFromUrl(url, folder = 'hero')`: Calls the `importImageFromUrl` 2nd-gen Callable Cloud Function (`functions/src/import-image.fn.ts`) to fetch external URLs server-side without browser CORS issues and save directly to Storage. The function rejects callers who are not `role: 'admin'`.
+  - `importFromUrl(url, folder = 'hero')`: Calls the `importImageFromUrl` 2nd-gen Callable Cloud Function (`functions/src/import-image.fn.ts`) and returns its path. There is no browser fetch fallback. The function is admin-only, https on port 443, at most 3 re-checked redirects, a 10 second deadline, a 10 MB streamed cap, and magic-byte checks for JPEG, PNG, WebP, and AVIF. Deploys build `functions/` first via the `firebase.json` predeploy.
   - `deleteImage(pathOrUrl)` / `deleteImages(paths)`: Deletes managed Storage files while ignoring `/img/`, external URLs, or `PROTECTED_STORAGE_PATHS`.
   - `isUploading`: Read-only `Signal<boolean>` tracking active upload status.
 - **`StorageAssetTracker`** (`src/app/core/services/storage/storage-asset-tracker.ts`):

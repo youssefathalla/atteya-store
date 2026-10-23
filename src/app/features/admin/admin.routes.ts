@@ -5,6 +5,7 @@ export const ADMIN_ROUTES: Routes = [
   {
     path: '',
     canActivate: [adminGuard],
+    canActivateChild: [adminGuard],
     loadComponent: () =>
       import('./layout/admin-layout.component').then((m) => m.AdminLayoutComponent),
     children: [

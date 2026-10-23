@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { AuthService } from '@core/services/auth/auth.service';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { useBreakpoint } from '@shared/utils/breakpoint.utils';
 import { AdminNavService } from './admin-nav.service';
@@ -25,6 +26,10 @@ import { AdminMobileMenuComponent } from './mobile-nav/admin-mobile-menu.compone
 })
 export class AdminLayoutComponent {
   readonly adminNavService = inject(AdminNavService);
+
+  constructor() {
+    inject(AuthService).watchAdminAccess();
+  }
 
   readonly adminCategories = this.adminNavService.categories;
   readonly isDesktopSidebarOpen = this.adminNavService.isDesktopSidebarOpen;
