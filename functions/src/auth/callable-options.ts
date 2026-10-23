@@ -1,10 +1,10 @@
-import { CallableOptions } from 'firebase-functions/v2/https';
+import { CallableOptions, CallableRequest, HttpsError } from 'firebase-functions/v2/https';
 import { defineBoolean } from 'firebase-functions/params';
 
 /**
  * Leave false until real reCAPTCHA Enterprise keys are registered per project
- * and written into the Angular environments. The role check is the protection
- * until then.
+ * and written into the Angular environments. Checked at runtime inside
+ * requireAppCheck() (called by requireRole) to avoid deploy-time .value() warnings.
  */
 export const APP_CHECK_ENFORCED = defineBoolean('APP_CHECK_ENFORCED', {
   default: false,
@@ -18,10 +18,15 @@ export function adminCallableOptions(
   return {
     region: 'europe-west3',
     cors: true,
-    // firebase-functions 6 types accept a boolean here, not a param expression.
-    // The value is fixed when the container loads. Unset or anything other than
-    // the string "true" stays off.
-    enforceAppCheck: APP_CHECK_ENFORCED.value(),
     ...extra,
   };
+}
+
+export function requireAppCheck(request: CallableRequest): void {
+  if (APP_CHECK_ENFORCED.value() && !request.app) {
+    throw new HttpsError(
+      'failed-precondition',
+      "We couldn't verify this request. Refresh the page and try again.",
+    );
+  }
 }

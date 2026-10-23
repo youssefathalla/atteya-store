@@ -1,5 +1,6 @@
 import { getAuth } from 'firebase-admin/auth';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
+import { requireAppCheck } from './callable-options.js';
 import { isRevokedSession } from './session-revocation.js';
 
 export type Role = 'user' | 'admin';
@@ -19,6 +20,8 @@ export interface RequiredCaller {
  * not enough after `revokeRefreshTokens`.
  */
 export async function requireRole(req: CallableRequest, needed: Role): Promise<RequiredCaller> {
+  requireAppCheck(req);
+
   if (!req.auth) {
     throw new HttpsError('unauthenticated', 'Please sign in first.');
   }
