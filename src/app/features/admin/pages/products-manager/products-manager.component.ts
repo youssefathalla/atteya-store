@@ -163,7 +163,13 @@ export class ProductsManagerComponent implements OnInit {
   async editProduct(id: string): Promise<void> {
     if (this.activity()) return;
     const products = this.productsResource.value()?.products ?? [];
-    const product = await this.#admin.getProduct(id);
+    let product;
+    try {
+      product = await this.#admin.getProduct(id);
+    } catch (error: unknown) {
+      this.#snackbar.error(importActionError(error));
+      return;
+    }
     if (!product) {
       this.#snackbar.error('This product no longer exists.');
       this.productsResource.reload();
