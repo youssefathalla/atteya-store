@@ -26,7 +26,7 @@ export const syncProductSearch = onDocumentWritten(
     const db = getFirestore();
     const [{ categoriesById, brandsById }, offers] = await Promise.all([
       getCatalogLookup(db),
-      getActiveOffers(db),
+      getActiveOffers(db, true),
     ]);
 
     const before = toSearchRecord(productId, beforeData, categoriesById, brandsById, offers);

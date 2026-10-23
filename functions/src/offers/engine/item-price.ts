@@ -68,6 +68,7 @@ export function priceItem(
         winnerPartial = partial;
       }
     } else if (isLabelOnlyOffer(offer)) {
+      if (alreadyOnSale && offer.saleItems === 'exclude') continue;
       const badge = formatLabelOnlyOfferBadge(offer, product, partial);
       if (badge) labelBadges.push(badge);
     }

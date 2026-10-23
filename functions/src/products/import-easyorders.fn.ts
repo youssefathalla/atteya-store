@@ -41,8 +41,11 @@ export const importEasyOrdersProducts = onCall(
       if (nextOffset === null) {
         const unpublishedMissing = errorCount === 0 ? await markMissingProducts(db, runId) : 0;
         counts = { ...counts, unpublishedMissing };
-        await writeCatalogSummary(db);
-        await releaseImportRun(db);
+        try {
+          await writeCatalogSummary(db);
+        } finally {
+          await releaseImportRun(db);
+        }
         await db.collection('auditLogs').doc().set({
           action: 'products.import',
           actorUid: actor.uid,

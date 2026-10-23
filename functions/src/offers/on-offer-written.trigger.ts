@@ -28,9 +28,11 @@ export const onOfferWritten = onDocumentWritten(
         : 'offer.update';
 
     const actorUid =
-      (typeof afterData?.['updatedBy'] === 'string' && afterData['updatedBy']) ||
-      (typeof beforeData?.['updatedBy'] === 'string' && beforeData['updatedBy']) ||
-      'admin';
+      action === 'offer.delete'
+        ? 'unknown'
+        : (typeof afterData?.['updatedBy'] === 'string' && afterData['updatedBy']) ||
+          (typeof beforeData?.['updatedBy'] === 'string' && beforeData['updatedBy']) ||
+          'admin';
 
     const db = getFirestore();
     await db.collection('auditLogs').doc().set({
