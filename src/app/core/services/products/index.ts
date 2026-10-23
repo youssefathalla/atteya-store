@@ -1,4 +1,6 @@
 export * from './product.constants';
+export * from './catalog-taxonomy';
+export * from './category.schema';
 export * from './product.model';
 export * from './product.schema';
 export * from './product.service';

@@ -1,15 +1,16 @@
 /**
- * Catalogue taxonomy for Step 1.
+ * Catalogue taxonomy for Step 1b.
  * Keep in sync with functions/src/products/catalog-mapping.ts.
- * Categories, types, and brands are code constants until a later admin exists.
  */
 
 export const PRODUCTS_COLLECTION = 'products';
+export const CATEGORIES_COLLECTION = 'categories';
+export const BRANDS_COLLECTION = 'brands';
 export const CATALOG_DOC = ['settings', 'catalog'] as const;
 
 export const PRODUCT_CATEGORY_IDS = ['rackets', 'apparel', 'bags', 'accessories'] as const;
 
-export const PLACEHOLDER_CATEGORY_IDS = ['shoes', 'hoodies', 'bundles'] as const;
+export const PLACEHOLDER_CATEGORY_IDS = ['shoes', 'hoodies', 'tracksuits', 'bundles'] as const;
 
 export const PRODUCT_CATEGORIES = [
   { id: 'rackets', label: 'Rackets' },
