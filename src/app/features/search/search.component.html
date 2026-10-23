@@ -117,14 +117,12 @@
               {{ hit.brandName }}
             </span>
             <h2 class="font-title-sm font-bold! line-clamp-2">{{ hit.name }}</h2>
-            <div class="elements-center flex-wrap gap-2 pt-1">
-              <span class="font-title-sm font-bold!">{{ hit.price | egpPrice }}</span>
-              @if (hit.onSale && hit.compareAtPrice !== null) {
-                <span class="font-body-sm text-on-surface-variant line-through">
-                  {{ hit.compareAtPrice | egpPrice }}
-                </span>
-              }
-            </div>
+            <app-product-price
+              class="pt-1"
+              [price]="hit.price"
+              [listPrice]="hit.compareAtPrice"
+              [badges]="hit.onSale && hit.discountPercent > 0 ? [hit.discountPercent + '% off'] : []"
+            />
           </div>
         </a>
       }

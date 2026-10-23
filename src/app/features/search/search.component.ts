@@ -17,7 +17,7 @@ import { Router, RouterLink } from '@angular/router';
 import { SearchService, type SearchSort } from '@core/services/search';
 import { SeoService } from '@core/services/seo';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
-import { EgpPricePipe } from '@shared/pipes/egp-price.pipe';
+import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { normalizeImageKitPath } from '@shared/utils/image';
@@ -39,7 +39,7 @@ const SORT_OPTIONS: readonly { readonly value: SearchSort; readonly label: strin
     MatInputModule,
     MatSelectModule,
     AppImageFallbackDirective,
-    EgpPricePipe,
+    ProductPriceComponent,
     SharedIconModule,
     SkeletonComponent,
   ],
