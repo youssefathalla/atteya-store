@@ -1,3 +1,5 @@
+import { AUTH_ERROR_MAPPINGS, DEFAULT_AUTH_ERROR } from '@core/services/auth/auth.errors';
+
 export interface FirebaseError {
   code: string;
 }
@@ -13,21 +15,6 @@ export const isFirebaseError = (err: unknown): err is FirebaseError => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Error Message Mappings (Direct English)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  'auth/email-already-in-use': 'This email is already registered.',
-  'auth/weak-password': 'Password is too weak. Use at least 8 characters.',
-  'auth/invalid-email': 'Please enter a valid email address.',
-  'auth/user-not-found': 'Email not found. Please check your spelling or sign up.',
-  'auth/wrong-password': 'Incorrect password. Try again or reset it.',
-  'auth/invalid-credential': 'Invalid email or password. Please try again.',
-  'auth/network-request-failed': 'Network connection error. Check your internet.',
-  'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
-  'auth/operation-not-allowed': 'This sign-in method is not allowed.',
-  'auth/requires-recent-login': 'Please log in again to perform this action.',
-  'auth/user-disabled': 'This account has been disabled.',
-  'auth/popup-closed-by-user': 'Sign-in cancelled.',
-};
 
 const FIRESTORE_ERROR_MESSAGES: Record<string, string> = {
   'permission-denied': "You don't have permission to perform this action.",
@@ -66,7 +53,7 @@ const FUNCTIONS_ERROR_MESSAGES: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const authErrors = (error: FirebaseError): string =>
-  AUTH_ERROR_MESSAGES[error.code] ?? 'Authentication failed. Please try again.';
+  AUTH_ERROR_MAPPINGS[error.code] ?? DEFAULT_AUTH_ERROR;
 
 export const firestoreErrors = (error: FirebaseError): string =>
   FIRESTORE_ERROR_MESSAGES[error.code] ?? 'A database error occurred. Please try again.';

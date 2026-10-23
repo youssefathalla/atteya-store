@@ -1,0 +1,100 @@
+<section class="container-content min-h-[calc(100dvh-56px)] elements-center">
+  <div class="w-full max-w-md elements-start-col gap-8">
+    <div class="elements-start-col gap-2">
+      <p class="font-label-md uppercase tracking-widest">Account</p>
+      <h1 class="font-headline-lg font-bold!">Sign in</h1>
+      <p class="font-body-md text-on-surface-variant">
+        Use Google, or the email and password set up for you. There is no separate sign-up.
+      </p>
+    </div>
+
+    @if (shownError()) {
+      <p class="font-body-sm text-error" role="alert">{{ shownError() }}</p>
+    }
+    @if (notice()) {
+      <p class="font-body-sm" role="status">{{ notice() }}</p>
+    }
+
+    @if (auth.needsGoogleLink()) {
+      <div class="elements-start-col gap-3">
+        <p class="font-body-md">
+          @if (auth.pendingGoogleEmail()) {
+            This email already has a password. Enter it to connect Google to
+            {{ auth.pendingGoogleEmail() }}.
+          } @else {
+            This email already has a password. Enter it to connect Google to the same account.
+          }
+        </p>
+        <button matButton type="button" (click)="useDifferentAccount()">Use a different account</button>
+      </div>
+    } @else {
+      <div class="w-full [&>button]:w-full">
+        <button
+          matButton="outlined"
+          type="button"
+          (click)="continueWithGoogle()"
+          [disabled]="isBusy()"
+          [attr.aria-label]="isGoogleBusy() ? 'Signing in with Google...' : null"
+        >
+          @if (isGoogleBusy()) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Continue with Google</span>
+          }
+        </button>
+      </div>
+      <div class="elements-center gap-4 w-full">
+        <span class="h-px flex-1 bg-outline-variant"></span>
+        <span class="font-label-sm">or</span>
+        <span class="h-px flex-1 bg-outline-variant"></span>
+      </div>
+    }
+
+    <form class="form-space w-full" novalidate (submit)="onSubmit($event)">
+      <app-text-input
+        [formField]="loginForm.email"
+        label="Email"
+        type="email"
+        inputMode="email"
+        icon="mail"
+        placeholder="you@email.com"
+      />
+      <app-password-input
+        [formField]="loginForm.password"
+        label="Password"
+        icon="lock"
+        placeholder="Password"
+      />
+      <div class="elements-between">
+        <button
+          matButton
+          type="button"
+          (click)="sendReset()"
+          [disabled]="isBusy()"
+          [attr.aria-label]="isResetting() ? 'Sending reset link...' : null"
+        >
+          @if (isResetting()) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Forgot password?</span>
+          }
+        </button>
+      </div>
+
+      <div class="w-full [&>button]:w-full">
+        <button
+          matButton="filled"
+          type="submit"
+          [disabled]="isBusy()"
+          [attr.aria-label]="isEmailBusy() ? 'Signing in...' : null"
+        >
+          @if (isEmailBusy()) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>{{ auth.needsGoogleLink() ? 'Connect Google' : 'Sign in' }}</span>
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</section>

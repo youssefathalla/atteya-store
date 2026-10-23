@@ -1,5 +1,9 @@
 import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { Router } from '@angular/router';
+import { AuthService } from '@core/services/auth/auth.service';
+import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
+import { firebaseErrors } from '@shared/utils/firebase/firebase-errors';
 import { NAV_CATEGORIES, NavService } from '@core/services/navigation';
 import { NavManagerHeaderComponent } from './components/nav-manager-header/nav-manager-header.component';
 import { NavCategoryListComponent } from './components/nav-category-list/nav-category-list.component';
@@ -23,6 +27,8 @@ export class NavigationManagerComponent {
   readonly #navService = inject(NavService);
   readonly #snackbar = inject(SnackbarService);
   readonly #dialogs = inject(NavigationDialogService);
+  readonly #auth = inject(AuthService);
+  readonly #router = inject(Router);
   readonly draft = inject(NavigationDraftService);
   readonly isSaving = signal<boolean>(false);
   readonly isResetting = signal<boolean>(false);
@@ -112,8 +118,7 @@ export class NavigationManagerComponent {
       this.draft.markSaved();
       this.#snackbar.success('Published! Navigation updated successfully.');
     } catch (err) {
-      console.error('Failed to publish navigation:', err);
-      this.#snackbar.error('Failed to save changes. Please try again.');
+      await this.#reportWriteError(err, 'Failed to save changes. Please try again.');
     } finally {
       this.isSaving.set(false);
     }
@@ -130,8 +135,7 @@ export class NavigationManagerComponent {
       this.#snackbar.success('Default navigation restored successfully!');
       this.draft.resetDraftFromSource(NAV_CATEGORIES);
     } catch (err) {
-      console.error('Failed to reset navigation:', err);
-      this.#snackbar.error('Failed to reset navigation.');
+      await this.#reportWriteError(err, 'Failed to reset navigation.');
     } finally {
       this.isResetting.set(false);
     }
@@ -143,5 +147,13 @@ export class NavigationManagerComponent {
       if (!confirmed) return;
     }
     this.draft.discardDraft(this.#navService.categories());
+  }
+
+  async #reportWriteError(err: unknown, fallback: string): Promise<void> {
+    console.error(fallback, err);
+    this.#snackbar.error(isPermissionDenied(err) ? firebaseErrors(err) : fallback);
+    if (isPermissionDenied(err)) {
+      await this.#auth.redirectIfNoLongerAdmin(this.#router.url);
+    }
   }
 }

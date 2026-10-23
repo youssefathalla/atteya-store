@@ -1,27 +1,24 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { LogoComponent } from '@shared/ui/logo/logo.component';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 import { MobileMenuComponent } from './components/mobile-menu/mobile-menu.component';
 import { CartDrawerComponent } from '../../cart-drawer/cart-drawer.component';
-
-import { RouterLink } from '@angular/router';
+import { AccountMenuComponent } from '../components/account-menu/account-menu.component';
 
 @Component({
   selector: 'app-mobile-nav',
   templateUrl: './mobile-nav.component.html',
   imports: [
-    RouterLink,
     SharedIconModule,
     MatBadgeModule,
     MatButtonModule,
-    MatMenuModule,
     LogoComponent,
     MobileMenuComponent,
     CartDrawerComponent,
+    AccountMenuComponent,
   ],
 })
 export class MobileNavComponent {

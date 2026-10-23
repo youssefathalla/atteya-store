@@ -38,6 +38,12 @@ export const routes: Routes = [
         title: 'Brand | Atteya Store',
         data: { isBrand: true },
       },
+      {
+        path: 'login',
+        loadComponent: () =>
+          import('./features/auth/login/login.component').then((m) => m.LoginComponent),
+        title: 'Sign in | Atteya Store',
+      },
     ],
   },
 

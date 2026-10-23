@@ -16,7 +16,8 @@ export type ImageErrorCode =
   | 'BLOCKED_BY_HOST'
   | 'NOT_FOUND'
   | 'NOT_REACHABLE_VIA_CDN'
-  | 'UPLOAD_FAILED';
+  | 'UPLOAD_FAILED'
+  | 'NOT_ALLOWED';
 
 export class ImageInputError extends Error {
   readonly code: ImageErrorCode;
@@ -67,6 +68,19 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const NOT_ALLOWED_MESSAGE =
+  "You don't have permission to add images. Sign in with an admin account and try again.";
+
+function isNotAllowed(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null || !('code' in err)) return false;
+  const code = (err as { code?: unknown }).code;
+  return (
+    code === 'storage/unauthorized' ||
+    code === 'functions/permission-denied' ||
+    code === 'permission-denied'
+  );
+}
+
 @Service()
 export class ImageSourceService {
   readonly #storageUpload = inject(StorageUploadService);
@@ -97,6 +111,7 @@ export class ImageSourceService {
       };
     } catch (err: unknown) {
       if (err instanceof ImageInputError) throw err;
+      if (isNotAllowed(err)) throw new ImageInputError('NOT_ALLOWED', NOT_ALLOWED_MESSAGE);
       throw new ImageInputError(
         'UPLOAD_FAILED',
         'Unable to upload the image right now. Please check your connection and try again.',
@@ -174,6 +189,7 @@ export class ImageSourceService {
     try {
       return await this.#storageUpload.importFromUrl(url, folder);
     } catch (err: unknown) {
+      if (isNotAllowed(err)) throw new ImageInputError('NOT_ALLOWED', NOT_ALLOWED_MESSAGE);
       const msg = err instanceof Error ? err.message : '';
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('refused')) {
         throw new ImageInputError(

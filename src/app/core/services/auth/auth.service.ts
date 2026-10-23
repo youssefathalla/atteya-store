@@ -1,106 +1,321 @@
-import { Service, computed, inject, signal, PLATFORM_ID } from '@angular/core';
+import { Service, computed, effect, inject, signal, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
+import { FirebaseError } from 'firebase/app';
 import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
+  GoogleAuthProvider,
+  getRedirectResult,
+  linkWithCredential,
+  onIdTokenChanged,
   sendPasswordResetEmail,
-  sendEmailVerification,
-  User,
-  UserCredential,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+  type AuthCredential,
+  type User,
 } from 'firebase/auth';
-import { injectAuth } from '@core/firebase/firebase.tokens';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { Observable, of } from 'rxjs';
+import { injectAuth, injectFirestore } from '@core/firebase';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { AUTH_ERROR_MAPPINGS, DEFAULT_AUTH_ERROR } from './auth.errors';
+import { AppRole, GoogleSignInOutcome, roleFromClaims } from './auth.model';
+import { parseRoleMirror, RoleMirror } from './role-mirror.schema';
+import {
+  authErrorCode,
+  isPopupFallback,
+  isSessionExpired,
+  readErrorEmail,
+  safeReturnUrl,
+} from './auth.utils';
 
+const PASSWORD_RESET_HIDDEN_CODES = new Set(['auth/user-not-found', 'auth/invalid-credential']);
+
+/**
+ * SSR-safe sign-in state. Firebase Auth runs only in the browser.
+ * `user` is set after the ID token role is known, so `waitForAuthReady()` covers both.
+ *
+ * The role mirror is a dynamic `roles/{uid}` listener (`rxResource` + `onSnapshot`).
+ * `signalDoc` binds one document for the life of the injector, so it cannot follow a changing uid.
+ */
 @Service()
 export class AuthService {
   readonly #auth = injectAuth();
+  readonly #firestore = injectFirestore();
   readonly #platformId = inject(PLATFORM_ID);
   readonly #router = inject(Router);
   readonly #snackbar = inject(SnackbarService);
 
+  readonly #user = signal<User | null>(null);
+  readonly #role = signal<AppRole>('anon');
+  readonly #isAuthReady = signal(false);
+  readonly #needsGoogleLink = signal(false);
+  readonly #pendingGoogleEmail = signal('');
+  readonly #redirectError = signal('');
+  readonly #linkingGoogle = signal(false);
+
+  #pendingCredential: AuthCredential | null = null;
+  #generation = 0;
+  #refreshInFlight: Promise<AppRole> | null = null;
+  #redirectConsumed = false;
+  #readyWaiters: (() => void)[] = [];
+
+  readonly user = this.#user.asReadonly();
+  readonly role = this.#role.asReadonly();
+  readonly isAuthReady = this.#isAuthReady.asReadonly();
+  readonly isAuthenticated = computed(() => this.#user() !== null);
+  readonly isAdmin = computed(() => this.#role() === 'admin');
+  readonly needsGoogleLink = this.#needsGoogleLink.asReadonly();
+  readonly pendingGoogleEmail = this.#pendingGoogleEmail.asReadonly();
+  readonly redirectError = this.#redirectError.asReadonly();
+  readonly linkingGoogle = this.#linkingGoogle.asReadonly();
+
   /**
-   * Current authenticated user state:
-   * - `undefined`: Initializing (checking session token)
-   * - `null`: Unauthenticated (guest)
-   * - `User`: Authenticated
+   * Subscribes for the signed-in user's role mirror. Reading `value()` in the
+   * constructor effect keeps the listener alive for the app session.
    */
-  readonly user = signal<User | null | undefined>(undefined);
-  readonly currentUser = computed(() => this.user() ?? null);
-  readonly isAuthenticated = computed(() => !!this.user());
-  readonly isAuthReady = computed(() => this.user() !== undefined);
-  readonly emailVerified = computed(() => this.user()?.emailVerified ?? false);
+  readonly #roleMirror = rxResource({
+    params: () => this.#user()?.uid ?? '',
+    stream: ({ params: uid }) => this.#watchRoleMirror(uid),
+  });
 
   constructor() {
     if (isPlatformBrowser(this.#platformId)) {
-      onAuthStateChanged(this.#auth, (firebaseUser) => {
-        this.user.set(firebaseUser);
+      onIdTokenChanged(this.#auth, (firebaseUser) => {
+        if (this.#refreshInFlight) return;
+        const generation = ++this.#generation;
+        void this.#applyUser(firebaseUser, generation);
       });
+      void this.#consumeRedirectResult();
     } else {
-      // In SSR / Prerender, resolve immediately to unauthenticated guest
-      this.user.set(null);
+      this.#markReady();
     }
-  }
 
-  /** Resolves when Firebase Auth has finished its initial state check. */
-  async waitForAuthReady(): Promise<void> {
-    if (this.isAuthReady()) return;
-
-    return new Promise<void>((resolve) => {
-      const unsubscribe = onAuthStateChanged(this.#auth, () => {
-        unsubscribe();
-        resolve();
-      });
+    effect(() => {
+      this.#roleMirror.value();
     });
   }
 
-  async login(email: string, pass: string): Promise<UserCredential> {
+  async waitForAuthReady(): Promise<void> {
+    if (this.#isAuthReady()) return;
+    return new Promise((resolve) => {
+      this.#readyWaiters.push(resolve);
+    });
+  }
+
+  async refreshRole(force = true): Promise<AppRole> {
+    if (!isPlatformBrowser(this.#platformId)) return this.#role();
+    await this.waitForAuthReady();
+    if (!force) return this.#role();
+
+    this.#refreshInFlight ??= this.#loadRole().finally(() => {
+      this.#refreshInFlight = null;
+    });
+    return this.#refreshInFlight;
+  }
+
+  async login(email: string, password: string): Promise<void> {
+    this.clearPendingGoogle();
+    await signInWithEmailAndPassword(this.#auth, email.trim(), password);
+  }
+
+  /**
+   * Popup first. A blocked popup falls back to a full-page redirect.
+   * `@gmail.com` accounts attach to the existing user under "one account per email".
+   * Other addresses that already have a password return `'link'` so the page can ask for it.
+   */
+  async loginWithGoogle(): Promise<GoogleSignInOutcome> {
+    this.clearPendingGoogle();
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
     try {
-      const cred = await signInWithEmailAndPassword(this.#auth, email, pass);
-      this.#snackbar.success('Logged in successfully');
-      return cred;
+      await signInWithPopup(this.#auth, provider);
+      return 'popup';
     } catch (error) {
-      this.#snackbar.error(this.mapFirebaseError(error));
+      if (isPopupFallback(error)) {
+        await signInWithRedirect(this.#auth, provider);
+        return 'redirect';
+      }
+      if (this.#captureAccountExists(error)) return 'link';
       throw error;
     }
   }
 
-  async register(email: string, pass: string): Promise<UserCredential> {
-    try {
-      const cred = await createUserWithEmailAndPassword(this.#auth, email, pass);
-      await sendEmailVerification(cred.user);
-      this.#snackbar.success('Account created! Verification email sent.');
-      return cred;
-    } catch (error) {
-      this.#snackbar.error(this.mapFirebaseError(error));
-      throw error;
+  async linkPendingGoogle(email: string, password: string): Promise<void> {
+    const pending = this.#pendingCredential;
+    const target = (email || this.#pendingGoogleEmail()).trim();
+    if (!pending || !target) {
+      throw new Error('Enter the password for this email to connect Google.');
     }
+
+    this.#linkingGoogle.set(true);
+    try {
+      const credential = await signInWithEmailAndPassword(this.#auth, target, password);
+      try {
+        await linkWithCredential(credential.user, pending);
+      } catch (error) {
+        if (authErrorCode(error) !== 'auth/provider-already-linked') throw error;
+      }
+      this.clearPendingGoogle();
+    } finally {
+      this.#linkingGoogle.set(false);
+    }
+  }
+
+  clearPendingGoogle(): void {
+    this.#pendingCredential = null;
+    this.#needsGoogleLink.set(false);
+    this.#pendingGoogleEmail.set('');
+  }
+
+  clearRedirectError(): void {
+    this.#redirectError.set('');
   }
 
   async logout(): Promise<void> {
+    this.clearPendingGoogle();
+    this.#role.set('anon');
+    this.#user.set(null);
     await signOut(this.#auth);
     this.#snackbar.info('Signed out');
-    await this.#router.navigate(['/']);
+    await this.#router.navigateByUrl('/');
   }
 
+  /**
+   * Same outcome whether or not the email exists, so the page can stay quiet about that.
+   * Invalid addresses and network problems still throw.
+   */
   async sendPasswordReset(email: string): Promise<void> {
     try {
-      await sendPasswordResetEmail(this.#auth, email);
-      this.#snackbar.success('Password reset email sent');
+      await sendPasswordResetEmail(this.#auth, email.trim());
     } catch (error) {
-      this.#snackbar.error(this.mapFirebaseError(error));
+      if (PASSWORD_RESET_HIDDEN_CODES.has(authErrorCode(error))) return;
       throw error;
     }
   }
 
+  /** After a rejected admin write: refresh the claim, then send a non-admin to sign in. */
+  async redirectIfNoLongerAdmin(returnUrl: string): Promise<void> {
+    await this.refreshRole(true);
+    if (this.isAdmin()) return;
+    await this.#router.navigate(['/login'], {
+      queryParams: { returnUrl: safeReturnUrl(returnUrl) },
+    });
+  }
+
   mapFirebaseError(error: unknown): string {
-    if (error && typeof error === 'object' && 'code' in error) {
-      const code = (error as { code: string }).code;
-      return AUTH_ERROR_MAPPINGS[code] ?? DEFAULT_AUTH_ERROR;
-    }
+    const code = authErrorCode(error);
+    if (code) return AUTH_ERROR_MAPPINGS[code] ?? DEFAULT_AUTH_ERROR;
+    if (error instanceof Error && error.message.startsWith('Enter the password')) return error.message;
     return DEFAULT_AUTH_ERROR;
+  }
+
+  #watchRoleMirror(uid: string): Observable<RoleMirror | null> {
+    if (!uid || !isPlatformBrowser(this.#platformId)) return of(null);
+
+    return new Observable((subscriber) => {
+      const unsubscribe = onSnapshot(
+        doc(this.#firestore, 'roles', uid),
+        (snapshot) => {
+          const mirror = snapshot.exists() ? parseRoleMirror(snapshot.data()) : null;
+          subscriber.next(mirror);
+          const tokenRole = this.#role();
+          if (!mirror || tokenRole === 'anon' || mirror.role === tokenRole) return;
+          void this.refreshRole(true);
+        },
+        () => subscriber.next(null),
+      );
+      return unsubscribe;
+    });
+  }
+
+  async #applyUser(firebaseUser: User | null, generation: number): Promise<void> {
+    if (!firebaseUser) {
+      if (generation !== this.#generation) return;
+      this.#role.set('anon');
+      this.#user.set(null);
+      this.#markReady();
+      return;
+    }
+
+    try {
+      const result = await firebaseUser.getIdTokenResult();
+      if (generation !== this.#generation) return;
+      this.#role.set(roleFromClaims(result.claims));
+      this.#user.set(firebaseUser);
+      this.#markReady();
+    } catch (error) {
+      if (generation !== this.#generation) return;
+      if (isSessionExpired(error)) {
+        await signOut(this.#auth).catch(() => undefined);
+        this.#role.set('anon');
+        this.#user.set(null);
+        this.#markReady();
+        return;
+      }
+      this.#role.set('user');
+      this.#user.set(firebaseUser);
+      this.#markReady();
+    }
+  }
+
+  async #loadRole(): Promise<AppRole> {
+    const current = this.#auth.currentUser;
+    if (!current) {
+      this.#role.set('anon');
+      this.#user.set(null);
+      return 'anon';
+    }
+
+    try {
+      const result = await current.getIdTokenResult(true);
+      if (this.#auth.currentUser?.uid !== current.uid) return this.#role();
+      const role = roleFromClaims(result.claims);
+      this.#role.set(role);
+      this.#user.set(current);
+      return role;
+    } catch (error) {
+      if (authErrorCode(error) === 'auth/network-request-failed') return this.#role();
+      if (isSessionExpired(error)) {
+        await signOut(this.#auth).catch(() => undefined);
+        this.#role.set('anon');
+        this.#user.set(null);
+        return 'anon';
+      }
+      return this.#role();
+    }
+  }
+
+  async #consumeRedirectResult(): Promise<void> {
+    if (this.#redirectConsumed) return;
+    this.#redirectConsumed = true;
+
+    try {
+      await getRedirectResult(this.#auth);
+    } catch (error) {
+      if (this.#captureAccountExists(error)) return;
+      this.#redirectError.set(this.mapFirebaseError(error));
+    }
+  }
+
+  #captureAccountExists(error: unknown): boolean {
+    if (!(error instanceof FirebaseError)) return false;
+    if (error.code !== 'auth/account-exists-with-different-credential') return false;
+    const credential = GoogleAuthProvider.credentialFromError(error);
+    if (!credential) return false;
+    this.#pendingCredential = credential;
+    this.#pendingGoogleEmail.set(readErrorEmail(error));
+    this.#needsGoogleLink.set(true);
+    return true;
+  }
+
+  #markReady(): void {
+    this.#isAuthReady.set(true);
+    const waiters = this.#readyWaiters;
+    this.#readyWaiters = [];
+    for (const resolve of waiters) resolve();
   }
 }

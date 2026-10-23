@@ -1,9 +1,13 @@
 import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { AuthService } from '@core/services/auth/auth.service';
+import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { StorageUploadService } from '@core/services/storage';
 import { NavService } from '@core/services/navigation';
+import { firebaseErrors } from '@shared/utils/firebase/firebase-errors';
 import { HomeService } from '@features/home/services/home.service';
 import {
   DEFAULT_HOME_HERO,
@@ -47,6 +51,8 @@ export class HomeManagerComponent {
   readonly #snackbar = inject(SnackbarService);
   readonly #dialogs = inject(HomeDialogService);
   readonly #storageUpload = inject(StorageUploadService);
+  readonly #auth = inject(AuthService);
+  readonly #router = inject(Router);
 
   readonly #isSaving = signal<boolean>(false);
   readonly #isResetting = signal<boolean>(false);
@@ -145,8 +151,7 @@ export class HomeManagerComponent {
       this.draft.markSaved();
       this.#snackbar.success('Published! Your homepage sections are now live.');
     } catch (err) {
-      console.error('Failed to update home page settings:', err);
-      this.#snackbar.error('Unable to publish changes. Please try again.');
+      await this.#reportWriteError(err, 'Unable to publish changes. Please try again.');
     } finally {
       this.#isSaving.set(false);
     }
@@ -173,8 +178,7 @@ export class HomeManagerComponent {
       );
       this.#snackbar.success('Default homepage sections restored.');
     } catch (err) {
-      console.error('Failed to reset home sections:', err);
-      this.#snackbar.error('Unable to restore default sections. Please try again.');
+      await this.#reportWriteError(err, 'Unable to restore default sections. Please try again.');
     } finally {
       this.#isResetting.set(false);
     }
@@ -191,5 +195,13 @@ export class HomeManagerComponent {
     const orphanedPaths = this.draft.getOrphanedPathsForDiscard(liveHero, liveShop, liveNav);
     await this.#storageUpload.deleteImages(orphanedPaths);
     this.draft.discardDraft(liveHero, liveShop, liveNav);
+  }
+
+  async #reportWriteError(err: unknown, fallback: string): Promise<void> {
+    console.error(fallback, err);
+    this.#snackbar.error(isPermissionDenied(err) ? firebaseErrors(err) : fallback);
+    if (isPermissionDenied(err)) {
+      await this.#auth.redirectIfNoLongerAdmin(this.#router.url);
+    }
   }
 }
