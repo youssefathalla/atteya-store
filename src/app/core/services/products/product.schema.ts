@@ -76,6 +76,7 @@ export const ProductSchema = v.pipe(
     trackStock: v.boolean(),
     variants: v.pipe(v.array(ProductVariantSchema), v.maxLength(200)),
     published: v.boolean(),
+    searchTokens: v.optional(v.pipe(v.array(v.pipe(v.string(), v.minLength(1))), v.maxLength(200)), []),
     lockedFields: v.array(v.picklist(LOCKABLE_PRODUCT_FIELDS)),
     source: v.nullable(ProductSourceSchema),
     createdAt: timestampSchema,

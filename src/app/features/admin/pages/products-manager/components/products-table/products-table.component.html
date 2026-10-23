@@ -14,9 +14,11 @@
       [data]="rows()"
       [columns]="columns()"
       [showHeaderControls]="false"
-      [isLoading]="false"
+      [isLoading]="tableLoading()"
+      [hasServerFilters]="hasActiveFilters()"
+      [paginationService]="paginationService()"
     >
-      <p noDataContent class="font-body-md">No products yet. Preview an import to see what would be copied.</p>
+      <p noDataContent class="font-body-md">{{ emptyMessage() }}</p>
     </app-reusable-table>
   }
 </section>

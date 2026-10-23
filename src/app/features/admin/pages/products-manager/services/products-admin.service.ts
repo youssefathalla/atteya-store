@@ -10,7 +10,10 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  startAfter,
   updateDoc,
+  where,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { BrandSchema, CategorySchema } from '@core/services/products/category.schema';
@@ -21,19 +24,88 @@ import {
 } from '@core/services/products/product.constants';
 import type { Brand, Category, Product } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
+import {
+  buildSearchTokens,
+  longestSearchWord,
+  searchWordsFromTerm,
+} from '@core/services/products/search-tokens';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import type { ProductEditDraft } from '../models/product-admin.model';
+
+const LIST_PAGE_SIZE = 500;
+const SEARCH_QUERY_LIMIT = 201;
+
+export interface ProductSearchResult {
+  readonly products: readonly Product[];
+  readonly truncated: boolean;
+}
 
 @Service()
 export class ProductsAdminService {
   readonly #firestore = injectFirestore();
+  readonly #productConverter = createValibotConverter(ProductSchema);
 
-  async listProducts(): Promise<readonly Product[]> {
+  async listAllProducts(): Promise<readonly Product[]> {
     const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(
-      createValibotConverter(ProductSchema),
+      this.#productConverter,
     );
-    const snap = await getDocs(query(products, orderBy('name'), limit(500)));
-    return snap.docs.map((item) => item.data());
+    const all: Product[] = [];
+    let lastDoc: QueryDocumentSnapshot<Product> | undefined;
+
+    for (;;) {
+      const pageQuery = lastDoc
+        ? query(products, orderBy('name', 'asc'), startAfter(lastDoc), limit(LIST_PAGE_SIZE))
+        : query(products, orderBy('name', 'asc'), limit(LIST_PAGE_SIZE));
+      const snap = await getDocs(pageQuery);
+      if (snap.empty) break;
+      for (const docSnap of snap.docs) {
+        all.push(docSnap.data());
+        lastDoc = docSnap;
+      }
+      if (snap.docs.length < LIST_PAGE_SIZE) break;
+    }
+
+    return all;
+  }
+
+  async searchProducts(term: string): Promise<ProductSearchResult> {
+    const words = searchWordsFromTerm(term);
+    const anchor = longestSearchWord(words);
+    if (!anchor) {
+      return { products: [], truncated: false };
+    }
+
+    const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(
+      this.#productConverter,
+    );
+    const snap = await getDocs(
+      query(products, where('searchTokens', 'array-contains', anchor), limit(SEARCH_QUERY_LIMIT)),
+    );
+
+    const matches = snap.docs
+      .map((docSnap) => docSnap.data())
+      .filter((product) => {
+        const haystack = product.searchTokens ?? [];
+        return words.every((word) => haystack.includes(word));
+      })
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    const truncated = snap.docs.length >= SEARCH_QUERY_LIMIT;
+    const visible = truncated ? matches.slice(0, SEARCH_QUERY_LIMIT - 1) : matches;
+    return { products: visible, truncated };
+  }
+
+  async listModelGroups(): Promise<readonly string[]> {
+    const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(
+      this.#productConverter,
+    );
+    const snap = await getDocs(query(products, where('modelGroup', '!=', null)));
+    const groups = new Set<string>();
+    for (const docSnap of snap.docs) {
+      const group = docSnap.data().modelGroup;
+      if (group) groups.add(group);
+    }
+    return [...groups].sort((left, right) => left.localeCompare(right));
   }
 
   async listAllCategories(): Promise<readonly Category[]> {
@@ -58,16 +130,14 @@ export class ProductsAdminService {
   }
 
   async getProduct(id: string): Promise<Product | null> {
-    const ref = doc(this.#firestore, PRODUCTS_COLLECTION, id).withConverter(
-      createValibotConverter(ProductSchema),
-    );
+    const ref = doc(this.#firestore, PRODUCTS_COLLECTION, id).withConverter(this.#productConverter);
     const snap = await getDoc(ref);
     return snap.exists() ? snap.data() : null;
   }
 
   async saveProduct(original: Product, next: ProductEditDraft): Promise<boolean> {
     const ref = doc(this.#firestore, PRODUCTS_COLLECTION, original.id).withConverter(
-      createValibotConverter(ProductSchema),
+      this.#productConverter,
     );
     const snap = await getDoc(ref);
     if (!snap.exists()) {
@@ -78,7 +148,6 @@ export class ProductsAdminService {
     const changes: Record<string, string | boolean | null | readonly string[]> = {};
     const locked: string[] = [];
 
-    // Only persist fields the user edited in the dialog (vs `original`) and that still differ from Firestore (`fresh`).
     if (next.type !== original.type && next.type !== fresh.type) {
       changes['type'] = next.type;
       locked.push('type');
@@ -106,6 +175,7 @@ export class ProductsAdminService {
     ) {
       changes['modelGroup'] = next.modelGroup;
       locked.push('modelGroup');
+      changes['searchTokens'] = buildSearchTokens(fresh.name, next.modelGroup);
     }
     if (
       !sameStringList(next.colors, original.colors ?? []) &&

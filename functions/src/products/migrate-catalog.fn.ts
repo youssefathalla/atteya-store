@@ -21,6 +21,7 @@ import {
   sortColors,
   type ColorId,
 } from './catalog-taxonomy.js';
+import { buildSearchTokens } from './search-tokens.js';
 
 export type MigratePass = 'add' | 'dropLegacy';
 
@@ -349,6 +350,17 @@ async function backfillProducts(
     if (!currentLocked.includes('tags') && !Array.isArray(data['tags'])) {
       patch['tags'] = [];
       diffNotes.push('tags -> []');
+    }
+
+    const modelGroup =
+      typeof data['modelGroup'] === 'string' ? (data['modelGroup'] as string) : null;
+    const nextTokens = buildSearchTokens(name, modelGroup);
+    const currentTokens = Array.isArray(data['searchTokens'])
+      ? data['searchTokens'].filter((item): item is string => typeof item === 'string')
+      : [];
+    if (!stringArraysEqual(currentTokens, nextTokens)) {
+      patch['searchTokens'] = [...nextTokens];
+      diffNotes.push('searchTokens');
     }
 
     if (Object.keys(patch).length === 0) {
