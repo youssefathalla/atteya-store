@@ -39,6 +39,12 @@ export const routes: Routes = [
         data: { isBrand: true },
       },
       {
+        path: 'search',
+        loadComponent: () =>
+          import('./features/search/search.component').then((m) => m.SearchComponent),
+        title: 'Search | Atteya Store',
+      },
+      {
         path: 'login',
         loadComponent: () =>
           import('./features/auth/login/login.component').then((m) => m.LoginComponent),

@@ -15,6 +15,13 @@ export const environment: Environment = {
     measurementId: 'G-90WCCKNBGF',
   },
   imageKitUrl: 'https://ik.imagekit.io/atteyastore/dev',
+  algolia: {
+    appId: 'VP2KAG5WKX',
+    searchKey: '091b670aa8ed19e05eb2d7fe6a889ff4',
+    indexName: 'dev_products',
+    priceAscIndex: 'dev_products_price_asc',
+    priceDescIndex: 'dev_products_price_desc',
+  },
   appCheck: {
     siteKey: 'RECAPTCHA_ENTERPRISE_DEV_SITE_KEY',
     isTokenAutoRefreshEnabled: true,

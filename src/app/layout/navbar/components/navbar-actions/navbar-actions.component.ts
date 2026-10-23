@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
@@ -19,10 +20,11 @@ import { AccountMenuComponent } from '../account-menu/account-menu.component';
 })
 export class NavbarActionsComponent {
   readonly #drawerService = inject(DrawerService);
+  readonly #router = inject(Router);
   readonly cartCount = signal<number>(2);
 
   toggleSearch(): void {
-    console.log('Toggle search');
+    void this.#router.navigate(['/search']);
   }
 
   toggleCart(): void {
