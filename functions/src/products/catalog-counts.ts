@@ -22,79 +22,20 @@ export async function recountCatalog(db: Firestore, scope?: RecountScope): Promi
     countPublished(db),
   ]);
 
-  const partialScope = isPartialRecountScope(scope);
-
   await Promise.all([
     updateDocCounts(db, 'categories', categoryCounts),
     updateDocCounts(db, 'brands', brandCounts),
-    writeCatalogSettings(db, {
-      categoryCounts,
-      brandCounts,
-      typeCounts,
-      total,
-      partialScope,
-    }),
-  ]);
-}
-
-function isPartialRecountScope(scope?: RecountScope): boolean {
-  if (!scope) return false;
-  return (
-    scope.categoryIds !== undefined ||
-    scope.brandIds !== undefined ||
-    scope.types !== undefined
-  );
-}
-
-async function writeCatalogSettings(
-  db: Firestore,
-  payload: {
-    readonly categoryCounts: Record<string, number>;
-    readonly brandCounts: Record<string, number>;
-    readonly typeCounts: Record<string, number>;
-    readonly total: number;
-    readonly partialScope: boolean;
-  },
-): Promise<void> {
-  const { categoryCounts, brandCounts, typeCounts, total, partialScope } = payload;
-  const updatedAt = FieldValue.serverTimestamp();
-  const ref = db.doc('settings/catalog');
-
-  if (!partialScope) {
-    await ref.set(
+    db.doc('settings/catalog').set(
       {
         categories: categoryCounts,
         brands: brandCounts,
         types: typeCounts,
         total,
-        updatedAt,
+        updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },
-    );
-    return;
-  }
-
-  await ref.set(
-    {
-      total,
-      updatedAt,
-      ...dotCountFields('categories', categoryCounts),
-      ...dotCountFields('brands', brandCounts),
-      ...dotCountFields('types', typeCounts),
-    },
-    { merge: true },
-  );
-}
-
-function dotCountFields(
-  prefix: 'categories' | 'brands' | 'types',
-  counts: Readonly<Record<string, number>>,
-): Record<string, number> {
-  const fields: Record<string, number> = {};
-  for (const [id, count] of Object.entries(counts)) {
-    fields[`${prefix}.${id}`] = count;
-  }
-  return fields;
+    ),
+  ]);
 }
 
 async function resolveCategoryIds(
