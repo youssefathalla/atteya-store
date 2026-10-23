@@ -1,6 +1,7 @@
 import { getAuth, type UserRecord } from 'firebase-admin/auth';
 import { FieldValue, getFirestore, type WriteResult } from 'firebase-admin/firestore';
 import type { Role } from '../auth/require-role.js';
+import { revokeTimeMs } from '../auth/session-revocation.js';
 
 export interface ClaimAdmin {
   readonly uid: string;
@@ -96,6 +97,20 @@ export function timestampToIso(value: unknown): string | null {
     return Number.isNaN(date.getTime()) ? null : date.toISOString();
   }
   return null;
+}
+
+/**
+ * Ends the account's current sign-in and records the Auth revocation time
+ * on `roles/{uid}` so security rules can reject the old ID token.
+ */
+export async function recordSessionRevocation(uid: string): Promise<void> {
+  const auth = getAuth();
+  await auth.revokeRefreshTokens(uid);
+  const refreshed = await auth.getUser(uid);
+  await getFirestore().doc(`roles/${uid}`).set(
+    { revokeTimeMs: revokeTimeMs(refreshed.tokensValidAfterTime) },
+    { merge: true },
+  );
 }
 
 export async function revertRoleMirror(

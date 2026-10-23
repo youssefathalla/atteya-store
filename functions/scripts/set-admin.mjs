@@ -65,14 +65,27 @@ if (!['admin', 'user'].includes(role)) throw new Error('--role must be admin or 
 
 const before = user.customClaims?.role ?? 'user';
 await auth.setCustomUserClaims(user.uid, { ...(user.customClaims ?? {}), role });
-if (role !== 'admin') await auth.revokeRefreshTokens(user.uid);
 
-await db.doc(`roles/${user.uid}`).set({
-  role,
-  email,
-  updatedAt: FieldValue.serverTimestamp(),
-  updatedBy: 'cli',
-});
+let revokeTimeMs;
+if (role !== 'admin') {
+  await auth.revokeRefreshTokens(user.uid);
+  const refreshed = await auth.getUser(user.uid);
+  revokeTimeMs = Date.parse(refreshed.tokensValidAfterTime ?? '');
+  if (!Number.isFinite(revokeTimeMs)) {
+    throw new Error('Auth did not return a revocation time.');
+  }
+}
+
+await db.doc(`roles/${user.uid}`).set(
+  {
+    role,
+    email,
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedBy: 'cli',
+    ...(revokeTimeMs === undefined ? {} : { revokeTimeMs }),
+  },
+  { merge: true },
+);
 await db.collection('auditLogs').add({
   action: 'role.set',
   targetUid: user.uid,

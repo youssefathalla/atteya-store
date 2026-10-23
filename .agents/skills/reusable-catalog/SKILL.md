@@ -318,7 +318,7 @@ All storefront visual media (hero banners, product showcases, category headers) 
 
 ### Admin role
 
-The custom claim `role: 'admin'` is the only admin grant. `AdminRolesService` (`src/app/features/admin/pages/settings/services/admin-roles.service.ts`) calls `listAdmins` and `setUserRole` and reads the latest 20 `auditLogs`. The Admins tab is `/admin/settings/admins`. The repo copy of the bootstrap script is `functions/scripts/set-admin.mjs` (`--role`, `--show`, `--list`). `--list` and `listAdmins` read Auth claims, so they work when `roles/{uid}` was never written. `setUserRole` refuses to remove the last admin, writes one audit record, and revokes refresh tokens on removal. App Check enforcement stays off until `APP_CHECK_ENFORCED` is set.
+The custom claim `role: 'admin'` is the only admin grant. `AdminRolesService` (`src/app/features/admin/pages/settings/services/admin-roles.service.ts`) calls `listAdmins` and `setUserRole` and reads the latest 20 `auditLogs`. The Admins tab is `/admin/settings/admins`. The repo copy of the bootstrap script is `functions/scripts/set-admin.mjs` (`--role`, `--show`, `--list`). `--list` and `listAdmins` read Auth claims, so they work when `roles/{uid}` was never written. `setUserRole` refuses to remove the last admin, writes one audit record, revokes refresh tokens on removal, and stores Auth `tokensValidAfterTime` as `roles/{uid}.revokeTimeMs`. Firestore rules, Storage rules, and admin callables reject a session whose `auth_time` is older than that timestamp. A missing mirror or a missing `revokeTimeMs` does not block an admin. App Check enforcement stays off until `APP_CHECK_ENFORCED` is set.
 
 ---
 

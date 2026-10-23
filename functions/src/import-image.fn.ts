@@ -80,7 +80,7 @@ function parseRemoteImageUrl(raw: unknown): URL {
 export const importImageFromUrl = onCall(
   adminCallableOptions({ timeoutSeconds: 30, memory: '256MiB' }),
   async (request): Promise<ImportImageResponse> => {
-    requireRole(request, 'admin');
+    await requireRole(request, 'admin');
     const body = (request.data ?? {}) as ImportImageRequest;
     const parsedUrl = parseRemoteImageUrl(body.url);
     const folder = sanitizeFolder(body.folder ?? 'hero');
