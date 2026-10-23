@@ -1,0 +1,101 @@
+/**
+ * Catalogue taxonomy for Step 1.
+ * Keep in sync with functions/src/products/catalog-mapping.ts.
+ * Categories, types, and brands are code constants until a later admin exists.
+ */
+
+export const PRODUCTS_COLLECTION = 'products';
+export const CATALOG_DOC = ['settings', 'catalog'] as const;
+
+export const PRODUCT_CATEGORY_IDS = ['rackets', 'apparel', 'bags', 'accessories'] as const;
+
+export const PLACEHOLDER_CATEGORY_IDS = ['shoes', 'hoodies', 'bundles'] as const;
+
+export const PRODUCT_CATEGORIES = [
+  { id: 'rackets', label: 'Rackets' },
+  { id: 'apparel', label: 'Apparel' },
+  { id: 'bags', label: 'Bags & gear' },
+  { id: 'accessories', label: 'Accessories' },
+] as const;
+
+export const PRODUCT_TYPES = [
+  { id: 'rackets', label: 'Rackets', category: 'rackets' },
+  { id: 'bags', label: 'Bags & backpacks', category: 'bags' },
+  { id: 't-shirts', label: 'T-shirts & polos', category: 'apparel' },
+  { id: 'shorts', label: 'Shorts', category: 'apparel' },
+  { id: 'socks', label: 'Socks', category: 'apparel' },
+  { id: 'sets', label: 'Sets', category: 'apparel' },
+  { id: 'grips', label: 'Grips & protectors', category: 'accessories' },
+  { id: 'balls', label: 'Balls', category: 'accessories' },
+  { id: 'bottles', label: 'Bottles', category: 'accessories' },
+  { id: 'supports', label: 'Supports & sleeves', category: 'accessories' },
+] as const;
+
+export const PRODUCT_TYPE_IDS = [
+  'rackets',
+  'bags',
+  't-shirts',
+  'shorts',
+  'socks',
+  'sets',
+  'grips',
+  'balls',
+  'bottles',
+  'supports',
+] as const;
+
+export const PRODUCT_BRANDS = [
+  { id: 'adidas', label: 'adidas' },
+  { id: 'bullpadel', label: 'Bullpadel' },
+  { id: 'siux', label: 'Siux' },
+  { id: 'nox', label: 'NOX' },
+  { id: 'babolat', label: 'Babolat' },
+  { id: 'on-cloud', label: 'On' },
+  { id: 'head', label: 'HEAD' },
+  { id: 'wilson', label: 'Wilson' },
+  { id: 'floky', label: 'Floky' },
+  { id: 'asics', label: 'ASICS' },
+  { id: 'cork', label: 'Cork' },
+  { id: 'atteya', label: 'Atteya' },
+] as const;
+
+export const PRODUCT_BRAND_IDS = [
+  'adidas',
+  'bullpadel',
+  'siux',
+  'nox',
+  'babolat',
+  'on-cloud',
+  'head',
+  'wilson',
+  'floky',
+  'asics',
+  'cork',
+  'atteya',
+] as const;
+
+/** Shown in the nav, with no products yet. */
+export const PLACEHOLDER_BRAND_IDS = ['puma'] as const;
+
+export const CATALOG_CATEGORY_IDS = [...PRODUCT_CATEGORY_IDS, ...PLACEHOLDER_CATEGORY_IDS] as const;
+export const CATALOG_BRAND_IDS = [...PRODUCT_BRAND_IDS, ...PLACEHOLDER_BRAND_IDS] as const;
+
+export const SIZE_ORDER = [
+  'XS',
+  'S',
+  'M',
+  'L',
+  'XL',
+  '2XL',
+  '3XL',
+  'T1 (XS\u2013S)',
+  'T1',
+  'T2 (M)',
+  'T2',
+  'T3 (L\u2013XL)',
+  'T3',
+  'T4 (2XL)',
+  'T4',
+] as const;
+
+export const LOCKABLE_PRODUCT_FIELDS = ['type', 'brand', 'modelGroup', 'published'] as const;
