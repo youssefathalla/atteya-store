@@ -1,0 +1,157 @@
+<section class="surface-card p-5 w-full elements-start-col gap-5" aria-label="Shipping settings">
+  <div>
+    <h2 class="font-title-md font-bold!">Shipping fees</h2>
+    <p class="font-body-sm text-on-surface-variant">
+      Fees are in whole Egyptian pounds. Changes show on the store right away.
+    </p>
+  </div>
+
+  @if (settingsResource.isLoading() && !settingsResource.hasValue()) {
+    <app-skeleton class="h-40 w-full" />
+  } @else {
+    @let d = draft();
+    <label class="elements-start-col gap-1 font-label-md">
+      Standard fee (EGP)
+      <input
+        type="number"
+        min="0"
+        max="2000"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
+        [value]="d.baseFee"
+        (input)="patch({ baseFee: numberFrom($event) ?? 0 })"
+      />
+      <span class="font-body-sm text-on-surface-variant">
+        Used when a governorate isn't in any zone below.
+      </span>
+    </label>
+
+    @if (d.zones.length > 0) {
+      <div class="w-full elements-start-col gap-2">
+        <h3 class="font-label-md font-bold!">Zone fees</h3>
+        @for (zone of d.zones; track zone.id; let i = $index) {
+          <label class="elements-center flex-wrap gap-3 font-body-md">
+            <span class="w-44">{{ zone.name }}</span>
+            <input
+              type="number"
+              min="0"
+              max="2000"
+              class="border-shape border border-outline bg-surface px-3 py-1.5 w-32"
+              [attr.aria-label]="zone.name + ' fee'"
+              [value]="zone.fee"
+              (input)="setZoneFee(i, $event)"
+            />
+          </label>
+        }
+      </div>
+    }
+
+    <div class="w-full border-t border-outline-variant pt-4 elements-start-col gap-3">
+      <mat-checkbox
+        [checked]="d.freeOverActive"
+        (change)="patch({ freeOverActive: $event.checked })"
+      >
+        Free shipping over a set amount
+      </mat-checkbox>
+      @if (d.freeOverActive) {
+        <label class="elements-start-col gap-1 font-label-md">
+          Orders of at least (EGP)
+          <input
+            type="number"
+            min="1"
+            class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
+            [value]="d.freeOverThreshold ?? ''"
+            (input)="patch({ freeOverThreshold: numberFrom($event) })"
+          />
+        </label>
+      }
+    </div>
+
+    <div class="w-full border-t border-outline-variant pt-4 elements-start-col gap-3">
+      <mat-checkbox [checked]="d.promoActive" (change)="patch({ promoActive: $event.checked })">
+        Run a shipping promotion
+      </mat-checkbox>
+      @if (d.promoActive) {
+        <div class="elements-end flex-wrap gap-3">
+          <label class="elements-start-col gap-1 font-label-md">
+            Promo fee (EGP, 0 = free)
+            <input
+              type="number"
+              min="0"
+              max="2000"
+              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+              [value]="d.promoFee"
+              (input)="patch({ promoFee: numberFrom($event) ?? 0 })"
+            />
+          </label>
+          <label class="elements-start-col gap-1 font-label-md">
+            Starts (Cairo time)
+            <input
+              type="datetime-local"
+              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
+              [value]="formatInput(d.promoStartsAt)"
+              (input)="patch({ promoStartsAt: dateFrom($event, false) })"
+            />
+          </label>
+          <label class="elements-start-col gap-1 font-label-md">
+            Ends (Cairo time)
+            <input
+              type="datetime-local"
+              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
+              [value]="formatInput(d.promoEndsAt)"
+              (input)="patch({ promoEndsAt: dateFrom($event, true) })"
+            />
+          </label>
+          <label class="elements-start-col gap-1 font-label-md">
+            Minimum order (EGP, optional)
+            <input
+              type="number"
+              min="0"
+              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
+              [value]="d.promoMinSubtotal ?? ''"
+              (input)="patch({ promoMinSubtotal: numberFrom($event) })"
+            />
+          </label>
+        </div>
+        <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-md">
+          Store announcement (optional)
+          <input
+            type="text"
+            maxlength="120"
+            placeholder="Free shipping this weekend"
+            class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+            [value]="d.promoBanner"
+            (input)="patch({ promoBanner: textFrom($event) })"
+          />
+        </label>
+      }
+    </div>
+
+    <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-md">
+      Note shown with prices
+      <textarea
+        rows="2"
+        maxlength="200"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+        [value]="d.note"
+        (input)="patch({ note: textFrom($event) })"
+      ></textarea>
+    </label>
+
+    <button
+      matButton="filled"
+      type="button"
+      [disabled]="isSaving()"
+      [attr.aria-label]="isSaving() ? 'Saving shipping settings' : null"
+      (click)="save()"
+    >
+      @if (isSaving()) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" />
+      } @else {
+        <mat-icon name="check" />
+      }
+      @if (!isSaving()) {
+        <span>Save shipping</span>
+      }
+    </button>
+  }
+</section>

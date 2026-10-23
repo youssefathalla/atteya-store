@@ -20,7 +20,7 @@ import { ProductSchema } from './product.schema';
 
 /**
  * Public catalogue reads. Every query includes published == true so Firestore rules allow it.
- * Pass at most one of category, type, or brand. The composite indexes cover that shape.
+ * Pass at most one of categoryId, type, or brandId. The composite indexes cover that shape.
  */
 @Service()
 export class ProductService {
@@ -30,7 +30,14 @@ export class ProductService {
   );
 
   async listPublished(listQuery: ProductListQuery): Promise<readonly Product[]> {
-    const snap = await getDocs(query(this.#products, ...publishedFilters(listQuery), orderBy('createdAt', 'desc'), limit(listQuery.limit)));
+    const snap = await getDocs(
+      query(
+        this.#products,
+        ...publishedFilters(listQuery),
+        orderBy('createdAt', 'desc'),
+        limit(listQuery.limit),
+      ),
+    );
     return snap.docs.map((item) => item.data());
   }
 
@@ -74,8 +81,8 @@ export class ProductService {
 
 function publishedFilters(countQuery: ProductCountQuery): QueryConstraint[] {
   const filters: QueryConstraint[] = [where('published', '==', true)];
-  if (countQuery.category) filters.push(where('category', '==', countQuery.category));
+  if (countQuery.categoryId) filters.push(where('categoryIds', 'array-contains', countQuery.categoryId));
   if (countQuery.type) filters.push(where('type', '==', countQuery.type));
-  if (countQuery.brand) filters.push(where('brand', '==', countQuery.brand));
+  if (countQuery.brandId) filters.push(where('brandId', '==', countQuery.brandId));
   return filters;
 }

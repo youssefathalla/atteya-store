@@ -1,14 +1,21 @@
 import * as v from 'valibot';
 import { idSchema, slugSchema, timestampSchema } from '@shared/schemas';
 import { ImageAssetSchema } from '@shared/schemas/image.schema';
+import { COLOR_IDS } from './catalog-taxonomy';
 import {
-  PRODUCT_BRAND_IDS,
-  PRODUCT_CATEGORY_IDS,
+  LOCKABLE_PRODUCT_FIELDS,
   PRODUCT_TYPE_IDS,
 } from './product.constants';
 
 const wholeNumber = v.pipe(v.number(), v.integer(), v.minValue(0));
 const countMap = v.record(v.string(), wholeNumber);
+const tagSlugSchema = v.pipe(
+  v.string(),
+  v.trim(),
+  v.minLength(1),
+  v.maxLength(32),
+  v.regex(/^[a-z0-9-]+$/),
+);
 
 export const ProductImageSchema = v.object({
   ...ImageAssetSchema.entries,
@@ -19,6 +26,7 @@ export const ProductOptionValueSchema = v.object({
   id: idSchema,
   label: v.pipe(v.string(), v.trim(), v.minLength(1)),
   swatch: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1))),
+  color: v.optional(v.picklist(COLOR_IDS)),
   image: v.optional(ProductImageSchema),
 });
 
@@ -53,23 +61,30 @@ export const ProductSchema = v.pipe(
     summary: v.nullable(v.pipe(v.string(), v.maxLength(300))),
     descriptionHtml: v.nullable(v.string()),
     detailImages: v.pipe(v.array(ProductImageSchema), v.maxLength(8)),
-    category: v.picklist(PRODUCT_CATEGORY_IDS),
+    categoryId: slugSchema,
+    categoryIds: v.pipe(v.array(slugSchema), v.minLength(1), v.maxLength(10)),
     type: v.picklist(PRODUCT_TYPE_IDS),
-    brand: v.picklist(PRODUCT_BRAND_IDS),
+    brandId: slugSchema,
     modelGroup: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80))),
     currency: v.literal('EGP'),
     price: wholeNumber,
     compareAtPrice: v.nullable(wholeNumber),
     images: v.pipe(v.array(ProductImageSchema), v.maxLength(8)),
     options: v.pipe(v.array(ProductOptionSchema), v.maxLength(8)),
+    colors: v.optional(v.pipe(v.array(v.picklist(COLOR_IDS)), v.maxLength(12)), []),
+    tags: v.optional(v.pipe(v.array(tagSlugSchema), v.maxLength(20)), []),
     trackStock: v.boolean(),
     variants: v.pipe(v.array(ProductVariantSchema), v.maxLength(200)),
     published: v.boolean(),
-    lockedFields: v.array(v.picklist(['type', 'brand', 'modelGroup', 'published'])),
+    lockedFields: v.array(v.picklist(LOCKABLE_PRODUCT_FIELDS)),
     source: v.nullable(ProductSourceSchema),
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
   }),
+  v.check(
+    (product) => product.categoryIds.includes(product.categoryId),
+    'The product categories must include its main category.',
+  ),
   v.check(
     (product) => product.compareAtPrice === null || product.compareAtPrice > product.price,
     'The original price must be higher than the selling price.',

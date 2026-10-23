@@ -62,11 +62,40 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Categories and brands: storefront can read published docs; only admins write.
+    // Public queries MUST include where('published', '==', true) or they are rejected.
+    match /categories/{categoryId} {
+      allow get, list: if resource.data.published == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /brands/{brandId} {
+      allow get, list: if resource.data.published == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Offers: public active offers can be read by shoppers; only admins write.
+    // Coupon codes (offerCodes) are admin-only; usage counters (offerUsage) are Admin SDK only.
+    match /offers/{offerId} {
+      allow get, list: if (resource.data.active == true && resource.data.visibility == 'public') || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /offerCodes/{offerId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /offerUsage/{offerId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
-    // auditLogs, and products stay on the rules written for them.
+    // auditLogs, products, categories, brands, offers, offerCodes, and offerUsage
+    // stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage']);
     }
   }
 }

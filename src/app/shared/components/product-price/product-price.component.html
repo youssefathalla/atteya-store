@@ -1,0 +1,25 @@
+<div class="elements-start-col gap-1.5 w-full">
+  <div class="elements-center flex-wrap gap-2">
+    <span class="font-title-sm font-bold!">
+      @if (showFromPrefix()) {
+        From
+      }
+      {{ displayedPrice() | egpPrice }}
+    </span>
+    @if (effectiveListPrice(); as wasPrice) {
+      <span class="font-body-sm text-on-surface-variant line-through">
+        {{ wasPrice | egpPrice }}
+      </span>
+    }
+  </div>
+
+  @if (badges().length > 0) {
+    <div class="flex flex-wrap gap-1.5">
+      @for (badge of badges(); track badge) {
+        <span class="border-shape border border-outline bg-surface px-2 py-0.5 font-label-sm">
+          {{ badge }}
+        </span>
+      }
+    </div>
+  }
+</div>

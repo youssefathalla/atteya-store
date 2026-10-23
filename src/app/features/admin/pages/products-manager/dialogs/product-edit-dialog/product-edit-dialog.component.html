@@ -1,6 +1,6 @@
 <h2 mat-dialog-title class="font-title-lg font-bold!">Edit product</h2>
 <form novalidate (submit)="onSave($event)">
-  <mat-dialog-content class="elements-start-col gap-2">
+  <mat-dialog-content class="elements-start-col gap-3">
     <p class="font-body-md">{{ data.product.name }}</p>
     <app-select-input
       [formField]="editForm.type"
@@ -10,7 +10,15 @@
       labelKey="label"
     />
     <app-select-input
-      [formField]="editForm.brand"
+      [formField]="editForm.categoryId"
+      label="Category"
+      [options]="categories"
+      valueKey="id"
+      labelKey="label"
+      groupKey="group"
+    />
+    <app-select-input
+      [formField]="editForm.brandId"
       label="Brand"
       [options]="brands"
       valueKey="id"
@@ -22,6 +30,74 @@
       placeholder="on-cloud-short"
     />
     <p class="font-body-sm opacity-70">{{ groupHint }}</p>
+
+    <div class="w-full elements-start-col gap-2 pt-2">
+      <span class="font-label-md">Colours</span>
+      <p class="font-body-sm opacity-70">
+        Colours are used by offers and filters. Pick every colour this product comes in.
+      </p>
+      <div class="flex flex-wrap gap-2" role="group" aria-label="Product colours">
+        @for (color of colorPalette; track color.id) {
+          <button
+            type="button"
+            class="border-shape border px-2.5 py-1 elements-center gap-1.5 font-label-sm cursor-pointer"
+            [class.border-primary]="hasColor(color.id)"
+            [class.bg-surface-container-highest]="hasColor(color.id)"
+            [class.border-outline-variant]="!hasColor(color.id)"
+            [attr.aria-pressed]="hasColor(color.id)"
+            (click)="toggleColor(color.id)"
+          >
+            <span
+              class="inline-block size-3 border-shape border border-outline"
+              [style.background-color]="color.swatch"
+              aria-hidden="true"
+            ></span>
+            <span>{{ color.label }}</span>
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="w-full elements-start-col gap-2 pt-2">
+      <label class="font-label-md" for="product-tags-input">Tags</label>
+      <div class="elements-center gap-2 w-full">
+        <input
+          id="product-tags-input"
+          type="text"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+          placeholder="summer-drop, clearance"
+          [value]="tagInput()"
+          (input)="onTagInput($event)"
+          (keydown)="onTagKeydown($event)"
+        />
+        <button matButton="outlined" type="button" (click)="addPendingTag()">
+          <span>Add</span>
+        </button>
+      </div>
+      @if (tagError()) {
+        <p class="font-body-sm" role="alert">{{ tagError() }}</p>
+      }
+      @if (tags().length > 0) {
+        <div class="flex flex-wrap gap-1.5">
+          @for (tag of tags(); track tag) {
+            <span
+              class="border-shape border border-outline-variant bg-surface-container px-2.5 py-1 elements-center gap-1 font-label-sm"
+            >
+              <span>{{ tag }}</span>
+              <button
+                type="button"
+                class="elements-center cursor-pointer"
+                [attr.aria-label]="'Remove tag ' + tag"
+                (click)="removeTag(tag)"
+              >
+                <mat-icon name="close" />
+              </button>
+            </span>
+          }
+        </div>
+      }
+    </div>
+
     <mat-checkbox [formField]="editForm.published">Show on store</mat-checkbox>
   </mat-dialog-content>
   <mat-dialog-actions align="end">

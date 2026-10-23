@@ -186,3 +186,10 @@ Before marking any feature as complete:
 1. Run `npm run preflight` to verify zero errors across project rules and ESLint (`node scripts/pre-flight-check.mjs && eslint .`).
 2. Run `npm run build` to verify SSR prerendering passes with code 0.
 3. Run the **Golden 7-Point Audit** in [code-review](file:///.agents/skills/code-review/SKILL.md).
+
+## Step 1b checklist
+
+- A new Cloud Function must be exported from `functions/src/index.ts` and, if admin-only, call `requireRole(request, 'admin')`.
+- Pricing logic belongs in the shared engine (`functions/src/offers/engine/`), then `npm run sync:engine`. Never store offer prices on products.
+- Any new Firestore collection needs an explicit rules entry and an exclusion from the catch-all (rules edits go through the `firestore-rules-author` subagent).
+- Search-facing pages are client-rendered: register them in `app.routes.server.ts` with `RenderMode.Client`.

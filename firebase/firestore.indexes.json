@@ -5,7 +5,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "published", "order": "ASCENDING" },
-        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "categoryIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -23,7 +23,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "published", "order": "ASCENDING" },
-        { "fieldPath": "brand", "order": "ASCENDING" },
+        { "fieldPath": "brandId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -33,6 +33,22 @@
       "fields": [
         { "fieldPath": "published", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "categories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "published", "order": "ASCENDING" },
+        { "fieldPath": "sortOrder", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "brands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "published", "order": "ASCENDING" },
+        { "fieldPath": "sortOrder", "order": "ASCENDING" }
       ]
     }
   ],

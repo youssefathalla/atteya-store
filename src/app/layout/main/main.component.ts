@@ -5,6 +5,7 @@ import { useBreakpoint } from '@shared/utils/breakpoint.utils';
 import { DesktopNavComponent } from '../navbar/desktop-nav/desktop-nav.component';
 import { MobileNavComponent } from '../navbar/mobile-nav/mobile-nav.component';
 import { CartDrawerComponent } from '../cart-drawer/cart-drawer.component';
+import { ShippingBannerComponent } from '@shared/components/shipping-banner/shipping-banner.component';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 
 @Component({
@@ -15,6 +16,7 @@ import { DrawerService } from '@core/services/drawer/drawer.service';
     DesktopNavComponent,
     CartDrawerComponent,
     MobileNavComponent,
+    ShippingBannerComponent,
   ],
   templateUrl: './main.component.html',
 })

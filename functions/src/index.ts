@@ -4,4 +4,11 @@ initializeApp();
 
 export { importImageFromUrl } from './import-image.fn.js';
 export { importEasyOrdersProducts } from './products/import-easyorders.fn.js';
+export { migrateCatalogStructure } from './products/migrate-catalog.fn.js';
+export { onProductCountsChange } from './products/product-counts.trigger.js';
+export { onOfferWritten } from './offers/on-offer-written.trigger.js';
+export { refreshOfferPricing } from './offers/refresh-offer-pricing.schedule.js';
 export { listAdmins, setUserRole } from './roles/roles.fn.js';
+export { reindexSearch } from './search/reindex.fn.js';
+export { syncProductSearch } from './search/sync-product.trigger.js';
+export { onShippingSettingsWritten } from './shipping/on-shipping-settings-written.trigger.js';

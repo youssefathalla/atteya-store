@@ -1,11 +1,14 @@
-import type { BrandId, ProductTypeId } from '@core/services/products/product.model';
+import type { ColorId } from '@core/services/products/catalog-taxonomy';
+import type { ProductTypeId } from '@core/services/products/product.model';
 
 export interface ProductTableRow {
   readonly id: string;
   readonly name: string;
+  readonly categoryId: string;
+  readonly categoryLabel: string;
   readonly type: ProductTypeId;
   readonly typeLabel: string;
-  readonly brand: BrandId;
+  readonly brandId: string;
   readonly brandLabel: string;
   readonly modelGroup: string;
   readonly price: number;
@@ -17,9 +20,26 @@ export interface ProductTableRow {
 
 export interface ProductEditDraft {
   readonly type: ProductTypeId;
-  readonly brand: BrandId;
+  readonly categoryId: string;
+  readonly categoryIds: readonly string[];
+  readonly categoryPicked: boolean;
+  readonly brandId: string;
   readonly modelGroup: string | null;
+  readonly colors: readonly ColorId[];
+  readonly tags: readonly string[];
   readonly published: boolean;
+}
+
+export interface CategoryOptionView {
+  readonly id: string;
+  readonly label: string;
+  readonly group: string;
+  readonly categoryIds: readonly string[];
+}
+
+export interface BrandOptionView {
+  readonly id: string;
+  readonly label: string;
 }
 
 export interface ImportCountsView {
@@ -52,4 +72,47 @@ export interface ImportReport {
   readonly counts: ImportCountsView;
   readonly rows: readonly ImportRowView[];
   readonly errors: readonly string[];
+}
+
+export type MigratePass = 'add' | 'dropLegacy';
+
+export interface MigrateSeedCountsView {
+  readonly created: number;
+  readonly repaired: number;
+  readonly unchanged: number;
+}
+
+export interface MigrateProductCountsView {
+  readonly updated: number;
+  readonly unchanged: number;
+  readonly missingNewFields: number;
+  readonly colorsFromOptions: number;
+  readonly colorsFromName: number;
+  readonly colorsMissing: number;
+}
+
+export interface MigrateProductSampleView {
+  readonly id: string;
+  readonly name: string;
+  readonly categoryId: string;
+  readonly categoryIds: readonly string[];
+  readonly brandId: string;
+  readonly summary: string;
+}
+
+export interface MigrateReport {
+  readonly dryRun: boolean;
+  readonly pass: MigratePass;
+  readonly categories: MigrateSeedCountsView;
+  readonly brands: MigrateSeedCountsView;
+  readonly products: MigrateProductCountsView;
+  readonly sample: readonly MigrateProductSampleView[];
+  readonly shippingSeeded?: boolean;
+}
+
+export interface ReindexSearchReport {
+  readonly dryRun: boolean;
+  readonly indexName: string;
+  readonly indexed: number;
+  readonly deleted: number;
 }

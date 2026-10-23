@@ -39,6 +39,30 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Products | Atteya Admin',
       },
       {
+        path: 'offers',
+        loadComponent: () =>
+          import('./pages/offers-manager/offers-manager.page').then(
+            (m) => m.OffersManagerPageComponent,
+          ),
+        title: 'Offers | Atteya Admin',
+      },
+      {
+        path: 'offers/new',
+        loadComponent: () =>
+          import('./pages/offers-manager/offer-editor.page').then(
+            (m) => m.OfferEditorPageComponent,
+          ),
+        title: 'New Offer | Atteya Admin',
+      },
+      {
+        path: 'offers/:offerId',
+        loadComponent: () =>
+          import('./pages/offers-manager/offer-editor.page').then(
+            (m) => m.OfferEditorPageComponent,
+          ),
+        title: 'Edit Offer | Atteya Admin',
+      },
+      {
         path: 'settings',
         loadComponent: () =>
           import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
@@ -56,6 +80,14 @@ export const ADMIN_ROUTES: Routes = [
                 (m) => m.AdminsTabComponent,
               ),
             title: 'Admins | Atteya Admin',
+          },
+          {
+            path: 'shipping',
+            loadComponent: () =>
+              import('./pages/settings/shipping/shipping-tab.component').then(
+                (m) => m.ShippingTabComponent,
+              ),
+            title: 'Shipping | Atteya Admin',
           },
         ],
       },

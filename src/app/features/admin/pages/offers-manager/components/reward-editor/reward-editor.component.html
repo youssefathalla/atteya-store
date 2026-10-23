@@ -1,0 +1,231 @@
+<section class="surface-card p-5 w-full elements-start-col gap-4">
+  <div>
+    <h2 class="font-title-md font-bold!">What shoppers get</h2>
+    <p class="font-body-sm text-on-surface-variant">
+      Choose the discount or deal for matching products.
+    </p>
+  </div>
+
+  <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+    Deal type
+    <select
+      class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+      [value]="selectedPickerKind()"
+      (change)="onKindChange($event)"
+    >
+      @for (opt of pickerOptions; track opt.id) {
+        <option [value]="opt.id">{{ opt.label }}</option>
+      }
+    </select>
+  </label>
+
+  @if (isDeferredReward()) {
+    <p class="border-shape border border-outline-variant bg-surface-container p-3 font-body-sm w-full">
+      Shows as a label until checkout is live.
+    </p>
+  }
+
+  @let r = reward();
+  @if (selectedPickerKind() === 'percentOff' && r.kind === 'percentOff') {
+    <label class="elements-start-col gap-1 font-label-md">
+      Discount percentage (1–100%)
+      <input
+        type="number"
+        min="1"
+        max="100"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+        [value]="r.percent"
+        (input)="onPercentChange($event)"
+      />
+    </label>
+  } @else if (selectedPickerKind() === 'amountOff' && r.kind === 'amountOff') {
+    <label class="elements-start-col gap-1 font-label-md">
+      Amount off per item (EGP)
+      <input
+        type="number"
+        min="1"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+        [value]="r.amount"
+        (input)="onAmountChange($event)"
+      />
+    </label>
+  } @else if (selectedPickerKind() === 'fixedPrice' && r.kind === 'fixedPrice') {
+    <label class="elements-start-col gap-1 font-label-md">
+      Set price per item (EGP)
+      <input
+        type="number"
+        min="0"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+        [value]="r.price"
+        (input)="onFixedPriceChange($event)"
+      />
+    </label>
+  } @else if (selectedPickerKind() === 'buyXGetY' && r.kind === 'buyXGetY') {
+    <div class="elements-center flex-wrap gap-3">
+      <label class="elements-start-col gap-1 font-label-md">
+        Buy quantity
+        <input
+          type="number"
+          min="1"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-28"
+          [value]="r.buy.quantity"
+          (input)="onBuyXGetYChange('buyQty', $event)"
+        />
+      </label>
+      <label class="elements-start-col gap-1 font-label-md">
+        Get quantity
+        <input
+          type="number"
+          min="1"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-28"
+          [value]="r.get.quantity"
+          (input)="onBuyXGetYChange('getQty', $event)"
+        />
+      </label>
+      <label class="elements-start-col gap-1 font-label-md">
+        Get discount % (100 = free)
+        <input
+          type="number"
+          min="1"
+          max="100"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+          [value]="r.get.percent"
+          (input)="onBuyXGetYChange('getPercent', $event)"
+        />
+      </label>
+      <label class="elements-start-col gap-1 font-label-md">
+        Max times per order (optional)
+        <input
+          type="number"
+          min="1"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+          [value]="r.maxApplications ?? ''"
+          (input)="onBuyXGetYChange('maxApps', $event)"
+        />
+      </label>
+    </div>
+  } @else if (selectedPickerKind() === 'tiered' && r.kind === 'tiered') {
+    <div class="w-full elements-start-col gap-2">
+      @for (tier of r.tiers; track $index; let tIdx = $index) {
+        <div class="elements-end flex-wrap gap-3">
+          <label class="elements-start-col gap-1 font-label-md">
+            Min items
+            <input
+              type="number"
+              min="1"
+              class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm w-28"
+              [value]="tier.min"
+              (input)="onTierChange(tIdx, 'min', $event)"
+            />
+          </label>
+          <label class="elements-start-col gap-1 font-label-md">
+            Percent off
+            <input
+              type="number"
+              min="1"
+              max="100"
+              class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm w-28"
+              [value]="tier.percent ?? 10"
+              (input)="onTierChange(tIdx, 'percent', $event)"
+            />
+          </label>
+          @if (r.tiers.length > 2) {
+            <button matButton="text" type="button" (click)="removeTier(tIdx)">
+              <span>Remove</span>
+            </button>
+          }
+        </div>
+      }
+      @if (r.tiers.length < 5) {
+        <button matButton="outlined" type="button" (click)="addTier()">
+          <mat-icon name="add" />
+          <span>Add tier</span>
+        </button>
+      }
+    </div>
+  } @else if (selectedPickerKind() === 'freeGift' && r.kind === 'freeGift') {
+    <div class="elements-center flex-wrap gap-3 w-full">
+      <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+        Gift product
+        <select
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+          [value]="r.giftProductId"
+          (change)="onGiftProductChange($event)"
+        >
+          @for (p of products(); track p.id) {
+            <option [value]="p.id">{{ p.name }}</option>
+          }
+        </select>
+      </label>
+      <label class="elements-start-col gap-1 font-label-md">
+        Minimum order subtotal (EGP)
+        <input
+          type="number"
+          min="0"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
+          [value]="minimum()?.subtotal ?? 0"
+          (input)="onMinSubtotalChange($event)"
+        />
+      </label>
+    </div>
+  } @else if (selectedPickerKind() === 'freeShipping') {
+    <label class="elements-start-col gap-1 font-label-md">
+      Minimum order subtotal (EGP, optional)
+      <input
+        type="number"
+        min="0"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
+        [value]="minimum()?.subtotal ?? ''"
+        (input)="onMinSubtotalChange($event)"
+      />
+    </label>
+  } @else if (selectedPickerKind() === 'cartThreshold') {
+    <div class="elements-end flex-wrap gap-3">
+      <label class="elements-start-col gap-1 font-label-md">
+        Spend at least (EGP)
+        <input
+          type="number"
+          min="0"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+          [value]="minimum()?.subtotal ?? 4000"
+          (input)="onMinSubtotalChange($event)"
+        />
+      </label>
+      <label class="elements-start-col gap-1 font-label-md">
+        Reward type
+        <select
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
+          [value]="r.kind"
+          (change)="onCartRewardTypeChange($event)"
+        >
+          <option value="amountOff">Amount off (EGP)</option>
+          <option value="percentOff">Percent off (%)</option>
+        </select>
+      </label>
+      @if (r.kind === 'amountOff') {
+        <label class="elements-start-col gap-1 font-label-md">
+          Amount off (EGP)
+          <input
+            type="number"
+            min="1"
+            class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-32"
+            [value]="r.amount"
+            (input)="onAmountChange($event)"
+          />
+        </label>
+      } @else if (r.kind === 'percentOff') {
+        <label class="elements-start-col gap-1 font-label-md">
+          Percent off (%)
+          <input
+            type="number"
+            min="1"
+            max="100"
+            class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-32"
+            [value]="r.percent"
+            (input)="onPercentChange($event)"
+          />
+        </label>
+      }
+    </div>
+  }
+</section>

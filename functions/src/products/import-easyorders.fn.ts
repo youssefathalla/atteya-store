@@ -5,7 +5,12 @@ import { requireRole } from '../auth/require-role.js';
 import { writeCatalogSummary } from './catalog-summary.js';
 import { EasyOrdersError, fetchEasyOrdersProductIds } from './easyorders.client.js';
 import { createRunId, parseImportRequest, type ImportResponse } from './import-request.js';
-import { accumulateImportRun, claimImportRun, markMissingProducts } from './import-run.js';
+import {
+  accumulateImportRun,
+  claimImportRun,
+  markMissingProducts,
+  releaseImportRun,
+} from './import-run.js';
 import { importSlice } from './import-slice.js';
 import type { ImportCounts } from './product-document.js';
 
@@ -36,7 +41,11 @@ export const importEasyOrdersProducts = onCall(
       if (nextOffset === null) {
         const unpublishedMissing = errorCount === 0 ? await markMissingProducts(db, runId) : 0;
         counts = { ...counts, unpublishedMissing };
-        await writeCatalogSummary(db);
+        try {
+          await writeCatalogSummary(db);
+        } finally {
+          await releaseImportRun(db);
+        }
         await db.collection('auditLogs').doc().set({
           action: 'products.import',
           actorUid: actor.uid,

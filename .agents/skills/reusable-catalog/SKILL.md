@@ -378,3 +378,9 @@ Whenever you find a combination of 4 or more utility classes that is repeated **
 - **Motion**: first storefront GSAP use. `import('gsap')` runs inside `afterNextRender`. Tweens live in a `gsap.context` scoped to the host and `revert()` on destroy. The server HTML marks the first link active. Once the desktop panel mounts, CSS shows that photo until GSAP runs. `prefers-reduced-motion` swaps with no scale.
 - **Photos**: no `<img>` until `matchMedia('(min-width: 1024px)')` confirms the desktop layout, so phones never request one. Only index 0 mounts at first. The rest mount on the first `pointerenter` or `focusin`, and `activate(i)` also mounts `i`. The panel is `aria-hidden` and images use `alt=""`. Nothing is `priority`. `sizes` includes a fixed 520px column, so the image sets `ngSrcset` directly.
 - **Admin**: Home Manager tab "Section 3: Category list" (`home-nav-list-preview`, `home-nav-list-editor`). Draft mutations live on `HomeDraftService`.
+
+## Step 1b additions
+
+- **Shared UI**: `app-product-price` (`@shared/components/product-price`): price, struck-through list price, "From" prefix and monochrome offer badges. `app-shipping-banner` (`@shared/components/shipping-banner`): dismissible announcement fed by `ShippingSettingsService`.
+- **Core services**: `SearchService` (`@core/services/search`), `OffersService` and the generated pricing engine (`@core/services/offers`), `ShippingSettingsService` (`@core/services/shipping`), `catalog-taxonomy.ts` (categories, brands, colour palette, `colorIdFor`).
+- **Rule**: never edit `src/app/core/services/offers/engine/*`; change `functions/src/offers/engine/*` and run `npm run sync:engine`.

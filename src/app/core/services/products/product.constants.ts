@@ -1,15 +1,16 @@
 /**
- * Catalogue taxonomy for Step 1.
+ * Catalogue taxonomy for Step 1b.
  * Keep in sync with functions/src/products/catalog-mapping.ts.
- * Categories, types, and brands are code constants until a later admin exists.
  */
 
 export const PRODUCTS_COLLECTION = 'products';
+export const CATEGORIES_COLLECTION = 'categories';
+export const BRANDS_COLLECTION = 'brands';
 export const CATALOG_DOC = ['settings', 'catalog'] as const;
 
 export const PRODUCT_CATEGORY_IDS = ['rackets', 'apparel', 'bags', 'accessories'] as const;
 
-export const PLACEHOLDER_CATEGORY_IDS = ['shoes', 'hoodies', 'bundles'] as const;
+export const PLACEHOLDER_CATEGORY_IDS = ['shoes', 'hoodies', 'tracksuits', 'bundles'] as const;
 
 export const PRODUCT_CATEGORIES = [
   { id: 'rackets', label: 'Rackets' },
@@ -98,4 +99,12 @@ export const SIZE_ORDER = [
   'T4',
 ] as const;
 
-export const LOCKABLE_PRODUCT_FIELDS = ['type', 'brand', 'modelGroup', 'published'] as const;
+export const LOCKABLE_PRODUCT_FIELDS = [
+  'type',
+  'brandId',
+  'modelGroup',
+  'published',
+  'categoryIds',
+  'colors',
+  'tags',
+] as const;

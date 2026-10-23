@@ -1,0 +1,122 @@
+<section class="surface-card p-5 w-full elements-start-col gap-4">
+  <div class="elements-between flex-wrap gap-2 w-full">
+    <div>
+      <h2 class="font-title-md font-bold!">{{ heading() }}</h2>
+      @if (hint()) {
+        <p class="font-body-sm text-on-surface-variant">{{ hint() }}</p>
+      }
+    </div>
+    <button matButton="outlined" type="button" (click)="addGroup()">
+      <mat-icon name="add" />
+      <span>Add condition group</span>
+    </button>
+  </div>
+
+  @if (conditions().anyOf.length === 0) {
+    <p class="font-body-sm text-on-surface-variant">
+      No rules added here.
+    </p>
+  }
+
+  @for (group of conditions().anyOf; track $index; let gIdx = $index) {
+    <div class="w-full border-shape border border-outline-variant p-4 elements-start-col gap-3">
+      <div class="elements-between w-full">
+        <span class="font-label-md font-bold!">
+          @if (gIdx > 0) {
+            OR —
+          }
+          Match ALL of the following rules
+        </span>
+        <button matButton="text" type="button" (click)="removeGroup(gIdx)">
+          <span>Remove group</span>
+        </button>
+      </div>
+
+      @for (atom of group.allOf; track $index; let aIdx = $index) {
+        <div class="w-full border-t border-outline-variant pt-3 elements-start-col gap-2">
+          <div class="elements-center flex-wrap gap-2 w-full">
+            <select
+              class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm"
+              aria-label="Condition field"
+              [value]="atom.field"
+              (change)="onFieldChange(gIdx, aIdx, $event)"
+            >
+              @for (f of fieldOptions; track f.id) {
+                <option [value]="f.id">{{ f.label }}</option>
+              }
+            </select>
+
+            @if (atom.field !== 'price') {
+              <select
+                class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm"
+                aria-label="Condition operator"
+                [value]="atomMode(atom)"
+                (change)="onModeChange(gIdx, aIdx, atom, $event)"
+              >
+                <option value="in">is one of</option>
+                <option value="notIn">is not one of</option>
+              </select>
+            }
+
+            <button matButton="text" type="button" (click)="removeAtom(gIdx, aIdx)">
+              <span>Remove rule</span>
+            </button>
+          </div>
+
+          @if (atom.field === 'price') {
+            <div class="elements-center flex-wrap gap-3">
+              <label class="elements-center gap-2 font-body-sm">
+                <span>Min EGP</span>
+                <input
+                  type="number"
+                  min="0"
+                  class="border-shape border border-outline bg-surface px-2.5 py-1 w-28 font-body-sm"
+                  [value]="atom.min ?? ''"
+                  (input)="onPriceChange(gIdx, aIdx, atom, 'min', $event)"
+                />
+              </label>
+              <label class="elements-center gap-2 font-body-sm">
+                <span>Max EGP</span>
+                <input
+                  type="number"
+                  min="0"
+                  class="border-shape border border-outline bg-surface px-2.5 py-1 w-28 font-body-sm"
+                  [value]="atom.max ?? ''"
+                  (input)="onPriceChange(gIdx, aIdx, atom, 'max', $event)"
+                />
+              </label>
+            </div>
+          } @else {
+            <div class="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto p-1">
+              @for (choice of choicesForField(atom.field); track choice.id) {
+                <button
+                  type="button"
+                  class="border-shape border px-2.5 py-1 elements-center gap-1.5 font-label-sm cursor-pointer"
+                  [class.border-primary]="hasValue(atom, choice.id)"
+                  [class.bg-surface-container-highest]="hasValue(atom, choice.id)"
+                  [class.border-outline-variant]="!hasValue(atom, choice.id)"
+                  [attr.aria-pressed]="hasValue(atom, choice.id)"
+                  (click)="toggleValue(gIdx, aIdx, atom, choice.id)"
+                >
+                  @if (choice.swatch) {
+                    <span
+                      class="inline-block size-3 border-shape border border-outline"
+                      [style.background-color]="choice.swatch"
+                      aria-hidden="true"
+                    ></span>
+                  }
+                  <span>{{ choice.label }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <button matButton="text" type="button" (click)="addAtom(gIdx)">
+        <mat-icon name="add" />
+        <span>Add rule to group</span>
+      </button>
+    </div>
+  }
+</section>

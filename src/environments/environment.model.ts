@@ -7,6 +7,13 @@ export interface Environment {
   useEmulators?: boolean;
   firebase: FirebaseOptions;
   imageKitUrl: string;
+  algolia: {
+    appId: string;
+    searchKey: string;
+    indexName: string;
+    priceAscIndex: string;
+    priceDescIndex: string;
+  };
   appCheck?: {
     siteKey: string;
     isTokenAutoRefreshEnabled?: boolean;

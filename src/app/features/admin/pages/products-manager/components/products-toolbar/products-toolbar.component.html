@@ -9,6 +9,33 @@
         matButton="outlined"
         type="button"
         [disabled]="activity() !== null"
+        [matMenuTriggerFor]="catalogToolsMenu"
+        [attr.aria-label]="activity() === 'tools' ? 'Running catalogue tool' : null"
+      >
+        @if (activity() === 'tools') {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <mat-icon name="build" />
+        }
+        @if (activity() !== 'tools') {
+          <span>Catalogue tools</span>
+        }
+      </button>
+      <mat-menu #catalogToolsMenu="matMenu">
+        <button mat-menu-item type="button" (click)="checkCatalog.emit()">
+          <span>Check catalogue structure</span>
+        </button>
+        <button mat-menu-item type="button" (click)="removeLegacy.emit()">
+          <span>Remove old fields</span>
+        </button>
+        <button mat-menu-item type="button" (click)="rebuildSearch.emit()">
+          <span>Rebuild search</span>
+        </button>
+      </mat-menu>
+      <button
+        matButton="outlined"
+        type="button"
+        [disabled]="activity() !== null"
         [attr.aria-label]="activity() === 'preview' ? 'Checking products' : null"
         (click)="preview.emit()"
       >
@@ -47,6 +74,7 @@
       <input
         class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
         type="search"
+        aria-label="Search products"
         [value]="search()"
         (input)="onSearch($event)"
       />

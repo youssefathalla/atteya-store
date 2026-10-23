@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import {
-  categoryForType,
   collapseSpaces,
   looksLikeSize,
   normalizeSizeLabel,
@@ -9,9 +8,16 @@ import {
   resolveProductType,
   sizeRank,
   type BrandId,
-  type ProductCategoryId,
   type ProductTypeId,
 } from './catalog-mapping.js';
+import {
+  categoryIdsFor,
+  colorIdFor,
+  DEFAULT_CATEGORY_FOR_TYPE,
+  extractColorsFromName,
+  sortColors,
+  type ColorId,
+} from './catalog-taxonomy.js';
 import { cleanDescription } from './description-html.js';
 import type {
   EasyOrdersProduct,
@@ -40,6 +46,7 @@ export interface MappedOptionValue {
   readonly id: string;
   readonly label: string;
   readonly swatch?: string;
+  readonly color?: ColorId;
   readonly image?: MappedImageRef;
 }
 
@@ -65,20 +72,22 @@ export interface MappedProduct {
   readonly summary: string | null;
   readonly descriptionHtml: string | null;
   readonly detailImages: readonly MappedImageRef[];
-  readonly category: ProductCategoryId;
+  readonly categoryId: string;
+  readonly categoryIds: readonly string[];
   readonly type: ProductTypeId;
-  readonly brand: BrandId;
+  readonly brandId: BrandId;
   readonly modelGroup: string | null;
   readonly currency: 'EGP';
   readonly price: number;
   readonly compareAtPrice: number | null;
   readonly gallery: readonly MappedImageRef[];
   readonly options: readonly MappedOption[];
+  readonly colors: readonly ColorId[];
   readonly trackStock: boolean;
   readonly variants: readonly MappedVariant[];
   readonly published: boolean;
   readonly sourceSlug: string;
-  readonly categoryIds: readonly string[];
+  readonly sourceCategoryIds: readonly string[];
   readonly sourceUpdatedAt: string;
   readonly createdAtIso: string;
   readonly warnings: readonly string[];
@@ -100,14 +109,21 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
   const id = typeof product.id === 'string' ? product.id.trim().toLowerCase() : '';
   const name = collapseSpaces(typeof product.name === 'string' ? product.name : '');
   if (!id || !name) {
-    return { ok: false, failure: { id, name: name || 'Unnamed product', message: 'A product was missing its name or id.' } };
+    return {
+      ok: false,
+      failure: {
+        id,
+        name: name || 'Unnamed product',
+        message: 'A product was missing its name or id.',
+      },
+    };
   }
 
-  const categoryIds = readCategoryIds(product);
-  const type = resolveProductType(id, name, categoryIds);
-  const brand = resolveBrand(name, categoryIds);
-  if (!type || !brand) {
-    const missing = [type ? '' : 'type', brand ? '' : 'brand'].filter((part) => part.length > 0);
+  const sourceCategoryIds = readCategoryIds(product);
+  const type = resolveProductType(id, name, sourceCategoryIds);
+  const brandId = resolveBrand(name, sourceCategoryIds);
+  if (!type || !brandId) {
+    const missing = [type ? '' : 'type', brandId ? '' : 'brand'].filter((part) => part.length > 0);
     return {
       ok: false,
       failure: {
@@ -118,6 +134,9 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
     };
   }
 
+  const categoryId = DEFAULT_CATEGORY_FOR_TYPE[type];
+  const categoryIds = categoryIdsFor(categoryId);
+
   const warnings: string[] = [];
   let skippedImages = 0;
   const skipImage = (message: string): void => {
@@ -127,6 +146,7 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
   const money = mapMoney(product.price, product.sale_price, name, warnings);
   const gallery = collectGallery(product, name, warnings, skipImage);
   const options = mapOptions(product.variations ?? [], name, warnings, skipImage);
+  const colors = resolveProductColors(options, name);
   const description = cleanDescription(typeof product.description === 'string' ? product.description : '');
   const detailImages = description.imageUrls.slice(0, DETAIL_MAX).flatMap((url) => {
     const image = acceptImage(url, clipAlt(name), skipImage);
@@ -152,20 +172,22 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
       summary: clipSummary(typeof product.meta_description === 'string' ? product.meta_description : ''),
       descriptionHtml: description.html,
       detailImages,
-      category: categoryForType(type),
+      categoryId,
+      categoryIds,
       type,
-      brand,
+      brandId,
       modelGroup: resolveModelGroup(id),
       currency: 'EGP',
       price: money.price,
       compareAtPrice: money.compareAtPrice,
       gallery,
       options,
+      colors,
       trackStock,
       variants: trackStock ? mapVariants(product, options, warnings) : [],
       published: product.hidden !== true,
       sourceSlug: typeof product.slug === 'string' ? product.slug.trim() : '',
-      categoryIds: [...categoryIds].sort(),
+      sourceCategoryIds: [...sourceCategoryIds].sort(),
       sourceUpdatedAt: typeof product.updated_at === 'string' ? product.updated_at : '',
       createdAtIso,
       warnings,
@@ -359,7 +381,14 @@ function mapOptionValues(
     const rawLabel = typeof prop.name === 'string' ? prop.name : '';
     if (!id || !collapseSpaces(rawLabel)) continue;
     const label = key === 'size' ? normalizeSizeLabel(rawLabel) : collapseSpaces(rawLabel);
-    const value: MappedOptionValue = { id, label, ...optionValueExtras(prop.value, productName, label, skipImage) };
+    const extras = optionValueExtras(prop.value, productName, label, skipImage);
+    const color = key === 'colour' ? colorIdFor(label, extras.swatch) : null;
+    const value: MappedOptionValue = {
+      id,
+      label,
+      ...extras,
+      ...(color ? { color } : {}),
+    };
     values.push(value);
   }
   return values;
@@ -389,6 +418,20 @@ function sortSizes(values: readonly MappedOptionValue[]): MappedOptionValue[] {
       return rank === 0 ? left.index - right.index : rank;
     })
     .map((entry) => entry.value);
+}
+
+function resolveProductColors(options: readonly MappedOption[], name: string): ColorId[] {
+  const fromOptions: ColorId[] = [];
+  for (const option of options) {
+    if (option.key !== 'colour') continue;
+    for (const value of option.values) {
+      if (value.color) fromOptions.push(value.color);
+    }
+  }
+  if (fromOptions.length > 0) {
+    return sortColors(fromOptions);
+  }
+  return extractColorsFromName(name);
 }
 
 function mapVariants(

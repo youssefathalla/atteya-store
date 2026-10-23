@@ -1,0 +1,104 @@
+<div class="elements-start-col gap-6 w-full">
+  <section class="surface-card p-5 w-full elements-start-col gap-4" aria-label="Offers toolbar">
+    <div class="elements-between flex-wrap gap-3 w-full">
+      <div>
+        <h1 class="font-title-lg font-bold!">Offers</h1>
+        <p class="font-body-md text-on-surface-variant">
+          Create percentage discounts, bundle deals, and scheduled promotions.
+        </p>
+      </div>
+      <a matButton="filled" routerLink="/admin/offers/new">
+        <mat-icon name="add" />
+        <span>New offer</span>
+      </a>
+    </div>
+
+    <div class="flex flex-wrap gap-2" role="tablist" aria-label="Filter offers by status">
+      @for (tab of filterTabs; track tab.id) {
+        <button
+          type="button"
+          role="tab"
+          class="border-shape border px-3 py-1.5 font-label-md cursor-pointer"
+          [class.border-primary]="statusFilter() === tab.id"
+          [class.bg-surface-container-highest]="statusFilter() === tab.id"
+          [class.border-outline-variant]="statusFilter() !== tab.id"
+          [attr.aria-selected]="statusFilter() === tab.id"
+          (click)="statusFilter.set(tab.id)"
+        >
+          {{ tab.label }}
+        </button>
+      }
+    </div>
+  </section>
+
+  <section class="surface-card p-5 w-full" aria-label="Offers list">
+    @if (dataResource.isLoading() && !dataResource.hasValue()) {
+      <div class="elements-start-col gap-3" aria-hidden="true">
+        <app-skeleton class="h-12 w-full" />
+        <app-skeleton class="h-12 w-full" />
+        <app-skeleton class="h-12 w-full" />
+      </div>
+    } @else {
+      <app-reusable-table
+        [data]="rows()"
+        [columns]="columns()"
+        [showHeaderControls]="false"
+        [isLoading]="false"
+      >
+        <p noDataContent class="font-body-md">
+          No offers in this view yet. Create an offer to start running discounts.
+        </p>
+      </app-reusable-table>
+    }
+  </section>
+</div>
+
+<ng-template #statusCell [templateType]="sampleRow" let-row>
+  <app-status-badge [value]="row.status" [statusConfig]="statusConfig" />
+</ng-template>
+
+<ng-template #titleCell [templateType]="sampleRow" let-row>
+  <div class="elements-start-col gap-0.5">
+    <span class="font-body-md font-bold!">{{ row.title }}</span>
+    <span class="font-body-sm text-on-surface-variant">
+      {{ row.name }}
+      @if (row.code) {
+        · Code: {{ row.code }}
+      }
+    </span>
+  </div>
+</ng-template>
+
+<ng-template #actionsCell [templateType]="sampleRow" let-row>
+  <div class="elements-center gap-1">
+    <a matButton="text" [routerLink]="['/admin/offers', row.id]">
+      <span>Edit</span>
+    </a>
+    <button
+      matIconButton
+      type="button"
+      [matMenuTriggerFor]="rowMenu"
+      [attr.aria-label]="'More actions for ' + row.name"
+    >
+      <mat-icon name="more_vert" />
+    </button>
+    <mat-menu #rowMenu="matMenu">
+      <button mat-menu-item type="button" (click)="duplicateOffer(row.id)">
+        <span>Duplicate</span>
+      </button>
+      @if (!row.archived) {
+        <button mat-menu-item type="button" (click)="toggleActive(row)">
+          <span>{{ row.active ? 'Pause' : 'Resume' }}</span>
+        </button>
+      }
+      <button mat-menu-item type="button" (click)="toggleArchived(row)">
+        <span>{{ row.archived ? 'Restore' : 'Archive' }}</span>
+      </button>
+      @if (row.archived) {
+        <button mat-menu-item type="button" (click)="deleteArchived(row)">
+          <span>Delete permanently</span>
+        </button>
+      }
+    </mat-menu>
+  </div>
+</ng-template>
