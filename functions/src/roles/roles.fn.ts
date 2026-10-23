@@ -7,6 +7,7 @@ import {
   listClaimAdmins,
   readRole,
   reconcileAdminMirrors,
+  recordSessionRevocation,
   revertRoleMirror,
   timestampToIso,
 } from './claim-admins.js';
@@ -41,7 +42,7 @@ function isLastAdminDemotion(role: Role, before: Role, otherAdminCount: number):
 }
 
 export const listAdmins = onCall(adminCallableOptions(), async (request): Promise<AdminRecord[]> => {
-  requireRole(request, 'admin');
+  await requireRole(request, 'admin');
 
   const claimAdmins = await listClaimAdmins();
   const db = getFirestore();
@@ -69,7 +70,7 @@ export const listAdmins = onCall(adminCallableOptions(), async (request): Promis
 export const setUserRole = onCall(
   adminCallableOptions(),
   async (request): Promise<SetUserRoleResult> => {
-    const actor = requireRole(request, 'admin');
+    const actor = await requireRole(request, 'admin');
     const input = parseSetUserRoleInput(request.data);
 
     let user;
@@ -106,12 +107,16 @@ export const setUserRole = onCall(
         throw new HttpsError('failed-precondition', LAST_ADMIN_MESSAGE);
       }
 
-      tx.set(db.doc(`roles/${user.uid}`), {
-        role: input.role,
-        email: input.email,
-        updatedAt: FieldValue.serverTimestamp(),
-        updatedBy: actorLabel,
-      });
+      tx.set(
+        db.doc(`roles/${user.uid}`),
+        {
+          role: input.role,
+          email: input.email,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: actorLabel,
+        },
+        { merge: true },
+      );
       tx.set(auditRef, {
         action: 'role.set',
         targetUid: user.uid,
@@ -130,13 +135,21 @@ export const setUserRole = onCall(
         role: input.role,
       });
       if (input.role === 'user') {
-        await getAuth().revokeRefreshTokens(user.uid);
+        await recordSessionRevocation(user.uid);
       }
     } catch {
       try {
+        await getAuth().setCustomUserClaims(user.uid, {
+          ...(user.customClaims ?? {}),
+          role: before,
+        });
+      } catch {
+        // The claim write did not stick. The mirror rollback still runs.
+      }
+      try {
         await revertRoleMirror(user.uid, before, input.email, actorLabel, auditRef.path);
       } catch {
-        // The claim is unchanged. The next role change reconciles the mirror.
+        // The next role change reconciles the mirror.
       }
       throw new HttpsError('internal', 'Could not update admin access. Please try again.');
     }
