@@ -55,11 +55,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Products: storefront can read published products; only admins write.
+    // Public queries MUST include where('published', '==', true) or they are rejected.
+    match /products/{productId} {
+      allow get, list: if resource.data.published == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
-    // and auditLogs stay on the rules written for them.
+    // auditLogs, and products stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products']);
     }
   }
 }
