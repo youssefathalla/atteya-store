@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, PLATFORM_ID, resource, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { SeoService } from '@core/services/seo';
+import type { Product } from '@core/services/products/product.model';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { ProductsTableComponent } from './components/products-table/products-table.component';
 import { ProductsToolbarComponent } from './components/products-toolbar/products-toolbar.component';
@@ -161,9 +162,20 @@ export class ProductsManagerComponent implements OnInit {
   }
 
   async editProduct(id: string): Promise<void> {
+    if (this.activity()) return;
     const products = this.productsResource.value()?.products ?? [];
-    const product = products.find((item) => item.id === id);
-    if (!product || this.activity()) return;
+    let product: Product | null;
+    try {
+      product = await this.#admin.getProduct(id);
+    } catch (error: unknown) {
+      this.#snackbar.error(importActionError(error));
+      return;
+    }
+    if (!product) {
+      this.#snackbar.error('This product no longer exists.');
+      this.productsResource.reload();
+      return;
+    }
     const next = await this.#dialogs.openEdit(
       product,
       existingModelGroups(products),
@@ -174,7 +186,7 @@ export class ProductsManagerComponent implements OnInit {
     try {
       const changed = await this.#admin.saveProduct(product, next);
       this.#snackbar.success(changed ? 'Product saved.' : 'No changes to save.');
-      if (changed) this.productsResource.reload();
+      this.productsResource.reload();
     } catch (error: unknown) {
       this.#snackbar.error(importActionError(error));
     }
