@@ -32,6 +32,7 @@ interface ExistingProduct {
   readonly brand?: string;
   readonly modelGroup: string | null;
   readonly published?: boolean;
+  readonly wasMissing: boolean;
   readonly locked: readonly LockableField[];
 }
 
@@ -159,7 +160,7 @@ async function importOne(
 
 async function readExisting(db: Firestore, docId: string): Promise<ExistingProduct> {
   const snap = await db.doc(`products/${docId}`).get();
-  if (!snap.exists) return { exists: false, modelGroup: null, locked: [] };
+  if (!snap.exists) return { exists: false, modelGroup: null, wasMissing: false, locked: [] };
   const data = snap.data() ?? {};
   const source = isRecord(data['source']) ? data['source'] : {};
   const locked = Array.isArray(data['lockedFields'])
@@ -167,6 +168,7 @@ async function readExisting(db: Firestore, docId: string): Promise<ExistingProdu
         LOCKABLE_FIELDS.includes(field as LockableField),
       )
     : [];
+  const missingSince = source['missingSince'];
   return {
     exists: true,
     slug: typeof data['slug'] === 'string' ? data['slug'] : undefined,
@@ -175,6 +177,7 @@ async function readExisting(db: Firestore, docId: string): Promise<ExistingProdu
     brand: typeof data['brand'] === 'string' ? data['brand'] : undefined,
     modelGroup: typeof data['modelGroup'] === 'string' ? data['modelGroup'] : null,
     published: typeof data['published'] === 'boolean' ? data['published'] : undefined,
+    wasMissing: missingSince !== null && missingSince !== undefined,
     locked,
   };
 }
@@ -261,7 +264,14 @@ function plannedWrite(
 ): PlannedWrite {
   const ref = db.doc(`products/${product.docId}`);
   if (action === 'unchanged') {
-    return { ref, kind: 'touch', data: { 'source.lastRunId': runId } };
+    const data: DocumentData = {
+      'source.lastRunId': runId,
+      'source.missingSince': null,
+    };
+    if (existing.wasMissing && !existing.locked.includes('published')) {
+      data['published'] = product.published;
+    }
+    return { ref, kind: 'touch', data };
   }
 
   const source = productSource(product, hash, runId);

@@ -130,3 +130,11 @@ Activate the dedicated skills from `.agents/skills/` on demand. `sync-docs`, `as
 - **`sync-docs`** to audit recent changes and keep living catalogs in sync.
 - **`ask`** (manual) for discussion-only brainstorming without file edits.
 - **`teacher`** (manual) to guide implementation instead of writing the solution.
+
+## Learned User Preferences
+
+- Develops with both Cursor and Antigravity; expects `.cursor` and `.agents` agent docs to stay aligned—run `npm run sync:agents` after editing mirrored contract or workflow sources.
+
+## Learned Workspace Facts
+
+- EasyOrders import: `markMissingProducts` sets `source.missingSince` and unpublishes SKUs missing from a run; when a product reappears with an unchanged catalogue hash, the `unchanged` touch must clear `missingSince` and restore `published` unless `published` is locked—not only `source.lastRunId`.
