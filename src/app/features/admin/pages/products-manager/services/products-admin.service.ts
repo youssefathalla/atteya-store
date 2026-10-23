@@ -4,6 +4,7 @@ import {
   collection,
   doc,
   getCountFromServer,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -57,40 +58,49 @@ export class ProductsAdminService {
   }
 
   async saveProduct(current: Product, next: ProductEditDraft): Promise<boolean> {
+    const ref = doc(this.#firestore, PRODUCTS_COLLECTION, current.id).withConverter(
+      createValibotConverter(ProductSchema),
+    );
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      throw new Error('This product no longer exists. Reload the page.');
+    }
+    const fresh = snap.data();
+
     const changes: Record<string, string | boolean | null | readonly string[]> = {};
     const locked: string[] = [];
 
-    if (next.type !== current.type) {
+    if (next.type !== fresh.type) {
       changes['type'] = next.type;
       locked.push('type');
     }
 
     const categoryChanged =
-      next.categoryId !== current.categoryId ||
-      !sameStringList(next.categoryIds, current.categoryIds);
+      next.categoryId !== fresh.categoryId ||
+      !sameStringList(next.categoryIds, fresh.categoryIds);
     if (categoryChanged || next.categoryPicked) {
       changes['categoryId'] = next.categoryId;
       changes['categoryIds'] = [...next.categoryIds];
       if (next.categoryPicked) locked.push('categoryIds');
     }
 
-    if (next.brandId !== current.brandId) {
+    if (next.brandId !== fresh.brandId) {
       changes['brandId'] = next.brandId;
       locked.push('brandId');
     }
-    if ((next.modelGroup ?? '') !== (current.modelGroup ?? '')) {
+    if ((next.modelGroup ?? '') !== (fresh.modelGroup ?? '')) {
       changes['modelGroup'] = next.modelGroup;
       locked.push('modelGroup');
     }
-    if (!sameStringList(next.colors, current.colors ?? [])) {
+    if (!sameStringList(next.colors, fresh.colors ?? [])) {
       changes['colors'] = [...next.colors];
       locked.push('colors');
     }
-    if (!sameStringList(next.tags, current.tags ?? [])) {
+    if (!sameStringList(next.tags, fresh.tags ?? [])) {
       changes['tags'] = [...next.tags];
       locked.push('tags');
     }
-    if (next.published !== current.published) {
+    if (next.published !== fresh.published) {
       changes['published'] = next.published;
       locked.push('published');
     }

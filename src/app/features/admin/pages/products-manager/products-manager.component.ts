@@ -174,7 +174,7 @@ export class ProductsManagerComponent implements OnInit {
     try {
       const changed = await this.#admin.saveProduct(product, next);
       this.#snackbar.success(changed ? 'Product saved.' : 'No changes to save.');
-      if (changed) this.productsResource.reload();
+      this.productsResource.reload();
     } catch (error: unknown) {
       this.#snackbar.error(importActionError(error));
     }
