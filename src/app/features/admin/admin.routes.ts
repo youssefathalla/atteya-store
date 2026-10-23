@@ -31,6 +31,14 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Navigation & Menus | Atteya Admin',
       },
       {
+        path: 'products',
+        loadComponent: () =>
+          import('./pages/products-manager/products-manager.component').then(
+            (m) => m.ProductsManagerComponent,
+          ),
+        title: 'Products | Atteya Admin',
+      },
+      {
         path: 'settings',
         loadComponent: () =>
           import('./pages/settings/settings.component').then((m) => m.SettingsComponent),

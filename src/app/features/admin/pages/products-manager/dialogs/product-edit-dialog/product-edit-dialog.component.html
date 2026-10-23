@@ -1,0 +1,33 @@
+<h2 mat-dialog-title class="font-title-lg font-bold!">Edit product</h2>
+<form novalidate (submit)="onSave($event)">
+  <mat-dialog-content class="elements-start-col gap-2">
+    <p class="font-body-md">{{ data.product.name }}</p>
+    <app-select-input
+      [formField]="editForm.type"
+      label="Type"
+      [options]="types"
+      valueKey="id"
+      labelKey="label"
+    />
+    <app-select-input
+      [formField]="editForm.brand"
+      label="Brand"
+      [options]="brands"
+      valueKey="id"
+      labelKey="label"
+    />
+    <app-text-input
+      [formField]="editForm.modelGroup"
+      label="Model group"
+      placeholder="on-cloud-short"
+    />
+    <p class="font-body-sm opacity-70">{{ groupHint }}</p>
+    <mat-checkbox [formField]="editForm.published">Show on store</mat-checkbox>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button matButton="text" type="button" [mat-dialog-close]="null">Cancel</button>
+    <button matButton="filled" type="submit">
+      <span>Save</span>
+    </button>
+  </mat-dialog-actions>
+</form>

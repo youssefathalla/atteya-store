@@ -1,0 +1,18 @@
+<div class="elements-start-col gap-6">
+  <app-products-toolbar
+    [(search)]="search"
+    [(typeId)]="typeId"
+    [(brandId)]="brandId"
+    [activity]="activity()"
+    [progressLabel]="progressLabel()"
+    [progressValue]="progressValue()"
+    (preview)="previewImport()"
+    (importProducts)="importProducts()"
+  />
+  <app-products-table
+    [rows]="rows()"
+    [loading]="showSkeleton()"
+    [loadError]="loadError()"
+    (edit)="editProduct($event)"
+  />
+</div>
