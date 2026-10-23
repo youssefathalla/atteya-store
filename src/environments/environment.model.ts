@@ -4,7 +4,6 @@ export interface Environment {
   production: boolean;
   baseUrl: string;
   googleMapsApiKey: string;
-  useEmulators?: boolean;
   firebase: FirebaseOptions;
   imageKitUrl: string;
   algolia: {

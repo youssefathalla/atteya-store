@@ -5,4 +5,3 @@ export * from './providers/firestore.provider';
 export * from './providers/storage.provider';
 export * from './providers/app-check.provider';
 export * from './providers/functions.provider';
-export * from './firebase-emulators';

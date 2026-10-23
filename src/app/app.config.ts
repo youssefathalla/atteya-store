@@ -55,13 +55,10 @@ export const appConfig: ApplicationConfig = {
 
     // Modular Firebase Suite
     provideFirebaseApp(environment.firebase),
-    provideAuth({ useEmulator: environment.useEmulators }),
-    provideFirestore({ useEmulator: environment.useEmulators }),
-    provideStorage({ useEmulator: environment.useEmulators }),
-    provideFunctions({
-      regionOrCustomDomain: 'europe-west3',
-      useEmulator: environment.useEmulators,
-    }),
+    provideAuth(),
+    provideFirestore(),
+    provideStorage(),
+    provideFunctions({ regionOrCustomDomain: 'europe-west3' }),
     provideAppCheck(environment.appCheck),
   ],
 };

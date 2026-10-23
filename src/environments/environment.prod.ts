@@ -4,7 +4,6 @@ export const environment: Environment = {
   production: true,
   baseUrl: 'https://your-production-domain.com',
   googleMapsApiKey: '',
-  useEmulators: false,
   firebase: {
     apiKey: 'AIzaSyBuW1DM6UDFu6fBWSAnNrj6yvgq8KQ_tsg',
     authDomain: 'attiya-store.firebaseapp.com',
