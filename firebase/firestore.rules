@@ -7,7 +7,22 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.role == 'admin';
+      return isSignedIn() && request.auth.token.role == 'admin' && sessionIsCurrent();
+    }
+
+    // An ID token keeps role:admin until it expires. After refresh tokens are
+    // revoked, roles/{uid}.revokeTimeMs is the Auth tokensValidAfterTime in
+    // milliseconds. Sessions that started before that time are rejected.
+    // A missing mirror, or a mirror with no revokeTimeMs, stays allowed.
+    function sessionIsCurrent() {
+      let rolePath = /databases/$(database)/documents/roles/$(request.auth.uid);
+      return !exists(rolePath) || freshSession(get(rolePath).data);
+    }
+
+    function freshSession(data) {
+      return !('revokeTimeMs' in data)
+        || ('auth_time' in request.auth.token
+            && request.auth.token.auth_time * 1000 >= data.revokeTimeMs);
     }
 
     function isOwner(uid) {

@@ -3,7 +3,22 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function isAdmin() {
-      return request.auth != null && request.auth.token.role == 'admin';
+      return request.auth != null
+        && request.auth.token.role == 'admin'
+        && sessionIsCurrent();
+    }
+
+    // Matches firestore.rules. The old ID token is rejected once
+    // roles/{uid}.revokeTimeMs records the Auth revocation time.
+    function sessionIsCurrent() {
+      let rolePath = /databases/(default)/documents/roles/$(request.auth.uid);
+      return !firestore.exists(rolePath) || freshSession(firestore.get(rolePath).data);
+    }
+
+    function freshSession(data) {
+      return !('revokeTimeMs' in data)
+        || ('auth_time' in request.auth.token
+            && request.auth.token.auth_time * 1000 >= data.revokeTimeMs);
     }
 
     function isImageFolder(folder) {
