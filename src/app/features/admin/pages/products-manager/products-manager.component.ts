@@ -276,10 +276,9 @@ export class ProductsManagerComponent implements OnInit {
 
   private async reloadCatalogue(): Promise<void> {
     this.productsResource.reload();
+    await this.pagination.refresh();
     if (this.isSearchMode()) {
       this.searchResource.reload();
-    } else {
-      await this.pagination.refresh();
     }
     await this.reloadSearchSyncErrors();
   }
