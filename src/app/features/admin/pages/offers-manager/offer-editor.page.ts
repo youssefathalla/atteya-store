@@ -83,7 +83,7 @@ export class OfferEditorPageComponent implements OnInit {
       const [offer, offers, products, categories, brands] = await Promise.all([
         params.offerId ? this.#offersAdmin.getOffer(params.offerId) : Promise.resolve(null),
         this.#offersAdmin.listOffers(),
-        this.#productsAdmin.listProducts(),
+        this.#productsAdmin.listAllProducts(),
         this.#productsAdmin.listAllCategories(),
         this.#productsAdmin.listAllBrands(),
       ]);

@@ -1,4 +1,4 @@
-import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
@@ -30,21 +30,32 @@ export const reindexSearch = onCall(
       getActiveOffers(db, true),
     ]);
 
-    const snap = await db
-      .collection('products')
-      .where('published', '==', true)
-      .limit(500)
-      .get();
-
     const records: ProductSearchRecord[] = [];
     const publishedIds = new Set<string>();
 
-    for (const doc of snap.docs) {
-      const record = toSearchRecord(doc.id, doc.data(), categoriesById, brandsById, offers);
-      if (record) {
-        records.push(record);
-        publishedIds.add(record.objectID);
+    let lastId: string | undefined;
+    for (;;) {
+      let pageQuery = db
+        .collection('products')
+        .where('published', '==', true)
+        .orderBy(FieldPath.documentId())
+        .limit(500);
+      if (lastId) {
+        pageQuery = pageQuery.startAfter(lastId);
       }
+      const snap = await pageQuery.get();
+      if (snap.empty) break;
+
+      for (const doc of snap.docs) {
+        const record = toSearchRecord(doc.id, doc.data(), categoriesById, brandsById, offers);
+        if (record) {
+          records.push(record);
+          publishedIds.add(record.objectID);
+        }
+        lastId = doc.id;
+      }
+
+      if (snap.size < 500) break;
     }
 
     if (dryRun) {

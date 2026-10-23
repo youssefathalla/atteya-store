@@ -1,9 +1,11 @@
 import {
+  FieldPath,
   FieldValue,
   getFirestore,
   type DocumentData,
   type DocumentReference,
   type Firestore,
+  type QueryDocumentSnapshot,
 } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
@@ -21,6 +23,7 @@ import {
   sortColors,
   type ColorId,
 } from './catalog-taxonomy.js';
+import { buildSearchTokens } from './search-tokens.js';
 
 export type MigratePass = 'add' | 'dropLegacy';
 
@@ -65,6 +68,27 @@ interface MigrateRequest {
 
 const SAMPLE_LIMIT = 10;
 const BATCH_LIMIT = 400;
+const PRODUCT_PAGE_SIZE = 500;
+
+async function forEachProductDocument(
+  db: Firestore,
+  visit: (doc: QueryDocumentSnapshot) => void | Promise<void>,
+): Promise<void> {
+  let lastId: string | undefined;
+  for (;;) {
+    let pageQuery = db.collection('products').orderBy(FieldPath.documentId()).limit(PRODUCT_PAGE_SIZE);
+    if (lastId) {
+      pageQuery = pageQuery.startAfter(lastId);
+    }
+    const snap = await pageQuery.get();
+    if (snap.empty) break;
+    for (const docSnap of snap.docs) {
+      await visit(docSnap);
+      lastId = docSnap.id;
+    }
+    if (snap.size < PRODUCT_PAGE_SIZE) break;
+  }
+}
 
 export const migrateCatalogStructure = onCall(
   adminCallableOptions({ timeoutSeconds: 300, memory: '512MiB' }),
@@ -259,7 +283,6 @@ async function backfillProducts(
   db: Firestore,
   dryRun: boolean,
 ): Promise<{ products: MigrateProductCounts; sample: MigrateProductSample[] }> {
-  const snap = await db.collection('products').limit(500).get();
   const counts: MigrateProductCounts = {
     updated: 0,
     unchanged: 0,
@@ -271,7 +294,7 @@ async function backfillProducts(
   const sample: MigrateProductSample[] = [];
   const writes: { ref: DocumentReference; data: DocumentData }[] = [];
 
-  for (const docSnap of snap.docs) {
+  await forEachProductDocument(db, async (docSnap) => {
     const data = docSnap.data();
     const name = typeof data['name'] === 'string' ? data['name'] : docSnap.id;
     const type = typeof data['type'] === 'string' ? (data['type'] as ProductTypeId) : undefined;
@@ -291,7 +314,7 @@ async function backfillProducts(
 
     if (!brandId || categoryIds.length === 0 || !categoryId) {
       counts.missingNewFields += 1;
-      continue;
+      return;
     }
 
     const patch: DocumentData = {};
@@ -351,9 +374,20 @@ async function backfillProducts(
       diffNotes.push('tags -> []');
     }
 
+    const modelGroup =
+      typeof data['modelGroup'] === 'string' ? (data['modelGroup'] as string) : null;
+    const nextTokens = buildSearchTokens(name, modelGroup);
+    const currentTokens = Array.isArray(data['searchTokens'])
+      ? data['searchTokens'].filter((item): item is string => typeof item === 'string')
+      : [];
+    if (!stringArraysEqual(currentTokens, nextTokens)) {
+      patch['searchTokens'] = [...nextTokens];
+      diffNotes.push('searchTokens');
+    }
+
     if (Object.keys(patch).length === 0) {
       counts.unchanged += 1;
-      continue;
+      return;
     }
 
     counts.updated += 1;
@@ -368,7 +402,7 @@ async function backfillProducts(
         summary: diffNotes.join('; '),
       });
     }
-  }
+  });
 
   if (!dryRun && writes.length > 0) {
     await commitInBatches(db, writes, 'merge');
@@ -378,10 +412,9 @@ async function backfillProducts(
 }
 
 async function runDropLegacyPass(db: Firestore, dryRun: boolean): Promise<MigrateCatalogResponse> {
-  const snap = await db.collection('products').limit(500).get();
   let missingNewFields = 0;
 
-  for (const docSnap of snap.docs) {
+  await forEachProductDocument(db, async (docSnap) => {
     const data = docSnap.data();
     const hasCategoryId = Boolean(nonEmptyString(data['categoryId']));
     const hasCategoryIds = nonEmptyStringArray(data['categoryIds']).length > 0;
@@ -389,7 +422,7 @@ async function runDropLegacyPass(db: Firestore, dryRun: boolean): Promise<Migrat
     if (!hasCategoryId || !hasCategoryIds || !hasBrandId) {
       missingNewFields += 1;
     }
-  }
+  });
 
   if (missingNewFields > 0) {
     throw new HttpsError(
@@ -409,13 +442,13 @@ async function runDropLegacyPass(db: Firestore, dryRun: boolean): Promise<Migrat
   const sample: MigrateProductSample[] = [];
   const writes: { ref: DocumentReference; data: DocumentData }[] = [];
 
-  for (const docSnap of snap.docs) {
+  await forEachProductDocument(db, async (docSnap) => {
     const data = docSnap.data();
     const hasLegacyCategory = 'category' in data;
     const hasLegacyBrand = 'brand' in data;
     if (!hasLegacyCategory && !hasLegacyBrand) {
       counts.unchanged += 1;
-      continue;
+      return;
     }
 
     const patch: DocumentData = {};
@@ -441,7 +474,7 @@ async function runDropLegacyPass(db: Firestore, dryRun: boolean): Promise<Migrat
         summary: `Remove ${removed.join(', ')}`,
       });
     }
-  }
+  });
 
   if (!dryRun && writes.length > 0) {
     await commitInBatches(db, writes, 'update');

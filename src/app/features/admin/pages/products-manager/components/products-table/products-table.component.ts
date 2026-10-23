@@ -5,7 +5,7 @@ import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { TemplateTypeDirective } from '@shared/directives/template-type/template-type.directive';
 import { EgpPricePipe } from '@shared/pipes/egp-price.pipe';
 import { ReusableTable } from '@shared/ui/reusable-table/reusable-table.component';
-import { TableColumn } from '@shared/ui/reusable-table/table.model';
+import { TableColumn, PaginationServiceInterface } from '@shared/ui/reusable-table/table.model';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.component';
 import { StatusConfig } from '@shared/ui/status-badge/status.model';
@@ -29,7 +29,12 @@ import type { ProductTableRow } from '../../models/product-admin.model';
 export class ProductsTableComponent {
   readonly rows = input.required<ProductTableRow[]>();
   readonly loading = input(false);
+  readonly tableLoading = input(false);
   readonly loadError = input('');
+  readonly paginationService = input<PaginationServiceInterface<ProductTableRow>>();
+  readonly browseMode = input(true);
+  readonly hasActiveFilters = input(false);
+  readonly catalogueEmpty = input(false);
   readonly edit = output<string>();
 
   private readonly imageCell = viewChild<TemplateRef<unknown>>('imageCell');
@@ -59,20 +64,42 @@ export class ProductsTableComponent {
     hidden: { label: 'Hidden', color: 'gray' },
   };
 
+  readonly emptyMessage = computed(() => {
+    if (this.catalogueEmpty() && !this.hasActiveFilters()) {
+      return 'No products yet. Preview an import to see what would be copied.';
+    }
+    return 'No products match your filters.';
+  });
+
   readonly columns = computed((): TableColumn<ProductTableRow>[] => {
     const imageCell = this.imageCell();
     const priceCell = this.priceCell();
     const statusCell = this.statusCell();
     const editCell = this.editCell();
+    const browse = this.browseMode();
     return [
       { key: 'imagePath', label: 'Photo', sortable: false, customCellTpl: imageCell },
       { key: 'name', label: 'Name', sortable: true },
-      { key: 'categoryLabel', label: 'Category', sortable: true },
-      { key: 'typeLabel', label: 'Type', sortable: true },
-      { key: 'brandLabel', label: 'Brand', sortable: true },
-      { key: 'modelGroup', label: 'Model group', sortable: true },
-      { key: 'price', label: 'Price', sortable: true, customCellTpl: priceCell },
-      { key: 'status', label: 'Status', sortable: true, customCellTpl: statusCell },
+      {
+        key: 'categoryLabel',
+        label: 'Category',
+        sortable: browse ? false : true,
+      },
+      { key: 'typeLabel', label: 'Type', sortable: browse ? false : true },
+      { key: 'brandLabel', label: 'Brand', sortable: browse ? false : true },
+      { key: 'modelGroup', label: 'Model group', sortable: browse ? false : true },
+      {
+        key: 'price',
+        label: 'Price',
+        sortable: browse ? false : true,
+        customCellTpl: priceCell,
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        sortable: browse ? false : true,
+        customCellTpl: statusCell,
+      },
       { key: 'id', label: 'Edit', sortable: false, customCellTpl: editCell },
     ];
   });

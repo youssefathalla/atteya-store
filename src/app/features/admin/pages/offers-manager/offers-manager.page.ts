@@ -105,7 +105,7 @@ export class OffersManagerPageComponent implements OnInit {
       }
       const [offers, products] = await Promise.all([
         this.#offersAdmin.listOffers(),
-        this.#productsAdmin.listProducts(),
+        this.#productsAdmin.listAllProducts(),
       ]);
       return { offers, products };
     },

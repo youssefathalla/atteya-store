@@ -20,6 +20,7 @@ import {
   type StoredOptionValue,
 } from './product-document.js';
 import { mapEasyOrdersProduct, type MappedImageRef, type MappedProduct } from './product-mapper.js';
+import { buildSearchTokens } from './search-tokens.js';
 import { mapPool } from './promise-pool.js';
 import { nextSlug } from './slug.js';
 
@@ -359,6 +360,12 @@ function plannedWrite(
   if (action === 'create' || !existing.hasTags) {
     data['tags'] = [];
   }
+
+  const storedModelGroup =
+    action === 'create' || !existing.locked.includes('modelGroup')
+      ? product.modelGroup
+      : existing.modelGroup;
+  data['searchTokens'] = buildSearchTokens(product.name, storedModelGroup);
 
   if (action === 'create') {
     data['id'] = product.docId;

@@ -17,10 +17,20 @@
       {{ searchSyncErrors() }} products didn't reach search. Run Rebuild search.
     </p>
   }
+  @if (searchTruncated()) {
+    <p class="surface-card p-3 w-full font-body-sm">
+      Showing the first 200 matches. Add more words to narrow it down.
+    </p>
+  }
   <app-products-table
     [rows]="rows()"
     [loading]="showSkeleton()"
+    [tableLoading]="tableLoading()"
     [loadError]="loadError()"
+    [paginationService]="isSearchMode() ? undefined : pagination"
+    [browseMode]="!isSearchMode()"
+    [hasActiveFilters]="hasActiveFilters()"
+    [catalogueEmpty]="catalogueEmpty()"
     (edit)="editProduct($event)"
   />
 </div>
