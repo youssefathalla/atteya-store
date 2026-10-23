@@ -20,8 +20,13 @@ export class AccountMenuComponent {
   readonly tooltip = input<string>('');
   readonly yPosition = input<'above' | 'below'>('below');
 
+  readonly isAuthReady = this.#auth.isAuthReady;
   readonly isAuthenticated = this.#auth.isAuthenticated;
   readonly isAdmin = this.#auth.isAdmin;
+  readonly menuState = computed(() => {
+    if (!this.isAuthReady()) return 'pending' as const;
+    return this.isAuthenticated() ? ('signed-in' as const) : ('signed-out' as const);
+  });
   readonly accountLabel = computed(() => {
     const user = this.#auth.user();
     const name = user?.displayName?.trim();

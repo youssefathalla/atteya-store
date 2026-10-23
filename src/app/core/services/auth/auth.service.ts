@@ -1,4 +1,4 @@
-import { Service, computed, effect, inject, signal, PLATFORM_ID } from '@angular/core';
+import { Service, computed, effect, inject, signal, untracked, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
@@ -20,6 +20,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, of } from 'rxjs';
 import { injectAuth, injectFirestore } from '@core/firebase';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
+import { notifyNotAdmin } from '@features/auth/utils/login-exit';
 import { AUTH_ERROR_MAPPINGS, DEFAULT_AUTH_ERROR } from './auth.errors';
 import { AppRole, GoogleSignInOutcome, roleFromClaims } from './auth.model';
 import { parseRoleMirror, RoleMirror } from './role-mirror.schema';
@@ -59,6 +60,7 @@ export class AuthService {
   #pendingCredential: AuthCredential | null = null;
   #generation = 0;
   #refreshInFlight: Promise<AppRole> | null = null;
+  readonly #explicitSignOut = signal(false);
   #redirectConsumed = false;
   #readyWaiters: (() => void)[] = [];
 
@@ -84,9 +86,25 @@ export class AuthService {
   constructor() {
     if (isPlatformBrowser(this.#platformId)) {
       onIdTokenChanged(this.#auth, (firebaseUser) => {
-        if (this.#refreshInFlight) return;
-        const generation = ++this.#generation;
-        void this.#applyUser(firebaseUser, generation);
+        if (!firebaseUser) {
+          this.#generation += 1;
+          this.#role.set('anon');
+          this.#user.set(null);
+          this.#markReady();
+          return;
+        }
+
+        const applyCurrent = (): void => {
+          const generation = ++this.#generation;
+          void this.#applyUser(this.#auth.currentUser, generation);
+        };
+
+        const inFlight = this.#refreshInFlight;
+        if (inFlight) {
+          void inFlight.finally(applyCurrent);
+          return;
+        }
+        applyCurrent();
       });
       void this.#consumeRedirectResult();
     } else {
@@ -176,12 +194,17 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
+    this.#explicitSignOut.set(true);
     this.clearPendingGoogle();
     this.#role.set('anon');
     this.#user.set(null);
-    await signOut(this.#auth);
-    this.#snackbar.info('Signed out');
-    await this.#router.navigateByUrl('/');
+    try {
+      await signOut(this.#auth);
+      this.#snackbar.info('Signed out');
+      await this.#router.navigateByUrl('/');
+    } finally {
+      this.#explicitSignOut.set(false);
+    }
   }
 
   /**
@@ -197,12 +220,49 @@ export class AuthService {
     }
   }
 
-  /** After a rejected admin write: refresh the claim, then send a non-admin to sign in. */
+  /**
+   * After a rejected admin write: refresh the claim. A signed-in person who is
+   * no longer an admin goes home. A signed-out person goes to sign in.
+   */
   async redirectIfNoLongerAdmin(returnUrl: string): Promise<void> {
     await this.refreshRole(true);
     if (this.isAdmin()) return;
-    await this.#router.navigate(['/login'], {
-      queryParams: { returnUrl: safeReturnUrl(returnUrl) },
+    if (!this.isAuthenticated()) {
+      await this.#router.navigate(['/login'], {
+        queryParams: { returnUrl: safeReturnUrl(returnUrl) },
+      });
+      return;
+    }
+    notifyNotAdmin(this.#snackbar);
+    await this.#router.navigateByUrl('/');
+  }
+
+  /**
+   * While the admin shell is open, leave if the person signs out or loses admin.
+   * Call once from the admin layout so the effect is destroyed with that page.
+   */
+  watchAdminAccess(): void {
+    effect(() => {
+      const ready = this.isAuthReady();
+      const signedIn = this.isAuthenticated();
+      const admin = this.isAdmin();
+      const explicitSignOut = this.#explicitSignOut();
+      if (!ready || !isPlatformBrowser(this.#platformId)) return;
+
+      untracked(() => {
+        const url = this.#router.url;
+        if (!url.startsWith('/admin') || explicitSignOut) return;
+        if (!signedIn) {
+          void this.#router.navigate(['/login'], {
+            queryParams: { returnUrl: safeReturnUrl(url) },
+          });
+          return;
+        }
+        if (!admin) {
+          notifyNotAdmin(this.#snackbar);
+          void this.#router.navigateByUrl('/');
+        }
+      });
     });
   }
 

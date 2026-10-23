@@ -1,8 +1,20 @@
 import { effect, untracked } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthService } from '@core/services/auth/auth.service';
+import type { AuthService } from '@core/services/auth/auth.service';
 import { safeReturnUrl } from '@core/services/auth/auth.utils';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
+
+export const NOT_ADMIN_MESSAGE = "This account can't manage the store.";
+
+let lastNotAdminNotice = 0;
+
+/** One notice if the guard and the open admin page both react to the same change. */
+export function notifyNotAdmin(snackbar: SnackbarService): void {
+  const now = Date.now();
+  if (now - lastNotAdminNotice < 2000) return;
+  lastNotAdminNotice = now;
+  snackbar.info(NOT_ADMIN_MESSAGE);
+}
 
 /** Sends a signed-in person on from `/login`. Holds while Google is being connected. */
 export function leaveAfterSignIn(
@@ -25,7 +37,7 @@ export function leaveAfterSignIn(
     untracked(() => {
       const target = safeReturnUrl(requested);
       if (target.startsWith('/admin') && !admin) {
-        snackbar.info("This account can't manage the store.");
+        notifyNotAdmin(snackbar);
         void router.navigateByUrl('/');
         return;
       }
