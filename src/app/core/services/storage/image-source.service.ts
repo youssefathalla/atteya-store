@@ -49,7 +49,7 @@ function mapInputIssueToError(issue: ImageInputIssue): ImageInputError {
     case 'unsupported-protocol':
       return new ImageInputError(
         'INVALID_INPUT',
-        'Please use a standard web link starting with https:// or http://.',
+        'Only https:// image links are supported.',
       );
     case 'malformed-url':
       return new ImageInputError(
