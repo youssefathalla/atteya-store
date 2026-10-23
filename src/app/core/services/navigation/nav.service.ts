@@ -1,15 +1,18 @@
-import { computed, Service } from '@angular/core';
+import { computed, inject, Service } from '@angular/core';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
+import { CatalogService } from '@core/services/products/catalog.service';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { signalDoc } from '@shared/utils/firebase/firestore-signals';
 import { NavSettingsSchema } from './nav.schema';
 import { NavCategory, NavSettings } from './nav.model';
 import { NAV_CATEGORIES } from './nav.data';
+import { visibleStorefrontCategories } from './nav-visibility';
 
 @Service()
 export class NavService {
   readonly #firestore = injectFirestore();
+  readonly #catalog = inject(CatalogService);
 
   readonly #navDocRef = doc(this.#firestore, 'settings', 'navigation').withConverter(
     createValibotConverter(NavSettingsSchema),
@@ -31,6 +34,14 @@ export class NavService {
     }
     return NAV_CATEGORIES;
   });
+
+  /**
+   * Storefront menus. Empty known categories and brands disappear once
+   * settings/catalog has counts. Until then every saved link stays visible.
+   */
+  readonly storefrontCategories = computed<readonly NavCategory[]>(() =>
+    visibleStorefrontCategories(this.categories(), (path) => this.#catalog.isEmpty(path)),
+  );
 
   /**
    * Resets the store navigation document with default categories.

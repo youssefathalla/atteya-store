@@ -21,7 +21,7 @@ export class DesktopNavComponent {
   readonly #navService = inject(NavService);
 
   // Live categories signal from NavService
-  readonly categories = this.#navService.categories;
+  readonly categories = this.#navService.storefrontCategories;
 
   onEscape(): void {
     this.drawerService.close();
