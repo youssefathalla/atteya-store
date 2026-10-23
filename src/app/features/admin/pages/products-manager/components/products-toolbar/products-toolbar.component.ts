@@ -30,6 +30,7 @@ export class ProductsToolbarComponent {
   readonly importProducts = output<void>();
   readonly checkCatalog = output<void>();
   readonly removeLegacy = output<void>();
+  readonly rebuildSearch = output<void>();
 
   readonly types = PRODUCT_TYPES;
   readonly brands = PRODUCT_BRANDS;

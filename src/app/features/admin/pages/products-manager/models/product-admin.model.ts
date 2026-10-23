@@ -102,3 +102,10 @@ export interface MigrateReport {
   readonly products: MigrateProductCountsView;
   readonly sample: readonly MigrateProductSampleView[];
 }
+
+export interface ReindexSearchReport {
+  readonly dryRun: boolean;
+  readonly indexName: string;
+  readonly indexed: number;
+  readonly deleted: number;
+}

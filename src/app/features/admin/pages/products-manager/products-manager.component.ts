@@ -41,16 +41,21 @@ export class ProductsManagerComponent implements OnInit {
   readonly productsResource = resource({
     loader: async () => {
       if (!isPlatformBrowser(this.#platformId)) {
-        return { products: [], categories: [], brands: [] };
+        return { products: [], categories: [], brands: [], searchSyncErrors: 0 };
       }
-      const [products, categories, brands] = await Promise.all([
+      const [products, categories, brands, searchSyncErrors] = await Promise.all([
         this.#admin.listProducts(),
         this.#admin.listAllCategories(),
         this.#admin.listAllBrands(),
+        this.#admin.countSearchSyncErrors(),
       ]);
-      return { products, categories, brands };
+      return { products, categories, brands, searchSyncErrors };
     },
   });
+
+  readonly searchSyncErrors = computed(
+    () => this.productsResource.value()?.searchSyncErrors ?? 0,
+  );
 
   readonly activity = computed<'preview' | 'import' | 'tools' | null>(() => {
     const mode = this.#importer.mode();
@@ -133,6 +138,22 @@ export class ProductsManagerComponent implements OnInit {
           ? `Catalogue structure updated (${applied.products.updated} products updated).`
           : `Old fields removed from ${applied.products.updated} products.`;
       this.#snackbar.success(message);
+      this.productsResource.reload();
+    } catch (error: unknown) {
+      this.#snackbar.error(importActionError(error));
+    }
+  }
+
+  async rebuildSearch(): Promise<void> {
+    if (this.activity()) return;
+    try {
+      const preview = await this.#tools.reindexSearch(true);
+      const shouldApply = await this.#dialogs.confirmReindex(preview);
+      if (!shouldApply) return;
+      const applied = await this.#tools.reindexSearch(false);
+      this.#snackbar.success(
+        `Search rebuilt (${applied.indexed} products indexed, ${applied.deleted} removed).`,
+      );
       this.productsResource.reload();
     } catch (error: unknown) {
       this.#snackbar.error(importActionError(error));

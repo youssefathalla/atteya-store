@@ -10,7 +10,13 @@
     (importProducts)="importProducts()"
     (checkCatalog)="runMigration('add')"
     (removeLegacy)="runMigration('dropLegacy')"
+    (rebuildSearch)="rebuildSearch()"
   />
+  @if (searchSyncErrors() > 0) {
+    <p class="surface-card p-3 w-full font-body-sm">
+      {{ searchSyncErrors() }} products didn't reach search. Run Rebuild search.
+    </p>
+  }
   <app-products-table
     [rows]="rows()"
     [loading]="showSkeleton()"

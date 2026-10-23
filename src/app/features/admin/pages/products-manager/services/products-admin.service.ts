@@ -3,6 +3,7 @@ import {
   arrayUnion,
   collection,
   doc,
+  getCountFromServer,
   getDocs,
   limit,
   orderBy,
@@ -48,6 +49,11 @@ export class ProductsAdminService {
     );
     const snap = await getDocs(query(brands, orderBy('sortOrder', 'asc'), limit(100)));
     return snap.docs.map((item) => item.data());
+  }
+
+  async countSearchSyncErrors(): Promise<number> {
+    const snap = await getCountFromServer(collection(this.#firestore, 'searchSyncErrors'));
+    return snap.data().count;
   }
 
   async saveProduct(current: Product, next: ProductEditDraft): Promise<boolean> {

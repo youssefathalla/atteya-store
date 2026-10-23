@@ -18,6 +18,7 @@ import type {
   ImportReport,
   MigrateReport,
   ProductEditDraft,
+  ReindexSearchReport,
 } from '../models/product-admin.model';
 
 @Service()
@@ -69,6 +70,25 @@ export class ProductsDialogService {
     );
     const apply = await firstValueFrom(dialogRef.afterClosed());
     return !!apply;
+  }
+
+  async confirmReindex(preview: ReindexSearchReport): Promise<boolean> {
+    const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Rebuild search',
+          message: `This will apply search settings and sync ${preview.indexed} published products to ${preview.indexName}.`,
+          confirmText: 'Rebuild search',
+          cancelText: 'Cancel',
+          theme: 'primary',
+        },
+        width: '480px',
+        maxWidth: '92vw',
+      },
+    );
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
   }
 
   async openEdit(
