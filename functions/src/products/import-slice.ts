@@ -361,7 +361,11 @@ function plannedWrite(
     data['tags'] = [];
   }
 
-  data['searchTokens'] = buildSearchTokens(product.name, product.modelGroup);
+  const storedModelGroup =
+    action === 'create' || !existing.locked.includes('modelGroup')
+      ? product.modelGroup
+      : existing.modelGroup;
+  data['searchTokens'] = buildSearchTokens(product.name, storedModelGroup);
 
   if (action === 'create') {
     data['id'] = product.docId;

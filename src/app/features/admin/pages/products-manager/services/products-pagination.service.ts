@@ -23,7 +23,7 @@ import type { ProductTableRow } from '../models/product-admin.model';
 import { toProductTableRow } from '../utils/product-admin.utils';
 
 const DEFAULT_PAGE_SIZE = 10;
-const PAGE_SIZES = new Set([10, 25]);
+const PAGE_SIZES = new Set([10, 25, 50, 100]);
 
 @Service()
 export class ProductsPaginationService implements PaginationServiceInterface<ProductTableRow> {
@@ -41,6 +41,8 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
   readonly #error = signal<string | null>(null);
   readonly #pageDocs = signal<readonly QueryDocumentSnapshot<Product>[]>([]);
   readonly #products = signal<readonly Product[]>([]);
+  readonly #loaded = signal(false);
+  readonly #requestId = signal(0);
 
   readonly state = computed(() => ({ limit: this.#pageSize() }));
   readonly #pageSize = signal(DEFAULT_PAGE_SIZE);
@@ -74,7 +76,8 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
   }
 
   async setBrowseFilters(typeId: string, brandId: string): Promise<void> {
-    if (typeId === this.#typeId() && brandId === this.#brandId()) return;
+    const unchanged = typeId === this.#typeId() && brandId === this.#brandId();
+    if (this.#loaded() && unchanged) return;
     this.#typeId.set(typeId);
     this.#brandId.set(brandId);
     this.#currentPage.set(1);
@@ -107,14 +110,14 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
 
     if (direction === 'next') {
       if (!this.hasNextPage()) return;
-      await this.#loadAdjacentPage('next', docs[docs.length - 1]);
-      this.#currentPage.update((page) => page + 1);
+      const ok = await this.#loadAdjacentPage('next', docs[docs.length - 1]);
+      if (ok) this.#currentPage.update((page) => page + 1);
       return;
     }
 
     if (!this.hasPreviousPage()) return;
-    await this.#loadAdjacentPage('prev', docs[0]);
-    this.#currentPage.update((page) => page - 1);
+    const ok = await this.#loadAdjacentPage('prev', docs[0]);
+    if (ok) this.#currentPage.update((page) => page - 1);
   }
 
   async setPageSize(limitValue: number): Promise<void> {
@@ -139,6 +142,7 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
     this.#brandId.set('all');
     this.#pageSize.set(DEFAULT_PAGE_SIZE);
     this.#currentPage.set(1);
+    this.#loaded.set(false);
     await this.#loadFirstPage();
   }
 
@@ -155,17 +159,30 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
     return collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(this.#converter);
   }
 
-  async #refreshTotal(): Promise<void> {
+  #beginRequest(): number {
+    const id = this.#requestId() + 1;
+    this.#requestId.set(id);
+    return id;
+  }
+
+  #isCurrentRequest(requestId: number): boolean {
+    return requestId === this.#requestId();
+  }
+
+  async #refreshTotal(requestId: number): Promise<void> {
     const countQuery = query(this.#productsCollection(), ...this.#filterConstraints());
     const snap = await getCountFromServer(countQuery);
+    if (!this.#isCurrentRequest(requestId)) return;
     this.#total.set(snap.data().count);
   }
 
   async #loadFirstPage(): Promise<void> {
+    const requestId = this.#beginRequest();
     this.#isLoading.set(true);
     this.#error.set(null);
     try {
-      await this.#refreshTotal();
+      await this.#refreshTotal(requestId);
+      if (!this.#isCurrentRequest(requestId)) return;
       const pageSize = this.#pageSize();
       const pageQuery = query(
         this.#productsCollection(),
@@ -174,23 +191,30 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
         limit(pageSize),
       );
       const snap = await getDocs(pageQuery);
+      if (!this.#isCurrentRequest(requestId)) return;
       this.#pageDocs.set(snap.docs);
       this.#products.set(snap.docs.map((docSnap) => docSnap.data()));
       this.#currentPage.set(1);
+      this.#loaded.set(true);
     } catch (error: unknown) {
+      if (!this.#isCurrentRequest(requestId)) return;
       this.#error.set(error instanceof Error ? error.message : 'Could not load products.');
       this.#products.set([]);
       this.#pageDocs.set([]);
     } finally {
-      this.#isLoading.set(false);
+      if (this.#isCurrentRequest(requestId)) {
+        this.#isLoading.set(false);
+      }
     }
   }
 
   async #loadLastPage(): Promise<void> {
+    const requestId = this.#beginRequest();
     this.#isLoading.set(true);
     this.#error.set(null);
     try {
-      await this.#refreshTotal();
+      await this.#refreshTotal(requestId);
+      if (!this.#isCurrentRequest(requestId)) return;
       const total = this.#total();
       const pageSize = this.#pageSize();
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -202,20 +226,26 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
         limitToLast(remainder),
       );
       const snap = await getDocs(pageQuery);
+      if (!this.#isCurrentRequest(requestId)) return;
       this.#pageDocs.set(snap.docs);
       this.#products.set(snap.docs.map((docSnap) => docSnap.data()));
       this.#currentPage.set(totalPages);
+      this.#loaded.set(true);
     } catch (error: unknown) {
+      if (!this.#isCurrentRequest(requestId)) return;
       this.#error.set(error instanceof Error ? error.message : 'Could not load products.');
     } finally {
-      this.#isLoading.set(false);
+      if (this.#isCurrentRequest(requestId)) {
+        this.#isLoading.set(false);
+      }
     }
   }
 
   async #loadAdjacentPage(
     direction: 'next' | 'prev',
     cursor: QueryDocumentSnapshot<Product>,
-  ): Promise<void> {
+  ): Promise<boolean> {
+    const requestId = this.#beginRequest();
     this.#isLoading.set(true);
     this.#error.set(null);
     try {
@@ -238,12 +268,18 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
               limitToLast(pageSize),
             );
       const snap = await getDocs(pageQuery);
+      if (!this.#isCurrentRequest(requestId)) return false;
       this.#pageDocs.set(snap.docs);
       this.#products.set(snap.docs.map((docSnap) => docSnap.data()));
+      return true;
     } catch (error: unknown) {
+      if (!this.#isCurrentRequest(requestId)) return false;
       this.#error.set(error instanceof Error ? error.message : 'Could not load products.');
+      return false;
     } finally {
-      this.#isLoading.set(false);
+      if (this.#isCurrentRequest(requestId)) {
+        this.#isLoading.set(false);
+      }
     }
   }
 
@@ -252,28 +288,34 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
       await this.#loadFirstPage();
       return;
     }
+    const requestId = this.#beginRequest();
     this.#isLoading.set(true);
     this.#error.set(null);
     try {
-      await this.#refreshTotal();
+      await this.#refreshTotal(requestId);
+      if (!this.#isCurrentRequest(requestId)) return;
       const pageSize = this.#pageSize();
       let cursor: QueryDocumentSnapshot<Product> | null = null;
       for (let index = 1; index < page; index++) {
-        const stepQuery = cursor
-          ? query(
-              this.#productsCollection(),
-              ...this.#filterConstraints(),
+        const collectionRef = this.#productsCollection();
+        const constraints = this.#filterConstraints();
+        let stepSnap;
+        if (cursor) {
+          stepSnap = await getDocs(
+            query(
+              collectionRef,
+              ...constraints,
               orderBy('name', 'asc'),
               startAfter(cursor),
               limit(pageSize),
-            )
-          : query(
-              this.#productsCollection(),
-              ...this.#filterConstraints(),
-              orderBy('name', 'asc'),
-              limit(pageSize),
-            );
-        const stepSnap = await getDocs(stepQuery);
+            ),
+          );
+        } else {
+          stepSnap = await getDocs(
+            query(collectionRef, ...constraints, orderBy('name', 'asc'), limit(pageSize)),
+          );
+        }
+        if (!this.#isCurrentRequest(requestId)) return;
         if (stepSnap.docs.length === 0) {
           await this.#loadFirstPage();
           return;
@@ -292,13 +334,18 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
         limit(pageSize),
       );
       const snap = await getDocs(pageQuery);
+      if (!this.#isCurrentRequest(requestId)) return;
       this.#pageDocs.set(snap.docs);
       this.#products.set(snap.docs.map((docSnap) => docSnap.data()));
       this.#currentPage.set(page);
+      this.#loaded.set(true);
     } catch (error: unknown) {
+      if (!this.#isCurrentRequest(requestId)) return;
       this.#error.set(error instanceof Error ? error.message : 'Could not load products.');
     } finally {
-      this.#isLoading.set(false);
+      if (this.#isCurrentRequest(requestId)) {
+        this.#isLoading.set(false);
+      }
     }
   }
 }

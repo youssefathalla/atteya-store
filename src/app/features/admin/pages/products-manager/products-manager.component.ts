@@ -7,6 +7,7 @@ import {
   PLATFORM_ID,
   resource,
   signal,
+  untracked,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { SeoService } from '@core/services/seo';
@@ -156,11 +157,16 @@ export class ProductsManagerComponent implements OnInit {
       if (!isPlatformBrowser(this.#platformId)) return;
       const data = this.productsResource.value();
       if (!data) return;
-      const categoryNames = new Map(data.categories.map((cat) => [cat.id, cat.name]));
-      const brandNames = new Map(data.brands.map((brand) => [brand.id, brand.name]));
-      this.pagination.setNameMaps(categoryNames, brandNames);
-      if (this.debouncedSearch().trim()) return;
-      void this.pagination.setBrowseFilters(this.typeId(), this.brandId());
+      const typeId = this.typeId();
+      const brandId = this.brandId();
+      const searchActive = this.debouncedSearch().trim().length > 0;
+      untracked(() => {
+        const categoryNames = new Map(data.categories.map((cat) => [cat.id, cat.name]));
+        const brandNames = new Map(data.brands.map((brand) => [brand.id, brand.name]));
+        this.pagination.setNameMaps(categoryNames, brandNames);
+        if (searchActive) return;
+        void this.pagination.setBrowseFilters(typeId, brandId);
+      });
     });
   }
 
@@ -246,7 +252,12 @@ export class ProductsManagerComponent implements OnInit {
       await this.reloadCatalogue();
       return;
     }
-    const modelGroups = await this.#admin.listModelGroups();
+    let modelGroups: readonly string[] = [];
+    try {
+      modelGroups = await this.#admin.listModelGroups();
+    } catch (error: unknown) {
+      this.#snackbar.error(importActionError(error));
+    }
     const next = await this.#dialogs.openEdit(
       product,
       modelGroups,
