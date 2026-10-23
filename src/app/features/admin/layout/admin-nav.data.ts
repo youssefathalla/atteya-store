@@ -77,6 +77,14 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         badge: 'Live',
         description: 'Choose who can manage the store',
       },
+      {
+        id: 'shipping',
+        label: 'Shipping',
+        path: '/admin/settings/shipping',
+        icon: 'local_shipping',
+        badge: 'Live',
+        description: 'Delivery fees, free shipping, and promotions',
+      },
     ],
   },
   {

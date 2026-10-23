@@ -8,6 +8,7 @@ import {
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
+import { SHIPPING_DOC_PATH, shippingSeedData } from '../shipping/shipping-settings.js';
 import { recountCatalog } from './catalog-counts.js';
 import type { ProductTypeId } from './catalog-mapping.js';
 import {
@@ -54,6 +55,7 @@ export interface MigrateCatalogResponse {
   readonly brands: MigrateSeedCounts;
   readonly products: MigrateProductCounts;
   readonly sample: readonly MigrateProductSample[];
+  readonly shippingSeeded?: boolean;
 }
 
 interface MigrateRequest {
@@ -112,6 +114,7 @@ async function runAddPass(db: Firestore, dryRun: boolean): Promise<MigrateCatalo
   const categories = await seedCategories(db, dryRun);
   const brands = await seedBrands(db, dryRun);
   const { products, sample } = await backfillProducts(db, dryRun);
+  const shippingSeeded = await seedShipping(db, dryRun);
 
   if (!dryRun) {
     await recountCatalog(db);
@@ -124,7 +127,22 @@ async function runAddPass(db: Firestore, dryRun: boolean): Promise<MigrateCatalo
     brands,
     products,
     sample,
+    shippingSeeded,
   };
+}
+
+async function seedShipping(db: Firestore, dryRun: boolean): Promise<boolean> {
+  const ref = db.doc(SHIPPING_DOC_PATH);
+  const snap = await ref.get();
+  if (snap.exists) return false;
+  if (!dryRun) {
+    await ref.create({
+      ...shippingSeedData(),
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: 'migration',
+    });
+  }
+  return true;
 }
 
 async function seedCategories(db: Firestore, dryRun: boolean): Promise<MigrateSeedCounts> {

@@ -81,6 +81,14 @@ export const ADMIN_ROUTES: Routes = [
               ),
             title: 'Admins | Atteya Admin',
           },
+          {
+            path: 'shipping',
+            loadComponent: () =>
+              import('./pages/settings/shipping/shipping-tab.component').then(
+                (m) => m.ShippingTabComponent,
+              ),
+            title: 'Shipping | Atteya Admin',
+          },
         ],
       },
     ],

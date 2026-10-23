@@ -25,6 +25,10 @@
     }
   </p>
 
+  @if (report.shippingSeeded) {
+    <p class="font-body-sm">Default shipping fees will be added.</p>
+  }
+
   @if (report.pass === 'add') {
     <p class="font-body-sm">
       <span class="font-bold!">Colours:</span>

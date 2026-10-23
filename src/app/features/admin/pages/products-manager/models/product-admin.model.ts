@@ -107,6 +107,7 @@ export interface MigrateReport {
   readonly brands: MigrateSeedCountsView;
   readonly products: MigrateProductCountsView;
   readonly sample: readonly MigrateProductSampleView[];
+  readonly shippingSeeded?: boolean;
 }
 
 export interface ReindexSearchReport {
