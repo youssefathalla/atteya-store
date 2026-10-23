@@ -40,9 +40,11 @@ export class ProductsTableComponent {
   readonly sampleRow: ProductTableRow = {
     id: '',
     name: '',
+    categoryId: 'rackets',
+    categoryLabel: '',
     type: 'rackets',
     typeLabel: '',
-    brand: 'adidas',
+    brandId: 'adidas',
     brandLabel: '',
     modelGroup: '',
     price: 0,
@@ -65,6 +67,7 @@ export class ProductsTableComponent {
     return [
       { key: 'imagePath', label: 'Photo', sortable: false, customCellTpl: imageCell },
       { key: 'name', label: 'Name', sortable: true },
+      { key: 'categoryLabel', label: 'Category', sortable: true },
       { key: 'typeLabel', label: 'Type', sortable: true },
       { key: 'brandLabel', label: 'Brand', sortable: true },
       { key: 'modelGroup', label: 'Model group', sortable: true },

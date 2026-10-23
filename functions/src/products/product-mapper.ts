@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import {
-  categoryForType,
   collapseSpaces,
   looksLikeSize,
   normalizeSizeLabel,
@@ -9,9 +8,9 @@ import {
   resolveProductType,
   sizeRank,
   type BrandId,
-  type ProductCategoryId,
   type ProductTypeId,
 } from './catalog-mapping.js';
+import { categoryIdsFor, DEFAULT_CATEGORY_FOR_TYPE } from './catalog-taxonomy.js';
 import { cleanDescription } from './description-html.js';
 import type {
   EasyOrdersProduct,
@@ -65,9 +64,10 @@ export interface MappedProduct {
   readonly summary: string | null;
   readonly descriptionHtml: string | null;
   readonly detailImages: readonly MappedImageRef[];
-  readonly category: ProductCategoryId;
+  readonly categoryId: string;
+  readonly categoryIds: readonly string[];
   readonly type: ProductTypeId;
-  readonly brand: BrandId;
+  readonly brandId: BrandId;
   readonly modelGroup: string | null;
   readonly currency: 'EGP';
   readonly price: number;
@@ -78,7 +78,7 @@ export interface MappedProduct {
   readonly variants: readonly MappedVariant[];
   readonly published: boolean;
   readonly sourceSlug: string;
-  readonly categoryIds: readonly string[];
+  readonly sourceCategoryIds: readonly string[];
   readonly sourceUpdatedAt: string;
   readonly createdAtIso: string;
   readonly warnings: readonly string[];
@@ -100,14 +100,21 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
   const id = typeof product.id === 'string' ? product.id.trim().toLowerCase() : '';
   const name = collapseSpaces(typeof product.name === 'string' ? product.name : '');
   if (!id || !name) {
-    return { ok: false, failure: { id, name: name || 'Unnamed product', message: 'A product was missing its name or id.' } };
+    return {
+      ok: false,
+      failure: {
+        id,
+        name: name || 'Unnamed product',
+        message: 'A product was missing its name or id.',
+      },
+    };
   }
 
-  const categoryIds = readCategoryIds(product);
-  const type = resolveProductType(id, name, categoryIds);
-  const brand = resolveBrand(name, categoryIds);
-  if (!type || !brand) {
-    const missing = [type ? '' : 'type', brand ? '' : 'brand'].filter((part) => part.length > 0);
+  const sourceCategoryIds = readCategoryIds(product);
+  const type = resolveProductType(id, name, sourceCategoryIds);
+  const brandId = resolveBrand(name, sourceCategoryIds);
+  if (!type || !brandId) {
+    const missing = [type ? '' : 'type', brandId ? '' : 'brand'].filter((part) => part.length > 0);
     return {
       ok: false,
       failure: {
@@ -117,6 +124,9 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
       },
     };
   }
+
+  const categoryId = DEFAULT_CATEGORY_FOR_TYPE[type];
+  const categoryIds = categoryIdsFor(categoryId);
 
   const warnings: string[] = [];
   let skippedImages = 0;
@@ -152,9 +162,10 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
       summary: clipSummary(typeof product.meta_description === 'string' ? product.meta_description : ''),
       descriptionHtml: description.html,
       detailImages,
-      category: categoryForType(type),
+      categoryId,
+      categoryIds,
       type,
-      brand,
+      brandId,
       modelGroup: resolveModelGroup(id),
       currency: 'EGP',
       price: money.price,
@@ -165,7 +176,7 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
       variants: trackStock ? mapVariants(product, options, warnings) : [],
       published: product.hidden !== true,
       sourceSlug: typeof product.slug === 'string' ? product.slug.trim() : '',
-      categoryIds: [...categoryIds].sort(),
+      sourceCategoryIds: [...sourceCategoryIds].sort(),
       sourceUpdatedAt: typeof product.updated_at === 'string' ? product.updated_at : '',
       createdAtIso,
       warnings,

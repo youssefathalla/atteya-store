@@ -1,11 +1,13 @@
-import type { BrandId, ProductTypeId } from '@core/services/products/product.model';
+import type { ProductTypeId } from '@core/services/products/product.model';
 
 export interface ProductTableRow {
   readonly id: string;
   readonly name: string;
+  readonly categoryId: string;
+  readonly categoryLabel: string;
   readonly type: ProductTypeId;
   readonly typeLabel: string;
-  readonly brand: BrandId;
+  readonly brandId: string;
   readonly brandLabel: string;
   readonly modelGroup: string;
   readonly price: number;
@@ -17,9 +19,24 @@ export interface ProductTableRow {
 
 export interface ProductEditDraft {
   readonly type: ProductTypeId;
-  readonly brand: BrandId;
+  readonly categoryId: string;
+  readonly categoryIds: readonly string[];
+  readonly categoryPicked: boolean;
+  readonly brandId: string;
   readonly modelGroup: string | null;
   readonly published: boolean;
+}
+
+export interface CategoryOptionView {
+  readonly id: string;
+  readonly label: string;
+  readonly group: string;
+  readonly categoryIds: readonly string[];
+}
+
+export interface BrandOptionView {
+  readonly id: string;
+  readonly label: string;
 }
 
 export interface ImportCountsView {

@@ -12,7 +12,13 @@ import {
   ProductEditDialogComponent,
   ProductEditDialogData,
 } from '../dialogs/product-edit-dialog/product-edit-dialog.component';
-import type { ImportReport, MigrateReport, ProductEditDraft } from '../models/product-admin.model';
+import type {
+  BrandOptionView,
+  CategoryOptionView,
+  ImportReport,
+  MigrateReport,
+  ProductEditDraft,
+} from '../models/product-admin.model';
 
 @Service()
 export class ProductsDialogService {
@@ -65,13 +71,18 @@ export class ProductsDialogService {
     return !!apply;
   }
 
-  async openEdit(product: Product, groups: readonly string[]): Promise<ProductEditDraft | null> {
+  async openEdit(
+    product: Product,
+    groups: readonly string[],
+    categories: readonly CategoryOptionView[],
+    brands: readonly BrandOptionView[],
+  ): Promise<ProductEditDraft | null> {
     const dialogRef = this.#dialog.open<
       ProductEditDialogComponent,
       ProductEditDialogData,
       ProductEditDraft | null
     >(ProductEditDialogComponent, {
-      data: { product, groups },
+      data: { product, groups, categories, brands },
       width: '480px',
       maxWidth: '92vw',
     });

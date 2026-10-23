@@ -99,4 +99,10 @@ export const SIZE_ORDER = [
   'T4',
 ] as const;
 
-export const LOCKABLE_PRODUCT_FIELDS = ['type', 'brand', 'modelGroup', 'published'] as const;
+export const LOCKABLE_PRODUCT_FIELDS = [
+  'type',
+  'brandId',
+  'modelGroup',
+  'published',
+  'categoryIds',
+] as const;

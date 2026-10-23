@@ -10,7 +10,15 @@
       labelKey="label"
     />
     <app-select-input
-      [formField]="editForm.brand"
+      [formField]="editForm.categoryId"
+      label="Category"
+      [options]="categories"
+      valueKey="id"
+      labelKey="label"
+      groupKey="group"
+    />
+    <app-select-input
+      [formField]="editForm.brandId"
       label="Brand"
       [options]="brands"
       valueKey="id"

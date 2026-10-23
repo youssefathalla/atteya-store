@@ -29,7 +29,8 @@ interface ExistingProduct {
   readonly slug?: string;
   readonly hash?: string;
   readonly type?: string;
-  readonly brand?: string;
+  readonly brandId?: string;
+  readonly categoryIds?: readonly string[];
   readonly modelGroup: string | null;
   readonly published?: boolean;
   readonly wasMissing: boolean;
@@ -140,7 +141,7 @@ async function importOne(
         id: product.docId,
         name: product.name,
         type: product.type,
-        brand: product.brand,
+        brand: product.brandId,
         modelGroup: product.modelGroup,
         price: product.price,
         compareAtPrice: product.compareAtPrice,
@@ -163,32 +164,53 @@ async function readExisting(db: Firestore, docId: string): Promise<ExistingProdu
   if (!snap.exists) return { exists: false, modelGroup: null, wasMissing: false, locked: [] };
   const data = snap.data() ?? {};
   const source = isRecord(data['source']) ? data['source'] : {};
-  const locked = Array.isArray(data['lockedFields'])
-    ? data['lockedFields'].filter((field): field is LockableField =>
-        LOCKABLE_FIELDS.includes(field as LockableField),
-      )
-    : [];
+  const rawLocked = Array.isArray(data['lockedFields']) ? data['lockedFields'] : [];
+  const normalizedLocked = rawLocked
+    .map((item) => (item === 'brand' ? 'brandId' : item))
+    .filter((field): field is LockableField => LOCKABLE_FIELDS.includes(field as LockableField));
   const missingSince = source['missingSince'];
+  const brandId =
+    typeof data['brandId'] === 'string'
+      ? data['brandId']
+      : typeof data['brand'] === 'string'
+        ? data['brand']
+        : undefined;
+  const categoryIds = Array.isArray(data['categoryIds'])
+    ? data['categoryIds'].filter((item): item is string => typeof item === 'string')
+    : undefined;
+
   return {
     exists: true,
     slug: typeof data['slug'] === 'string' ? data['slug'] : undefined,
     hash: typeof source['hash'] === 'string' ? source['hash'] : undefined,
     type: typeof data['type'] === 'string' ? data['type'] : undefined,
-    brand: typeof data['brand'] === 'string' ? data['brand'] : undefined,
+    brandId,
+    categoryIds,
     modelGroup: typeof data['modelGroup'] === 'string' ? data['modelGroup'] : null,
     published: typeof data['published'] === 'boolean' ? data['published'] : undefined,
     wasMissing: missingSince !== null && missingSince !== undefined,
-    locked,
+    locked: normalizedLocked,
   };
 }
 
 function lockedDrift(existing: ExistingProduct, product: MappedProduct): boolean {
   if (!existing.exists) return false;
   if (existing.locked.includes('type') && existing.type !== product.type) return true;
-  if (existing.locked.includes('brand') && existing.brand !== product.brand) return true;
+  if (existing.locked.includes('brandId') && existing.brandId !== product.brandId) return true;
+  if (
+    existing.locked.includes('categoryIds') &&
+    !sameStrings(existing.categoryIds ?? [], product.categoryIds)
+  ) {
+    return true;
+  }
   if (existing.locked.includes('modelGroup') && existing.modelGroup !== product.modelGroup) return true;
   if (existing.locked.includes('published') && existing.published !== product.published) return true;
   return false;
+}
+
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((item, index) => item === right[index]);
 }
 
 interface Materialised {
@@ -293,11 +315,20 @@ function plannedWrite(
 
   if (action === 'create' || !existing.locked.includes('type')) {
     data['type'] = product.type;
-    data['category'] = product.category;
   }
-  if (action === 'create' || !existing.locked.includes('brand')) data['brand'] = product.brand;
-  if (action === 'create' || !existing.locked.includes('modelGroup')) data['modelGroup'] = product.modelGroup;
-  if (action === 'create' || !existing.locked.includes('published')) data['published'] = product.published;
+  if (action === 'create' || !existing.locked.includes('categoryIds')) {
+    data['categoryId'] = product.categoryId;
+    data['categoryIds'] = product.categoryIds;
+  }
+  if (action === 'create' || !existing.locked.includes('brandId')) {
+    data['brandId'] = product.brandId;
+  }
+  if (action === 'create' || !existing.locked.includes('modelGroup')) {
+    data['modelGroup'] = product.modelGroup;
+  }
+  if (action === 'create' || !existing.locked.includes('published')) {
+    data['published'] = product.published;
+  }
 
   if (action === 'create') {
     data['id'] = product.docId;

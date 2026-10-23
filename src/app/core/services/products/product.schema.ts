@@ -2,8 +2,7 @@ import * as v from 'valibot';
 import { idSchema, slugSchema, timestampSchema } from '@shared/schemas';
 import { ImageAssetSchema } from '@shared/schemas/image.schema';
 import {
-  PRODUCT_BRAND_IDS,
-  PRODUCT_CATEGORY_IDS,
+  LOCKABLE_PRODUCT_FIELDS,
   PRODUCT_TYPE_IDS,
 } from './product.constants';
 
@@ -53,9 +52,10 @@ export const ProductSchema = v.pipe(
     summary: v.nullable(v.pipe(v.string(), v.maxLength(300))),
     descriptionHtml: v.nullable(v.string()),
     detailImages: v.pipe(v.array(ProductImageSchema), v.maxLength(8)),
-    category: v.picklist(PRODUCT_CATEGORY_IDS),
+    categoryId: slugSchema,
+    categoryIds: v.pipe(v.array(slugSchema), v.minLength(1), v.maxLength(10)),
     type: v.picklist(PRODUCT_TYPE_IDS),
-    brand: v.picklist(PRODUCT_BRAND_IDS),
+    brandId: slugSchema,
     modelGroup: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80))),
     currency: v.literal('EGP'),
     price: wholeNumber,
@@ -65,11 +65,15 @@ export const ProductSchema = v.pipe(
     trackStock: v.boolean(),
     variants: v.pipe(v.array(ProductVariantSchema), v.maxLength(200)),
     published: v.boolean(),
-    lockedFields: v.array(v.picklist(['type', 'brand', 'modelGroup', 'published'])),
+    lockedFields: v.array(v.picklist(LOCKABLE_PRODUCT_FIELDS)),
     source: v.nullable(ProductSourceSchema),
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
   }),
+  v.check(
+    (product) => product.categoryIds.includes(product.categoryId),
+    'The product categories must include its main category.',
+  ),
   v.check(
     (product) => product.compareAtPrice === null || product.compareAtPrice > product.price,
     'The original price must be higher than the selling price.',

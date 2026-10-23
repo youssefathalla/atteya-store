@@ -3,29 +3,24 @@ import {
   arrayUnion,
   collection,
   doc,
-  getCountFromServer,
   getDocs,
   limit,
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   updateDoc,
-  where,
 } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
+import { BrandSchema, CategorySchema } from '@core/services/products/category.schema';
 import {
-  CATALOG_BRAND_IDS,
-  CATALOG_CATEGORY_IDS,
-  CATALOG_DOC,
+  BRANDS_COLLECTION,
+  CATEGORIES_COLLECTION,
   PRODUCTS_COLLECTION,
-  PRODUCT_TYPE_IDS,
 } from '@core/services/products/product.constants';
-import type { Product } from '@core/services/products/product.model';
+import type { Brand, Category, Product } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import type { ProductEditDraft } from '../models/product-admin.model';
-import { categoryForProductType } from '../utils/product-admin.utils';
 
 @Service()
 export class ProductsAdminService {
@@ -39,18 +34,43 @@ export class ProductsAdminService {
     return snap.docs.map((item) => item.data());
   }
 
+  async listAllCategories(): Promise<readonly Category[]> {
+    const categories = collection(this.#firestore, CATEGORIES_COLLECTION).withConverter(
+      createValibotConverter(CategorySchema),
+    );
+    const snap = await getDocs(query(categories, orderBy('sortOrder', 'asc'), limit(100)));
+    return snap.docs.map((item) => item.data());
+  }
+
+  async listAllBrands(): Promise<readonly Brand[]> {
+    const brands = collection(this.#firestore, BRANDS_COLLECTION).withConverter(
+      createValibotConverter(BrandSchema),
+    );
+    const snap = await getDocs(query(brands, orderBy('sortOrder', 'asc'), limit(100)));
+    return snap.docs.map((item) => item.data());
+  }
+
   async saveProduct(current: Product, next: ProductEditDraft): Promise<boolean> {
-    const changes: Record<string, string | boolean | null> = {};
+    const changes: Record<string, string | boolean | null | readonly string[]> = {};
     const locked: string[] = [];
 
     if (next.type !== current.type) {
       changes['type'] = next.type;
-      changes['category'] = categoryForProductType(next.type);
       locked.push('type');
     }
-    if (next.brand !== current.brand) {
-      changes['brand'] = next.brand;
-      locked.push('brand');
+
+    const categoryChanged =
+      next.categoryId !== current.categoryId ||
+      !sameStringList(next.categoryIds, current.categoryIds);
+    if (categoryChanged || next.categoryPicked) {
+      changes['categoryId'] = next.categoryId;
+      changes['categoryIds'] = [...next.categoryIds];
+      if (next.categoryPicked) locked.push('categoryIds');
+    }
+
+    if (next.brandId !== current.brandId) {
+      changes['brandId'] = next.brandId;
+      locked.push('brandId');
     }
     if ((next.modelGroup ?? '') !== (current.modelGroup ?? '')) {
       changes['modelGroup'] = next.modelGroup;
@@ -60,52 +80,18 @@ export class ProductsAdminService {
       changes['published'] = next.published;
       locked.push('published');
     }
-    if (locked.length === 0) return false;
+    if (Object.keys(changes).length === 0) return false;
 
     await updateDoc(doc(this.#firestore, PRODUCTS_COLLECTION, current.id), {
       ...changes,
-      lockedFields: arrayUnion(...locked),
+      ...(locked.length > 0 ? { lockedFields: arrayUnion(...locked) } : {}),
       updatedAt: serverTimestamp(),
     });
-    await this.refreshCatalog();
     return true;
-  }
-
-  async refreshCatalog(): Promise<void> {
-    const products = collection(this.#firestore, PRODUCTS_COLLECTION);
-    const [categories, types, brands, totalSnap] = await Promise.all([
-      countMap(products, 'category', CATALOG_CATEGORY_IDS),
-      countMap(products, 'type', PRODUCT_TYPE_IDS),
-      countMap(products, 'brand', CATALOG_BRAND_IDS),
-      getCountFromServer(query(products, where('published', '==', true))),
-    ]);
-
-    await setDoc(
-      doc(this.#firestore, CATALOG_DOC[0], CATALOG_DOC[1]),
-      {
-        categories,
-        types,
-        brands,
-        total: totalSnap.data().count,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
   }
 }
 
-async function countMap(
-  products: ReturnType<typeof collection>,
-  field: 'category' | 'type' | 'brand',
-  ids: readonly string[],
-): Promise<Record<string, number>> {
-  const entries = await Promise.all(
-    ids.map(async (id) => {
-      const snap = await getCountFromServer(
-        query(products, where('published', '==', true), where(field, '==', id)),
-      );
-      return [id, snap.data().count] as const;
-    }),
-  );
-  return Object.fromEntries(entries);
+function sameStringList(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((item, index) => item === right[index]);
 }

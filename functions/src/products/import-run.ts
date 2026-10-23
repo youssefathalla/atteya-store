@@ -81,6 +81,10 @@ export async function accumulateImportRun(
   });
 }
 
+export async function releaseImportRun(db: Firestore): Promise<void> {
+  await db.doc(CATALOG_PATH).set({ importRun: FieldValue.delete() }, { merge: true });
+}
+
 export async function markMissingProducts(db: Firestore, runId: string): Promise<number> {
   const snap = await db.collection('products').where('source.system', '==', 'easyorders').limit(500).get();
   let batch = db.batch();

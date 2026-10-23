@@ -3,7 +3,13 @@ import { Timestamp } from 'firebase-admin/firestore';
 import type { MappedOption, MappedOptionValue, MappedProduct, MappedVariant } from './product-mapper.js';
 import { storedImage, type StoredImage } from './product-images.js';
 
-export const LOCKABLE_FIELDS = ['type', 'brand', 'modelGroup', 'published'] as const;
+export const LOCKABLE_FIELDS = [
+  'type',
+  'brandId',
+  'modelGroup',
+  'published',
+  'categoryIds',
+] as const;
 export type LockableField = (typeof LOCKABLE_FIELDS)[number];
 
 export interface StoredOptionValue {
@@ -44,9 +50,10 @@ export function hashCatalogueSlice(slice: CatalogueSlice): string {
     summary: product.summary,
     descriptionHtml: product.descriptionHtml,
     detailImages: slice.detailImages,
-    category: product.category,
+    categoryId: product.categoryId,
+    categoryIds: product.categoryIds,
     type: product.type,
-    brand: product.brand,
+    brandId: product.brandId,
     modelGroup: product.modelGroup,
     currency: product.currency,
     price: product.price,
@@ -58,7 +65,7 @@ export function hashCatalogueSlice(slice: CatalogueSlice): string {
     published: product.published,
     sourceId: product.easyOrdersId,
     sourceSlug: product.sourceSlug,
-    categoryIds: product.categoryIds,
+    sourceCategoryIds: product.sourceCategoryIds,
     sourceUpdatedAt: product.sourceUpdatedAt,
   };
   return createHash('sha1').update(JSON.stringify(payload)).digest('hex');
@@ -77,7 +84,7 @@ export function productSource(product: MappedProduct, hash: string, runId: strin
     system: 'easyorders',
     id: product.easyOrdersId,
     slug: product.sourceSlug,
-    categoryIds: product.categoryIds,
+    categoryIds: product.sourceCategoryIds,
     updatedAt: product.sourceUpdatedAt,
     hash,
     lastRunId: runId,

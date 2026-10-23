@@ -11,6 +11,8 @@ import { ProductsDialogService } from './services/products-dialog.service';
 import { ProductsImportService } from './services/products-import.service';
 import { importActionError } from './utils/import-error';
 import {
+  buildBrandOptions,
+  buildLeafCategoryOptions,
   existingModelGroups,
   filterProductRows,
   importSummary,
@@ -38,8 +40,15 @@ export class ProductsManagerComponent implements OnInit {
 
   readonly productsResource = resource({
     loader: async () => {
-      if (!isPlatformBrowser(this.#platformId)) return [];
-      return this.#admin.listProducts();
+      if (!isPlatformBrowser(this.#platformId)) {
+        return { products: [], categories: [], brands: [] };
+      }
+      const [products, categories, brands] = await Promise.all([
+        this.#admin.listProducts(),
+        this.#admin.listAllCategories(),
+        this.#admin.listAllBrands(),
+      ]);
+      return { products, categories, brands };
     },
   });
 
@@ -51,14 +60,26 @@ export class ProductsManagerComponent implements OnInit {
   readonly progressLabel = this.#importer.progressLabel;
   readonly progressValue = this.#importer.progressValue;
 
-  readonly rows = computed(() =>
-    filterProductRows(
-      (this.productsResource.value() ?? []).map(toProductTableRow),
+  readonly categoryOptions = computed(() =>
+    buildLeafCategoryOptions(this.productsResource.value()?.categories ?? []),
+  );
+
+  readonly brandOptions = computed(() =>
+    buildBrandOptions(this.productsResource.value()?.brands ?? []),
+  );
+
+  readonly rows = computed(() => {
+    const data = this.productsResource.value();
+    const products = data?.products ?? [];
+    const categoryNames = new Map((data?.categories ?? []).map((cat) => [cat.id, cat.name]));
+    const brandNames = new Map((data?.brands ?? []).map((brand) => [brand.id, brand.name]));
+    return filterProductRows(
+      products.map((product) => toProductTableRow(product, categoryNames, brandNames)),
       this.search(),
       this.typeId(),
       this.brandId(),
-    ),
-  );
+    );
+  });
 
   readonly loadError = computed(() => {
     const error = this.productsResource.error();
@@ -119,10 +140,15 @@ export class ProductsManagerComponent implements OnInit {
   }
 
   async editProduct(id: string): Promise<void> {
-    const products = this.productsResource.value() ?? [];
+    const products = this.productsResource.value()?.products ?? [];
     const product = products.find((item) => item.id === id);
     if (!product || this.activity()) return;
-    const next = await this.#dialogs.openEdit(product, existingModelGroups(products));
+    const next = await this.#dialogs.openEdit(
+      product,
+      existingModelGroups(products),
+      this.categoryOptions(),
+      this.brandOptions(),
+    );
     if (!next) return;
     try {
       const changed = await this.#admin.saveProduct(product, next);

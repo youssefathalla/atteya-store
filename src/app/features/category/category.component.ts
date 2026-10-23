@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { NavService } from '@core/services/navigation';
+import { CatalogService } from '@core/services/products/catalog.service';
 import { SeoService } from '@core/services/seo';
 
 @Component({
@@ -19,6 +20,7 @@ export class CategoryComponent {
   readonly isBrand = input<boolean>(false);
 
   readonly #navService = inject(NavService);
+  readonly #catalogService = inject(CatalogService);
   readonly #router = inject(Router);
   readonly #seoService = inject(SeoService);
 
@@ -66,14 +68,24 @@ export class CategoryComponent {
     );
   });
 
+  readonly catalogCategory = computed(() => {
+    if (this.isBrandRoute()) return null;
+    const targetSlug = (this.subSlug() || this.slug()).toLowerCase();
+    return this.#catalogService.categoryBySlug(targetSlug);
+  });
+
   readonly displayTitle = computed(() => {
     if (this.isBrandRoute()) {
+      const catalogBrand = this.#catalogService.brandBySlug(this.slug());
+      if (catalogBrand) return catalogBrand.name;
       return this.matchedBrand()?.label || this.slug().replaceAll('-', ' ');
     }
 
+    const fromCatalog = this.catalogCategory();
+    if (fromCatalog) return fromCatalog.name;
+
     const sub = this.subSlug();
     if (sub) {
-      // Look for a link label matching the sub-slug
       const cat = this.category();
       if (cat?.megaMenu) {
         for (const col of cat.megaMenu) {
