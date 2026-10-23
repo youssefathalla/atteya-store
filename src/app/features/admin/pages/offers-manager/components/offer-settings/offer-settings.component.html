@@ -1,0 +1,154 @@
+<section class="surface-card p-5 w-full elements-start-col gap-4">
+  <div class="elements-between flex-wrap gap-3 w-full">
+    <div>
+      <h2 class="font-title-md font-bold!">Offer details &amp; rules</h2>
+      <p class="font-body-sm text-on-surface-variant">
+        Name your offer, choose who sees it, and set how it combines with other deals.
+      </p>
+    </div>
+    <mat-checkbox [checked]="draft().active" (change)="toggleActive($event.checked)">
+      Active (turn on to run this offer)
+    </mat-checkbox>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+    <label class="elements-start-col gap-1 font-label-md">
+      Internal name (admin only)
+      <input
+        type="text"
+        maxlength="80"
+        placeholder="Adidas 10%"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+        [value]="draft().name"
+        (input)="updateText('name', $event)"
+      />
+      <span class="font-body-sm text-on-surface-variant">
+        Shoppers can't see this, but don't put secrets here.
+      </span>
+    </label>
+
+    <label class="elements-start-col gap-1 font-label-md">
+      Customer title
+      <input
+        type="text"
+        maxlength="60"
+        placeholder="10% off Adidas"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+        [value]="draft().title"
+        (input)="updateText('title', $event)"
+      />
+    </label>
+
+    <label class="elements-start-col gap-1 font-label-md">
+      Badge override (optional, max 24 chars)
+      <input
+        type="text"
+        maxlength="24"
+        placeholder="Leave blank for automatic badge"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+        [value]="draft().badge ?? ''"
+        (input)="updateText('badge', $event)"
+      />
+    </label>
+
+    <label class="elements-start-col gap-1 font-label-md">
+      Priority (-100 to 100, higher wins ties)
+      <input
+        type="number"
+        min="-100"
+        max="100"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+        [value]="draft().priority"
+        (input)="onPriorityChange($event)"
+      />
+    </label>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+    <label class="elements-start-col gap-1 font-label-md">
+      Who can get this offer
+      <select
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+        [value]="draft().audience"
+        (change)="onAudienceChange($event)"
+      >
+        <option value="everyone">Everyone</option>
+        <option value="signedIn">Signed-in shoppers only</option>
+      </select>
+    </label>
+
+    <label class="elements-start-col gap-1 font-label-md">
+      Combining with other offers
+      <select
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+        [value]="draft().stacking"
+        (change)="onStackingChange($event)"
+      >
+        <option value="stackable">Can combine with cart offers</option>
+        <option value="exclusive">Exclusive (blocks cart offers)</option>
+      </select>
+    </label>
+
+    <label class="elements-start-col gap-1 font-label-md">
+      Products already on EasyOrders sale
+      <select
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+        [value]="draft().saleItems"
+        (change)="onSaleItemsChange($event)"
+      >
+        <option value="bestOf">Best discount wins (recommended)</option>
+        <option value="exclude">Skip products already on sale</option>
+        <option value="stack">Apply on top of sale price</option>
+      </select>
+    </label>
+  </div>
+  <p class="font-body-sm text-on-surface-variant">{{ saleItemsExplanation() }}</p>
+
+  <div class="w-full border-t border-outline-variant pt-4 elements-start-col gap-3">
+    <mat-checkbox
+      [checked]="draft().requiresCode"
+      (change)="toggleRequiresCode($event.checked)"
+    >
+      Requires a coupon code at checkout
+    </mat-checkbox>
+
+    @if (draft().requiresCode) {
+      <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+        Coupon code
+        <input
+          type="text"
+          maxlength="32"
+          placeholder="PADEL10"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full uppercase"
+          [value]="draft().code ?? ''"
+          (input)="updateText('code', $event)"
+        />
+      </label>
+    }
+
+    <div class="elements-center flex-wrap gap-4">
+      <label class="elements-start-col gap-1 font-label-md">
+        Total uses limit (optional)
+        <input
+          type="number"
+          min="1"
+          placeholder="Unlimited"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
+          [value]="draft().limits.totalUses ?? ''"
+          (input)="onLimitChange('totalUses', $event)"
+        />
+      </label>
+      <label class="elements-start-col gap-1 font-label-md">
+        Uses per customer (optional)
+        <input
+          type="number"
+          min="1"
+          placeholder="Unlimited"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
+          [value]="draft().limits.perCustomer ?? ''"
+          (input)="onLimitChange('perCustomer', $event)"
+        />
+      </label>
+    </div>
+  </div>
+</section>

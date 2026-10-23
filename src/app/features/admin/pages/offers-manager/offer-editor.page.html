@@ -1,0 +1,89 @@
+<div class="elements-start-col gap-6 w-full">
+  <header class="surface-card p-5 w-full elements-between flex-wrap gap-3">
+    <div class="elements-start-col gap-1">
+      <div class="elements-center gap-2">
+        <a matButton="text" routerLink="/admin/offers">
+          <mat-icon name="arrow_back" />
+          <span>Offers</span>
+        </a>
+      </div>
+      <h1 class="font-title-lg font-bold!">{{ pageHeading() }}</h1>
+      <p class="font-body-md text-on-surface-variant">
+        Build your pricing rule and check matching products in the live preview below.
+      </p>
+    </div>
+
+    <div class="elements-center gap-2">
+      <a matButton="outlined" routerLink="/admin/offers">
+        <span>Cancel</span>
+      </a>
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="isSaving() || validation().errors.length > 0"
+        [attr.aria-label]="isSaving() ? 'Saving offer' : null"
+        (click)="save()"
+      >
+        @if (isSaving()) {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <mat-icon name="check" />
+        }
+        @if (!isSaving()) {
+          <span>Save offer</span>
+        }
+      </button>
+    </div>
+  </header>
+
+  @if (editorResource.isLoading() && !editorResource.hasValue()) {
+    <div class="w-full elements-start-col gap-4" aria-hidden="true">
+      <app-skeleton class="h-44 w-full" />
+      <app-skeleton class="h-44 w-full" />
+      <app-skeleton class="h-44 w-full" />
+    </div>
+  } @else {
+    <app-offer-settings [(draft)]="draft" />
+
+    <app-reward-editor
+      [reward]="draft().reward"
+      [scope]="draft().scope"
+      [minimum]="draft().minimum"
+      [products]="products()"
+      (rewardChange)="updateReward($event)"
+      (scopeChange)="updateScope($event)"
+      (minimumChange)="updateMinimum($event)"
+    />
+
+    <app-condition-group-editor
+      heading="Products that match any of these groups"
+      hint="Leave empty to include every product in the store."
+      [conditions]="draft().conditions"
+      [brands]="brands()"
+      [categories]="categories()"
+      [products]="products()"
+      (conditionsChange)="updateConditions($event)"
+    />
+
+    <app-condition-group-editor
+      heading="Except products that match any of these groups"
+      hint="Optional: exclude specific brands, categories, or products."
+      [conditions]="draft().exclude"
+      [brands]="brands()"
+      [categories]="categories()"
+      [products]="products()"
+      (conditionsChange)="updateExclude($event)"
+    />
+
+    <app-schedule-editor
+      [schedule]="draft().schedule"
+      (scheduleChange)="updateSchedule($event)"
+    />
+
+    <app-offer-preview
+      [draft]="draft()"
+      [products]="products()"
+      [validation]="validation()"
+    />
+  }
+</div>

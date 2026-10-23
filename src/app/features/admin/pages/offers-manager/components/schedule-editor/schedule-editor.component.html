@@ -1,0 +1,48 @@
+<section class="surface-card p-5 w-full elements-start-col gap-4">
+  <div>
+    <h2 class="font-title-md font-bold!">Schedule (Cairo time)</h2>
+    <p class="font-body-sm text-on-surface-variant">
+      Dates and times are entered in Egypt local time (Africa/Cairo).
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+    <div class="elements-start-col gap-2">
+      <div class="elements-between w-full">
+        <label class="font-label-md" for="offer-starts-at">Start date &amp; time (Cairo time)</label>
+        <button matButton="text" type="button" (click)="setStartsNow()">
+          <span>Starts now</span>
+        </button>
+      </div>
+      <input
+        id="offer-starts-at"
+        type="datetime-local"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+        [value]="startsAtInput()"
+        (input)="onStartChange($event)"
+      />
+      @if (!schedule().startsAt) {
+        <p class="font-body-sm text-on-surface-variant">Starts immediately when active.</p>
+      }
+    </div>
+
+    <div class="elements-start-col gap-2">
+      <div class="elements-between w-full">
+        <label class="font-label-md" for="offer-ends-at">End date &amp; time (Cairo time)</label>
+        <button matButton="text" type="button" (click)="setNoEndDate()">
+          <span>No end date</span>
+        </button>
+      </div>
+      <input
+        id="offer-ends-at"
+        type="datetime-local"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+        [value]="endsAtInput()"
+        (input)="onEndChange($event)"
+      />
+      @if (!schedule().endsAt) {
+        <p class="font-body-sm text-on-surface-variant">Runs until you pause or archive it.</p>
+      }
+    </div>
+  </div>
+</section>

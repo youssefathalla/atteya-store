@@ -1,0 +1,190 @@
+import { Component, computed, input, model } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import type {
+  OfferConditionAtom,
+  OfferConditionField,
+  OfferConditionGroup,
+  OfferConditions,
+  OfferPriceAtom,
+  OfferSetAtom,
+} from '@core/services/offers/engine';
+import { COLOR_PALETTE } from '@core/services/products/catalog-taxonomy';
+import { PRODUCT_TYPES, SIZE_ORDER } from '@core/services/products/product.constants';
+import type { Brand, Category, Product } from '@core/services/products/product.model';
+import { SharedIconModule } from '@shared/ui/mat-icon';
+import { CONDITION_FIELD_OPTIONS } from '../../models/offer-admin.model';
+
+export interface ValueChoice {
+  readonly id: string;
+  readonly label: string;
+  readonly swatch?: string;
+}
+
+@Component({
+  selector: 'app-condition-group-editor',
+  host: { class: 'block w-full' },
+  imports: [MatButtonModule, SharedIconModule],
+  templateUrl: './condition-group-editor.component.html',
+})
+export class ConditionGroupEditorComponent {
+  readonly heading = input.required<string>();
+  readonly hint = input('');
+  readonly conditions = model.required<OfferConditions>();
+  readonly brands = input.required<readonly Brand[]>();
+  readonly categories = input.required<readonly Category[]>();
+  readonly products = input.required<readonly Product[]>();
+
+  readonly fieldOptions = CONDITION_FIELD_OPTIONS;
+
+  readonly modelGroups = computed<readonly ValueChoice[]>(() => {
+    const groups = new Set<string>();
+    for (const p of this.products()) {
+      if (p.modelGroup) groups.add(p.modelGroup);
+    }
+    return Array.from(groups)
+      .sort()
+      .map((id) => ({ id, label: id }));
+  });
+
+  readonly existingTags = computed<readonly ValueChoice[]>(() => {
+    const tags = new Set<string>();
+    for (const p of this.products()) {
+      for (const tag of p.tags ?? []) tags.add(tag);
+    }
+    return Array.from(tags)
+      .sort()
+      .map((id) => ({ id, label: id }));
+  });
+
+  choicesForField(field: OfferConditionField): readonly ValueChoice[] {
+    switch (field) {
+      case 'brandId':
+        return this.brands().map((b) => ({ id: b.id, label: b.name }));
+      case 'categoryIds':
+        return this.categories().map((c) => ({
+          id: c.id,
+          label: c.depth === 1 ? `\u2014 ${c.name}` : c.name,
+        }));
+      case 'type':
+        return PRODUCT_TYPES.map((t) => ({ id: t.id, label: t.label }));
+      case 'colors':
+        return COLOR_PALETTE.map((c) => ({ id: c.id, label: c.label, swatch: c.swatch }));
+      case 'sizes':
+        return SIZE_ORDER.map((s) => ({ id: s, label: s }));
+      case 'modelGroup':
+        return this.modelGroups();
+      case 'tags':
+        return this.existingTags();
+      case 'productId':
+        return this.products().map((p) => ({ id: p.id, label: p.name }));
+      case 'price':
+        return [];
+    }
+  }
+
+  addGroup(): void {
+    const groups = this.conditions().anyOf;
+    if (groups.length >= 10) return;
+    const nextGroup: OfferConditionGroup = {
+      allOf: [{ field: 'brandId', in: [] }],
+    };
+    this.conditions.set({ anyOf: [...groups, nextGroup] });
+  }
+
+  removeGroup(groupIndex: number): void {
+    const groups = this.conditions().anyOf.filter((_, i) => i !== groupIndex);
+    this.conditions.set({ anyOf: groups });
+  }
+
+  addAtom(groupIndex: number): void {
+    this.#updateGroup(groupIndex, (group) => {
+      if (group.allOf.length >= 10) return group;
+      return { allOf: [...group.allOf, { field: 'categoryIds', in: [] }] };
+    });
+  }
+
+  removeAtom(groupIndex: number, atomIndex: number): void {
+    this.#updateGroup(groupIndex, (group) => ({
+      allOf: group.allOf.filter((_, i) => i !== atomIndex),
+    }));
+  }
+
+  onFieldChange(groupIndex: number, atomIndex: number, event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+    const field = target.value as OfferConditionField;
+    const nextAtom: OfferConditionAtom =
+      field === 'price' ? { field: 'price' } : { field, in: [] };
+    this.#replaceAtom(groupIndex, atomIndex, nextAtom);
+  }
+
+  atomMode(atom: OfferConditionAtom): 'in' | 'notIn' {
+    if (atom.field === 'price') return 'in';
+    return atom.notIn ? 'notIn' : 'in';
+  }
+
+  onModeChange(groupIndex: number, atomIndex: number, atom: OfferConditionAtom, event: Event): void {
+    if (atom.field === 'price') return;
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+    const mode = target.value === 'notIn' ? 'notIn' : 'in';
+    const values = atom.in ?? atom.notIn ?? [];
+    const nextAtom: OfferSetAtom =
+      mode === 'notIn' ? { field: atom.field, notIn: values } : { field: atom.field, in: values };
+    this.#replaceAtom(groupIndex, atomIndex, nextAtom);
+  }
+
+  hasValue(atom: OfferConditionAtom, value: string): boolean {
+    if (atom.field === 'price') return false;
+    const list = atom.in ?? atom.notIn ?? [];
+    return list.includes(value);
+  }
+
+  toggleValue(groupIndex: number, atomIndex: number, atom: OfferConditionAtom, value: string): void {
+    if (atom.field === 'price') return;
+    const mode = atom.notIn ? 'notIn' : 'in';
+    const current = atom.in ?? atom.notIn ?? [];
+    const next = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value].slice(0, 200);
+    const nextAtom: OfferSetAtom =
+      mode === 'notIn' ? { field: atom.field, notIn: next } : { field: atom.field, in: next };
+    this.#replaceAtom(groupIndex, atomIndex, nextAtom);
+  }
+
+  onPriceChange(
+    groupIndex: number,
+    atomIndex: number,
+    atom: OfferConditionAtom,
+    bound: 'min' | 'max',
+    event: Event,
+  ): void {
+    if (atom.field !== 'price') return;
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const parsed = Number.parseInt(target.value, 10);
+    const num = Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+    const nextAtom: OfferPriceAtom = {
+      field: 'price',
+      min: bound === 'min' ? num : atom.min,
+      max: bound === 'max' ? num : atom.max,
+    };
+    this.#replaceAtom(groupIndex, atomIndex, nextAtom);
+  }
+
+  #replaceAtom(groupIndex: number, atomIndex: number, nextAtom: OfferConditionAtom): void {
+    this.#updateGroup(groupIndex, (group) => ({
+      allOf: group.allOf.map((item, idx) => (idx === atomIndex ? nextAtom : item)),
+    }));
+  }
+
+  #updateGroup(
+    groupIndex: number,
+    updater: (group: OfferConditionGroup) => OfferConditionGroup,
+  ): void {
+    const nextGroups = this.conditions()
+      .anyOf.map((group, idx) => (idx === groupIndex ? updater(group) : group))
+      .filter((group) => group.allOf.length > 0);
+    this.conditions.set({ anyOf: nextGroups });
+  }
+}

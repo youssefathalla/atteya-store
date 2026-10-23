@@ -46,6 +46,14 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         description: 'Bring products in from EasyOrders and fix how they show in the store',
       },
       {
+        id: 'offers',
+        label: 'Offers',
+        path: '/admin/offers',
+        icon: 'local_offer',
+        badge: 'Live',
+        description: 'Discounts, bundle deals, and scheduled promotions',
+      },
+      {
         id: 'categories',
         label: 'Categories & Taxonomy',
         path: '/admin/categories',
