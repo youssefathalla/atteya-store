@@ -3,7 +3,7 @@ import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from './auth/callable-options.js';
 import { requireRole } from './auth/require-role.js';
-import { assertSafeUrl, fetchImage, ImageFetchError } from './images/safe-image-fetch.js';
+import { assertSafeUrl, fetchImage, ImageFetchError, type FetchedImage } from './images/safe-image-fetch.js';
 
 const ALLOWED_FOLDERS = new Set(['hero', 'products', 'brands', 'categories']);
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -62,58 +62,54 @@ export const importImageFromUrl = onCall(
     const body = (request.data ?? {}) as ImportImageRequest;
     const folder = sanitizeFolder(body.folder ?? 'hero');
 
+    const host = hostForLog(body.url);
+    const uid = request.auth?.uid;
+    let image: FetchedImage;
     try {
       if (typeof body.url !== 'string' || !body.url.trim()) {
         throw new HttpsError('invalid-argument', 'Please provide a valid web image link.');
       }
 
       const parsedUrl = assertSafeUrl(body.url.trim());
-      const image = await fetchImage(parsedUrl, {
+      image = await fetchImage(parsedUrl, {
         maxBytes: MAX_IMAGE_BYTES,
         allowedTypes: new Set(Object.keys(MIME_TO_EXT)),
       });
-      const ext = MIME_TO_EXT[image.contentType];
-      if (!ext) {
-        throw new ImageFetchError(
-          'invalid-argument',
-          'That link does not point to a supported image file (JPG, PNG, WebP, or AVIF).',
-          'content-type',
-        );
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      if (error instanceof ImageFetchError) {
+        logger.warn('Blocked image import', { uid, host, reason: error.logReason });
+        throw new HttpsError(error.code, error.message);
       }
+      logger.warn('Blocked image import', { uid, host, reason: 'unreachable' });
+      throw new HttpsError(
+        'unavailable',
+        'Could not reach that website to download the image. Please check the link or upload the file from your device.',
+      );
+    }
 
-      const uniquePath = `${folder}/imported-${Date.now()}.${ext}`;
-      const bucket = getStorage().bucket();
-      const file = bucket.file(uniquePath);
+    const ext = MIME_TO_EXT[image.contentType];
+    if (!ext) {
+      throw new HttpsError(
+        'invalid-argument',
+        'That link does not point to a supported image file (JPG, PNG, WebP, or AVIF).',
+      );
+    }
 
-      await file.save(image.buffer, {
+    const uniquePath = `${folder}/imported-${Date.now()}.${ext}`;
+    try {
+      await getStorage().bucket().file(uniquePath).save(image.buffer, {
         resumable: false,
         metadata: {
           contentType: image.contentType,
           cacheControl: 'public, max-age=31536000, immutable',
         },
       });
-
-      return { path: uniquePath };
-    } catch (error) {
-      if (error instanceof HttpsError) throw error;
-      const host = hostForLog(body.url);
-      if (error instanceof ImageFetchError) {
-        logger.warn('Blocked image import', {
-          uid: request.auth?.uid,
-          host,
-          reason: error.logReason,
-        });
-        throw new HttpsError(error.code, error.message);
-      }
-      logger.warn('Blocked image import', {
-        uid: request.auth?.uid,
-        host,
-        reason: 'unreachable',
-      });
-      throw new HttpsError(
-        'unavailable',
-        'Could not reach that website to download the image. Please check the link or upload the file from your device.',
-      );
+    } catch {
+      logger.warn('Image import could not be saved', { uid, host, reason: 'storage-write' });
+      throw new HttpsError('unavailable', 'The image could not be saved. Please try again.');
     }
+
+    return { path: uniquePath };
   },
 );

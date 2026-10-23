@@ -372,6 +372,23 @@ function contentLength(value: string | string[] | undefined): number | 'invalid'
   return length;
 }
 
+/**
+ * AVIF is an ISO-BMFF `ftyp` box. The major brand is often `mif1` or `miaf`,
+ * with `avif` or `avis` listed later as a compatible brand.
+ */
+function avifBrandMatches(buffer: Buffer): boolean {
+  if (buffer.length < 16 || buffer.toString('ascii', 4, 8) !== 'ftyp') return false;
+  const boxSize = buffer.readUInt32BE(0);
+  if (boxSize < 16 || boxSize > buffer.length) return false;
+
+  for (let offset = 8; offset + 4 <= boxSize; offset += 4) {
+    if (offset === 12) continue;
+    const brand = buffer.toString('ascii', offset, offset + 4);
+    if (brand === 'avif' || brand === 'avis') return true;
+  }
+  return false;
+}
+
 function magicMatches(buffer: Buffer, contentType: string): boolean {
   if (contentType === 'image/jpeg') {
     return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
@@ -396,10 +413,6 @@ function magicMatches(buffer: Buffer, contentType: string): boolean {
       buffer.subarray(8, 12).toString('ascii') === 'WEBP'
     );
   }
-  if (contentType === 'image/avif') {
-    if (buffer.length < 12 || buffer.subarray(4, 8).toString('ascii') !== 'ftyp') return false;
-    const brand = buffer.subarray(8, 12).toString('ascii');
-    return brand === 'avif' || brand === 'avis';
-  }
+  if (contentType === 'image/avif') return avifBrandMatches(buffer);
   return false;
 }

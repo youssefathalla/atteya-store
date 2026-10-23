@@ -186,7 +186,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - No self sign-up. Do not call `createUserWithEmailAndPassword`.
   - While signed in, an `rxResource` listens to `roles/{uid}` and calls `getIdToken(true)` when the mirror role differs from the token.
   - `adminGuard` (`src/app/core/guards/admin/admin.guard.ts`) is `canActivate` and `canActivateChild` on the admin layout. It force-refreshes the claim on entry from outside `/admin`. Visitors go to `/login`. Signed-in non-admins go home with `NOT_ADMIN_MESSAGE` (`src/app/features/auth/utils/login-exit.ts`).
-  - `/login` is `features/auth/login`. The navbar account menu is `app-account-menu` and renders Sign in or the account actions only after `isAuthReady()`.
+  - `/login` is `features/auth/login`. The navbar account menu is `app-account-menu`. The server and the first browser render both show a disabled placeholder. Sign in or the account actions appear only after `isAuthReady()` in the browser, so prerendered HTML hydrates cleanly.
 - **`NavService`** (`src/app/core/services/navigation/nav.service.ts`):
   - `categories`: Computed signal for live navigation catalog with fallback.
   - `isLoading`: Computed state signal.
