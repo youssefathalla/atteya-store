@@ -108,7 +108,7 @@ If you require deeper documentation or more context, visit the [official Angular
 
 ## Styling and Animations
 
-- **Styling**: Governed strictly by the **`design-system`** skill and `.cursor/rules/design-system.mdc` (Tailwind CSS v4 + Angular Material M3 semantic tokens).
+- **Styling**: Governed strictly by the **`design-system`** skill and the design-system contract (`.cursor/rules/design-system.mdc` / `.agents/rules/design-system.md`; run `npm run sync:agents` after edits).
 - **Element Animations (Angular 22+)**: Native template animations (`animate.enter`, `animate.leave`) and GSAP integration hooks. Read [angular-animations.md](references/angular-animations.md)
 - **Complex GSAP Choreography**: Governed by the dedicated **`gsap-*`** skills (GSAP core, ScrollTrigger, Timelines).
 

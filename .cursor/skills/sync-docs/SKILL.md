@@ -7,7 +7,7 @@ description: Audit recent codebase changes and automatically synchronize all mar
 
 > **Activation**: Run `/sync-docs` in chat whenever you finish a task, or during feature pre-flight reviews.
 
-This workflow audits your workspace changes against the documentation contract (`AGENTS.md`, `.agents/skills/reusable-catalog/SKILL.md`, `.cursor/rules/design-system.mdc`, and `.agents/skills/new-feature/SKILL.md`), identifies any undocumented building blocks, and automatically updates them.
+This workflow audits your workspace changes against the documentation contract (`AGENTS.md`, `.agents/skills/reusable-catalog/SKILL.md`, `.cursor/rules/design-system.mdc`, `.agents/rules/design-system.md`, and `.agents/skills/new-feature/SKILL.md`), identifies any undocumented building blocks, and automatically updates them.
 
 ---
 
@@ -53,6 +53,7 @@ Check each newly added or updated item against the living docs:
    - Is the architecture documented under **Core Architectural Directives** in `AGENTS.md`?
    - Is the feature lifecycle updated in `new-feature/SKILL.md`?
    - Are styling guardrails reflected in `.cursor/rules/design-system.mdc`?
+   - After editing the design-system contract, run `npm run sync:agents` so `.agents/rules/design-system.md` and workflow mirrors stay aligned.
 
 ---
 
@@ -67,9 +68,10 @@ If any item is missing or outdated:
 
 ### Step 4: Verification
 
-Run the pre-flight quality check to ensure markdown changes didn't introduce syntax or lint errors:
+Run agent mirror check and pre-flight quality check:
 
 ```bash
+npm run sync:agents:check
 npm run preflight
 ```
 

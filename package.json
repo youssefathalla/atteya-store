@@ -10,6 +10,8 @@
     "build:dev": "ng build --configuration dev",
     "build:prod": "ng build --configuration production",
     "preflight": "node scripts/pre-flight-check.mjs && eslint .",
+    "sync:agents": "node scripts/sync-agent-docs.mjs",
+    "sync:agents:check": "node scripts/sync-agent-docs.mjs --check",
     "watch": "ng build --watch --configuration development",
     "lint": "eslint .",
     "serve:ssr:atteya-store": "node dist/atteya-store/server/server.mjs",
