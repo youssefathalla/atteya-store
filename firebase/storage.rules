@@ -1,5 +1,8 @@
 rules_version = '2';
 
+// Visitors and normal users may get a single public image.
+// Admins (claim + current session) may list those folders, upload a valid image,
+// and delete files other than the default hero.
 service firebase.storage {
   match /b/{bucket}/o {
     function isAdmin() {
@@ -31,16 +34,21 @@ service firebase.storage {
         && request.resource.contentType.matches('image/(jpeg|png|webp|avif)');
     }
 
-    // Public storefront images. Visitors may read these prefixes through the
-    // Storage SDK. Writes are admin-only, and only for a real raster image
-    // under 10 MB. The default hero file cannot be deleted.
-    // Anything outside these folders is denied.
+    // Single-object reads stay public so the Storage SDK can fetch one file.
+    // Listing a folder is admin-only. The storefront loads images by URL, not by list.
+    // Writes are admin-only, and only for a real raster image under 10 MB.
+    // The default hero file cannot be deleted.
     match /{folder}/{path=**} {
-      allow read: if isImageFolder(folder);
+      allow get: if isImageFolder(folder);
+      allow list: if isAdmin() && isImageFolder(folder);
       allow create, update: if isAdmin() && isImageFolder(folder) && isValidImage();
       allow delete: if isAdmin()
         && isImageFolder(folder)
         && !(folder == 'hero' && path == 'default-hero.jpg');
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }
