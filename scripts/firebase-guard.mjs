@@ -5,8 +5,8 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { compositeKey, formatComposite } from './lib/firestore-indexes.mjs';
+import { isMainModule } from './lib/is-main-module.mjs';
 
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
@@ -14,10 +14,10 @@ const RESET = '\x1b[0m';
 
 const INDEXES_PATH = path.resolve(process.cwd(), 'firebase/firestore.indexes.json');
 
-function run(cmd, args) {
-  const result = spawnSync(cmd, args, { encoding: 'utf8', shell: true });
+function runGit(args) {
+  const result = spawnSync('git', args, { encoding: 'utf8', shell: false });
   if (result.error) {
-    return { error: `Failed to run ${cmd}: ${result.error.message}` };
+    return { error: `Failed to run git: ${result.error.message}` };
   }
   return { result };
 }
@@ -30,7 +30,7 @@ function trimOutput({ result }) {
  * @returns {{ ok: true, sha: string } | { ok: false }}
  */
 export function runGuard() {
-  const branchOut = run('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+  const branchOut = runGit(['rev-parse', '--abbrev-ref', 'HEAD']);
   if (branchOut.error) {
     console.error(`${RED}✖ Deploy blocked:${RESET} ${branchOut.error}`);
     return { ok: false };
@@ -43,7 +43,7 @@ export function runGuard() {
     return { ok: false };
   }
 
-  const statusOut = run('git', ['status', '--porcelain', '--untracked-files=no']);
+  const statusOut = runGit(['status', '--porcelain', '--untracked-files=no']);
   if (statusOut.error) {
     console.error(`${RED}✖ Deploy blocked:${RESET} ${statusOut.error}`);
     return { ok: false };
@@ -55,7 +55,7 @@ export function runGuard() {
     return { ok: false };
   }
 
-  const fetchOut = run('git', ['fetch', 'origin', 'main', '--quiet']);
+  const fetchOut = runGit(['fetch', 'origin', 'main', '--quiet']);
   if (fetchOut.error) {
     console.error(`${RED}✖ Deploy blocked:${RESET} ${fetchOut.error}`);
     return { ok: false };
@@ -67,8 +67,8 @@ export function runGuard() {
     return { ok: false };
   }
 
-  const headOut = run('git', ['rev-parse', 'HEAD']);
-  const originOut = run('git', ['rev-parse', 'origin/main']);
+  const headOut = runGit(['rev-parse', 'HEAD']);
+  const originOut = runGit(['rev-parse', 'origin/main']);
   if (headOut.error || originOut.error) {
     console.error(`${RED}✖ Deploy blocked:${RESET} could not read git refs.`);
     return { ok: false };
@@ -76,7 +76,7 @@ export function runGuard() {
   const head = trimOutput(headOut);
   const originMain = trimOutput(originOut);
   if (head !== originMain) {
-    const countsOut = run('git', ['rev-list', '--left-right', '--count', 'HEAD...origin/main']);
+    const countsOut = runGit(['rev-list', '--left-right', '--count', 'HEAD...origin/main']);
     const [ahead = '0', behind = '0'] = trimOutput(countsOut).split(/\s+/);
     console.error(
       `${RED}✖ Deploy blocked:${RESET} local main is not up to date with origin/main (ahead ${ahead}, behind ${behind}). Run: git pull`,
@@ -122,8 +122,7 @@ export function runGuard() {
   return { ok: true, sha: shortSha };
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
-if (isMain) {
+if (isMainModule(import.meta.url)) {
   const guard = runGuard();
   process.exit(guard.ok ? 0 : 1);
 }

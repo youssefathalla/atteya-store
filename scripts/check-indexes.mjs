@@ -5,8 +5,8 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { compositeKey, formatComposite } from './lib/firestore-indexes.mjs';
+import { isMainModule } from './lib/is-main-module.mjs';
 
 const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
@@ -127,8 +127,7 @@ export function checkIndexes(alias) {
   return { ok: true, toCreate, liveOnly, building };
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
-if (isMain) {
+if (isMainModule(import.meta.url)) {
   const projectArg = process.argv[2];
   if (!projectArg || !ALIASES[projectArg]) {
     console.error(`${RED}Usage:${RESET} node scripts/check-indexes.mjs dev|prod`);

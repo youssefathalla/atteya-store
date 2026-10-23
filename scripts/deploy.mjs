@@ -63,7 +63,7 @@ if (!projectId) {
   process.exit(1);
 }
 
-const logResult = spawnSync('git', ['log', '-1', '--format=%h %s'], { encoding: 'utf8', shell: true });
+const logResult = spawnSync('git', ['log', '-1', '--format=%h %s'], { encoding: 'utf8', shell: false });
 const commitLine = (logResult.stdout ?? '').trim() || '(unknown commit)';
 
 console.log(`\n${CYAN}── Deploy summary ──${RESET}`);
