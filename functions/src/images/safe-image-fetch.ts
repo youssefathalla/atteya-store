@@ -254,7 +254,7 @@ function requestOnce(
           return;
         }
 
-        const contentType = headerValue(res.headers['content-type']).split(';')[0].trim().toLowerCase();
+        const contentType = canonicalContentType(headerValue(res.headers['content-type']));
         if (!options.allowedTypes.has(contentType)) {
           res.resume();
           reject(new ImageFetchError('invalid-argument', UNSUPPORTED, 'content-type'));
@@ -356,6 +356,16 @@ function resolveRedirect(location: string, current: URL): string {
   } catch {
     throw new ImageFetchError('invalid-argument', 'That image link was refused.', 'bad-redirect');
   }
+}
+
+/**
+ * Some stores send JPEGs as the non-standard `image/jpg`.
+ * Fold that alias to `image/jpeg` before the type and magic-byte checks.
+ */
+export function canonicalContentType(header: string): string {
+  const type = header.split(';')[0].trim().toLowerCase();
+  if (type === 'image/jpg') return 'image/jpeg';
+  return type;
 }
 
 function headerValue(value: string | string[] | undefined): string {

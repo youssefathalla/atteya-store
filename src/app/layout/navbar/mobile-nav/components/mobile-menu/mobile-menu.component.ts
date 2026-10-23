@@ -16,7 +16,7 @@ import { NavCategory, NavService } from '@core/services/navigation';
 export class MobileMenuComponent {
   readonly drawerService = inject(DrawerService);
   readonly #navService = inject(NavService);
-  readonly categories = this.#navService.categories;
+  readonly categories = this.#navService.storefrontCategories;
 
   // Reactive bottom sheet open state
   readonly isOpen = computed(() => this.drawerService.isOpen('menu'));

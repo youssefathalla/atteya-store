@@ -1,0 +1,81 @@
+<section class="surface-card p-5 w-full elements-start-col gap-4" aria-label="Product tools">
+  <div class="elements-between flex-wrap gap-3 w-full">
+    <div>
+      <h1 class="font-title-lg font-bold!">Products</h1>
+      <p class="font-body-md">Bring products in from EasyOrders, then fix how they show in the store.</p>
+    </div>
+    <div class="elements-end flex-wrap gap-2">
+      <button
+        matButton="outlined"
+        type="button"
+        [disabled]="activity() !== null"
+        [attr.aria-label]="activity() === 'preview' ? 'Checking products' : null"
+        (click)="preview.emit()"
+      >
+        @if (activity() === 'preview') {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <span>Preview import</span>
+        }
+      </button>
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="activity() !== null"
+        [attr.aria-label]="activity() === 'import' ? 'Copying products' : null"
+        (click)="importProducts.emit()"
+      >
+        @if (activity() === 'import') {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <span>Import from EasyOrders</span>
+        }
+      </button>
+    </div>
+  </div>
+
+  @if (progressLabel()) {
+    <div class="w-full elements-start-col gap-2">
+      <p class="font-body-sm">{{ progressLabel() }}</p>
+      <mat-progress-bar mode="determinate" [value]="progressValue()" />
+    </div>
+  }
+
+  <div class="elements-end flex-wrap gap-3 w-full">
+    <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+      Search
+      <input
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
+        type="search"
+        [value]="search()"
+        (input)="onSearch($event)"
+      />
+    </label>
+    <label class="elements-start-col gap-1 font-label-md">
+      Type
+      <select
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
+        [value]="typeId()"
+        (change)="onType($event)"
+      >
+        <option value="all">All types</option>
+        @for (type of types; track type.id) {
+          <option [value]="type.id">{{ type.label }}</option>
+        }
+      </select>
+    </label>
+    <label class="elements-start-col gap-1 font-label-md">
+      Brand
+      <select
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
+        [value]="brandId()"
+        (change)="onBrand($event)"
+      >
+        <option value="all">All brands</option>
+        @for (brand of brands; track brand.id) {
+          <option [value]="brand.id">{{ brand.label }}</option>
+        }
+      </select>
+    </label>
+  </div>
+</section>

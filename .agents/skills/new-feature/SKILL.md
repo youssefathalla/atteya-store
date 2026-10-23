@@ -160,6 +160,10 @@ src/app/features/[feature-name]/
 
 ---
 
+## Storefront catalogue
+
+Storefront features that list or price products use `ProductService` and `CatalogService` from `src/app/core/services/products/`. Public queries must filter `published == true`. Format prices with the `egpPrice` pipe (`EgpPricePipe`), not `penceToPounds`. Keep `product.constants.ts` aligned with `functions/src/products/catalog-mapping.ts`. Admin writes, the EasyOrders import, and the products list stay in `src/app/features/admin/pages/products-manager/`.
+
 ## 🧭 Step 6: Routing & SSR Server Routes Registration
 >
 > 👉 **Delegate to**: [quality-standards](file:///.agents/skills/quality-standards/SKILL.md)

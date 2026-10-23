@@ -188,9 +188,20 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `adminGuard` (`src/app/core/guards/admin/admin.guard.ts`) is `canActivate` and `canActivateChild` on the admin layout. It force-refreshes the claim on entry from outside `/admin`. Visitors go to `/login`. Signed-in non-admins go home with `NOT_ADMIN_MESSAGE` (`src/app/features/auth/utils/login-exit.ts`).
   - `/login` is `features/auth/login`. The navbar account menu is `app-account-menu`. The server and the first browser render both show a disabled placeholder. Sign in or the account actions appear only after `isAuthReady()` in the browser, so prerendered HTML hydrates cleanly.
 - **`NavService`** (`src/app/core/services/navigation/nav.service.ts`):
-  - `categories`: Computed signal for live navigation catalog with fallback.
+  - `categories`: Computed signal for the saved navigation catalog, with the bundled fallback. The Navigation manager and category pages keep this unfiltered list.
+  - `storefrontCategories`: The same list with empty known categories and brands removed once `settings/catalog` has counts. Desktop nav, the mobile menu, and the brands directory read this. Unknown placeholders (sale, tracksuits, best-sellers, shape filters) stay.
   - `isLoading`: Computed state signal.
   - `updateNavigation(categories)`, `seedDefaultNavigation()`.
+- **`ProductService`** (`src/app/core/services/products/product.service.ts`):
+  - Public catalogue reads. Every query includes `where('published', '==', true)`.
+  - `listPublished({ category?, type?, brand?, limit })`: newest first. Pass at most one of category, type, or brand.
+  - `getBySlug(slug)`, `getById(id)` (permission-denied on an unpublished product returns `null`), `listModelGroup(modelGroup, excludeId, max = 8)`, `countPublished(query)`.
+  - Taxonomy constants live in `product.constants.ts` and must stay aligned with `functions/src/products/catalog-mapping.ts`.
+- **`CatalogService`** (`src/app/core/services/products/catalog.service.ts`):
+  - `summary` / `counts`: parsed `settings/catalog`, or `null` while loading, missing, or not yet a full summary.
+  - `visibleTypes`, `visibleBrands`: types and brands with a published count. All of them while the summary is unknown.
+  - `isEmpty(path)`: `false` until a summary exists, then `true` for a known empty category, type, or brand path.
+- **`isOnSale` / `discountPercent`** (`src/app/core/services/products/utils/product-price.utils.ts`): whole-pound sale helpers. Do not use these for the legacy GBP pence pipe.
 - **`ImageSourceService`** (`src/app/core/services/storage/image-source.service.ts`):
   - **Primary entry point for admin image uploads & URL resolution.**
   - `uploadFile(file, folder)`: Validates format (JPG/PNG/WebP/AVIF, max 10MB, no SVG), reads local dimensions, uploads to Storage, and probes ImageKit delivery.
@@ -216,8 +227,10 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `<div appHorizontalScroll [snapToItems]="false" [wheelSpeed]="2.0" [dragSpeed]="1.5">`
 - **`TemplateTypeDirective`** (`src/app/shared/directives/template-type`):
   - Provides type-safety for `ng-template` context variables.
-- **`PenceToPoundsPipe`** (`src/app/shared/pipes/`):
-  - Converts integer pence into formatted GBP currency strings.
+- **`PenceToPoundsPipe`** (`src/app/shared/pipes/pence-to-pounds.pipe.ts`):
+  - Legacy. Converts integer pence into formatted GBP currency strings. Do not use it for Egyptian pounds.
+- **`EgpPricePipe`** (`src/app/shared/pipes/egp-price.pipe.ts`):
+  - Name: `egpPrice`. Formats a whole Egyptian pound amount with `Intl` (`en-EG`, currency `EGP`, no fraction digits), for example `EGP 599`.
 - **`TimestampDatePipe`** (`src/app/shared/pipes/`):
   - Formats Firestore `Timestamp` objects into localized date strings.
 

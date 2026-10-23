@@ -1,0 +1,54 @@
+<section class="surface-card p-5 w-full" aria-label="Product list">
+  @if (loadError()) {
+    <p class="font-body-md pb-4" role="alert">{{ loadError() }}</p>
+  }
+
+  @if (loading()) {
+    <div class="elements-start-col gap-3" aria-hidden="true">
+      <app-skeleton class="h-12 w-full" />
+      <app-skeleton class="h-12 w-full" />
+      <app-skeleton class="h-12 w-full" />
+    </div>
+  } @else {
+    <app-reusable-table
+      [data]="rows()"
+      [columns]="columns()"
+      [showHeaderControls]="false"
+      [isLoading]="false"
+    >
+      <p noDataContent class="font-body-md">No products yet. Preview an import to see what would be copied.</p>
+    </app-reusable-table>
+  }
+</section>
+
+<ng-template #imageCell [templateType]="sampleRow" let-row>
+  <div class="relative size-12 overflow-hidden border-shape bg-surface-container">
+    @if (row.imagePath) {
+      <img
+        [ngSrc]="row.imagePath"
+        [appImageFallback]="row.imagePath"
+        [alt]="row.name"
+        fill
+        sizes="48px"
+        class="object-cover"
+      />
+    }
+  </div>
+</ng-template>
+
+<ng-template #priceCell [templateType]="sampleRow" let-row>
+  <span>{{ row.price | egpPrice }}</span>
+  @if (row.compareAtPrice !== null) {
+    <span class="line-through opacity-70 pl-2">{{ row.compareAtPrice | egpPrice }}</span>
+  }
+</ng-template>
+
+<ng-template #statusCell [templateType]="sampleRow" let-row>
+  <app-status-badge [value]="row.status" [statusConfig]="statusConfig" />
+</ng-template>
+
+<ng-template #editCell [templateType]="sampleRow" let-row>
+  <button matButton="text" type="button" (click)="edit.emit(row.id)">
+    <span>Edit</span>
+  </button>
+</ng-template>

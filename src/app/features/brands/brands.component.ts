@@ -33,7 +33,7 @@ export class BrandsComponent implements OnInit {
 
   readonly brandGroups = computed(() => {
     const brandsCategory = this.#navService
-      .categories()
+      .storefrontCategories()
       .find((c) => c.id.toLowerCase() === 'brands' || c.path === '/brands');
 
     if (!brandsCategory?.megaMenu || brandsCategory.megaMenu.length === 0) {
