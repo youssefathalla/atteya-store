@@ -120,8 +120,9 @@
             <app-product-price
               class="pt-1"
               [price]="hit.price"
-              [listPrice]="hit.compareAtPrice"
-              [badges]="hit.onSale && hit.discountPercent > 0 ? [hit.discountPercent + '% off'] : []"
+              [fromPrice]="hit.displayPrice ?? hit.price"
+              [listPrice]="hit.listPrice ?? hit.compareAtPrice"
+              [badges]="hitBadges(hit)"
             />
           </div>
         </a>

@@ -14,7 +14,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import { SearchService, type SearchSort } from '@core/services/search';
+import { SearchService, type SearchHit, type SearchSort } from '@core/services/search';
 import { SeoService } from '@core/services/seo';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
@@ -157,6 +157,12 @@ export class SearchComponent implements OnInit {
 
   imagePath(rawPath: string): string {
     return normalizeImageKitPath(rawPath);
+  }
+
+  hitBadges(hit: SearchHit): readonly string[] {
+    if (hit.offerBadges.length > 0) return hit.offerBadges;
+    if (hit.onSale && hit.discountPercent > 0) return [`${hit.discountPercent}% off`];
+    return [];
   }
 
   async #navigate(params: {

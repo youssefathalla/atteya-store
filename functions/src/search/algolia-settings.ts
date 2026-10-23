@@ -14,6 +14,8 @@ export const ATTRIBUTES_FOR_FACETING: readonly string[] = [
   'typeLabel',
   'sizes',
   'onSale',
+  'hasOffer',
+  'maxDiscountPercent',
   'hierarchicalCategories.lvl0',
   'hierarchicalCategories.lvl1',
   'filterOnly(categoryIds)',
@@ -21,7 +23,9 @@ export const ATTRIBUTES_FOR_FACETING: readonly string[] = [
   'filterOnly(type)',
   'filterOnly(modelGroup)',
   'filterOnly(inStock)',
+  'filterOnly(offerIds)',
   'price',
+  'displayPrice',
 ];
 
 export const CUSTOM_RANKING: readonly string[] = ['desc(inStock)', 'desc(createdAtMs)'];
@@ -43,7 +47,7 @@ export function primaryIndexSettings(indexName: string): IndexSettings {
 
 export function replicaRanking(direction: 'asc' | 'desc'): string[] {
   return [
-    `${direction}(price)`,
+    `${direction}(displayPrice)`,
     'typo',
     'geo',
     'words',

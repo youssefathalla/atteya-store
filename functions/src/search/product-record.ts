@@ -1,3 +1,8 @@
+import {
+  displayPrice,
+  type Offer,
+  type PricedProduct,
+} from '../offers/engine/index.js';
 import { PRODUCT_TYPES, sizeRank, type ProductTypeId } from '../products/catalog-mapping.js';
 import { categoryIdsFor, DEFAULT_CATEGORY_FOR_TYPE } from '../products/catalog-taxonomy.js';
 import type { CachedBrandInfo, CachedCategoryInfo } from './catalog-cache.js';
@@ -12,7 +17,17 @@ export interface SearchHierarchicalCategories {
   readonly lvl1: readonly string[];
 }
 
-export interface ProductSearchRecord {
+export interface SearchOfferFields {
+  readonly listPrice: number;
+  readonly displayPrice: number;
+  readonly hasOffer: boolean;
+  readonly offerIds: readonly string[];
+  readonly offerBadges: readonly string[];
+  readonly maxDiscountPercent: number;
+  readonly [key: string]: unknown;
+}
+
+export interface ProductSearchRecord extends SearchOfferFields {
   readonly objectID: string;
   readonly name: string;
   readonly slug: string;
@@ -43,7 +58,8 @@ export function toSearchRecord(
   data: Record<string, unknown> | undefined | null,
   categoriesById: ReadonlyMap<string, CachedCategoryInfo>,
   brandsById: ReadonlyMap<string, CachedBrandInfo>,
-  _offers: readonly unknown[] = [],
+  offers: readonly Offer[] = [],
+  now: Date = new Date(),
 ): ProductSearchRecord | null {
   if (!data || data['published'] !== true) {
     return null;
@@ -85,6 +101,23 @@ export function toSearchRecord(
   const image = extractPrimaryImage(data['images'], name);
   const createdAtMs = extractTimestampMs(data['createdAt']);
 
+  const offerFields = computeProductOfferFields(
+    productId,
+    data,
+    offers,
+    now,
+    {
+      name,
+      brandId,
+      categoryIds,
+      type,
+      modelGroup,
+      sizes,
+      price,
+      compareAtPrice,
+    },
+  );
+
   return {
     objectID: productId,
     name,
@@ -104,6 +137,86 @@ export function toSearchRecord(
     inStock,
     image,
     createdAtMs,
+    ...offerFields,
+  };
+}
+
+export function computeProductOfferFields(
+  productId: string,
+  data: Record<string, unknown>,
+  offers: readonly Offer[],
+  now: Date = new Date(),
+  precomputed?: {
+    readonly name: string;
+    readonly brandId: string;
+    readonly categoryIds: readonly string[];
+    readonly type: string;
+    readonly modelGroup: string | null;
+    readonly sizes: readonly string[];
+    readonly price: number;
+    readonly compareAtPrice: number | null;
+  },
+): SearchOfferFields {
+  const name = precomputed?.name ?? readString(data['name']);
+  const brandId = precomputed?.brandId ?? readString(data['brandId']);
+  const type = precomputed?.type ?? readString(data['type']);
+  const categoryIds = precomputed?.categoryIds ?? resolveCategoryIds(data, type);
+  const modelGroup =
+    precomputed !== undefined
+      ? precomputed.modelGroup
+      : typeof data['modelGroup'] === 'string' && data['modelGroup'].trim()
+        ? data['modelGroup'].trim()
+        : null;
+  const sizes = precomputed?.sizes ?? extractSizes(data['options']);
+  const price = precomputed?.price ?? readWholeEgp(data['price']);
+  const rawCompare = data['compareAtPrice'];
+  const compareAtPrice =
+    precomputed !== undefined
+      ? precomputed.compareAtPrice
+      : typeof rawCompare === 'number' && Number.isFinite(rawCompare) && rawCompare > price
+        ? Math.round(rawCompare)
+        : null;
+
+  const colors = Array.isArray(data['colors'])
+    ? data['colors'].filter((c): c is string => typeof c === 'string')
+    : [];
+  const tags = Array.isArray(data['tags'])
+    ? data['tags'].filter((t): t is string => typeof t === 'string')
+    : [];
+
+  const pricedProduct: PricedProduct = {
+    productId,
+    name,
+    brandId,
+    categoryIds,
+    type,
+    modelGroup,
+    colors,
+    sizes,
+    tags,
+    price,
+    compareAtPrice,
+  };
+
+  const publicEveryoneOffers = offers.filter(
+    (offer) => offer.visibility === 'public' && offer.audience === 'everyone' && !offer.requiresCode,
+  );
+
+  const result = displayPrice(pricedProduct, publicEveryoneOffers, {
+    now,
+    signedIn: false,
+  });
+
+  const offerBadges = result.badges.map((badge) => badge.text).slice(0, 3);
+  const hasOffer = result.offerIds.length > 0;
+
+  return {
+    listPrice: result.listPrice,
+    displayPrice: result.fromPrice,
+    hasOffer,
+    offerIds: result.offerIds,
+    offerBadges,
+    maxDiscountPercent: result.maxDiscountPercent,
   };
 }
 
@@ -215,7 +328,8 @@ function extractTimestampMs(raw: unknown): number {
       const ms = (toMillis as () => number).call(raw);
       if (typeof ms === 'number' && Number.isFinite(ms)) return ms;
     }
-    const seconds = (raw as { _seconds?: unknown; seconds?: unknown })._seconds ??
+    const seconds =
+      (raw as { _seconds?: unknown; seconds?: unknown })._seconds ??
       (raw as { seconds?: unknown }).seconds;
     if (typeof seconds === 'number' && Number.isFinite(seconds)) {
       return Math.round(seconds * 1000);

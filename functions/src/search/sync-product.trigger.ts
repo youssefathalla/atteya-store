@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { getActiveOffers } from '../offers/offer-cache.js';
 import { getSearchClient, safeErrorMessage, withRetry } from './algolia-client.js';
 import { ALGOLIA_WRITE_KEY, productsIndexName } from './algolia-config.js';
 import { getCatalogLookup } from './catalog-cache.js';
@@ -23,10 +24,13 @@ export const syncProductSearch = onDocumentWritten(
     }
 
     const db = getFirestore();
-    const { categoriesById, brandsById } = await getCatalogLookup(db);
+    const [{ categoriesById, brandsById }, offers] = await Promise.all([
+      getCatalogLookup(db),
+      getActiveOffers(db),
+    ]);
 
-    const before = toSearchRecord(productId, beforeData, categoriesById, brandsById);
-    const after = toSearchRecord(productId, afterData, categoriesById, brandsById);
+    const before = toSearchRecord(productId, beforeData, categoriesById, brandsById, offers);
+    const after = toSearchRecord(productId, afterData, categoriesById, brandsById, offers);
 
     if (before === null && after === null) {
       return;

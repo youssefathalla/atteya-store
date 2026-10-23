@@ -2,6 +2,7 @@ import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firesto
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
+import { getActiveOffers } from '../offers/offer-cache.js';
 import { getSearchClient, safeErrorMessage, withRetry } from './algolia-client.js';
 import { ALGOLIA_WRITE_KEY, productsIndexName, replicaNames } from './algolia-config.js';
 import { primaryIndexSettings, replicaIndexSettings } from './algolia-settings.js';
@@ -24,7 +25,10 @@ export const reindexSearch = onCall(
 
     const db = getFirestore();
     const indexName = productsIndexName();
-    const { categoriesById, brandsById } = await getCatalogLookup(db, true);
+    const [{ categoriesById, brandsById }, offers] = await Promise.all([
+      getCatalogLookup(db, true),
+      getActiveOffers(db, true),
+    ]);
 
     const snap = await db
       .collection('products')
@@ -36,7 +40,7 @@ export const reindexSearch = onCall(
     const publishedIds = new Set<string>();
 
     for (const doc of snap.docs) {
-      const record = toSearchRecord(doc.id, doc.data(), categoriesById, brandsById);
+      const record = toSearchRecord(doc.id, doc.data(), categoriesById, brandsById, offers);
       if (record) {
         records.push(record);
         publishedIds.add(record.objectID);
