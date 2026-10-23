@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, PLATFORM_ID, resource, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { SeoService } from '@core/services/seo';
+import type { Product } from '@core/services/products/product.model';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { ProductsTableComponent } from './components/products-table/products-table.component';
 import { ProductsToolbarComponent } from './components/products-toolbar/products-toolbar.component';
@@ -163,7 +164,7 @@ export class ProductsManagerComponent implements OnInit {
   async editProduct(id: string): Promise<void> {
     if (this.activity()) return;
     const products = this.productsResource.value()?.products ?? [];
-    let product;
+    let product: Product | null;
     try {
       product = await this.#admin.getProduct(id);
     } catch (error: unknown) {
