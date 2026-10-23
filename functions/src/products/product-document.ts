@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Timestamp } from 'firebase-admin/firestore';
+import type { ColorId } from './catalog-taxonomy.js';
 import type { MappedOption, MappedOptionValue, MappedProduct, MappedVariant } from './product-mapper.js';
 import { storedImage, type StoredImage } from './product-images.js';
 
@@ -9,6 +10,8 @@ export const LOCKABLE_FIELDS = [
   'modelGroup',
   'published',
   'categoryIds',
+  'colors',
+  'tags',
 ] as const;
 export type LockableField = (typeof LOCKABLE_FIELDS)[number];
 
@@ -16,6 +19,7 @@ export interface StoredOptionValue {
   readonly id: string;
   readonly label: string;
   readonly swatch?: string;
+  readonly color?: ColorId;
   readonly image?: StoredImage;
 }
 
@@ -60,6 +64,7 @@ export function hashCatalogueSlice(slice: CatalogueSlice): string {
     compareAtPrice: product.compareAtPrice,
     images: slice.images,
     options: slice.options,
+    colors: product.colors,
     trackStock: product.trackStock,
     variants: product.variants.map(storedVariant),
     published: product.published,
@@ -137,9 +142,11 @@ function storedOptionValue(docId: string, value: MappedOptionValue): StoredOptio
     id: string;
     label: string;
     swatch?: string;
+    color?: ColorId;
     image?: StoredImage;
   } = { id: value.id, label: value.label };
   if (value.swatch) stored.swatch = value.swatch;
+  if (value.color) stored.color = value.color;
   if (value.image) stored.image = storedImage(docId, value.image);
   return stored;
 }

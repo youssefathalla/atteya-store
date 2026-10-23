@@ -82,6 +82,14 @@ export class ProductsAdminService {
       changes['modelGroup'] = next.modelGroup;
       locked.push('modelGroup');
     }
+    if (!sameStringList(next.colors, current.colors ?? [])) {
+      changes['colors'] = [...next.colors];
+      locked.push('colors');
+    }
+    if (!sameStringList(next.tags, current.tags ?? [])) {
+      changes['tags'] = [...next.tags];
+      locked.push('tags');
+    }
     if (next.published !== current.published) {
       changes['published'] = next.published;
       locked.push('published');

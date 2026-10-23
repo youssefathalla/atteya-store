@@ -25,6 +25,14 @@
     }
   </p>
 
+  @if (report.pass === 'add') {
+    <p class="font-body-sm">
+      <span class="font-bold!">Colours:</span>
+      {{ report.products.colorsFromOptions }} from options, {{ report.products.colorsFromName }} from
+      name, {{ report.products.colorsMissing }} without a colour
+    </p>
+  }
+
   @if (report.sample.length > 0) {
     <div class="w-full overflow-x-auto">
       <h3 class="font-title-sm font-bold! pb-2">Sample changes (first {{ report.sample.length }})</h3>

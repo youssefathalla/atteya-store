@@ -105,4 +105,6 @@ export const LOCKABLE_PRODUCT_FIELDS = [
   'modelGroup',
   'published',
   'categoryIds',
+  'colors',
+  'tags',
 ] as const;

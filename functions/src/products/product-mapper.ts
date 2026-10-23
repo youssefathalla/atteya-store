@@ -10,7 +10,14 @@ import {
   type BrandId,
   type ProductTypeId,
 } from './catalog-mapping.js';
-import { categoryIdsFor, DEFAULT_CATEGORY_FOR_TYPE } from './catalog-taxonomy.js';
+import {
+  categoryIdsFor,
+  colorIdFor,
+  DEFAULT_CATEGORY_FOR_TYPE,
+  extractColorsFromName,
+  sortColors,
+  type ColorId,
+} from './catalog-taxonomy.js';
 import { cleanDescription } from './description-html.js';
 import type {
   EasyOrdersProduct,
@@ -39,6 +46,7 @@ export interface MappedOptionValue {
   readonly id: string;
   readonly label: string;
   readonly swatch?: string;
+  readonly color?: ColorId;
   readonly image?: MappedImageRef;
 }
 
@@ -74,6 +82,7 @@ export interface MappedProduct {
   readonly compareAtPrice: number | null;
   readonly gallery: readonly MappedImageRef[];
   readonly options: readonly MappedOption[];
+  readonly colors: readonly ColorId[];
   readonly trackStock: boolean;
   readonly variants: readonly MappedVariant[];
   readonly published: boolean;
@@ -137,6 +146,7 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
   const money = mapMoney(product.price, product.sale_price, name, warnings);
   const gallery = collectGallery(product, name, warnings, skipImage);
   const options = mapOptions(product.variations ?? [], name, warnings, skipImage);
+  const colors = resolveProductColors(options, name);
   const description = cleanDescription(typeof product.description === 'string' ? product.description : '');
   const detailImages = description.imageUrls.slice(0, DETAIL_MAX).flatMap((url) => {
     const image = acceptImage(url, clipAlt(name), skipImage);
@@ -172,6 +182,7 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
       compareAtPrice: money.compareAtPrice,
       gallery,
       options,
+      colors,
       trackStock,
       variants: trackStock ? mapVariants(product, options, warnings) : [],
       published: product.hidden !== true,
@@ -370,7 +381,14 @@ function mapOptionValues(
     const rawLabel = typeof prop.name === 'string' ? prop.name : '';
     if (!id || !collapseSpaces(rawLabel)) continue;
     const label = key === 'size' ? normalizeSizeLabel(rawLabel) : collapseSpaces(rawLabel);
-    const value: MappedOptionValue = { id, label, ...optionValueExtras(prop.value, productName, label, skipImage) };
+    const extras = optionValueExtras(prop.value, productName, label, skipImage);
+    const color = key === 'colour' ? colorIdFor(label, extras.swatch) : null;
+    const value: MappedOptionValue = {
+      id,
+      label,
+      ...extras,
+      ...(color ? { color } : {}),
+    };
     values.push(value);
   }
   return values;
@@ -400,6 +418,20 @@ function sortSizes(values: readonly MappedOptionValue[]): MappedOptionValue[] {
       return rank === 0 ? left.index - right.index : rank;
     })
     .map((entry) => entry.value);
+}
+
+function resolveProductColors(options: readonly MappedOption[], name: string): ColorId[] {
+  const fromOptions: ColorId[] = [];
+  for (const option of options) {
+    if (option.key !== 'colour') continue;
+    for (const value of option.values) {
+      if (value.color) fromOptions.push(value.color);
+    }
+  }
+  if (fromOptions.length > 0) {
+    return sortColors(fromOptions);
+  }
+  return extractColorsFromName(name);
 }
 
 function mapVariants(

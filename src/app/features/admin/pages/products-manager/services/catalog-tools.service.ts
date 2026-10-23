@@ -28,6 +28,9 @@ const MigrateResponseSchema = v.object({
     updated: wholeNumber,
     unchanged: wholeNumber,
     missingNewFields: wholeNumber,
+    colorsFromOptions: v.optional(wholeNumber, 0),
+    colorsFromName: v.optional(wholeNumber, 0),
+    colorsMissing: v.optional(wholeNumber, 0),
   }),
   sample: v.array(
     v.object({

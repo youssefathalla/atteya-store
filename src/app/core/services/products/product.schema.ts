@@ -1,6 +1,7 @@
 import * as v from 'valibot';
 import { idSchema, slugSchema, timestampSchema } from '@shared/schemas';
 import { ImageAssetSchema } from '@shared/schemas/image.schema';
+import { COLOR_IDS } from './catalog-taxonomy';
 import {
   LOCKABLE_PRODUCT_FIELDS,
   PRODUCT_TYPE_IDS,
@@ -8,6 +9,13 @@ import {
 
 const wholeNumber = v.pipe(v.number(), v.integer(), v.minValue(0));
 const countMap = v.record(v.string(), wholeNumber);
+const tagSlugSchema = v.pipe(
+  v.string(),
+  v.trim(),
+  v.minLength(1),
+  v.maxLength(32),
+  v.regex(/^[a-z0-9-]+$/),
+);
 
 export const ProductImageSchema = v.object({
   ...ImageAssetSchema.entries,
@@ -18,6 +26,7 @@ export const ProductOptionValueSchema = v.object({
   id: idSchema,
   label: v.pipe(v.string(), v.trim(), v.minLength(1)),
   swatch: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1))),
+  color: v.optional(v.picklist(COLOR_IDS)),
   image: v.optional(ProductImageSchema),
 });
 
@@ -62,6 +71,8 @@ export const ProductSchema = v.pipe(
     compareAtPrice: v.nullable(wholeNumber),
     images: v.pipe(v.array(ProductImageSchema), v.maxLength(8)),
     options: v.pipe(v.array(ProductOptionSchema), v.maxLength(8)),
+    colors: v.optional(v.pipe(v.array(v.picklist(COLOR_IDS)), v.maxLength(12)), []),
+    tags: v.optional(v.pipe(v.array(tagSlugSchema), v.maxLength(20)), []),
     trackStock: v.boolean(),
     variants: v.pipe(v.array(ProductVariantSchema), v.maxLength(200)),
     published: v.boolean(),

@@ -12,9 +12,13 @@ import { recountCatalog } from './catalog-counts.js';
 import type { ProductTypeId } from './catalog-mapping.js';
 import {
   categoryIdsFor,
+  colorIdFor,
   DEFAULT_CATEGORY_FOR_TYPE,
+  extractColorsFromName,
   SEED_BRANDS,
   SEED_CATEGORIES,
+  sortColors,
+  type ColorId,
 } from './catalog-taxonomy.js';
 
 export type MigratePass = 'add' | 'dropLegacy';
@@ -29,6 +33,9 @@ export interface MigrateProductCounts {
   updated: number;
   unchanged: number;
   missingNewFields: number;
+  colorsFromOptions: number;
+  colorsFromName: number;
+  colorsMissing: number;
 }
 
 export interface MigrateProductSample {
@@ -235,7 +242,14 @@ async function backfillProducts(
   dryRun: boolean,
 ): Promise<{ products: MigrateProductCounts; sample: MigrateProductSample[] }> {
   const snap = await db.collection('products').limit(500).get();
-  const counts: MigrateProductCounts = { updated: 0, unchanged: 0, missingNewFields: 0 };
+  const counts: MigrateProductCounts = {
+    updated: 0,
+    unchanged: 0,
+    missingNewFields: 0,
+    colorsFromOptions: 0,
+    colorsFromName: 0,
+    colorsMissing: 0,
+  };
   const sample: MigrateProductSample[] = [];
   const writes: { ref: DocumentReference; data: DocumentData }[] = [];
 
@@ -281,9 +295,42 @@ async function backfillProducts(
     const rawLocked = Array.isArray(data['lockedFields']) ? data['lockedFields'] : [];
     const currentLocked = rawLocked.filter((item): item is string => typeof item === 'string');
     if (currentLocked.includes('brand')) {
-      const nextLocked = [...new Set(currentLocked.map((item) => (item === 'brand' ? 'brandId' : item)))];
+      const nextLocked = [
+        ...new Set(currentLocked.map((item) => (item === 'brand' ? 'brandId' : item))),
+      ];
       patch['lockedFields'] = nextLocked;
       diffNotes.push('lockedFields brand -> brandId');
+    }
+
+    const optionBackfill = backfillOptionColors(data['options']);
+    if (optionBackfill.changed) {
+      patch['options'] = optionBackfill.options;
+      diffNotes.push('options[].color');
+    }
+
+    const nameColors =
+      optionBackfill.colors.length === 0 ? extractColorsFromName(name) : [];
+    const resolvedColors =
+      optionBackfill.colors.length > 0 ? optionBackfill.colors : nameColors;
+
+    if (optionBackfill.colors.length > 0) {
+      counts.colorsFromOptions += 1;
+    } else if (nameColors.length > 0) {
+      counts.colorsFromName += 1;
+    } else {
+      counts.colorsMissing += 1;
+    }
+
+    if (!currentLocked.includes('colors')) {
+      if (!Array.isArray(data['colors']) || !stringArraysEqual(data['colors'], resolvedColors)) {
+        patch['colors'] = resolvedColors;
+        diffNotes.push(`colors -> [${resolvedColors.join(', ')}]`);
+      }
+    }
+
+    if (!currentLocked.includes('tags') && !Array.isArray(data['tags'])) {
+      patch['tags'] = [];
+      diffNotes.push('tags -> []');
     }
 
     if (Object.keys(patch).length === 0) {
@@ -333,7 +380,14 @@ async function runDropLegacyPass(db: Firestore, dryRun: boolean): Promise<Migrat
     );
   }
 
-  const counts: MigrateProductCounts = { updated: 0, unchanged: 0, missingNewFields: 0 };
+  const counts: MigrateProductCounts = {
+    updated: 0,
+    unchanged: 0,
+    missingNewFields: 0,
+    colorsFromOptions: 0,
+    colorsFromName: 0,
+    colorsMissing: 0,
+  };
   const sample: MigrateProductSample[] = [];
   const writes: { ref: DocumentReference; data: DocumentData }[] = [];
 
@@ -413,4 +467,48 @@ function nonEmptyStringArray(value: unknown): string[] {
 function stringArraysEqual(left: unknown, right: readonly string[]): boolean {
   if (!Array.isArray(left) || left.length !== right.length) return false;
   return left.every((item, index) => item === right[index]);
+}
+
+function backfillOptionColors(rawOptions: unknown): {
+  readonly changed: boolean;
+  readonly options: unknown[];
+  readonly colors: ColorId[];
+} {
+  if (!Array.isArray(rawOptions)) {
+    return { changed: false, options: [], colors: [] };
+  }
+
+  let changed = false;
+  const collectedColors: ColorId[] = [];
+  const nextOptions = rawOptions.map((rawOption) => {
+    if (typeof rawOption !== 'object' || rawOption === null) return rawOption;
+    const option = rawOption as Record<string, unknown>;
+    if (option['key'] !== 'colour' || !Array.isArray(option['values'])) {
+      return rawOption;
+    }
+
+    const nextValues = option['values'].map((rawVal) => {
+      if (typeof rawVal !== 'object' || rawVal === null) return rawVal;
+      const val = rawVal as Record<string, unknown>;
+      const label = typeof val['label'] === 'string' ? val['label'] : '';
+      const swatch = typeof val['swatch'] === 'string' ? val['swatch'] : undefined;
+      const resolved = colorIdFor(label, swatch);
+      if (resolved) {
+        collectedColors.push(resolved);
+        if (val['color'] !== resolved) {
+          changed = true;
+          return { ...val, color: resolved };
+        }
+      }
+      return rawVal;
+    });
+
+    return changed ? { ...option, values: nextValues } : rawOption;
+  });
+
+  return {
+    changed,
+    options: nextOptions,
+    colors: sortColors(collectedColors),
+  };
 }

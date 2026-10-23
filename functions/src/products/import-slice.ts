@@ -4,6 +4,7 @@ import {
   type DocumentReference,
   type Firestore,
 } from 'firebase-admin/firestore';
+import type { ColorId } from './catalog-taxonomy.js';
 import { EasyOrdersError, fetchEasyOrdersProduct } from './easyorders.client.js';
 import type { ImportRow } from './import-request.js';
 import { copyProductImage, imageWarning, storedImage, type StoredImage } from './product-images.js';
@@ -31,6 +32,8 @@ interface ExistingProduct {
   readonly type?: string;
   readonly brandId?: string;
   readonly categoryIds?: readonly string[];
+  readonly colors?: readonly string[];
+  readonly hasTags: boolean;
   readonly modelGroup: string | null;
   readonly published?: boolean;
   readonly wasMissing: boolean;
@@ -161,7 +164,9 @@ async function importOne(
 
 async function readExisting(db: Firestore, docId: string): Promise<ExistingProduct> {
   const snap = await db.doc(`products/${docId}`).get();
-  if (!snap.exists) return { exists: false, modelGroup: null, wasMissing: false, locked: [] };
+  if (!snap.exists) {
+    return { exists: false, hasTags: false, modelGroup: null, wasMissing: false, locked: [] };
+  }
   const data = snap.data() ?? {};
   const source = isRecord(data['source']) ? data['source'] : {};
   const rawLocked = Array.isArray(data['lockedFields']) ? data['lockedFields'] : [];
@@ -178,6 +183,10 @@ async function readExisting(db: Firestore, docId: string): Promise<ExistingProdu
   const categoryIds = Array.isArray(data['categoryIds'])
     ? data['categoryIds'].filter((item): item is string => typeof item === 'string')
     : undefined;
+  const colors = Array.isArray(data['colors'])
+    ? data['colors'].filter((item): item is string => typeof item === 'string')
+    : undefined;
+  const hasTags = Array.isArray(data['tags']);
 
   return {
     exists: true,
@@ -186,6 +195,8 @@ async function readExisting(db: Firestore, docId: string): Promise<ExistingProdu
     type: typeof data['type'] === 'string' ? data['type'] : undefined,
     brandId,
     categoryIds,
+    colors,
+    hasTags,
     modelGroup: typeof data['modelGroup'] === 'string' ? data['modelGroup'] : null,
     published: typeof data['published'] === 'boolean' ? data['published'] : undefined,
     wasMissing: missingSince !== null && missingSince !== undefined,
@@ -204,6 +215,12 @@ function lockedDrift(existing: ExistingProduct, product: MappedProduct): boolean
     return true;
   }
   if (existing.locked.includes('modelGroup') && existing.modelGroup !== product.modelGroup) return true;
+  if (
+    existing.locked.includes('colors') &&
+    !sameStrings(existing.colors ?? [], product.colors)
+  ) {
+    return true;
+  }
   if (existing.locked.includes('published') && existing.published !== product.published) return true;
   return false;
 }
@@ -257,11 +274,18 @@ async function materialise(product: MappedProduct, dryRun: boolean): Promise<Mat
   for (const option of product.options) {
     const values: StoredOptionValue[] = [];
     for (const value of option.values) {
-      const storedValue: { id: string; label: string; swatch?: string; image?: StoredImage } = {
+      const storedValue: {
+        id: string;
+        label: string;
+        swatch?: string;
+        color?: ColorId;
+        image?: StoredImage;
+      } = {
         id: value.id,
         label: value.label,
       };
       if (value.swatch) storedValue.swatch = value.swatch;
+      if (value.color) storedValue.color = value.color;
       if (value.image) {
         const stored = await keep(value.image);
         if (stored) storedValue.image = stored;
@@ -328,6 +352,12 @@ function plannedWrite(
   }
   if (action === 'create' || !existing.locked.includes('published')) {
     data['published'] = product.published;
+  }
+  if (action === 'create' || !existing.locked.includes('colors')) {
+    data['colors'] = product.colors;
+  }
+  if (action === 'create' || !existing.hasTags) {
+    data['tags'] = [];
   }
 
   if (action === 'create') {

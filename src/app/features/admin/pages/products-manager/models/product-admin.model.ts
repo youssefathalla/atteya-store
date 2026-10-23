@@ -1,3 +1,4 @@
+import type { ColorId } from '@core/services/products/catalog-taxonomy';
 import type { ProductTypeId } from '@core/services/products/product.model';
 
 export interface ProductTableRow {
@@ -24,6 +25,8 @@ export interface ProductEditDraft {
   readonly categoryPicked: boolean;
   readonly brandId: string;
   readonly modelGroup: string | null;
+  readonly colors: readonly ColorId[];
+  readonly tags: readonly string[];
   readonly published: boolean;
 }
 
@@ -83,6 +86,9 @@ export interface MigrateProductCountsView {
   readonly updated: number;
   readonly unchanged: number;
   readonly missingNewFields: number;
+  readonly colorsFromOptions: number;
+  readonly colorsFromName: number;
+  readonly colorsMissing: number;
 }
 
 export interface MigrateProductSampleView {
