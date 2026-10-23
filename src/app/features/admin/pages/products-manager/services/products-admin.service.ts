@@ -57,8 +57,16 @@ export class ProductsAdminService {
     return snap.data().count;
   }
 
-  async saveProduct(current: Product, next: ProductEditDraft): Promise<boolean> {
-    const ref = doc(this.#firestore, PRODUCTS_COLLECTION, current.id).withConverter(
+  async getProduct(id: string): Promise<Product | null> {
+    const ref = doc(this.#firestore, PRODUCTS_COLLECTION, id).withConverter(
+      createValibotConverter(ProductSchema),
+    );
+    const snap = await getDoc(ref);
+    return snap.exists() ? snap.data() : null;
+  }
+
+  async saveProduct(original: Product, next: ProductEditDraft): Promise<boolean> {
+    const ref = doc(this.#firestore, PRODUCTS_COLLECTION, original.id).withConverter(
       createValibotConverter(ProductSchema),
     );
     const snap = await getDoc(ref);
@@ -70,43 +78,56 @@ export class ProductsAdminService {
     const changes: Record<string, string | boolean | null | readonly string[]> = {};
     const locked: string[] = [];
 
-    if (next.type !== fresh.type) {
+    // Only persist fields the user edited in the dialog (vs `original`) and that still differ from Firestore (`fresh`).
+    if (next.type !== original.type && next.type !== fresh.type) {
       changes['type'] = next.type;
       locked.push('type');
     }
 
-    const categoryChanged =
+    const categoryUserChanged =
+      next.categoryId !== original.categoryId ||
+      !sameStringList(next.categoryIds, original.categoryIds);
+    const categoryDiffersFromDb =
       next.categoryId !== fresh.categoryId ||
       !sameStringList(next.categoryIds, fresh.categoryIds);
-    if (categoryChanged || next.categoryPicked) {
+    if (next.categoryPicked || (categoryUserChanged && categoryDiffersFromDb)) {
       changes['categoryId'] = next.categoryId;
       changes['categoryIds'] = [...next.categoryIds];
       if (next.categoryPicked) locked.push('categoryIds');
     }
 
-    if (next.brandId !== fresh.brandId) {
+    if (next.brandId !== original.brandId && next.brandId !== fresh.brandId) {
       changes['brandId'] = next.brandId;
       locked.push('brandId');
     }
-    if ((next.modelGroup ?? '') !== (fresh.modelGroup ?? '')) {
+    if (
+      (next.modelGroup ?? '') !== (original.modelGroup ?? '') &&
+      (next.modelGroup ?? '') !== (fresh.modelGroup ?? '')
+    ) {
       changes['modelGroup'] = next.modelGroup;
       locked.push('modelGroup');
     }
-    if (!sameStringList(next.colors, fresh.colors ?? [])) {
+    if (
+      !sameStringList(next.colors, original.colors ?? []) &&
+      !sameStringList(next.colors, fresh.colors ?? [])
+    ) {
       changes['colors'] = [...next.colors];
       locked.push('colors');
     }
-    if (!sameStringList(next.tags, fresh.tags ?? [])) {
+    if (
+      !sameStringList(next.tags, original.tags ?? []) &&
+      !sameStringList(next.tags, fresh.tags ?? [])
+    ) {
       changes['tags'] = [...next.tags];
       locked.push('tags');
     }
-    if (next.published !== fresh.published) {
+    if (next.published !== original.published && next.published !== fresh.published) {
       changes['published'] = next.published;
       locked.push('published');
     }
     if (Object.keys(changes).length === 0) return false;
 
-    await updateDoc(doc(this.#firestore, PRODUCTS_COLLECTION, current.id), {
+    await updateDoc(doc(this.#firestore, PRODUCTS_COLLECTION, original.id), {
       ...changes,
       ...(locked.length > 0 ? { lockedFields: arrayUnion(...locked) } : {}),
       updatedAt: serverTimestamp(),

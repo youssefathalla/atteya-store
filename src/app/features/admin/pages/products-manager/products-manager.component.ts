@@ -161,9 +161,14 @@ export class ProductsManagerComponent implements OnInit {
   }
 
   async editProduct(id: string): Promise<void> {
+    if (this.activity()) return;
     const products = this.productsResource.value()?.products ?? [];
-    const product = products.find((item) => item.id === id);
-    if (!product || this.activity()) return;
+    const product = await this.#admin.getProduct(id);
+    if (!product) {
+      this.#snackbar.error('This product no longer exists.');
+      this.productsResource.reload();
+      return;
+    }
     const next = await this.#dialogs.openEdit(
       product,
       existingModelGroups(products),
