@@ -4,4 +4,5 @@ initializeApp();
 
 export { importImageFromUrl } from './import-image.fn.js';
 export { importEasyOrdersProducts } from './products/import-easyorders.fn.js';
+export { migrateCatalogStructure } from './products/migrate-catalog.fn.js';
 export { listAdmins, setUserRole } from './roles/roles.fn.js';

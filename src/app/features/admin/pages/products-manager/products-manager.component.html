@@ -8,6 +8,8 @@
     [progressValue]="progressValue()"
     (preview)="previewImport()"
     (importProducts)="importProducts()"
+    (checkCatalog)="runMigration('add')"
+    (removeLegacy)="runMigration('dropLegacy')"
   />
   <app-products-table
     [rows]="rows()"

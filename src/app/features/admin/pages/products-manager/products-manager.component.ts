@@ -4,6 +4,8 @@ import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { ProductsTableComponent } from './components/products-table/products-table.component';
 import { ProductsToolbarComponent } from './components/products-toolbar/products-toolbar.component';
+import type { MigratePass } from './models/product-admin.model';
+import { CatalogToolsService } from './services/catalog-tools.service';
 import { ProductsAdminService } from './services/products-admin.service';
 import { ProductsDialogService } from './services/products-dialog.service';
 import { ProductsImportService } from './services/products-import.service';
@@ -26,6 +28,7 @@ export class ProductsManagerComponent implements OnInit {
   readonly #admin = inject(ProductsAdminService);
   readonly #dialogs = inject(ProductsDialogService);
   readonly #importer = inject(ProductsImportService);
+  readonly #tools = inject(CatalogToolsService);
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
 
@@ -40,7 +43,11 @@ export class ProductsManagerComponent implements OnInit {
     },
   });
 
-  readonly activity = this.#importer.mode;
+  readonly activity = computed<'preview' | 'import' | 'tools' | null>(() => {
+    const mode = this.#importer.mode();
+    if (mode) return mode;
+    return this.#tools.busy() ? 'tools' : null;
+  });
   readonly progressLabel = this.#importer.progressLabel;
   readonly progressValue = this.#importer.progressValue;
 
@@ -87,6 +94,24 @@ export class ProductsManagerComponent implements OnInit {
     try {
       const report = await this.#importer.run(false);
       this.#snackbar.success(importSummary(report));
+      this.productsResource.reload();
+    } catch (error: unknown) {
+      this.#snackbar.error(importActionError(error));
+    }
+  }
+
+  async runMigration(pass: MigratePass): Promise<void> {
+    if (this.activity()) return;
+    try {
+      const preview = await this.#tools.migrateCatalog(pass, true);
+      const shouldApply = await this.#dialogs.openMigratePreview(preview);
+      if (!shouldApply) return;
+      const applied = await this.#tools.migrateCatalog(pass, false);
+      const message =
+        pass === 'add'
+          ? `Catalogue structure updated (${applied.products.updated} products updated).`
+          : `Old fields removed from ${applied.products.updated} products.`;
+      this.#snackbar.success(message);
       this.productsResource.reload();
     } catch (error: unknown) {
       this.#snackbar.error(importActionError(error));

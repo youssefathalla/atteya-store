@@ -53,3 +53,35 @@ export interface ImportReport {
   readonly rows: readonly ImportRowView[];
   readonly errors: readonly string[];
 }
+
+export type MigratePass = 'add' | 'dropLegacy';
+
+export interface MigrateSeedCountsView {
+  readonly created: number;
+  readonly repaired: number;
+  readonly unchanged: number;
+}
+
+export interface MigrateProductCountsView {
+  readonly updated: number;
+  readonly unchanged: number;
+  readonly missingNewFields: number;
+}
+
+export interface MigrateProductSampleView {
+  readonly id: string;
+  readonly name: string;
+  readonly categoryId: string;
+  readonly categoryIds: readonly string[];
+  readonly brandId: string;
+  readonly summary: string;
+}
+
+export interface MigrateReport {
+  readonly dryRun: boolean;
+  readonly pass: MigratePass;
+  readonly categories: MigrateSeedCountsView;
+  readonly brands: MigrateSeedCountsView;
+  readonly products: MigrateProductCountsView;
+  readonly sample: readonly MigrateProductSampleView[];
+}

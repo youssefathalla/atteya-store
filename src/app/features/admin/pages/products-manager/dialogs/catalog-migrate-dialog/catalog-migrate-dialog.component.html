@@ -1,0 +1,61 @@
+<h2 mat-dialog-title class="font-title-lg font-bold!">{{ title }}</h2>
+<mat-dialog-content class="elements-start-col gap-4">
+  <p class="font-body-md">{{ description }}</p>
+
+  @if (report.pass === 'add') {
+    <div class="elements-start-col gap-1 font-body-sm">
+      <p>
+        <span class="font-bold!">Categories:</span>
+        {{ report.categories.created }} to create, {{ report.categories.repaired }} to repair,
+        {{ report.categories.unchanged }} unchanged
+      </p>
+      <p>
+        <span class="font-bold!">Brands:</span>
+        {{ report.brands.created }} to create, {{ report.brands.repaired }} to repair,
+        {{ report.brands.unchanged }} unchanged
+      </p>
+    </div>
+  }
+
+  <p class="font-body-sm">
+    <span class="font-bold!">Products:</span>
+    {{ report.products.updated }} to update, {{ report.products.unchanged }} unchanged
+    @if (report.products.missingNewFields > 0) {
+      ({{ report.products.missingNewFields }} missing category or brand)
+    }
+  </p>
+
+  @if (report.sample.length > 0) {
+    <div class="w-full overflow-x-auto">
+      <h3 class="font-title-sm font-bold! pb-2">Sample changes (first {{ report.sample.length }})</h3>
+      <table class="w-full font-body-sm">
+        <thead>
+          <tr>
+            <th class="text-left font-label-md py-2">Product</th>
+            <th class="text-left font-label-md py-2">Category</th>
+            <th class="text-left font-label-md py-2">Brand</th>
+            <th class="text-left font-label-md py-2">Changes</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of report.sample; track row.id) {
+            <tr class="border-t border-outline-variant">
+              <td class="py-2 pr-3">{{ row.name }}</td>
+              <td class="py-2 pr-3">{{ row.categoryIds.join(' > ') }}</td>
+              <td class="py-2 pr-3">{{ row.brandId }}</td>
+              <td class="py-2">{{ row.summary }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton="text" type="button" [mat-dialog-close]="false">Cancel</button>
+  @if (report.dryRun) {
+    <button matButton="filled" type="button" (click)="apply()">
+      <span>Apply</span>
+    </button>
+  }
+</mat-dialog-actions>
