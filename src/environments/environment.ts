@@ -22,7 +22,7 @@ export const environment: Environment = {
     priceDescIndex: 'dev_products_price_desc',
   },
   appCheck: {
-    siteKey: 'RECAPTCHA_ENTERPRISE_DEV_SITE_KEY',
+    siteKey: '6Lecg_4tAAAAAEDHJcAE1tWQ59-FeaHDaSUqDfQE',
     isTokenAutoRefreshEnabled: true,
     debug: true,
   },
