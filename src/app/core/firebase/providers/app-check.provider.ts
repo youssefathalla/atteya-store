@@ -1,4 +1,10 @@
-import { EnvironmentProviders, makeEnvironmentProviders, PLATFORM_ID } from '@angular/core';
+import {
+  EnvironmentProviders,
+  inject,
+  makeEnvironmentProviders,
+  PLATFORM_ID,
+  provideEnvironmentInitializer,
+} from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import {
   initializeAppCheck,
@@ -45,5 +51,10 @@ export function provideAppCheck(options?: AppCheckOptions | null): EnvironmentPr
       },
       deps: [FIREBASE_APP, PLATFORM_ID],
     },
+    // The factory above is lazy and nothing else injects it. Start App Check
+    // when the app starts so Firestore, Functions, Storage and Auth requests carry tokens.
+    provideEnvironmentInitializer(() => {
+      inject(FIREBASE_APP_CHECK, { optional: true });
+    }),
   ]);
 }

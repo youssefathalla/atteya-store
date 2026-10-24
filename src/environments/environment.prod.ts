@@ -2,7 +2,7 @@ import { Environment } from './environment.model';
 
 export const environment: Environment = {
   production: true,
-  baseUrl: 'https://your-production-domain.com',
+  baseUrl: 'https://atteya-store--attiya-store.europe-west4.hosted.app',
   googleMapsApiKey: '',
   firebase: {
     apiKey: 'AIzaSyBuW1DM6UDFu6fBWSAnNrj6yvgq8KQ_tsg',
@@ -22,7 +22,7 @@ export const environment: Environment = {
     priceDescIndex: 'prod_products_price_desc',
   },
   appCheck: {
-    siteKey: 'RECAPTCHA_ENTERPRISE_PROD_SITE_KEY',
+    siteKey: '6LdOnP4tAAAAALhIzwVmHLju8nyMoCY60ASnyzay',
     isTokenAutoRefreshEnabled: true,
     debug: false,
   },
