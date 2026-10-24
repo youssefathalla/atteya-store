@@ -2,13 +2,15 @@
 runConfig:
   cpu: 1
   memoryMiB: 512
-  minInstances: 1 # Keeps at least 1 warm instance for production traffic
+  minInstances: 0 # Scale to 0 while traffic is low; raise to 1 when ads/traffic start
   maxInstances: 10
   concurrency: 80
 
 env:
   - variable: NODE_ENV
     value: production
+    availability:
+      - RUNTIME
   - variable: APP_HOSTING_ENV
     value: prod
     availability:
