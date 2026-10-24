@@ -1,4 +1,4 @@
-import { Service } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import {
   arrayUnion,
   collection,
@@ -29,6 +29,7 @@ import {
   longestSearchWord,
   searchWordsFromTerm,
 } from '@core/services/products/search-tokens';
+import { SearchService } from '@core/services/search';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import type { ProductEditDraft } from '../models/product-admin.model';
 
@@ -43,6 +44,7 @@ export interface ProductSearchResult {
 @Service()
 export class ProductsAdminService {
   readonly #firestore = injectFirestore();
+  readonly #searchService = inject(SearchService);
   readonly #productConverter = createValibotConverter(ProductSchema);
 
   async listAllProducts(): Promise<readonly Product[]> {
@@ -202,6 +204,7 @@ export class ProductsAdminService {
       ...(locked.length > 0 ? { lockedFields: arrayUnion(...locked) } : {}),
       updatedAt: serverTimestamp(),
     });
+    await this.#searchService.clearCache();
     return true;
   }
 }
