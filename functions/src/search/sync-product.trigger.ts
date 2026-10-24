@@ -1,4 +1,9 @@
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import {
+  type DocumentData,
+  FieldValue,
+  type Firestore,
+  getFirestore,
+} from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getActiveOffers } from '../offers/offer-cache.js';
@@ -6,6 +11,98 @@ import { getSearchClient, safeErrorMessage, withRetry } from './algolia-client.j
 import { ALGOLIA_WRITE_KEY, productsIndexName } from './algolia-config.js';
 import { getCatalogLookup } from './catalog-cache.js';
 import { searchRecordsEqual, toSearchRecord } from './product-record.js';
+
+export type ProductSearchSyncDeps = {
+  readonly getCatalogLookup: typeof getCatalogLookup;
+  readonly getActiveOffers: typeof getActiveOffers;
+  readonly getSearchClient: typeof getSearchClient;
+  readonly productsIndexName: typeof productsIndexName;
+  readonly withRetry: typeof withRetry;
+};
+
+const defaultProductSearchSyncDeps: ProductSearchSyncDeps = {
+  getCatalogLookup,
+  getActiveOffers,
+  getSearchClient,
+  productsIndexName,
+  withRetry,
+};
+
+/**
+ * Core product → Algolia sync. Exported for unit tests (catalog/offer failures must record searchSyncErrors).
+ */
+export async function executeProductSearchSync(
+  db: Firestore,
+  productId: string,
+  beforeData: DocumentData | null | undefined,
+  afterData: DocumentData | null | undefined,
+  deps: ProductSearchSyncDeps = defaultProductSearchSyncDeps,
+): Promise<void> {
+  if (beforeData?.['published'] !== true && afterData?.['published'] !== true) {
+    return;
+  }
+
+  let op: 'saveObject' | 'deleteObject' =
+    afterData?.['published'] === true ? 'saveObject' : 'deleteObject';
+
+  try {
+    const [{ categoriesById, brandsById }, offers] = await Promise.all([
+      deps.getCatalogLookup(db),
+      deps.getActiveOffers(db, true),
+    ]);
+
+    const before = toSearchRecord(productId, beforeData, categoriesById, brandsById, offers);
+    const after = toSearchRecord(productId, afterData, categoriesById, brandsById, offers);
+
+    if (before === null && after === null) {
+      return;
+    }
+    if (searchRecordsEqual(before, after)) {
+      return;
+    }
+
+    op = after === null ? 'deleteObject' : 'saveObject';
+
+    const client = deps.getSearchClient();
+    const indexName = deps.productsIndexName();
+
+    if (after === null) {
+      await deps.withRetry(
+        () => client.deleteObject({ indexName, objectID: productId }),
+        'deleteObject',
+        productId,
+      );
+    } else {
+      await deps.withRetry(
+        () => client.saveObject({ indexName, body: after }),
+        'saveObject',
+        productId,
+      );
+    }
+
+    await db.collection('searchSyncErrors').doc(productId).delete();
+  } catch (error: unknown) {
+    const message = safeErrorMessage(error);
+    logger.error('Algolia product sync failed after retries', {
+      productId,
+      op,
+      message,
+    });
+    try {
+      await db.collection('searchSyncErrors').doc(productId).set({
+        op,
+        message,
+        at: FieldValue.serverTimestamp(),
+      });
+    } catch (writeError: unknown) {
+      logger.error('Failed to persist searchSyncErrors document', {
+        productId,
+        op,
+        message: safeErrorMessage(writeError),
+      });
+    }
+  }
+}
 
 export const syncProductSearch = onDocumentWritten(
   {
@@ -19,59 +116,6 @@ export const syncProductSearch = onDocumentWritten(
     const beforeData = event.data?.before.exists ? event.data.before.data() : null;
     const afterData = event.data?.after.exists ? event.data.after.data() : null;
 
-    if (beforeData?.['published'] !== true && afterData?.['published'] !== true) {
-      return;
-    }
-
-    const db = getFirestore();
-    const [{ categoriesById, brandsById }, offers] = await Promise.all([
-      getCatalogLookup(db),
-      getActiveOffers(db, true),
-    ]);
-
-    const before = toSearchRecord(productId, beforeData, categoriesById, brandsById, offers);
-    const after = toSearchRecord(productId, afterData, categoriesById, brandsById, offers);
-
-    if (before === null && after === null) {
-      return;
-    }
-    if (searchRecordsEqual(before, after)) {
-      return;
-    }
-
-    const op: 'saveObject' | 'deleteObject' = after === null ? 'deleteObject' : 'saveObject';
-
-    try {
-      const client = getSearchClient();
-      const indexName = productsIndexName();
-
-      if (after === null) {
-        await withRetry(
-          () => client.deleteObject({ indexName, objectID: productId }),
-          'deleteObject',
-          productId,
-        );
-      } else {
-        await withRetry(
-          () => client.saveObject({ indexName, body: after }),
-          'saveObject',
-          productId,
-        );
-      }
-
-      await db.collection('searchSyncErrors').doc(productId).delete();
-    } catch (error: unknown) {
-      const message = safeErrorMessage(error);
-      logger.error('Algolia product sync failed after retries', {
-        productId,
-        op,
-        message,
-      });
-      await db.collection('searchSyncErrors').doc(productId).set({
-        op,
-        message,
-        at: FieldValue.serverTimestamp(),
-      });
-    }
+    await executeProductSearchSync(getFirestore(), productId, beforeData, afterData);
   },
 );
