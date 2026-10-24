@@ -6,7 +6,8 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
-    "build:watch": "tsc --watch"
+    "build:watch": "tsc --watch",
+    "test": "npm run build && node --test lib/search/sync-product.errors.spec.js"
   },
   "engines": {
     "node": "22"
