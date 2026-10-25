@@ -117,10 +117,12 @@
               {{ hit.brandName }}
             </span>
             <h2 class="font-title-sm font-bold! line-clamp-2">{{ hit.name }}</h2>
+            @let pr = hitPrice(hit);
             <app-product-price
               class="pt-1"
-              [price]="hit.price"
-              [fromPrice]="hit.displayPrice ?? hit.price"
+              [price]="pr.price"
+              [fromPrice]="pr.fromPrice"
+              [partial]="pr.partial"
               [listPrice]="hit.listPrice ?? hit.compareAtPrice"
               [badges]="hitBadges(hit)"
             />

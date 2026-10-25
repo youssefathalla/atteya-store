@@ -133,17 +133,17 @@ export function displayPrice(
     }
   }
 
+  // `partial` means "effective prices differ across the tested variants" (set above). An offer that
+  // matches only some variants but leaves every price equal (free shipping, gifts, buy X get Y,
+  // tiered, cart offers, or one beaten everywhere by another offer) must not add a "From".
   const matchingOfferIds: string[] = [];
   for (const offer of active) {
-    const level = matchProduct(offer.conditions, offer.exclude, product);
-    if (level !== 'none') {
-      if (level === 'partial') partial = true;
-      if (
-        productLevel.appliedOfferId === offer.id ||
-        productLevel.badges.some((b) => b.offerId === offer.id)
-      ) {
-        matchingOfferIds.push(offer.id);
-      }
+    if (matchProduct(offer.conditions, offer.exclude, product) === 'none') continue;
+    if (
+      productLevel.appliedOfferId === offer.id ||
+      productLevel.badges.some((b) => b.offerId === offer.id)
+    ) {
+      matchingOfferIds.push(offer.id);
     }
   }
 

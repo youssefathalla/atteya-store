@@ -165,6 +165,15 @@ export class SearchComponent implements OnInit {
     return [];
   }
 
+  hitPrice(hit: SearchHit): { price: number; fromPrice: number | null; partial: boolean } {
+    const shown = hit.displayPrice ?? hit.price;
+    // Records indexed before `pricePartial` existed keep the old behaviour until search is rebuilt.
+    const varies = hit.pricePartial ?? shown !== hit.price;
+    return varies
+      ? { price: hit.price, fromPrice: shown, partial: true }
+      : { price: shown, fromPrice: null, partial: false };
+  }
+
   async #navigate(params: {
     readonly q: string | null;
     readonly sort: SearchSort;

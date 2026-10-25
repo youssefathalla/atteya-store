@@ -133,6 +133,7 @@ async function fetchExistingOfferFields(
             'offerIds',
             'offerBadges',
             'maxDiscountPercent',
+            'pricePartial',
           ],
           hitsPerPage: 1000,
         },
@@ -140,6 +141,7 @@ async function fetchExistingOfferFields(
           for (const raw of batch.hits) {
             const hit = raw as Record<string, unknown>;
             if (typeof hit['objectID'] !== 'string') continue;
+            if (typeof hit['pricePartial'] !== 'boolean') continue;
             map.set(hit['objectID'], {
               listPrice: typeof hit['listPrice'] === 'number' ? hit['listPrice'] : -1,
               displayPrice: typeof hit['displayPrice'] === 'number' ? hit['displayPrice'] : -1,
@@ -152,6 +154,7 @@ async function fetchExistingOfferFields(
                 : [],
               maxDiscountPercent:
                 typeof hit['maxDiscountPercent'] === 'number' ? hit['maxDiscountPercent'] : -1,
+              pricePartial: hit['pricePartial'],
             });
           }
         },
@@ -168,6 +171,7 @@ function offerFieldsEqual(left: SearchOfferFields, right: SearchOfferFields): bo
     left.displayPrice === right.displayPrice &&
     left.hasOffer === right.hasOffer &&
     left.maxDiscountPercent === right.maxDiscountPercent &&
+    left.pricePartial === right.pricePartial &&
     JSON.stringify(left.offerIds) === JSON.stringify(right.offerIds) &&
     JSON.stringify(left.offerBadges) === JSON.stringify(right.offerBadges)
   );

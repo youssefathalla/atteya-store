@@ -31,6 +31,7 @@ export const SearchHitSchema = v.object({
     v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
     0,
   ),
+  pricePartial: v.optional(v.boolean()),
   sizes: v.optional(v.array(v.string()), []),
   inStock: v.optional(v.boolean(), true),
   image: v.nullable(SearchHitImageSchema, null),
