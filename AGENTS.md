@@ -140,6 +140,7 @@ Activate the dedicated skills from `.agents/skills/` on demand. `sync-docs`, `as
 
 - EasyOrders import: `markMissingProducts` sets `source.missingSince` and unpublishes SKUs missing from a run; when a product reappears with an unchanged catalogue hash, the `unchanged` touch must clear `missingSince` and restore `published` unless `published` is locked—not only `source.lastRunId`. On the final import slice, wrap `writeCatalogSummary(db)` in `try`/`finally` so `releaseImportRun(db)` always runs and the catalog lock cannot stick.
 - Firestore `set` with `{ merge: true }` deep-merges nested map fields. Do not patch scoped `settings/catalog` counts with dotted top-level keys in `set()` (for example `categories.<id>`); Firestore stores literal field names and the real `categories`/`brands`/`types` maps stop updating.
+- `/product/:slug` is server-rendered through a blocking resolver (`productPageResolver`) plus `TransferState`. A missing product gives a 404 via `RESPONSE_INIT` plus `noindex`; an out-of-stock product is 200 + `noindex` with everything disabled. The resolver also reads active public offers on the server (`PublicOffersReader`, no listener) and transfers them as `TransferOffer` (epoch-ms dates) with `renderedAtMs`; the PDP never injects `OffersService`.
 
 ### Catalogue, Search, Offers and Shipping (Step 1b)
 
