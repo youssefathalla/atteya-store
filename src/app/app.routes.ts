@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { productPageResolver } from './features/product/resolvers/product-page.resolver';
 
 export const routes: Routes = [
   // 1. Storefront Routes (wrapped inside MainLayoutComponent with the Puma-style Navbar)
@@ -37,6 +38,14 @@ export const routes: Routes = [
           import('./features/category/category.component').then((m) => m.CategoryComponent),
         title: 'Brand | Atteya Store',
         data: { isBrand: true },
+      },
+      {
+        path: 'product/:slug',
+        loadComponent: () =>
+          import('./features/product/product.component').then((m) => m.ProductComponent),
+        resolve: { page: productPageResolver },
+        runGuardsAndResolvers: 'always',
+        title: 'Product | Atteya Store',
       },
       {
         path: 'search',
