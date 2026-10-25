@@ -17,6 +17,7 @@ import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { displayPrice, type Offer, priceItem } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { fromTransferOffer } from '@core/services/offers/offer-transfer';
+import { OffersService } from '@core/services/offers/offers.service';
 import { PublicOffersReader } from '@core/services/offers/public-offers.reader';
 import { CatalogService, toVariantFacts } from '@core/services/products';
 import { SeoService } from '@core/services/seo';
@@ -53,6 +54,7 @@ export class ProductComponent {
   readonly #seo = inject(SeoService);
   readonly #catalog = inject(CatalogService);
   readonly #offersReader = inject(PublicOffersReader);
+  readonly #liveOffers = inject(OffersService);
   readonly #auth = inject(AuthService);
   readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);
@@ -79,6 +81,10 @@ export class ProductComponent {
   readonly #offers = computed<readonly Offer[]>(() => {
     const p = this.page();
     if (p.status !== 'found') return [];
+    // After hydration, prefer the realtime listener (same pattern as search cards).
+    if (this.#hydrated() && this.#liveOffers.ready() && !this.#liveOffers.failed()) {
+      return this.#liveOffers.all();
+    }
     if (p.offers) return p.offers.map(fromTransferOffer);
     return this.#fallbackOffers.hasValue() ? this.#fallbackOffers.value() : [];
   });

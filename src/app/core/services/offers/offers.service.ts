@@ -17,6 +17,7 @@ export class OffersService {
   readonly #destroyRef = inject(DestroyRef);
 
   readonly #now = signal<Date>(new Date());
+  readonly #failed = signal(false);
 
   readonly #offersCollection = collection(this.#firestore, OFFERS_COLLECTION).withConverter(
     createValibotConverter(OfferDocSchema),
@@ -29,10 +30,16 @@ export class OffersService {
       where('visibility', '==', 'public'),
       limit(100),
     ),
+    { onError: () => this.#failed.set(true) },
   );
 
+  readonly ready = computed(() => this.#offerDocs() !== undefined);
+  readonly failed = this.#failed.asReadonly();
+
   readonly all = computed<readonly Offer[]>(() =>
-    (this.#offerDocs() ?? []).map((doc) => toEngineOffer(doc)),
+    (this.#offerDocs() ?? [])
+      .map((doc) => toEngineOffer(doc))
+      .filter((offer) => !offer.archived),
   );
 
   readonly live = computed<readonly Offer[]>(() =>
