@@ -24,6 +24,7 @@ export interface SearchOfferFields {
   readonly offerIds: readonly string[];
   readonly offerBadges: readonly string[];
   readonly maxDiscountPercent: number;
+  readonly pricePartial: boolean;
   readonly [key: string]: unknown;
 }
 
@@ -217,6 +218,7 @@ export function computeProductOfferFields(
     offerIds: result.offerIds,
     offerBadges,
     maxDiscountPercent: result.maxDiscountPercent,
+    pricePartial: result.partial,
   };
 }
 
