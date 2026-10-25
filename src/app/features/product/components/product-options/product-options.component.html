@@ -1,0 +1,56 @@
+@if (product().options.length > 0) {
+  <div class="w-full elements-start-col gap-4">
+    @for (option of product().options; track option.key) {
+      <fieldset class="w-full elements-start-col gap-2 border-0 p-0 m-0">
+        <legend class="font-label-lg pb-1">{{ option.label }}</legend>
+        <div class="flex flex-wrap items-center gap-2">
+          @for (value of option.values; track value.id) {
+            @let swatch = swatchHex(option.key, value);
+            @let selected = isSelected(option.key, value.id);
+            @let avail = available(option.key, value.id);
+
+            @if (swatch) {
+              <button
+                type="button"
+                class="relative size-9 rounded-full p-0.5 border-2 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                [class.border-primary]="selected"
+                [class.border-transparent]="!selected"
+                [class.line-through]="!avail"
+                [class.opacity-40]="!avail"
+                [disabled]="isDisabled(option.key, value.id)"
+                [attr.aria-pressed]="selected"
+                [attr.aria-label]="optionAriaLabel(option.key, value)"
+                (click)="pick(option.key, value.id)"
+              >
+                <span
+                  class="block size-full rounded-full border border-outline-variant"
+                  [style.background-color]="swatch"
+                  aria-hidden="true"
+                ></span>
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="min-h-10 min-w-11 px-3 py-2 border-shape border font-label-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+                [class.bg-primary]="selected"
+                [class.text-on-primary]="selected"
+                [class.border-primary]="selected"
+                [class.bg-surface]="!selected"
+                [class.border-outline-variant]="!selected"
+                [class.hover:border-primary]="!selected && avail"
+                [class.line-through]="!avail"
+                [class.opacity-40]="!avail"
+                [disabled]="isDisabled(option.key, value.id)"
+                [attr.aria-pressed]="selected"
+                [attr.aria-label]="optionAriaLabel(option.key, value)"
+                (click)="pick(option.key, value.id)"
+              >
+                {{ value.label }}
+              </button>
+            }
+          }
+        </div>
+      </fieldset>
+    }
+  </div>
+}
