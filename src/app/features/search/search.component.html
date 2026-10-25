@@ -55,7 +55,15 @@
         Search by product name, brand, or gear type.
       </p>
     </div>
-  } @else if (resultsResource.isLoading()) {
+  } @else if (resultsResource.error()) {
+    <div class="surface-card p-8 w-full elements-center-col gap-3 text-center" role="alert">
+      <p class="font-title-md font-bold!">We couldn't load search results right now.</p>
+      <p class="font-body-md text-on-surface-variant">Please try again in a moment.</p>
+      <button matButton="outlined" type="button" (click)="resultsResource.reload()">
+        <span>Try again</span>
+      </button>
+    </div>
+  } @else if (resultsResource.isLoading() && !resultsResource.hasValue()) {
     <div
       class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full"
       aria-label="Loading search results"
@@ -68,14 +76,6 @@
           <app-skeleton class="h-5 w-1/2" />
         </div>
       }
-    </div>
-  } @else if (resultsResource.error()) {
-    <div class="surface-card p-8 w-full elements-center-col gap-3 text-center" role="alert">
-      <p class="font-title-md font-bold!">We couldn't load search results right now.</p>
-      <p class="font-body-md text-on-surface-variant">Please try again in a moment.</p>
-      <button matButton="outlined" type="button" (click)="resultsResource.reload()">
-        <span>Try again</span>
-      </button>
     </div>
   } @else if (hits().length === 0) {
     <div class="surface-card p-8 w-full elements-center-col gap-2 text-center">

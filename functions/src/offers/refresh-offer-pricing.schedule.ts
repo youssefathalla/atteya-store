@@ -14,6 +14,7 @@ export const refreshOfferPricing = onSchedule(
     schedule: 'every 15 minutes',
     timeZone: 'Africa/Cairo',
     region: 'europe-west3',
+    timeoutSeconds: 120,
     secrets: [ALGOLIA_WRITE_KEY],
   },
   async () => {
@@ -35,10 +36,11 @@ export const refreshOfferPricing = onSchedule(
     }
 
     try {
-      const updated = await recomputeAlgoliaOfferPricing(db, offers, now);
+      const { scanned, updated } = await recomputeAlgoliaOfferPricing(db, offers, now);
       logger.info('Refreshed Algolia offer pricing on schedule transition', {
         prevIds,
         currentIds,
+        scannedProducts: scanned,
         updatedProducts: updated,
       });
     } catch (error: unknown) {

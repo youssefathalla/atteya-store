@@ -28,6 +28,27 @@ const defaultProductSearchSyncDeps: ProductSearchSyncDeps = {
   withRetry,
 };
 
+export async function recordSearchSyncError(
+  db: Firestore,
+  docId: string,
+  op: string,
+  message: string,
+): Promise<void> {
+  try {
+    await db.collection('searchSyncErrors').doc(docId).set({
+      op,
+      message,
+      at: FieldValue.serverTimestamp(),
+    });
+  } catch (writeError: unknown) {
+    logger.error('Failed to persist searchSyncErrors document', {
+      docId,
+      op,
+      message: safeErrorMessage(writeError),
+    });
+  }
+}
+
 /**
  * Core product → Algolia sync. Exported for unit tests (catalog/offer failures must record searchSyncErrors).
  */
@@ -88,19 +109,7 @@ export async function executeProductSearchSync(
       op,
       message,
     });
-    try {
-      await db.collection('searchSyncErrors').doc(productId).set({
-        op,
-        message,
-        at: FieldValue.serverTimestamp(),
-      });
-    } catch (writeError: unknown) {
-      logger.error('Failed to persist searchSyncErrors document', {
-        productId,
-        op,
-        message: safeErrorMessage(writeError),
-      });
-    }
+    await recordSearchSyncError(db, productId, op, message);
   }
 }
 
