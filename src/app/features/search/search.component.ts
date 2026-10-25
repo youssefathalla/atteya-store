@@ -93,9 +93,18 @@ export class SearchComponent implements OnInit {
       }),
   });
 
-  readonly hits = computed(() => this.resultsResource.value()?.hits ?? []);
-  readonly totalHits = computed(() => this.resultsResource.value()?.totalHits ?? 0);
-  readonly totalPages = computed(() => this.resultsResource.value()?.totalPages ?? 0);
+  readonly hits = computed(() => {
+    if (this.resultsResource.error() || !this.resultsResource.hasValue()) return [];
+    return this.resultsResource.value()?.hits ?? [];
+  });
+  readonly totalHits = computed(() => {
+    if (this.resultsResource.error() || !this.resultsResource.hasValue()) return 0;
+    return this.resultsResource.value()?.totalHits ?? 0;
+  });
+  readonly totalPages = computed(() => {
+    if (this.resultsResource.error() || !this.resultsResource.hasValue()) return 0;
+    return this.resultsResource.value()?.totalPages ?? 0;
+  });
 
   readonly skeletonCards = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 

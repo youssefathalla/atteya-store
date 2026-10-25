@@ -14,6 +14,7 @@ export const refreshOfferPricing = onSchedule(
     schedule: 'every 15 minutes',
     timeZone: 'Africa/Cairo',
     region: 'europe-west3',
+    timeoutSeconds: 120,
     secrets: [ALGOLIA_WRITE_KEY],
   },
   async () => {

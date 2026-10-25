@@ -42,7 +42,7 @@ export async function recordSearchSyncError(
     });
   } catch (writeError: unknown) {
     logger.error('Failed to persist searchSyncErrors document', {
-      productId: docId,
+      docId,
       op,
       message: safeErrorMessage(writeError),
     });

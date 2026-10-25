@@ -80,7 +80,15 @@ export const onOfferWritten = onDocumentWritten(
         offers = latestOffers;
       }
 
-      await db.collection('searchSyncErrors').doc('offer-pricing').delete();
+      try {
+        await db.collection('searchSyncErrors').doc('offer-pricing').delete();
+      } catch (cleanupError: unknown) {
+        logger.warn('Failed to clear searchSyncErrors/offer-pricing record', {
+          offerId,
+          action,
+          message: safeErrorMessage(cleanupError),
+        });
+      }
 
       logger.info('offer pricing synced', {
         offerId,
