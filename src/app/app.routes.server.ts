@@ -13,6 +13,7 @@ export const serverRoutes: ServerRoute[] = [
     path: 'product/**',
     renderMode: RenderMode.Server,
   },
+  // search must stay client-rendered so stale results are never transferred
   {
     path: 'search',
     renderMode: RenderMode.Client,

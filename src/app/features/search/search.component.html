@@ -16,6 +16,7 @@
           [value]="draftQuery()"
           placeholder="Try Bullpadel, t-shirts, socks..."
           (input)="onQueryInput($event)"
+          (keydown.enter)="onSubmit()"
         />
         @if (draftQuery()) {
           <button
@@ -117,14 +118,14 @@
               {{ hit.brandName }}
             </span>
             <h2 class="font-title-sm font-bold! line-clamp-2">{{ hit.name }}</h2>
-            @let pr = hitPrice(hit);
+            @let pr = cardPrices().get(hit.objectID)!;
             <app-product-price
               class="pt-1"
               [price]="pr.price"
               [fromPrice]="pr.fromPrice"
               [partial]="pr.partial"
-              [listPrice]="hit.listPrice ?? hit.compareAtPrice"
-              [badges]="hitBadges(hit)"
+              [listPrice]="pr.listPrice"
+              [badges]="pr.badges"
             />
           </div>
         </a>

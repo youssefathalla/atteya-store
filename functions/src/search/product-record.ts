@@ -43,7 +43,9 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly compareAtPrice: number | null;
   readonly discountPercent: number;
   readonly onSale: boolean;
+  readonly colors: readonly string[];
   readonly sizes: readonly string[];
+  readonly tags: readonly string[];
   readonly inStock: boolean;
   readonly image: SearchRecordImage | null;
   readonly createdAtMs: number;
@@ -97,7 +99,9 @@ export function toSearchRecord(
       ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
       : 0;
 
+  const colors = readStringArray(data['colors']);
   const sizes = extractSizes(data['options']);
+  const tags = readStringArray(data['tags']);
   const inStock = computeInStock(data['trackStock'], data['variants']);
   const image = extractPrimaryImage(data['images'], name);
   const createdAtMs = extractTimestampMs(data['createdAt']);
@@ -113,7 +117,9 @@ export function toSearchRecord(
       categoryIds,
       type,
       modelGroup,
+      colors,
       sizes,
+      tags,
       price,
       compareAtPrice,
     },
@@ -134,7 +140,9 @@ export function toSearchRecord(
     compareAtPrice,
     discountPercent,
     onSale,
+    colors,
     sizes,
+    tags,
     inStock,
     image,
     createdAtMs,
@@ -153,7 +161,9 @@ export function computeProductOfferFields(
     readonly categoryIds: readonly string[];
     readonly type: string;
     readonly modelGroup: string | null;
+    readonly colors?: readonly string[];
     readonly sizes: readonly string[];
+    readonly tags?: readonly string[];
     readonly price: number;
     readonly compareAtPrice: number | null;
   },
@@ -178,12 +188,8 @@ export function computeProductOfferFields(
         ? Math.round(rawCompare)
         : null;
 
-  const colors = Array.isArray(data['colors'])
-    ? data['colors'].filter((c): c is string => typeof c === 'string')
-    : [];
-  const tags = Array.isArray(data['tags'])
-    ? data['tags'].filter((t): t is string => typeof t === 'string')
-    : [];
+  const colors = precomputed?.colors ?? readStringArray(data['colors']);
+  const tags = precomputed?.tags ?? readStringArray(data['tags']);
 
   const pricedProduct: PricedProduct = {
     productId,
@@ -347,6 +353,10 @@ function extractTimestampMs(raw: unknown): number {
 
 function readString(raw: unknown): string {
   return typeof raw === 'string' ? raw.trim() : '';
+}
+
+function readStringArray(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === 'string') : [];
 }
 
 function readWholeEgp(raw: unknown): number {

@@ -1,5 +1,6 @@
 import { DOCUMENT, isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import {
+  afterNextRender,
   Component,
   computed,
   DestroyRef,
@@ -9,16 +10,20 @@ import {
   OnInit,
   PLATFORM_ID,
   resource,
+  signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import { SearchService, type SearchHit, type SearchSort } from '@core/services/search';
+import { AuthService } from '@core/services/auth/auth.service';
+import { displayPrice, type PricedProduct } from '@core/services/offers/engine';
+import { OffersService } from '@core/services/offers/offers.service';
+import { SearchService, type SearchSort } from '@core/services/search';
 import { SeoService } from '@core/services/seo';
-import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
+import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { normalizeImageKitPath } from '@shared/utils/image';
@@ -28,6 +33,14 @@ const SORT_OPTIONS: readonly { readonly value: SearchSort; readonly label: strin
   { value: 'price-asc', label: 'Price: low to high' },
   { value: 'price-desc', label: 'Price: high to low' },
 ];
+
+interface CardPriceView {
+  readonly price: number;
+  readonly fromPrice: number | null;
+  readonly listPrice: number | null;
+  readonly partial: boolean;
+  readonly badges: readonly string[];
+}
 
 @Component({
   selector: 'app-search',
@@ -53,12 +66,17 @@ export class SearchComponent implements OnInit {
 
   readonly #router = inject(Router);
   readonly #searchService = inject(SearchService);
+  readonly #offers = inject(OffersService);
+  readonly #auth = inject(AuthService);
   readonly #seo = inject(SeoService);
   readonly #destroyRef = inject(DestroyRef);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #document = inject(DOCUMENT);
 
   #debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly #refreshTick = signal(0);
+  readonly #hydrated = signal(false);
+  readonly #nowMs = signal(Date.now());
 
   readonly sortOptions = SORT_OPTIONS;
   readonly draftQuery = linkedSignal(() => this.q() ?? '');
@@ -84,6 +102,7 @@ export class SearchComponent implements OnInit {
       q: this.normalizedQuery(),
       sort: this.activeSort(),
       page: this.activePage(),
+      tick: this.#refreshTick(),
     }),
     loader: ({ params }) =>
       this.#searchService.search({
@@ -106,9 +125,82 @@ export class SearchComponent implements OnInit {
     return this.resultsResource.value()?.totalPages ?? 0;
   });
 
+  readonly cardPrices = computed<ReadonlyMap<string, CardPriceView>>(() => {
+    const hits = this.hits();
+    const liveMode = this.#offers.ready() && !this.#offers.failed();
+    const offers = liveMode ? this.#offers.all() : [];
+    const ctx = {
+      now: new Date(this.#nowMs()),
+      signedIn: this.#hydrated() && Boolean(this.#auth.user()),
+    };
+
+    const map = new Map<string, CardPriceView>();
+    for (const hit of hits) {
+      if (liveMode) {
+        const priced: PricedProduct = {
+          productId: hit.objectID,
+          name: hit.name,
+          brandId: hit.brandId,
+          categoryIds: hit.categoryIds,
+          type: hit.type,
+          modelGroup: hit.modelGroup,
+          colors: hit.colors,
+          sizes: hit.sizes,
+          tags: hit.tags,
+          price: hit.price,
+          compareAtPrice: hit.compareAtPrice,
+        };
+        const d = displayPrice(priced, offers, ctx);
+        map.set(hit.objectID, {
+          price: d.partial ? hit.price : d.fromPrice,
+          fromPrice: d.partial ? d.fromPrice : null,
+          listPrice: d.listPrice,
+          partial: d.partial,
+          badges: d.badges.map((b) => b.text).slice(0, 3),
+        });
+      } else {
+        const shown = hit.displayPrice ?? hit.price;
+        // Records indexed before `pricePartial` existed keep the old behaviour until search is rebuilt.
+        const varies = hit.pricePartial ?? shown !== hit.price;
+        const badges =
+          hit.offerBadges.length > 0
+            ? hit.offerBadges
+            : hit.onSale && hit.discountPercent > 0
+              ? [`${hit.discountPercent}% off`]
+              : [];
+        map.set(
+          hit.objectID,
+          varies
+            ? {
+                price: hit.price,
+                fromPrice: shown,
+                listPrice: hit.listPrice ?? hit.compareAtPrice,
+                partial: true,
+                badges,
+              }
+            : {
+                price: shown,
+                fromPrice: null,
+                listPrice: hit.listPrice ?? hit.compareAtPrice,
+                partial: false,
+                badges,
+              },
+        );
+      }
+    }
+    return map;
+  });
+
   readonly skeletonCards = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
   constructor() {
+    afterNextRender(() => {
+      this.#hydrated.set(true);
+      this.#nowMs.set(Date.now());
+      const id = setInterval(() => this.#nowMs.set(Date.now()), 60_000);
+      this.#destroyRef.onDestroy(() => clearInterval(id));
+    });
+
     this.#destroyRef.onDestroy(() => {
       if (this.#debounceTimer !== null) {
         clearTimeout(this.#debounceTimer);
@@ -116,15 +208,27 @@ export class SearchComponent implements OnInit {
     });
 
     if (isPlatformBrowser(this.#platformId)) {
+      const win = this.#document.defaultView;
+      let lastReturnRefreshMs = Date.now();
+      const onReturn = () => {
+        const now = Date.now();
+        if (now - lastReturnRefreshMs < 1_000) return;
+        lastReturnRefreshMs = now;
+        this.#refresh();
+      };
       const onVisible = () => {
-        if (this.#document.visibilityState === 'visible' && this.hasMinQuery()) {
-          this.resultsResource.reload();
+        if (this.#document.visibilityState === 'visible') {
+          onReturn();
         }
       };
       this.#document.addEventListener('visibilitychange', onVisible);
-      this.#destroyRef.onDestroy(() =>
-        this.#document.removeEventListener('visibilitychange', onVisible),
-      );
+      win?.addEventListener('focus', onReturn);
+      win?.addEventListener('pageshow', onReturn);
+      this.#destroyRef.onDestroy(() => {
+        this.#document.removeEventListener('visibilitychange', onVisible);
+        win?.removeEventListener('focus', onReturn);
+        win?.removeEventListener('pageshow', onReturn);
+      });
     }
   }
 
@@ -145,7 +249,12 @@ export class SearchComponent implements OnInit {
       clearTimeout(this.#debounceTimer);
     }
     this.#debounceTimer = setTimeout(() => {
+      this.#debounceTimer = null;
       const trimmed = value.trim();
+      if (trimmed === this.normalizedQuery() && this.activePage() === 0) {
+        this.#refresh();
+        return;
+      }
       void this.#navigate({
         q: trimmed.length >= 2 ? trimmed : null,
         sort: this.activeSort(),
@@ -154,9 +263,27 @@ export class SearchComponent implements OnInit {
     }, 300);
   }
 
+  onSubmit(): void {
+    if (this.#debounceTimer !== null) {
+      clearTimeout(this.#debounceTimer);
+      this.#debounceTimer = null;
+    }
+    const trimmed = this.draftQuery().trim();
+    if (trimmed === this.normalizedQuery() && this.activePage() === 0) {
+      this.#refresh();
+      return;
+    }
+    void this.#navigate({
+      q: trimmed.length >= 2 ? trimmed : null,
+      sort: this.activeSort(),
+      page: 0,
+    });
+  }
+
   clearQuery(): void {
     if (this.#debounceTimer !== null) {
       clearTimeout(this.#debounceTimer);
+      this.#debounceTimer = null;
     }
     this.draftQuery.set('');
     void this.#navigate({ q: null, sort: this.activeSort(), page: 0 });
@@ -183,19 +310,10 @@ export class SearchComponent implements OnInit {
     return normalizeImageKitPath(rawPath);
   }
 
-  hitBadges(hit: SearchHit): readonly string[] {
-    if (hit.offerBadges.length > 0) return hit.offerBadges;
-    if (hit.onSale && hit.discountPercent > 0) return [`${hit.discountPercent}% off`];
-    return [];
-  }
-
-  hitPrice(hit: SearchHit): { price: number; fromPrice: number | null; partial: boolean } {
-    const shown = hit.displayPrice ?? hit.price;
-    // Records indexed before `pricePartial` existed keep the old behaviour until search is rebuilt.
-    const varies = hit.pricePartial ?? shown !== hit.price;
-    return varies
-      ? { price: hit.price, fromPrice: shown, partial: true }
-      : { price: shown, fromPrice: null, partial: false };
+  #refresh(): void {
+    if (this.hasMinQuery()) {
+      this.#refreshTick.update((n) => n + 1);
+    }
   }
 
   async #navigate(params: {
