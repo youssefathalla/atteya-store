@@ -384,3 +384,10 @@ Whenever you find a combination of 4 or more utility classes that is repeated **
 - **Shared UI**: `app-product-price` (`@shared/components/product-price`): price, struck-through list price, "From" prefix and monochrome offer badges. `app-shipping-banner` (`@shared/components/shipping-banner`): dismissible announcement fed by `ShippingSettingsService`.
 - **Core services**: `SearchService` (`@core/services/search`), `OffersService` and the generated pricing engine (`@core/services/offers`), `ShippingSettingsService` (`@core/services/shipping`), `catalog-taxonomy.ts` (categories, brands, colour palette, `colorIdFor`).
 - **Rule**: never edit `src/app/core/services/offers/engine/*`; change `functions/src/offers/engine/*` and run `npm run sync:engine`.
+
+## Step 2 · Product page
+
+- **Pricing & offer helpers**: `toPricedProduct` (`@core/services/offers/offer.model`, widened via `PricingInput`) and `toVariantFacts` (`@core/services/products` / `src/app/core/services/products/utils/priced-product.utils.ts`). `PublicOffersReader` (`@core/services/offers/public-offers.reader`) runs a one-shot `active == true && visibility == 'public'` read without opening a listener, and `TransferOffer` (`toTransferOffer` / `fromTransferOffer` in `@core/services/offers/offer-transfer`) serializes offer schedule dates as epoch ms across `TransferState`.
+- **Cart seam**: `CartLineDraft` (`@core/services/cart/cart.model`) is the typed draft payload (`productId`, `variantId`, `selection`, `quantity` — no prices) handed to `<app-add-to-bag-button>`.
+- **Product page feature (`src/app/features/product/`)**: `ProductComponent` (`app-product`), `productPageResolver` (`resolvers/product-page.resolver.ts`), `ProductGalleryComponent` (`app-product-gallery`), `ProductOptionsComponent` (`app-product-options`), `ProductSiblingsComponent` (`app-product-siblings`, deferred on viewport), and `AddToBagButtonComponent` (`app-add-to-bag-button`).
+- **Rule**: storefront product reads must go through `getBySlug` / `listPublished` (or `listModelGroup`) with `where('published', '==', true)` — never `getById`.

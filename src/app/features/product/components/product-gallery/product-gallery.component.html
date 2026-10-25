@@ -1,0 +1,53 @@
+<div class="w-full elements-start-col gap-3">
+  <div class="relative aspect-square w-full overflow-hidden border-shape bg-surface-container elements-center">
+    @if (currentImage(); as img) {
+      @if (active() === 0) {
+        <img
+          [ngSrc]="path(img.path)"
+          [appImageFallback]="img.path"
+          [alt]="imageAlt(img)"
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, 50vw"
+          class="object-contain"
+        />
+      } @else {
+        <img
+          [ngSrc]="path(img.path)"
+          [appImageFallback]="img.path"
+          [alt]="imageAlt(img)"
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          class="object-contain"
+        />
+      }
+    } @else {
+      <mat-icon name="image" size="4xl" />
+    }
+  </div>
+
+  @if (displayImages().length > 1) {
+    <div class="flex flex-wrap gap-2 w-full">
+      @for (thumb of displayImages(); track thumb.path; let i = $index) {
+        <button
+          type="button"
+          class="relative size-18 overflow-hidden border-shape border bg-surface-container cursor-pointer transition-colors"
+          [class.border-primary]="i === active()"
+          [class.border-outline-variant]="i !== active()"
+          [attr.aria-label]="'Show photo ' + (i + 1)"
+          [attr.aria-current]="i === active() ? 'true' : null"
+          (click)="select(i)"
+        >
+          <img
+            [ngSrc]="path(thumb.path)"
+            [appImageFallback]="thumb.path"
+            alt=""
+            width="72"
+            height="72"
+            class="size-full object-cover border-shape"
+          />
+        </button>
+      }
+    </div>
+  }
+</div>

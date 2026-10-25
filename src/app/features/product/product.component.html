@@ -1,0 +1,92 @@
+@switch (page().status) {
+  @case ('found') {
+    @let p = product()!;
+    <article class="container-content elements-start-col gap-6">
+      <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 font-label-sm uppercase">
+        <a routerLink="/" class="hover:underline transition-colors">Home</a>
+        @for (crumb of breadcrumbs(); track crumb.link[1]) {
+          <span aria-hidden="true">/</span>
+          <a [routerLink]="crumb.link" class="hover:underline transition-colors">
+            {{ crumb.label }}
+          </a>
+        }
+        <span aria-hidden="true">/</span>
+        <span aria-current="page" class="line-clamp-1" dir="auto">{{ p.name }}</span>
+      </nav>
+
+      <div class="grid w-full items-start gap-6 md:grid-cols-2">
+        <app-product-gallery
+          [images]="p.images"
+          [name]="p.name"
+          [activeColourImage]="colourImage()"
+        />
+
+        <div class="elements-start-col gap-4">
+          <a
+            [routerLink]="['/brand', p.brandId]"
+            class="font-label-sm uppercase tracking-wider text-on-surface-variant no-underline hover:underline"
+          >
+            {{ brandName() }}
+          </a>
+          <h1 class="font-headline-sm font-bold!" dir="auto">{{ p.name }}</h1>
+          @if (price(); as pr) {
+            <app-product-price
+              [price]="pr.price"
+              [fromPrice]="pr.fromPrice"
+              [listPrice]="pr.listPrice"
+              [partial]="pr.partial"
+              [badges]="pr.badges"
+            />
+          }
+          @if (!inStock()) {
+            <p class="font-label-lg uppercase" role="status">Out of stock</p>
+          }
+
+          <app-product-options
+            [product]="p"
+            [selection]="selection()"
+            [disabled]="!inStock()"
+            (picked)="select($event.key, $event.valueId)"
+          />
+          <app-add-to-bag-button [line]="cartLine()" />
+
+          @if (p.summary) {
+            <p class="font-body-md" dir="auto">{{ p.summary }}</p>
+          }
+        </div>
+      </div>
+
+      @if (p.descriptionHtml) {
+        <section aria-labelledby="pdp-details" class="elements-start-col gap-3 w-full">
+          <h2 id="pdp-details" class="font-title-md font-bold!">Details</h2>
+          <div
+            dir="auto"
+            class="font-body-md max-w-prose [&_p]:mb-3 [&_ul]:list-disc [&_ul]:ps-5 [&_ol]:list-decimal [&_ol]:ps-5 [&_a]:underline"
+            [innerHTML]="p.descriptionHtml"
+          ></div>
+        </section>
+      }
+
+      @if (p.modelGroup) {
+        @defer (on viewport) {
+          <app-product-siblings [modelGroup]="p.modelGroup" [excludeId]="p.id" />
+        } @placeholder {
+          <div class="h-40 w-full"></div>
+        }
+      }
+    </article>
+  }
+  @case ('missing') {
+    <section class="container-content elements-center-col gap-4 py-16 text-center">
+      <h1 class="font-headline-sm font-bold!">We couldn't find this product</h1>
+      <p class="font-body-md">It may have sold out or been removed.</p>
+      <a matButton="outlined" routerLink="/search">Search the shop</a>
+    </section>
+  }
+  @case ('error') {
+    <section class="container-content elements-center-col gap-4 py-16 text-center">
+      <p class="font-body-md">We couldn't load this product right now.</p>
+      <button matButton="outlined" type="button" (click)="retry()">Try again</button>
+    </section>
+  }
+}
