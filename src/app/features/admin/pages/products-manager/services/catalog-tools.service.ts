@@ -1,7 +1,8 @@
-import { Service, signal } from '@angular/core';
+import { inject, Service, signal } from '@angular/core';
 import { httpsCallable } from 'firebase/functions';
 import * as v from 'valibot';
 import { injectFunctions } from '@core/firebase';
+import { SearchService } from '@core/services/search';
 import type { MigratePass, MigrateReport, ReindexSearchReport } from '../models/product-admin.model';
 
 const wholeNumber = v.pipe(v.number(), v.integer(), v.minValue(0));
@@ -53,6 +54,7 @@ interface MigratePayload {
 @Service()
 export class CatalogToolsService {
   readonly #functions = injectFunctions();
+  readonly #searchService = inject(SearchService);
   readonly #migrateCallable = httpsCallable<MigratePayload, unknown>(
     this.#functions,
     'migrateCatalogStructure',
@@ -94,6 +96,9 @@ export class CatalogToolsService {
       const parsed = v.safeParse(ReindexResponseSchema, result.data);
       if (!parsed.success) {
         throw new Error('The search rebuild finished, but the response was unexpected.');
+      }
+      if (!dryRun) {
+        await this.#searchService.clearCache();
       }
       return parsed.output;
     } finally {

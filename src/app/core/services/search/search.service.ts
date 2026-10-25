@@ -6,10 +6,13 @@ import { environment } from '@env/environment';
 import type { SearchHit, SearchQueryOptions, SearchResultPage, SearchSort } from './search.model';
 import { SearchHitSchema } from './search.schema';
 
+const CACHE_TTL_MS = 60_000;
+
 @Service()
 export class SearchService {
   readonly #platformId = inject(PLATFORM_ID);
   #clientPromise: Promise<LiteClient> | null = null;
+  #cacheEpochMs = 0;
 
   isConfigured(): boolean {
     const { appId, searchKey, indexName } = environment.algolia;
@@ -34,6 +37,13 @@ export class SearchService {
     }
 
     const client = await this.#getClient();
+    const now = Date.now();
+    if (this.#cacheEpochMs === 0) {
+      this.#cacheEpochMs = now;
+    } else if (now - this.#cacheEpochMs >= CACHE_TTL_MS) {
+      await client.clearCache();
+      this.#cacheEpochMs = now;
+    }
     const indexName = this.#resolveIndexName(options.sort ?? 'relevance');
     const page = Math.max(0, options.page ?? 0);
 
@@ -69,6 +79,13 @@ export class SearchService {
       page: first.page ?? page,
       totalPages: first.nbPages ?? 1,
     };
+  }
+
+  async clearCache(): Promise<void> {
+    this.#cacheEpochMs = 0;
+    if (!this.#clientPromise) return;
+    const client = await this.#clientPromise;
+    await client.clearCache();
   }
 
   #resolveIndexName(sort: SearchSort): string {
