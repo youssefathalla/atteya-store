@@ -10,6 +10,21 @@ export const OFFERS_COLLECTION = 'offers';
 export const OFFER_CODES_COLLECTION = 'offerCodes';
 export const OFFER_USAGE_COLLECTION = 'offerUsage';
 
+export type PricingInput = Pick<
+  Product,
+  | 'id'
+  | 'name'
+  | 'brandId'
+  | 'categoryIds'
+  | 'type'
+  | 'modelGroup'
+  | 'colors'
+  | 'tags'
+  | 'price'
+  | 'compareAtPrice'
+  | 'options'
+>;
+
 export function toEngineOffer(doc: OfferDoc, code?: string | null): Offer {
   return {
     id: doc.id,
@@ -41,7 +56,7 @@ export function toEngineOffer(doc: OfferDoc, code?: string | null): Offer {
   };
 }
 
-export function toPricedProduct(product: Product): PricedProduct {
+export function toPricedProduct(product: PricingInput): PricedProduct {
   const sizes: string[] = [];
   for (const option of product.options) {
     if (option.key !== 'size') continue;
