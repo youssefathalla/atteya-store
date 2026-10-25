@@ -145,11 +145,11 @@ export class ProductComponent {
     }
     const d = displayPrice(priced, offers, ctx);
     return {
-      price: p.price,
-      fromPrice: d.fromPrice,
+      price: d.partial ? p.price : d.fromPrice,
+      fromPrice: d.partial ? d.fromPrice : null,
       listPrice: d.listPrice,
       partial: d.partial,
-      badges: d.badges.map((badge) => badge.text),
+      badges: d.badges.map((b) => b.text),
     };
   });
 
@@ -179,7 +179,7 @@ export class ProductComponent {
         this.#seo.setPageMetadata({
           title: `${p.name} | Atteya Store`,
           description:
-            p.summary ?? `${p.name}${brand ? ` by ${brand}` : ''}. Shop at Atteya Store.`,
+            p.summary?.trim() || `${p.name}${brand ? ` by ${brand}` : ''}. Shop at Atteya Store.`,
           noindex: !isProductInStock(p),
         });
       } else {

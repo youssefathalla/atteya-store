@@ -56,12 +56,14 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   }
 
   if (isServer) {
-    if (result.status === 'missing' && responseInit) {
-      responseInit.status = 404;
+    if (responseInit) {
+      if (result.status === 'missing') {
+        responseInit.status = 404;
+      } else if (result.status === 'error') {
+        responseInit.status = 503;
+      }
     }
-    if (result.status !== 'error') {
-      transfer.set(key, result);
-    }
+    transfer.set(key, result);
   }
   return result;
 };

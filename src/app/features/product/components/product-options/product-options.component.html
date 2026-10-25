@@ -13,6 +13,7 @@
               <button
                 type="button"
                 class="relative size-9 rounded-full p-0.5 border-2 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                [title]="value.label"
                 [class.border-primary]="selected"
                 [class.border-transparent]="!selected"
                 [class.line-through]="!avail"
@@ -31,13 +32,12 @@
             } @else {
               <button
                 type="button"
-                class="min-h-10 min-w-11 px-3 py-2 border-shape border font-label-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+                class="min-h-10 min-w-11 px-3 py-2 border-shape border font-label-lg transition-colors cursor-pointer disabled:cursor-not-allowed enabled:hover:border-primary"
                 [class.bg-primary]="selected"
                 [class.text-on-primary]="selected"
                 [class.border-primary]="selected"
                 [class.bg-surface]="!selected"
                 [class.border-outline-variant]="!selected"
-                [class.hover:border-primary]="!selected && avail"
                 [class.line-through]="!avail"
                 [class.opacity-40]="!avail"
                 [disabled]="isDisabled(option.key, value.id)"
