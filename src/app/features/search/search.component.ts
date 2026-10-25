@@ -74,7 +74,6 @@ export class SearchComponent implements OnInit {
   readonly #document = inject(DOCUMENT);
 
   #debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  readonly #refreshTick = signal(0);
   readonly #hydrated = signal(false);
   readonly #nowMs = signal(Date.now());
 
@@ -102,7 +101,6 @@ export class SearchComponent implements OnInit {
       q: this.normalizedQuery(),
       sort: this.activeSort(),
       page: this.activePage(),
-      tick: this.#refreshTick(),
     }),
     loader: ({ params }) =>
       this.#searchService.search({
@@ -312,7 +310,7 @@ export class SearchComponent implements OnInit {
 
   #refresh(): void {
     if (this.hasMinQuery()) {
-      this.#refreshTick.update((n) => n + 1);
+      this.resultsResource.reload();
     }
   }
 
