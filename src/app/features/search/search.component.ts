@@ -1,4 +1,4 @@
-import { NgOptimizedImage } from '@angular/common';
+import { DOCUMENT, isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import {
   Component,
   computed,
@@ -7,6 +7,7 @@ import {
   input,
   linkedSignal,
   OnInit,
+  PLATFORM_ID,
   resource,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -54,6 +55,8 @@ export class SearchComponent implements OnInit {
   readonly #searchService = inject(SearchService);
   readonly #seo = inject(SeoService);
   readonly #destroyRef = inject(DestroyRef);
+  readonly #platformId = inject(PLATFORM_ID);
+  readonly #document = inject(DOCUMENT);
 
   #debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -102,6 +105,18 @@ export class SearchComponent implements OnInit {
         clearTimeout(this.#debounceTimer);
       }
     });
+
+    if (isPlatformBrowser(this.#platformId)) {
+      const onVisible = () => {
+        if (this.#document.visibilityState === 'visible' && this.hasMinQuery()) {
+          this.resultsResource.reload();
+        }
+      };
+      this.#document.addEventListener('visibilitychange', onVisible);
+      this.#destroyRef.onDestroy(() =>
+        this.#document.removeEventListener('visibilitychange', onVisible),
+      );
+    }
   }
 
   ngOnInit(): void {

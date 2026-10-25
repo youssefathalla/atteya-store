@@ -55,7 +55,7 @@
         Search by product name, brand, or gear type.
       </p>
     </div>
-  } @else if (resultsResource.isLoading()) {
+  } @else if (resultsResource.isLoading() && !resultsResource.hasValue()) {
     <div
       class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full"
       aria-label="Loading search results"

@@ -6,13 +6,33 @@ import { environment } from '@env/environment';
 import type { SearchHit, SearchQueryOptions, SearchResultPage, SearchSort } from './search.model';
 import { SearchHitSchema } from './search.schema';
 
-const CACHE_TTL_MS = 60_000;
+type LiteOptions = NonNullable<Parameters<typeof import('algoliasearch/lite').liteClient>[2]>;
+type AlgoliaCache = NonNullable<LiteOptions['responsesCache']>;
+
+/** No-op cache: every search hits Algolia, so offer and price changes show immediately. */
+function createNoCache(): AlgoliaCache {
+  return {
+    get<TValue>(
+      _key: unknown,
+      defaultValue: () => Promise<TValue>,
+      events: { miss: (value: TValue) => Promise<unknown> } = { miss: () => Promise.resolve() },
+    ): Promise<TValue> {
+      return defaultValue()
+        .then((value) => Promise.all([value, events.miss(value)]))
+        .then(([value]) => value);
+    },
+    set<TValue>(_key: unknown, value: TValue): Promise<TValue> {
+      return Promise.resolve(value);
+    },
+    delete: () => Promise.resolve(),
+    clear: () => Promise.resolve(),
+  } as AlgoliaCache;
+}
 
 @Service()
 export class SearchService {
   readonly #platformId = inject(PLATFORM_ID);
   #clientPromise: Promise<LiteClient> | null = null;
-  #cacheEpochMs = 0;
 
   isConfigured(): boolean {
     const { appId, searchKey, indexName } = environment.algolia;
@@ -37,13 +57,6 @@ export class SearchService {
     }
 
     const client = await this.#getClient();
-    const now = Date.now();
-    if (this.#cacheEpochMs === 0) {
-      this.#cacheEpochMs = now;
-    } else if (now - this.#cacheEpochMs >= CACHE_TTL_MS) {
-      await client.clearCache();
-      this.#cacheEpochMs = now;
-    }
     const indexName = this.#resolveIndexName(options.sort ?? 'relevance');
     const page = Math.max(0, options.page ?? 0);
 
@@ -82,10 +95,7 @@ export class SearchService {
   }
 
   async clearCache(): Promise<void> {
-    this.#cacheEpochMs = 0;
-    if (!this.#clientPromise) return;
-    const client = await this.#clientPromise;
-    await client.clearCache();
+    await (await this.#clientPromise)?.clearCache();
   }
 
   #resolveIndexName(sort: SearchSort): string {
@@ -97,7 +107,10 @@ export class SearchService {
   #getClient(): Promise<LiteClient> {
     if (!this.#clientPromise) {
       this.#clientPromise = import('algoliasearch/lite').then(({ liteClient }) =>
-        liteClient(environment.algolia.appId, environment.algolia.searchKey),
+        liteClient(environment.algolia.appId, environment.algolia.searchKey, {
+          responsesCache: createNoCache(),
+          requestsCache: createNoCache(),
+        }),
       );
     }
     return this.#clientPromise;

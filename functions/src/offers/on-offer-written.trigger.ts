@@ -1,16 +1,23 @@
-import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getSearchClient, safeErrorMessage, withRetry } from '../search/algolia-client.js';
 import { ALGOLIA_WRITE_KEY, productsIndexName } from '../search/algolia-config.js';
 import { computeProductOfferFields, type SearchOfferFields } from '../search/product-record.js';
+import { recordSearchSyncError } from '../search/sync-product.trigger.js';
 import { liveOffers, type Offer } from './engine/index.js';
 import { clearOfferCache, getActiveOffers } from './offer-cache.js';
+
+export interface RecomputeOfferPricingResult {
+  readonly scanned: number;
+  readonly updated: number;
+}
 
 export const onOfferWritten = onDocumentWritten(
   {
     document: 'offers/{offerId}',
     region: 'europe-west3',
+    timeoutSeconds: 120,
     secrets: [ALGOLIA_WRITE_KEY],
     retry: false,
   },
@@ -35,25 +42,62 @@ export const onOfferWritten = onDocumentWritten(
           'admin';
 
     const db = getFirestore();
-    await db.collection('auditLogs').doc().set({
-      action,
-      offerId,
-      actorUid,
-      at: FieldValue.serverTimestamp(),
-    });
+    try {
+      await db.collection('auditLogs').doc().set({
+        action,
+        offerId,
+        actorUid,
+        at: FieldValue.serverTimestamp(),
+      });
+    } catch (auditError: unknown) {
+      logger.warn('Failed to write offer audit log', {
+        offerId,
+        action,
+        message: safeErrorMessage(auditError),
+      });
+    }
 
     clearOfferCache();
 
+    const startedAt = Date.now();
     try {
-      const offers = await getActiveOffers(db, true);
-      const now = new Date();
-      await recomputeAlgoliaOfferPricing(db, offers, now);
+      let offers = await getActiveOffers(db, true);
+      let scanned = 0;
+      let updated = 0;
+      let passes = 0;
+
+      for (let pass = 1; pass <= 3; pass += 1) {
+        passes = pass;
+        const fingerprintBefore = fingerprintOffers(offers);
+        const result = await recomputeAlgoliaOfferPricing(db, offers, new Date());
+        scanned = result.scanned;
+        updated = result.updated;
+
+        const latestOffers = await getActiveOffers(db, true);
+        if (fingerprintOffers(latestOffers) === fingerprintBefore) {
+          break;
+        }
+        offers = latestOffers;
+      }
+
+      await db.collection('searchSyncErrors').doc('offer-pricing').delete();
+
+      logger.info('offer pricing synced', {
+        offerId,
+        action,
+        scanned,
+        updated,
+        passes,
+        ms: Date.now() - startedAt,
+      });
     } catch (error: unknown) {
+      const message = safeErrorMessage(error);
       logger.error('Failed to recompute Algolia offer pricing after offer write', {
         offerId,
         action,
-        message: safeErrorMessage(error),
+        message,
       });
+      await recordSearchSyncError(db, 'offer-pricing', action, message);
     }
   },
 );
@@ -71,26 +115,37 @@ export async function recomputeAlgoliaOfferPricing(
   db: Firestore,
   offers: readonly Offer[],
   now: Date,
-): Promise<number> {
+): Promise<RecomputeOfferPricingResult> {
   const indexName = productsIndexName();
   const client = getSearchClient();
 
-  const [prodSnap, existingById] = await Promise.all([
-    db.collection('products').where('published', '==', true).limit(500).get(),
-    fetchExistingOfferFields(indexName),
-  ]);
-
   const updates: (SearchOfferFields & { readonly objectID: string })[] = [];
+  let scanned = 0;
+  let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
 
-  for (const doc of prodSnap.docs) {
-    const nextFields = computeProductOfferFields(doc.id, doc.data(), offers, now);
-    const prevFields = existingById.get(doc.id);
-    if (!prevFields || !offerFieldsEqual(prevFields, nextFields)) {
+  for (;;) {
+    let pageQuery = db
+      .collection('products')
+      .where('published', '==', true)
+      .orderBy(FieldPath.documentId())
+      .limit(500);
+    if (lastDoc) {
+      pageQuery = pageQuery.startAfter(lastDoc);
+    }
+    const snap = await pageQuery.get();
+    if (snap.empty) break;
+
+    for (const doc of snap.docs) {
+      scanned += 1;
+      const nextFields = computeProductOfferFields(doc.id, doc.data(), offers, now);
       updates.push({
         objectID: doc.id,
         ...nextFields,
       });
+      lastDoc = doc;
     }
+
+    if (snap.size < 500) break;
   }
 
   if (updates.length > 0) {
@@ -100,6 +155,7 @@ export async function recomputeAlgoliaOfferPricing(
           indexName,
           objects: updates,
           createIfNotExists: false,
+          waitForTasks: true,
         }),
       'partialUpdateObjects:offers',
     );
@@ -111,68 +167,12 @@ export async function recomputeAlgoliaOfferPricing(
     at: FieldValue.serverTimestamp(),
   });
 
-  return updates.length;
+  return { scanned, updated: updates.length };
 }
 
-async function fetchExistingOfferFields(
-  indexName: string,
-): Promise<Map<string, SearchOfferFields>> {
-  const client = getSearchClient();
-  const map = new Map<string, SearchOfferFields>();
-
-  await withRetry(
-    () =>
-      client.browseObjects({
-        indexName,
-        browseParams: {
-          attributesToRetrieve: [
-            'objectID',
-            'listPrice',
-            'displayPrice',
-            'hasOffer',
-            'offerIds',
-            'offerBadges',
-            'maxDiscountPercent',
-            'pricePartial',
-          ],
-          hitsPerPage: 1000,
-        },
-        aggregator: (batch) => {
-          for (const raw of batch.hits) {
-            const hit = raw as Record<string, unknown>;
-            if (typeof hit['objectID'] !== 'string') continue;
-            if (typeof hit['pricePartial'] !== 'boolean') continue;
-            map.set(hit['objectID'], {
-              listPrice: typeof hit['listPrice'] === 'number' ? hit['listPrice'] : -1,
-              displayPrice: typeof hit['displayPrice'] === 'number' ? hit['displayPrice'] : -1,
-              hasOffer: hit['hasOffer'] === true,
-              offerIds: Array.isArray(hit['offerIds'])
-                ? hit['offerIds'].filter((id): id is string => typeof id === 'string')
-                : [],
-              offerBadges: Array.isArray(hit['offerBadges'])
-                ? hit['offerBadges'].filter((b): b is string => typeof b === 'string')
-                : [],
-              maxDiscountPercent:
-                typeof hit['maxDiscountPercent'] === 'number' ? hit['maxDiscountPercent'] : -1,
-              pricePartial: hit['pricePartial'],
-            });
-          }
-        },
-      }),
-    'browseObjects:offers',
-  );
-
-  return map;
-}
-
-function offerFieldsEqual(left: SearchOfferFields, right: SearchOfferFields): boolean {
-  return (
-    left.listPrice === right.listPrice &&
-    left.displayPrice === right.displayPrice &&
-    left.hasOffer === right.hasOffer &&
-    left.maxDiscountPercent === right.maxDiscountPercent &&
-    left.pricePartial === right.pricePartial &&
-    JSON.stringify(left.offerIds) === JSON.stringify(right.offerIds) &&
-    JSON.stringify(left.offerBadges) === JSON.stringify(right.offerBadges)
-  );
+function fingerprintOffers(offers: readonly Offer[]): string {
+  return offers
+    .map((offer) => `${offer.id}:${offer.updatedAtMs ?? 0}`)
+    .sort()
+    .join(',');
 }

@@ -1,3 +1,4 @@
+import type { IndexSettings, SearchClient } from 'algoliasearch';
 import { FieldPath, FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
@@ -72,37 +73,56 @@ export const reindexSearch = onCall(
       const client = getSearchClient();
       const replicas = replicaNames(indexName);
 
-      await withRetry(
-        () =>
-          client.setSettings({
+      const desiredPrimary = primaryIndexSettings(indexName);
+      const desiredAsc = replicaIndexSettings('asc');
+      const desiredDesc = replicaIndexSettings('desc');
+
+      const [currentPrimary, currentAsc, currentDesc] = await Promise.all([
+        readCurrentSettings(client, indexName, 'getSettings:primary'),
+        readCurrentSettings(client, replicas.priceAsc, 'getSettings:priceAsc'),
+        readCurrentSettings(client, replicas.priceDesc, 'getSettings:priceDesc'),
+      ]);
+
+      if (settingsNeedUpdate(desiredPrimary, currentPrimary)) {
+        await applyIndexSettings(
+          client,
+          {
             indexName,
-            indexSettings: primaryIndexSettings(indexName),
+            indexSettings: desiredPrimary,
             forwardToReplicas: true,
-          }),
-        'setSettings:primary',
-      );
+            waitForTasks: true,
+          },
+          'setSettings:primary',
+        );
+      }
 
-      await withRetry(
-        () =>
-          client.setSettings({
+      if (settingsNeedUpdate(desiredAsc, currentAsc)) {
+        await applyIndexSettings(
+          client,
+          {
             indexName: replicas.priceAsc,
-            indexSettings: replicaIndexSettings('asc'),
-          }),
-        'setSettings:priceAsc',
-      );
+            indexSettings: desiredAsc,
+            waitForTasks: true,
+          },
+          'setSettings:priceAsc',
+        );
+      }
 
-      await withRetry(
-        () =>
-          client.setSettings({
+      if (settingsNeedUpdate(desiredDesc, currentDesc)) {
+        await applyIndexSettings(
+          client,
+          {
             indexName: replicas.priceDesc,
-            indexSettings: replicaIndexSettings('desc'),
-          }),
-        'setSettings:priceDesc',
-      );
+            indexSettings: desiredDesc,
+            waitForTasks: true,
+          },
+          'setSettings:priceDesc',
+        );
+      }
 
       if (records.length > 0) {
         await withRetry(
-          () => client.saveObjects({ indexName, objects: records }),
+          () => client.saveObjects({ indexName, objects: records, waitForTasks: true }),
           'saveObjects',
         );
       }
@@ -127,7 +147,7 @@ export const reindexSearch = onCall(
       const strayIds = Array.from(new Set(existingIds)).filter((id) => !publishedIds.has(id));
       if (strayIds.length > 0) {
         await withRetry(
-          () => client.deleteObjects({ indexName, objectIDs: strayIds }),
+          () => client.deleteObjects({ indexName, objectIDs: strayIds, waitForTasks: true }),
           'deleteObjects',
         );
       }
@@ -162,6 +182,64 @@ export const reindexSearch = onCall(
 function parseDryRun(raw: unknown): boolean {
   if (typeof raw !== 'object' || raw === null) return true;
   return (raw as Record<string, unknown>)['dryRun'] !== false;
+}
+
+function settingsNeedUpdate(desired: IndexSettings, current: IndexSettings | null): boolean {
+  if (!current) return true;
+  const currentRecord = current as Record<string, unknown>;
+  for (const [key, value] of Object.entries(desired)) {
+    if (!(key in currentRecord) || currentRecord[key] === undefined) {
+      return true;
+    }
+    if (JSON.stringify(currentRecord[key]) !== JSON.stringify(value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function readCurrentSettings(
+  client: SearchClient,
+  indexName: string,
+  label: string,
+): Promise<IndexSettings | null> {
+  try {
+    return await withRetry(() => client.getSettings({ indexName }), label);
+  } catch (error: unknown) {
+    const status =
+      typeof error === 'object' && error !== null
+        ? ((error as { status?: unknown; statusCode?: unknown }).status ??
+          (error as { statusCode?: unknown }).statusCode)
+        : undefined;
+    if (status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function applyIndexSettings(
+  client: SearchClient,
+  options: {
+    readonly indexName: string;
+    readonly indexSettings: IndexSettings;
+    readonly forwardToReplicas?: boolean;
+    readonly waitForTasks: true;
+  },
+  label: string,
+): Promise<void> {
+  await withRetry(async () => {
+    const response = await client.setSettings({
+      indexName: options.indexName,
+      indexSettings: options.indexSettings,
+      ...(options.forwardToReplicas !== undefined
+        ? { forwardToReplicas: options.forwardToReplicas }
+        : {}),
+    });
+    if (options.waitForTasks) {
+      await client.waitForTask({ indexName: options.indexName, taskID: response.taskID });
+    }
+  }, label);
 }
 
 async function clearSearchSyncErrors(db: Firestore): Promise<void> {
