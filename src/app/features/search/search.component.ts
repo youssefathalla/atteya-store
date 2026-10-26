@@ -210,7 +210,7 @@ export class SearchComponent implements OnInit {
       let lastReturnRefreshMs = Date.now();
       const onReturn = () => {
         const now = Date.now();
-        if (now - lastReturnRefreshMs < 1_000) return;
+        if (now - lastReturnRefreshMs < 30_000) return;
         lastReturnRefreshMs = now;
         this.#refresh();
       };

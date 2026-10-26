@@ -5,6 +5,7 @@ import { ProductService } from '@core/services/products';
 import { matchProduct, type Offer } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { type TransferOffer, toTransferOffer } from '@core/services/offers/offer-transfer';
+import { OffersService } from '@core/services/offers/offers.service';
 import { PublicOffersReader } from '@core/services/offers/public-offers.reader';
 import {
   type ProductPageResult,
@@ -19,6 +20,7 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   const offersReader = inject(PublicOffersReader);
   const transfer = inject(TransferState);
   const isServer = isPlatformServer(inject(PLATFORM_ID));
+  const liveOffers = isServer ? null : inject(OffersService);
   const responseInit = inject(RESPONSE_INIT, { optional: true });
 
   const slug = (route.paramMap.get('slug') ?? '').trim();
@@ -34,7 +36,10 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   if (!slug || slug.length > MAX_SLUG_LENGTH) {
     result = { status: 'missing' };
   } else {
-    const offersPromise = offersReader.fetchActivePublic().catch(() => null);
+    const offersPromise =
+      liveOffers && liveOffers.ready() && !liveOffers.failed()
+        ? Promise.resolve(liveOffers.all())
+        : offersReader.fetchActivePublic().catch(() => null);
     try {
       const product = await products.getBySlug(slug);
       if (!product) {

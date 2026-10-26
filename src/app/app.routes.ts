@@ -19,12 +19,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/category/category.component').then((m) => m.CategoryComponent),
         title: 'Category | Atteya Store',
+        data: { preload: true },
       },
       {
         path: 'category/:slug/:subSlug',
         loadComponent: () =>
           import('./features/category/category.component').then((m) => m.CategoryComponent),
         title: 'Category | Atteya Store',
+        data: { preload: true },
       },
       {
         path: 'brands',
@@ -37,7 +39,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/category/category.component').then((m) => m.CategoryComponent),
         title: 'Brand | Atteya Store',
-        data: { isBrand: true },
+        data: { isBrand: true, preload: true },
       },
       {
         path: 'product/:slug',
@@ -46,12 +48,14 @@ export const routes: Routes = [
         resolve: { page: productPageResolver },
         runGuardsAndResolvers: 'always',
         title: 'Product | Atteya Store',
+        data: { preload: true },
       },
       {
         path: 'search',
         loadComponent: () =>
           import('./features/search/search.component').then((m) => m.SearchComponent),
         title: 'Search | Atteya Store',
+        data: { preload: true },
       },
       {
         path: 'login',

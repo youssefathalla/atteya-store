@@ -30,8 +30,8 @@
             [appImageFallback]="imgSrc"
             [alt]="slide.imageAlt || slide.headline"
             fill
-            priority
-            sizes="100vw"
+            [priority]="idx === 0"
+            [sizes]="imageSizes()"
             class="object-cover object-center"
           />
 
