@@ -1,0 +1,42 @@
+<h2 mat-dialog-title class="font-title-lg font-bold!">Stock</h2>
+<form novalidate (submit)="onSave($event)">
+  <mat-dialog-content class="elements-start-col gap-3">
+    <p class="font-body-md">{{ data.product.name }}</p>
+    @if (flatTotal !== null) {
+      <p class="font-body-sm">
+        Stock is saved as one total ({{ flatTotal }}). Enter it per size.
+      </p>
+    }
+    @for (row of rows; track row.id) {
+      <div class="w-full elements-start-col gap-1">
+        <label class="font-label-md" [attr.for]="inputId(row.id)">{{ row.label }}</label>
+        <input
+          [id]="inputId(row.id)"
+          type="number"
+          min="0"
+          max="100000"
+          step="1"
+          inputmode="numeric"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+          [value]="count(row.id)"
+          [attr.aria-invalid]="fieldError(row.id) ? true : null"
+          (input)="onCountInput(row.id, $event)"
+        />
+        @if (fieldError(row.id); as message) {
+          <p class="font-body-sm" role="alert">{{ message }}</p>
+        }
+      </div>
+    }
+    <p class="font-body-md">Total: {{ totalText() }}</p>
+    @if (availabilityText(); as status) {
+      <p class="font-body-md">{{ status }}</p>
+    }
+    <p class="font-body-sm">{{ savedSummary }}</p>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button matButton="text" type="button" [mat-dialog-close]="null">Cancel</button>
+    <button matButton="filled" type="submit" [disabled]="!canSave()">
+      <span>Save</span>
+    </button>
+  </mat-dialog-actions>
+</form>
