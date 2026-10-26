@@ -36,6 +36,32 @@ ng build
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
+## Fonts
+
+The first page preloads two subset fonts instead of the full Google Sans Flex file (1,887,540 bytes) and the full Material Symbols Outlined file (3,827,840 bytes). Google Sans Flex keeps Latin, weights 400–800, and optical size. Material Symbols keeps the names in `scripts/fonts/material-symbols.icons.txt`. The subset files use new names so a year-long cache does not keep serving the old fonts.
+
+Add a new icon to that list, regenerate the symbols file, and preflight will remind you when the code uses a name that is not on the list.
+
+Material Symbols, from the sorted list (`icon_names` must be alphabetical). The CSS response contains one `fonts.gstatic.com` woff2 URL; save that file as `public/fonts/material-symbols-outlined-subset.woff2`.
+
+```bash
+names=$(paste -sd, scripts/fonts/material-symbols.icons.txt)
+curl -fsSL \
+  -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36' \
+  -o /tmp/material-symbols.css \
+  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400..600,0..1,-25&icon_names=${names}&display=block"
+```
+
+Google Sans Flex, from the full variable font (the old `public/fonts/google-sans-flex.woff2`). `python3 -m pip install fonttools brotli` once. The source font has no Arabic glyphs, so this subset does not add Arabic ranges.
+
+```bash
+python3 -m fontTools.varLib.instancer public/fonts/google-sans-flex.woff2 wght=400:800 wdth=drop GRAD=drop ROND=drop slnt=drop -o /tmp/gsf.ttf
+python3 -m fontTools.subset /tmp/gsf.ttf \
+  --unicodes="U+0000-00FF,U+0100-017F,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+2000-206F,U+20AC,U+2122,U+2190-2199,U+2212,U+2215,U+FEFF,U+FFFD" \
+  --layout-features="*" \
+  --flavor=woff2 \
+  --output-file=public/fonts/google-sans-flex-subset.woff2
+```
 
 ## Additional Resources
 
