@@ -140,7 +140,7 @@ export class ProductEditorPageComponent implements OnInit {
         this.#admin.listAllCategories(),
         this.#admin.listAllBrands(),
       ]);
-      let groups: readonly string[] = [];
+      let groups: readonly string[];
       try {
         groups = await this.#admin.listModelGroups();
       } catch {
