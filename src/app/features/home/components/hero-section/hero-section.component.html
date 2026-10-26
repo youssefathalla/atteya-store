@@ -5,7 +5,7 @@
   aria-label="Featured Training Gear"
 >
   <div class="scroll-row h-full" [attr.data-layout]="count">
-    @for (slide of visibleSlides(); track $index; let idx = $index) {
+    @for (slide of visibleSlides(); track hero().layoutCount + ':' + $index; let idx = $index) {
       @let imgSrc = getSlideDisplaySrc(slide);
       @let isInteractive = previewMode() && count > 1;
       @let isSelectedSlot = isInteractive && activeSlotIndex() === idx;

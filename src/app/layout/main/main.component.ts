@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Component, DestroyRef, inject, PLATFORM_ID, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   NavigationCancel,
@@ -31,13 +32,23 @@ import { DrawerService } from '@core/services/drawer/drawer.service';
 export class MainLayoutComponent {
   readonly drawerService = inject(DrawerService);
   readonly #router = inject(Router);
+  readonly #destroyRef = inject(DestroyRef);
+  readonly #platformId = inject(PLATFORM_ID);
   readonly navigating = signal(false);
 
   // Responsive signal to differentiate desktop side drawer vs mobile bottom slide-up
   readonly isDesktop = useBreakpoint(1024);
 
   constructor() {
+    if (!isPlatformBrowser(this.#platformId)) {
+      return;
+    }
+
     let timer: ReturnType<typeof setTimeout> | null = null;
+    this.#destroyRef.onDestroy(() => {
+      if (timer) clearTimeout(timer);
+    });
+
     this.#router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
       if (event instanceof NavigationStart) {
         if (timer) clearTimeout(timer);
