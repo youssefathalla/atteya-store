@@ -274,6 +274,32 @@ export class ProductsManagerComponent implements OnInit {
     }
   }
 
+  async editStock(id: string): Promise<void> {
+    if (this.activity()) return;
+    let product: Product | null;
+    try {
+      product = await this.#admin.getProduct(id);
+    } catch (error: unknown) {
+      this.#snackbar.error(importActionError(error));
+      return;
+    }
+    if (!product) {
+      this.#snackbar.error('This product no longer exists.');
+      await this.reloadCatalogue();
+      return;
+    }
+    const change = await this.#dialogs.openStock(product);
+    if (!change) return;
+    try {
+      const result = await this.#admin.saveStock(id, change);
+      const outOfStock = result.inStock ? '' : ' (out of stock)';
+      this.#snackbar.success(`Stock saved. Total ${result.stock}${outOfStock}.`);
+      await this.reloadCatalogue();
+    } catch (error: unknown) {
+      this.#snackbar.error(importActionError(error));
+    }
+  }
+
   private async reloadCatalogue(): Promise<void> {
     this.productsResource.reload();
     await this.pagination.refresh();
