@@ -17,6 +17,7 @@ const MIME_TO_EXT: Record<string, string> = {
 
 interface ImportImageRequest {
   readonly url?: unknown;
+  readonly path?: unknown;
   readonly folder?: unknown;
 }
 
@@ -51,7 +52,8 @@ function hostForLog(raw: unknown): string {
 
 /**
  * 2nd-gen Callable Cloud Function that fetches an external https image
- * server-to-server, checks its type and size, and saves it into Storage.
+ * server-to-server, checks its type and size, and saves it into Storage,
+ * or copies one of our own stored images into the folder.
  * Admin only. The fetch refuses private networks, odd ports, and redirects
  * that were not checked again.
  */
@@ -61,6 +63,13 @@ export const importImageFromUrl = onCall(
     await requireRole(request, 'admin');
     const body = (request.data ?? {}) as ImportImageRequest;
     const folder = sanitizeFolder(body.folder ?? 'hero');
+
+    if (body.path !== undefined) {
+      if (body.url !== undefined) {
+        throw new HttpsError('invalid-argument', 'Send an image link or a file path, not both.');
+      }
+      return copyStoredImage(readSourcePath(body.path), folder, request.auth?.uid);
+    }
 
     const host = hostForLog(body.url);
     const uid = request.auth?.uid;
@@ -113,3 +122,72 @@ export const importImageFromUrl = onCall(
     return { path: uniquePath };
   },
 );
+
+const SOURCE_PATH_MESSAGE = 'That file path does not look right.';
+
+function readSourcePath(raw: unknown): string {
+  if (typeof raw !== 'string') {
+    throw new HttpsError('invalid-argument', SOURCE_PATH_MESSAGE);
+  }
+  const path = raw.trim();
+  const root = path.split('/')[0] ?? '';
+  const extensionOk = /\.(jpg|jpeg|png|webp|avif)$/i.test(path);
+  if (
+    path.length < 1 ||
+    path.length > 300 ||
+    path.startsWith('/') ||
+    path.includes('..') ||
+    path.includes('://') ||
+    path.includes('\\') ||
+    !ALLOWED_FOLDERS.has(root) ||
+    !extensionOk
+  ) {
+    throw new HttpsError('invalid-argument', SOURCE_PATH_MESSAGE);
+  }
+  return path;
+}
+
+async function copyStoredImage(
+  sourcePath: string,
+  folder: string,
+  uid: string | undefined,
+): Promise<ImportImageResponse> {
+  const bucket = getStorage().bucket();
+  const source = bucket.file(sourcePath);
+  const [exists] = await source.exists();
+  if (!exists) {
+    throw new HttpsError(
+      'not-found',
+      "We couldn't find an image at that location. Please check the file path and try again.",
+    );
+  }
+
+  const [meta] = await source.getMetadata();
+  const contentType = typeof meta.contentType === 'string' ? meta.contentType : '';
+  const ext = MIME_TO_EXT[contentType];
+  if (!ext) {
+    throw new HttpsError(
+      'invalid-argument',
+      'That link does not point to a supported image file (JPG, PNG, WebP, or AVIF).',
+    );
+  }
+  if (Number(meta.size) > MAX_IMAGE_BYTES) {
+    throw new HttpsError(
+      'invalid-argument',
+      'That image is larger than the 10MB limit. Please choose a smaller image.',
+    );
+  }
+
+  const dest = `${folder}/imported-${Date.now()}.${ext}`;
+  try {
+    await source.copy(bucket.file(dest), {
+      contentType,
+      cacheControl: 'public, max-age=31536000, immutable',
+    });
+  } catch {
+    logger.warn('Image copy could not be saved', { uid, reason: 'storage-copy' });
+    throw new HttpsError('unavailable', 'The image could not be saved. Please try again.');
+  }
+
+  return { path: dest };
+}
