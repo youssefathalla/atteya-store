@@ -1,7 +1,6 @@
 import { inject, Service } from '@angular/core';
 import { httpsCallable } from 'firebase/functions';
 import {
-  arrayUnion,
   collection,
   doc,
   getCountFromServer,
@@ -10,9 +9,7 @@ import {
   limit,
   orderBy,
   query,
-  serverTimestamp,
   startAfter,
-  updateDoc,
   where,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
@@ -26,14 +23,16 @@ import {
 } from '@core/services/products/product.constants';
 import type { Brand, Category, Product } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
-import {
-  buildSearchTokens,
-  longestSearchWord,
-  searchWordsFromTerm,
-} from '@core/services/products/search-tokens';
+import { longestSearchWord, searchWordsFromTerm } from '@core/services/products/search-tokens';
 import { SearchService } from '@core/services/search';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
-import type { ProductEditDraft, StockChange, StockResult } from '../models/product-admin.model';
+import type {
+  CreateProductPayload,
+  SaveProductResult,
+  StockChange,
+  StockResult,
+  UpdateProductPayload,
+} from '../models/product-admin.model';
 
 const LIST_PAGE_SIZE = 500;
 const SEARCH_QUERY_LIMIT = 201;
@@ -43,6 +42,11 @@ const StockResultSchema = v.object({
   stock: wholeNumber,
   stockBySize: v.nullable(v.record(v.string(), wholeNumber)),
   inStock: v.boolean(),
+});
+
+const SaveProductResultSchema = v.object({
+  id: v.pipe(v.string(), v.minLength(1)),
+  slug: v.pipe(v.string(), v.minLength(1)),
 });
 
 type SetStockPayload = { readonly productId: string } & StockChange;
@@ -62,6 +66,18 @@ export class ProductsAdminService {
     this.#functions,
     'setProductStock',
   );
+  readonly #createCallable = httpsCallable<CreateProductPayload, unknown>(
+    this.#functions,
+    'createProduct',
+  );
+  readonly #updateCallable = httpsCallable<UpdateProductPayload, unknown>(
+    this.#functions,
+    'updateProduct',
+  );
+
+  newProductId(): string {
+    return doc(collection(this.#firestore, PRODUCTS_COLLECTION)).id;
+  }
 
   async listAllProducts(): Promise<readonly Product[]> {
     const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(
@@ -153,75 +169,14 @@ export class ProductsAdminService {
     return snap.exists() ? snap.data() : null;
   }
 
-  async saveProduct(original: Product, next: ProductEditDraft): Promise<boolean> {
-    const ref = doc(this.#firestore, PRODUCTS_COLLECTION, original.id).withConverter(
-      this.#productConverter,
-    );
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      throw new Error('This product no longer exists. Reload the page.');
-    }
-    const fresh = snap.data();
+  async createProduct(payload: CreateProductPayload): Promise<SaveProductResult> {
+    const result = await this.#createCallable(payload);
+    return this.#parseSaveResult(result.data);
+  }
 
-    const changes: Record<string, string | boolean | null | readonly string[]> = {};
-    const locked: string[] = [];
-
-    if (next.type !== original.type && next.type !== fresh.type) {
-      changes['type'] = next.type;
-      locked.push('type');
-    }
-
-    const categoryUserChanged =
-      next.categoryId !== original.categoryId ||
-      !sameStringList(next.categoryIds, original.categoryIds);
-    const categoryDiffersFromDb =
-      next.categoryId !== fresh.categoryId ||
-      !sameStringList(next.categoryIds, fresh.categoryIds);
-    if (next.categoryPicked || (categoryUserChanged && categoryDiffersFromDb)) {
-      changes['categoryId'] = next.categoryId;
-      changes['categoryIds'] = [...next.categoryIds];
-      if (next.categoryPicked) locked.push('categoryIds');
-    }
-
-    if (next.brandId !== original.brandId && next.brandId !== fresh.brandId) {
-      changes['brandId'] = next.brandId;
-      locked.push('brandId');
-    }
-    if (
-      (next.modelGroup ?? '') !== (original.modelGroup ?? '') &&
-      (next.modelGroup ?? '') !== (fresh.modelGroup ?? '')
-    ) {
-      changes['modelGroup'] = next.modelGroup;
-      locked.push('modelGroup');
-      changes['searchTokens'] = buildSearchTokens(fresh.name, next.modelGroup);
-    }
-    if (
-      !sameStringList(next.colors, original.colors ?? []) &&
-      !sameStringList(next.colors, fresh.colors ?? [])
-    ) {
-      changes['colors'] = [...next.colors];
-      locked.push('colors');
-    }
-    if (
-      !sameStringList(next.tags, original.tags ?? []) &&
-      !sameStringList(next.tags, fresh.tags ?? [])
-    ) {
-      changes['tags'] = [...next.tags];
-      locked.push('tags');
-    }
-    if (next.published !== original.published && next.published !== fresh.published) {
-      changes['published'] = next.published;
-      locked.push('published');
-    }
-    if (Object.keys(changes).length === 0) return false;
-
-    await updateDoc(doc(this.#firestore, PRODUCTS_COLLECTION, original.id), {
-      ...changes,
-      ...(locked.length > 0 ? { lockedFields: arrayUnion(...locked) } : {}),
-      updatedAt: serverTimestamp(),
-    });
-    await this.#searchService.clearCache();
-    return true;
+  async updateProduct(payload: UpdateProductPayload): Promise<SaveProductResult> {
+    const result = await this.#updateCallable(payload);
+    return this.#parseSaveResult(result.data);
   }
 
   async saveStock(productId: string, change: StockChange): Promise<StockResult> {
@@ -233,9 +188,13 @@ export class ProductsAdminService {
     await this.#searchService.clearCache();
     return parsed.output;
   }
-}
 
-function sameStringList(left: readonly string[], right: readonly string[]): boolean {
-  if (left.length !== right.length) return false;
-  return left.every((item, index) => item === right[index]);
+  async #parseSaveResult(data: unknown): Promise<SaveProductResult> {
+    const parsed = v.safeParse(SaveProductResultSchema, data);
+    if (!parsed.success) {
+      throw new Error('The product was saved, but the response was unexpected. Reload the page.');
+    }
+    await this.#searchService.clearCache();
+    return parsed.output;
+  }
 }
