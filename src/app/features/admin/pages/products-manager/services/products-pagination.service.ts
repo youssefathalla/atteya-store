@@ -301,6 +301,10 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
     try {
       await this.#refreshTotal(requestId);
       if (!this.#isCurrentRequest(requestId)) return;
+      if (this.#currentPage() > this.totalPages()) {
+        await this.#loadLastPage();
+        return;
+      }
       const snap = await getDocs(
         query(
           this.#productsCollection(),
