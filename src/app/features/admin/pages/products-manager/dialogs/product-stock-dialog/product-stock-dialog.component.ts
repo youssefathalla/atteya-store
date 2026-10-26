@@ -20,6 +20,7 @@ interface StockInputRow {
 interface StockFormState {
   readonly sized: boolean;
   readonly hadMap: boolean;
+  readonly stockUnset: boolean;
   readonly rows: readonly StockInputRow[];
   readonly flatTotal: number | null;
   readonly savedSummary: string;
@@ -37,14 +38,20 @@ export class ProductStockDialogComponent {
   readonly #form = buildStockForm(this.data.product);
   readonly #sized = this.#form.sized;
   readonly #hadMap = this.#form.hadMap;
+  readonly #stockUnset = this.#form.stockUnset;
+  readonly #initial = this.#form.initial;
+  readonly #sizeEdited = signal(false);
   readonly rows = this.#form.rows;
   readonly flatTotal = this.#form.flatTotal;
   readonly savedSummary = this.#form.savedSummary;
   readonly draft = signal(this.#form.initial);
 
-  readonly canSave = computed(() =>
-    this.rows.every((row) => parseCount(this.draft()[row.id] ?? '') !== null),
-  );
+  readonly canSave = computed(() => {
+    const countsAreValid = this.rows.every((row) => parseCount(this.draft()[row.id] ?? '') !== null);
+    if (!countsAreValid) return false;
+    if (this.#sized && !this.#hadMap) return this.#sizeEdited();
+    return true;
+  });
 
   readonly total = computed(() => {
     let sum = 0;
@@ -82,6 +89,7 @@ export class ProductStockDialogComponent {
   onCountInput(id: string, event: Event): void {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
+    if (target.value !== (this.#initial[id] ?? '')) this.#sizeEdited.set(true);
     this.draft.update((current) => ({ ...current, [id]: target.value }));
   }
 
@@ -95,7 +103,8 @@ export class ProductStockDialogComponent {
     if (!this.#sized) {
       const next = parseCount(this.draft()['stock'] ?? '');
       const prefill = this.rows[0]?.prefill ?? 0;
-      if (next === null || next === prefill) return null;
+      if (next === null) return null;
+      if (!this.#stockUnset && next === prefill) return null;
       return { stock: next };
     }
 
@@ -137,6 +146,7 @@ function buildStockForm(product: Product): StockFormState {
   return {
     sized: sizeRows.length > 0,
     hadMap,
+    stockUnset: sizeRows.length === 0 && typeof product.stock !== 'number',
     rows,
     flatTotal,
     savedSummary: savedSummary(product),
