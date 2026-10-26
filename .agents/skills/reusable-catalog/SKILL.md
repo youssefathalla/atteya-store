@@ -80,7 +80,7 @@ All controls integrate seamlessly with **Angular 22 Signal Forms**.
 - `<app-loader>`: Standardized loading spinner overlay for blocking actions/overlays.
 - `<app-skeleton [overlay]="false" />` (`src/app/shared/ui/skeleton/`): Reusable light-mode M3 shimmer placeholder (`aspect-4/5`, `aspect-16/9`, `aspect-square`, etc.) & overlay veil. When `overlay` is present (`<app-skeleton overlay />`), becomes an `absolute inset-0 size-full z-50 bg-surface` veil that covers buttons and text underneath so nothing shows through or can be clicked while loading.
 - `<app-image-picker folder="hero" [asset]="asset()" (assetChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-picker/`): Single-image uploader + web URL importer + alt text field + live preview. Alt text is required unless `[altOptional]="true"` (decorative photos, such as the homepage category list). `[aspectClass]` sets the preview frame (`aspect-4/5` for that list). Folder `categories` is allowed.
-- `<app-image-gallery-editor [folder]="'products/' + productId" [images]="images()" (imagesChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-gallery-editor/`): Multi-image gallery editor (up to 8 images, CDK drag-drop reorder, index 0 badged as "Main Image", required per-image alt text).
+- `<app-image-gallery-editor [folder]="'products/' + productId" [images]="images()" [defaultAlt]="name" (imagesChange)="..." (uploaded)="..." />` (`src/app/shared/ui/image-gallery-editor/`): Multi-image gallery editor (up to 8 images, CDK drag-drop reorder, index 0 badged as "Main Image", required per-image alt text). `[defaultAlt]` is the alt text for a photo added from a link (spaces collapsed, 125 characters), or "Product image" when it is empty. Uploaded files still use the file name.
 
 ---
 
@@ -205,10 +205,11 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 - **`ImageSourceService`** (`src/app/core/services/storage/image-source.service.ts`):
   - **Primary entry point for admin image uploads & URL resolution.**
   - `uploadFile(file, folder)`: Validates format (JPG/PNG/WebP/AVIF, max 10MB, no SVG), reads local dimensions, uploads to Storage, and probes ImageKit delivery.
-  - `resolveInput(raw, folder)`: Parses user input (`parseImageInput`), verifies managed paths via a CORS-safe `new Image()` ImageKit probe, or imports external URLs via the `importImageFromUrl` Cloud Function. Throws plain-language `ImageInputError`, including `NOT_ALLOWED` when Storage or the callable rejects the caller.
+  - `resolveInput(raw, folder)`: Parses user input (`parseImageInput`). A managed path already in `folder` is kept after an ImageKit reachability check. A managed path outside that folder, and an external URL, go through `importImageFromUrl` (copy or fetch). Width and height are the natural size, never the 64px probe. Throws plain-language `ImageInputError`, including `NOT_ALLOWED` when Storage or the callable rejects the caller, and `NOT_FOUND` when the file is missing.
 - **`StorageUploadService`** (`src/app/core/services/storage/storage-upload.service.ts`):
   - `uploadImage(file, folder = 'hero')`: Uploads image (`File`) to Firebase Storage via `uploadBytes()`, returning `{ path: string }` (does not call `getDownloadURL()`).
   - `importFromUrl(url, folder = 'hero')`: Calls the `importImageFromUrl` 2nd-gen Callable Cloud Function (`functions/src/import-image.fn.ts`) and returns its path. There is no browser fetch fallback. The function is admin-only, https on port 443, at most 3 re-checked redirects, a 10 second deadline, a 10 MB streamed cap, and magic-byte checks for JPEG, PNG, WebP, and AVIF. Deploys build `functions/` first via the `firebase.json` predeploy.
+  - `copyStoredImage(path, folder)`: Calls the same `importImageFromUrl` callable with `{ path, folder }` so the server copies one of our own files into that folder. A path already inside the folder is not sent here.
   - `deleteImage(pathOrUrl)` / `deleteImages(paths)`: Deletes managed Storage files while ignoring `/img/`, external URLs, or `PROTECTED_STORAGE_PATHS`.
   - `isUploading`: Read-only `Signal<boolean>` tracking active upload status.
 - **`StorageAssetTracker`** (`src/app/core/services/storage/storage-asset-tracker.ts`):
