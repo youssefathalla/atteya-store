@@ -10,6 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { Router } from '@angular/router';
 import { SeoService } from '@core/services/seo';
 import type { Product } from '@core/services/products/product.model';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
@@ -22,13 +23,7 @@ import { ProductsDialogService } from './services/products-dialog.service';
 import { ProductsImportService } from './services/products-import.service';
 import { ProductsPaginationService } from './services/products-pagination.service';
 import { importActionError } from './utils/import-error';
-import {
-  buildBrandOptions,
-  buildLeafCategoryOptions,
-  filterProductRows,
-  importSummary,
-  toProductTableRow,
-} from './utils/product-admin.utils';
+import { filterProductRows, importSummary, toProductTableRow } from './utils/product-admin.utils';
 
 @Component({
   selector: 'app-products-manager',
@@ -39,6 +34,7 @@ import {
 })
 export class ProductsManagerComponent implements OnInit {
   readonly #seo = inject(SeoService);
+  readonly #router = inject(Router);
   readonly #admin = inject(ProductsAdminService);
   readonly pagination = inject(ProductsPaginationService);
   readonly #dialogs = inject(ProductsDialogService);
@@ -100,14 +96,6 @@ export class ProductsManagerComponent implements OnInit {
   });
   readonly progressLabel = this.#importer.progressLabel;
   readonly progressValue = this.#importer.progressValue;
-
-  readonly categoryOptions = computed(() =>
-    buildLeafCategoryOptions(this.productsResource.value()?.categories ?? []),
-  );
-
-  readonly brandOptions = computed(() =>
-    buildBrandOptions(this.productsResource.value()?.brands ?? []),
-  );
 
   readonly rows = computed(() =>
     this.isSearchMode() ? (this.searchResource.value()?.rows ?? []) : this.pagination.items(),
@@ -173,7 +161,7 @@ export class ProductsManagerComponent implements OnInit {
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Products | Atteya Admin',
-      description: 'Review store products and bring them in from EasyOrders.',
+      description: 'Add, edit and import store products.',
       noindex: true,
     });
     if (isPlatformBrowser(this.#platformId)) {
@@ -238,40 +226,14 @@ export class ProductsManagerComponent implements OnInit {
     }
   }
 
-  async editProduct(id: string): Promise<void> {
+  addProduct(): void {
     if (this.activity()) return;
-    let product: Product | null;
-    try {
-      product = await this.#admin.getProduct(id);
-    } catch (error: unknown) {
-      this.#snackbar.error(importActionError(error));
-      return;
-    }
-    if (!product) {
-      this.#snackbar.error('This product no longer exists.');
-      await this.reloadCatalogue();
-      return;
-    }
-    let modelGroups: readonly string[] = [];
-    try {
-      modelGroups = await this.#admin.listModelGroups();
-    } catch (error: unknown) {
-      this.#snackbar.error(importActionError(error));
-    }
-    const next = await this.#dialogs.openEdit(
-      product,
-      modelGroups,
-      this.categoryOptions(),
-      this.brandOptions(),
-    );
-    if (!next) return;
-    try {
-      const changed = await this.#admin.saveProduct(product, next);
-      this.#snackbar.success(changed ? 'Product saved.' : 'No changes to save.');
-      await this.reloadCatalogue();
-    } catch (error: unknown) {
-      this.#snackbar.error(importActionError(error));
-    }
+    void this.#router.navigate(['/admin/products/new']);
+  }
+
+  editProduct(id: string): void {
+    if (this.activity()) return;
+    void this.#router.navigate(['/admin/products', id]);
   }
 
   async editStock(id: string): Promise<void> {
