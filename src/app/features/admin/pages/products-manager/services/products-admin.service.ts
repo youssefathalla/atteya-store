@@ -22,6 +22,7 @@ import {
   PRODUCTS_COLLECTION,
 } from '@core/services/products/product.constants';
 import type { Brand, Category, Product } from '@core/services/products/product.model';
+import { ProductCacheService } from '@core/services/products/product-cache.service';
 import { ProductSchema } from '@core/services/products/product.schema';
 import { longestSearchWord, searchWordsFromTerm } from '@core/services/products/search-tokens';
 import { SearchService } from '@core/services/search';
@@ -61,6 +62,7 @@ export class ProductsAdminService {
   readonly #firestore = injectFirestore();
   readonly #functions = injectFunctions();
   readonly #searchService = inject(SearchService);
+  readonly #productCache = inject(ProductCacheService);
   readonly #productConverter = createValibotConverter(ProductSchema);
   readonly #setStockCallable = httpsCallable<SetStockPayload, unknown>(
     this.#functions,
@@ -171,12 +173,16 @@ export class ProductsAdminService {
 
   async createProduct(payload: CreateProductPayload): Promise<SaveProductResult> {
     const result = await this.#createCallable(payload);
-    return this.#parseSaveResult(result.data);
+    const saved = await this.#parseSaveResult(result.data);
+    this.#productCache.clear();
+    return saved;
   }
 
   async updateProduct(payload: UpdateProductPayload): Promise<SaveProductResult> {
     const result = await this.#updateCallable(payload);
-    return this.#parseSaveResult(result.data);
+    const saved = await this.#parseSaveResult(result.data);
+    this.#productCache.clear();
+    return saved;
   }
 
   async saveStock(productId: string, change: StockChange): Promise<StockResult> {

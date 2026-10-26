@@ -194,7 +194,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `updateNavigation(categories)`, `seedDefaultNavigation()`.
 - **`ProductCacheService`** (`src/app/core/services/products/product-cache.service.ts`):
   - Browser-only in-memory cache of published products, keyed by slug. 60 seconds, 50 entries, dropped on reload. Failed reads are not stored. `null` (not found) is stored for the same 60 seconds.
-  - The server never reads or writes it. `getBySlug(slug)` shares an in-flight read. `prefetch(slug)` is fire-and-forget and skips Save-Data, 2G, an empty slug, and a slug longer than 200 characters. `seed(products)` stores docs a page already loaded (`published === true` only).
+  - The server never reads or writes it. `getBySlug(slug)` shares an in-flight read. `prefetch(slug)` is fire-and-forget and skips Save-Data, 2G, an empty slug, and a slug longer than 200 characters. `seed(products)` stores docs a page already loaded (`published === true` only). `clear()` drops every entry after an admin product save or a successful stock save in the same tab.
   - The product resolver uses it on the client only, after the TransferState hand-off, so hydration does not read twice. Search cards and colour siblings prefetch through `appPrefetchProduct`. Siblings call `seed()` with `listModelGroup`.
 - **`ProductService`** (`src/app/core/services/products/product.service.ts`):
   - Public catalogue reads. Every query includes `where('published', '==', true)`.
@@ -226,7 +226,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 
 - **`PrefetchProductDirective`** (`src/app/shared/directives/prefetch-product`):
   - Selector: `[appPrefetchProduct]="slug"` on a product link.
-  - Mouse: prefetch after a 100 ms rest, or immediately on `pointerdown`. Wheel-scroll and a quick leave reset that rest, so a scroll under the cursor does not read every card. Touch: prefetch only if the finger stays within 8 px (a drag is a scroll). Keyboard: `:focus-visible` only. No-op on Save-Data and 2G via `ProductCacheService.prefetch`.
+  - Mouse: prefetch after a 100 ms rest, or immediately on `pointerdown`. Wheel and pointer-move are passive listeners added after render (not host bindings). A wheel-scroll or a quick leave resets that rest. Touch: prefetch only if the finger stays within 8 px. Keyboard: `:focus-visible`, then the same 100 ms rest; `focusout` cancels it. No-op on Save-Data and 2G via `ProductCacheService.prefetch`.
 - **`AppImageFallbackDirective`** (`src/app/shared/directives/image-fallback`):
   - Selector: `img[appImageFallback]` (bind `<img [ngSrc]="path" [appImageFallback]="path" ... />`).
   - Automatically displays a monochrome `.skeleton` shimmer while the image loads, and fails over once to `buildStorageUrl(path)` if ImageKit CDN fails or is still syncing.

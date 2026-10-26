@@ -1,4 +1,4 @@
-import { DestroyRef, Directive, ElementRef, inject, input } from '@angular/core';
+import { afterNextRender, DestroyRef, Directive, ElementRef, inject, input } from '@angular/core';
 import { ProductCacheService } from '@core/services/products/product-cache.service';
 
 const HOVER_DELAY_MS = 100;
@@ -15,7 +15,7 @@ interface Press {
  * Mouse: 100 ms rest, or immediate pointerdown. A sweep or wheel-scroll resets that rest,
  * so cards passing under the cursor are not all fetched.
  * Touch: the read starts once the finger has stayed still (a drag is a scroll and is ignored).
- * Keyboard: focus-visible only, so a touch that focuses the link does not count as a second path.
+ * Keyboard: focus-visible, after the same 100 ms rest, so tabbing through a grid does not read every card.
  */
 @Directive({
   selector: '[appPrefetchProduct]',
@@ -23,11 +23,10 @@ interface Press {
     '(pointerenter)': 'onEnter($event)',
     '(pointerleave)': 'cancel()',
     '(pointerdown)': 'onDown($event)',
-    '(pointermove)': 'onMove($event)',
     '(pointerup)': 'onUp()',
     '(pointercancel)': 'cancelPress()',
-    '(wheel)': 'onWheel()',
     '(focusin)': 'onFocus()',
+    '(focusout)': 'cancel()',
   },
 })
 export class PrefetchProductDirective {
@@ -40,7 +39,20 @@ export class PrefetchProductDirective {
   #press: Press | null = null;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.cancel());
+    const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => this.cancel());
+    // Host bindings are not passive and mark the view dirty. Wheel and move fire every frame.
+    afterNextRender(() => {
+      const el = this.#host.nativeElement;
+      const onWheel = (): void => this.onWheel();
+      const onMove = (event: PointerEvent): void => this.onMove(event);
+      el.addEventListener('wheel', onWheel, { passive: true });
+      el.addEventListener('pointermove', onMove, { passive: true });
+      destroyRef.onDestroy(() => {
+        el.removeEventListener('wheel', onWheel);
+        el.removeEventListener('pointermove', onMove);
+      });
+    });
   }
 
   protected onEnter(event: PointerEvent): void {
@@ -94,7 +106,7 @@ export class PrefetchProductDirective {
   protected onFocus(): void {
     if (this.#press) return;
     if (!this.#host.nativeElement.matches(':focus-visible')) return;
-    this.now();
+    this.#arm();
   }
 
   protected now(): void {

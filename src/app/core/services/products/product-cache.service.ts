@@ -49,6 +49,11 @@ export class ProductCacheService {
     void this.getBySlug(slug).catch(() => undefined);
   }
 
+  /** Drop every entry. An admin save in this tab must not keep the previous price or stock. */
+  clear(): void {
+    this.#entries.clear();
+  }
+
   /** Store full docs a page already loaded (published only), e.g. siblings. */
   seed(products: readonly Product[]): void {
     if (!this.#isBrowser) return;

@@ -12,6 +12,7 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 import { SeoService } from '@core/services/seo';
+import { ProductCacheService } from '@core/services/products/product-cache.service';
 import type { Product } from '@core/services/products/product.model';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { ProductsTableComponent } from './components/products-table/products-table.component';
@@ -41,6 +42,7 @@ export class ProductsManagerComponent implements OnInit {
   readonly #importer = inject(ProductsImportService);
   readonly #tools = inject(CatalogToolsService);
   readonly #snackbar = inject(SnackbarService);
+  readonly #productCache = inject(ProductCacheService);
   readonly #platformId = inject(PLATFORM_ID);
 
   readonly search = signal('');
@@ -254,6 +256,7 @@ export class ProductsManagerComponent implements OnInit {
     if (!change) return;
     try {
       const result = await this.#admin.saveStock(id, change);
+      this.#productCache.clear();
       const outOfStock = result.inStock ? '' : ' (out of stock)';
       this.#snackbar.success(`Stock saved. Total ${result.stock}${outOfStock}.`);
       await this.reloadCatalogue();
