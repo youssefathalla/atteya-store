@@ -9,19 +9,12 @@ import {
 import { CatalogMigrateDialogComponent } from '../dialogs/catalog-migrate-dialog/catalog-migrate-dialog.component';
 import { ImportPreviewDialogComponent } from '../dialogs/import-preview-dialog/import-preview-dialog.component';
 import {
-  ProductEditDialogComponent,
-  ProductEditDialogData,
-} from '../dialogs/product-edit-dialog/product-edit-dialog.component';
-import {
   ProductStockDialogComponent,
   ProductStockDialogData,
 } from '../dialogs/product-stock-dialog/product-stock-dialog.component';
 import type {
-  BrandOptionView,
-  CategoryOptionView,
   ImportReport,
   MigrateReport,
-  ProductEditDraft,
   ReindexSearchReport,
   StockChange,
 } from '../models/product-admin.model';
@@ -94,25 +87,6 @@ export class ProductsDialogService {
     );
     const confirmed = await firstValueFrom(dialogRef.afterClosed());
     return !!confirmed;
-  }
-
-  async openEdit(
-    product: Product,
-    groups: readonly string[],
-    categories: readonly CategoryOptionView[],
-    brands: readonly BrandOptionView[],
-  ): Promise<ProductEditDraft | null> {
-    const dialogRef = this.#dialog.open<
-      ProductEditDialogComponent,
-      ProductEditDialogData,
-      ProductEditDraft | null
-    >(ProductEditDialogComponent, {
-      data: { product, groups, categories, brands },
-      width: '480px',
-      maxWidth: '92vw',
-    });
-    const result = await firstValueFrom(dialogRef.afterClosed());
-    return result ?? null;
   }
 
   async openStock(product: Product): Promise<StockChange | null> {
