@@ -13,10 +13,9 @@ export interface UploadResult {
   readonly path: string;
 }
 
-interface CloudImportPayload {
-  readonly url: string;
-  readonly folder: ImageFolderPath;
-}
+type CloudImportPayload =
+  | { readonly url: string; readonly folder: ImageFolderPath }
+  | { readonly path: string; readonly folder: ImageFolderPath };
 
 function sanitizeStorageFilename(name: string): string {
   let clean = name.toLowerCase().replace(/[^a-z0-9.]/g, '-');
@@ -90,6 +89,30 @@ export class StorageUploadService {
     } catch (fnErr: unknown) {
       const message =
         fnErr instanceof Error ? fnErr.message : 'Unable to import image from that web link.';
+      this.#uploadError.set(message);
+      throw fnErr;
+    } finally {
+      this.#isUploading.set(false);
+    }
+  }
+
+  /**
+   * Copies one of our own stored images into `folder` via `importImageFromUrl`.
+   * Server errors are rethrown. The browser never downloads the file itself.
+   */
+  async copyStoredImage(path: string, folder: ImageFolderPath): Promise<UploadResult> {
+    this.#isUploading.set(true);
+    this.#uploadError.set(null);
+
+    try {
+      const callable = httpsCallable<CloudImportPayload, UploadResult>(
+        this.#functions,
+        'importImageFromUrl',
+      );
+      const result = await callable({ path, folder });
+      return { path: result.data.path };
+    } catch (fnErr: unknown) {
+      const message = fnErr instanceof Error ? fnErr.message : 'Unable to copy that image.';
       this.#uploadError.set(message);
       throw fnErr;
     } finally {

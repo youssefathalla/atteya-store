@@ -66,11 +66,17 @@ export function extractManagedStoragePath(rawUrl: string): string | null {
     return stripLeadingSlashes(decodeURIComponent(encodedPath));
   }
 
-  // 3. ImageKit URL matching our configured endpoint
+  // 3. ImageKit URL matching our configured endpoint.
+  // The Angular loader inserts a leading `tr:` segment (`…/tr:w-1080/products/…`).
   if (trimmed.startsWith(`${IMAGEKIT_BASE}/`)) {
     const afterBase = trimmed.slice(IMAGEKIT_BASE.length + 1);
-    const cleanPath = afterBase.split('?')[0].split('#')[0];
-    return stripLeadingSlashes(cleanPath);
+    const segments = stripLeadingSlashes(afterBase.split('?')[0].split('#')[0]).split('/');
+    if (segments[0]?.startsWith('tr:')) segments.shift();
+    try {
+      return segments.map((seg) => decodeURIComponent(seg)).join('/');
+    } catch {
+      return null;
+    }
   }
 
   return null;

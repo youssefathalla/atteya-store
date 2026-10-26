@@ -91,6 +91,7 @@
         [maxImages]="8"
         title="Photos"
         subtitle="Add up to 8 photos. Drag to reorder — the first photo is the one shoppers see first."
+        [defaultAlt]="model().name"
         (imagesChange)="images.set($event)"
         (uploaded)="registerUpload($event)"
       />
@@ -267,15 +268,24 @@
                     <label class="elements-start-col gap-1 font-label-md">
                       Starting stock for {{ size.label }}
                       <input
-                        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-28"
-                        type="number"
+                        class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
+                        [class.border-outline]="!sizeStockError(size)"
+                        [class.border-error]="!!sizeStockError(size)"
+                        type="text"
                         inputmode="numeric"
-                        min="0"
-                        step="1"
+                        autocomplete="off"
                         [attr.aria-label]="'Starting stock for ' + size.label"
+                        [attr.aria-invalid]="sizeStockError(size) ? 'true' : null"
+                        [attr.aria-describedby]="sizeStockError(size) ? 'size-stock-error-' + $index : null"
                         [value]="size.initialStock"
                         (input)="onSizeStock($index, $event)"
+                        (change)="onSizeStock($index, $event)"
                       />
+                      @if (sizeStockError(size)) {
+                        <p [id]="'size-stock-error-' + $index" class="font-body-sm" role="alert">
+                          {{ sizeStockError(size) }}
+                        </p>
+                      }
                     </label>
                   } @else {
                     <p class="font-body-sm">Current stock: {{ countLabel(size) }}</p>
@@ -326,29 +336,42 @@
             Starting stock
             <input
               id="product-starting-stock"
-              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-28"
-              type="number"
+              class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
+              [class.border-outline]="!flatStockError()"
+              [class.border-error]="!!flatStockError()"
+              type="text"
               inputmode="numeric"
-              min="0"
-              step="1"
+              autocomplete="off"
+              [attr.aria-invalid]="flatStockError() ? 'true' : null"
+              [attr.aria-describedby]="flatStockError() ? 'product-stock-error' : null"
               [value]="flatStock()"
               (input)="onFlatStock($event)"
+              (change)="onFlatStock($event)"
             />
+            @if (flatStockError()) {
+              <p id="product-stock-error" class="font-body-sm" role="alert">{{ flatStockError() }}</p>
+            }
           </label>
         } @else if (showCollapseStock()) {
           <label class="elements-start-col gap-1 font-label-md" for="product-flat-stock">
             Stock
             <input
               id="product-flat-stock"
-              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-28"
-              type="number"
+              class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
+              [class.border-outline]="!flatStockError()"
+              [class.border-error]="!!flatStockError()"
+              type="text"
               inputmode="numeric"
-              min="0"
-              step="1"
-              required
+              autocomplete="off"
+              [attr.aria-invalid]="flatStockError() ? 'true' : null"
+              [attr.aria-describedby]="flatStockError() ? 'product-stock-error' : null"
               [value]="flatStock()"
               (input)="onFlatStock($event)"
+              (change)="onFlatStock($event)"
             />
+            @if (flatStockError()) {
+              <p id="product-stock-error" class="font-body-sm" role="alert">{{ flatStockError() }}</p>
+            }
           </label>
           <p class="font-body-sm text-on-surface-variant">
             This replaces the size counts with one number.

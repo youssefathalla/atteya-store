@@ -68,6 +68,10 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isInFolder(path: string, folder: ImageFolderPath): boolean {
+  return path.startsWith(`${folder}/`);
+}
+
 const NOT_ALLOWED_MESSAGE =
   "You don't have permission to add images. Sign in with an admin account and try again.";
 
@@ -101,11 +105,12 @@ export class ImageSourceService {
       const localDims = await this.#readFileDimensions(file);
       const { path } = await this.#storageUpload.uploadImage(file, folder);
       const probeDims = await this.#probeImageKitWithRetries(path, 3);
+      const size = localDims ?? (probeDims ? await this.#readNaturalSize(path) : null);
 
       return {
         path,
-        width: localDims?.width ?? probeDims?.width,
-        height: localDims?.height ?? probeDims?.height,
+        width: size?.width,
+        height: size?.height,
         wasUploaded: true,
         cdnDelayed: probeDims === null,
       };
@@ -123,7 +128,7 @@ export class ImageSourceService {
 
   /**
    * Resolves a user-typed or pasted string (relative path, ImageKit URL, Storage URL, or web URL).
-   * - Managed paths are verified against ImageKit before saving; broken paths are rejected.
+   * - A managed path already in this folder is kept. One from another folder is copied.
    * - External URLs are imported via the `importImageFromUrl` Cloud Function (CORS-free).
    */
   async resolveInput(raw: string, folder: ImageFolderPath): Promise<ResolvedImage> {
@@ -135,31 +140,28 @@ export class ImageSourceService {
     this.#isBusy.set(true);
     try {
       if (parsed.kind === 'managed-path') {
-        const dims = await this.#probeImageKitWithRetries(parsed.path, 2);
-        if (!dims) {
-          throw new ImageInputError(
-            'NOT_FOUND',
-            "We couldn't find an image at that location. Please check the file path and try again.",
-          );
+        if (isInFolder(parsed.path, folder)) {
+          const reachable = await this.#probeImageKitWithRetries(parsed.path, 2);
+          if (!reachable) {
+            throw new ImageInputError(
+              'NOT_FOUND',
+              "We couldn't find an image at that location. Please check the file path and try again.",
+            );
+          }
+          const size = await this.#readNaturalSize(parsed.path);
+          return {
+            path: parsed.path,
+            width: size?.width,
+            height: size?.height,
+            wasUploaded: false,
+          };
         }
-        return {
-          path: parsed.path,
-          width: dims.width,
-          height: dims.height,
-          wasUploaded: false,
-        };
+        const { path } = await this.#copyStoredImage(parsed.path, folder);
+        return this.#resolvedUpload(path);
       }
 
       const { path } = await this.#importExternalUrl(parsed.url, folder);
-      const dims = await this.#probeImageKitWithRetries(path, 3);
-
-      return {
-        path,
-        width: dims?.width,
-        height: dims?.height,
-        wasUploaded: true,
-        cdnDelayed: dims === null,
-      };
+      return this.#resolvedUpload(path);
     } finally {
       this.#isBusy.set(false);
     }
@@ -189,33 +191,68 @@ export class ImageSourceService {
     try {
       return await this.#storageUpload.importFromUrl(url, folder);
     } catch (err: unknown) {
-      if (isNotAllowed(err)) throw new ImageInputError('NOT_ALLOWED', NOT_ALLOWED_MESSAGE);
-      const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('refused')) {
-        throw new ImageInputError(
-          'BLOCKED_BY_HOST',
-          "That website doesn't allow copying its images directly. Please save the image to your device and use Upload Image.",
-        );
-      }
-      if (msg.includes('10MB')) {
-        throw new ImageInputError(
-          'TOO_LARGE',
-          'That image is larger than the 10MB limit. Please choose a smaller image.',
-        );
-      }
-      if (msg.includes('supported image')) {
-        throw new ImageInputError(
-          'NOT_AN_IMAGE',
-          'That link does not point to a supported image file (JPG, PNG, WebP, or AVIF).',
-        );
-      }
-      throw new ImageInputError(
-        'UPLOAD_FAILED',
-        msg || 'Unable to import the image from that web link. Please verify the link and try again.',
-      );
+      this.#mapImportError(err);
     }
   }
 
+  async #copyStoredImage(path: string, folder: ImageFolderPath): Promise<{ path: string }> {
+    try {
+      return await this.#storageUpload.copyStoredImage(path, folder);
+    } catch (err: unknown) {
+      this.#mapImportError(err);
+    }
+  }
+
+  #mapImportError(err: unknown): never {
+    if (isNotAllowed(err)) throw new ImageInputError('NOT_ALLOWED', NOT_ALLOWED_MESSAGE);
+    const msg = err instanceof Error ? err.message : '';
+    if (msg.includes("couldn't find an image")) {
+      throw new ImageInputError(
+        'NOT_FOUND',
+        "We couldn't find an image at that location. Please check the file path and try again.",
+      );
+    }
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('refused')) {
+      throw new ImageInputError(
+        'BLOCKED_BY_HOST',
+        "That website doesn't allow copying its images directly. Please save the image to your device and use Upload Image.",
+      );
+    }
+    if (msg.includes('10MB')) {
+      throw new ImageInputError(
+        'TOO_LARGE',
+        'That image is larger than the 10MB limit. Please choose a smaller image.',
+      );
+    }
+    if (msg.includes('supported image')) {
+      throw new ImageInputError(
+        'NOT_AN_IMAGE',
+        'That link does not point to a supported image file (JPG, PNG, WebP, or AVIF).',
+      );
+    }
+    throw new ImageInputError(
+      'UPLOAD_FAILED',
+      msg || 'Unable to import the image from that web link. Please verify the link and try again.',
+    );
+  }
+
+  async #resolvedUpload(path: string): Promise<ResolvedImage> {
+    const reachable = await this.#probeImageKitWithRetries(path, 3);
+    const size = reachable ? await this.#readNaturalSize(path) : null;
+    return {
+      path,
+      width: size?.width,
+      height: size?.height,
+      wasUploaded: true,
+      cdnDelayed: reachable === null,
+    };
+  }
+
+  #readNaturalSize(path: string): Promise<ImageDimensions | null> {
+    return this.#probeImageElement(buildImageKitUrl(path));
+  }
+
+  /** Only checks that the photo is reachable. Don't store this size. */
   async #probeImageKitWithRetries(
     path: string,
     attempts: number,

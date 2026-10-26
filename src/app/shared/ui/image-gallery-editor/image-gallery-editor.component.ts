@@ -56,6 +56,7 @@ export class ImageGalleryEditorComponent {
   readonly subtitle = input<string>(
     'Add up to 8 photos. Drag to reorder — the first photo is the Main Image used on cards and social sharing.',
   );
+  readonly defaultAlt = input<string>('');
 
   readonly imagesChange = output<ImageAsset[]>();
   readonly uploaded = output<string>();
@@ -196,10 +197,12 @@ export class ImageGalleryEditorComponent {
         this.uploaded.emit(resolved.path);
       }
 
-      const lastSeg = resolved.path.split('/').pop() ?? '';
+      const alt =
+        this.defaultAlt().trim().split(/\s+/).filter(Boolean).join(' ').slice(0, IMAGE_LIMITS.maxAltLength) ||
+        'Product image';
       const newAsset: ImageAsset = {
         path: resolved.path,
-        alt: sanitizeAltFromFilename(lastSeg) || 'Product image',
+        alt,
         width: resolved.width,
         height: resolved.height,
       };
