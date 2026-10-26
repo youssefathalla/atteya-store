@@ -154,7 +154,18 @@ async function copyStoredImage(
 ): Promise<ImportImageResponse> {
   const bucket = getStorage().bucket();
   const source = bucket.file(sourcePath);
-  const [exists] = await source.exists();
+  const unavailable = (): never => {
+    logger.warn('Image copy could not be saved', { uid, reason: 'storage-read' });
+    throw new HttpsError('unavailable', 'The image could not be saved. Please try again.');
+  };
+
+  let exists = false;
+  try {
+    const [found] = await source.exists();
+    exists = found;
+  } catch {
+    return unavailable();
+  }
   if (!exists) {
     throw new HttpsError(
       'not-found',
@@ -162,7 +173,13 @@ async function copyStoredImage(
     );
   }
 
-  const [meta] = await source.getMetadata();
+  let meta: { contentType?: string; size?: string | number };
+  try {
+    const [metadata] = await source.getMetadata();
+    meta = metadata;
+  } catch {
+    return unavailable();
+  }
   const contentType = typeof meta.contentType === 'string' ? meta.contentType : '';
   const ext = MIME_TO_EXT[contentType];
   if (!ext) {
@@ -171,7 +188,8 @@ async function copyStoredImage(
       'That link does not point to a supported image file (JPG, PNG, WebP, or AVIF).',
     );
   }
-  if (Number(meta.size) > MAX_IMAGE_BYTES) {
+  const size = Number(meta.size);
+  if (!Number.isFinite(size) || size <= 0 || size > MAX_IMAGE_BYTES) {
     throw new HttpsError(
       'invalid-argument',
       'That image is larger than the 10MB limit. Please choose a smaller image.',

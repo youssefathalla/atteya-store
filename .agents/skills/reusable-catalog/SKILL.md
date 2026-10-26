@@ -279,7 +279,7 @@ Located in `src/app/shared/utils/`:
   - Usage: `readonly stepperOrientation = useStepperOrientation(800);`
 - **Image Pipeline Utilities** (`src/app/shared/utils/image/` — re-exported via `@shared/utils/image` and `@shared/utils/image.utils`):
   - `IMAGE_LIMITS`, `IMAGE_FOLDERS`, `ImageFolderPath`, `PROTECTED_STORAGE_PATHS`.
-  - `normalizeImageKitPath(urlOrPath)`: Normalizes managed Storage/ImageKit URLs (verifying `environment.firebase.storageBucket`) into relative paths for `NgOptimizedImage`.
+  - `normalizeImageKitPath(urlOrPath)`: Normalizes managed Storage/ImageKit URLs (verifying `environment.firebase.storageBucket`) into relative paths for `NgOptimizedImage`. A leading ImageKit `tr:` segment is dropped, so a resized URL and the plain URL map to the same storage path.
   - `buildStorageUrl(pathOrUrl)`: Direct Google Cloud Storage URL (`https://storage.googleapis.com/<bucket>/<path>`) using the active environment bucket.
   - `buildImageKitUrl(pathOrUrl, tr?)`: Explicit ImageKit CDN URL for probes, `og:image`, and JSON-LD.
   - `parseImageInput(raw)`: Pure ReDoS-safe classifier returning `external-url`, `managed-path`, or `invalid`.
