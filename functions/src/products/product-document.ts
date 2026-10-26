@@ -67,6 +67,7 @@ export function hashCatalogueSlice(slice: CatalogueSlice): string {
     colors: product.colors,
     trackStock: product.trackStock,
     variants: product.variants.map(storedVariant),
+    inStock: product.inStock,
     published: product.published,
     sourceId: product.easyOrdersId,
     sourceSlug: product.sourceSlug,

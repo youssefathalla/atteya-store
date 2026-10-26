@@ -59,6 +59,7 @@ export class SearchService {
     const client = await this.#getClient();
     const indexName = this.#resolveIndexName(options.sort ?? 'relevance');
     const page = Math.max(0, options.page ?? 0);
+    const filters = options.filters ? `inStock:true AND (${options.filters})` : 'inStock:true';
 
     const response = await client.searchForHits<Record<string, unknown>>({
       requests: [
@@ -67,7 +68,7 @@ export class SearchService {
           query: trimmed,
           page,
           hitsPerPage: 24,
-          ...(options.filters ? { filters: options.filters } : {}),
+          filters,
         },
       ],
     });

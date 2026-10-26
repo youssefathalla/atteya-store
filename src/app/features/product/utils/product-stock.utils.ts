@@ -1,7 +1,7 @@
 import type { ProductVariant } from '@core/services/products';
 import type { OptionSelection, ProductView } from '../models/product-page.model';
 
-/** untracked = no stock data (always buyable); unknown = tracked but no variant rows (treat as available; fixed in PR 2) */
+/** untracked = no stock data (always buyable); unknown = tracked but no variant rows (uses the stored inStock flag) */
 export type StockMode = 'untracked' | 'variants' | 'unknown';
 
 export function stockMode(product: ProductView): StockMode {
@@ -10,7 +10,10 @@ export function stockMode(product: ProductView): StockMode {
 }
 
 export function isProductInStock(product: ProductView): boolean {
-  return stockMode(product) !== 'variants' || product.variants.some((variant) => variant.stock > 0);
+  const mode = stockMode(product);
+  if (mode === 'unknown') return product.inStock;
+  if (mode === 'untracked') return true;
+  return product.variants.some((variant) => variant.stock > 0);
 }
 
 /** A value is selectable if some in-stock variant has it AND agrees with every *other* current pick. */

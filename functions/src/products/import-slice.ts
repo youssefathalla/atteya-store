@@ -334,6 +334,7 @@ function plannedWrite(
     options: stored.options,
     trackStock: product.trackStock,
     variants: product.variants,
+    inStock: product.inStock,
     source,
     updatedAt: FieldValue.serverTimestamp(),
   };

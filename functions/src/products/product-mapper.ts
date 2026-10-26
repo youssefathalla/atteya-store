@@ -25,6 +25,7 @@ import type {
   EasyOrdersVariationProp,
 } from './easyorders.types.js';
 import { slugBase } from './slug.js';
+import { deriveInStock } from './stock.js';
 
 const ALT_MAX = 125;
 const SUMMARY_MAX = 300;
@@ -85,6 +86,7 @@ export interface MappedProduct {
   readonly colors: readonly ColorId[];
   readonly trackStock: boolean;
   readonly variants: readonly MappedVariant[];
+  readonly inStock: boolean;
   readonly published: boolean;
   readonly sourceSlug: string;
   readonly sourceCategoryIds: readonly string[];
@@ -161,6 +163,10 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
   if (!createdAtIso || Number.isNaN(Date.parse(createdAtIso))) {
     warnings.push('The original date was missing, so today is used.');
   }
+  const variants = trackStock ? mapVariants(product, options, warnings) : [];
+  // EasyOrders omits empty keys, so a missing product quantity means 0.
+  const inStock =
+    deriveInStock({ trackStock, variants, productQuantity: product.quantity ?? 0 }) ?? false;
 
   return {
     ok: true,
@@ -184,7 +190,8 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
       options,
       colors,
       trackStock,
-      variants: trackStock ? mapVariants(product, options, warnings) : [],
+      variants,
+      inStock,
       published: product.hidden !== true,
       sourceSlug: typeof product.slug === 'string' ? product.slug.trim() : '',
       sourceCategoryIds: [...sourceCategoryIds].sort(),

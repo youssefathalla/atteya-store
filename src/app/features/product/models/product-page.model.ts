@@ -24,6 +24,7 @@ export type ProductView = Pick<
   | 'tags'
   | 'trackStock'
   | 'variants'
+  | 'inStock'
 >;
 
 export type ProductPageResult =
@@ -63,5 +64,6 @@ export function toProductView(product: Product): ProductView {
     tags: product.tags,
     trackStock: product.trackStock,
     variants: product.variants,
+    inStock: product.inStock,
   };
 }

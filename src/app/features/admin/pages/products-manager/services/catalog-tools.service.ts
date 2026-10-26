@@ -32,6 +32,7 @@ const MigrateResponseSchema = v.object({
     colorsFromOptions: v.optional(wholeNumber, 0),
     colorsFromName: v.optional(wholeNumber, 0),
     colorsMissing: v.optional(wholeNumber, 0),
+    stockNeedsImport: v.optional(wholeNumber, 0),
   }),
   shippingSeeded: v.optional(v.boolean(), false),
   sample: v.array(
