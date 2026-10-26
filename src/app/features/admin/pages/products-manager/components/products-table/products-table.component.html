@@ -45,6 +45,20 @@
   }
 </ng-template>
 
+<ng-template #stockCell [templateType]="sampleRow" let-row>
+  <div class="elements-center gap-2">
+    <button
+      matButton="text"
+      type="button"
+      [attr.aria-label]="'Edit stock for ' + row.name"
+      (click)="stock.emit(row.id)"
+    >
+      <span>{{ row.stock === null ? 'Not set' : row.stock }}</span>
+    </button>
+    <app-status-badge [value]="row.stockStatus" [statusConfig]="stockStatusConfig" />
+  </div>
+</ng-template>
+
 <ng-template #statusCell [templateType]="sampleRow" let-row>
   <app-status-badge [value]="row.status" [statusConfig]="statusConfig" />
 </ng-template>

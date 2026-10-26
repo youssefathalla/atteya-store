@@ -1,4 +1,5 @@
 import { inject, Service } from '@angular/core';
+import { httpsCallable } from 'firebase/functions';
 import {
   arrayUnion,
   collection,
@@ -15,7 +16,8 @@ import {
   where,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import { injectFirestore } from '@core/firebase';
+import * as v from 'valibot';
+import { injectFirestore, injectFunctions } from '@core/firebase';
 import { BrandSchema, CategorySchema } from '@core/services/products/category.schema';
 import {
   BRANDS_COLLECTION,
@@ -31,10 +33,19 @@ import {
 } from '@core/services/products/search-tokens';
 import { SearchService } from '@core/services/search';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
-import type { ProductEditDraft } from '../models/product-admin.model';
+import type { ProductEditDraft, StockChange, StockResult } from '../models/product-admin.model';
 
 const LIST_PAGE_SIZE = 500;
 const SEARCH_QUERY_LIMIT = 201;
+const wholeNumber = v.pipe(v.number(), v.integer(), v.minValue(0));
+
+const StockResultSchema = v.object({
+  stock: wholeNumber,
+  stockBySize: v.nullable(v.record(v.string(), wholeNumber)),
+  inStock: v.boolean(),
+});
+
+type SetStockPayload = { readonly productId: string } & StockChange;
 
 export interface ProductSearchResult {
   readonly products: readonly Product[];
@@ -44,8 +55,13 @@ export interface ProductSearchResult {
 @Service()
 export class ProductsAdminService {
   readonly #firestore = injectFirestore();
+  readonly #functions = injectFunctions();
   readonly #searchService = inject(SearchService);
   readonly #productConverter = createValibotConverter(ProductSchema);
+  readonly #setStockCallable = httpsCallable<SetStockPayload, unknown>(
+    this.#functions,
+    'setProductStock',
+  );
 
   async listAllProducts(): Promise<readonly Product[]> {
     const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(
@@ -206,6 +222,16 @@ export class ProductsAdminService {
     });
     await this.#searchService.clearCache();
     return true;
+  }
+
+  async saveStock(productId: string, change: StockChange): Promise<StockResult> {
+    const result = await this.#setStockCallable({ productId, ...change });
+    const parsed = v.safeParse(StockResultSchema, result.data);
+    if (!parsed.success) {
+      throw new Error('Stock was saved, but the response was unexpected. Reload the page.');
+    }
+    await this.#searchService.clearCache();
+    return parsed.output;
   }
 }
 

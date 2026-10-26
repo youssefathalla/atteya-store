@@ -36,9 +36,11 @@ export class ProductsTableComponent {
   readonly hasActiveFilters = input(false);
   readonly catalogueEmpty = input(false);
   readonly edit = output<string>();
+  readonly stock = output<string>();
 
   private readonly imageCell = viewChild<TemplateRef<unknown>>('imageCell');
   private readonly priceCell = viewChild<TemplateRef<unknown>>('priceCell');
+  private readonly stockCell = viewChild<TemplateRef<unknown>>('stockCell');
   private readonly statusCell = viewChild<TemplateRef<unknown>>('statusCell');
   private readonly editCell = viewChild<TemplateRef<unknown>>('editCell');
 
@@ -57,11 +59,19 @@ export class ProductsTableComponent {
     published: false,
     imagePath: null,
     status: 'hidden',
+    stock: null,
+    stockStatus: 'unset',
   };
 
   readonly statusConfig: Record<string, StatusConfig> = {
     live: { label: 'Live', color: 'green' },
     hidden: { label: 'Hidden', color: 'gray' },
+  };
+
+  readonly stockStatusConfig: Record<string, StatusConfig> = {
+    in: { label: 'In stock', color: 'green' },
+    out: { label: 'Out of stock', color: 'red' },
+    unset: { label: 'Not set', color: 'gray' },
   };
 
   readonly emptyMessage = computed(() => {
@@ -74,6 +84,7 @@ export class ProductsTableComponent {
   readonly columns = computed((): TableColumn<ProductTableRow>[] => {
     const imageCell = this.imageCell();
     const priceCell = this.priceCell();
+    const stockCell = this.stockCell();
     const statusCell = this.statusCell();
     const editCell = this.editCell();
     const browse = this.browseMode();
@@ -94,6 +105,7 @@ export class ProductsTableComponent {
         sortable: browse ? false : true,
         customCellTpl: priceCell,
       },
+      { key: 'stock', label: 'Stock', sortable: false, customCellTpl: stockCell },
       {
         key: 'status',
         label: 'Status',

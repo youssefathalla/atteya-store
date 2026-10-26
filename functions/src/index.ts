@@ -5,6 +5,7 @@ initializeApp();
 export { importImageFromUrl } from './import-image.fn.js';
 export { importEasyOrdersProducts } from './products/import-easyorders.fn.js';
 export { migrateCatalogStructure } from './products/migrate-catalog.fn.js';
+export { setProductStock } from './products/set-product-stock.fn.js';
 export { onProductCountsChange } from './products/product-counts.trigger.js';
 export { onOfferWritten } from './offers/on-offer-written.trigger.js';
 export { refreshOfferPricing } from './offers/refresh-offer-pricing.schedule.js';

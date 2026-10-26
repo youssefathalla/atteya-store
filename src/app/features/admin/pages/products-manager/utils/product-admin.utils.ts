@@ -98,6 +98,9 @@ export function toProductTableRow(
     published: product.published,
     imagePath: path ? normalizeImageKitPath(path) : null,
     status: product.published ? 'live' : 'hidden',
+    stock: typeof product.stock === 'number' ? product.stock : null,
+    stockStatus:
+      typeof product.stock !== 'number' ? 'unset' : product.stock > 0 ? 'in' : 'out',
   };
 }
 

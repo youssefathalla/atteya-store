@@ -16,6 +16,18 @@ export interface ProductTableRow {
   readonly published: boolean;
   readonly imagePath: string | null;
   readonly status: 'live' | 'hidden';
+  readonly stock: number | null;
+  readonly stockStatus: 'in' | 'out' | 'unset';
+}
+
+export type StockChange =
+  | { readonly stockBySize: Readonly<Record<string, number>> }
+  | { readonly stock: number };
+
+export interface StockResult {
+  readonly stock: number;
+  readonly stockBySize: Readonly<Record<string, number>> | null;
+  readonly inStock: boolean;
 }
 
 export interface ProductEditDraft {
