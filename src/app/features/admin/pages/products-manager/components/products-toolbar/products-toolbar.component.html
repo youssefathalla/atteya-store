@@ -2,9 +2,18 @@
   <div class="elements-between flex-wrap gap-3 w-full">
     <div>
       <h1 class="font-title-lg font-bold!">Products</h1>
-      <p class="font-body-md">Bring products in from EasyOrders, then fix how they show in the store.</p>
+      <p class="font-body-md">Add and edit products here. Import from EasyOrders is only for the one-time move.</p>
     </div>
     <div class="elements-end flex-wrap gap-2">
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="activity() !== null"
+        (click)="addProduct.emit()"
+      >
+        <mat-icon name="add" />
+        <span>Add product</span>
+      </button>
       <button
         matButton="outlined"
         type="button"
@@ -46,7 +55,7 @@
         }
       </button>
       <button
-        matButton="filled"
+        matButton="outlined"
         type="button"
         [disabled]="activity() !== null"
         [attr.aria-label]="activity() === 'import' ? 'Copying products' : null"

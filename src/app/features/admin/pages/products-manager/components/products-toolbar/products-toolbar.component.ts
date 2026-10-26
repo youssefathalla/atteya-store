@@ -26,6 +26,7 @@ export class ProductsToolbarComponent {
   readonly progressLabel = input('');
   readonly progressValue = input(0);
 
+  readonly addProduct = output<void>();
   readonly preview = output<void>();
   readonly importProducts = output<void>();
   readonly checkCatalog = output<void>();

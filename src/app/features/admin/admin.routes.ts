@@ -39,6 +39,22 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Products | Atteya Admin',
       },
       {
+        path: 'products/new',
+        loadComponent: () =>
+          import('./pages/products-manager/product-editor.page').then(
+            (m) => m.ProductEditorPageComponent,
+          ),
+        title: 'New Product | Atteya Admin',
+      },
+      {
+        path: 'products/:productId',
+        loadComponent: () =>
+          import('./pages/products-manager/product-editor.page').then(
+            (m) => m.ProductEditorPageComponent,
+          ),
+        title: 'Edit Product | Atteya Admin',
+      },
+      {
         path: 'offers',
         loadComponent: () =>
           import('./pages/offers-manager/offers-manager.page').then(

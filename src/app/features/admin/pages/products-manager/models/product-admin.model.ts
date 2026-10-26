@@ -30,16 +30,56 @@ export interface StockResult {
   readonly inStock: boolean;
 }
 
-export interface ProductEditDraft {
+export interface ProductImagePayload {
+  readonly path: string;
+  readonly alt: string;
+  readonly width?: number;
+  readonly height?: number;
+}
+
+export interface ProductSizePayload {
+  readonly id?: string;
+  readonly label: string;
+  readonly initialStock?: number;
+}
+
+export interface ProductFormPayload {
+  readonly name: string;
+  readonly summary: string | null;
+  readonly description?: string | null;
   readonly type: ProductTypeId;
   readonly categoryId: string;
-  readonly categoryIds: readonly string[];
-  readonly categoryPicked: boolean;
   readonly brandId: string;
   readonly modelGroup: string | null;
   readonly colors: readonly ColorId[];
   readonly tags: readonly string[];
+  readonly price: number;
+  readonly compareAtPrice: number | null;
   readonly published: boolean;
+  readonly images: readonly ProductImagePayload[];
+  readonly sizes: readonly ProductSizePayload[];
+  readonly stock?: number;
+}
+
+export interface CreateProductPayload extends ProductFormPayload {
+  readonly productId: string;
+  readonly slug?: string;
+}
+
+export interface UpdateProductPayload extends ProductFormPayload {
+  readonly productId: string;
+}
+
+export interface SaveProductResult {
+  readonly id: string;
+  readonly slug: string;
+}
+
+export interface ProductSizeDraft {
+  readonly id?: string;
+  readonly label: string;
+  readonly initialStock: string;
+  readonly isNew: boolean;
 }
 
 export interface CategoryOptionView {

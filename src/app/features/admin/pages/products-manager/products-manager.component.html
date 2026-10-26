@@ -11,6 +11,7 @@
     (checkCatalog)="runMigration('add')"
     (removeLegacy)="runMigration('dropLegacy')"
     (rebuildSearch)="rebuildSearch()"
+    (addProduct)="addProduct()"
   />
   @if (searchSyncErrors() > 0) {
     <p class="surface-card p-3 w-full font-body-sm">
