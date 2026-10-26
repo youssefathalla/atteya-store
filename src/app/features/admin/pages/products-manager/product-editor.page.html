@@ -353,6 +353,8 @@
           <p class="font-body-sm text-on-surface-variant">
             This replaces the size counts with one number.
           </p>
+        } @else if (replacingFlatStock()) {
+          <p class="font-body-sm text-on-surface-variant">{{ flatReplacementNote() }}</p>
         } @else if (showStockReadout()) {
           <p class="font-body-md">{{ stockReadout() }}</p>
           <p class="font-body-sm text-on-surface-variant">

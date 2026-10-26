@@ -211,7 +211,8 @@ function buildSizeOption(
     const id = nextSlug(kebab(size.label) || 'size', taken);
     taken.add(id);
     sizeIds.push(id);
-    if (!liveById.has(id)) newIds.push(id);
+    // No id means the form treated this row as new, even when the kebab matches a live value.
+    if (requested === undefined || !liveById.has(id)) newIds.push(id);
     values.push({ id, label: size.label });
   }
 

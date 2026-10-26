@@ -237,7 +237,9 @@ function applySizeAndStock(
   const { options, sizeIds, newIds } = nextSizeOption(live['options'], input.sizes);
   patch['options'] = options;
   const unchanged =
-    liveIds.length === sizeIds.length && liveIds.every((id, index) => id === sizeIds[index]);
+    newIds.length === 0 &&
+    liveIds.length === sizeIds.length &&
+    liveIds.every((id, index) => id === sizeIds[index]);
   if (unchanged) return;
 
   if (liveIds.length > 0 && sizeIds.length > 0) {

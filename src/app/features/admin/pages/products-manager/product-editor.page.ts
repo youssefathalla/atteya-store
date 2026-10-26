@@ -135,12 +135,17 @@ export class ProductEditorPageComponent implements OnInit {
       if (!isPlatformBrowser(this.#platformId)) {
         return { product: null, categories: [], brands: [], groups: [] as readonly string[] };
       }
-      const [product, categories, brands, groups] = await Promise.all([
+      const [product, categories, brands] = await Promise.all([
         params.productId ? this.#admin.getProduct(params.productId) : Promise.resolve(null),
         this.#admin.listAllCategories(),
         this.#admin.listAllBrands(),
-        this.#admin.listModelGroups(),
       ]);
+      let groups: readonly string[] = [];
+      try {
+        groups = await this.#admin.listModelGroups();
+      } catch {
+        groups = [];
+      }
       return { product, categories, brands, groups };
     },
   });
@@ -176,7 +181,19 @@ export class ProductEditorPageComponent implements OnInit {
   readonly showCollapseStock = computed(
     () => !this.isCreate() && this.hadSizes() && this.sizes().length === 0,
   );
-  readonly showStockReadout = computed(() => !this.isCreate() && !this.showCollapseStock());
+  readonly replacingFlatStock = computed(
+    () => !this.isCreate() && !this.hadSizes() && this.sizes().length > 0,
+  );
+  readonly showStockReadout = computed(
+    () => !this.isCreate() && !this.showCollapseStock() && !this.replacingFlatStock(),
+  );
+  readonly flatReplacementNote = computed(() => {
+    const stock = this.#loadedProduct()?.stock;
+    if (typeof stock !== 'number') {
+      return 'These starting counts replace the current total. That total is not set yet.';
+    }
+    return `These starting counts replace the current total of ${stock}.`;
+  });
   readonly stockReadout = computed(() => {
     const stock = this.#loadedProduct()?.stock;
     if (typeof stock !== 'number') return 'Not set';
