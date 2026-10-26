@@ -8,7 +8,7 @@ import {
   TransferState,
 } from '@angular/core';
 import type { ResolveFn } from '@angular/router';
-import { ProductService } from '@core/services/products';
+import { ProductCacheService, ProductService } from '@core/services/products';
 import { matchProduct, type Offer } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { type TransferOffer, toTransferOffer } from '@core/services/offers/offer-transfer';
@@ -23,6 +23,7 @@ const MAX_SLUG_LENGTH = 200;
 
 export const productPageResolver: ResolveFn<ProductPageResult> = async (route) => {
   const products = inject(ProductService);
+  const cache = inject(ProductCacheService);
   const offersReader = inject(PublicOffersReader);
   const transfer = inject(TransferState);
   const isServer = isPlatformServer(inject(PLATFORM_ID));
@@ -44,7 +45,7 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   } else {
     const offersPromise = readOffers(isServer, injector, offersReader);
     try {
-      const product = await products.getBySlug(slug);
+      const product = await (isServer ? products.getBySlug(slug) : cache.getBySlug(slug));
       if (!product) {
         result = { status: 'missing' };
       } else {
