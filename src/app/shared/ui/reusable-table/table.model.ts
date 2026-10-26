@@ -27,6 +27,11 @@ export interface ExcelColumnConfig<T> {
   formatter?: (value: string, row: T) => string;
 }
 
+export interface SortSpec {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
 export interface PaginationServiceInterface<T> {
   readonly state: () => { limit: number; [key: string]: unknown };
   readonly items: () => T[];
@@ -38,8 +43,9 @@ export interface PaginationServiceInterface<T> {
   readonly isLoading: () => boolean;
   readonly error: () => string | null;
   readonly total: () => number;
+  readonly sort?: () => SortSpec;
 
-  setQuery(where: unknown[], orderBy: { field: string; direction: 'asc' | 'desc' }[]): Promise<void>;
+  setQuery(where: unknown[], orderBy: SortSpec[]): Promise<void>;
   setFilter(where: unknown[]): Promise<void>;
   loadPage(direction: 'next' | 'prev' | 'first' | 'last'): Promise<void>;
   setPageSize(limit: number): Promise<void>;

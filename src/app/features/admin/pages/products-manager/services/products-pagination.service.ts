@@ -11,6 +11,7 @@ import {
   QueryConstraint,
   QueryDocumentSnapshot,
   startAfter,
+  startAt,
   where,
 } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
@@ -18,7 +19,7 @@ import { PRODUCTS_COLLECTION } from '@core/services/products/product.constants';
 import type { Product } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
-import type { PaginationServiceInterface } from '@shared/ui/reusable-table/table.model';
+import type { PaginationServiceInterface, SortSpec } from '@shared/ui/reusable-table/table.model';
 import type { ProductTableRow } from '../models/product-admin.model';
 import { toProductTableRow } from '../utils/product-admin.utils';
 
@@ -46,6 +47,9 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
 
   readonly state = computed(() => ({ limit: this.#pageSize() }));
   readonly #pageSize = signal(DEFAULT_PAGE_SIZE);
+
+  readonly #nameDirection = signal<'asc' | 'desc'>('asc');
+  readonly sort = computed((): SortSpec => ({ field: 'name', direction: this.#nameDirection() }));
 
   readonly items = computed(() => {
     const categoryNames = this.#categoryNames();
@@ -84,7 +88,9 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
     await this.#loadFirstPage();
   }
 
-  async setQuery(): Promise<void> {
+  async setQuery(_where: unknown[] = [], sorts: SortSpec[] = []): Promise<void> {
+    const name = sorts.find((item) => item.field === 'name');
+    this.#nameDirection.set(name?.direction ?? 'asc');
     this.#currentPage.set(1);
     await this.#loadFirstPage();
   }
@@ -129,18 +135,19 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
   }
 
   async refresh(): Promise<void> {
-    const page = this.#currentPage();
-    if (page <= 1) {
+    const first = this.#pageDocs()[0];
+    if (this.#currentPage() <= 1 || !first) {
       await this.#loadFirstPage();
       return;
     }
-    await this.#reloadCurrentPage(page);
+    await this.#reloadFromCursor(first);
   }
 
   async reset(): Promise<void> {
     this.#typeId.set('all');
     this.#brandId.set('all');
     this.#pageSize.set(DEFAULT_PAGE_SIZE);
+    this.#nameDirection.set('asc');
     this.#currentPage.set(1);
     this.#loaded.set(false);
     await this.#loadFirstPage();
@@ -153,6 +160,10 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
     if (typeId !== 'all') constraints.push(where('type', '==', typeId));
     if (brandId !== 'all') constraints.push(where('brandId', '==', brandId));
     return constraints;
+  }
+
+  #nameOrder(): QueryConstraint {
+    return orderBy('name', this.#nameDirection());
   }
 
   #productsCollection() {
@@ -187,7 +198,7 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
       const pageQuery = query(
         this.#productsCollection(),
         ...this.#filterConstraints(),
-        orderBy('name', 'asc'),
+        this.#nameOrder(),
         limit(pageSize),
       );
       const snap = await getDocs(pageQuery);
@@ -222,7 +233,7 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
       const pageQuery = query(
         this.#productsCollection(),
         ...this.#filterConstraints(),
-        orderBy('name', 'asc'),
+        this.#nameOrder(),
         limitToLast(remainder),
       );
       const snap = await getDocs(pageQuery);
@@ -256,14 +267,14 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
           ? query(
               this.#productsCollection(),
               ...constraints,
-              orderBy('name', 'asc'),
+              this.#nameOrder(),
               startAfter(cursor),
               limit(pageSize),
             )
           : query(
               this.#productsCollection(),
               ...constraints,
-              orderBy('name', 'asc'),
+              this.#nameOrder(),
               endBefore(cursor),
               limitToLast(pageSize),
             );
@@ -283,61 +294,29 @@ export class ProductsPaginationService implements PaginationServiceInterface<Pro
     }
   }
 
-  async #reloadCurrentPage(page: number): Promise<void> {
-    if (page <= 1) {
-      await this.#loadFirstPage();
-      return;
-    }
+  async #reloadFromCursor(first: QueryDocumentSnapshot<Product>): Promise<void> {
     const requestId = this.#beginRequest();
     this.#isLoading.set(true);
     this.#error.set(null);
     try {
       await this.#refreshTotal(requestId);
       if (!this.#isCurrentRequest(requestId)) return;
-      const pageSize = this.#pageSize();
-      let cursor: QueryDocumentSnapshot<Product> | null = null;
-      for (let index = 1; index < page; index++) {
-        const collectionRef = this.#productsCollection();
-        const constraints = this.#filterConstraints();
-        let stepSnap;
-        if (cursor) {
-          stepSnap = await getDocs(
-            query(
-              collectionRef,
-              ...constraints,
-              orderBy('name', 'asc'),
-              startAfter(cursor),
-              limit(pageSize),
-            ),
-          );
-        } else {
-          stepSnap = await getDocs(
-            query(collectionRef, ...constraints, orderBy('name', 'asc'), limit(pageSize)),
-          );
-        }
-        if (!this.#isCurrentRequest(requestId)) return;
-        if (stepSnap.docs.length === 0) {
-          await this.#loadFirstPage();
-          return;
-        }
-        cursor = stepSnap.docs[stepSnap.docs.length - 1];
-      }
-      if (!cursor) {
+      const snap = await getDocs(
+        query(
+          this.#productsCollection(),
+          ...this.#filterConstraints(),
+          this.#nameOrder(),
+          startAt(first),
+          limit(this.#pageSize()),
+        ),
+      );
+      if (!this.#isCurrentRequest(requestId)) return;
+      if (snap.empty) {
         await this.#loadFirstPage();
         return;
       }
-      const pageQuery = query(
-        this.#productsCollection(),
-        ...this.#filterConstraints(),
-        orderBy('name', 'asc'),
-        startAfter(cursor),
-        limit(pageSize),
-      );
-      const snap = await getDocs(pageQuery);
-      if (!this.#isCurrentRequest(requestId)) return;
       this.#pageDocs.set(snap.docs);
       this.#products.set(snap.docs.map((docSnap) => docSnap.data()));
-      this.#currentPage.set(page);
       this.#loaded.set(true);
     } catch (error: unknown) {
       if (!this.#isCurrentRequest(requestId)) return;

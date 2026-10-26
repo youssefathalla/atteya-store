@@ -23,6 +23,7 @@ import { ProductsDialogService } from './services/products-dialog.service';
 import { ProductsImportService } from './services/products-import.service';
 import { ProductsPaginationService } from './services/products-pagination.service';
 import { importActionError } from './utils/import-error';
+import { isSearchTooShort, searchWordsFromTerm } from '@core/services/products/search-tokens';
 import { filterProductRows, importSummary, toProductTableRow } from './utils/product-admin.utils';
 
 @Component({
@@ -88,6 +89,10 @@ export class ProductsManagerComponent implements OnInit {
   });
 
   readonly isSearchMode = computed(() => this.debouncedSearch().trim().length > 0);
+
+  readonly searchTooShort = computed(() =>
+    isSearchTooShort(searchWordsFromTerm(this.debouncedSearch())),
+  );
 
   readonly activity = computed<'preview' | 'import' | 'tools' | null>(() => {
     const mode = this.#importer.mode();

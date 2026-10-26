@@ -23,6 +23,9 @@
       Showing the first 200 matches. Add more words to narrow it down.
     </p>
   }
+  @if (searchTooShort()) {
+    <p class="surface-card p-3 w-full font-body-sm" role="status">Type at least 2 letters to search.</p>
+  }
   <app-products-table
     [rows]="rows()"
     [loading]="showSkeleton()"
