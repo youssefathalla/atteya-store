@@ -1,4 +1,5 @@
-import { defineSecret, defineString, projectID } from 'firebase-functions/params';
+import { defineSecret, defineString } from 'firebase-functions/params';
+import { currentProjectId } from '../project-id.js';
 
 /**
  * Optional override for the Algolia Application ID. When left blank, the App ID
@@ -24,10 +25,6 @@ const INDEX_BY_PROJECT: Readonly<Record<string, string>> = {
   'atteya-store-dev': 'dev_products',
   'attiya-store': 'prod_products',
 };
-
-function currentProjectId(): string {
-  return (process.env['GCLOUD_PROJECT'] || projectID.value() || '').trim();
-}
 
 export function algoliaAppId(): string {
   const override = ALGOLIA_APP_ID.value().trim();

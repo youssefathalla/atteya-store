@@ -34,6 +34,16 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    // Rules cannot sum a map, so stock == sum(stockBySize) is enforced by
+    // stockFields() in functions/src/products/stock.ts, not here.
+    // The Admin SDK (import and migration) skips these rules.
+    function validStock(data) {
+      return !('stock' in data) || (
+        data.stock is int && data.stock >= 0 && data.inStock == (data.stock > 0)
+        && (!('stockBySize' in data) || (data.stockBySize is map && data.stockBySize.size() <= 20))
+      );
+    }
+
     // Storefront content: settings/home, settings/navigation, and sibling docs.
     // Visitors and normal users can read these. Only an admin with a current session can write them.
     // Subcollections under settings are denied. The app does not write them.
@@ -59,7 +69,8 @@ service cloud.firestore {
     // Public queries MUST include where('published', '==', true) or they are rejected.
     match /products/{productId} {
       allow get, list: if resource.data.published == true || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && validStock(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     // Categories and brands: storefront can read published docs; only admins write.

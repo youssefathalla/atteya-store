@@ -24,6 +24,8 @@ export type ProductView = Pick<
   | 'tags'
   | 'trackStock'
   | 'variants'
+  | 'stock'
+  | 'stockBySize'
   | 'inStock'
 >;
 
@@ -64,6 +66,8 @@ export function toProductView(product: Product): ProductView {
     tags: product.tags,
     trackStock: product.trackStock,
     variants: product.variants,
+    stock: product.stock,
+    stockBySize: product.stockBySize,
     inStock: product.inStock,
   };
 }

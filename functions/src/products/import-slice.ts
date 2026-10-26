@@ -23,6 +23,7 @@ import { mapEasyOrdersProduct, type MappedImageRef, type MappedProduct } from '.
 import { buildSearchTokens } from './search-tokens.js';
 import { mapPool } from './promise-pool.js';
 import { nextSlug } from './slug.js';
+import { bootstrapStock, untrackedDefaultStock, type StockFields } from './stock.js';
 
 const POOL_SIZE = 3;
 
@@ -39,6 +40,8 @@ interface ExistingProduct {
   readonly published?: boolean;
   readonly wasMissing: boolean;
   readonly locked: readonly LockableField[];
+  /** True when the doc already has a numeric `stock`. Missing docs are false. */
+  readonly hasStock: boolean;
 }
 
 interface SliceResult {
@@ -166,7 +169,14 @@ async function importOne(
 async function readExisting(db: Firestore, docId: string): Promise<ExistingProduct> {
   const snap = await db.doc(`products/${docId}`).get();
   if (!snap.exists) {
-    return { exists: false, hasTags: false, modelGroup: null, wasMissing: false, locked: [] };
+    return {
+      exists: false,
+      hasTags: false,
+      modelGroup: null,
+      wasMissing: false,
+      locked: [],
+      hasStock: false,
+    };
   }
   const data = snap.data() ?? {};
   const source = isRecord(data['source']) ? data['source'] : {};
@@ -202,6 +212,7 @@ async function readExisting(db: Firestore, docId: string): Promise<ExistingProdu
     published: typeof data['published'] === 'boolean' ? data['published'] : undefined,
     wasMissing: missingSince !== null && missingSince !== undefined,
     locked: normalizedLocked,
+    hasStock: typeof data['stock'] === 'number',
   };
 }
 
@@ -310,6 +321,15 @@ function plannedWrite(
   action: 'create' | 'update' | 'unchanged',
 ): PlannedWrite {
   const ref = db.doc(`products/${product.docId}`);
+  const boot = existing.hasStock
+    ? null
+    : bootstrapStock({
+        trackStock: product.trackStock,
+        variants: product.variants,
+        options: stored.options,
+        productQuantity: product.productQuantity,
+        untrackedDefault: untrackedDefaultStock(),
+      });
   if (action === 'unchanged') {
     const data: DocumentData = {
       'source.lastRunId': runId,
@@ -318,6 +338,7 @@ function plannedWrite(
     if (existing.wasMissing && !existing.locked.includes('published')) {
       data['published'] = product.published;
     }
+    assignBootstrappedStock(data, boot);
     return { ref, kind: 'touch', data };
   }
 
@@ -334,7 +355,6 @@ function plannedWrite(
     options: stored.options,
     trackStock: product.trackStock,
     variants: product.variants,
-    inStock: product.inStock,
     source,
     updatedAt: FieldValue.serverTimestamp(),
   };
@@ -367,6 +387,7 @@ function plannedWrite(
       ? product.modelGroup
       : existing.modelGroup;
   data['searchTokens'] = buildSearchTokens(product.name, storedModelGroup);
+  assignBootstrappedStock(data, boot);
 
   if (action === 'create') {
     data['id'] = product.docId;
@@ -408,6 +429,13 @@ class SlugBook {
     this.#reserved.add(fallback);
     return fallback;
   }
+}
+
+function assignBootstrappedStock(data: DocumentData, boot: StockFields | null): void {
+  if (!boot) return;
+  data['stock'] = boot.stock;
+  data['inStock'] = boot.inStock;
+  if (boot.stockBySize) data['stockBySize'] = boot.stockBySize;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
