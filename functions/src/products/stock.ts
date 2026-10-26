@@ -116,7 +116,7 @@ function wholeCount(value: unknown): number {
 }
 
 /** Value ids of the first `size` option. Empty when the product has no sizes. */
-function readSizeValueIds(options: unknown): string[] {
+export function readSizeValueIds(options: unknown): string[] {
   if (!Array.isArray(options)) return [];
   for (const option of options) {
     if (typeof option !== 'object' || option === null) continue;
