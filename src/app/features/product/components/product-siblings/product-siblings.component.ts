@@ -1,10 +1,16 @@
 import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject, input, resource } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CatalogService, type Product, ProductService } from '@core/services/products';
+import {
+  CatalogService,
+  ProductCacheService,
+  type Product,
+  ProductService,
+} from '@core/services/products';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
+import { PrefetchProductDirective } from '@shared/directives/prefetch-product';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { toProductView } from '../../models/product-page.model';
 import { isProductInStock } from '../../utils/product-stock.utils';
@@ -15,6 +21,7 @@ import { isProductInStock } from '../../utils/product-stock.utils';
     RouterLink,
     NgOptimizedImage,
     AppImageFallbackDirective,
+    PrefetchProductDirective,
     ProductPriceComponent,
     HorizontalScrollDirective,
   ],
@@ -26,13 +33,18 @@ export class ProductSiblingsComponent {
   readonly excludeId = input.required<string>();
 
   readonly #products = inject(ProductService);
+  readonly #cache = inject(ProductCacheService);
   readonly #catalog = inject(CatalogService);
 
   readonly imagePath = normalizeImageKitPath;
 
   readonly siblings = resource({
     params: () => ({ g: this.modelGroup(), x: this.excludeId() }),
-    loader: ({ params }) => this.#products.listModelGroup(params.g, params.x, 8),
+    loader: ({ params }) =>
+      this.#products.listModelGroup(params.g, params.x, 8).then((list) => {
+        this.#cache.seed(list);
+        return list;
+      }),
   });
 
   readonly list = computed<readonly Product[]>(() => {
