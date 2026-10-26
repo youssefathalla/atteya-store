@@ -52,6 +52,7 @@ const TAG_PATTERN = /^[a-z0-9-]{1,32}$/;
 const QUICK_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'] as const;
 const MAX_PRICE = 1_000_000;
 const MAX_COUNT = 100_000;
+const STOCK_MESSAGE = 'Starting stock must be a whole number from 0 to 100,000.';
 
 interface EditorFields {
   name: string;
@@ -113,6 +114,7 @@ export class ProductEditorPageComponent implements OnInit {
   readonly sizeError = signal('');
   readonly flatStock = signal('0');
   readonly formError = signal('');
+  readonly #saveTried = signal(false);
   readonly #loadedProduct = signal<Product | null>(null);
   readonly #createdId = signal('');
   readonly #ready = signal(false);
@@ -181,6 +183,14 @@ export class ProductEditorPageComponent implements OnInit {
   readonly showCollapseStock = computed(
     () => !this.isCreate() && this.hadSizes() && this.sizes().length === 0,
   );
+  readonly flatStockError = computed(() => {
+    if (!this.showFlatStock() && !this.showCollapseStock()) return '';
+    const value = this.flatStock();
+    if ((this.#saveTried() || value.trim() !== '0') && !isAllowedCount(value)) {
+      return STOCK_MESSAGE;
+    }
+    return '';
+  });
   readonly replacingFlatStock = computed(
     () => !this.isCreate() && !this.hadSizes() && this.sizes().length > 0,
   );
@@ -479,6 +489,15 @@ export class ProductEditorPageComponent implements OnInit {
     this.sizes.set(list);
   }
 
+  sizeStockError(size: ProductSizeDraft): string {
+    if (!(this.isCreate() || size.isNew)) return '';
+    const value = size.initialStock;
+    if ((this.#saveTried() || value.trim() !== '0') && !isAllowedCount(value)) {
+      return STOCK_MESSAGE;
+    }
+    return '';
+  }
+
   onSizeStock(index: number, event: Event): void {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
@@ -518,6 +537,7 @@ export class ProductEditorPageComponent implements OnInit {
   async save(event?: Event): Promise<void> {
     event?.preventDefault();
     if (this.isSaving() || !this.#ready()) return;
+    this.#saveTried.set(true);
     if (this.tagInput().trim()) {
       this.addPendingTag();
       if (this.tagError()) return;
@@ -527,6 +547,12 @@ export class ProductEditorPageComponent implements OnInit {
       if (this.sizeError()) return;
     }
     this.formError.set(this.#blockers());
+    if (this.formError() && isPlatformBrowser(this.#platformId)) {
+      // aria-invalid is painted after this signal write.
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
+      });
+    }
     await submit(this.editForm, async () => {
       if (this.formError()) return;
       await this.#persist();
@@ -554,6 +580,7 @@ export class ProductEditorPageComponent implements OnInit {
       this.sizeError.set('');
       this.flatStock.set('0');
       this.formError.set('');
+      this.#saveTried.set(false);
       this.#loadedProduct.set(null);
       return;
     }
@@ -565,6 +592,7 @@ export class ProductEditorPageComponent implements OnInit {
       this.#descriptionTouched = false;
       this.flatStock.set('0');
       this.formError.set('');
+      this.#saveTried.set(false);
       return;
     }
 
@@ -598,6 +626,7 @@ export class ProductEditorPageComponent implements OnInit {
     this.sizeError.set('');
     this.flatStock.set('0');
     this.formError.set('');
+    this.#saveTried.set(false);
     this.#loadedProduct.set(product);
   }
 
@@ -628,11 +657,11 @@ export class ProductEditorPageComponent implements OnInit {
       if (labels.has(key)) return 'This size is already in the list.';
       labels.add(key);
       if ((this.isCreate() || size.isNew) && !isAllowedCount(size.initialStock)) {
-        return 'Starting stock must be a whole number from 0 to 100,000.';
+        return STOCK_MESSAGE;
       }
     }
     if ((this.showFlatStock() || this.showCollapseStock()) && !isAllowedCount(this.flatStock())) {
-      return 'Starting stock must be a whole number from 0 to 100,000.';
+      return STOCK_MESSAGE;
     }
     return '';
   }
@@ -781,9 +810,61 @@ function toImageAsset(image: Product['images'][number]): ImageAsset {
   };
 }
 
+const BLOCK_TAGS = new Set([
+  'P',
+  'DIV',
+  'LI',
+  'UL',
+  'OL',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'BLOCKQUOTE',
+  'PRE',
+  'TABLE',
+  'TR',
+  'SECTION',
+  'ARTICLE',
+  'HEADER',
+  'FOOTER',
+]);
+
+/** Text for the textarea: blank line between blocks, newline for <br>. Round-trips with descriptionToHtml(). */
 function plainFromHtml(html: string | null): string {
   if (!html || typeof DOMParser === 'undefined') return '';
-  return new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '';
+  const body = new DOMParser().parseFromString(html, 'text/html').body;
+  const paragraphs: string[] = [];
+  let current = '';
+  const flush = (): void => {
+    const text = current
+      .split('\n')
+      .map((line) => line.trim())
+      .join('\n')
+      .trim();
+    if (text.length > 0) paragraphs.push(text);
+    current = '';
+  };
+  const walk = (node: Node): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      current += (node.textContent ?? '').replace(/[\r\n]+/g, ' ');
+      return;
+    }
+    if (!(node instanceof Element)) return;
+    if (node.tagName === 'BR') {
+      current += '\n';
+      return;
+    }
+    const block = BLOCK_TAGS.has(node.tagName);
+    if (block) flush();
+    node.childNodes.forEach(walk);
+    if (block) flush();
+  };
+  body.childNodes.forEach(walk);
+  flush();
+  return paragraphs.join('\n\n');
 }
 
 function collapseSpaces(value: string): string {
