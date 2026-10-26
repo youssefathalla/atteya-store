@@ -10,10 +10,17 @@ export function stockMode(product: ProductView): StockMode {
 }
 
 export function isProductInStock(product: ProductView): boolean {
+  if (typeof product.stock === 'number') return product.stock > 0;
+  // legacy until PR 1b
   const mode = stockMode(product);
   if (mode === 'unknown') return product.inStock;
   if (mode === 'untracked') return true;
   return product.variants.some((variant) => variant.stock > 0);
+}
+
+/** Units left for one size. Null when the product has no size map. */
+export function sizeStock(product: ProductView, sizeValueId: string): number | null {
+  return product.stockBySize ? (product.stockBySize[sizeValueId] ?? 0) : null;
 }
 
 /** A value is selectable if some in-stock variant has it AND agrees with every *other* current pick. */
@@ -23,6 +30,15 @@ export function isValueAvailable(
   valueId: string,
   selection: OptionSelection,
 ): boolean {
+  if (!isProductInStock(product)) return false;
+  if (typeof product.stock === 'number') {
+    if (key === 'size') {
+      const sized = sizeStock(product, valueId);
+      if (sized !== null) return sized > 0;
+    }
+    return true;
+  }
+  // legacy until PR 1b
   if (stockMode(product) !== 'variants') return true;
   return product.variants.some(
     (variant) =>

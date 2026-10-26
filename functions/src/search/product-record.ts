@@ -103,10 +103,13 @@ export function toSearchRecord(
   const colors = readStringArray(data['colors']);
   const sizes = extractSizes(data['options']);
   const tags = readStringArray(data['tags']);
+  const rawStock = data['stock'];
   const inStock =
-    typeof data['inStock'] === 'boolean'
-      ? data['inStock']
-      : computeInStock(data['trackStock'], data['variants']);
+    typeof rawStock === 'number' && Number.isFinite(rawStock)
+      ? rawStock > 0
+      : typeof data['inStock'] === 'boolean'
+        ? data['inStock']
+        : computeInStock(data['trackStock'], data['variants']);
   const image = extractPrimaryImage(data['images'], name);
   const createdAtMs = extractTimestampMs(data['createdAt']);
 

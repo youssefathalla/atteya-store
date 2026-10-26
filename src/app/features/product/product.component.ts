@@ -165,7 +165,18 @@ export class ProductComponent {
     const v = this.variant();
     if (!p || !this.inStock()) return null;
     if (p.options.some((option) => !sel[option.key])) return null;
-    if (stockMode(p) === 'variants' && (!v || v.stock <= 0)) return null;
+    if (typeof p.stock === 'number') {
+      if (
+        p.stockBySize &&
+        p.options.some((option) => option.key === 'size') &&
+        (p.stockBySize[sel['size']] ?? 0) <= 0
+      ) {
+        return null;
+      }
+    } else if (stockMode(p) === 'variants' && (!v || v.stock <= 0)) {
+      // legacy until PR 1b
+      return null;
+    }
     return { productId: p.id, variantId: v?.id ?? null, selection: sel, quantity: 1 };
   });
 

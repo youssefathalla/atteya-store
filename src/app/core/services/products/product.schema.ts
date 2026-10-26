@@ -74,6 +74,8 @@ export const ProductSchema = v.pipe(
     colors: v.optional(v.pipe(v.array(v.picklist(COLOR_IDS)), v.maxLength(12)), []),
     tags: v.optional(v.pipe(v.array(tagSlugSchema), v.maxLength(20)), []),
     trackStock: v.boolean(),
+    stock: v.optional(wholeNumber),
+    stockBySize: v.optional(v.record(v.string(), wholeNumber)),
     inStock: v.optional(v.boolean(), true),
     variants: v.pipe(v.array(ProductVariantSchema), v.maxLength(200)),
     published: v.boolean(),

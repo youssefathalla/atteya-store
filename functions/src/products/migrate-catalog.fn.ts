@@ -24,7 +24,7 @@ import {
   type ColorId,
 } from './catalog-taxonomy.js';
 import { buildSearchTokens } from './search-tokens.js';
-import { deriveInStock } from './stock.js';
+import { bootstrapStock, untrackedDefaultStock } from './stock.js';
 
 export type MigratePass = 'add' | 'dropLegacy';
 
@@ -388,16 +388,27 @@ async function backfillProducts(
       diffNotes.push('searchTokens');
     }
 
-    const derivedInStock = deriveInStock({
-      trackStock: data['trackStock'],
-      variants: data['variants'],
-    });
-    if (derivedInStock === null) {
-      // Tracked, no variants: needs EasyOrders' product quantity. Never overwrite a value the import wrote.
-      if (typeof data['inStock'] !== 'boolean') counts.stockNeedsImport += 1;
-    } else if (data['inStock'] !== derivedInStock) {
-      patch['inStock'] = derivedInStock;
-      diffNotes.push(`inStock -> ${derivedInStock}`);
+    if (typeof data['stock'] === 'number') {
+      const nextInStock = data['stock'] > 0;
+      if (data['inStock'] !== nextInStock) {
+        patch['inStock'] = nextInStock;
+        diffNotes.push(`inStock -> ${nextInStock}`);
+      }
+    } else {
+      const boot = bootstrapStock({
+        trackStock: data['trackStock'],
+        variants: data['variants'],
+        options: optionBackfill.changed ? optionBackfill.options : data['options'],
+        untrackedDefault: untrackedDefaultStock(),
+      });
+      if (boot === null) {
+        counts.stockNeedsImport += 1;
+      } else {
+        patch['stock'] = boot.stock;
+        patch['inStock'] = boot.inStock;
+        if (boot.stockBySize) patch['stockBySize'] = boot.stockBySize;
+        diffNotes.push(`stock -> ${boot.stock}`);
+      }
     }
 
     if (Object.keys(patch).length === 0) {

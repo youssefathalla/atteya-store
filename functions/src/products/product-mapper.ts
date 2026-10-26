@@ -87,6 +87,8 @@ export interface MappedProduct {
   readonly trackStock: boolean;
   readonly variants: readonly MappedVariant[];
   readonly inStock: boolean;
+  /** EasyOrders product-level quantity, whole number ≥ 0. Missing counts as 0. */
+  readonly productQuantity: number;
   readonly published: boolean;
   readonly sourceSlug: string;
   readonly sourceCategoryIds: readonly string[];
@@ -159,6 +161,7 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
   }
 
   const trackStock = product.track_stock === true;
+  const productQuantity = wholeQuantity(product.quantity);
   const createdAtIso = typeof product.created_at === 'string' ? product.created_at : '';
   if (!createdAtIso || Number.isNaN(Date.parse(createdAtIso))) {
     warnings.push('The original date was missing, so today is used.');
@@ -192,6 +195,7 @@ export function mapEasyOrdersProduct(raw: unknown): MapOutcome {
       trackStock,
       variants,
       inStock,
+      productQuantity,
       published: product.hidden !== true,
       sourceSlug: typeof product.slug === 'string' ? product.slug.trim() : '',
       sourceCategoryIds: [...sourceCategoryIds].sort(),
@@ -260,6 +264,11 @@ function mapMoney(
 function wholePounds(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) return null;
   return value;
+}
+
+function wholeQuantity(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.floor(value));
 }
 
 function collectGallery(
