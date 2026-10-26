@@ -12,6 +12,10 @@ import {
   ProductEditDialogComponent,
   ProductEditDialogData,
 } from '../dialogs/product-edit-dialog/product-edit-dialog.component';
+import {
+  ProductStockDialogComponent,
+  ProductStockDialogData,
+} from '../dialogs/product-stock-dialog/product-stock-dialog.component';
 import type {
   BrandOptionView,
   CategoryOptionView,
@@ -19,6 +23,7 @@ import type {
   MigrateReport,
   ProductEditDraft,
   ReindexSearchReport,
+  StockChange,
 } from '../models/product-admin.model';
 
 @Service()
@@ -103,6 +108,20 @@ export class ProductsDialogService {
       ProductEditDraft | null
     >(ProductEditDialogComponent, {
       data: { product, groups, categories, brands },
+      width: '480px',
+      maxWidth: '92vw',
+    });
+    const result = await firstValueFrom(dialogRef.afterClosed());
+    return result ?? null;
+  }
+
+  async openStock(product: Product): Promise<StockChange | null> {
+    const dialogRef = this.#dialog.open<
+      ProductStockDialogComponent,
+      ProductStockDialogData,
+      StockChange | null
+    >(ProductStockDialogComponent, {
+      data: { product },
       width: '480px',
       maxWidth: '92vw',
     });
