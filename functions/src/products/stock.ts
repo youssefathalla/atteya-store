@@ -1,3 +1,5 @@
+import { currentProjectId } from '../project-id.js';
+
 export interface StockInput {
   readonly trackStock: unknown;
   readonly variants: unknown;
@@ -22,9 +24,19 @@ export function deriveInStock(input: StockInput): boolean | null {
 
 export const DEV_PROJECT_ID = 'atteya-store-dev';
 
-/** Dev seeds untracked products at 10. Prod (`attiya-store`) and anything else stay at 0. */
-export function untrackedDefaultStock(projectId = process.env.GCLOUD_PROJECT): number {
-  return projectId === DEV_PROJECT_ID ? 10 : 0;
+/**
+ * Dev seeds untracked products at 10. Any other resolved project, including prod
+ * `attiya-store`, stays at 0. Throws when the project id cannot be resolved so a
+ * missing id cannot silently write 0.
+ */
+export function untrackedDefaultStock(projectId?: string): number {
+  const resolved = (projectId ?? currentProjectId()).trim();
+  if (!resolved) {
+    throw new Error(
+      'Could not resolve the Firebase project id from GCLOUD_PROJECT or FIREBASE_CONFIG. Refusing to default untracked stock to 0.',
+    );
+  }
+  return resolved === DEV_PROJECT_ID ? 10 : 0;
 }
 
 export interface StockFields {
