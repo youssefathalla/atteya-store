@@ -17,7 +17,7 @@ export class CatalogMigrateDialogComponent {
 
   readonly description =
     this.report.pass === 'add'
-      ? 'This adds categories and brands to every product. Nothing is deleted.'
+      ? 'This adds categories, brands and stock status to every product. Nothing is deleted.'
       : 'This removes the old single category and brand fields now that every product has the new structure.';
 
   apply(): void {

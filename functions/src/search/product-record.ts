@@ -5,6 +5,7 @@ import {
 } from '../offers/engine/index.js';
 import { PRODUCT_TYPES, sizeRank, type ProductTypeId } from '../products/catalog-mapping.js';
 import { categoryIdsFor, DEFAULT_CATEGORY_FOR_TYPE } from '../products/catalog-taxonomy.js';
+import { deriveInStock } from '../products/stock.js';
 import type { CachedBrandInfo, CachedCategoryInfo } from './catalog-cache.js';
 
 export interface SearchRecordImage {
@@ -102,7 +103,10 @@ export function toSearchRecord(
   const colors = readStringArray(data['colors']);
   const sizes = extractSizes(data['options']);
   const tags = readStringArray(data['tags']);
-  const inStock = computeInStock(data['trackStock'], data['variants']);
+  const inStock =
+    typeof data['inStock'] === 'boolean'
+      ? data['inStock']
+      : computeInStock(data['trackStock'], data['variants']);
   const image = extractPrimaryImage(data['images'], name);
   const createdAtMs = extractTimestampMs(data['createdAt']);
 
@@ -309,14 +313,7 @@ function extractSizes(rawOptions: unknown): string[] {
 }
 
 function computeInStock(rawTrackStock: unknown, rawVariants: unknown): boolean {
-  if (rawTrackStock === false) return true;
-  if (!Array.isArray(rawVariants) || rawVariants.length === 0) return false;
-
-  return rawVariants.some((variant) => {
-    if (typeof variant !== 'object' || variant === null) return false;
-    const stock = (variant as { stock?: unknown }).stock;
-    return typeof stock === 'number' && Number.isFinite(stock) && stock > 0;
-  });
+  return deriveInStock({ trackStock: rawTrackStock, variants: rawVariants }) ?? false;
 }
 
 function extractPrimaryImage(rawImages: unknown, fallbackAlt: string): SearchRecordImage | null {

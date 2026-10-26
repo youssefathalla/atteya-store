@@ -24,6 +24,7 @@ import {
   type ColorId,
 } from './catalog-taxonomy.js';
 import { buildSearchTokens } from './search-tokens.js';
+import { deriveInStock } from './stock.js';
 
 export type MigratePass = 'add' | 'dropLegacy';
 
@@ -40,6 +41,7 @@ export interface MigrateProductCounts {
   colorsFromOptions: number;
   colorsFromName: number;
   colorsMissing: number;
+  stockNeedsImport: number;
 }
 
 export interface MigrateProductSample {
@@ -290,6 +292,7 @@ async function backfillProducts(
     colorsFromOptions: 0,
     colorsFromName: 0,
     colorsMissing: 0,
+    stockNeedsImport: 0,
   };
   const sample: MigrateProductSample[] = [];
   const writes: { ref: DocumentReference; data: DocumentData }[] = [];
@@ -385,6 +388,18 @@ async function backfillProducts(
       diffNotes.push('searchTokens');
     }
 
+    const derivedInStock = deriveInStock({
+      trackStock: data['trackStock'],
+      variants: data['variants'],
+    });
+    if (derivedInStock === null) {
+      // Tracked, no variants: needs EasyOrders' product quantity. Never overwrite a value the import wrote.
+      if (typeof data['inStock'] !== 'boolean') counts.stockNeedsImport += 1;
+    } else if (data['inStock'] !== derivedInStock) {
+      patch['inStock'] = derivedInStock;
+      diffNotes.push(`inStock -> ${derivedInStock}`);
+    }
+
     if (Object.keys(patch).length === 0) {
       counts.unchanged += 1;
       return;
@@ -438,6 +453,7 @@ async function runDropLegacyPass(db: Firestore, dryRun: boolean): Promise<Migrat
     colorsFromOptions: 0,
     colorsFromName: 0,
     colorsMissing: 0,
+    stockNeedsImport: 0,
   };
   const sample: MigrateProductSample[] = [];
   const writes: { ref: DocumentReference; data: DocumentData }[] = [];
