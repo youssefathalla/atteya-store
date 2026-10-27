@@ -39,7 +39,9 @@
             />
           }
           @if (!inStock()) {
-            <p class="font-label-lg uppercase" role="status">Out of stock</p>
+            <p class="font-label-lg uppercase" role="status">
+              {{ removed() ? 'No longer available' : 'Out of stock' }}
+            </p>
           }
 
           <app-product-options

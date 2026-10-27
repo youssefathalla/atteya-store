@@ -195,7 +195,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 - **`ProductCacheService`** (`src/app/core/services/products/product-cache.service.ts`):
   - Browser-only in-memory cache of published products, keyed by slug. 60 seconds, 50 entries, dropped on reload. Failed reads are not stored. `null` (not found) is stored for the same 60 seconds.
   - The server never reads or writes it. `getBySlug(slug)` shares an in-flight read. `prefetch(slug)` is fire-and-forget and skips Save-Data, 2G, an empty slug, and a slug longer than 200 characters. `seed(products)` stores docs a page already loaded (`published === true` only). `clear()` drops every entry after an admin product save or a successful stock save in the same tab.
-  - The product resolver uses it on the client only, after the TransferState hand-off, so hydration does not read twice. Search cards and colour siblings prefetch through `appPrefetchProduct`. Siblings call `seed()` with `listModelGroup`.
+  - The product resolver uses it on the client only, after the TransferState hand-off, so hydration does not read twice. Search cards and colour siblings prefetch through `appPrefetchProduct`. Siblings call `seed()` with `listModelGroup`. Paint only; the product page's live doc listener is the source of truth for price and stock.
 - **`ProductService`** (`src/app/core/services/products/product.service.ts`):
   - Public catalogue reads. Every query includes `where('published', '==', true)`.
   - `listPublished({ category?, type?, brand?, limit })`: newest first. Pass at most one of category, type, or brand.
