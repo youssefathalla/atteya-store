@@ -36,11 +36,15 @@
   }
 
   .skeleton-overlay {
-    @apply absolute inset-0 size-full z-50 pointer-events-auto bg-surface;
+    @apply absolute inset-0 size-full z-50 pointer-events-auto;
+  }
+
+  .skeleton.skeleton-overlay {
+    background-color: var(--mat-sys-surface-container-high);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .skeleton::after {
+    .skeleton:not(img)::after {
       animation: none;
     }
   }
