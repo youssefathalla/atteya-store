@@ -206,6 +206,11 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `visibleTypes`, `visibleBrands`: types and brands with a published count. All of them while the summary is unknown.
   - `isEmpty(path)`: `false` until a summary exists, then `true` for a known empty category, type, or brand path.
 - **`isOnSale` / `discountPercent`** (`src/app/core/services/products/utils/product-price.utils.ts`): whole-pound sale helpers. Do not use these for the legacy GBP pence pipe.
+- **`CurrencyService`** (`src/app/core/services/currency/currency.service.ts`):
+  - `selected()`, `entry()` (`CurrencyEntry`, starts as `EGP_ENTRY`), `options()`, `ready()`.
+  - `select(code)` saves `localStorage['atteya.cur']` and converts. `ensureOptions()` loads `settings/currency` on the first switcher open.
+  - SSR, `Africa/Cairo`, and a missing timezone stay on EGP and do not import `currency-loader.ts`.
+  - `toDisplayAmount` lives in the shared pricing engine (`functions/src/offers/engine/currency.ts`).
 - **`ImageSourceService`** (`src/app/core/services/storage/image-source.service.ts`):
   - **Primary entry point for admin image uploads & URL resolution.**
   - `uploadFile(file, folder)`: Validates format (JPG/PNG/WebP/AVIF, max 10MB, no SVG), reads local dimensions, uploads to Storage, and probes ImageKit delivery.
@@ -238,7 +243,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 - **`PenceToPoundsPipe`** (`src/app/shared/pipes/pence-to-pounds.pipe.ts`):
   - Legacy. Converts integer pence into formatted GBP currency strings. Do not use it for Egyptian pounds.
 - **`EgpPricePipe`** (`src/app/shared/pipes/egp-price.pipe.ts`):
-  - Name: `egpPrice`. Formats a whole Egyptian pound amount with `Intl` (`en-EG`, currency `EGP`, no fraction digits), for example `EGP 599`.
+  - Name: `egpPrice`. Admin screens. Formats a whole Egyptian pound amount through `formatMoney` (`en-EG`, currency `EGP`, no fraction digits), for example `EGP 599`. Storefront prices use `app-product-price` instead.
 - **`TimestampDatePipe`** (`src/app/shared/pipes/`):
   - Formats Firestore `Timestamp` objects into localized date strings.
 
@@ -277,6 +282,8 @@ Located in `src/app/shared/schemas/` and `src/app/shared/utils/firebase/`:
 
 Located in `src/app/shared/utils/`:
 
+- **`formatMoney`** (`src/app/shared/utils/money.ts`):
+  - `formatMoney(amount, code, decimals)`. EGP uses the `en-EG` whole-pound formatter. Other currencies use `en-US` currency format with the published fraction digits. Formatters are cached.
 - **`useBreakpoint`** (`src/app/shared/utils/breakpoint.utils.ts`):
   - Returns a reactive `Signal<boolean>` indicating whether the media query matches.
   - Automatically wraps Angular CDK `BreakpointObserver` in `toSignal()`.
@@ -389,7 +396,8 @@ Whenever you find a combination of 4 or more utility classes that is repeated **
 
 ## Step 1b additions
 
-- **Shared UI**: `app-product-price` (`@shared/components/product-price`): price, struck-through list price, "From" prefix and monochrome offer badges. `app-shipping-banner` (`@shared/components/shipping-banner`): dismissible announcement fed by `ShippingSettingsService`.
+- **Shared UI**: `app-product-price` (`@shared/components/product-price`): the only storefront price. It reads `CurrencyService.entry()`, converts with `toDisplayAmount`, and formats with `formatMoney`. List-price comparison stays in EGP before conversion. Outside EGP, badges that contain an EGP amount are dropped and percentage badges stay. `app-shipping-banner` (`@shared/components/shipping-banner`): dismissible announcement fed by `ShippingSettingsService`. The banner and the shipping line are empty when the selected currency is not EGP.
+- **Currency**: `CurrencyService` (`src/app/core/services/currency/currency.service.ts`). Signals: `selected`, `entry`, `options`, `ready`. `select(code)` stores the choice. `ensureOptions()` loads the public factor doc the first time the switcher opens. Server, Egypt, and an unknown timezone stay on EGP and do not import `currency-loader.ts`. `app-currency-switcher` sits in the desktop actions and the mobile menu. `formatMoney` (`src/app/shared/utils/money.ts`) is the shared formatter. `EgpPricePipe` stays for admin. Checkout later follows `OrderPricingSnapshot` (`src/app/core/services/orders/order-pricing.model.ts`).
 - **Core services**: `SearchService` (`@core/services/search`), `OffersService` and the generated pricing engine (`@core/services/offers`), `ShippingSettingsService` (`@core/services/shipping`), `catalog-taxonomy.ts` (categories, brands, colour palette, `colorIdFor`).
 - **Rule**: never edit `src/app/core/services/offers/engine/*`; change `functions/src/offers/engine/*` and run `npm run sync:engine`.
 
