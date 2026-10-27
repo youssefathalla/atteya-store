@@ -24,6 +24,13 @@ html[data-cur-pending] app-product-price {
   visibility: hidden;
 }
 
+// The domestic shipping bar is in the server HTML as EGP. Drop it before
+// first paint while a foreign currency is still resolving, so it does not
+// flash and then collapse. Egypt never sets data-cur-pending.
+html[data-cur-pending] app-shipping-banner {
+  display: none;
+}
+
 body {
   height: 100%;
   margin: 0;

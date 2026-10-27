@@ -23,10 +23,12 @@ export class ProductPriceComponent {
 
   readonly effectiveListPrice = computed(() => {
     const list = this.listPrice();
-    if (list !== null && list > this.displayedPrice()) {
-      return list;
-    }
-    return null;
+    if (list === null) return null;
+    // Round both sides first. A higher EGP list can land on the same
+    // display step, and then the struck-through price would repeat the sale.
+    const sale = this.#amount(this.displayedPrice());
+    const was = this.#amount(list);
+    return was > sale ? list : null;
   });
 
   readonly showFromPrefix = computed(
@@ -48,8 +50,12 @@ export class ProductPriceComponent {
     return badges.filter((badge) => !EGP_AMOUNT.test(badge));
   });
 
+  #amount(egp: number): number {
+    return toDisplayAmount(egp, this.#currency.entry());
+  }
+
   #format(egp: number): string {
     const entry = this.#currency.entry();
-    return formatMoney(toDisplayAmount(egp, entry), entry.code, entry.decimals);
+    return formatMoney(this.#amount(egp), entry.code, entry.decimals);
   }
 }
