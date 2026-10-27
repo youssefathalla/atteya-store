@@ -98,6 +98,7 @@
       @for (hit of hits(); track hit.objectID) {
         <a
           [routerLink]="['/product', hit.slug]"
+          [appPrefetchProduct]="hit.slug"
           class="surface-card p-3 elements-start-col gap-3 border-shape no-underline"
         >
           <div class="relative aspect-square w-full overflow-hidden border-shape bg-surface-container">

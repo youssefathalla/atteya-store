@@ -24,6 +24,7 @@ import { SearchService, type SearchSort } from '@core/services/search';
 import { SeoService } from '@core/services/seo';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
+import { PrefetchProductDirective } from '@shared/directives/prefetch-product';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { normalizeImageKitPath } from '@shared/utils/image';
@@ -53,6 +54,7 @@ interface CardPriceView {
     MatInputModule,
     MatSelectModule,
     AppImageFallbackDirective,
+    PrefetchProductDirective,
     ProductPriceComponent,
     SharedIconModule,
     SkeletonComponent,

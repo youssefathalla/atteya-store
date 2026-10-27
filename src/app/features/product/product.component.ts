@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { Router, RouterLink } from '@angular/router';
+import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { displayPrice, type Offer, priceItem } from '@core/services/offers/engine';
@@ -19,7 +20,7 @@ import { toPricedProduct } from '@core/services/offers/offer.model';
 import { fromTransferOffer } from '@core/services/offers/offer-transfer';
 import { OffersService } from '@core/services/offers/offers.service';
 import { PublicOffersReader } from '@core/services/offers/public-offers.reader';
-import { CatalogService, toVariantFacts } from '@core/services/products';
+import { CatalogService, type Product, toVariantFacts } from '@core/services/products';
 import { SeoService } from '@core/services/seo';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { AddToBagButtonComponent } from './components/add-to-bag-button/add-to-bag-button.component';
@@ -27,6 +28,7 @@ import { ProductGalleryComponent } from './components/product-gallery/product-ga
 import { ProductOptionsComponent } from './components/product-options/product-options.component';
 import { ProductSiblingsComponent } from './components/product-siblings/product-siblings.component';
 import type { OptionSelection, ProductPageResult, ProductView } from './models/product-page.model';
+import { watchProductDoc } from './utils/product-live';
 import {
   findVariant,
   initialSelection,
@@ -55,12 +57,15 @@ export class ProductComponent {
   readonly #catalog = inject(CatalogService);
   readonly #offersReader = inject(PublicOffersReader);
   readonly #liveOffers = inject(OffersService);
+  readonly #firestore = injectFirestore();
   readonly #auth = inject(AuthService);
   readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);
 
   /** False until the first browser render so hydration matches server pricing. */
   readonly #hydrated = signal(false);
+  /** Latest server copy of the open product. id guards against a late snapshot for the previous page. */
+  readonly #live = signal<{ readonly id: string; readonly doc: Product | null } | null>(null);
   /** Pricing clock: starts at server render time, then switches to browser time ticking every 60 s. */
   readonly #nowMs = linkedSignal(() => {
     const p = this.page();
@@ -89,19 +94,48 @@ export class ProductComponent {
     return this.#fallbackOffers.hasValue() ? this.#fallbackOffers.value() : [];
   });
 
-  readonly product = computed<ProductView | null>(() => {
+  readonly product = computed<ProductView | null>(
+    () => {
+      const p = this.page();
+      if (p.status !== 'found') return null;
+      const live = this.#live();
+      if (live?.id !== p.product.id || !live.doc) return p.product;
+      const d = live.doc;
+      // Only price and stock go live. Images, options and text stay as rendered (no gallery or picks reset).
+      return {
+        ...p.product,
+        price: d.price,
+        compareAtPrice: d.compareAtPrice,
+        trackStock: d.trackStock,
+        stock: d.stock,
+        stockBySize: d.stockBySize,
+        inStock: d.inStock,
+        variants: d.variants,
+      };
+    },
+    // Same values = same object, so a snapshot that changes nothing re-renders nothing.
+    { equal: (a, b) => a === b || (!!a && !!b && JSON.stringify(a) === JSON.stringify(b)) },
+  );
+
+  /** Unpublished or deleted while the page is open. */
+  readonly removed = computed(() => {
     const p = this.page();
-    return p.status === 'found' ? p.product : null;
+    const live = this.#live();
+    return p.status === 'found' && live?.id === p.product.id && live.doc === null;
   });
 
   readonly inStock = computed(() => {
     const p = this.product();
-    return p ? isProductInStock(p) : false;
+    return !!p && !this.removed() && isProductInStock(p);
   });
 
   readonly selection = linkedSignal<ProductView | null, OptionSelection>({
     source: this.product,
-    computation: (p) => (p ? initialSelection(p) : {}),
+    computation: (p, previous) => {
+      if (!p) return {};
+      if (previous?.source?.id === p.id) return previous.value;
+      return initialSelection(p);
+    },
   });
 
   readonly variant = computed(() => {
@@ -186,6 +220,15 @@ export class ProductComponent {
       this.#nowMs.set(Date.now());
       const id = setInterval(() => this.#nowMs.set(Date.now()), 60_000);
       this.#destroyRef.onDestroy(() => clearInterval(id));
+    });
+
+    effect((onCleanup) => {
+      const page = this.page();
+      if (!this.#hydrated() || page.status !== 'found') return;
+      const id = page.product.id;
+      this.#live.set(null); // drop any older snapshot (e.g. A → B → back to A)
+      const stop = watchProductDoc(this.#firestore, id, (doc) => this.#live.set({ id, doc }));
+      onCleanup(stop);
     });
 
     effect(() => {
