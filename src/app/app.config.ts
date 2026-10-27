@@ -18,8 +18,6 @@ import {
   provideFirebaseApp,
   provideAuth,
   provideFirestore,
-  provideStorage,
-  provideFunctions,
   provideAppCheck,
 } from '@core/firebase';
 
@@ -57,8 +55,6 @@ export const appConfig: ApplicationConfig = {
     provideFirebaseApp(environment.firebase),
     provideAuth(),
     provideFirestore(),
-    provideStorage(),
-    provideFunctions({ regionOrCustomDomain: 'europe-west3' }),
     provideAppCheck(environment.appCheck),
   ],
 };

@@ -1,5 +1,4 @@
 import { inject, Service } from '@angular/core';
-import { httpsCallable } from 'firebase/functions';
 import {
   collection,
   doc,
@@ -14,7 +13,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import * as v from 'valibot';
-import { injectFirestore, injectFunctions } from '@core/firebase';
+import { callableFrom, injectFirestore, injectFunctionsAsync } from '@core/firebase';
 import { BrandSchema, CategorySchema } from '@core/services/products/category.schema';
 import {
   BRANDS_COLLECTION,
@@ -65,22 +64,10 @@ export interface ProductSearchResult {
 @Service()
 export class ProductsAdminService {
   readonly #firestore = injectFirestore();
-  readonly #functions = injectFunctions();
+  readonly #functions = injectFunctionsAsync();
   readonly #searchService = inject(SearchService);
   readonly #productCache = inject(ProductCacheService);
   readonly #productConverter = createValibotConverter(ProductSchema);
-  readonly #setStockCallable = httpsCallable<SetStockPayload, unknown>(
-    this.#functions,
-    'setProductStock',
-  );
-  readonly #createCallable = httpsCallable<CreateProductPayload, unknown>(
-    this.#functions,
-    'createProduct',
-  );
-  readonly #updateCallable = httpsCallable<UpdateProductPayload, unknown>(
-    this.#functions,
-    'updateProduct',
-  );
 
   newProductId(): string {
     return doc(collection(this.#firestore, PRODUCTS_COLLECTION)).id;
@@ -174,21 +161,24 @@ export class ProductsAdminService {
   }
 
   async createProduct(payload: CreateProductPayload): Promise<SaveProductResult> {
-    const result = await this.#createCallable(payload);
+    const create = await callableFrom<CreateProductPayload, unknown>(this.#functions, 'createProduct');
+    const result = await create(payload);
     const saved = await this.#parseSaveResult(result.data);
     this.#productCache.clear();
     return saved;
   }
 
   async updateProduct(payload: UpdateProductPayload): Promise<SaveProductResult> {
-    const result = await this.#updateCallable(payload);
+    const update = await callableFrom<UpdateProductPayload, unknown>(this.#functions, 'updateProduct');
+    const result = await update(payload);
     const saved = await this.#parseSaveResult(result.data);
     this.#productCache.clear();
     return saved;
   }
 
   async saveStock(productId: string, change: StockChange): Promise<StockResult> {
-    const result = await this.#setStockCallable({ productId, ...change });
+    const setStock = await callableFrom<SetStockPayload, unknown>(this.#functions, 'setProductStock');
+    const result = await setStock({ productId, ...change });
     const parsed = v.safeParse(StockResultSchema, result.data);
     if (!parsed.success) {
       throw new Error('Stock was saved, but the response was unexpected. Reload the page.');

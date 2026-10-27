@@ -1,7 +1,6 @@
 import { computed, Service, signal } from '@angular/core';
-import { httpsCallable } from 'firebase/functions';
 import * as v from 'valibot';
-import { injectFunctions } from '@core/firebase';
+import { callableFrom, injectFunctionsAsync } from '@core/firebase';
 import type { ImportCountsView, ImportReport, ImportRowView } from '../models/product-admin.model';
 
 interface MutableCounts {
@@ -60,10 +59,7 @@ type ImportResponse = v.InferOutput<typeof ImportResponseSchema>;
 
 @Service()
 export class ProductsImportService {
-  readonly #functions = injectFunctions();
-  readonly #callable = httpsCallable<ImportPayload, unknown>(this.#functions, 'importEasyOrdersProducts', {
-    timeout: 540_000,
-  });
+  readonly #functions = injectFunctionsAsync();
   readonly #mode = signal<'preview' | 'import' | null>(null);
   readonly #progress = signal<{ processed: number; total: number } | null>(null);
 
@@ -105,7 +101,12 @@ export class ProductsImportService {
     const dryCounts = emptyCounts();
 
     for (let step = 0; step < 30; step += 1) {
-      const result = await this.#callable({
+      const callable = await callableFrom<ImportPayload, unknown>(
+        this.#functions,
+        'importEasyOrdersProducts',
+        { timeout: 540_000 },
+      );
+      const result = await callable({
         dryRun,
         offset,
         batchSize: dryRun ? 104 : 10,

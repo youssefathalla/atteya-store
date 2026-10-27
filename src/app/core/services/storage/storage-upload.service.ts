@@ -1,7 +1,5 @@
 import { Service, signal } from '@angular/core';
-import { ref, uploadBytes, deleteObject } from 'firebase/storage';
-import { httpsCallable } from 'firebase/functions';
-import { injectFunctions, injectStorage } from '@core/firebase';
+import { callableFrom, injectFunctionsAsync, injectStorageAsync } from '@core/firebase';
 import {
   ImageFolderPath,
   normalizeImageKitPath,
@@ -33,8 +31,8 @@ function sanitizeStorageFilename(name: string): string {
 
 @Service()
 export class StorageUploadService {
-  readonly #storage = injectStorage();
-  readonly #functions = injectFunctions();
+  readonly #storage = injectStorageAsync();
+  readonly #functions = injectFunctionsAsync();
 
   readonly #isUploading = signal(false);
   readonly #uploadError = signal<string | null>(null);
@@ -54,7 +52,8 @@ export class StorageUploadService {
       const sanitizedName = sanitizeStorageFilename(file.name);
       const uniquePath = `${folder}/${Date.now()}-${sanitizedName}`;
 
-      const storageRef = ref(this.#storage, uniquePath);
+      const { ref, uploadBytes } = await import('firebase/storage');
+      const storageRef = ref(await this.#storage, uniquePath);
       await uploadBytes(storageRef, file, {
         contentType: file.type || 'image/jpeg',
         cacheControl: 'public, max-age=31536000, immutable',
@@ -80,7 +79,7 @@ export class StorageUploadService {
     this.#uploadError.set(null);
 
     try {
-      const callable = httpsCallable<CloudImportPayload, UploadResult>(
+      const callable = await callableFrom<CloudImportPayload, UploadResult>(
         this.#functions,
         'importImageFromUrl',
       );
@@ -105,7 +104,7 @@ export class StorageUploadService {
     this.#uploadError.set(null);
 
     try {
-      const callable = httpsCallable<CloudImportPayload, UploadResult>(
+      const callable = await callableFrom<CloudImportPayload, UploadResult>(
         this.#functions,
         'importImageFromUrl',
       );
@@ -140,7 +139,8 @@ export class StorageUploadService {
     }
 
     try {
-      const storageRef = ref(this.#storage, cleanPath);
+      const { ref, deleteObject } = await import('firebase/storage');
+      const storageRef = ref(await this.#storage, cleanPath);
       await deleteObject(storageRef);
       return true;
     } catch (err: unknown) {
