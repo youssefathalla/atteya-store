@@ -13,10 +13,11 @@ export const serverRoutes: ServerRoute[] = [
     path: 'product/**',
     renderMode: RenderMode.Server,
   },
-  // search must stay client-rendered so stale results are never transferred
+  // Shell only. The results resource stays idle on the server, so hits are never transferred.
   {
     path: 'search',
-    renderMode: RenderMode.Client,
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': 'private, no-store' },
   },
   {
     path: 'admin/**',

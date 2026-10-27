@@ -43,6 +43,18 @@ export class SearchService {
     );
   }
 
+  /** DSN origin for `<link rel="preconnect">` on the search page. */
+  preconnectOrigin(): string | null {
+    if (!this.isConfigured()) return null;
+    return `https://${environment.algolia.appId}-dsn.algolia.net`;
+  }
+
+  /** Start the Algolia client import before the first search. Browser only. */
+  warm(): void {
+    if (!isPlatformBrowser(this.#platformId) || !this.isConfigured()) return;
+    void this.#getClient();
+  }
+
   async search(options: SearchQueryOptions): Promise<SearchResultPage> {
     if (!isPlatformBrowser(this.#platformId)) {
       return emptyResult(true);

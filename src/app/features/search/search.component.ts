@@ -99,11 +99,15 @@ export class SearchComponent implements OnInit {
   readonly isConfigured = computed(() => this.#searchService.isConfigured());
 
   readonly resultsResource = resource({
-    params: () => ({
-      q: this.normalizedQuery(),
-      sort: this.activeSort(),
-      page: this.activePage(),
-    }),
+    params: () => {
+      // Idle on the server so the shell renders and no hits enter TransferState.
+      if (!isPlatformBrowser(this.#platformId)) return undefined;
+      return {
+        q: this.normalizedQuery(),
+        sort: this.activeSort(),
+        page: this.activePage(),
+      };
+    },
     loader: ({ params }) =>
       this.#searchService.search({
         query: params.q,
@@ -194,6 +198,11 @@ export class SearchComponent implements OnInit {
   readonly skeletonCards = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
   constructor() {
+    this.#preconnectAlgolia();
+    if (isPlatformBrowser(this.#platformId)) {
+      this.#searchService.warm();
+    }
+
     afterNextRender(() => {
       this.#hydrated.set(true);
       this.#nowMs.set(Date.now());
@@ -308,6 +317,19 @@ export class SearchComponent implements OnInit {
 
   imagePath(rawPath: string): string {
     return normalizeImageKitPath(rawPath);
+  }
+
+  #preconnectAlgolia(): void {
+    const href = this.#searchService.preconnectOrigin();
+    const head = this.#document.head;
+    if (!href || !head) return;
+    if (head.querySelector(`link[rel="preconnect"][href="${href}"]`)) return;
+
+    const link = this.#document.createElement('link');
+    link.rel = 'preconnect';
+    link.href = href;
+    link.setAttribute('crossorigin', '');
+    head.appendChild(link);
   }
 
   #refresh(): void {
