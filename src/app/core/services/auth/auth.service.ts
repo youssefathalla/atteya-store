@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { FirebaseError } from 'firebase/app';
 import {
   GoogleAuthProvider,
+  browserPopupRedirectResolver,
   getRedirectResult,
   linkWithCredential,
   onIdTokenChanged,
@@ -33,6 +34,9 @@ import {
 } from './auth.utils';
 
 const PASSWORD_RESET_HIDDEN_CODES = new Set(['auth/user-not-found', 'auth/invalid-credential']);
+
+/** Set immediately before `signInWithRedirect` so other pages skip `getRedirectResult`. */
+const REDIRECT_PENDING_KEY = 'atteya-auth-redirect';
 
 /**
  * SSR-safe sign-in state. Firebase Auth runs only in the browser.
@@ -150,11 +154,17 @@ export class AuthService {
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
-      await signInWithPopup(this.#auth, provider);
+      await signInWithPopup(this.#auth, provider, browserPopupRedirectResolver);
       return 'popup';
     } catch (error) {
       if (isPopupFallback(error)) {
-        await signInWithRedirect(this.#auth, provider);
+        this.#markRedirectPending();
+        try {
+          await signInWithRedirect(this.#auth, provider, browserPopupRedirectResolver);
+        } catch (redirectError) {
+          this.#clearRedirectPending();
+          throw redirectError;
+        }
         return 'redirect';
       }
       if (this.#captureAccountExists(error)) return 'link';
@@ -353,11 +363,40 @@ export class AuthService {
     if (this.#redirectConsumed) return;
     this.#redirectConsumed = true;
 
+    const onLogin = globalThis.location?.pathname === '/login';
+    if (!this.#redirectPending() && !onLogin) return;
+
     try {
-      await getRedirectResult(this.#auth);
+      await getRedirectResult(this.#auth, browserPopupRedirectResolver);
     } catch (error) {
       if (this.#captureAccountExists(error)) return;
       this.#redirectError.set(this.mapFirebaseError(error));
+    } finally {
+      this.#clearRedirectPending();
+    }
+  }
+
+  #redirectPending(): boolean {
+    try {
+      return sessionStorage.getItem(REDIRECT_PENDING_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  #markRedirectPending(): void {
+    try {
+      sessionStorage.setItem(REDIRECT_PENDING_KEY, '1');
+    } catch {
+      // Private mode can block storage. `/login` still checks the redirect result.
+    }
+  }
+
+  #clearRedirectPending(): void {
+    try {
+      sessionStorage.removeItem(REDIRECT_PENDING_KEY);
+    } catch {
+      // Ignore blocked storage.
     }
   }
 

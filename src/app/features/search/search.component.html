@@ -64,7 +64,7 @@
         <span>Try again</span>
       </button>
     </div>
-  } @else if (resultsResource.isLoading() && !resultsResource.hasValue()) {
+  } @else if (!resultsResource.hasValue()) {
     <div
       class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full"
       aria-label="Loading search results"
@@ -95,7 +95,7 @@
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
-      @for (hit of hits(); track hit.objectID) {
+      @for (hit of hits(); track hit.objectID; let i = $index) {
         <a
           [routerLink]="['/product', hit.slug]"
           [appPrefetchProduct]="hit.slug"
@@ -108,6 +108,7 @@
                 [appImageFallback]="hit.image.path"
                 [alt]="hit.image.alt || hit.name"
                 fill
+                [priority]="i < 2"
                 sizes="(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
                 class="object-cover"
               />

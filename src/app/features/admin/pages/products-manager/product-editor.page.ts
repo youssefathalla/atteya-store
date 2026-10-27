@@ -52,7 +52,9 @@ const TAG_PATTERN = /^[a-z0-9-]{1,32}$/;
 const QUICK_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'] as const;
 const MAX_PRICE = 1_000_000;
 const MAX_COUNT = 100_000;
+const MAX_WEIGHT_GRAMS = 100_000;
 const STOCK_MESSAGE = 'Starting stock must be a whole number from 0 to 100,000.';
+const WEIGHT_MESSAGE = 'Weight must be a whole number of grams from 1 to 100,000.';
 
 interface EditorFields {
   name: string;
@@ -113,6 +115,7 @@ export class ProductEditorPageComponent implements OnInit {
   readonly sizeInput = signal('');
   readonly sizeError = signal('');
   readonly flatStock = signal('0');
+  readonly weight = signal('');
   readonly formError = signal('');
   readonly #saveTried = signal(false);
   readonly #loadedProduct = signal<Product | null>(null);
@@ -190,6 +193,11 @@ export class ProductEditorPageComponent implements OnInit {
       return STOCK_MESSAGE;
     }
     return '';
+  });
+  readonly weightError = computed(() => {
+    const raw = this.weight().trim();
+    if (raw.length === 0) return '';
+    return parseWeightGrams(raw) === null ? WEIGHT_MESSAGE : '';
   });
   readonly replacingFlatStock = computed(
     () => !this.isCreate() && !this.hadSizes() && this.sizes().length > 0,
@@ -515,6 +523,12 @@ export class ProductEditorPageComponent implements OnInit {
     this.flatStock.set(target.value);
   }
 
+  onWeight(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    this.weight.set(target.value);
+  }
+
   countLabel(size: ProductSizeDraft): string {
     const map = this.#loadedProduct()?.stockBySize;
     if (!size.id || !map) return 'Not set';
@@ -579,6 +593,7 @@ export class ProductEditorPageComponent implements OnInit {
       this.sizeInput.set('');
       this.sizeError.set('');
       this.flatStock.set('0');
+      this.weight.set('');
       this.formError.set('');
       this.#saveTried.set(false);
       this.#loadedProduct.set(null);
@@ -625,6 +640,9 @@ export class ProductEditorPageComponent implements OnInit {
     this.sizeInput.set('');
     this.sizeError.set('');
     this.flatStock.set('0');
+    this.weight.set(
+      typeof product.weightGrams === 'number' ? String(product.weightGrams) : '',
+    );
     this.formError.set('');
     this.#saveTried.set(false);
     this.#loadedProduct.set(product);
@@ -663,6 +681,7 @@ export class ProductEditorPageComponent implements OnInit {
     if ((this.showFlatStock() || this.showCollapseStock()) && !isAllowedCount(this.flatStock())) {
       return STOCK_MESSAGE;
     }
+    if (this.weightError()) return this.weightError();
     return '';
   }
 
@@ -736,6 +755,8 @@ export class ProductEditorPageComponent implements OnInit {
       })),
       sizes: this.sizes().map((size) => toSizePayload(size, this.isCreate())),
       ...(sendStock ? { stock: Number(this.flatStock().trim()) } : {}),
+      weightGrams:
+        this.weight().trim().length === 0 ? null : parseWeightGrams(this.weight()),
     };
   }
 }
@@ -886,6 +907,13 @@ function parseWholePounds(raw: string): number | null {
 
 function isWebSlug(value: string): boolean {
   return value.length >= 3 && value.length <= 80 && isModelGroup(value);
+}
+
+function parseWeightGrams(raw: string): number | null {
+  const text = raw.trim();
+  if (!/^\d+$/.test(text)) return null;
+  const value = Number(text);
+  return Number.isSafeInteger(value) && value >= 1 && value <= MAX_WEIGHT_GRAMS ? value : null;
 }
 
 function isAllowedCount(raw: string): boolean {

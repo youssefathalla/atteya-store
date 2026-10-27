@@ -83,6 +83,7 @@ export const createProduct = onCall(
         updatedBy: actor.uid,
       };
       if (stock.stockBySize) created['stockBySize'] = stock.stockBySize;
+      if (typeof input.weightGrams === 'number') created['weightGrams'] = input.weightGrams;
       tx.create(ref, created);
       return { id: input.productId, slug };
     });
@@ -131,6 +132,10 @@ export const updateProduct = onCall(
       };
       if (input.description !== undefined) {
         patch['descriptionHtml'] = descriptionToHtml(input.description);
+      }
+      if (input.weightGrams !== undefined) {
+        patch['weightGrams'] =
+          input.weightGrams === null ? FieldValue.delete() : input.weightGrams;
       }
       if (locks.length > 0) patch['lockedFields'] = FieldValue.arrayUnion(...locks);
       applySizeAndStock(live, input, patch);

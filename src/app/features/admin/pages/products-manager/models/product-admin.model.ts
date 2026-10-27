@@ -59,6 +59,7 @@ export interface ProductFormPayload {
   readonly images: readonly ProductImagePayload[];
   readonly sizes: readonly ProductSizePayload[];
   readonly stock?: number;
+  readonly weightGrams?: number | null;
 }
 
 export interface CreateProductPayload extends ProductFormPayload {

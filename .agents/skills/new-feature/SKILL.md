@@ -192,4 +192,4 @@ Before marking any feature as complete:
 - A new Cloud Function must be exported from `functions/src/index.ts` and, if admin-only, call `requireRole(request, 'admin')`.
 - Pricing logic belongs in the shared engine (`functions/src/offers/engine/`), then `npm run sync:engine`. Never store offer prices on products.
 - Any new Firestore collection needs an explicit rules entry and an exclusion from the catch-all (rules edits go through the `firestore-rules-author` subagent).
-- Search-facing pages are client-rendered: register them in `app.routes.server.ts` with `RenderMode.Client`.
+- `/search` is a server-rendered shell (`RenderMode.Server`, `Cache-Control: private, no-store`). Keep its results resource idle on the server so hits are never transferred. Do not switch it back to `RenderMode.Client`.
