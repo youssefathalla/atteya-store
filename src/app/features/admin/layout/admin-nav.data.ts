@@ -85,6 +85,14 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         badge: 'Live',
         description: 'Delivery fees, free shipping, and promotions',
       },
+      {
+        id: 'international',
+        label: 'Outside Egypt',
+        path: '/admin/settings/international',
+        icon: 'public',
+        badge: 'Live',
+        description: 'Prices and currencies for customers outside Egypt',
+      },
     ],
   },
   {
