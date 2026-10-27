@@ -193,3 +193,4 @@ Before marking any feature as complete:
 - Pricing logic belongs in the shared engine (`functions/src/offers/engine/`), then `npm run sync:engine`. Never store offer prices on products.
 - Any new Firestore collection needs an explicit rules entry and an exclusion from the catch-all (rules edits go through the `firestore-rules-author` subagent).
 - `/search` is a server-rendered shell (`RenderMode.Server`, `Cache-Control: private, no-store`). Keep its results resource idle on the server so hits are never transferred. Do not switch it back to `RenderMode.Client`.
+- `/` is server-rendered (`RenderMode.Server`, `Cache-Control: private, no-store`) so homepage banner edits are not CDN-cached. Do not switch it back to prerender.
