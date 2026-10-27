@@ -44,12 +44,21 @@ service cloud.firestore {
       );
     }
 
-    // Storefront content: settings/home, settings/navigation, and sibling docs.
+    // Storefront content: settings/home, settings/navigation, settings/shipping,
+    // settings/currency, and sibling docs.
     // Visitors and normal users can read these. Only an admin with a current session can write them.
+    // settings/currency holds combined display factors and is written only by Cloud Functions.
     // Subcollections under settings are denied. The app does not write them.
     match /settings/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() && docId != 'currency';
+    }
+
+    // Markup and raw exchange rates. Admin SDK (callables and the daily schedule) is the only writer.
+    // Clients, including admins, cannot create or edit these docs.
+    match /intlPricing/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // Role mirror and audit trail. The Admin SDK (script and callables) is the
@@ -103,10 +112,10 @@ service cloud.firestore {
 
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
-    // auditLogs, products, categories, brands, offers, offerCodes, and offerUsage
-    // stay on the rules written for them.
+    // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
+    // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing']);
     }
   }
 }
