@@ -1,7 +1,6 @@
 import { inject, Service, signal } from '@angular/core';
-import { httpsCallable } from 'firebase/functions';
 import * as v from 'valibot';
-import { injectFunctions } from '@core/firebase';
+import { callableFrom, injectFunctionsAsync } from '@core/firebase';
 import { SearchService } from '@core/services/search';
 import type { MigratePass, MigrateReport, ReindexSearchReport } from '../models/product-admin.model';
 
@@ -54,18 +53,8 @@ interface MigratePayload {
 
 @Service()
 export class CatalogToolsService {
-  readonly #functions = injectFunctions();
+  readonly #functions = injectFunctionsAsync();
   readonly #searchService = inject(SearchService);
-  readonly #migrateCallable = httpsCallable<MigratePayload, unknown>(
-    this.#functions,
-    'migrateCatalogStructure',
-    { timeout: 300_000 },
-  );
-  readonly #reindexCallable = httpsCallable<{ readonly dryRun: boolean }, unknown>(
-    this.#functions,
-    'reindexSearch',
-    { timeout: 300_000 },
-  );
   readonly #busy = signal(false);
 
   readonly busy = this.#busy.asReadonly();
@@ -76,7 +65,12 @@ export class CatalogToolsService {
     }
     this.#busy.set(true);
     try {
-      const result = await this.#migrateCallable({ pass, dryRun });
+      const migrate = await callableFrom<MigratePayload, unknown>(
+        this.#functions(),
+        'migrateCatalogStructure',
+        { timeout: 300_000 },
+      );
+      const result = await migrate({ pass, dryRun });
       const parsed = v.safeParse(MigrateResponseSchema, result.data);
       if (!parsed.success) {
         throw new Error('The catalogue check finished, but the response was unexpected.');
@@ -93,7 +87,12 @@ export class CatalogToolsService {
     }
     this.#busy.set(true);
     try {
-      const result = await this.#reindexCallable({ dryRun });
+      const reindex = await callableFrom<{ readonly dryRun: boolean }, unknown>(
+        this.#functions(),
+        'reindexSearch',
+        { timeout: 300_000 },
+      );
+      const result = await reindex({ dryRun });
       const parsed = v.safeParse(ReindexResponseSchema, result.data);
       if (!parsed.success) {
         throw new Error('The search rebuild finished, but the response was unexpected.');

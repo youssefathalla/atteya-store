@@ -1,5 +1,4 @@
 import { Service } from '@angular/core';
-import { httpsCallable } from 'firebase/functions';
 import {
   collection,
   FirestoreDataConverter,
@@ -10,23 +9,18 @@ import {
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import * as v from 'valibot';
-import { injectFirestore, injectFunctions } from '@core/firebase';
+import { callableFrom, injectFirestore, injectFunctionsAsync } from '@core/firebase';
 import { AdminRecord, AssignableRole, RoleAudit, SetUserRoleResult } from '../models/admin-role.model';
 import { ListAdminsSchema, RoleAuditSchema, SetUserRoleResultSchema } from '../schemas/admin-role.schema';
 
 @Service()
 export class AdminRolesService {
-  readonly #functions = injectFunctions();
+  readonly #functions = injectFunctionsAsync();
   readonly #firestore = injectFirestore();
 
-  readonly #listAdmins = httpsCallable<Record<string, never>, unknown>(this.#functions, 'listAdmins');
-  readonly #setUserRole = httpsCallable<{ email: string; role: AssignableRole }, unknown>(
-    this.#functions,
-    'setUserRole',
-  );
-
   async listAdmins(): Promise<readonly AdminRecord[]> {
-    const result = await this.#listAdmins({});
+    const listAdmins = await callableFrom<Record<string, never>, unknown>(this.#functions(), 'listAdmins');
+    const result = await listAdmins({});
     const parsed = v.safeParse(ListAdminsSchema, result.data);
     if (!parsed.success) {
       throw new Error('The admin list came back in an unexpected shape. Please try again.');
@@ -35,7 +29,11 @@ export class AdminRolesService {
   }
 
   async setUserRole(email: string, role: AssignableRole): Promise<SetUserRoleResult> {
-    const result = await this.#setUserRole({
+    const setUserRole = await callableFrom<{ email: string; role: AssignableRole }, unknown>(
+      this.#functions(),
+      'setUserRole',
+    );
+    const result = await setUserRole({
       email: email.trim().toLowerCase(),
       role,
     });
