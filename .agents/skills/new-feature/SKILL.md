@@ -162,7 +162,7 @@ src/app/features/[feature-name]/
 
 ## Storefront catalogue
 
-Storefront features that list or price products use `ProductService` and `CatalogService` from `src/app/core/services/products/`. Public queries must filter `published == true`. Format prices with the `egpPrice` pipe (`EgpPricePipe`), not `penceToPounds`. Keep `product.constants.ts` aligned with `functions/src/products/catalog-mapping.ts`. Admin writes, the EasyOrders import, and the products list stay in `src/app/features/admin/pages/products-manager/`.
+Storefront features that list or price products use `ProductService` and `CatalogService` from `src/app/core/services/products/`. Public queries must filter `published == true`. Show prices with `app-product-price`, which converts through `toDisplayAmount` and `formatMoney`. Admin screens keep the `egpPrice` pipe (`EgpPricePipe`). Do not use `penceToPounds` for Egyptian pounds. Keep `product.constants.ts` aligned with `functions/src/products/catalog-mapping.ts`. Admin writes, the EasyOrders import, and the products list stay in `src/app/features/admin/pages/products-manager/`.
 
 ## 🧭 Step 6: Routing & SSR Server Routes Registration
 >

@@ -105,6 +105,14 @@ export const ADMIN_ROUTES: Routes = [
               ),
             title: 'Shipping | Atteya Admin',
           },
+          {
+            path: 'international',
+            loadComponent: () =>
+              import('./pages/settings/international/international-tab.component').then(
+                (m) => m.InternationalTabComponent,
+              ),
+            title: 'Outside Egypt | Atteya Admin',
+          },
         ],
       },
     ],

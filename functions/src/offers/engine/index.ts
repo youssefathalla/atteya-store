@@ -1,4 +1,5 @@
 export * from './cairo-time.js';
+export * from './currency.js';
 export * from './governorates.js';
 export * from './item-price.js';
 export * from './labels.js';

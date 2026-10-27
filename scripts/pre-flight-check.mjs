@@ -524,7 +524,7 @@ function auditMaterialIcons() {
   logError(
     ICON_LIST_PATH,
     1,
-    `Material Symbols subset is missing icon name(s): ${details}. Add them to scripts/fonts/material-symbols.icons.txt and regenerate public/fonts/material-symbols-outlined-subset.woff2.`,
+    `Material Symbols subset is missing icon name(s): ${details}. Add them to scripts/fonts/material-symbols.icons.txt and regenerate the subset woff2 under a new file name.`,
   );
 }
 

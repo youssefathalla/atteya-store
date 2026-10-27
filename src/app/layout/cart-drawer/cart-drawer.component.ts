@@ -1,8 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { SharedIconModule } from '@shared/ui/mat-icon';
+import { CurrencyService } from '@core/services/currency/currency.service';
+import { displayDecimals } from '@core/services/offers/engine';
 import { DrawerService } from '@core/services/drawer/drawer.service';
+import { SharedIconModule } from '@shared/ui/mat-icon';
+import { formatMoney } from '@shared/utils/money';
 
 @Component({
   selector: 'app-cart-drawer',
@@ -15,6 +18,11 @@ import { DrawerService } from '@core/services/drawer/drawer.service';
 })
 export class CartDrawerComponent {
   readonly drawerService = inject(DrawerService);
+  readonly #currency = inject(CurrencyService);
+  readonly subtotal = computed(() => {
+    const entry = this.#currency.entry();
+    return formatMoney(0, entry.code, displayDecimals(entry.code));
+  });
 
   onEscape(): void {
     if (this.drawerService.isOpen('cart')) {

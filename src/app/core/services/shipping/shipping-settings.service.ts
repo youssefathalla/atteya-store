@@ -2,6 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal } from '@angular/core';
 import { doc } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
+import { CurrencyService } from '@core/services/currency/currency.service';
 import { shippingFromFee, type ShippingSettings } from '@core/services/offers/engine';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { signalDoc } from '@shared/utils/firebase/firestore-signals';
@@ -37,6 +38,7 @@ function toDate(raw: unknown): Date | null {
 @Service()
 export class ShippingSettingsService {
   readonly #firestore = injectFirestore();
+  readonly #currency = inject(CurrencyService);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #destroyRef = inject(DestroyRef);
   readonly #now = signal(new Date());
@@ -68,6 +70,7 @@ export class ShippingSettingsService {
   });
 
   readonly bannerText = computed(() => {
+    if (this.#currency.selected() !== 'EGP') return '';
     const settings = this.settings();
     if (!settings) return '';
     if (this.promoLive() && settings.promo.banner) return settings.promo.banner;
@@ -78,6 +81,7 @@ export class ShippingSettingsService {
   });
 
   readonly shippingLine = computed(() => {
+    if (this.#currency.selected() !== 'EGP') return '';
     const settings = this.settings();
     const from = this.fromFee();
     if (!settings || from === null) return '';
