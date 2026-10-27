@@ -43,6 +43,17 @@ export class HeroSectionComponent {
 
   readonly slotSelect = output<number>();
 
+  readonly imageSizes = computed(() => {
+    switch (this.hero().layoutCount) {
+      case 2:
+        return '(max-width: 767px) 90vw, 50vw';
+      case 3:
+        return '(max-width: 767px) 90vw, (max-width: 1279px) 46vw, 33vw';
+      default:
+        return '100vw';
+    }
+  });
+
   readonly visibleSlides = computed<readonly HeroSlide[]>(() => {
     const { layoutCount, slides } = this.hero();
     const result: HeroSlide[] = [];

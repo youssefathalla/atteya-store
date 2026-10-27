@@ -6,8 +6,8 @@ import {
   withViewTransitions,
   withAutoCleanupInjectors,
   withPreloading,
-  PreloadAllModules,
 } from '@angular/router';
+import { StorefrontPreloadingStrategy } from '@core/routing/storefront-preloading.strategy';
 import { provideClientHydration } from '@angular/platform-browser';
 import { IMAGE_CONFIG, provideImageKitLoader } from '@angular/common';
 import { provideNativeDateAdapter } from '@angular/material/core';
@@ -32,7 +32,7 @@ export const appConfig: ApplicationConfig = {
       withComponentInputBinding(),
       withAutoCleanupInjectors(),
       withViewTransitions(),
-      withPreloading(PreloadAllModules),
+      withPreloading(StorefrontPreloadingStrategy),
       withInMemoryScrolling({
         scrollPositionRestoration: 'enabled',
         anchorScrolling: 'enabled',

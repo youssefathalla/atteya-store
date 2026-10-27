@@ -1,5 +1,12 @@
 import { isPlatformServer } from '@angular/common';
-import { inject, makeStateKey, PLATFORM_ID, RESPONSE_INIT, TransferState } from '@angular/core';
+import {
+  inject,
+  Injector,
+  makeStateKey,
+  PLATFORM_ID,
+  RESPONSE_INIT,
+  TransferState,
+} from '@angular/core';
 import type { ResolveFn } from '@angular/router';
 import { ProductService } from '@core/services/products';
 import { matchProduct, type Offer } from '@core/services/offers/engine';
@@ -19,6 +26,7 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   const offersReader = inject(PublicOffersReader);
   const transfer = inject(TransferState);
   const isServer = isPlatformServer(inject(PLATFORM_ID));
+  const injector = inject(Injector);
   const responseInit = inject(RESPONSE_INIT, { optional: true });
 
   const slug = (route.paramMap.get('slug') ?? '').trim();
@@ -34,7 +42,7 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   if (!slug || slug.length > MAX_SLUG_LENGTH) {
     result = { status: 'missing' };
   } else {
-    const offersPromise = offersReader.fetchActivePublic().catch(() => null);
+    const offersPromise = readOffers(isServer, injector, offersReader);
     try {
       const product = await products.getBySlug(slug);
       if (!product) {
@@ -67,6 +75,23 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   }
   return result;
 };
+
+async function readOffers(
+  isServer: boolean,
+  injector: Injector,
+  reader: PublicOffersReader,
+): Promise<readonly Offer[] | null> {
+  if (!isServer) {
+    try {
+      const { OffersService } = await import('@core/services/offers/offers.service');
+      const live = injector.get(OffersService);
+      if (live.ready() && !live.failed()) return live.all();
+    } catch {
+      /* chunk load failed -> one-time read below */
+    }
+  }
+  return reader.fetchActivePublic().catch(() => null);
+}
 
 /**
  * Keep only offers that can still matter for this product: not ended yet (upcoming ones stay so an
