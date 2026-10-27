@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { CurrencyService } from '@core/services/currency/currency.service';
-import { toDisplayAmount } from '@core/services/offers/engine';
+import { displayDecimals, toDisplayAmount } from '@core/services/offers/engine';
 import { formatMoney } from '@shared/utils/money';
 
 const EGP_AMOUNT = /\bEGP\b/;
@@ -56,6 +56,6 @@ export class ProductPriceComponent {
 
   #format(egp: number): string {
     const entry = this.#currency.entry();
-    return formatMoney(this.#amount(egp), entry.code, entry.decimals);
+    return formatMoney(this.#amount(egp), entry.code, displayDecimals(entry.code));
   }
 }

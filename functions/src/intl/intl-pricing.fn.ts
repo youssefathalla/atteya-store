@@ -1,8 +1,8 @@
-import { Timestamp, getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
-import { CURRENCY_CODES, parseMarkup } from './currency-config.js';
+import { parseMarkup } from './currency-config.js';
 import {
   queuePublicCurrency,
   readStoredRates,
@@ -43,7 +43,7 @@ export const setInternationalPricing = onCall(
       configRef,
       {
         markupPercent,
-        currencies: [...CURRENCY_CODES],
+        currencies: FieldValue.delete(),
         updatedAt: now,
         updatedBy: actor.uid,
       },

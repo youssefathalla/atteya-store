@@ -4,11 +4,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 import { NavCategory, NavService } from '@core/services/navigation';
-import { CurrencySwitcherComponent } from '../../../components/currency-switcher/currency-switcher.component';
 
 @Component({
   selector: 'app-mobile-menu',
-  imports: [RouterLink, MatButtonModule, SharedIconModule, CurrencySwitcherComponent],
+  imports: [RouterLink, MatButtonModule, SharedIconModule],
   templateUrl: './mobile-menu.component.html',
   host: {
     '(window:keydown.escape)': 'onEscape()',

@@ -82,24 +82,49 @@
     @if (rows().length === 0) {
       <p class="font-body-md">No rates yet. Refresh rates to fill this table.</p>
     } @else {
-      <table class="w-full">
-        <thead>
-          <tr class="border-b border-outline-variant">
-            <th class="py-2 pr-3 text-left font-label-sm" scope="col">Currency</th>
-            <th class="py-2 pr-3 text-left font-label-sm" scope="col">1 EGP =</th>
-            <th class="py-2 text-left font-label-sm" scope="col">1,000 EGP product shows as</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of rows(); track row.code) {
-            <tr class="border-b border-outline-variant">
-              <th class="py-2 pr-3 text-left font-label-md" scope="row">{{ row.code }}</th>
-              <td class="py-2 pr-3 font-body-sm">{{ row.perEgp }}</td>
-              <td class="py-2 font-body-sm">{{ row.showsAs }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
+      <label class="elements-start-col gap-1 font-label-md w-full">
+        Find a currency
+        <input
+          type="search"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full max-w-xs"
+          placeholder="SAR, USD, EUR"
+          [value]="query()"
+          (input)="onQuery($event)"
+        />
+      </label>
+      <p class="font-body-sm text-on-surface-variant">
+        {{ visibleRows().length }} of {{ rows().length }} currencies
+      </p>
+      @if (visibleRows().length === 0) {
+        <p class="font-body-md">No currency matches that search.</p>
+      } @else {
+        <div class="max-h-96 w-full overflow-y-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-outline-variant">
+                <th class="sticky top-0 bg-surface py-2 pr-3 text-left font-label-sm" scope="col">
+                  Currency
+                </th>
+                <th class="sticky top-0 bg-surface py-2 pr-3 text-left font-label-sm" scope="col">
+                  1 EGP =
+                </th>
+                <th class="sticky top-0 bg-surface py-2 text-left font-label-sm" scope="col">
+                  1,000 EGP product shows as
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of visibleRows(); track row.code) {
+                <tr class="border-b border-outline-variant">
+                  <th class="py-2 pr-3 text-left font-label-md" scope="row">{{ row.code }}</th>
+                  <td class="py-2 pr-3 font-body-sm">{{ row.perEgp }}</td>
+                  <td class="py-2 font-body-sm">{{ row.showsAs }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     }
 
     <p class="font-body-sm text-on-surface-variant">

@@ -6,9 +6,9 @@ import {
   type WriteBatch,
 } from 'firebase-admin/firestore';
 import {
-  CURRENCY_CODES,
   DEFAULT_MARKUP_PERCENT,
   buildPublicCurrencyDoc,
+  isForeignCurrencyCode,
   parseMarkup,
 } from './currency-config.js';
 
@@ -41,9 +41,9 @@ export async function fetchEgpRates(): Promise<FetchedEgpRates> {
 
 /**
  * On any failure the previous rates stay in place. Only the attempt time and
- * the error string are written. A scheduled run also rejects a move of more
- * than 50% against the last good value. A manual refresh accepts that move
- * and returns a warning.
+ * the error string are written. A scheduled run keeps the previous value for
+ * any code that moved more than 50% and still saves the rest. A manual refresh
+ * accepts that move and returns a warning.
  */
 export async function refreshRates(
   db: Firestore,
@@ -55,31 +55,26 @@ export async function refreshRates(
     const fetched = await fetchEgpRates();
     const existing = await ratesRef.get();
     const previous = readStoredRates(existing.data());
-    const warnings = rateMoveWarnings(previous, fetched.rates);
-    if (warnings.length > 0 && !options.manual) {
-      const error = warnings.join(' ');
-      await markAttempt(ratesRef, now, error);
-      return { ok: false, fetchedAt: null, warnings: [], error };
-    }
-
+    const guarded = applyJumpGuard(previous, fetched.rates, options.manual);
     const markupPercent = await readMarkupOrDefault(db);
     const providerUpdatedAt = Timestamp.fromMillis(fetched.updatedAtUnix * 1000);
     const batch = db.batch();
     batch.set(ratesRef, {
       base: 'EGP',
-      rates: { ...fetched.rates },
+      rates: guarded.rates,
       provider: 'open.er-api.com',
       providerUpdatedAt,
       fetchedAt: now,
       lastAttemptAt: now,
-      lastError: null,
+      lastError: guarded.warnings.length > 0 ? guarded.warnings.join(' ') : null,
+      rateCount: Object.keys(guarded.rates).length,
     });
-    queuePublicCurrency(batch, db, markupPercent, fetched.rates, providerUpdatedAt, now);
+    queuePublicCurrency(batch, db, markupPercent, guarded.rates, providerUpdatedAt, now);
     await batch.commit();
     return {
       ok: true,
       fetchedAt: now.toDate().toISOString(),
-      warnings,
+      warnings: guarded.warnings,
       error: null,
     };
   } catch (error: unknown) {
@@ -100,14 +95,7 @@ export function readStoredRates(
   if (!data) return null;
   const raw = data['rates'];
   if (!isRecord(raw)) return null;
-  const rates: Record<string, number> = {};
-  for (const code of CURRENCY_CODES) {
-    const value = raw[code];
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-      rates[code] = value;
-    }
-  }
-  return Object.keys(rates).length > 0 ? rates : null;
+  return readPositiveRates(raw);
 }
 
 export function readTimestamp(value: unknown): Timestamp | null {
@@ -126,21 +114,26 @@ export function queuePublicCurrency(
   batch.set(db.doc(PUBLIC_DOC), { ...body, updatedAt });
 }
 
-export function rateMoveWarnings(
+export function applyJumpGuard(
   previous: Readonly<Record<string, number>> | null,
   next: Readonly<Record<string, number>>,
-): string[] {
-  if (!previous) return [];
+  manual: boolean,
+): { rates: Record<string, number>; warnings: string[] } {
+  const rates: Record<string, number> = { ...next };
+  if (!previous) return { rates, warnings: [] };
   const warnings: string[] = [];
-  for (const code of CURRENCY_CODES) {
+  for (const [code, after] of Object.entries(next)) {
     const before = previous[code];
-    const after = next[code];
-    if (typeof before !== 'number' || !(before > 0) || typeof after !== 'number') continue;
-    if (Math.abs(after - before) / before > JUMP_RATIO) {
-      warnings.push(`${code} moved more than 50% since the last update.`);
-    }
+    if (typeof before !== 'number' || !(before > 0)) continue;
+    if (Math.abs(after - before) / before <= JUMP_RATIO) continue;
+    if (!manual) rates[code] = before;
+    warnings.push(
+      manual
+        ? `${code} moved more than 50% since the last update.`
+        : `${code} moved more than 50% since the last update. The previous rate was kept.`,
+    );
   }
-  return warnings;
+  return { rates, warnings };
 }
 
 async function markAttempt(
@@ -171,22 +164,22 @@ function parseRatesPayload(body: unknown): FetchedEgpRates {
   if (typeof updatedAtUnix !== 'number' || !Number.isFinite(updatedAtUnix) || updatedAtUnix <= 0) {
     throw new Error('The rate provider did not include an update time.');
   }
-  return { rates: readWhitelist(body['rates']), updatedAtUnix };
+  const rates = readPositiveRates(body['rates']);
+  if (!rates || Object.keys(rates).length < 10) {
+    throw new Error('The rate provider did not include a usable rate table.');
+  }
+  return { rates, updatedAtUnix };
 }
 
-function readWhitelist(raw: unknown): Record<string, number> {
-  if (!isRecord(raw)) {
-    throw new Error('The rate provider did not include a rate table.');
-  }
+function readPositiveRates(raw: unknown): Record<string, number> | null {
+  if (!isRecord(raw)) return null;
   const rates: Record<string, number> = {};
-  for (const code of CURRENCY_CODES) {
-    const value = raw[code];
-    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-      throw new Error(`The rate provider did not include a usable ${code} rate.`);
-    }
+  for (const [code, value] of Object.entries(raw)) {
+    if (!isForeignCurrencyCode(code)) continue;
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) continue;
     rates[code] = value;
   }
-  return rates;
+  return Object.keys(rates).length > 0 ? rates : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

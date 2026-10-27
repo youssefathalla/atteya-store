@@ -1,6 +1,4 @@
-import { FOREIGN_CURRENCY_CODES } from '@core/services/currency/currency-detect';
-import type { PublicCurrencyMap } from '@core/services/currency/currency.schema';
-import { toDisplayAmount, type CurrencyEntry } from '@core/services/offers/engine';
+import { displayDecimals, toDisplayAmount, type CurrencyEntry } from '@core/services/offers/engine';
 import { formatMoney } from '@shared/utils/money';
 
 export interface RatePreviewRow {
@@ -12,7 +10,6 @@ export interface RatePreviewRow {
 export interface IntlPageData {
   readonly markupPercent: number;
   readonly rates: Readonly<Record<string, number>>;
-  readonly published: PublicCurrencyMap;
   readonly fetchedAt: Date | null;
   readonly providerUpdatedAt: Date | null;
   readonly lastError: string | null;
@@ -24,17 +21,16 @@ const STALE_MS = 3 * 24 * 60 * 60 * 1000;
 export function ratePreviewRows(
   rates: Readonly<Record<string, number>>,
   markupPercent: number,
-  published: PublicCurrencyMap,
 ): readonly RatePreviewRow[] {
   const rows: RatePreviewRow[] = [];
-  for (const code of FOREIGN_CURRENCY_CODES) {
+  for (const code of Object.keys(rates).sort()) {
+    if (!/^[A-Z]{3}$/.test(code) || code === 'EGP') continue;
     const rate = rates[code];
     if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) continue;
-    const rounding = published[code];
     rows.push({
       code,
       perEgp: rate.toLocaleString('en-US', { maximumSignificantDigits: 6 }),
-      showsAs: rounding ? samplePrice(code, markupPercent, rate, rounding) : '—',
+      showsAs: samplePrice(code, markupPercent, rate),
     });
   }
   return rows;
@@ -85,17 +81,10 @@ export function callableMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function samplePrice(
-  code: string,
-  markupPercent: number,
-  rate: number,
-  rounding: { readonly step: number; readonly decimals: number },
-): string {
+function samplePrice(code: string, markupPercent: number, rate: number): string {
   const entry: CurrencyEntry = {
     code,
     factor: (1 + markupPercent / 100) * rate,
-    step: rounding.step,
-    decimals: rounding.decimals,
   };
-  return formatMoney(toDisplayAmount(SAMPLE_EGP, entry), code, rounding.decimals);
+  return formatMoney(toDisplayAmount(SAMPLE_EGP, entry), code, displayDecimals(code));
 }

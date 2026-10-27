@@ -5,7 +5,6 @@ import * as v from 'valibot';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { injectFirestore } from '@core/firebase';
-import { PublicCurrencySchema } from '@core/services/currency/currency.schema';
 import { formatCairoDisplay } from '@core/services/offers/engine';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -36,6 +35,7 @@ export class InternationalTabComponent {
   readonly #snackbar = inject(SnackbarService);
 
   readonly markup = signal(DEFAULT_MARKUP);
+  readonly query = signal('');
   readonly isSaving = signal(false);
   readonly isRefreshing = signal(false);
   #markupDirty = false;
@@ -43,21 +43,16 @@ export class InternationalTabComponent {
   readonly pageResource = resource({
     loader: async (): Promise<IntlPageData | null> => {
       if (!isPlatformBrowser(this.#platformId)) return null;
-      const [configSnap, ratesSnap, currencySnap] = await Promise.all([
+      const [configSnap, ratesSnap] = await Promise.all([
         getDoc(doc(this.#firestore, 'intlPricing', 'config')),
         getDoc(doc(this.#firestore, 'intlPricing', 'rates')),
-        getDoc(doc(this.#firestore, 'settings', 'currency')),
       ]);
       const config = configSnap.exists() ? v.safeParse(IntlConfigSchema, configSnap.data()) : null;
       const rates = ratesSnap.exists() ? v.safeParse(IntlRatesSchema, ratesSnap.data()) : null;
-      const published = currencySnap.exists()
-        ? v.safeParse(PublicCurrencySchema, currencySnap.data())
-        : null;
       const ratesDoc = rates?.success ? rates.output : null;
       return {
         markupPercent: config?.success ? config.output.markupPercent : DEFAULT_MARKUP,
         rates: ratesDoc?.rates ?? {},
-        published: published?.success ? published.output.currencies : {},
         fetchedAt: toDate(ratesDoc?.fetchedAt),
         providerUpdatedAt: toDate(ratesDoc?.providerUpdatedAt),
         lastError: ratesDoc?.lastError ?? null,
@@ -67,7 +62,14 @@ export class InternationalTabComponent {
 
   readonly rows = computed(() => {
     const page = this.pageResource.value();
-    return ratePreviewRows(page?.rates ?? {}, this.markup(), page?.published ?? {});
+    return ratePreviewRows(page?.rates ?? {}, this.markup());
+  });
+
+  readonly visibleRows = computed(() => {
+    const query = this.query().trim().toUpperCase();
+    const rows = this.rows();
+    if (!query) return rows;
+    return rows.filter((row) => row.code.includes(query));
   });
 
   readonly updatedLabel = computed(() => cairoLabel(this.pageResource.value()?.fetchedAt ?? null));
@@ -86,6 +88,10 @@ export class InternationalTabComponent {
       if (!page || this.#markupDirty) return;
       untracked(() => this.markup.set(page.markupPercent));
     });
+  }
+
+  onQuery(event: Event): void {
+    this.query.set((event.target as HTMLInputElement).value);
   }
 
   onMarkup(event: Event): void {

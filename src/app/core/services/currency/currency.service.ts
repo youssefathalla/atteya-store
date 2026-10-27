@@ -5,29 +5,21 @@ import { injectFirestore } from '@core/firebase';
 import { EGP_ENTRY, type CurrencyEntry } from '@core/services/offers/engine';
 import {
   currencyFromTimeZone,
-  currencyLabel,
-  FOREIGN_CURRENCY_CODES,
   normalizeCurrencyCode,
-  readFreshCurrencyMap,
   readCachedCurrencyMap,
-  readStoredCurrency,
+  readFreshCurrencyMap,
   readTimeZone,
   storeCachedCurrencyMap,
-  storeCurrency,
 } from './currency-detect';
 import type { PublicCurrencyMap } from './currency.schema';
 
 const PENDING_TIMEOUT_MS = 2500;
 
-export interface CurrencyOption {
-  readonly code: string;
-  readonly label: string;
-}
-
 /**
  * Storefront display currency. The server always stays on EGP.
- * A foreign browser loads `settings/currency` through a dynamic import and
- * converts after hydration. Egypt and an unknown timezone never load that chunk.
+ * The browser picks a currency from the timezone after hydration.
+ * `?cur=` overrides that for one visit and is never saved.
+ * Africa/Cairo stays on EGP and does not load the timezone map.
  */
 @Service()
 export class CurrencyService {
@@ -38,12 +30,10 @@ export class CurrencyService {
 
   readonly #selected = signal('EGP');
   readonly #entry = signal<CurrencyEntry>(EGP_ENTRY);
-  readonly #options = signal<readonly CurrencyOption[]>([egpOption()]);
   readonly #ready = signal(false);
 
   readonly selected = this.#selected.asReadonly();
   readonly entry = this.#entry.asReadonly();
-  readonly options = this.#options.asReadonly();
   readonly ready = this.#ready.asReadonly();
 
   #map: PublicCurrencyMap | null = null;
@@ -59,41 +49,8 @@ export class CurrencyService {
     this.#destroyRef.onDestroy(() => this.#clearTimer());
   }
 
-  /** Saves an explicit switcher choice. The timezone guess is never stored. */
-  async select(code: string): Promise<void> {
-    const normalized = normalizeCurrencyCode(code);
-    if (!normalized) return;
-    storeCurrency(normalized);
-    this.#settled = true;
-    this.#clearTimer();
-    if (normalized === 'EGP') {
-      this.#apply(EGP_ENTRY);
-      this.#clearPending();
-      return;
-    }
-    const generation = ++this.#generation;
-    const map = await this.#loadMap();
-    if (generation !== this.#generation) return;
-    if (!map) {
-      console.warn('Currency rates are unavailable. Showing EGP prices.');
-      this.#apply(EGP_ENTRY);
-      this.#clearPending();
-      return;
-    }
-    this.#remember(map);
-    this.#apply(entryFor(normalized, map));
-    this.#clearPending();
-  }
-
-  /** Fills the menu from the cached public doc, loading it the first time it is opened. */
-  async ensureOptions(): Promise<void> {
-    const map = this.#map ?? readFreshCurrencyMap() ?? (await this.#loadMap());
-    if (!map) return;
-    this.#remember(map);
-  }
-
   async #boot(): Promise<void> {
-    const code = this.#resolveInitialCode();
+    const code = await this.#resolveInitialCode();
     this.#stripCurParam();
     if (code === 'EGP') {
       this.#apply(EGP_ENTRY);
@@ -110,19 +67,16 @@ export class CurrencyService {
       this.#giveUp();
       return;
     }
-    this.#remember(map);
+    this.#map = map;
     this.#apply(entryFor(code, map));
     this.#settled = true;
     this.#clearPending();
   }
 
-  #resolveInitialCode(): string {
+  async #resolveInitialCode(): Promise<string> {
     const fromQuery = normalizeCurrencyCode(this.#queryCur());
-    if (fromQuery) {
-      storeCurrency(fromQuery);
-      return fromQuery;
-    }
-    return readStoredCurrency() ?? currencyFromTimeZone(readTimeZone());
+    if (fromQuery) return fromQuery;
+    return currencyFromTimeZone(readTimeZone());
   }
 
   #queryCur(): string | null {
@@ -170,11 +124,6 @@ export class CurrencyService {
     return stale;
   }
 
-  #remember(map: PublicCurrencyMap): void {
-    this.#map = map;
-    this.#options.set(optionsFrom(map));
-  }
-
   #apply(entry: CurrencyEntry): void {
     this.#selected.set(entry.code);
     this.#entry.set(entry);
@@ -201,19 +150,6 @@ export class CurrencyService {
   }
 }
 
-function egpOption(): CurrencyOption {
-  return { code: 'EGP', label: currencyLabel('EGP') };
-}
-
-function optionsFrom(map: PublicCurrencyMap): readonly CurrencyOption[] {
-  const options = [egpOption()];
-  for (const code of FOREIGN_CURRENCY_CODES) {
-    if (!map[code]) continue;
-    options.push({ code, label: currencyLabel(code) });
-  }
-  return options;
-}
-
 function entryFor(code: string, map: PublicCurrencyMap): CurrencyEntry {
   const chosen = factorsEntry(code, map) ?? factorsEntry('USD', map);
   return chosen ?? EGP_ENTRY;
@@ -222,7 +158,7 @@ function entryFor(code: string, map: PublicCurrencyMap): CurrencyEntry {
 function factorsEntry(code: string, map: PublicCurrencyMap): CurrencyEntry | null {
   const factors = map[code];
   if (!factors) return null;
-  return { code, factor: factors.factor, step: factors.step, decimals: factors.decimals };
+  return { code, factor: factors.factor };
 }
 
 interface RouteNode {

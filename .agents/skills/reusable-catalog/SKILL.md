@@ -207,10 +207,10 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `isEmpty(path)`: `false` until a summary exists, then `true` for a known empty category, type, or brand path.
 - **`isOnSale` / `discountPercent`** (`src/app/core/services/products/utils/product-price.utils.ts`): whole-pound sale helpers. Do not use these for the legacy GBP pence pipe.
 - **`CurrencyService`** (`src/app/core/services/currency/currency.service.ts`):
-  - `selected()`, `entry()` (`CurrencyEntry`, starts as `EGP_ENTRY`), `options()`, `ready()`.
-  - `select(code)` saves `localStorage['atteya.cur']` and converts. `ensureOptions()` loads `settings/currency` on the first switcher open.
-  - SSR, `Africa/Cairo`, and a missing timezone stay on EGP and do not import `currency-loader.ts`.
-  - `toDisplayAmount` lives in the shared pricing engine (`functions/src/offers/engine/currency.ts`).
+  - `selected()`, `entry()` (`CurrencyEntry`, starts as `EGP_ENTRY`), `ready()`.
+  - No switcher and no saved currency. `?cur=` applies for one visit, then the query is removed.
+  - SSR and `Africa/Cairo` stay on EGP and do not import `tz-currency.ts`. Any other zone loads that map (`scripts/generate-tz-currency.mjs`). An unknown zone, a missing rate, or `UNRELIABLE_CURRENCIES` uses USD and does import `currency-loader.ts` when a factor is needed.
+  - `toDisplayAmount` and `displayDecimals` live in the shared pricing engine (`functions/src/offers/engine/currency.ts`).
 - **`ImageSourceService`** (`src/app/core/services/storage/image-source.service.ts`):
   - **Primary entry point for admin image uploads & URL resolution.**
   - `uploadFile(file, folder)`: Validates format (JPG/PNG/WebP/AVIF, max 10MB, no SVG), reads local dimensions, uploads to Storage, and probes ImageKit delivery.
@@ -397,7 +397,7 @@ Whenever you find a combination of 4 or more utility classes that is repeated **
 ## Step 1b additions
 
 - **Shared UI**: `app-product-price` (`@shared/components/product-price`): the only storefront price. It reads `CurrencyService.entry()`, converts with `toDisplayAmount`, and formats with `formatMoney`. The struck-through list price is shown only when its converted, rounded display amount is higher than the sale amount. Outside EGP, badges that contain an EGP amount are dropped and percentage badges stay. `app-shipping-banner` (`@shared/components/shipping-banner`): dismissible announcement fed by `ShippingSettingsService`. The banner and the shipping line are empty when the selected currency is not EGP. `html[data-cur-pending] app-shipping-banner { display: none }` hides the server-rendered EGP bar until a foreign currency resolves. Egypt does not set that attribute.
-- **Currency**: `CurrencyService` (`src/app/core/services/currency/currency.service.ts`). Signals: `selected`, `entry`, `options`, `ready`. `select(code)` stores the choice. `ensureOptions()` loads the public factor doc the first time the switcher opens. Server, Egypt, and an unknown timezone stay on EGP and do not import `currency-loader.ts`. `app-currency-switcher` sits in the desktop actions and the mobile menu. `formatMoney` (`src/app/shared/utils/money.ts`) is the shared formatter. `EgpPricePipe` stays for admin. Checkout later follows `OrderPricingSnapshot` (`src/app/core/services/orders/order-pricing.model.ts`).
+- **Currency**: `CurrencyService` (`src/app/core/services/currency/currency.service.ts`). Signals: `selected`, `entry`, `ready`. Customers cannot pick a currency. The timezone map is lazy. `formatMoney` (`src/app/shared/utils/money.ts`) is the shared formatter and uses `Intl.NumberFormat` currency display. `EgpPricePipe` stays for admin. Checkout later follows `OrderPricingSnapshot` (`src/app/core/services/orders/order-pricing.model.ts`).
 - **Core services**: `SearchService` (`@core/services/search`), `OffersService` and the generated pricing engine (`@core/services/offers`), `ShippingSettingsService` (`@core/services/shipping`), `catalog-taxonomy.ts` (categories, brands, colour palette, `colorIdFor`).
 - **Rule**: never edit `src/app/core/services/offers/engine/*`; change `functions/src/offers/engine/*` and run `npm run sync:engine`.
 

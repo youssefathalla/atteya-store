@@ -1,65 +1,23 @@
 import type { Timestamp } from 'firebase-admin/firestore';
 
-/**
- * Whitelist and rounding for prices outside Egypt.
- * Keep `CURRENCY_CODES` identical to `FOREIGN_CURRENCY_CODES` in
- * `src/app/core/services/currency/currency-detect.ts`.
- */
-export const CURRENCY_CODES = [
-  'USD',
-  'EUR',
-  'GBP',
-  'SAR',
-  'AED',
-  'KWD',
-  'QAR',
-  'OMR',
-  'BHD',
-  'JOD',
-  'CAD',
-  'AUD',
-] as const;
-
-export type ForeignCurrencyCode = (typeof CURRENCY_CODES)[number];
-
 export const DEFAULT_MARKUP_PERCENT = 40;
 export const MARKUP_MIN = 0;
 export const MARKUP_MAX = 200;
 
-export interface RoundingRule {
-  readonly step: number;
-  readonly decimals: number;
-}
-
-const WHOLE: RoundingRule = { step: 1, decimals: 0 };
-const HALF: RoundingRule = { step: 0.5, decimals: 1 };
-
-/** Always round up. Whole units for most currencies, 0.5 steps for the high-value ones. */
-export const ROUNDING: Readonly<Record<ForeignCurrencyCode, RoundingRule>> = {
-  USD: WHOLE,
-  EUR: WHOLE,
-  GBP: WHOLE,
-  CAD: WHOLE,
-  AUD: WHOLE,
-  SAR: WHOLE,
-  AED: WHOLE,
-  QAR: WHOLE,
-  KWD: HALF,
-  BHD: HALF,
-  OMR: HALF,
-  JOD: HALF,
-};
+const CURRENCY_CODE = /^[A-Z]{3}$/;
 
 export interface PublicCurrencyEntry {
   readonly factor: number;
-  readonly step: number;
-  readonly decimals: number;
 }
 
 export interface PublicCurrencyBody {
   readonly base: 'EGP';
   readonly currencies: Readonly<Record<string, PublicCurrencyEntry>>;
   readonly ratesUpdatedAt: Timestamp;
+}
+
+export function isForeignCurrencyCode(code: string): boolean {
+  return CURRENCY_CODE.test(code) && code !== 'EGP';
 }
 
 /**
@@ -76,7 +34,7 @@ export function parseMarkup(value: unknown): number | null {
 
 /**
  * Combined display factor per currency. The markup is folded into `factor`
- * and is not stored under its own name.
+ * and is not stored under its own name. EGP is omitted so Egypt prices stay exact.
  */
 export function buildPublicCurrencyDoc(
   markupPercent: number,
@@ -85,15 +43,10 @@ export function buildPublicCurrencyDoc(
 ): PublicCurrencyBody {
   const multiplier = 1 + markupPercent / 100;
   const currencies: Record<string, PublicCurrencyEntry> = {};
-  for (const code of CURRENCY_CODES) {
-    const rate = rates[code];
+  for (const [code, rate] of Object.entries(rates)) {
+    if (!isForeignCurrencyCode(code)) continue;
     if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) continue;
-    const rounding = ROUNDING[code];
-    currencies[code] = {
-      factor: multiplier * rate,
-      step: rounding.step,
-      decimals: rounding.decimals,
-    };
+    currencies[code] = { factor: multiplier * rate };
   }
   return { base: 'EGP', currencies, ratesUpdatedAt };
 }
