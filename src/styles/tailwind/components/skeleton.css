@@ -1,28 +1,50 @@
 @keyframes skeleton-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
   to {
-    background-position: -200% 0;
+    transform: translateX(100%);
   }
 }
 
 @layer components {
   .skeleton {
-    @apply border-shape select-none pointer-events-none;
+    @apply border-shape select-none pointer-events-none relative overflow-hidden;
+    background-color: var(--mat-sys-surface-container-high);
+  }
+
+  .skeleton:not(img)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
     background: linear-gradient(
       90deg,
-      var(--mat-sys-surface-container-high) 25%,
+      transparent 0%,
       var(--mat-sys-surface-container-lowest) 50%,
-      var(--mat-sys-surface-container-high) 75%
+      transparent 100%
     );
-    background-size: 200% 100%;
     animation: skeleton-shimmer 1.5s linear infinite;
+    pointer-events: none;
+  }
+
+  img.skeleton {
+    animation: none;
+  }
+
+  img.skeleton::after {
+    content: none;
   }
 
   .skeleton-overlay {
-    @apply absolute inset-0 size-full z-50 pointer-events-auto bg-surface;
+    @apply absolute inset-0 size-full z-50 pointer-events-auto;
+  }
+
+  .skeleton.skeleton-overlay {
+    background-color: var(--mat-sys-surface-container-high);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .skeleton {
+    .skeleton:not(img)::after {
       animation: none;
     }
   }
