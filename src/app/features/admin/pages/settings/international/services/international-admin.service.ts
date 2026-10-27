@@ -1,7 +1,6 @@
 import { Service } from '@angular/core';
-import { httpsCallable } from 'firebase/functions';
 import * as v from 'valibot';
-import { injectFunctions } from '@core/firebase';
+import { callableFrom, injectFunctionsAsync } from '@core/firebase';
 
 const SaveSchema = v.object({
   markupPercent: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(200)),
@@ -18,18 +17,14 @@ export type RefreshRatesResult = v.InferOutput<typeof RefreshSchema>;
 
 @Service()
 export class InternationalAdminService {
-  readonly #functions = injectFunctions();
-  readonly #save = httpsCallable<{ markupPercent: number }, unknown>(
-    this.#functions,
-    'setInternationalPricing',
-  );
-  readonly #refresh = httpsCallable<Record<string, never>, unknown>(
-    this.#functions,
-    'refreshExchangeRatesNow',
-  );
+  readonly #functions = injectFunctionsAsync();
 
   async saveMarkup(markupPercent: number): Promise<number> {
-    const result = await this.#save({ markupPercent });
+    const save = await callableFrom<{ markupPercent: number }, unknown>(
+      this.#functions(),
+      'setInternationalPricing',
+    );
+    const result = await save({ markupPercent });
     const parsed = v.safeParse(SaveSchema, result.data);
     if (!parsed.success) {
       throw new Error('The markup was saved, but the response was unexpected. Refresh the page.');
@@ -38,7 +33,11 @@ export class InternationalAdminService {
   }
 
   async refreshRates(): Promise<RefreshRatesResult> {
-    const result = await this.#refresh({});
+    const refresh = await callableFrom<Record<string, never>, unknown>(
+      this.#functions(),
+      'refreshExchangeRatesNow',
+    );
+    const result = await refresh({});
     const parsed = v.safeParse(RefreshSchema, result.data);
     if (!parsed.success) {
       throw new Error('Rates were refreshed, but the response was unexpected. Refresh the page.');
