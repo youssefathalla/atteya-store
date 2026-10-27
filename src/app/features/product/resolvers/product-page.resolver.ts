@@ -66,16 +66,29 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
 
   if (isServer) {
     if (responseInit) {
+      const cacheControl = pageCacheControl(result.status);
       if (result.status === 'missing') {
         responseInit.status = 404;
       } else if (result.status === 'error') {
         responseInit.status = 503;
+      }
+      if (cacheControl) {
+        const headers = new Headers(responseInit.headers);
+        headers.set('Cache-Control', cacheControl);
+        responseInit.headers = headers;
       }
     }
     transfer.set(key, result);
   }
   return result;
 };
+
+/** 503 must not be cached. A missing product can be cached briefly. A found page keeps the route header. */
+function pageCacheControl(status: ProductPageResult['status']): string | null {
+  if (status === 'error') return 'no-store';
+  if (status === 'missing') return 'public, max-age=0, s-maxage=60';
+  return null;
+}
 
 async function readOffers(
   isServer: boolean,
