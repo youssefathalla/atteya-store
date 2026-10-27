@@ -77,6 +77,12 @@ export const ProductSchema = v.pipe(
     stock: v.optional(wholeNumber),
     stockBySize: v.optional(v.record(v.string(), wholeNumber)),
     inStock: v.optional(v.boolean(), true),
+    weightGrams: v.optional(
+      v.fallback(
+        v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100_000))),
+        null,
+      ),
+    ),
     variants: v.pipe(v.array(ProductVariantSchema), v.maxLength(200)),
     published: v.boolean(),
     searchTokens: v.optional(v.pipe(v.array(v.pipe(v.string(), v.minLength(1))), v.maxLength(200)), []),
