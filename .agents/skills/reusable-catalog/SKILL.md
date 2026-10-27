@@ -181,6 +181,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `user`: `Signal<User | null>`, set only after the ID token role is known.
   - `isAuthReady`, `isAuthenticated`, `role` (`'anon' | 'user' | 'admin'`), `isAdmin`.
   - `login(email, password)`, `loginWithGoogle()` (popup, then redirect if the popup is blocked), `linkPendingGoogle(email, password)` for `auth/account-exists-with-different-credential`, `logout()`, `sendPasswordReset(email)`, `refreshRole(force?)`, `redirectIfNoLongerAdmin(returnUrl)`, `watchAdminAccess()`.
+  - Browser `Auth` is `initializeAuth` without `popupRedirectResolver` (indexedDB, then local storage). Popup, redirect, and `getRedirectResult` pass `browserPopupRedirectResolver`. `getRedirectResult` runs only after `signInWithRedirect` set `sessionStorage` `atteya-auth-redirect`, or on `/login`. Other pages do not load `__/auth/iframe.js`.
   - A token change during `refreshRole` is applied when that refresh settles. Sign-out clears `user` and sets `role` to `'anon'` immediately.
   - `redirectIfNoLongerAdmin` sends a signed-in non-admin home with `NOT_ADMIN_MESSAGE`. `watchAdminAccess()` (called from the admin layout) does the same if admin access disappears while `/admin` is open, and sends a signed-out person to `/login`.
   - No self sign-up. Do not call `createUserWithEmailAndPassword`.
