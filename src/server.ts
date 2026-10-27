@@ -5,7 +5,7 @@ import {
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
 import express from 'express';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -24,14 +24,31 @@ const angularApp = new AngularNodeAppEngine();
  * ```
  */
 
+const IMMUTABLE = 'public, max-age=31536000, immutable';
+/** Angular build output with a content hash, e.g. main-WMS4C3OD.js, chunk-C-heo7oH.js. Keep in sync with public/sw.js. */
+const HASHED_BUILD_FILE = /^\/[A-Za-z0-9_-]+-[A-Za-z0-9_-]{8}\.(?:js|css)$/;
+
+/** sw.js never cached (browsers and CDN always see the newest), hashed files and fonts forever, other public files 1 hour. */
+function staticCacheControl(urlPath: string): string {
+  if (urlPath === '/sw.js') return 'no-store';
+  if (HASHED_BUILD_FILE.test(urlPath) || urlPath.startsWith('/fonts/') || urlPath.startsWith('/media/')) {
+    return IMMUTABLE;
+  }
+  return 'public, max-age=3600';
+}
+
 /**
  * Serve static files from /browser
  */
 app.use(
   express.static(browserDistFolder, {
-    maxAge: '1y',
     index: false,
     redirect: false,
+    cacheControl: false,
+    setHeaders: (res, filePath) => {
+      const urlPath = '/' + relative(browserDistFolder, filePath).split(sep).join('/');
+      res.setHeader('Cache-Control', staticCacheControl(urlPath));
+    },
   }),
 );
 
