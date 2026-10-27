@@ -23,7 +23,12 @@ import {
 } from '@core/services/products/product.constants';
 import type { Brand, Category, Product } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
-import { longestSearchWord, searchWordsFromTerm } from '@core/services/products/search-tokens';
+import {
+  isSearchTooShort,
+  longestSearchWord,
+  matchesSearchWords,
+  searchWordsFromTerm,
+} from '@core/services/products/search-tokens';
 import { SearchService } from '@core/services/search';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import type {
@@ -105,7 +110,7 @@ export class ProductsAdminService {
   async searchProducts(term: string): Promise<ProductSearchResult> {
     const words = searchWordsFromTerm(term);
     const anchor = longestSearchWord(words);
-    if (!anchor) {
+    if (!anchor || isSearchTooShort(words)) {
       return { products: [], truncated: false };
     }
 
@@ -118,10 +123,7 @@ export class ProductsAdminService {
 
     const matches = snap.docs
       .map((docSnap) => docSnap.data())
-      .filter((product) => {
-        const haystack = product.searchTokens ?? [];
-        return words.every((word) => haystack.includes(word));
-      })
+      .filter((product) => matchesSearchWords(product.searchTokens ?? [], words))
       .sort((left, right) => left.name.localeCompare(right.name));
 
     const truncated = snap.docs.length >= SEARCH_QUERY_LIMIT;

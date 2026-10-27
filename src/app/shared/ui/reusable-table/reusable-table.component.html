@@ -65,6 +65,9 @@
     [trackBy]="trackByFn"
     [dataSource]="dataSource"
     matSort
+    (matSortChange)="onSortChange($event)"
+    [matSortActive]="serverSort()?.field ?? ''"
+    [matSortDirection]="serverSort()?.direction ?? ''"
   >
     <!-- * Column Headers -->
     @for (column of columns(); track column.key) {
