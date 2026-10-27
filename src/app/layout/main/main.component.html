@@ -11,6 +11,13 @@
 
   <!-- 2. MAIN PAGE CONTENT -->
   <mat-drawer-content class="min-h-screen flex flex-col bg-surface">
+    @if (navigating()) {
+      <div
+        class="fixed inset-x-0 top-0 z-50 h-0.5 bg-primary animate-pulse"
+        role="status"
+        aria-label="Loading page"
+      ></div>
+    }
     <app-shipping-banner />
 
     <!-- Store Desktop Navigation Header -->

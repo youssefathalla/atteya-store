@@ -1,7 +1,7 @@
 import { Component, viewChild, signal, effect, input, output, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatPaginator, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { MatSort, MatSortModule } from '@angular/material/sort';
+import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -99,6 +99,8 @@ export class ReusableTable<T extends object> {
     // Check both internal server filters and parent-applied server filters (search, status, type)
     return hasClientFilters || hasServerFilters || parentServerFilters;
   });
+
+  readonly serverSort = computed(() => this.paginationService()?.sort?.() ?? null);
 
   // ===== CONSTRUCTOR & EFFECTS =====
   constructor() {
@@ -269,6 +271,13 @@ export class ReusableTable<T extends object> {
     }
   }
 
+  onSortChange(sort: Sort): void {
+    const service = this.paginationService();
+    if (!service) return;
+    const orderBy = sort.direction ? [{ field: sort.active, direction: sort.direction }] : [];
+    void service.setQuery([], orderBy);
+  }
+
   exportCurrentData(customColumns?: ExcelColumnConfig<T>[], filename?: string): void {
     const currentData = this.dataSource.filteredData || this.dataSource.data;
 
@@ -310,7 +319,8 @@ export class ReusableTable<T extends object> {
       const sort = this.sort();
       const service = this.paginationService();
 
-      this.dataSource.sort = sort;
+      // A paginationService sorts on the server; sorting the loaded rows would only re-order one page.
+      this.dataSource.sort = service ? null : sort;
       // Only hand client-side pagination to MatTableDataSource; a paginationService
       // means the parent controls paging (server-side), so the paginator is display-only.
       this.dataSource.paginator = !service && paginator ? paginator : null;
