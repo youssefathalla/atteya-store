@@ -4,6 +4,7 @@ import {
   isMainModule,
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
+import compression from 'compression';
 import express from 'express';
 import { join, relative, sep } from 'node:path';
 
@@ -36,6 +37,8 @@ function staticCacheControl(urlPath: string): string {
   }
   return 'public, max-age=3600';
 }
+
+app.use(compression({ threshold: 1024 }));
 
 /**
  * Serve static files from /browser
