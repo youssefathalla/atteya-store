@@ -22,6 +22,7 @@ const MAX_SIZES = 20;
 const MAX_SIZE_LABEL = 20;
 const MAX_SIZE_ID = 100;
 const MAX_COUNT = 100_000;
+const MAX_WEIGHT_GRAMS = 100_000;
 const MAX_OPTIONS = 8;
 
 const TYPE_IDS = new Set<string>(PRODUCT_TYPES.map((type) => type.id));
@@ -56,6 +57,7 @@ export interface ProductFormInput {
   readonly images: readonly ProductImageInput[];
   readonly sizes: readonly ProductSizeInput[];
   readonly stock?: number;
+  readonly weightGrams?: number | null;
 }
 
 export interface CreateProductRequest extends ProductFormInput {
@@ -183,7 +185,9 @@ function parseForm(raw: Record<string, unknown>): ProductFormInput {
     sizes,
   };
   const stock = readStock(raw, sizes.length);
-  return stock === undefined ? form : { ...form, stock };
+  const weightGrams = readWeightGrams(raw);
+  const withStock = stock === undefined ? form : { ...form, stock };
+  return weightGrams === undefined ? withStock : { ...withStock, weightGrams };
 }
 
 function buildSizeOption(
@@ -481,6 +485,16 @@ function readStock(raw: Record<string, unknown>, sizeCount: number): number | un
     invalid('Starting stock must be a whole number from 0 to 100,000.');
   }
   return raw['stock'];
+}
+
+function readWeightGrams(raw: Record<string, unknown>): number | null | undefined {
+  if (!Object.hasOwn(raw, 'weightGrams')) return undefined;
+  const value = raw['weightGrams'];
+  if (value === undefined || value === null) return null;
+  if (!isIntegerInRange(value, 1, MAX_WEIGHT_GRAMS)) {
+    invalid('Weight must be a whole number of grams from 1 to 100,000.');
+  }
+  return value;
 }
 
 function isIntegerInRange(value: unknown, min: number, max: number): value is number {

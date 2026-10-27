@@ -115,6 +115,33 @@
         </p>
       </section>
 
+      <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-weight">
+        <h2 id="product-weight" class="font-title-md font-bold!">Shipping weight</h2>
+        <label class="elements-start-col gap-1 font-label-md" for="product-weight-grams">
+          Weight (g)
+          <input
+            id="product-weight-grams"
+            class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
+            [class.border-outline]="!weightError()"
+            [class.border-error]="!!weightError()"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            [attr.aria-invalid]="weightError() ? 'true' : null"
+            [attr.aria-describedby]="weightError() ? 'product-weight-error' : 'product-weight-hint'"
+            [value]="weight()"
+            (input)="onWeight($event)"
+            (change)="onWeight($event)"
+          />
+          @if (weightError()) {
+            <p id="product-weight-error" class="font-body-sm" role="alert">{{ weightError() }}</p>
+          }
+        </label>
+        <p id="product-weight-hint" class="font-body-sm text-on-surface-variant">
+          Optional. Used for shipping outside Egypt. Shoppers don't see it.
+        </p>
+      </section>
+
       <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-where">
         <h2 id="product-where" class="font-title-md font-bold!">Where it shows</h2>
         <app-select-input
