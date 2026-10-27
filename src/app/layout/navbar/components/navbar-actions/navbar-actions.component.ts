@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 import { AccountMenuComponent } from '../account-menu/account-menu.component';
+import { CurrencySwitcherComponent } from '../currency-switcher/currency-switcher.component';
 
 @Component({
   imports: [
@@ -14,6 +15,7 @@ import { AccountMenuComponent } from '../account-menu/account-menu.component';
     MatButtonModule,
     MatTooltipModule,
     AccountMenuComponent,
+    CurrencySwitcherComponent,
   ],
   selector: 'app-navbar-actions',
   templateUrl: './navbar-actions.component.html',

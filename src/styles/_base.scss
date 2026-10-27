@@ -18,6 +18,12 @@
     border-radius: 12px;
   }
 }
+// Hide storefront prices until a foreign currency is applied.
+// visibility keeps the reserved box, so the page does not jump.
+html[data-cur-pending] app-product-price {
+  visibility: hidden;
+}
+
 body {
   height: 100%;
   margin: 0;

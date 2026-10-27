@@ -74,7 +74,9 @@ person
 person_outline
 photo_library
 progress_activity
+public
 receipt_long
+refresh
 remove
 reset_exposure
 restart_alt

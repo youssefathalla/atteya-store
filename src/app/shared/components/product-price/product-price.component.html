@@ -4,18 +4,18 @@
       @if (showFromPrefix()) {
         From
       }
-      {{ displayedPrice() | egpPrice }}
+      {{ shownPrice() }}
     </span>
-    @if (effectiveListPrice(); as wasPrice) {
+    @if (effectiveListPrice()) {
       <span class="font-body-sm text-on-surface-variant line-through">
-        {{ wasPrice | egpPrice }}
+        {{ shownListPrice() }}
       </span>
     }
   </div>
 
-  @if (badges().length > 0) {
+  @if (shownBadges().length > 0) {
     <div class="flex flex-wrap gap-1.5">
-      @for (badge of badges(); track badge) {
+      @for (badge of shownBadges(); track badge) {
         <span class="border-shape border border-outline bg-surface px-2 py-0.5 font-label-sm">
           {{ badge }}
         </span>
