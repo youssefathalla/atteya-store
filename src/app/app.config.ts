@@ -9,7 +9,8 @@ import {
 } from '@angular/router';
 import { StorefrontPreloadingStrategy } from '@core/routing/storefront-preloading.strategy';
 import { provideClientHydration } from '@angular/platform-browser';
-import { IMAGE_CONFIG, provideImageKitLoader } from '@angular/common';
+import { IMAGE_CONFIG } from '@angular/common';
+import { provideAtteyaImageKitLoader } from '@core/image/image-kit.loader';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 import { routes } from './app.routes';
@@ -42,7 +43,7 @@ export const appConfig: ApplicationConfig = {
     // Modern SSR Hydration: DOM reconciliation + TransferCache + Incremental hydration + Event replay (all enabled by default in v22+)
     provideClientHydration(),
 
-    provideImageKitLoader(environment.imageKitUrl),
+    ...provideAtteyaImageKitLoader(),
     {
       provide: IMAGE_CONFIG,
       useValue: {
