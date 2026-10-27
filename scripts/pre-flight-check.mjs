@@ -7,6 +7,7 @@
  * 3. Accessibility Guardrails (Fake buttons, invalid roles, missing aria-label)
  * 4. Dangerous ReDoS Regex Patterns
  * 5. SSR Server Routes Coverage (app.routes.server.ts)
+ * 6. Material Symbols icon names (scripts/fonts/material-symbols.icons.txt)
  */
 
 import fs from 'node:fs';
@@ -439,6 +440,95 @@ function auditSSRRoutes() {
 }
 
 // -------------------------------------------------------------
+// 4. Material Symbols subset covers every icon name we can see
+// -------------------------------------------------------------
+const ICON_LIST_PATH = path.resolve(process.cwd(), 'scripts/fonts/material-symbols.icons.txt');
+const ICON_NAME = String.raw`[a-z][a-z0-9_]*`;
+
+function rememberIcon(found, name, filePath, line) {
+  if (!found.has(name)) found.set(name, { filePath, line });
+}
+
+function collectIconsFromSource(filePath, content, found) {
+  const tagRegex = /<mat-icon\b(?:[^>"']|"[^"]*"|'[^']*')*>/gis;
+  let tagMatch;
+  while ((tagMatch = tagRegex.exec(content)) !== null) {
+    const tag = tagMatch[0];
+    const line = getLineNumberFromOffset(content, tagMatch.index);
+    const fixedName = tag.match(new RegExp(String.raw`\bname\s*=\s*["'](${ICON_NAME})["']`));
+    if (fixedName) rememberIcon(found, fixedName[1], filePath, line);
+
+    const binding = tag.match(/\[name\]\s*=\s*(?:"([^"]*)"|'([^']*)')/);
+    const expression = binding?.[1] ?? binding?.[2];
+    if (expression?.includes('?')) {
+      for (const literal of expression.matchAll(new RegExp(String.raw`["'](${ICON_NAME})["']`, 'g'))) {
+        rememberIcon(found, literal[1], filePath, line);
+      }
+    }
+  }
+
+  const innerRegex = /<mat-icon\b(?:[^>"']|"[^"]*"|'[^']*')*>([\s\S]*?)<\/mat-icon>/gi;
+  let innerMatch;
+  while ((innerMatch = innerRegex.exec(content)) !== null) {
+    const inner = innerMatch[1];
+    const line = getLineNumberFromOffset(content, innerMatch.index);
+    const plain = inner.trim();
+    if (new RegExp(String.raw`^${ICON_NAME}$`).test(plain)) {
+      rememberIcon(found, plain, filePath, line);
+    }
+    for (const literal of inner.matchAll(new RegExp(String.raw`\{\{\s*["'](${ICON_NAME})["']\s*\}\}`, 'g'))) {
+      rememberIcon(found, literal[1], filePath, line);
+    }
+  }
+
+  const fieldRegex = new RegExp(
+    String.raw`(?:^|[^A-Za-z0-9_])icon(?:Name)?\s*:\s*["'](${ICON_NAME})["']`,
+    'g',
+  );
+  for (const match of content.matchAll(fieldRegex)) {
+    rememberIcon(found, match[1], filePath, getLineNumberFromOffset(content, match.index));
+  }
+
+  const inputRegex = new RegExp(
+    String.raw`(?:^|[\s<])(?:prefixIcon|suffixIcon|headerIcon|icon)\s*=\s*["'](${ICON_NAME})["']`,
+    'g',
+  );
+  for (const match of content.matchAll(inputRegex)) {
+    rememberIcon(found, match[1], filePath, getLineNumberFromOffset(content, match.index));
+  }
+}
+
+function auditMaterialIcons() {
+  const found = new Map();
+  for (const filePath of getFiles(SRC_DIR, ['.html', '.ts'])) {
+    collectIconsFromSource(filePath, fs.readFileSync(filePath, 'utf-8'), found);
+  }
+
+  const listed = new Set();
+  if (fs.existsSync(ICON_LIST_PATH)) {
+    for (const line of fs.readFileSync(ICON_LIST_PATH, 'utf-8').split('\n')) {
+      const name = line.trim();
+      if (name) listed.add(name);
+    }
+  }
+
+  const missing = [...found.keys()].filter((name) => !listed.has(name)).sort();
+  if (missing.length === 0) return;
+
+  const details = missing
+    .map((name) => {
+      const where = found.get(name);
+      return `${name} (${path.relative(process.cwd(), where.filePath)}:${where.line})`;
+    })
+    .join(', ');
+  logError(
+    ICON_LIST_PATH,
+    1,
+    `Material Symbols subset is missing icon name(s): ${details}. Add them to scripts/fonts/material-symbols.icons.txt and regenerate public/fonts/material-symbols-outlined-subset.woff2.`,
+  );
+}
+
+// -------------------------------------------------------------
 // Main Runner
 // -------------------------------------------------------------
 console.log('\x1b[36m🚀 Starting Pre-Flight Quality Check...\x1b[0m\n');
@@ -449,6 +539,7 @@ const tsFiles = getFiles(SRC_DIR, ['.ts']);
 auditTemplates(templateFiles, tsFiles);
 auditTypeScript(tsFiles);
 auditSSRRoutes();
+auditMaterialIcons();
 
 console.log('\n----------------------------------------');
 if (totalErrors === 0 && totalWarnings === 0) {
