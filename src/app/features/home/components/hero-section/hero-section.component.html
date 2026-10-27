@@ -35,7 +35,7 @@
             class="object-cover object-center"
           />
 
-          @if (imgLoader.isLoading()) {
+          @if (isLoading() && imgLoader.isLoading()) {
             <app-skeleton overlay />
           }
         } @else {

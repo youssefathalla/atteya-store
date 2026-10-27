@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { homeSettingsResolver } from './features/home/resolvers/home-settings.resolver';
 import { productPageResolver } from './features/product/resolvers/product-page.resolver';
 
 export const routes: Routes = [
@@ -12,6 +13,7 @@ export const routes: Routes = [
         path: '',
         loadComponent: () =>
           import('./features/home/home.component').then((m) => m.HomeComponent),
+        resolve: { homeSettings: homeSettingsResolver },
         title: 'Atteya Store | Premium Padel & Sports Gear',
       },
       {

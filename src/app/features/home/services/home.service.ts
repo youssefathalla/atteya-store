@@ -1,9 +1,18 @@
-import { computed, Service } from '@angular/core';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { isPlatformBrowser } from '@angular/common';
+import {
+  computed,
+  DestroyRef,
+  inject,
+  PLATFORM_ID,
+  Service,
+  signal,
+  TransferState,
+} from '@angular/core';
+import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
-import { signalDoc } from '@shared/utils/firebase/firestore-signals';
 import { HomeSettingsSchema } from '../schemas/home.schema';
+import { HOME_SETTINGS_KEY, HomeSettingsSeed, toHomeSettingsSeed } from '../resolvers/home-settings.state';
 import {
   HomeHero,
   HomeNavList,
@@ -106,7 +115,35 @@ export class HomeService {
     createValibotConverter(HomeSettingsSchema),
   );
 
-  readonly #homeDoc = signalDoc(this.#homeDocRef);
+  readonly #transfer = inject(TransferState);
+  readonly #destroyRef = inject(DestroyRef);
+  readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  /** undefined while the first browser snapshot is still outstanding. */
+  readonly #homeDoc = signal<HomeSettingsSeed | null | undefined>(undefined);
+
+  constructor() {
+    if (this.#transfer.hasKey(HOME_SETTINGS_KEY)) {
+      this.#homeDoc.set(this.#transfer.get(HOME_SETTINGS_KEY, null));
+      // Leave the key on the server so it is written into the HTML.
+      if (this.#isBrowser) this.#transfer.remove(HOME_SETTINGS_KEY);
+    } else if (!this.#isBrowser) {
+      this.#homeDoc.set(null);
+    }
+
+    if (!this.#isBrowser) return;
+
+    const unsubscribe = onSnapshot(
+      this.#homeDocRef,
+      (snapshot) => {
+        this.#homeDoc.set(snapshot.exists() ? toHomeSettingsSeed(snapshot.data()) : null);
+      },
+      () => {
+        this.#homeDoc.set(null);
+      },
+    );
+    this.#destroyRef.onDestroy(unsubscribe);
+  }
 
   /**
    * Indicates whether the live home settings document is loading.
