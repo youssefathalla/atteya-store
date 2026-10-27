@@ -19,7 +19,7 @@ export class AdminRolesService {
   readonly #firestore = injectFirestore();
 
   async listAdmins(): Promise<readonly AdminRecord[]> {
-    const listAdmins = await callableFrom<Record<string, never>, unknown>(this.#functions, 'listAdmins');
+    const listAdmins = await callableFrom<Record<string, never>, unknown>(this.#functions(), 'listAdmins');
     const result = await listAdmins({});
     const parsed = v.safeParse(ListAdminsSchema, result.data);
     if (!parsed.success) {
@@ -30,7 +30,7 @@ export class AdminRolesService {
 
   async setUserRole(email: string, role: AssignableRole): Promise<SetUserRoleResult> {
     const setUserRole = await callableFrom<{ email: string; role: AssignableRole }, unknown>(
-      this.#functions,
+      this.#functions(),
       'setUserRole',
     );
     const result = await setUserRole({

@@ -102,7 +102,7 @@ export class ProductsImportService {
 
     for (let step = 0; step < 30; step += 1) {
       const callable = await callableFrom<ImportPayload, unknown>(
-        this.#functions,
+        this.#functions(),
         'importEasyOrdersProducts',
         { timeout: 540_000 },
       );

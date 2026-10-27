@@ -10,33 +10,39 @@ let storagePromise: Promise<FirebaseStorage> | undefined;
 let functionsPromise: Promise<Functions> | undefined;
 
 /**
- * Loads `firebase/storage` on first use. Call from an injection context
- * (a constructor or field initializer) and await the promise later.
+ * Returns a loader for `firebase/storage`. Call from an injection context
+ * (a constructor or field initializer) and invoke the loader on each use.
+ * A successful load is reused. A failed chunk load is dropped so the next call retries.
  */
-export function injectStorageAsync(): Promise<FirebaseStorage> {
+export function injectStorageAsync(): () => Promise<FirebaseStorage> {
   const app = inject(FIREBASE_APP);
-  storagePromise ??= import('firebase/storage')
-    .then(({ getStorage }) => getStorage(app))
-    .catch((error: unknown) => {
-      storagePromise = undefined;
-      throw error;
-    });
-  return storagePromise;
+  return () => {
+    storagePromise ??= import('firebase/storage')
+      .then(({ getStorage }) => getStorage(app))
+      .catch((error: unknown) => {
+        storagePromise = undefined;
+        throw error;
+      });
+    return storagePromise;
+  };
 }
 
 /**
- * Loads `firebase/functions` on first use, pointed at `europe-west3`.
- * Call from an injection context and await the promise later.
+ * Returns a loader for `firebase/functions` in `europe-west3`.
+ * Call from an injection context and invoke the loader on each use.
+ * A successful load is reused. A failed chunk load is dropped so the next call retries.
  */
-export function injectFunctionsAsync(): Promise<Functions> {
+export function injectFunctionsAsync(): () => Promise<Functions> {
   const app = inject(FIREBASE_APP);
-  functionsPromise ??= import('firebase/functions')
-    .then(({ getFunctions }) => getFunctions(app, FUNCTIONS_REGION))
-    .catch((error: unknown) => {
-      functionsPromise = undefined;
-      throw error;
-    });
-  return functionsPromise;
+  return () => {
+    functionsPromise ??= import('firebase/functions')
+      .then(({ getFunctions }) => getFunctions(app, FUNCTIONS_REGION))
+      .catch((error: unknown) => {
+        functionsPromise = undefined;
+        throw error;
+      });
+    return functionsPromise;
+  };
 }
 
 /** Builds a callable after the Functions SDK has loaded. */

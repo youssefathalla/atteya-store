@@ -66,7 +66,7 @@ export class CatalogToolsService {
     this.#busy.set(true);
     try {
       const migrate = await callableFrom<MigratePayload, unknown>(
-        this.#functions,
+        this.#functions(),
         'migrateCatalogStructure',
         { timeout: 300_000 },
       );
@@ -88,7 +88,7 @@ export class CatalogToolsService {
     this.#busy.set(true);
     try {
       const reindex = await callableFrom<{ readonly dryRun: boolean }, unknown>(
-        this.#functions,
+        this.#functions(),
         'reindexSearch',
         { timeout: 300_000 },
       );

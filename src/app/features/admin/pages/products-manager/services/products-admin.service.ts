@@ -161,7 +161,7 @@ export class ProductsAdminService {
   }
 
   async createProduct(payload: CreateProductPayload): Promise<SaveProductResult> {
-    const create = await callableFrom<CreateProductPayload, unknown>(this.#functions, 'createProduct');
+    const create = await callableFrom<CreateProductPayload, unknown>(this.#functions(), 'createProduct');
     const result = await create(payload);
     const saved = await this.#parseSaveResult(result.data);
     this.#productCache.clear();
@@ -169,7 +169,7 @@ export class ProductsAdminService {
   }
 
   async updateProduct(payload: UpdateProductPayload): Promise<SaveProductResult> {
-    const update = await callableFrom<UpdateProductPayload, unknown>(this.#functions, 'updateProduct');
+    const update = await callableFrom<UpdateProductPayload, unknown>(this.#functions(), 'updateProduct');
     const result = await update(payload);
     const saved = await this.#parseSaveResult(result.data);
     this.#productCache.clear();
@@ -177,7 +177,7 @@ export class ProductsAdminService {
   }
 
   async saveStock(productId: string, change: StockChange): Promise<StockResult> {
-    const setStock = await callableFrom<SetStockPayload, unknown>(this.#functions, 'setProductStock');
+    const setStock = await callableFrom<SetStockPayload, unknown>(this.#functions(), 'setProductStock');
     const result = await setStock({ productId, ...change });
     const parsed = v.safeParse(StockResultSchema, result.data);
     if (!parsed.success) {

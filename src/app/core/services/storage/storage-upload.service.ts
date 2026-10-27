@@ -53,7 +53,7 @@ export class StorageUploadService {
       const uniquePath = `${folder}/${Date.now()}-${sanitizedName}`;
 
       const { ref, uploadBytes } = await import('firebase/storage');
-      const storageRef = ref(await this.#storage, uniquePath);
+      const storageRef = ref(await this.#storage(), uniquePath);
       await uploadBytes(storageRef, file, {
         contentType: file.type || 'image/jpeg',
         cacheControl: 'public, max-age=31536000, immutable',
@@ -80,7 +80,7 @@ export class StorageUploadService {
 
     try {
       const callable = await callableFrom<CloudImportPayload, UploadResult>(
-        this.#functions,
+        this.#functions(),
         'importImageFromUrl',
       );
       const result = await callable({ url, folder });
@@ -105,7 +105,7 @@ export class StorageUploadService {
 
     try {
       const callable = await callableFrom<CloudImportPayload, UploadResult>(
-        this.#functions,
+        this.#functions(),
         'importImageFromUrl',
       );
       const result = await callable({ path, folder });
@@ -140,7 +140,7 @@ export class StorageUploadService {
 
     try {
       const { ref, deleteObject } = await import('firebase/storage');
-      const storageRef = ref(await this.#storage, cleanPath);
+      const storageRef = ref(await this.#storage(), cleanPath);
       await deleteObject(storageRef);
       return true;
     } catch (err: unknown) {
