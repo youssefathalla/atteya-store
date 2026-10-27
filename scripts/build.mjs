@@ -8,6 +8,9 @@
  */
 
 import { execSync } from 'node:child_process';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { trimRenderedEarlyHints } from '../src/early-hints.mjs';
 
 /** Firebase project id → the only Angular configuration it may be built with. */
 const PROJECT_CONFIG = {
@@ -108,4 +111,29 @@ try {
 } catch (error) {
   console.error(`\x1b[31m[ERROR]\x1b[0m Build failed for configuration "${targetConfig}".`);
   process.exit(1);
+}
+
+// Prerendered HTML is a static file. Hosts can serve it without the Node
+// rewrite in server.ts, so the same trim has to be on disk.
+const browserDist = join(process.cwd(), 'dist', 'atteya-store', 'browser');
+let trimmedFiles = 0;
+for (const file of walkHtml(browserDist)) {
+  const html = readFileSync(file, 'utf8');
+  const next = trimRenderedEarlyHints(html);
+  if (next === html) continue;
+  writeFileSync(file, next);
+  trimmedFiles += 1;
+}
+console.log(`Trimmed early hints in ${trimmedFiles} prerendered HTML file(s).`);
+
+/** @param {string} dir */
+function walkHtml(dir) {
+  /** @type {string[]} */
+  const files = [];
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) files.push(...walkHtml(path));
+    else if (entry.endsWith('.html')) files.push(path);
+  }
+  return files;
 }

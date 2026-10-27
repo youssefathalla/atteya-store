@@ -7,6 +7,7 @@ import {
 import compression from 'compression';
 import express from 'express';
 import { join, relative, sep } from 'node:path';
+import { trimRenderedEarlyHints } from './early-hints.mjs';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -61,9 +62,38 @@ app.use(
 app.use((req, res, next) => {
   angularApp
     .handle(req)
-    .then((response) => (response ? writeResponseToNodeResponse(response, res) : next()))
+    .then(async (response) => {
+      if (!response) return next();
+      return writeResponseToNodeResponse(await presentRenderedHtml(response), res);
+    })
     .catch(next);
 });
+
+/**
+ * Rendered documents paint from server HTML. Drop modulepreload and font preload
+ * hints so they are not on the simulated first-paint path. A content-length from
+ * the untouched body would no longer match.
+ */
+async function presentRenderedHtml(response: Response): Promise<Response> {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('text/html') || response.body === null) return response;
+  const html = await response.text();
+  const trimmed = trimRenderedEarlyHints(html);
+  if (trimmed === html) {
+    return new Response(html, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  }
+  const headers = new Headers(response.headers);
+  headers.delete('content-length');
+  return new Response(trimmed, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
 
 /**
  * Start the server if this module is the main entry point, or it is ran via PM2.
