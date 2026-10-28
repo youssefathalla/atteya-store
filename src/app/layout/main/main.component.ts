@@ -7,6 +7,7 @@ import {
   NavigationError,
   NavigationStart,
   Router,
+  RouterLink,
   RouterOutlet,
 } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -20,6 +21,7 @@ import { DrawerService } from '@core/services/drawer/drawer.service';
 @Component({
   selector: 'app-main-layout',
   imports: [
+    RouterLink,
     RouterOutlet,
     MatSidenavModule,
     DesktopNavComponent,
