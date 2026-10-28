@@ -24,6 +24,6 @@ export const environment: Environment = {
   appCheck: {
     siteKey: '6Lecg_4tAAAAAEDHJcAE1tWQ59-FeaHDaSUqDfQE',
     isTokenAutoRefreshEnabled: true,
-    debug: true,
+    debug: false,
   },
 };
