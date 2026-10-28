@@ -7,12 +7,16 @@ import {
   inject,
   input,
   linkedSignal,
+  PLATFORM_ID,
   resource,
   signal,
+  type OnInit,
 } from '@angular/core';
+import { DOCUMENT, isPlatformServer } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { Router, RouterLink } from '@angular/router';
 import { injectFirestore } from '@core/firebase';
+import { buildPdpGalleryLcpUrl } from '@core/image/image-kit.loader';
 import { AuthService } from '@core/services/auth/auth.service';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { displayPrice, type Offer, priceItem } from '@core/services/offers/engine';
@@ -50,7 +54,7 @@ import {
   templateUrl: './product.component.html',
   host: { class: 'block w-full' },
 })
-export class ProductComponent {
+export class ProductComponent implements OnInit {
   readonly page = input.required<ProductPageResult>();
 
   readonly #seo = inject(SeoService);
@@ -61,6 +65,8 @@ export class ProductComponent {
   readonly #auth = inject(AuthService);
   readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);
+  readonly #document = inject(DOCUMENT);
+  readonly #platformId = inject(PLATFORM_ID);
 
   /** False until the first browser render so hydration matches server pricing. */
   readonly #hydrated = signal(false);
@@ -253,11 +259,38 @@ export class ProductComponent {
     });
   }
 
+  ngOnInit(): void {
+    this.#preloadGalleryLcpImage();
+  }
+
   select(key: string, valueId: string): void {
     this.selection.update((current) => ({ ...current, [key]: valueId }));
   }
 
   retry(): void {
     void this.#router.navigateByUrl(this.#router.url, { onSameUrlNavigation: 'reload' });
+  }
+
+  /** SSR-only: start ImageKit fetch before the gallery `<img priority>` is parsed. */
+  #preloadGalleryLcpImage(): void {
+    if (!isPlatformServer(this.#platformId)) return;
+    const page = this.page();
+    if (page.status !== 'found') return;
+    const lcpImage = this.colourImage() ?? page.product.images[0];
+    const path = lcpImage?.path;
+    if (!path) return;
+
+    const href = buildPdpGalleryLcpUrl(path);
+    if (!href) return;
+
+    const head = this.#document.head;
+    if (head.querySelector(`link[rel="preload"][as="image"][href="${href}"]`)) return;
+
+    const link = this.#document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.setAttribute('fetchpriority', 'high');
+    link.href = href;
+    head.appendChild(link);
   }
 }

@@ -56,9 +56,6 @@ export class SearchService {
   }
 
   async search(options: SearchQueryOptions): Promise<SearchResultPage> {
-    if (!isPlatformBrowser(this.#platformId)) {
-      return emptyResult(true);
-    }
     if (!this.isConfigured()) {
       return emptyResult(false);
     }

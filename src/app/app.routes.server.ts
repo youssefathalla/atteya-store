@@ -20,7 +20,6 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Server,
     headers: { 'Cache-Control': PUBLIC_HTML_CACHE },
   },
-  // Shell only. The results resource stays idle on the server, so hits are never transferred.
   {
     path: 'search',
     renderMode: RenderMode.Server,
