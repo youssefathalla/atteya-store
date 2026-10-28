@@ -1,0 +1,6 @@
+# Storefront crawlers: public shop routes only.
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /playground/
