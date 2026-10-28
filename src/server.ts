@@ -7,6 +7,7 @@ import {
 import compression from 'compression';
 import express from 'express';
 import { join, relative, sep } from 'node:path';
+import { applyCdnCacheControl, cdnCacheControlHeader } from './cdn-cache-control.mjs';
 import { trimRenderedEarlyHints } from './early-hints.mjs';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
@@ -51,7 +52,10 @@ app.use(
     cacheControl: false,
     setHeaders: (res, filePath) => {
       const urlPath = '/' + relative(browserDistFolder, filePath).split(sep).join('/');
-      res.setHeader('Cache-Control', staticCacheControl(urlPath));
+      const cacheControl = staticCacheControl(urlPath);
+      res.setHeader('Cache-Control', cacheControl);
+      const cdn = cdnCacheControlHeader(cacheControl);
+      if (cdn) res.setHeader('CDN-Cache-Control', cdn);
     },
   }),
 );
@@ -80,14 +84,17 @@ async function presentRenderedHtml(response: Response): Promise<Response> {
   const html = await response.text();
   const trimmed = trimRenderedEarlyHints(html);
   if (trimmed === html) {
+    const headers = new Headers(response.headers);
+    applyCdnCacheControl(headers);
     return new Response(html, {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers,
+      headers,
     });
   }
   const headers = new Headers(response.headers);
   headers.delete('content-length');
+  applyCdnCacheControl(headers);
   return new Response(trimmed, {
     status: response.status,
     statusText: response.statusText,
