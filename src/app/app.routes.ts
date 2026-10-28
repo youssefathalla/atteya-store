@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { checkoutAuthGuard } from '@core/guards/checkout/checkout-auth.guard';
 import { homeSettingsResolver } from './features/home/resolvers/home-settings.resolver';
 import { productPageResolver } from './features/product/resolvers/product-page.resolver';
 
@@ -64,6 +65,22 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/auth/login/login.component').then((m) => m.LoginComponent),
         title: 'Sign in | Atteya Store',
+      },
+      {
+        path: 'checkout',
+        canActivate: [checkoutAuthGuard],
+        loadComponent: () =>
+          import('./features/checkout/pages/checkout.page').then((m) => m.CheckoutPageComponent),
+        title: 'Checkout | Atteya Store',
+      },
+      {
+        path: 'checkout/confirmation/:orderId',
+        canActivate: [checkoutAuthGuard],
+        loadComponent: () =>
+          import('./features/checkout/pages/checkout-confirmation.page').then(
+            (m) => m.CheckoutConfirmationPageComponent,
+          ),
+        title: 'Order received | Atteya Store',
       },
     ],
   },

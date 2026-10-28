@@ -79,6 +79,14 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Edit Offer | Atteya Admin',
       },
       {
+        path: 'orders',
+        loadComponent: () =>
+          import('./pages/orders-manager/orders-manager.page').then(
+            (m) => m.OrdersManagerPageComponent,
+          ),
+        title: 'Orders | Atteya Admin',
+      },
+      {
         path: 'settings',
         loadComponent: () =>
           import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
@@ -112,6 +120,14 @@ export const ADMIN_ROUTES: Routes = [
                 (m) => m.InternationalTabComponent,
               ),
             title: 'Outside Egypt | Atteya Admin',
+          },
+          {
+            path: 'payments',
+            loadComponent: () =>
+              import('./pages/settings/payments/payments-tab.component').then(
+                (m) => m.PaymentsTabComponent,
+              ),
+            title: 'Bank transfer | Atteya Admin',
           },
         ],
       },

@@ -1,0 +1,131 @@
+<section class="container-content max-w-3xl mx-auto space-y-8 py-8">
+  <header class="space-y-2">
+    <h1 class="font-headline-md font-bold!">Checkout</h1>
+    <p class="font-body-md opacity-80">
+      Pay outside Egypt by bank transfer. We will confirm your payment before we ship.
+    </p>
+  </header>
+
+  <section class="surface-card p-5 space-y-4" aria-labelledby="bag-heading">
+    <h2 id="bag-heading" class="font-title-md font-bold!">Your bag</h2>
+    @if (productsResource.isLoading()) {
+      <p class="font-body-sm opacity-70">Loading items…</p>
+    } @else {
+      <ul class="space-y-3">
+        @for (line of lines(); track $index) {
+          <li class="elements-between gap-4">
+            <div>
+              <p class="font-title-sm font-bold!">{{ productName(line.productId) }}</p>
+              <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+    <p class="font-label-sm opacity-70">
+      Your total in {{ currency.selected() }} is calculated securely when you place the order.
+    </p>
+  </section>
+
+  <form class="surface-card p-5 space-y-4" (submit)="$event.preventDefault(); placeOrder()">
+    <h2 class="font-title-md font-bold!">Delivery address</h2>
+
+    <mat-form-field class="w-full" subscriptSizing="dynamic">
+      <mat-label>Full name</mat-label>
+      <input
+        matInput
+        [value]="shipping().fullName"
+        (input)="patchShipping('fullName', $any($event.target).value)"
+        autocomplete="name"
+      />
+    </mat-form-field>
+
+    <mat-form-field class="w-full" subscriptSizing="dynamic">
+      <mat-label>Address line 1</mat-label>
+      <input
+        matInput
+        [value]="shipping().line1"
+        (input)="patchShipping('line1', $any($event.target).value)"
+        autocomplete="address-line1"
+      />
+    </mat-form-field>
+
+    <mat-form-field class="w-full" subscriptSizing="dynamic">
+      <mat-label>Address line 2 (optional)</mat-label>
+      <input
+        matInput
+        [value]="shipping().line2 ?? ''"
+        (input)="patchShipping('line2', $any($event.target).value || null)"
+        autocomplete="address-line2"
+      />
+    </mat-form-field>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <mat-form-field class="w-full" subscriptSizing="dynamic">
+        <mat-label>City</mat-label>
+        <input
+          matInput
+          [value]="shipping().city"
+          (input)="patchShipping('city', $any($event.target).value)"
+          autocomplete="address-level2"
+        />
+      </mat-form-field>
+
+      <mat-form-field class="w-full" subscriptSizing="dynamic">
+        <mat-label>Region (optional)</mat-label>
+        <input
+          matInput
+          [value]="shipping().region ?? ''"
+          (input)="patchShipping('region', $any($event.target).value || null)"
+          autocomplete="address-level1"
+        />
+      </mat-form-field>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <mat-form-field class="w-full" subscriptSizing="dynamic">
+        <mat-label>Postal code</mat-label>
+        <input
+          matInput
+          [value]="shipping().postalCode"
+          (input)="patchShipping('postalCode', $any($event.target).value)"
+          autocomplete="postal-code"
+        />
+      </mat-form-field>
+
+      <mat-form-field class="w-full" subscriptSizing="dynamic">
+        <mat-label>Country</mat-label>
+        <mat-select
+          [value]="shipping().country"
+          (valueChange)="patchShipping('country', $event)"
+        >
+          @for (country of countries; track country.code) {
+            <mat-option [value]="country.code">{{ country.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <mat-form-field class="w-full" subscriptSizing="dynamic">
+      <mat-label>Phone</mat-label>
+      <input
+        matInput
+        [value]="shipping().phone"
+        (input)="patchShipping('phone', $any($event.target).value)"
+        autocomplete="tel"
+        inputmode="tel"
+      />
+    </mat-form-field>
+
+    <div class="elements-end gap-3 pt-2">
+      <a matButton="text" routerLink="/">Keep shopping</a>
+      <button matButton="filled" type="submit" [disabled]="isSubmitting() || isEmpty()">
+        @if (isSubmitting()) {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          Place order
+        }
+      </button>
+    </div>
+  </form>
+</section>

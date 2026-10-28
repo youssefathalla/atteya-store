@@ -28,6 +28,22 @@ service firebase.storage {
       return folder in ['hero', 'categories', 'products', 'brands'];
     }
 
+    function ownsOrder(orderId) {
+      let orderPath = /databases/(default)/documents/orders/$(orderId);
+      return firestore.exists(orderPath)
+        && firestore.get(orderPath).data.customerId == request.auth.uid;
+    }
+
+    match /orders/{orderId}/{fileName} {
+      allow get: if isAdmin() || (isSignedIn() && ownsOrder(orderId));
+      allow create, update: if isSignedIn()
+        && ownsOrder(orderId)
+        && fileName.matches('proof\\.(jpg|jpeg|png|webp|avif)')
+        && isValidImage();
+      allow delete: if isAdmin();
+      allow list: if false;
+    }
+
     function isValidImage() {
       return request.resource.size > 0
         && request.resource.size < 10 * 1024 * 1024

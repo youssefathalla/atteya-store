@@ -16,3 +16,6 @@ export { syncProductSearch } from './search/sync-product.trigger.js';
 export { onShippingSettingsWritten } from './shipping/on-shipping-settings-written.trigger.js';
 export { refreshExchangeRates } from './intl/refresh-exchange-rates.schedule.js';
 export { refreshExchangeRatesNow, setInternationalPricing } from './intl/intl-pricing.fn.js';
+export { createInternationalBankTransferOrder } from './orders/create-intl-bank-transfer-order.fn.js';
+export { confirmInternationalOrderPayment } from './orders/confirm-intl-order-payment.fn.js';
+export { registerOrderPaymentProof } from './orders/register-order-payment-proof.fn.js';
