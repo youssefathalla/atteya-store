@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// Private payment-proof bucket (NOT the ImageKit web-folder origin).
+// Must have no allUsers / public IAM. Firebase Auth + these rules only.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.role == 'admin'
+        && sessionIsCurrent();
+    }
+
+    function sessionIsCurrent() {
+      let rolePath = /databases/(default)/documents/roles/$(request.auth.uid);
+      return !firestore.exists(rolePath) || freshSession(firestore.get(rolePath).data);
+    }
+
+    function freshSession(data) {
+      return !('revokeTimeMs' in data)
+        || ('auth_time' in request.auth.token
+            && request.auth.token.auth_time * 1000 >= data.revokeTimeMs);
+    }
+
+    function ownsOrder(orderId) {
+      let orderPath = /databases/(default)/documents/orders/$(orderId);
+      return firestore.exists(orderPath)
+        && firestore.get(orderPath).data.customerId == request.auth.uid;
+    }
+
+    function orderIsPending(orderId) {
+      let orderPath = /databases/(default)/documents/orders/$(orderId);
+      return firestore.exists(orderPath)
+        && firestore.get(orderPath).data.status == 'pending';
+    }
+
+    function isValidImage() {
+      return request.resource.size > 0
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|avif)');
+    }
+
+    match /orders/{orderId}/{fileName} {
+      allow get: if isAdmin() || (isSignedIn() && ownsOrder(orderId));
+      allow create, update: if isSignedIn()
+        && ownsOrder(orderId)
+        && orderIsPending(orderId)
+        && fileName.matches('proof\\.(jpg|jpeg|png|webp|avif)')
+        && isValidImage();
+      allow delete: if isAdmin();
+      allow list: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

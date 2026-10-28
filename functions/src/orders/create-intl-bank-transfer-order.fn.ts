@@ -19,6 +19,10 @@ import {
 import type { PaymentSettings } from '../settings/payment-settings.js';
 import { newTransferReference } from './transfer-reference.js';
 
+/** Caps shared namespace flooding from a single signed-in account. */
+const MAX_ORDERS_PER_UID_PER_UTC_DAY = 20;
+const TRANSFER_REF_ATTEMPTS = 16;
+
 export interface CreateIntlBankTransferOrderResponse {
   readonly orderId: string;
   readonly transferReference: string;
@@ -38,6 +42,7 @@ export const createInternationalBankTransferOrder = onCall(
     const db = getFirestore();
     const priced = await priceInternationalBankTransferOrder(db, input, true);
     return db.runTransaction(async (tx) => {
+      await assertUnderDailyOrderLimit(tx, db, caller.uid);
       const orderRef = db.collection('orders').doc();
       const transferReference = await claimTransferReference(tx, db, orderRef.id);
       const now = FieldValue.serverTimestamp();
@@ -76,12 +81,47 @@ export const createInternationalBankTransferOrder = onCall(
   },
 );
 
+async function assertUnderDailyOrderLimit(
+  tx: Transaction,
+  db: Firestore,
+  uid: string,
+): Promise<void> {
+  const day = utcDayKey();
+  const ref = db.collection('orderRateLimits').doc(`${uid}_${day}`);
+  const snap = await tx.get(ref);
+  const raw = snap.data()?.['count'];
+  const count = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
+  if (count >= MAX_ORDERS_PER_UID_PER_UTC_DAY) {
+    throw new HttpsError(
+      'resource-exhausted',
+      'You have placed too many orders today. Try again tomorrow.',
+    );
+  }
+  tx.set(
+    ref,
+    {
+      uid,
+      day,
+      count: count + 1,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+function utcDayKey(now = new Date()): string {
+  const y = String(now.getUTCFullYear());
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+}
+
 async function claimTransferReference(
   tx: Transaction,
   db: Firestore,
   orderId: string,
 ): Promise<string> {
-  for (let attempt = 0; attempt < 8; attempt++) {
+  for (let attempt = 0; attempt < TRANSFER_REF_ATTEMPTS; attempt++) {
     const candidate = newTransferReference();
     const ref = db.collection('orderTransferRefs').doc(candidate);
     const snap = await tx.get(ref);

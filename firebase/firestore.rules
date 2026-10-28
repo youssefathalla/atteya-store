@@ -120,12 +120,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Per-uid daily checkout counters. Admin SDK only.
+    match /orderRateLimits/{id} {
+      allow read, write: if false;
+    }
+
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderTransferRefs']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderTransferRefs', 'orderRateLimits']);
     }
   }
 }

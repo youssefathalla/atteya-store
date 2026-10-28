@@ -3,6 +3,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
 
+/** Relative path inside the private payment-proofs bucket (not ImageKit origin). */
 const PROOF_PATH = /^orders\/[A-Za-z0-9]{20}\/proof\.(jpg|jpeg|png|webp|avif)$/;
 
 export interface RegisterOrderPaymentProofResponse {
