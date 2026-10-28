@@ -47,9 +47,28 @@
       <ul class="space-y-4">
         @for (line of lines(); track $index) {
           <li class="elements-between gap-3 border-b border-outline-variant pb-4">
-            <div>
+            <div class="min-w-0 flex-1">
               <p class="font-title-sm font-bold!">{{ nameFor(line.productId) }}</p>
               <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
+            </div>
+            <div class="elements-end gap-1 shrink-0">
+              <button
+                matIconButton
+                type="button"
+                (click)="decreaseQuantity($index)"
+                [attr.aria-label]="line.quantity === 1 ? 'Remove item' : 'Decrease quantity'"
+              >
+                <mat-icon [name]="line.quantity === 1 ? 'delete' : 'remove'" />
+              </button>
+              <button
+                matIconButton
+                type="button"
+                (click)="increaseQuantity($index)"
+                [disabled]="line.quantity >= 20"
+                aria-label="Increase quantity"
+              >
+                <mat-icon name="add" />
+              </button>
             </div>
           </li>
         }

@@ -18,6 +18,7 @@ export const OrderShippingSchema = v.object({
 export const OrderLinePriceSchema = v.object({
   productId: v.string(),
   variantId: v.nullable(v.string(), null),
+  selection: v.optional(v.record(v.string(), v.string()), {}),
   quantity: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(20)),
   unitEgp: v.pipe(v.number(), v.integer(), v.minValue(0)),
   unitDisplay: v.pipe(v.number(), v.finite(), v.minValue(0)),

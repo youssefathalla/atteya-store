@@ -31,6 +31,26 @@ export class CartDrawerComponent {
   readonly isEmpty = this.#cart.isEmpty;
   readonly count = this.#cart.count;
 
+  removeLine(index: number): void {
+    this.#cart.removeAt(index);
+  }
+
+  decreaseQuantity(index: number): void {
+    const line = this.lines()[index];
+    if (!line) return;
+    if (line.quantity <= 1) {
+      this.#cart.removeAt(index);
+      return;
+    }
+    this.#cart.setQuantity(index, line.quantity - 1);
+  }
+
+  increaseQuantity(index: number): void {
+    const line = this.lines()[index];
+    if (!line || line.quantity >= 20) return;
+    this.#cart.setQuantity(index, line.quantity + 1);
+  }
+
   readonly namesResource = resource({
     params: () => this.lines(),
     loader: async ({ params: lines }) => {

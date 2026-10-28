@@ -100,8 +100,7 @@ export class SearchComponent implements OnInit {
 
   readonly resultsResource = resource({
     params: () => {
-      // Idle on the server so the shell renders and no hits enter TransferState.
-      if (!isPlatformBrowser(this.#platformId)) return undefined;
+      if (!this.isConfigured() || !this.hasMinQuery()) return undefined;
       return {
         q: this.normalizedQuery(),
         sort: this.activeSort(),
@@ -114,6 +113,7 @@ export class SearchComponent implements OnInit {
         sort: params.sort,
         page: params.page,
       }),
+    id: 'search-results',
   });
 
   readonly hits = computed(() => {

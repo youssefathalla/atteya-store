@@ -7,7 +7,15 @@ import {
 import compression from 'compression';
 import express from 'express';
 import { join, relative, sep } from 'node:path';
+import { applyCdnCacheControl, cdnCacheControlHeader } from './cdn-cache-control.mjs';
+import * as v from 'valibot';
 import { trimRenderedEarlyHints } from './early-hints.mjs';
+import {
+  clientIpFromHeaders,
+  headersFromRecord,
+  resolveVisitorCountry,
+} from './app/core/services/currency/visitor-geo.js';
+import { VisitorLocationResponseSchema } from './app/core/services/currency/visitor-geo.schema.js';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -41,6 +49,29 @@ function staticCacheControl(urlPath: string): string {
 
 app.use(compression({ threshold: 1024 }));
 
+app.get('/api/visitor-location', async (req, res) => {
+  try {
+    const headers = visitorLocationHeaders(req);
+    const country = await resolveVisitorCountry(headers);
+    const payload = v.parse(VisitorLocationResponseSchema, { country });
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json(payload);
+  } catch {
+    res.status(500).json({ country: null });
+  }
+});
+
+function visitorLocationHeaders(req: express.Request): Headers {
+  const headers = headersFromRecord(
+    req.headers as Record<string, string | string[] | undefined>,
+  );
+  if (!clientIpFromHeaders(headers)) {
+    const remote = req.socket.remoteAddress;
+    if (remote) headers.set('x-forwarded-for', remote);
+  }
+  return headers;
+}
+
 /**
  * Serve static files from /browser
  */
@@ -51,7 +82,10 @@ app.use(
     cacheControl: false,
     setHeaders: (res, filePath) => {
       const urlPath = '/' + relative(browserDistFolder, filePath).split(sep).join('/');
-      res.setHeader('Cache-Control', staticCacheControl(urlPath));
+      const cacheControl = staticCacheControl(urlPath);
+      res.setHeader('Cache-Control', cacheControl);
+      const cdn = cdnCacheControlHeader(cacheControl);
+      if (cdn) res.setHeader('CDN-Cache-Control', cdn);
     },
   }),
 );
@@ -80,14 +114,17 @@ async function presentRenderedHtml(response: Response): Promise<Response> {
   const html = await response.text();
   const trimmed = trimRenderedEarlyHints(html);
   if (trimmed === html) {
+    const headers = new Headers(response.headers);
+    applyCdnCacheControl(headers);
     return new Response(html, {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers,
+      headers,
     });
   }
   const headers = new Headers(response.headers);
   headers.delete('content-length');
+  applyCdnCacheControl(headers);
   return new Response(trimmed, {
     status: response.status,
     statusText: response.statusText,

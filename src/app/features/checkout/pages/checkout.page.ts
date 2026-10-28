@@ -9,7 +9,6 @@ import { MatSelectModule } from '@angular/material/select';
 import { resource } from '@angular/core';
 import { doc, getDoc } from 'firebase/firestore';
 import { CartService } from '@core/services/cart/cart.service';
-import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
 import {
   CheckoutOrderService,
@@ -36,8 +35,6 @@ import { CHECKOUT_COUNTRY_OPTIONS } from '../utils/checkout-countries';
 })
 export class CheckoutPageComponent implements OnInit {
   readonly #cart = inject(CartService);
-  readonly #currency = inject(CurrencyService);
-  readonly currency = this.#currency;
   readonly #checkout = inject(CheckoutOrderService);
   readonly #firestore = injectFirestore();
   readonly #router = inject(Router);
@@ -128,7 +125,6 @@ export class CheckoutPageComponent implements OnInit {
           country: draft.country,
           phone: draft.phone.trim(),
         },
-        currency: this.#currency.selected(),
       });
       this.#cart.clear();
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {

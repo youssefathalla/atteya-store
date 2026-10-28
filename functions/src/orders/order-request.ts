@@ -1,7 +1,6 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 
 const COUNTRY_CODE = /^[A-Z]{2}$/;
-const CURRENCY_CODE = /^[A-Z]{3}$/;
 const MAX_LINES = 20;
 const MAX_QTY = 20;
 const MAX_NAME = 120;
@@ -9,11 +8,13 @@ const MAX_LINE = 200;
 const MAX_CITY = 80;
 const MAX_POSTAL = 20;
 const MAX_PHONE = 20;
+const MAX_SELECTION_KEYS = 8;
 
 export interface OrderLineInput {
   readonly productId: string;
   readonly variantId: string | null;
   readonly quantity: number;
+  readonly selection: Readonly<Record<string, string>>;
 }
 
 export interface OrderShippingInput {
@@ -30,7 +31,6 @@ export interface OrderShippingInput {
 export interface CreateIntlBankTransferRequest {
   readonly lines: readonly OrderLineInput[];
   readonly shipping: OrderShippingInput;
-  readonly currency: string;
 }
 
 export function parseCreateIntlBankTransferRequest(data: unknown): CreateIntlBankTransferRequest {
@@ -39,14 +39,13 @@ export function parseCreateIntlBankTransferRequest(data: unknown): CreateIntlBan
   }
   const lines = parseLines(data['lines']);
   const shipping = parseShipping(data['shipping']);
-  const currency = parseCurrency(data['currency']);
   if (shipping.country === 'EG') {
     throw new HttpsError(
       'failed-precondition',
       'Bank transfer checkout is for orders outside Egypt. Choose another payment option when it is available.',
     );
   }
-  return { lines, shipping, currency };
+  return { lines, shipping };
 }
 
 function parseLines(raw: unknown): OrderLineInput[] {
@@ -61,9 +60,24 @@ function parseLines(raw: unknown): OrderLineInput[] {
     const productId = readId(entry['productId']);
     const variantId = readOptionalId(entry['variantId']);
     const quantity = readQuantity(entry['quantity']);
-    lines.push({ productId, variantId, quantity });
+    const selection = parseSelection(entry['selection']);
+    lines.push({ productId, variantId, quantity, selection });
   }
   return lines;
+}
+
+function parseSelection(raw: unknown): Readonly<Record<string, string>> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  let count = 0;
+  for (const [key, value] of Object.entries(raw)) {
+    if (count >= MAX_SELECTION_KEYS) break;
+    if (typeof key !== 'string' || key.length === 0 || key.length > 40) continue;
+    if (typeof value !== 'string' || value.length === 0 || value.length > 80) continue;
+    out[key] = value;
+    count++;
+  }
+  return out;
 }
 
 function parseShipping(raw: unknown): OrderShippingInput {
@@ -79,17 +93,6 @@ function parseShipping(raw: unknown): OrderShippingInput {
   const country = readCountry(raw['country']);
   const phone = readText(raw['phone'], MAX_PHONE, 'Enter a phone number we can reach you on.');
   return { fullName, line1, line2, city, region, postalCode, country, phone };
-}
-
-function parseCurrency(raw: unknown): string {
-  if (typeof raw !== 'string') {
-    throw new HttpsError('invalid-argument', 'We could not read the currency for this order.');
-  }
-  const code = raw.trim().toUpperCase();
-  if (!CURRENCY_CODE.test(code)) {
-    throw new HttpsError('invalid-argument', 'We could not read the currency for this order.');
-  }
-  return code;
 }
 
 function readCountry(raw: unknown): string {

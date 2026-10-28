@@ -32,7 +32,6 @@ export class CheckoutOrderService {
   async placeInternationalBankTransferOrder(args: {
     readonly lines: readonly CartLineDraft[];
     readonly shipping: CheckoutShippingInput;
-    readonly currency: string;
   }): Promise<CreateIntlBankTransferOrderResult> {
     const call = await callableFrom<
       {
@@ -40,9 +39,9 @@ export class CheckoutOrderService {
           productId: string;
           variantId: string | null;
           quantity: number;
+          selection: Readonly<Record<string, string>>;
         }[];
         shipping: CheckoutShippingInput;
-        currency: string;
       },
       CreateIntlBankTransferOrderResult
     >(this.#functions(), 'createInternationalBankTransferOrder');
@@ -51,9 +50,9 @@ export class CheckoutOrderService {
         productId: line.productId,
         variantId: line.variantId,
         quantity: line.quantity,
+        selection: line.selection,
       })),
       shipping: args.shipping,
-      currency: args.currency,
     });
     return response.data;
   }
