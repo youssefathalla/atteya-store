@@ -210,7 +210,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 - **`CurrencyService`** (`src/app/core/services/currency/currency.service.ts`):
   - `selected()`, `entry()` (`CurrencyEntry`, starts as `EGP_ENTRY`), `ready()`.
   - No switcher and no saved currency. `?cur=` applies for one visit, then the query is removed.
-  - SSR and `Africa/Cairo` stay on EGP and do not import `tz-currency.ts`. Any other zone loads that map (`scripts/generate-tz-currency.mjs`). An unknown zone, a missing rate, or `UNRELIABLE_CURRENCIES` uses USD and does import `currency-loader.ts` when a factor is needed.
+  - **Geo, not timezone:** CDN/platform headers and optional IP lookup (`visitor-geo.ts`) pick ISO country; `currencyFromCountry()` maps country → currency (`country-currency.ts`, CLDR). Egypt stays EGP. SSR `prepareForServerRender()` loads factors and renders converted prices when possible; boot crosses `TransferState` (`currency-boot`). Client-only routes call `/api/visitor-location`.
   - `toDisplayAmount` and `displayDecimals` live in the shared pricing engine (`functions/src/offers/engine/currency.ts`).
 - **`ImageSourceService`** (`src/app/core/services/storage/image-source.service.ts`):
   - **Primary entry point for admin image uploads & URL resolution.**
@@ -399,7 +399,7 @@ Whenever you find a combination of 4 or more utility classes that is repeated **
 ## Step 1b additions
 
 - **Shared UI**: `app-product-price` (`@shared/components/product-price`): the only storefront price. It reads `CurrencyService.entry()`, converts with `toDisplayAmount`, and formats with `formatMoney`. The struck-through list price is shown only when its converted, rounded display amount is higher than the sale amount. Outside EGP, badges that contain an EGP amount are dropped and percentage badges stay. `app-shipping-banner` (`@shared/components/shipping-banner`): dismissible announcement fed by `ShippingSettingsService`. The banner and the shipping line are empty when the selected currency is not EGP. `html[data-cur-pending] app-shipping-banner { display: none }` hides the server-rendered EGP bar until a foreign currency resolves. Egypt does not set that attribute.
-- **Currency**: `CurrencyService` (`src/app/core/services/currency/currency.service.ts`). Signals: `selected`, `entry`, `ready`. Customers cannot pick a currency. The timezone map is lazy. `formatMoney` (`src/app/shared/utils/money.ts`) is the shared formatter and uses `Intl.NumberFormat` currency display. `EgpPricePipe` stays for admin. Checkout later follows `OrderPricingSnapshot` (`src/app/core/services/orders/order-pricing.model.ts`).
+- **Currency**: `CurrencyService` (`src/app/core/services/currency/currency.service.ts`). Signals: `selected`, `entry`, `ready`. Customers cannot pick a currency. Geo resolves country on the server (headers / IP) or via `/api/visitor-location` on client-rendered routes. `formatMoney` (`src/app/shared/utils/money.ts`) is the shared formatter and uses `Intl.NumberFormat` currency display. `EgpPricePipe` stays for admin. Checkout later follows `OrderPricingSnapshot` (`src/app/core/services/orders/order-pricing.model.ts`).
 - **Core services**: `SearchService` (`@core/services/search`), `OffersService` and the generated pricing engine (`@core/services/offers`), `ShippingSettingsService` (`@core/services/shipping`), `catalog-taxonomy.ts` (categories, brands, colour palette, `colorIdFor`).
 - **Rule**: never edit `src/app/core/services/offers/engine/*`; change `functions/src/offers/engine/*` and run `npm run sync:engine`.
 

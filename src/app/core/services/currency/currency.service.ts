@@ -1,32 +1,48 @@
-import { DOCUMENT } from '@angular/common';
-import { afterNextRender, DestroyRef, inject, Service, signal } from '@angular/core';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import {
+  afterNextRender,
+  DestroyRef,
+  inject,
+  PLATFORM_ID,
+  REQUEST,
+  Service,
+  signal,
+  TransferState,
+} from '@angular/core';
 import { Router } from '@angular/router';
+import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
 import { EGP_ENTRY, type CurrencyEntry } from '@core/services/offers/engine';
 import {
-  currencyFromTimeZone,
+  currencyFromCountry,
   normalizeCurrencyCode,
   readCachedCurrencyMap,
   readFreshCurrencyMap,
-  readTimeZone,
   storeCachedCurrencyMap,
 } from './currency-detect';
+import { loadPublicCurrency } from './currency-loader';
 import type { PublicCurrencyMap } from './currency.schema';
+import { CURRENCY_BOOT_KEY, type CurrencyBootTransfer } from './currency.state';
+import { resolveVisitorCountry } from './visitor-geo';
+import { VisitorLocationResponseSchema } from './visitor-geo.schema';
 
 const PENDING_TIMEOUT_MS = 2500;
+const VISITOR_LOCATION_PATH = '/api/visitor-location';
 
 /**
- * Storefront display currency. The server always stays on EGP.
- * The browser picks a currency from the timezone after hydration.
- * `?cur=` overrides that for one visit and is never saved.
- * Africa/Cairo stays on EGP and does not load the timezone map.
+ * Storefront display currency from visitor geo (CDN headers or IP lookup).
+ * Egypt stays on EGP and keeps the domestic shipping banner.
+ * `?cur=` overrides for one visit and is never saved.
  */
 @Service()
 export class CurrencyService {
+  readonly #platformId = inject(PLATFORM_ID);
   readonly #document = inject(DOCUMENT);
   readonly #router = inject(Router);
   readonly #firestore = injectFirestore();
   readonly #destroyRef = inject(DestroyRef);
+  readonly #transfer = inject(TransferState);
+  readonly #request = inject(REQUEST, { optional: true });
 
   readonly #selected = signal('EGP');
   readonly #entry = signal<CurrencyEntry>(EGP_ENTRY);
@@ -41,24 +57,125 @@ export class CurrencyService {
   #generation = 0;
   #settled = false;
   #timer: number | undefined;
+  #visitorCountry: string | null = null;
 
   constructor() {
+    if (isPlatformBrowser(this.#platformId)) {
+      this.#hydrateFromTransfer();
+    }
     afterNextRender(() => {
-      void this.#boot();
+      void this.#bootClient();
     });
     this.#destroyRef.onDestroy(() => this.#clearTimer());
   }
 
-  async #boot(): Promise<void> {
+  /** Runs during SSR before the storefront HTML is rendered. */
+  async prepareForServerRender(): Promise<void> {
+    const fromQuery = normalizeCurrencyCode(this.#queryCur());
+    if (fromQuery) {
+      await this.#finishWithCode(fromQuery, null, { pendingIntl: fromQuery !== 'EGP' });
+      this.#publishTransfer(fromQuery);
+      return;
+    }
+    const headers = this.#request?.headers ?? null;
+    const country = headers ? await resolveVisitorCountry(headers) : null;
+    this.#visitorCountry = country;
+    const code = currencyFromCountry(country);
+    await this.#finishWithCode(code, country, { pendingIntl: code !== 'EGP' });
+    this.#publishTransfer(code);
+  }
+
+  async #bootClient(): Promise<void> {
+    if (this.#settled) {
+      this.#transfer.remove(CURRENCY_BOOT_KEY);
+      const fromQuery = normalizeCurrencyCode(this.#queryCur());
+      this.#stripCurParam();
+      if (fromQuery && fromQuery !== this.#selected()) {
+        this.#settled = false;
+        await this.#finishWithCode(fromQuery, this.#visitorCountry, {
+          pendingIntl: fromQuery !== 'EGP',
+        });
+      }
+      return;
+    }
+
+    const transferred = this.#transfer.get(CURRENCY_BOOT_KEY, null);
+    if (transferred) {
+      this.#transfer.remove(CURRENCY_BOOT_KEY);
+      this.#visitorCountry = transferred.country;
+      if (transferred.map) this.#map = transferred.map;
+      const fromQuery = normalizeCurrencyCode(this.#queryCur());
+      this.#stripCurParam();
+      if (fromQuery) {
+        await this.#finishWithCode(fromQuery, this.#visitorCountry, {
+          pendingIntl: fromQuery !== 'EGP',
+        });
+        return;
+      }
+      if (transferred.code === 'EGP') {
+        this.#apply(EGP_ENTRY);
+        this.#settled = true;
+        this.#syncDocumentHints(this.#visitorCountry, true, false);
+        return;
+      }
+      if (this.#map) {
+        this.#apply(entryFor(transferred.code, this.#map));
+        this.#settled = true;
+        this.#syncDocumentHints(this.#visitorCountry, true, false);
+        return;
+      }
+    }
+
     const code = await this.#resolveInitialCode();
     this.#stripCurParam();
+    await this.#finishWithCode(code, this.#visitorCountry, { pendingIntl: code !== 'EGP' });
+  }
+
+  #hydrateFromTransfer(): void {
+    const transferred = this.#transfer.get(CURRENCY_BOOT_KEY, null);
+    if (!transferred) return;
+    this.#visitorCountry = transferred.country;
+    if (transferred.map) this.#map = transferred.map;
+    if (transferred.code === 'EGP') {
+      this.#apply(EGP_ENTRY);
+      this.#settled = true;
+      this.#syncDocumentHints(this.#visitorCountry, true, false);
+      return;
+    }
+    if (this.#map) {
+      this.#apply(entryFor(transferred.code, this.#map));
+      this.#settled = true;
+      this.#syncDocumentHints(this.#visitorCountry, true, false);
+    }
+  }
+
+  #publishTransfer(code: string): void {
+    const payload: CurrencyBootTransfer = {
+      country: this.#visitorCountry,
+      code: this.#selected(),
+      map: code === 'EGP' ? null : this.#map,
+    };
+    this.#transfer.set(CURRENCY_BOOT_KEY, payload);
+  }
+
+  async #finishWithCode(
+    code: string,
+    country: string | null,
+    options: { pendingIntl: boolean },
+  ): Promise<void> {
+    if (country !== null) this.#visitorCountry = country;
     if (code === 'EGP') {
       this.#apply(EGP_ENTRY);
       this.#settled = true;
-      this.#clearPending();
+      this.#syncDocumentHints(this.#visitorCountry, true, false);
       return;
     }
-    this.#timer = window.setTimeout(() => this.#giveUp(), PENDING_TIMEOUT_MS);
+    if (options.pendingIntl) {
+      this.#syncDocumentHints(this.#visitorCountry, false, true);
+    }
+    if (isPlatformBrowser(this.#platformId)) {
+      this.#timer = window.setTimeout(() => this.#giveUp(), PENDING_TIMEOUT_MS);
+    }
     const generation = ++this.#generation;
     const map = await this.#loadMap();
     if (generation !== this.#generation || this.#settled) return;
@@ -70,13 +187,30 @@ export class CurrencyService {
     this.#map = map;
     this.#apply(entryFor(code, map));
     this.#settled = true;
-    this.#clearPending();
+    this.#syncDocumentHints(this.#visitorCountry, true, false);
   }
 
   async #resolveInitialCode(): Promise<string> {
     const fromQuery = normalizeCurrencyCode(this.#queryCur());
     if (fromQuery) return fromQuery;
-    return currencyFromTimeZone(readTimeZone());
+    const country = await this.#resolveVisitorCountryClient();
+    this.#visitorCountry = country;
+    return currencyFromCountry(country);
+  }
+
+  async #resolveVisitorCountryClient(): Promise<string | null> {
+    try {
+      const response = await fetch(VISITOR_LOCATION_PATH, {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return null;
+      const parsed = v.safeParse(VisitorLocationResponseSchema, await response.json());
+      if (!parsed.success) return null;
+      return parsed.output.country;
+    } catch {
+      return null;
+    }
   }
 
   #queryCur(): string | null {
@@ -99,19 +233,19 @@ export class CurrencyService {
   }
 
   async #loadMap(): Promise<PublicCurrencyMap | null> {
-    const fresh = this.#map ?? readFreshCurrencyMap();
+    const fresh = this.#map ?? (isPlatformBrowser(this.#platformId) ? readFreshCurrencyMap() : null);
     if (fresh) {
       this.#map = fresh;
       return fresh;
     }
     try {
-      this.#loading ??= import('./currency-loader').then((module) =>
-        module.loadPublicCurrency(this.#firestore),
-      );
+      this.#loading ??= loadPublicCurrency(this.#firestore);
       const loaded = await this.#loading;
       if (loaded && Object.keys(loaded).length > 0) {
         this.#map = loaded;
-        storeCachedCurrencyMap(loaded);
+        if (isPlatformBrowser(this.#platformId)) {
+          storeCachedCurrencyMap(loaded);
+        }
         return loaded;
       }
     } catch {
@@ -119,9 +253,12 @@ export class CurrencyService {
     } finally {
       this.#loading = null;
     }
-    const stale = readCachedCurrencyMap(null);
-    if (stale) this.#map = stale;
-    return stale;
+    if (isPlatformBrowser(this.#platformId)) {
+      const stale = readCachedCurrencyMap(null);
+      if (stale) this.#map = stale;
+      return stale;
+    }
+    return null;
   }
 
   #apply(entry: CurrencyEntry): void {
@@ -136,7 +273,7 @@ export class CurrencyService {
     this.#settled = true;
     console.warn('Currency rates took too long. Showing EGP prices.');
     this.#apply(EGP_ENTRY);
-    this.#clearPending();
+    this.#syncDocumentHints(this.#visitorCountry, true, false);
   }
 
   #clearTimer(): void {
@@ -145,8 +282,14 @@ export class CurrencyService {
     this.#timer = undefined;
   }
 
-  #clearPending(): void {
-    this.#document.documentElement.removeAttribute('data-cur-pending');
+  #syncDocumentHints(country: string | null, ready: boolean, pendingIntl: boolean): void {
+    const root = this.#document.documentElement;
+    if (country) root.setAttribute('data-visitor-country', country);
+    else root.removeAttribute('data-visitor-country');
+    if (ready) root.setAttribute('data-currency-ready', '');
+    else root.removeAttribute('data-currency-ready');
+    if (pendingIntl) root.setAttribute('data-cur-pending', '');
+    else root.removeAttribute('data-cur-pending');
   }
 }
 
