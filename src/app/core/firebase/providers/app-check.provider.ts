@@ -4,14 +4,10 @@ import {
   makeEnvironmentProviders,
   PLATFORM_ID,
   provideEnvironmentInitializer,
+  afterNextRender,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import {
-  initializeAppCheck,
-  ReCaptchaEnterpriseProvider,
-  ReCaptchaV3Provider,
-  AppCheck,
-} from 'firebase/app-check';
+import type { AppCheck } from 'firebase/app-check';
 import type { FirebaseApp } from 'firebase/app';
 import { FIREBASE_APP, FIREBASE_APP_CHECK } from '../firebase.tokens';
 
@@ -22,39 +18,63 @@ export interface AppCheckOptions {
   isEnterprise?: boolean;
 }
 
+let appCheckInstance: AppCheck | null = null;
+let appCheckInitPromise: Promise<AppCheck | null> | undefined;
+
+async function initAppCheck(app: FirebaseApp, options: AppCheckOptions): Promise<AppCheck | null> {
+  if (appCheckInstance) {
+    return appCheckInstance;
+  }
+  if (appCheckInitPromise) {
+    return appCheckInitPromise;
+  }
+
+  appCheckInitPromise = (async () => {
+    if (options.debug && typeof window !== 'undefined') {
+      (
+        window as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }
+      ).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    }
+
+    const { initializeAppCheck, ReCaptchaEnterpriseProvider, ReCaptchaV3Provider } =
+      await import('firebase/app-check');
+
+    const provider =
+      options.isEnterprise !== false
+        ? new ReCaptchaEnterpriseProvider(options.siteKey)
+        : new ReCaptchaV3Provider(options.siteKey);
+
+    appCheckInstance = initializeAppCheck(app, {
+      provider,
+      isTokenAutoRefreshEnabled: options.isTokenAutoRefreshEnabled ?? true,
+    });
+    return appCheckInstance;
+  })().catch((error: unknown) => {
+    appCheckInitPromise = undefined;
+    throw error;
+  });
+
+  return appCheckInitPromise;
+}
+
 export function provideAppCheck(options?: AppCheckOptions | null): EnvironmentProviders {
-  if (!options?.siteKey) return makeEnvironmentProviders([]);
+  if (!options?.siteKey) {
+    return makeEnvironmentProviders([]);
+  }
 
   return makeEnvironmentProviders([
     {
       provide: FIREBASE_APP_CHECK,
-      useFactory: (app: FirebaseApp, platformId: object): AppCheck | null => {
-        if (!isPlatformBrowser(platformId)) {
-          return null;
-        }
-
-        if (options.debug && typeof window !== 'undefined') {
-          (
-            window as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }
-          ).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-        }
-
-        const provider =
-          options.isEnterprise !== false
-            ? new ReCaptchaEnterpriseProvider(options.siteKey)
-            : new ReCaptchaV3Provider(options.siteKey);
-
-        return initializeAppCheck(app, {
-          provider,
-          isTokenAutoRefreshEnabled: options.isTokenAutoRefreshEnabled ?? true,
-        });
-      },
-      deps: [FIREBASE_APP, PLATFORM_ID],
+      useFactory: (): AppCheck | null => appCheckInstance,
     },
-    // The factory above is lazy and nothing else injects it. Start App Check
-    // when the app starts so Firestore, Functions, Storage and Auth requests carry tokens.
     provideEnvironmentInitializer(() => {
-      inject(FIREBASE_APP_CHECK, { optional: true });
+      if (!isPlatformBrowser(inject(PLATFORM_ID))) {
+        return;
+      }
+      const app = inject(FIREBASE_APP);
+      afterNextRender(() => {
+        void initAppCheck(app, options);
+      });
     }),
   ]);
 }
