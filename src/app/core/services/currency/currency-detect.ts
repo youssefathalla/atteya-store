@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { isUnreliableCurrency } from '@core/services/offers/engine';
+import { COUNTRY_CURRENCY } from './country-currency';
 import type { PublicCurrencyMap } from './currency.schema';
 
 const cachedFactorsSchema = v.object({
@@ -35,9 +36,20 @@ export function readTimeZone(): string | undefined {
 }
 
 /**
- * Timezone → country → currency, from the generated CLDR map.
- * Africa/Cairo is EGP and does not load the map. An unknown zone, a missing
- * code, or an unreliable official rate becomes USD.
+ * ISO country → display currency from CLDR tender data.
+ * Egypt stays EGP. Unknown or unreliable codes become USD.
+ */
+export function currencyFromCountry(country: string | null | undefined): string {
+  if (!country) return 'USD';
+  const iso = country.trim().toUpperCase();
+  if (iso === 'EG') return 'EGP';
+  const code = COUNTRY_CURRENCY[iso];
+  if (!code || isUnreliableCurrency(code)) return 'USD';
+  return code;
+}
+
+/**
+ * @deprecated Timezone inference replaced by IP/geo country. Kept for tooling only.
  */
 export async function currencyFromTimeZone(timeZone: string | undefined): Promise<string> {
   if (timeZone === 'Africa/Cairo') return 'EGP';
