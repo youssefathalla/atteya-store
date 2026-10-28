@@ -113,6 +113,7 @@ export class SearchComponent implements OnInit {
         sort: params.sort,
         page: params.page,
       }),
+    id: 'search-results',
   });
 
   readonly hits = computed(() => {

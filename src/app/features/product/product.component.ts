@@ -276,7 +276,8 @@ export class ProductComponent implements OnInit {
     if (!isPlatformServer(this.#platformId)) return;
     const page = this.page();
     if (page.status !== 'found') return;
-    const path = page.product.images[0]?.path;
+    const lcpImage = this.colourImage() ?? page.product.images[0];
+    const path = lcpImage?.path;
     if (!path) return;
 
     const href = buildPdpGalleryLcpUrl(path);

@@ -12,7 +12,10 @@ export function cdnCacheControlHeader(cacheControl) {
 
   const sMaxAge = cacheControl.match(/\bs-maxage=(\d+)/i)?.[1];
   if (sMaxAge) {
-    return `public, max-age=${sMaxAge}`;
+    const swr = cacheControl.match(/\bstale-while-revalidate=(\d+)/i)?.[1];
+    let value = `public, max-age=${sMaxAge}`;
+    if (swr) value += `, stale-while-revalidate=${swr}`;
+    return value;
   }
 
   if (lower.includes('immutable')) {
