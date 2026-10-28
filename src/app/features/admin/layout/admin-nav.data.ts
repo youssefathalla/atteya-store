@@ -105,9 +105,7 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         label: 'Orders',
         path: '/admin/orders',
         icon: 'receipt_long',
-        badge: 'Soon',
-        disabled: true,
-        description: 'Customer purchases, fulfillment, and invoices',
+        description: 'Confirm bank transfers and track pending orders',
       },
       {
         id: 'customers',

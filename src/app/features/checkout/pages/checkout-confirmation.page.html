@@ -1,0 +1,71 @@
+<section class="container-content max-w-3xl mx-auto space-y-8 py-8">
+  <header class="space-y-2">
+    <h1 class="font-headline-md font-bold!">Send your bank transfer</h1>
+    <p class="font-body-md opacity-80">
+      Your order is waiting for payment. Use the details below, then send us proof so we can confirm it.
+    </p>
+  </header>
+
+  @if (orderResource.isLoading() && !seed()) {
+    <p class="font-body-md opacity-70">Loading your order…</p>
+  } @else if (!orderResource.value() && !seed()) {
+    <p class="font-body-md opacity-80">We could not find this order.</p>
+    <a matButton="filled" routerLink="/">Back to the store</a>
+  } @else {
+    <section class="surface-card p-5 space-y-4">
+      <div class="elements-between gap-4">
+        <span class="font-label-lg opacity-80">Order reference</span>
+        <span class="font-title-sm font-bold! tracking-wide">{{ transferReference() }}</span>
+      </div>
+      <div class="elements-between gap-4">
+        <span class="font-label-lg opacity-80">Amount to transfer</span>
+        <span class="font-title-sm font-bold!">{{ displayTotal() }}</span>
+      </div>
+      <p class="font-label-sm opacity-70">
+        Include the order reference in the transfer description so we can match your payment.
+      </p>
+    </section>
+
+    @if (ibanDetails(); as bank) {
+      <section class="surface-card p-5 space-y-3">
+        <h2 class="font-title-md font-bold!">Bank details</h2>
+        <p class="font-body-sm"><span class="opacity-70">Account name:</span> {{ bank.beneficiaryName }}</p>
+        <p class="font-body-sm"><span class="opacity-70">Bank:</span> {{ bank.bankName }}</p>
+        <p class="font-body-sm font-bold! break-all">{{ bank.iban }}</p>
+      </section>
+    }
+
+    <section class="surface-card p-5 space-y-4">
+      <h2 class="font-title-md font-bold!">Payment proof</h2>
+      <p class="font-body-sm opacity-80">
+        After you transfer, send a screenshot on WhatsApp or upload it here.
+      </p>
+      @if (whatsAppUrl(); as url) {
+        <a matButton="outlined" [href]="url" target="_blank" rel="noopener noreferrer">
+          Message us on WhatsApp
+        </a>
+      }
+      <div>
+        <label class="font-label-md block mb-2" for="proof-upload">Upload a screenshot</label>
+        <input
+          id="proof-upload"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          (change)="onProofSelected($event)"
+          [disabled]="isUploading()"
+        />
+        @if (isUploading()) {
+          <div class="pt-3">
+            <mat-progress-spinner mode="indeterminate" diameter="24" />
+          </div>
+        }
+      </div>
+    </section>
+
+    <p class="font-body-sm opacity-70">
+      We will email you when your payment is confirmed and your order moves to processing.
+    </p>
+
+    <a matButton="filled" routerLink="/">Continue shopping</a>
+  }
+</section>

@@ -1,11 +1,13 @@
 <div class="h-full flex flex-col bg-surface">
-  <!-- Cart Header -->
   <header
     class="elements-between px-5 pt-safe-top lg:pt-4 pb-4 border-b border-outline-variant bg-surface-container-lowest"
   >
     <div class="flex items-center gap-2">
       <mat-icon name="shopping_bag" size="xl" />
       <h2 class="font-title-md font-bold! tracking-tight">Shopping Bag</h2>
+      @if (count() > 0) {
+        <span class="font-label-sm opacity-70">({{ count() }})</span>
+      }
     </div>
 
     <button
@@ -18,30 +20,62 @@
     </button>
   </header>
 
-  <!-- Cart Content (Empty State or Items) -->
-  <div class="flex-1 overflow-y-auto p-6 elements-center flex-col text-center">
-    <div
-      class="size-20 rounded-full bg-surface-container-high elements-center mb-4 opacity-70"
-    >
-      <mat-icon name="shopping_cart" size="4xl" />
-    </div>
+  <div class="flex-1 overflow-y-auto p-6">
+    @if (isEmpty()) {
+      <div class="elements-center flex-col text-center h-full">
+        <div
+          class="size-20 rounded-full bg-surface-container-high elements-center mb-4 opacity-70"
+        >
+          <mat-icon name="shopping_cart" size="4xl" />
+        </div>
 
-    <h3 class="font-title-md font-bold! mb-1">Your bag is empty</h3>
-    <p class="font-body-md opacity-80 max-w-60 mb-6">
-      Explore our premium padel rackets, shoes, and gear to get started.
-    </p>
+        <h3 class="font-title-md font-bold! mb-1">Your bag is empty</h3>
+        <p class="font-body-md opacity-80 max-w-60 mb-6">
+          Explore our premium padel rackets, shoes, and gear to get started.
+        </p>
 
-    <button
-      matButton="filled"
-      type="button"
-      routerLink="/category/rackets"
-      (click)="drawerService.close()"
-    >
-      Explore Rackets
-    </button>
+        <button
+          matButton="filled"
+          type="button"
+          routerLink="/category/rackets"
+          (click)="drawerService.close()"
+        >
+          Explore Rackets
+        </button>
+      </div>
+    } @else {
+      <ul class="space-y-4">
+        @for (line of lines(); track $index) {
+          <li class="elements-between gap-3 border-b border-outline-variant pb-4">
+            <div class="min-w-0 flex-1">
+              <p class="font-title-sm font-bold!">{{ nameFor(line.productId) }}</p>
+              <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
+            </div>
+            <div class="elements-end gap-1 shrink-0">
+              <button
+                matIconButton
+                type="button"
+                (click)="decreaseQuantity($index)"
+                [attr.aria-label]="line.quantity === 1 ? 'Remove item' : 'Decrease quantity'"
+              >
+                <mat-icon [name]="line.quantity === 1 ? 'delete' : 'remove'" />
+              </button>
+              <button
+                matIconButton
+                type="button"
+                (click)="increaseQuantity($index)"
+                [disabled]="line.quantity >= 20"
+                aria-label="Increase quantity"
+              >
+                <mat-icon name="add" />
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
   </div>
 
-  <!-- Cart Footer / Summary -->
   <footer
     class="p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] lg:pb-5 border-t border-outline-variant bg-surface-container-lowest space-y-3"
   >
@@ -51,17 +85,21 @@
     </div>
 
     <p class="font-label-sm opacity-70 text-center">
-      Taxes and shipping calculated at checkout
+      Shipping and your total in your currency are calculated at checkout.
     </p>
 
-    <div class="w-full [&>button]:w-full">
-      <button
-        matButton="filled"
-        type="button"
-        disabled
-      >
-        Checkout
-      </button>
+    <div class="w-full [&>button]:w-full [&>a]:w-full">
+      @if (isEmpty()) {
+        <button matButton="filled" type="button" disabled>Checkout</button>
+      } @else {
+        <a
+          matButton="filled"
+          routerLink="/checkout"
+          (click)="drawerService.close()"
+        >
+          Checkout
+        </a>
+      }
     </div>
   </footer>
 </div>

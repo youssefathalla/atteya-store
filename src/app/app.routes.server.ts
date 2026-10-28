@@ -33,6 +33,10 @@ export const serverRoutes: ServerRoute[] = [
     path: 'login',
     renderMode: RenderMode.Client,
   },
+  {
+    path: 'checkout/**',
+    renderMode: RenderMode.Client,
+  },
   // Banner edits must show on the next request, so this HTML stays out of the CDN.
   // private forbids a shared cache; no-store forbids storing it at all.
   // no-cache would still allow a cache to keep a copy and reuse it after revalidation.
