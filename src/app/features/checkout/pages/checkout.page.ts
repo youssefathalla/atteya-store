@@ -116,19 +116,26 @@ export class CheckoutPageComponent implements OnInit {
 
   constructor() {
     // Prefill from AS-21 visitor geo when the code is on the checkout list.
+    // Localhost has no CDN headers and a private IP, so /api/visitor-location
+    // returns null — fall back to EG (store home market) once currency has settled.
+    // Africa/Cairo timezone is not wired into visitorCountry (deprecated currency path).
     effect(() => {
       if (this.#countryTouched()) return;
       const geo = this.#currency.visitorCountry();
       const ready = this.#currency.ready();
-      if (!geo) {
-        if (!ready) return;
-        return;
-      }
-      if (!isCheckoutCountry(geo)) return;
+      const code =
+        geo && isCheckoutCountry(geo) ? geo : ready ? 'EG' : null;
+      if (!code) return;
       untracked(() => {
-        if (this.shipping().country === geo) return;
-        this.patchShipping('country', geo);
-        this.countryQuery.set(countryLabel(geo));
+        const label = countryLabel(code);
+        if (this.shipping().country !== code) {
+          this.patchShipping('country', code);
+        }
+        // Keep the input label in sync even when the control already holds the code
+        // (avoids empty display while shipping.country is EG).
+        if (this.countryQuery() !== label) {
+          this.countryQuery.set(label);
+        }
       });
     });
   }
@@ -160,8 +167,12 @@ export class CheckoutPageComponent implements OnInit {
   }
 
   onCountryQueryInput(event: Event): void {
-    this.#countryTouched.set(true);
     const value = (event.target as HTMLInputElement).value;
+    // Empty autofill/noise before geo settle must not clear or block prefill.
+    if (value.length === 0 && !this.#currency.ready()) {
+      return;
+    }
+    this.#countryTouched.set(true);
     this.countryQuery.set(value);
     const matched = matchCheckoutCountryExact(value);
     // Only commit an exact match while typing. Do not clear the stored country
