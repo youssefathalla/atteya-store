@@ -27,7 +27,8 @@ interface CartProductInfo {
   imports: [RouterLink, MatButtonModule, SharedIconModule],
   templateUrl: './cart-drawer.component.html',
   host: {
-    class: 'h-full flex flex-col',
+    // min-h-0 lets the flex mid section scroll inside a viewport-bounded drawer
+    class: 'h-full min-h-0 flex flex-col',
     '(window:keydown.escape)': 'onEscape()',
   },
 })
