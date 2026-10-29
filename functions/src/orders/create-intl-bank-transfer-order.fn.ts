@@ -1,6 +1,7 @@
 import {
   FieldValue,
   getFirestore,
+  type DocumentReference,
   type Firestore,
   type Transaction,
 } from 'firebase-admin/firestore';
@@ -18,6 +19,10 @@ import {
 } from './order-pricing.server.js';
 import type { PaymentSettings } from '../settings/payment-settings.js';
 import { newTransferReference } from './transfer-reference.js';
+
+/** Caps shared namespace flooding from a single signed-in account. */
+const MAX_ORDERS_PER_UID_PER_UTC_DAY = 20;
+const TRANSFER_REF_ATTEMPTS = 16;
 
 export interface CreateIntlBankTransferOrderResponse {
   readonly orderId: string;
@@ -38,9 +43,22 @@ export const createInternationalBankTransferOrder = onCall(
     const db = getFirestore();
     const priced = await priceInternationalBankTransferOrder(db, input, true);
     return db.runTransaction(async (tx) => {
+      // Firestore: every tx.get must finish before any tx.set/update/create.
       const orderRef = db.collection('orders').doc();
-      const transferReference = await claimTransferReference(tx, db, orderRef.id);
+      const day = utcDayKey();
+      const rateLimitRef = db.collection('orderRateLimits').doc(`${caller.uid}_${day}`);
+      const rateLimitSnap = await tx.get(rateLimitRef);
+      const nextRateCount = nextDailyOrderCount(rateLimitSnap.data()?.['count']);
+      const claimed = await readAvailableTransferReference(tx, db);
+
       const now = FieldValue.serverTimestamp();
+      const transferReference = claimed.reference;
+      const proofUrl = whatsAppProofUrl(
+        priced.paymentSettings,
+        transferReference,
+        priced.pricing.totalDisplay,
+        priced.pricing.currency,
+      );
       const doc = buildOrderDocument({
         orderId: orderRef.id,
         customerId: caller.uid,
@@ -49,14 +67,25 @@ export const createInternationalBankTransferOrder = onCall(
         transferReference,
         pricing: priced.pricing,
         paymentSettings: priced.paymentSettings,
-        whatsAppProofUrl: whatsAppProofUrl(
-          priced.paymentSettings,
-          transferReference,
-          priced.pricing.totalDisplay,
-          priced.pricing.currency,
-        ),
+        whatsAppProofUrl: proofUrl,
+      });
+
+      tx.set(
+        rateLimitRef,
+        {
+          uid: caller.uid,
+          day,
+          count: nextRateCount,
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+      tx.set(claimed.ref, {
+        orderId: orderRef.id,
+        reservedAt: now,
       });
       tx.set(orderRef, { ...doc, createdAt: now, updatedAt: now });
+
       return {
         orderId: orderRef.id,
         transferReference,
@@ -65,29 +94,41 @@ export const createInternationalBankTransferOrder = onCall(
         iban: priced.paymentSettings.iban,
         beneficiaryName: priced.paymentSettings.beneficiaryName,
         bankName: priced.paymentSettings.bankName,
-        whatsAppProofUrl: whatsAppProofUrl(
-          priced.paymentSettings,
-          transferReference,
-          priced.pricing.totalDisplay,
-          priced.pricing.currency,
-        ),
+        whatsAppProofUrl: proofUrl,
       };
     });
   },
 );
 
-async function claimTransferReference(
+function nextDailyOrderCount(raw: unknown): number {
+  const count = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
+  if (count >= MAX_ORDERS_PER_UID_PER_UTC_DAY) {
+    throw new HttpsError(
+      'resource-exhausted',
+      'You have placed too many orders today. Try again tomorrow.',
+    );
+  }
+  return count + 1;
+}
+
+function utcDayKey(now = new Date()): string {
+  const y = String(now.getUTCFullYear());
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+}
+
+/** Reads only — caller must write the reservation after all other tx.gets. */
+async function readAvailableTransferReference(
   tx: Transaction,
   db: Firestore,
-  orderId: string,
-): Promise<string> {
-  for (let attempt = 0; attempt < 8; attempt++) {
+): Promise<{ readonly reference: string; readonly ref: DocumentReference }> {
+  for (let attempt = 0; attempt < TRANSFER_REF_ATTEMPTS; attempt++) {
     const candidate = newTransferReference();
     const ref = db.collection('orderTransferRefs').doc(candidate);
     const snap = await tx.get(ref);
     if (!snap.exists) {
-      tx.set(ref, { orderId, reservedAt: FieldValue.serverTimestamp() });
-      return candidate;
+      return { reference: candidate, ref };
     }
   }
   throw new HttpsError(

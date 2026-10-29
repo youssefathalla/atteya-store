@@ -12,7 +12,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { doc, getDoc } from 'firebase/firestore';
-import { injectFirestore, injectStorageAsync } from '@core/firebase';
+import { injectFirestore, injectPaymentProofsStorageAsync } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
 import {
   CheckoutOrderService,
@@ -25,7 +25,7 @@ import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { formatMoney } from '@shared/utils/money';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { ref, uploadBytes } from 'firebase/storage';
 
 @Component({
   selector: 'app-checkout-confirmation-page',
@@ -37,7 +37,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   readonly orderId = input.required<string>();
 
   readonly #firestore = injectFirestore();
-  readonly #storage = injectStorageAsync();
+  readonly #proofsStorage = injectPaymentProofsStorageAsync();
   readonly #auth = inject(AuthService);
   readonly #checkout = inject(CheckoutOrderService);
   readonly #seo = inject(SeoService);
@@ -108,11 +108,16 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     );
   }
 
+  canUploadProof(): boolean {
+    const status = this.orderResource.value()?.status ?? this.seed()?.status ?? 'pending';
+    return status === 'pending';
+  }
+
   async onProofSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
-    if (!file || this.isUploading()) return;
+    if (!file || this.isUploading() || !this.canUploadProof()) return;
     if (!file.type.match(/^image\/(jpeg|png|webp|avif)$/)) {
       this.#snackbar.error('Choose a JPG, PNG, WebP, or AVIF photo.');
       return;
@@ -130,9 +135,10 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     try {
       const ext = extensionFor(file.type);
       const path = `orders/${this.orderId()}/proof.${ext}`;
-      const storage = await this.#storage();
+      const storage = await this.#proofsStorage();
+      // Upload only — never getDownloadURL (tokenized URLs leak). Proofs stay on
+      // the private bucket and are read through the Firebase SDK with Auth.
       await uploadBytes(ref(storage, path), file, { contentType: file.type });
-      await getDownloadURL(ref(storage, path));
       await this.#checkout.registerPaymentProof(this.orderId(), path);
       this.#snackbar.success('Thanks — we received your payment photo.');
     } catch {

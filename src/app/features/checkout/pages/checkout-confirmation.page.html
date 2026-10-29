@@ -45,21 +45,25 @@
           Message us on WhatsApp
         </a>
       }
-      <div>
-        <label class="font-label-md block mb-2" for="proof-upload">Upload a screenshot</label>
-        <input
-          id="proof-upload"
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/avif"
-          (change)="onProofSelected($event)"
-          [disabled]="isUploading()"
-        />
-        @if (isUploading()) {
-          <div class="pt-3">
-            <mat-progress-spinner mode="indeterminate" diameter="24" />
-          </div>
-        }
-      </div>
+      @if (canUploadProof()) {
+        <div>
+          <label class="font-label-md block mb-2" for="proof-upload">Upload a screenshot</label>
+          <input
+            id="proof-upload"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            (change)="onProofSelected($event)"
+            [disabled]="isUploading()"
+          />
+          @if (isUploading()) {
+            <div class="pt-3">
+              <mat-progress-spinner mode="indeterminate" diameter="24" />
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="font-body-sm opacity-80">This order is no longer waiting for a payment photo.</p>
+      }
     </section>
 
     <p class="font-body-sm opacity-70">

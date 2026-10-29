@@ -157,7 +157,7 @@ async function priceLine(
   const unitDisplay = toDisplayAmount(unitEgp, resolved.productEntry);
   return {
     productId: line.productId,
-    variantId: line.variantId,
+    variantId: variant?.id ?? null,
     selection: { ...line.selection },
     quantity: line.quantity,
     unitEgp,
@@ -252,24 +252,54 @@ function assertLineStock(data: DocumentData, line: OrderLineInput): void {
   }
 }
 
+/**
+ * Selection is the source of truth for payable pricing. Client `variantId` is
+ * only accepted when it matches the variant row that selection resolves to.
+ * A missing/forged id must never fall through to product-level offer matching
+ * when the product has variant rows or size/colour options.
+ */
 function resolveVariantFacts(data: DocumentData, line: OrderLineInput): VariantFacts | null {
-  if (line.variantId) {
-    return resolveVariantById(data, line.variantId);
+  const variants = data['variants'];
+  if (Array.isArray(variants) && variants.length > 0) {
+    const matched = findVariantMatchingSelection(data, line.selection);
+    if (!matched) {
+      throw new HttpsError('invalid-argument', 'Choose an option for each item in your bag.');
+    }
+    if (line.variantId != null && line.variantId !== matched.id) {
+      throw new HttpsError(
+        'invalid-argument',
+        'One bag item could not be priced. Refresh and try again.',
+      );
+    }
+    return matched;
   }
+  // Dashboard products: empty variants[]. Ignore any client variantId.
   return variantFromSelection(data, line.selection);
 }
 
-function resolveVariantById(data: DocumentData, variantId: string): VariantFacts | null {
+function findVariantMatchingSelection(
+  data: DocumentData,
+  selection: Readonly<Record<string, string>>,
+): VariantFacts | null {
   const variants = data['variants'];
   if (!Array.isArray(variants)) return null;
-  const match = variants.find((entry) => entry && entry['id'] === variantId);
-  if (!match) return null;
+  const match = variants.find((entry) => {
+    if (!entry || typeof entry['id'] !== 'string') return false;
+    const values = entry['values'];
+    if (!isRecord(values)) return false;
+    for (const [key, val] of Object.entries(values)) {
+      if (typeof val !== 'string') return false;
+      if (selection[key] !== val) return false;
+    }
+    return true;
+  });
+  if (!match || typeof match['id'] !== 'string') return null;
   const values = match['values'];
   const sizeId = isRecord(values) && typeof values['size'] === 'string' ? values['size'] : undefined;
   const colourId =
     isRecord(values) && typeof values['colour'] === 'string' ? values['colour'] : undefined;
   return {
-    id: variantId,
+    id: match['id'],
     size: optionLabel(data, 'size', sizeId),
     color: optionColor(data, 'colour', colourId),
     stock: typeof match['stock'] === 'number' ? match['stock'] : undefined,
