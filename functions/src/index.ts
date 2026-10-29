@@ -18,4 +18,5 @@ export { refreshExchangeRates } from './intl/refresh-exchange-rates.schedule.js'
 export { refreshExchangeRatesNow, setInternationalPricing } from './intl/intl-pricing.fn.js';
 export { createPaymobOrder } from './orders/create-paymob-order.fn.js';
 export { createCodOrder } from './orders/create-cod-order.fn.js';
+export { confirmCodOrder } from './orders/confirm-cod-order.fn.js';
 export { paymobWebhook } from './orders/paymob-webhook.fn.js';

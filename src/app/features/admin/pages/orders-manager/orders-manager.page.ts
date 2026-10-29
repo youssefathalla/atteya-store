@@ -12,7 +12,9 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { SeoService } from '@core/services/seo';
+import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { TemplateTypeDirective } from '@shared/directives/template-type/template-type.directive';
 import { ReusableTable } from '@shared/ui/reusable-table/reusable-table.component';
 import type { TableColumn } from '@shared/ui/reusable-table/table.model';
@@ -21,6 +23,7 @@ import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.compo
 import type { StatusConfig } from '@shared/ui/status-badge/status.model';
 import type { OrderLineAdminRow, OrderStatusFilter } from './models/order-admin.model';
 import { OrdersAdminService } from './services/orders-admin.service';
+import { orderActionError } from './utils/order-action-error';
 import { toOrderLineAdminRows } from './utils/order-admin.utils';
 
 const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: string }[] = [
@@ -37,6 +40,7 @@ const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: st
   imports: [
     RouterLink,
     MatButtonModule,
+    MatProgressSpinnerModule,
     TemplateTypeDirective,
     ReusableTable,
     SkeletonComponent,
@@ -47,15 +51,20 @@ const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: st
 export class OrdersManagerPageComponent implements OnInit {
   readonly #ordersAdmin = inject(OrdersAdminService);
   readonly #seo = inject(SeoService);
+  readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
 
   readonly statusFilter = signal<OrderStatusFilter>('pending');
   readonly filterTabs = FILTER_TABS;
 
+  /** Order id currently running confirmCodOrder. */
+  readonly confirmingOrderId = signal<string | null>(null);
+
   private readonly orderCell = viewChild<TemplateRef<unknown>>('orderCell');
   private readonly statusCell = viewChild<TemplateRef<unknown>>('statusCell');
   private readonly productCell = viewChild<TemplateRef<unknown>>('productCell');
   private readonly stockCell = viewChild<TemplateRef<unknown>>('stockCell');
+  private readonly actionsCell = viewChild<TemplateRef<unknown>>('actionsCell');
 
   readonly sampleRow: OrderLineAdminRow = {
     id: '',
@@ -64,6 +73,7 @@ export class OrdersManagerPageComponent implements OnInit {
     customerName: '',
     country: '',
     status: 'pending',
+    paymentMethod: 'paymob',
     paymentLabel: '',
     productId: '',
     productName: '',
@@ -114,6 +124,7 @@ export class OrdersManagerPageComponent implements OnInit {
     { key: 'quantity', label: 'Qty', sortable: true },
     { key: 'currentStock', label: 'Current stock', sortable: true, customCellTpl: this.stockCell() },
     { key: 'orderTotalLabel', label: 'Order total', sortable: false },
+    { key: 'id', label: 'Actions', sortable: false, customCellTpl: this.actionsCell() },
   ]);
 
   ngOnInit(): void {
@@ -127,5 +138,25 @@ export class OrdersManagerPageComponent implements OnInit {
   stockCountLabel(row: OrderLineAdminRow): string {
     if (row.currentStock === null) return '—';
     return String(row.currentStock);
+  }
+
+  /** Show Confirm once per pending COD order (first line only). */
+  showConfirmCod(row: OrderLineAdminRow): boolean {
+    if (row.paymentMethod !== 'cash-on-delivery' || row.status !== 'pending') return false;
+    return this.rows().find((item) => item.orderId === row.orderId)?.id === row.id;
+  }
+
+  async confirmCod(row: OrderLineAdminRow): Promise<void> {
+    if (!this.showConfirmCod(row) || this.confirmingOrderId()) return;
+    this.confirmingOrderId.set(row.orderId);
+    try {
+      await this.#ordersAdmin.confirmCodOrder(row.orderId);
+      this.#snackbar.success('Order confirmed. Stock updated.');
+      this.dataResource.reload();
+    } catch (error: unknown) {
+      this.#snackbar.error(orderActionError(error));
+    } finally {
+      this.confirmingOrderId.set(null);
+    }
   }
 }

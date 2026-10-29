@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "test": "npm run build && node --test lib/search/sync-product.errors.spec.js lib/paymob/hmac.spec.js"
+    "test": "npm run build && node --test lib/search/sync-product.errors.spec.js lib/paymob/hmac.spec.js lib/orders/decrement-order-stock.spec.js"
   },
   "engines": {
     "node": "22"

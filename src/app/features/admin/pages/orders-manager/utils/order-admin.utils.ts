@@ -107,6 +107,7 @@ export function toOrderLineAdminRows(
         customerName: order.shipping.fullName,
         country: order.shipping.country,
         status: order.status,
+        paymentMethod: order.paymentMethod,
         paymentLabel: payLabel,
         productId: line.productId,
         productName: product?.name ?? 'Product unavailable',

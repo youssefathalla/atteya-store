@@ -24,6 +24,7 @@ export interface OrderLineAdminRow {
   readonly customerName: string;
   readonly country: string;
   readonly status: OrderDoc['status'];
+  readonly paymentMethod: OrderDoc['paymentMethod'];
   readonly paymentLabel: string;
   readonly productId: string;
   readonly productName: string;

@@ -10,7 +10,7 @@ import {
   where,
 } from 'firebase/firestore';
 import * as v from 'valibot';
-import { injectFirestore } from '@core/firebase';
+import { callableFrom, injectFirestore, injectFunctionsAsync } from '@core/firebase';
 import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
 import { PRODUCTS_COLLECTION } from '@core/services/products/product.constants';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
@@ -45,9 +45,16 @@ const ProductStockLookupSchema = v.object({
 const ORDERS_PAGE_SIZE = 50;
 const PRODUCT_LOOKUP_CHUNK = 20;
 
+export interface ConfirmCodOrderResult {
+  readonly orderId: string;
+  readonly status: 'confirmed';
+  readonly stockDecremented: boolean;
+}
+
 @Service()
 export class OrdersAdminService {
   readonly #firestore = injectFirestore();
+  readonly #functions = injectFunctionsAsync();
 
   async listOrders(status: OrderStatusFilter): Promise<readonly OrderDoc[]> {
     const ordersCol = collection(this.#firestore, ORDERS_COLLECTION).withConverter(
@@ -94,5 +101,15 @@ export class OrdersAdminService {
     }
 
     return byId;
+  }
+
+  /** Confirm a pending Egypt COD order and decrement stock (server transaction). */
+  async confirmCodOrder(orderId: string): Promise<ConfirmCodOrderResult> {
+    const call = await callableFrom<{ orderId: string }, ConfirmCodOrderResult>(
+      this.#functions(),
+      'confirmCodOrder',
+    );
+    const response = await call({ orderId });
+    return response.data;
   }
 }
