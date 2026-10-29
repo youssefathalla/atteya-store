@@ -93,14 +93,6 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         badge: 'Live',
         description: 'Prices and currencies for customers outside Egypt',
       },
-      {
-        id: 'payments',
-        label: 'Bank transfer',
-        path: '/admin/settings/payments',
-        icon: 'receipt_long',
-        badge: 'Live',
-        description: 'Account details shoppers use for international bank transfers',
-      },
     ],
   },
   {
@@ -113,7 +105,7 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         label: 'Orders',
         path: '/admin/orders',
         icon: 'receipt_long',
-        description: 'Confirm bank transfers and track pending orders',
+        description: 'Track Paymob and cash-on-delivery orders',
       },
       {
         id: 'customers',

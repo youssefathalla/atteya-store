@@ -120,14 +120,6 @@ export const ADMIN_ROUTES: Routes = [
               ),
             title: 'Outside Egypt | Atteya Admin',
           },
-          {
-            path: 'payments',
-            loadComponent: () =>
-              import('./pages/settings/payments/payments-tab.component').then(
-                (m) => m.PaymentsTabComponent,
-              ),
-            title: 'Bank transfer | Atteya Admin',
-          },
         ],
       },
     ],

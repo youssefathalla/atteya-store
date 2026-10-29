@@ -2,7 +2,7 @@
  * AS-31: Settings sections must be standalone pages.
  *
  * Fails when an in-page switcher reimplements the admin Settings sidebar
- * (Admins / Shipping / Outside Egypt / Bank transfer).
+ * (Admins / Shipping / Outside Egypt). Bank transfer was removed with Paymob checkout.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,15 +25,10 @@ const SECTIONS = [
     path: '/admin/settings/international',
     loadHint: 'international/international-tab.component',
   },
-  {
-    id: 'payments',
-    path: '/admin/settings/payments',
-    loadHint: 'payments/payments-tab.component',
-  },
 ];
 
 const CROSS_SECTION_LINK =
-  /routerLink\s*=\s*["'](?:\.?\.?\/)?(?:admins|shipping|international|payments)["']|routerLink\s*=\s*["']\/admin\/settings\/(?:admins|shipping|international|payments)["']|\[routerLink\]\s*=\s*["'][^"']*\/admin\/settings\/(?:admins|shipping|international|payments)/;
+  /routerLink\s*=\s*["'](?:\.?\.?\/)?(?:admins|shipping|international)["']|routerLink\s*=\s*["']\/admin\/settings\/(?:admins|shipping|international)["']|\[routerLink\]\s*=\s*["'][^"']*\/admin\/settings\/(?:admins|shipping|international)/;
 
 let errors = 0;
 

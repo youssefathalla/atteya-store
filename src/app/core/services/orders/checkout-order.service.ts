@@ -3,6 +3,8 @@ import { callableFrom, injectFunctionsAsync } from '@core/firebase';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import type { OrderPricingSnapshot } from '@core/services/orders/order-pricing.model';
 
+export type CheckoutPaymentMethod = 'paymob' | 'cash-on-delivery';
+
 export interface CheckoutShippingInput {
   readonly fullName: string;
   readonly line1: string;
@@ -12,27 +14,32 @@ export interface CheckoutShippingInput {
   readonly postalCode: string;
   readonly country: string;
   readonly phone: string;
+  readonly governorateId: string | null;
 }
 
-export interface CreateIntlBankTransferOrderResult {
+export interface CreatePaymobOrderResult {
   readonly orderId: string;
-  readonly transferReference: string;
   readonly status: 'pending';
+  readonly paymentMethod: 'paymob';
   readonly pricing: OrderPricingSnapshot;
-  readonly iban: string;
-  readonly beneficiaryName: string;
-  readonly bankName: string;
-  readonly whatsAppProofUrl: string | null;
+  readonly checkoutUrl: string;
+}
+
+export interface CreateCodOrderResult {
+  readonly orderId: string;
+  readonly status: 'pending';
+  readonly paymentMethod: 'cash-on-delivery';
+  readonly pricing: OrderPricingSnapshot;
 }
 
 @Service()
 export class CheckoutOrderService {
   readonly #functions = injectFunctionsAsync();
 
-  async placeInternationalBankTransferOrder(args: {
+  async placePaymobOrder(args: {
     readonly lines: readonly CartLineDraft[];
     readonly shipping: CheckoutShippingInput;
-  }): Promise<CreateIntlBankTransferOrderResult> {
+  }): Promise<CreatePaymobOrderResult> {
     const call = await callableFrom<
       {
         lines: readonly {
@@ -42,9 +49,10 @@ export class CheckoutOrderService {
           selection: Readonly<Record<string, string>>;
         }[];
         shipping: CheckoutShippingInput;
+        paymentMethod: 'paymob';
       },
-      CreateIntlBankTransferOrderResult
-    >(this.#functions(), 'createInternationalBankTransferOrder');
+      CreatePaymobOrderResult
+    >(this.#functions(), 'createPaymobOrder');
     const response = await call({
       lines: args.lines.map((line) => ({
         productId: line.productId,
@@ -53,15 +61,38 @@ export class CheckoutOrderService {
         selection: line.selection,
       })),
       shipping: args.shipping,
+      paymentMethod: 'paymob',
     });
     return response.data;
   }
 
-  async registerPaymentProof(orderId: string, storagePath: string): Promise<void> {
+  async placeCodOrder(args: {
+    readonly lines: readonly CartLineDraft[];
+    readonly shipping: CheckoutShippingInput;
+  }): Promise<CreateCodOrderResult> {
     const call = await callableFrom<
-      { orderId: string; storagePath: string },
-      { orderId: string; paymentProofPath: string }
-    >(this.#functions(), 'registerOrderPaymentProof');
-    await call({ orderId, storagePath });
+      {
+        lines: readonly {
+          productId: string;
+          variantId: string | null;
+          quantity: number;
+          selection: Readonly<Record<string, string>>;
+        }[];
+        shipping: CheckoutShippingInput;
+        paymentMethod: 'cash-on-delivery';
+      },
+      CreateCodOrderResult
+    >(this.#functions(), 'createCodOrder');
+    const response = await call({
+      lines: args.lines.map((line) => ({
+        productId: line.productId,
+        variantId: line.variantId,
+        quantity: line.quantity,
+        selection: line.selection,
+      })),
+      shipping: args.shipping,
+      paymentMethod: 'cash-on-delivery',
+    });
+    return response.data;
   }
 }
