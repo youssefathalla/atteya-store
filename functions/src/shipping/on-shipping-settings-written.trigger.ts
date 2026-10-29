@@ -2,7 +2,8 @@ import { FieldValue, getFirestore, type DocumentData } from 'firebase-admin/fire
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 
 interface ShippingAuditSnapshot {
-  readonly baseFee: number | null;
+  readonly egyptBoxFees: readonly number[] | null;
+  readonly internationalBoxFees: readonly number[] | null;
   readonly freeOver: { readonly active: boolean; readonly threshold: number | null } | null;
   readonly promoActive: boolean;
 }
@@ -42,10 +43,22 @@ export const onShippingSettingsWritten = onDocumentWritten(
 function shippingAuditSnapshot(data: DocumentData | null): ShippingAuditSnapshot | null {
   if (!data) return null;
   return {
-    baseFee: typeof data['baseFee'] === 'number' ? data['baseFee'] : null,
+    egyptBoxFees: readBoxFees(data['egyptBoxes']),
+    internationalBoxFees: readBoxFees(data['internationalBoxes']),
     freeOver: readFreeOver(data['freeOver']),
     promoActive: readPromoActive(data['promo']),
   };
+}
+
+function readBoxFees(raw: unknown): readonly number[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const fees: number[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const fee = (entry as Record<string, unknown>)['feeEgp'];
+    if (typeof fee === 'number' && Number.isFinite(fee)) fees.push(Math.round(fee));
+  }
+  return fees.length > 0 ? fees : null;
 }
 
 function readFreeOver(

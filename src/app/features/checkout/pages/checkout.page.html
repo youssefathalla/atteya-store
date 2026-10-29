@@ -141,6 +141,53 @@
       />
     </mat-form-field>
 
+    @if (shipping().country) {
+      <fieldset class="space-y-3 pt-2">
+        <legend class="font-title-md font-bold!">Delivery box</legend>
+        <p class="font-body-sm opacity-70">
+          We pick the smallest box that fits your bag by weight. You can choose a larger box if you
+          prefer.
+        </p>
+        @if (weightIncomplete()) {
+          <p class="font-label-sm opacity-70">
+            Some items have no weight yet, so we use the largest box size as a safe estimate.
+          </p>
+        }
+        @if (boxTooHeavy()) {
+          <p class="font-body-sm text-error">
+            This order is too heavy for our delivery boxes. Remove an item or contact us.
+          </p>
+        } @else if (selectableBoxes().length === 0) {
+          <p class="font-body-sm opacity-70">Delivery boxes are loading…</p>
+        } @else {
+          <mat-radio-group
+            class="elements-start-col gap-3"
+            [value]="activeBoxId()"
+            (change)="selectBox($event.value)"
+            aria-label="Delivery box"
+          >
+            @for (box of selectableBoxes(); track box.id) {
+              <mat-radio-button [value]="box.id" [disabled]="!boxFits(box)">
+                <span class="elements-start-col gap-0.5">
+                  <span class="font-label-md">
+                    {{ box.name }}
+                    @if (recommendedBox()?.id === box.id) {
+                      <span class="opacity-70"> · Suggested</span>
+                    }
+                  </span>
+                  <span class="font-label-sm opacity-70">
+                    Up to {{ box.maxWeightGrams }} g ·
+                    {{ box.maxLengthCm }}×{{ box.maxWidthCm }}×{{ box.maxHeightCm }} cm · EGP
+                    {{ box.feeEgp.toLocaleString('en-US') }}
+                  </span>
+                </span>
+              </mat-radio-button>
+            }
+          </mat-radio-group>
+        }
+      </fieldset>
+    }
+
     <fieldset class="space-y-3 pt-2">
       <legend class="font-title-md font-bold!">Payment</legend>
       <mat-radio-group
