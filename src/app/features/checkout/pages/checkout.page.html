@@ -95,14 +95,24 @@
 
       <mat-form-field class="w-full" subscriptSizing="dynamic">
         <mat-label>Country</mat-label>
-        <mat-select
-          [value]="shipping().country"
-          (valueChange)="patchShipping('country', $event)"
+        <input
+          matInput
+          [matAutocomplete]="countryAuto"
+          [value]="countryQuery()"
+          (input)="onCountryQueryInput($event)"
+          (blur)="onCountryBlur()"
+          autocomplete="country-name"
+          placeholder="Start typing a country"
+        />
+        <mat-autocomplete
+          #countryAuto="matAutocomplete"
+          [displayWith]="displayCountryLabel"
+          (optionSelected)="onCountrySelected($event)"
         >
-          @for (country of countries; track country.code) {
+          @for (country of filteredCountries(); track country.code) {
             <mat-option [value]="country.code">{{ country.label }}</mat-option>
           }
-        </mat-select>
+        </mat-autocomplete>
       </mat-form-field>
     </div>
 

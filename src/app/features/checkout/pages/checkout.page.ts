@@ -1,6 +1,16 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, computed, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  OnInit,
+  PLATFORM_ID,
+  signal,
+  untracked,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -10,6 +20,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { resource } from '@angular/core';
 import { doc, getDoc } from 'firebase/firestore';
 import { CartService } from '@core/services/cart/cart.service';
+import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
 import { EGYPT_GOVERNORATES } from '@core/services/offers/engine';
 import {
@@ -21,13 +32,20 @@ import { ProductSchema } from '@core/services/products/product.schema';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
-import { CHECKOUT_COUNTRY_OPTIONS } from '../utils/checkout-countries';
+import {
+  countryLabel,
+  filterCheckoutCountries,
+  isCheckoutCountry,
+  matchCheckoutCountry,
+  matchCheckoutCountryExact,
+} from '../utils/checkout-countries';
 
 @Component({
   selector: 'app-checkout-page',
   host: { class: 'block w-full' },
   imports: [
     RouterLink,
+    MatAutocompleteModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -40,16 +58,21 @@ import { CHECKOUT_COUNTRY_OPTIONS } from '../utils/checkout-countries';
 export class CheckoutPageComponent implements OnInit {
   readonly #cart = inject(CartService);
   readonly #checkout = inject(CheckoutOrderService);
+  readonly #currency = inject(CurrencyService);
   readonly #firestore = injectFirestore();
   readonly #router = inject(Router);
   readonly #seo = inject(SeoService);
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
 
-  readonly countries = CHECKOUT_COUNTRY_OPTIONS;
   readonly governorates = EGYPT_GOVERNORATES;
   readonly isSubmitting = signal(false);
   readonly paymentMethod = signal<CheckoutPaymentMethod>('paymob');
+  /** True once the shopper edits the country field; blocks further geo overwrite. */
+  readonly #countryTouched = signal(false);
+  /** Typed filter text shown in the country autocomplete input. */
+  readonly countryQuery = signal('');
+  readonly displayCountryLabel = (code: string): string => (code ? countryLabel(code) : '');
 
   readonly shipping = signal<CheckoutShippingInput>({
     fullName: '',
@@ -58,10 +81,12 @@ export class CheckoutPageComponent implements OnInit {
     city: '',
     region: null,
     postalCode: '',
-    country: 'EG',
+    country: '',
     phone: '',
     governorateId: null,
   });
+
+  readonly filteredCountries = computed(() => filterCheckoutCountries(this.countryQuery()));
 
   readonly lines = this.#cart.lines;
   readonly isEmpty = this.#cart.isEmpty;
@@ -89,6 +114,25 @@ export class CheckoutPageComponent implements OnInit {
     },
   });
 
+  constructor() {
+    // Prefill from AS-21 visitor geo when the code is on the checkout list.
+    effect(() => {
+      if (this.#countryTouched()) return;
+      const geo = this.#currency.visitorCountry();
+      const ready = this.#currency.ready();
+      if (!geo) {
+        if (!ready) return;
+        return;
+      }
+      if (!isCheckoutCountry(geo)) return;
+      untracked(() => {
+        if (this.shipping().country === geo) return;
+        this.patchShipping('country', geo);
+        this.countryQuery.set(countryLabel(geo));
+      });
+    });
+  }
+
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Checkout | Atteya Store',
@@ -115,6 +159,56 @@ export class CheckoutPageComponent implements OnInit {
     });
   }
 
+  onCountryQueryInput(event: Event): void {
+    this.#countryTouched.set(true);
+    const value = (event.target as HTMLInputElement).value;
+    this.countryQuery.set(value);
+    const matched = matchCheckoutCountryExact(value);
+    // Only commit an exact match while typing. Do not clear the stored country
+    // on every keystroke — blur can race ahead of mat-option clicks.
+    if (matched) {
+      this.patchShipping('country', matched);
+    }
+  }
+
+  onCountrySelected(event: MatAutocompleteSelectedEvent): void {
+    this.#countryTouched.set(true);
+    const code = String(event.option.value);
+    if (!isCheckoutCountry(code)) return;
+    this.patchShipping('country', code);
+    this.countryQuery.set(countryLabel(code));
+  }
+
+  onCountryBlur(): void {
+    // Defer so a mat-option click can fire optionSelected before we commit/clear.
+    setTimeout(() => this.#commitCountryFromQuery(), 0);
+  }
+
+  #commitCountryFromQuery(): void {
+    const selected = this.shipping().country;
+    const query = this.countryQuery().trim();
+    if (selected && isCheckoutCountry(selected) && countryLabel(selected) === query) {
+      this.countryQuery.set(countryLabel(selected));
+      return;
+    }
+    const matched = matchCheckoutCountry(query) ?? matchCheckoutCountryExact(query);
+    if (matched) {
+      this.patchShipping('country', matched);
+      this.countryQuery.set(countryLabel(matched));
+      return;
+    }
+    // Keep a still-valid selected country if the typed text is only a prefix filter.
+    if (selected && isCheckoutCountry(selected) && query.length > 0) {
+      const label = countryLabel(selected);
+      if (label.toLowerCase().startsWith(query.toLowerCase())) {
+        this.countryQuery.set(label);
+        return;
+      }
+    }
+    this.patchShipping('country', '');
+    this.countryQuery.set('');
+  }
+
   setPaymentMethod(method: CheckoutPaymentMethod): void {
     if (method === 'cash-on-delivery' && !this.codAvailable()) return;
     this.paymentMethod.set(method);
@@ -129,6 +223,10 @@ export class CheckoutPageComponent implements OnInit {
     const draft = this.shipping();
     if (!draft.fullName.trim() || !draft.line1.trim() || !draft.city.trim() || !draft.postalCode.trim()) {
       this.#snackbar.error('Fill in your delivery address to continue.');
+      return;
+    }
+    if (!isCheckoutCountry(draft.country)) {
+      this.#snackbar.error('Choose a delivery country from the list.');
       return;
     }
     if (!draft.phone.trim()) {
