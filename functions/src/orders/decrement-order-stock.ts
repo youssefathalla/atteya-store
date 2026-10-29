@@ -68,6 +68,9 @@ export function aggregateOrderStockDemand(
 
 /**
  * Compute the next stock fields after removing demand from a live product doc.
+ * Matches checkout `assertLineStock`: use `stockBySize` only when that map exists;
+ * otherwise decrement flat `stock` (including sized option products that only store
+ * a product-level quantity after EasyOrders import).
  * Does not write — callers apply the result inside a transaction.
  */
 export function nextStockAfterDemand(
@@ -76,24 +79,22 @@ export function nextStockAfterDemand(
 ): StockFields {
   const sizeIds = readSizeValueIds(product.options);
   const liveMap = isPlainObject(product.stockBySize) ? product.stockBySize : null;
-  const hasSizeOption = sizeIds.length > 0;
-  const hasLiveMap = liveMap !== null;
 
-  if (hasSizeOption || hasLiveMap) {
+  // Same gate as assertLineStock: only the map path when the map is present.
+  if (liveMap !== null) {
     if (demand.kind !== 'sized') {
       throw new HttpsError(
         'failed-precondition',
         'This order is missing a size for a product that has sizes.',
       );
     }
-    const knownIds = hasSizeOption ? sizeIds : Object.keys(liveMap!);
+    const hasSizeOption = sizeIds.length > 0;
+    const knownIds = hasSizeOption ? sizeIds : Object.keys(liveMap);
     const nextMap: Record<string, number> = {};
     for (const id of knownIds) {
-      const live =
-        liveMap && typeof liveMap[id] === 'number' && Number.isFinite(liveMap[id])
-          ? Math.max(0, Math.floor(liveMap[id] as number))
-          : 0;
-      nextMap[id] = live;
+      const raw = liveMap[id];
+      nextMap[id] =
+        typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0;
     }
     for (const [sizeId, qty] of Object.entries(demand.bySize)) {
       if (!Object.hasOwn(nextMap, sizeId) && hasSizeOption) {
@@ -116,12 +117,7 @@ export function nextStockAfterDemand(
     return stockFields(nextMap);
   }
 
-  if (demand.kind !== 'flat') {
-    throw new HttpsError(
-      'failed-precondition',
-      'This order has a size for a product that no longer has sizes.',
-    );
-  }
+  const qty = demandQuantity(demand);
   if (typeof product.stock !== 'number' || !Number.isFinite(product.stock)) {
     throw new HttpsError(
       'failed-precondition',
@@ -129,10 +125,17 @@ export function nextStockAfterDemand(
     );
   }
   const live = Math.max(0, Math.floor(product.stock));
-  if (live < demand.quantity) {
+  if (live < qty) {
     throw new HttpsError('failed-precondition', 'Not enough stock left for one of the ordered items.');
   }
-  return stockFields(null, live - demand.quantity);
+  return stockFields(null, live - qty);
+}
+
+function demandQuantity(demand: ProductStockDemand): number {
+  if (demand.kind === 'flat') return demand.quantity;
+  let total = 0;
+  for (const qty of Object.values(demand.bySize)) total += qty;
+  return total;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

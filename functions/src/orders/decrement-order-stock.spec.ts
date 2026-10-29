@@ -89,4 +89,25 @@ describe('nextStockAfterDemand', () => {
     );
     assert.deepEqual(next, { stock: 0, stockBySize: null, inStock: false });
   });
+
+  it('decrements flat stock when size option exists but stockBySize map is missing', () => {
+    // Matches EasyOrders tracked products with sizes and no variants / no map.
+    const next = nextStockAfterDemand(
+      {
+        stock: 10,
+        stockBySize: null,
+        options: [
+          {
+            key: 'size',
+            values: [
+              { id: 'm', label: 'M' },
+              { id: 'l', label: 'L' },
+            ],
+          },
+        ],
+      },
+      { kind: 'sized', bySize: { m: 2, l: 1 } },
+    );
+    assert.deepEqual(next, { stock: 7, stockBySize: null, inStock: true });
+  });
 });
