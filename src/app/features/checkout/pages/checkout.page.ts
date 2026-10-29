@@ -164,10 +164,10 @@ export class CheckoutPageComponent implements OnInit {
     const value = (event.target as HTMLInputElement).value;
     this.countryQuery.set(value);
     const matched = matchCheckoutCountryExact(value);
+    // Only commit an exact match while typing. Do not clear the stored country
+    // on every keystroke — blur can race ahead of mat-option clicks.
     if (matched) {
       this.patchShipping('country', matched);
-    } else if (this.shipping().country) {
-      this.patchShipping('country', '');
     }
   }
 
@@ -180,16 +180,30 @@ export class CheckoutPageComponent implements OnInit {
   }
 
   onCountryBlur(): void {
+    // Defer so a mat-option click can fire optionSelected before we commit/clear.
+    setTimeout(() => this.#commitCountryFromQuery(), 0);
+  }
+
+  #commitCountryFromQuery(): void {
     const selected = this.shipping().country;
-    if (selected && isCheckoutCountry(selected)) {
+    const query = this.countryQuery().trim();
+    if (selected && isCheckoutCountry(selected) && countryLabel(selected) === query) {
       this.countryQuery.set(countryLabel(selected));
       return;
     }
-    const matched = matchCheckoutCountry(this.countryQuery());
+    const matched = matchCheckoutCountry(query) ?? matchCheckoutCountryExact(query);
     if (matched) {
       this.patchShipping('country', matched);
       this.countryQuery.set(countryLabel(matched));
       return;
+    }
+    // Keep a still-valid selected country if the typed text is only a prefix filter.
+    if (selected && isCheckoutCountry(selected) && query.length > 0) {
+      const label = countryLabel(selected);
+      if (label.toLowerCase().startsWith(query.toLowerCase())) {
+        this.countryQuery.set(label);
+        return;
+      }
     }
     this.patchShipping('country', '');
     this.countryQuery.set('');
