@@ -106,6 +106,20 @@
       </mat-form-field>
     </div>
 
+    @if (isEgypt()) {
+      <mat-form-field class="w-full" subscriptSizing="dynamic">
+        <mat-label>Governorate</mat-label>
+        <mat-select
+          [value]="shipping().governorateId"
+          (valueChange)="patchShipping('governorateId', $event)"
+        >
+          @for (gov of governorates; track gov.id) {
+            <mat-option [value]="gov.id">{{ gov.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+
     <mat-form-field class="w-full" subscriptSizing="dynamic">
       <mat-label>Phone</mat-label>
       <input

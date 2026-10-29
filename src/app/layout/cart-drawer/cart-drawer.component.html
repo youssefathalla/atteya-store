@@ -50,6 +50,9 @@
             <div class="min-w-0 flex-1">
               <p class="font-title-sm font-bold!">{{ nameFor(line.productId) }}</p>
               <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
+              @if (linePriceLabel(line.productId, line.quantity); as linePrice) {
+                <p class="font-title-sm font-bold! pt-1">{{ linePrice }}</p>
+              }
             </div>
             <div class="elements-end gap-1 shrink-0">
               <button
@@ -89,9 +92,7 @@
     </p>
 
     <div class="w-full [&>button]:w-full [&>a]:w-full">
-      @if (isEmpty()) {
-        <button matButton="filled" type="button" disabled>Checkout</button>
-      } @else {
+      @if (showCheckout()) {
         <a
           matButton="filled"
           routerLink="/checkout"
@@ -99,6 +100,8 @@
         >
           Checkout
         </a>
+      } @else {
+        <button matButton="filled" type="button" disabled>Checkout</button>
       }
     </div>
   </footer>

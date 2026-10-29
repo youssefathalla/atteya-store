@@ -52,9 +52,11 @@ export const paymobWebhook = onRequest(
     const amountCents =
       typeof obj['amount_cents'] === 'number' ? obj['amount_cents'] : Number(obj['amount_cents']);
     const currency = typeof obj['currency'] === 'string' ? obj['currency'] : '';
+    // HMAC covers `order.id` (Paymob order). Merchant order id is unsigned — bind via intention.
+    const signedPaymobOrderId = resolveSignedPaymobOrderId(obj);
 
     const orderId = resolveMerchantOrderId(obj);
-    if (!orderId || !Number.isFinite(transactionId)) {
+    if (!orderId || !Number.isFinite(transactionId) || signedPaymobOrderId === null) {
       res.status(200).send('ignored');
       return;
     }
@@ -97,6 +99,22 @@ export const paymobWebhook = onRequest(
         }
 
         const paymob = isRecord(data['paymob']) ? data['paymob'] : {};
+        const storedIntentionOrderId =
+          typeof paymob['intentionOrderId'] === 'number' ? paymob['intentionOrderId'] : null;
+        if (
+          storedIntentionOrderId === null ||
+          storedIntentionOrderId !== signedPaymobOrderId
+        ) {
+          tx.set(eventRef, {
+            orderId,
+            transactionId,
+            ignored: 'intention-mismatch',
+            signedPaymobOrderId,
+            storedIntentionOrderId,
+            receivedAt: FieldValue.serverTimestamp(),
+          });
+          return;
+        }
         const expectedCents =
           typeof paymob['amountCents'] === 'number' ? paymob['amountCents'] : null;
         if (
@@ -164,6 +182,14 @@ export const paymobWebhook = onRequest(
     res.status(200).send('ok');
   },
 );
+
+/** Paymob `order.id` is in the HMAC field list — use it to bind payment to our intention. */
+function resolveSignedPaymobOrderId(obj: Record<string, unknown>): number | null {
+  const order = isRecord(obj['order']) ? obj['order'] : null;
+  if (!order) return null;
+  const id = typeof order['id'] === 'number' ? order['id'] : Number(order['id']);
+  return Number.isFinite(id) ? id : null;
+}
 
 function resolveMerchantOrderId(obj: Record<string, unknown>): string | null {
   const order = isRecord(obj['order']) ? obj['order'] : null;

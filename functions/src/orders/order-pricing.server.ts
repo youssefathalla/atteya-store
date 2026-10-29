@@ -77,11 +77,13 @@ export async function priceStoreOrder(
   const shippingConfig = parseCheckoutShippingConfig(shippingSnap.data());
   const ctx: PricingContext = { now: new Date(), signedIn, codes: [] };
   const pricedLines: OrderLinePrice[] = [];
+  const cartProducts: PricedProduct[] = [];
   let subtotalEgp = 0;
 
   for (const line of input.lines) {
-    const priced = await priceLine(db, line, offers, ctx);
+    const { priced, product } = await priceLine(db, line, offers, ctx);
     pricedLines.push(priced);
+    cartProducts.push(product);
     subtotalEgp += priced.unitEgp * line.quantity;
   }
 
@@ -101,6 +103,7 @@ export async function priceStoreOrder(
       {
         governorateId: input.shipping.governorateId,
         goodsSubtotal: subtotalEgp,
+        lines: cartProducts,
       },
       offers,
       ctx,
@@ -148,7 +151,7 @@ async function priceLine(
   line: OrderLineInput,
   offers: readonly Offer[],
   ctx: PricingContext,
-): Promise<OrderLinePrice> {
+): Promise<{ priced: OrderLinePrice; product: PricedProduct }> {
   const snap = await db.collection('products').doc(line.productId).get();
   if (!snap.exists) {
     throw new HttpsError('not-found', 'One item in your bag is no longer available.');
@@ -164,13 +167,16 @@ async function priceLine(
   const unit = priceItem(product, variant, offers, ctx);
   const unitEgp = unit.effectivePrice;
   return {
-    productId: line.productId,
-    variantId: variant?.id ?? null,
-    selection: { ...line.selection },
-    quantity: line.quantity,
-    unitEgp,
-    unitDisplay: unitEgp,
-    lineDisplay: unitEgp * line.quantity,
+    product,
+    priced: {
+      productId: line.productId,
+      variantId: variant?.id ?? null,
+      selection: { ...line.selection },
+      quantity: line.quantity,
+      unitEgp,
+      unitDisplay: unitEgp,
+      lineDisplay: unitEgp * line.quantity,
+    },
   };
 }
 

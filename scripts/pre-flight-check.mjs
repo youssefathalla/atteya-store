@@ -12,6 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { assertLoginTemplateErrorPlacement } from './login-error-placement.mjs';
 
 const SRC_DIR = path.resolve(process.cwd(), 'src');
 let totalErrors = 0;
@@ -540,6 +541,17 @@ auditTemplates(templateFiles, tsFiles);
 auditTypeScript(tsFiles);
 auditSSRRoutes();
 auditMaterialIcons();
+
+try {
+  assertLoginTemplateErrorPlacement();
+  console.log('\x1b[32m✓\x1b[0m Login error placement: below password field');
+} catch (error) {
+  logError(
+    path.resolve(process.cwd(), 'src/app/features/auth/login/login.component.html'),
+    1,
+    error instanceof Error ? error.message : String(error),
+  );
+}
 
 console.log('\n----------------------------------------');
 if (totalErrors === 0 && totalWarnings === 0) {

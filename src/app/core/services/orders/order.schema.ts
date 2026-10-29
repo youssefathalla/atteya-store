@@ -46,7 +46,13 @@ export const OrderPricingSnapshotSchema = v.object({
   shipping: v.nullable(OrderShippingLineSchema),
   totalDisplay: v.pipe(v.number(), v.finite(), v.minValue(0)),
   totalEgp: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
-  fulfilment: v.picklist(['domestic-cod', 'domestic-paymob', 'international-paymob']),
+  fulfilment: v.picklist([
+    'domestic-cod',
+    'domestic-paymob',
+    'international-paymob',
+    // Legacy bank-transfer fulfilment (pre-Paymob checkout).
+    'international-third-party',
+  ]),
 });
 
 export const OrderPaymobSchema = v.object({
@@ -58,21 +64,47 @@ export const OrderPaymobSchema = v.object({
   paidAt: v.nullable(timestampSchema, null),
 });
 
-export const OrderSchema = v.object({
+/** Legacy international bank-transfer snapshot (read-only for admin / confirmation). */
+export const OrderBankTransferSchema = v.object({
+  iban: v.pipe(v.string(), v.trim(), v.minLength(15), v.maxLength(34)),
+  beneficiaryName: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  bankName: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  whatsAppProofUrl: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(8)), null),
+});
+
+const OrderBaseFields = {
   id: v.string(),
   status: v.picklist(['pending', 'confirmed', 'cancelled', 'failed']),
-  paymentMethod: v.picklist(['paymob', 'cash-on-delivery']),
   customerId: v.string(),
   customerEmail: v.nullable(v.string(), null),
   shipping: OrderShippingSchema,
   pricing: OrderPricingSnapshotSchema,
-  paymob: v.nullable(OrderPaymobSchema, null),
   confirmedAt: v.nullable(timestampSchema, null),
   confirmedBy: v.nullable(v.string(), null),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
+};
+
+export const StoreOrderSchema = v.object({
+  ...OrderBaseFields,
+  paymentMethod: v.picklist(['paymob', 'cash-on-delivery']),
+  paymob: v.nullable(OrderPaymobSchema, null),
 });
 
+export const LegacyBankTransferOrderSchema = v.object({
+  ...OrderBaseFields,
+  paymentMethod: v.literal('international-bank-transfer'),
+  transferReference: v.pipe(v.string(), v.minLength(8), v.maxLength(32)),
+  bankTransfer: OrderBankTransferSchema,
+  paymentProofPath: v.nullable(v.string(), null),
+  // Soften status: legacy docs never used `failed`.
+  status: v.picklist(['pending', 'confirmed', 'cancelled', 'failed']),
+});
+
+/** Accepts Paymob/COD orders and leftover bank-transfer docs so admin lists do not throw. */
+export const OrderSchema = v.union([StoreOrderSchema, LegacyBankTransferOrderSchema]);
+
 export type OrderDoc = v.InferOutput<typeof OrderSchema>;
+export type StoreOrderDoc = v.InferOutput<typeof StoreOrderSchema>;
 
 export const ORDERS_COLLECTION = 'orders';

@@ -56,6 +56,8 @@ export class OrdersManagerPageComponent {
   }
 
   paymentLabel(order: OrderDoc): string {
-    return order.paymentMethod === 'cash-on-delivery' ? 'Cash on delivery' : 'Paymob';
+    if (order.paymentMethod === 'cash-on-delivery') return 'Cash on delivery';
+    if (order.paymentMethod === 'international-bank-transfer') return 'Bank transfer (legacy)';
+    return 'Paymob';
   }
 }

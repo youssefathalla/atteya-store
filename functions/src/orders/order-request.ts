@@ -1,4 +1,5 @@
 import { HttpsError } from 'firebase-functions/v2/https';
+import { EGYPT_GOVERNORATES } from '../offers/engine/governorates.js';
 
 const COUNTRY_CODE = /^[A-Z]{2}$/;
 const MAX_LINES = 20;
@@ -9,6 +10,7 @@ const MAX_CITY = 80;
 const MAX_POSTAL = 20;
 const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
+const EGYPT_GOVERNORATE_IDS = new Set(EGYPT_GOVERNORATES.map((g) => g.id));
 
 export type StorePaymentMethod = 'paymob' | 'cash-on-delivery';
 
@@ -28,7 +30,7 @@ export interface OrderShippingInput {
   readonly postalCode: string;
   readonly country: string;
   readonly phone: string;
-  /** Egypt zone key when known (cairo, alexandria, …). Optional. */
+  /** Egypt governorate id (cairo, alexandria, …). Required for EG. */
   readonly governorateId: string | null;
 }
 
@@ -105,15 +107,22 @@ function parseShipping(raw: unknown): OrderShippingInput {
   const postalCode = readText(raw['postalCode'], MAX_POSTAL, 'Enter the postal code.');
   const country = readCountry(raw['country']);
   const phone = readText(raw['phone'], MAX_PHONE, 'Enter a phone number we can reach you on.');
-  const governorateId = readOptionalGovernorate(raw['governorateId']);
+  const governorateId = readGovernorate(raw['governorateId'], country);
   return { fullName, line1, line2, city, region, postalCode, country, phone, governorateId };
 }
 
-function readOptionalGovernorate(raw: unknown): string | null {
-  if (raw === null || raw === undefined || raw === '') return null;
-  if (typeof raw !== 'string') return null;
+function readGovernorate(raw: unknown, country: string): string | null {
+  if (country !== 'EG') return null;
+  if (raw === null || raw === undefined || raw === '') {
+    throw new HttpsError('invalid-argument', 'Choose your governorate for Egypt delivery.');
+  }
+  if (typeof raw !== 'string') {
+    throw new HttpsError('invalid-argument', 'Choose your governorate for Egypt delivery.');
+  }
   const trimmed = raw.trim().toLowerCase();
-  if (trimmed.length === 0 || trimmed.length > 40) return null;
+  if (!EGYPT_GOVERNORATE_IDS.has(trimmed)) {
+    throw new HttpsError('invalid-argument', 'Choose a valid Egypt governorate.');
+  }
   return trimmed;
 }
 

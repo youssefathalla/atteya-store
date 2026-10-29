@@ -87,10 +87,9 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Orders | Atteya Admin',
       },
       {
+        // Componentless parent: each Settings sidebar entry is a standalone page
+        // (no shared in-page tab/switcher duplicating the admin sidebar).
         path: 'settings',
-        loadComponent: () =>
-          import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
-        title: 'Settings | Atteya Admin',
         children: [
           {
             path: '',

@@ -11,6 +11,7 @@ import { resource } from '@angular/core';
 import { doc, getDoc } from 'firebase/firestore';
 import { CartService } from '@core/services/cart/cart.service';
 import { injectFirestore } from '@core/firebase';
+import { EGYPT_GOVERNORATES } from '@core/services/offers/engine';
 import {
   CheckoutOrderService,
   type CheckoutPaymentMethod,
@@ -46,6 +47,7 @@ export class CheckoutPageComponent implements OnInit {
   readonly #platformId = inject(PLATFORM_ID);
 
   readonly countries = CHECKOUT_COUNTRY_OPTIONS;
+  readonly governorates = EGYPT_GOVERNORATES;
   readonly isSubmitting = signal(false);
   readonly paymentMethod = signal<CheckoutPaymentMethod>('paymob');
 
@@ -101,8 +103,13 @@ export class CheckoutPageComponent implements OnInit {
   patchShipping<K extends keyof CheckoutShippingInput>(key: K, value: CheckoutShippingInput[K]): void {
     this.shipping.update((current) => {
       const next = { ...current, [key]: value };
-      if (key === 'country' && value !== 'EG' && this.paymentMethod() === 'cash-on-delivery') {
-        this.paymentMethod.set('paymob');
+      if (key === 'country') {
+        if (value !== 'EG') {
+          next.governorateId = null;
+          if (this.paymentMethod() === 'cash-on-delivery') {
+            this.paymentMethod.set('paymob');
+          }
+        }
       }
       return next;
     });
@@ -126,6 +133,10 @@ export class CheckoutPageComponent implements OnInit {
     }
     if (!draft.phone.trim()) {
       this.#snackbar.error('Add a phone number we can reach you on.');
+      return;
+    }
+    if (draft.country === 'EG' && !draft.governorateId) {
+      this.#snackbar.error('Choose your governorate so we can work out delivery.');
       return;
     }
     const method = this.paymentMethod();
