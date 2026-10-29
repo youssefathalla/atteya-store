@@ -1,11 +1,21 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, effect, inject, PLATFORM_ID, resource, signal, untracked } from '@angular/core';
+import {
+  Component,
+  effect,
+  inject,
+  OnInit,
+  PLATFORM_ID,
+  resource,
+  signal,
+  untracked,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { doc, getDoc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
+import { SeoService } from '@core/services/seo';
 import {
   formatCairoDateTimeInput,
   parseCairoDateTimeInput,
@@ -76,11 +86,20 @@ function toDate(raw: unknown): Date | null {
   ],
   templateUrl: './shipping-tab.component.html',
 })
-export class ShippingTabComponent {
+export class ShippingTabComponent implements OnInit {
   readonly #firestore = injectFirestore();
   readonly #auth = inject(AuthService);
   readonly #snackbar = inject(SnackbarService);
+  readonly #seo = inject(SeoService);
   readonly #platformId = inject(PLATFORM_ID);
+
+  ngOnInit(): void {
+    this.#seo.setPageMetadata({
+      title: 'Shipping | Atteya Admin',
+      description: 'Delivery fees, free shipping, and promotions for Egypt.',
+      noindex: true,
+    });
+  }
 
   readonly draft = signal<ShippingDraft>(EMPTY_DRAFT);
   readonly isSaving = signal(false);

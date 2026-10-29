@@ -1,5 +1,14 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, effect, inject, PLATFORM_ID, resource, signal, untracked } from '@angular/core';
+import {
+  Component,
+  effect,
+  inject,
+  OnInit,
+  PLATFORM_ID,
+  resource,
+  signal,
+  untracked,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -11,6 +20,7 @@ import {
   DEFAULT_PAYMENT_SETTINGS_DOC,
   PaymentSettingsSchema,
 } from '@core/services/payments/payment-settings.schema';
+import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
@@ -29,11 +39,20 @@ import { createValibotConverter } from '@shared/utils/firebase/firestore-convert
   ],
   templateUrl: './payments-tab.component.html',
 })
-export class PaymentsTabComponent {
+export class PaymentsTabComponent implements OnInit {
   readonly #firestore = injectFirestore();
   readonly #auth = inject(AuthService);
   readonly #snackbar = inject(SnackbarService);
+  readonly #seo = inject(SeoService);
   readonly #platformId = inject(PLATFORM_ID);
+
+  ngOnInit(): void {
+    this.#seo.setPageMetadata({
+      title: 'Bank transfer | Atteya Admin',
+      description: 'Account details shoppers use for international bank transfers.',
+      noindex: true,
+    });
+  }
 
   readonly draft = signal({ ...DEFAULT_PAYMENT_SETTINGS_DOC });
   readonly isSaving = signal(false);
