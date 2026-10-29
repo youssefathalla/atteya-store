@@ -25,6 +25,21 @@
       </span>
     </label>
 
+    <label class="elements-start-col gap-1 font-label-md">
+      International shipping (EGP)
+      <input
+        type="number"
+        min="0"
+        max="1000000"
+        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
+        [value]="d.internationalShippingFeeEgp"
+        (input)="patch({ internationalShippingFeeEgp: numberFrom($event) ?? 0 })"
+      />
+      <span class="font-body-sm text-on-surface-variant">
+        Flat fee for orders shipped outside Egypt (until box rates are ready).
+      </span>
+    </label>
+
     @if (d.zones.length > 0) {
       <div class="w-full elements-start-col gap-2">
         <h3 class="font-label-md font-bold!">Zone fees</h3>

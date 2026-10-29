@@ -13,7 +13,6 @@ export const environment: Environment = {
     appId: '1:391723202247:web:9975d2e391416d5afd70e2',
     measurementId: 'G-P2LKFPB4EK',
   },
-  paymentProofsStorageBucket: 'attiya-store-payment-proofs',
   imageKitUrl: 'https://ik.imagekit.io/atteyastore',
   algolia: {
     appId: 'EW50BE3MCR',

@@ -10,6 +10,8 @@ const MAX_POSTAL = 20;
 const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
 
+export type StorePaymentMethod = 'paymob' | 'cash-on-delivery';
+
 export interface OrderLineInput {
   readonly productId: string;
   readonly variantId: string | null;
@@ -26,26 +28,37 @@ export interface OrderShippingInput {
   readonly postalCode: string;
   readonly country: string;
   readonly phone: string;
+  /** Egypt zone key when known (cairo, alexandria, …). Optional. */
+  readonly governorateId: string | null;
 }
 
-export interface CreateIntlBankTransferRequest {
+export interface CreateStoreOrderRequest {
   readonly lines: readonly OrderLineInput[];
   readonly shipping: OrderShippingInput;
+  readonly paymentMethod: StorePaymentMethod;
 }
 
-export function parseCreateIntlBankTransferRequest(data: unknown): CreateIntlBankTransferRequest {
+export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderRequest {
   if (!isRecord(data)) {
     throw new HttpsError('invalid-argument', 'Your order could not be read. Refresh and try again.');
   }
   const lines = parseLines(data['lines']);
   const shipping = parseShipping(data['shipping']);
-  if (shipping.country === 'EG') {
+  const paymentMethod = parsePaymentMethod(data['paymentMethod'], shipping.country);
+  return { lines, shipping, paymentMethod };
+}
+
+function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {
+  if (raw !== 'paymob' && raw !== 'cash-on-delivery') {
+    throw new HttpsError('invalid-argument', 'Choose how you want to pay.');
+  }
+  if (raw === 'cash-on-delivery' && country !== 'EG') {
     throw new HttpsError(
       'failed-precondition',
-      'Bank transfer checkout is for orders outside Egypt. Choose another payment option when it is available.',
+      'Cash on delivery is only available for orders delivered in Egypt.',
     );
   }
-  return { lines, shipping };
+  return raw;
 }
 
 function parseLines(raw: unknown): OrderLineInput[] {
@@ -92,7 +105,16 @@ function parseShipping(raw: unknown): OrderShippingInput {
   const postalCode = readText(raw['postalCode'], MAX_POSTAL, 'Enter the postal code.');
   const country = readCountry(raw['country']);
   const phone = readText(raw['phone'], MAX_PHONE, 'Enter a phone number we can reach you on.');
-  return { fullName, line1, line2, city, region, postalCode, country, phone };
+  const governorateId = readOptionalGovernorate(raw['governorateId']);
+  return { fullName, line1, line2, city, region, postalCode, country, phone, governorateId };
+}
+
+function readOptionalGovernorate(raw: unknown): string | null {
+  if (raw === null || raw === undefined || raw === '') return null;
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim().toLowerCase();
+  if (trimmed.length === 0 || trimmed.length > 40) return null;
+  return trimmed;
 }
 
 function readCountry(raw: unknown): string {

@@ -1,27 +1,27 @@
 import type { DocumentData, Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
-import { currencyFromCountry } from '../intl/currency-from-country.js';
-import { readMarkupOrDefault, readStoredRates } from '../intl/exchange-rates.js';
 import { getActiveOffers } from '../offers/offer-cache.js';
 import {
-  EGP_ENTRY,
   priceItem,
-  toDisplayAmount,
-  type CurrencyEntry,
+  shippingQuote,
   type Offer,
   type PricedProduct,
   type PricingContext,
   type VariantFacts,
 } from '../offers/engine/index.js';
 import {
-  parsePaymentSettings,
-  PAYMENTS_DOC_PATH,
-  type PaymentSettings,
-} from '../settings/payment-settings.js';
-import type { CreateIntlBankTransferRequest, OrderLineInput } from './order-request.js';
+  parseCheckoutShippingConfig,
+  SHIPPING_DOC_PATH,
+} from '../shipping/shipping-settings.js';
+import type {
+  CreateStoreOrderRequest,
+  OrderLineInput,
+  StorePaymentMethod,
+} from './order-request.js';
 
-export type OrderStatus = 'pending' | 'confirmed' | 'cancelled';
-export type OrderPaymentMethod = 'international-bank-transfer';
+export type OrderStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
+export type OrderPaymentMethod = StorePaymentMethod;
+export type OrderFulfilment = 'domestic-cod' | 'domestic-paymob' | 'international-paymob';
 
 export interface OrderLinePrice {
   readonly productId: string;
@@ -34,7 +34,7 @@ export interface OrderLinePrice {
 }
 
 export interface OrderShippingLine {
-  readonly kind: 'international-box';
+  readonly kind: 'domestic-zone' | 'international-box';
   readonly boxId: string | null;
   readonly priceEgp: number;
   readonly priceDisplay: number;
@@ -43,94 +43,104 @@ export interface OrderShippingLine {
 export interface OrderPricingSnapshot {
   readonly isInternational: boolean;
   readonly shippingCountry: string;
-  readonly currency: string;
-  readonly rate: number;
-  readonly markupPercent: number;
+  readonly currency: 'EGP';
+  readonly rate: 1;
+  readonly markupPercent: 0;
   readonly ratesUpdatedAt: string;
   readonly lines: readonly OrderLinePrice[];
   readonly subtotalEgp: number;
   readonly subtotalDisplay: number;
   readonly shipping: OrderShippingLine | null;
   readonly totalDisplay: number;
-  readonly fulfilment: 'international-third-party';
+  /** Whole EGP pounds charged (Paymob amount_cents = totalEgp * 100). */
+  readonly totalEgp: number;
+  readonly fulfilment: OrderFulfilment;
 }
 
-export interface PricedOrderDraft {
+export interface PricedStoreOrder {
   readonly pricing: OrderPricingSnapshot;
-  readonly paymentSettings: PaymentSettings;
 }
 
-interface ResolvedOrderCurrency {
-  readonly code: string;
-  readonly productEntry: CurrencyEntry;
-  readonly rawRate: number;
-  readonly markupPercent: number;
-}
-
-export async function priceInternationalBankTransferOrder(
+/**
+ * Server-authoritative checkout pricing for Paymob and Egypt COD.
+ * Always quotes and charges in whole Egyptian pounds (Paymob Egypt Accept).
+ */
+export async function priceStoreOrder(
   db: Firestore,
-  input: CreateIntlBankTransferRequest,
+  input: CreateStoreOrderRequest,
   signedIn: boolean,
-): Promise<PricedOrderDraft> {
-  const markupPercent = await readMarkupOrDefault(db);
-  const [paymentSnap, currencySnap, ratesSnap, offers] = await Promise.all([
-    db.doc(PAYMENTS_DOC_PATH).get(),
-    db.doc('settings/currency').get(),
-    db.doc('intlPricing/rates').get(),
+): Promise<PricedStoreOrder> {
+  const [shippingSnap, offers] = await Promise.all([
+    db.doc(SHIPPING_DOC_PATH).get(),
     getActiveOffers(db),
   ]);
-  const paymentSettings = parsePaymentSettings(paymentSnap.data());
-  const currencyCode = currencyFromCountry(input.shipping.country);
-  if (currencyCode === 'EGP') {
-    throw new HttpsError(
-      'failed-precondition',
-      'Bank transfer checkout is for orders outside Egypt. Choose another payment option when it is available.',
-    );
-  }
-  const resolved = resolveOrderCurrency(
-    currencyCode,
-    currencySnap.data(),
-    ratesSnap.data(),
-    markupPercent,
-  );
+  const shippingConfig = parseCheckoutShippingConfig(shippingSnap.data());
   const ctx: PricingContext = { now: new Date(), signedIn, codes: [] };
   const pricedLines: OrderLinePrice[] = [];
   let subtotalEgp = 0;
-  let subtotalDisplay = 0;
 
   for (const line of input.lines) {
-    const priced = await priceLine(db, line, offers, ctx, resolved);
+    const priced = await priceLine(db, line, offers, ctx);
     pricedLines.push(priced);
     subtotalEgp += priced.unitEgp * line.quantity;
-    subtotalDisplay += priced.lineDisplay;
   }
 
-  const shippingEgp = paymentSettings.internationalShippingFeeEgp;
-  const shippingEntry: CurrencyEntry = { code: resolved.code, factor: resolved.rawRate };
-  const shippingDisplay = toDisplayAmount(shippingEgp, shippingEntry);
-  const shipping: OrderShippingLine = {
-    kind: 'international-box',
-    boxId: null,
-    priceEgp: shippingEgp,
-    priceDisplay: shippingDisplay,
-  };
+  const isInternational = input.shipping.country !== 'EG';
+  let shippingLine: OrderShippingLine;
+  if (isInternational) {
+    const fee = shippingConfig.internationalShippingFeeEgp;
+    shippingLine = {
+      kind: 'international-box',
+      boxId: null,
+      priceEgp: fee,
+      priceDisplay: fee,
+    };
+  } else {
+    const quote = shippingQuote(
+      shippingConfig.settings,
+      {
+        governorateId: input.shipping.governorateId,
+        goodsSubtotal: subtotalEgp,
+      },
+      offers,
+      ctx,
+    );
+    shippingLine = {
+      kind: 'domestic-zone',
+      boxId: null,
+      priceEgp: quote.fee,
+      priceDisplay: quote.fee,
+    };
+  }
+
+  const totalEgp = subtotalEgp + shippingLine.priceEgp;
+  const fulfilment = resolveFulfilment(input.paymentMethod, isInternational);
 
   const pricing: OrderPricingSnapshot = {
-    isInternational: true,
+    isInternational,
     shippingCountry: input.shipping.country,
-    currency: resolved.code,
-    rate: resolved.rawRate,
-    markupPercent: resolved.markupPercent,
-    ratesUpdatedAt: readRatesUpdatedAt(currencySnap.data()),
+    currency: 'EGP',
+    rate: 1,
+    markupPercent: 0,
+    ratesUpdatedAt: new Date().toISOString(),
     lines: pricedLines,
     subtotalEgp,
-    subtotalDisplay,
-    shipping,
-    totalDisplay: subtotalDisplay + shippingDisplay,
-    fulfilment: 'international-third-party',
+    subtotalDisplay: subtotalEgp,
+    shipping: shippingLine,
+    totalDisplay: totalEgp,
+    totalEgp,
+    fulfilment,
   };
 
-  return { pricing, paymentSettings };
+  return { pricing };
+}
+
+function resolveFulfilment(
+  method: StorePaymentMethod,
+  isInternational: boolean,
+): OrderFulfilment {
+  if (method === 'cash-on-delivery') return 'domestic-cod';
+  return isInternational ? 'international-paymob' : 'domestic-paymob';
 }
 
 async function priceLine(
@@ -138,7 +148,6 @@ async function priceLine(
   line: OrderLineInput,
   offers: readonly Offer[],
   ctx: PricingContext,
-  resolved: ResolvedOrderCurrency,
 ): Promise<OrderLinePrice> {
   const snap = await db.collection('products').doc(line.productId).get();
   if (!snap.exists) {
@@ -154,60 +163,15 @@ async function priceLine(
   const variant = resolveVariantFacts(data, line);
   const unit = priceItem(product, variant, offers, ctx);
   const unitEgp = unit.effectivePrice;
-  const unitDisplay = toDisplayAmount(unitEgp, resolved.productEntry);
   return {
     productId: line.productId,
     variantId: variant?.id ?? null,
     selection: { ...line.selection },
     quantity: line.quantity,
     unitEgp,
-    unitDisplay,
-    lineDisplay: unitDisplay * line.quantity,
+    unitDisplay: unitEgp,
+    lineDisplay: unitEgp * line.quantity,
   };
-}
-
-function resolveOrderCurrency(
-  code: string,
-  publicData: DocumentData | undefined,
-  ratesData: DocumentData | undefined,
-  markupPercent: number,
-): ResolvedOrderCurrency {
-  if (code === 'EGP') {
-    return { code: 'EGP', productEntry: EGP_ENTRY, rawRate: 1, markupPercent: 0 };
-  }
-  const storedRates = readStoredRates(ratesData);
-  let rawRate = storedRates?.[code];
-  const publicFactor = readPublicFactor(publicData, code);
-  if (!(typeof rawRate === 'number' && rawRate > 0)) {
-    if (typeof publicFactor === 'number' && publicFactor > 0) {
-      rawRate = publicFactor / (1 + markupPercent / 100);
-    } else {
-      throw new HttpsError(
-        'failed-precondition',
-        'We cannot quote this order in that currency right now. Try again in a moment.',
-      );
-    }
-  }
-  const productFactor =
-    typeof publicFactor === 'number' && publicFactor > 0
-      ? publicFactor
-      : rawRate * (1 + markupPercent / 100);
-  return {
-    code,
-    productEntry: { code, factor: productFactor },
-    rawRate,
-    markupPercent,
-  };
-}
-
-function readPublicFactor(publicData: DocumentData | undefined, code: string): number | null {
-  const currencies = publicData?.['currencies'];
-  if (!isRecord(currencies)) return null;
-  const entry = currencies[code];
-  if (!isRecord(entry) || typeof entry['factor'] !== 'number' || !(entry['factor'] > 0)) {
-    return null;
-  }
-  return entry['factor'];
 }
 
 function assertRequiredSelections(data: DocumentData, line: OrderLineInput): void {
@@ -255,8 +219,6 @@ function assertLineStock(data: DocumentData, line: OrderLineInput): void {
 /**
  * Selection is the source of truth for payable pricing. Client `variantId` is
  * only accepted when it matches the variant row that selection resolves to.
- * A missing/forged id must never fall through to product-level offer matching
- * when the product has variant rows or size/colour options.
  */
 function resolveVariantFacts(data: DocumentData, line: OrderLineInput): VariantFacts | null {
   const variants = data['variants'];
@@ -273,7 +235,6 @@ function resolveVariantFacts(data: DocumentData, line: OrderLineInput): VariantF
     }
     return matched;
   }
-  // Dashboard products: empty variants[]. Ignore any client variantId.
   return variantFromSelection(data, line.selection);
 }
 
@@ -386,28 +347,6 @@ function toPricedProduct(productId: string, data: DocumentData): PricedProduct {
   };
 }
 
-function readRatesUpdatedAt(currencyData: DocumentData | undefined): string {
-  const raw = currencyData?.['ratesUpdatedAt'];
-  if (raw && typeof raw === 'object' && 'toDate' in raw && typeof raw.toDate === 'function') {
-    return raw.toDate().toISOString();
-  }
-  return new Date(0).toISOString();
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-
-export function whatsAppProofUrl(
-  settings: PaymentSettings,
-  transferReference: string,
-  totalDisplay: number,
-  currency: string,
-): string | null {
-  const digits = settings.whatsAppNumber.replace(/\D/g, '');
-  if (digits.length < 8) return null;
-  const text = `Hi, I sent a bank transfer for order ${transferReference} (${totalDisplay} ${currency}).`;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
-}
-
-export { DEFAULT_PAYMENT_SETTINGS } from '../settings/payment-settings.js';

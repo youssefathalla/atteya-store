@@ -7,10 +7,6 @@
     {
       "target": "media",
       "rules": "firebase/storage.rules"
-    },
-    {
-      "target": "proofs",
-      "rules": "firebase/storage-proofs.rules"
     }
   ],
   "functions": [

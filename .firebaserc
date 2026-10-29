@@ -7,14 +7,12 @@
   "targets": {
     "atteya-store-dev": {
       "storage": {
-        "media": ["atteya-store-dev.firebasestorage.app"],
-        "proofs": ["atteya-store-dev-payment-proofs"]
+        "media": ["atteya-store-dev.firebasestorage.app"]
       }
     },
     "attiya-store": {
       "storage": {
-        "media": ["attiya-store.firebasestorage.app"],
-        "proofs": ["attiya-store-payment-proofs"]
+        "media": ["attiya-store.firebasestorage.app"]
       }
     }
   }

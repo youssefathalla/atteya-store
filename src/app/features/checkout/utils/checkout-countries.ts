@@ -1,6 +1,7 @@
-/** ISO 3166-1 alpha-2 codes supported at international bank-transfer checkout (Egypt uses COD later). */
+/** ISO 3166-1 alpha-2 codes supported at checkout. Egypt enables cash on delivery. */
 export const CHECKOUT_COUNTRY_OPTIONS: readonly { readonly code: string; readonly label: string }[] =
   [
+    { code: 'EG', label: 'Egypt' },
     { code: 'AE', label: 'United Arab Emirates' },
     { code: 'AU', label: 'Australia' },
     { code: 'BH', label: 'Bahrain' },

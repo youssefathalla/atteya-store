@@ -116,12 +116,13 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    match /orderTransferRefs/{refId} {
+    // Per-uid daily checkout counters. Admin SDK only.
+    match /orderRateLimits/{id} {
       allow read, write: if false;
     }
 
-    // Per-uid daily checkout counters. Admin SDK only.
-    match /orderRateLimits/{id} {
+    // Paymob webhook idempotency keys. Admin SDK only.
+    match /paymobWebhookEvents/{eventId} {
       allow read, write: if false;
     }
 
@@ -130,7 +131,7 @@ service cloud.firestore {
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderTransferRefs', 'orderRateLimits']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents']);
     }
   }
 }

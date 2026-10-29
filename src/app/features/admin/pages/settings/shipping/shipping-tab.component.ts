@@ -25,6 +25,7 @@ interface ZoneDraft {
 
 interface ShippingDraft {
   baseFee: number;
+  internationalShippingFeeEgp: number;
   zones: ZoneDraft[];
   freeOverActive: boolean;
   freeOverThreshold: number | null;
@@ -39,6 +40,7 @@ interface ShippingDraft {
 
 const EMPTY_DRAFT: ShippingDraft = {
   baseFee: 125,
+  internationalShippingFeeEgp: 750,
   zones: [],
   freeOverActive: false,
   freeOverThreshold: null,
@@ -104,6 +106,7 @@ export class ShippingTabComponent {
       untracked(() =>
         this.draft.set({
           baseFee: data.baseFee,
+          internationalShippingFeeEgp: data.internationalShippingFeeEgp ?? 750,
           zones: data.zones.map((zone) => ({ ...zone, governorates: [...zone.governorates] })),
           freeOverActive: data.freeOver.active,
           freeOverThreshold: data.freeOver.threshold,
@@ -151,6 +154,10 @@ export class ShippingTabComponent {
       this.#snackbar.error('Shipping fees can be up to EGP 2,000.');
       return;
     }
+    if (d.internationalShippingFeeEgp > 1_000_000) {
+      this.#snackbar.error('International shipping fee is too high.');
+      return;
+    }
     if (d.freeOverActive && !d.freeOverThreshold) {
       this.#snackbar.error('Enter the order amount that unlocks free shipping.');
       return;
@@ -167,6 +174,7 @@ export class ShippingTabComponent {
         {
           currency: 'EGP',
           baseFee: d.baseFee,
+          internationalShippingFeeEgp: d.internationalShippingFeeEgp,
           zones: d.zones,
           freeOver: {
             active: d.freeOverActive,

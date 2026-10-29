@@ -105,7 +105,7 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         label: 'Orders',
         path: '/admin/orders',
         icon: 'receipt_long',
-        description: 'Confirm bank transfers and track pending orders',
+        description: 'Track Paymob and cash-on-delivery orders',
       },
       {
         id: 'customers',

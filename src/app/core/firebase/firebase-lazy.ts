@@ -1,14 +1,12 @@
 import { inject } from '@angular/core';
 import type { FirebaseStorage } from 'firebase/storage';
 import type { Functions, HttpsCallable, HttpsCallableOptions } from 'firebase/functions';
-import { environment } from '@env/environment';
 import { FIREBASE_APP } from './firebase.tokens';
 
 /** Cloud Functions region for every store callable. */
 const FUNCTIONS_REGION = 'europe-west3';
 
 let storagePromise: Promise<FirebaseStorage> | undefined;
-let proofsStoragePromise: Promise<FirebaseStorage> | undefined;
 let functionsPromise: Promise<Functions> | undefined;
 
 /**
@@ -26,24 +24,6 @@ export function injectStorageAsync(): () => Promise<FirebaseStorage> {
         throw error;
       });
     return storagePromise;
-  };
-}
-
-/**
- * Private payment-proof bucket (not the ImageKit catalogue origin).
- * Call from an injection context; invoke the loader on each use.
- */
-export function injectPaymentProofsStorageAsync(): () => Promise<FirebaseStorage> {
-  const app = inject(FIREBASE_APP);
-  const bucket = environment.paymentProofsStorageBucket;
-  return () => {
-    proofsStoragePromise ??= import('firebase/storage')
-      .then(({ getStorage }) => getStorage(app, `gs://${bucket}`))
-      .catch((error: unknown) => {
-        proofsStoragePromise = undefined;
-        throw error;
-      });
-    return proofsStoragePromise;
   };
 }
 

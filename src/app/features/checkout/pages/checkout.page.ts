@@ -1,10 +1,11 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
 import { resource } from '@angular/core';
 import { doc, getDoc } from 'firebase/firestore';
@@ -12,6 +13,7 @@ import { CartService } from '@core/services/cart/cart.service';
 import { injectFirestore } from '@core/firebase';
 import {
   CheckoutOrderService,
+  type CheckoutPaymentMethod,
   type CheckoutShippingInput,
 } from '@core/services/orders/checkout-order.service';
 import { ProductSchema } from '@core/services/products/product.schema';
@@ -29,6 +31,7 @@ import { CHECKOUT_COUNTRY_OPTIONS } from '../utils/checkout-countries';
     MatFormFieldModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    MatRadioModule,
     MatSelectModule,
   ],
   templateUrl: './checkout.page.html',
@@ -44,6 +47,7 @@ export class CheckoutPageComponent implements OnInit {
 
   readonly countries = CHECKOUT_COUNTRY_OPTIONS;
   readonly isSubmitting = signal(false);
+  readonly paymentMethod = signal<CheckoutPaymentMethod>('paymob');
 
   readonly shipping = signal<CheckoutShippingInput>({
     fullName: '',
@@ -52,12 +56,15 @@ export class CheckoutPageComponent implements OnInit {
     city: '',
     region: null,
     postalCode: '',
-    country: 'GB',
+    country: 'EG',
     phone: '',
+    governorateId: null,
   });
 
   readonly lines = this.#cart.lines;
   readonly isEmpty = this.#cart.isEmpty;
+  readonly isEgypt = computed(() => this.shipping().country === 'EG');
+  readonly codAvailable = computed(() => this.isEgypt());
 
   readonly productsResource = resource({
     params: () => this.lines(),
@@ -83,7 +90,7 @@ export class CheckoutPageComponent implements OnInit {
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Checkout | Atteya Store',
-      description: 'Complete your international order with a bank transfer.',
+      description: 'Pay securely with card or wallet, or cash on delivery in Egypt.',
       noindex: true,
     });
     if (this.isEmpty()) {
@@ -92,7 +99,18 @@ export class CheckoutPageComponent implements OnInit {
   }
 
   patchShipping<K extends keyof CheckoutShippingInput>(key: K, value: CheckoutShippingInput[K]): void {
-    this.shipping.update((current) => ({ ...current, [key]: value }));
+    this.shipping.update((current) => {
+      const next = { ...current, [key]: value };
+      if (key === 'country' && value !== 'EG' && this.paymentMethod() === 'cash-on-delivery') {
+        this.paymentMethod.set('paymob');
+      }
+      return next;
+    });
+  }
+
+  setPaymentMethod(method: CheckoutPaymentMethod): void {
+    if (method === 'cash-on-delivery' && !this.codAvailable()) return;
+    this.paymentMethod.set(method);
   }
 
   productName(productId: string): string {
@@ -110,21 +128,44 @@ export class CheckoutPageComponent implements OnInit {
       this.#snackbar.error('Add a phone number we can reach you on.');
       return;
     }
+    const method = this.paymentMethod();
+    if (method === 'cash-on-delivery' && draft.country !== 'EG') {
+      this.#snackbar.error('Cash on delivery is only available for Egypt.');
+      return;
+    }
+
     this.isSubmitting.set(true);
     try {
-      const result = await this.#checkout.placeInternationalBankTransferOrder({
+      const shipping: CheckoutShippingInput = {
+        ...draft,
+        fullName: draft.fullName.trim(),
+        line1: draft.line1.trim(),
+        line2: draft.line2?.trim() || null,
+        city: draft.city.trim(),
+        region: draft.region?.trim() || null,
+        postalCode: draft.postalCode.trim(),
+        country: draft.country,
+        phone: draft.phone.trim(),
+        governorateId: draft.governorateId,
+      };
+
+      if (method === 'paymob') {
+        const result = await this.#checkout.placePaymobOrder({
+          lines: this.lines(),
+          shipping,
+        });
+        this.#cart.clear();
+        if (isPlatformBrowser(this.#platformId)) {
+          window.location.assign(result.checkoutUrl);
+          return;
+        }
+        await this.#router.navigate(['/checkout', 'confirmation', result.orderId]);
+        return;
+      }
+
+      const result = await this.#checkout.placeCodOrder({
         lines: this.lines(),
-        shipping: {
-          ...draft,
-          fullName: draft.fullName.trim(),
-          line1: draft.line1.trim(),
-          line2: draft.line2?.trim() || null,
-          city: draft.city.trim(),
-          region: draft.region?.trim() || null,
-          postalCode: draft.postalCode.trim(),
-          country: draft.country,
-          phone: draft.phone.trim(),
-        },
+        shipping,
       });
       this.#cart.clear();
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {

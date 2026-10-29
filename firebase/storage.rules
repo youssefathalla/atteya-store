@@ -32,9 +32,6 @@ service firebase.storage {
       return folder in ['hero', 'categories', 'products', 'brands'];
     }
 
-    // Payment proofs live in the separate private proofs bucket
-    // (firebase/storage-proofs.rules). Never store them on this ImageKit origin.
-
     function isValidImage() {
       return request.resource.size > 0
         && request.resource.size < 10 * 1024 * 1024

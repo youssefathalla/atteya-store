@@ -2,7 +2,7 @@
   <header class="space-y-2">
     <h1 class="font-headline-md font-bold!">Checkout</h1>
     <p class="font-body-md opacity-80">
-      Pay outside Egypt by bank transfer. We will confirm your payment before we ship.
+      Pay by card or wallet online. In Egypt you can also pay cash when your order arrives.
     </p>
   </header>
 
@@ -23,7 +23,7 @@
       </ul>
     }
     <p class="font-label-sm opacity-70">
-      Your total is calculated from your delivery country when you place the order.
+      Your total is calculated in Egyptian pounds when you place the order.
     </p>
   </section>
 
@@ -117,13 +117,39 @@
       />
     </mat-form-field>
 
+    <fieldset class="space-y-3 pt-2">
+      <legend class="font-title-md font-bold!">Payment</legend>
+      <mat-radio-group
+        class="elements-start-col gap-3"
+        [value]="paymentMethod()"
+        (change)="setPaymentMethod($event.value)"
+        aria-label="Payment method"
+      >
+        <mat-radio-button value="paymob">Card or wallet (Paymob)</mat-radio-button>
+        @if (codAvailable()) {
+          <mat-radio-button value="cash-on-delivery">Cash on delivery</mat-radio-button>
+        } @else {
+          <p class="font-label-sm opacity-70">
+            Cash on delivery is available when shipping to Egypt.
+          </p>
+        }
+      </mat-radio-group>
+    </fieldset>
+
     <div class="elements-end gap-3 pt-2">
       <a matButton="text" routerLink="/">Keep shopping</a>
-      <button matButton="filled" type="submit" [disabled]="isSubmitting() || isEmpty()">
+      <button
+        matButton="filled"
+        type="submit"
+        [disabled]="isSubmitting() || isEmpty()"
+        [attr.aria-label]="isSubmitting() ? 'Placing order' : null"
+      >
         @if (isSubmitting()) {
           <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else if (paymentMethod() === 'paymob') {
+          <span>Pay online</span>
         } @else {
-          Place order
+          <span>Place order</span>
         }
       </button>
     </div>
