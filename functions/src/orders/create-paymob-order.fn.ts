@@ -47,6 +47,13 @@ export const createPaymobOrder = onCall(
       throw new HttpsError('failed-precondition', 'Your order total is too low to pay online.');
     }
 
+    // Enforce the daily cap before minting a Paymob Intention (gateway quota).
+    // The write transaction re-checks under contention.
+    const day = utcDayKey();
+    const rateLimitRef = db.collection('orderRateLimits').doc(`${caller.uid}_${day}`);
+    const preLimitSnap = await rateLimitRef.get();
+    assertUnderDailyOrderCap(preLimitSnap.data()?.['count']);
+
     const orderRef = db.collection('orders').doc();
     const orderId = orderRef.id;
     const amountCents = priced.pricing.totalEgp * 100;
@@ -102,8 +109,6 @@ export const createPaymobOrder = onCall(
     );
 
     await db.runTransaction(async (tx) => {
-      const day = utcDayKey();
-      const rateLimitRef = db.collection('orderRateLimits').doc(`${caller.uid}_${day}`);
       const rateLimitSnap = await tx.get(rateLimitRef);
       const nextRateCount = nextDailyOrderCount(rateLimitSnap.data()?.['count']);
       const now = FieldValue.serverTimestamp();
@@ -153,7 +158,7 @@ export const createPaymobOrder = onCall(
   },
 );
 
-function nextDailyOrderCount(raw: unknown): number {
+function assertUnderDailyOrderCap(raw: unknown): void {
   const count = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
   if (count >= MAX_ORDERS_PER_UID_PER_UTC_DAY) {
     throw new HttpsError(
@@ -161,6 +166,11 @@ function nextDailyOrderCount(raw: unknown): number {
       'You have placed too many orders today. Try again tomorrow.',
     );
   }
+}
+
+function nextDailyOrderCount(raw: unknown): number {
+  assertUnderDailyOrderCap(raw);
+  const count = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
   return count + 1;
 }
 
