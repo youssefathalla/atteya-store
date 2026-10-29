@@ -25,6 +25,7 @@ import type { OrderLineAdminRow, OrderStatusFilter } from './models/order-admin.
 import { OrdersAdminService } from './services/orders-admin.service';
 import { orderActionError } from './utils/order-action-error';
 import { toOrderLineAdminRows } from './utils/order-admin.utils';
+import { orderListError } from './utils/order-list-error';
 
 const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: string }[] = [
   { id: 'pending', label: 'Open' },
@@ -104,10 +105,20 @@ export class OrdersManagerPageComponent implements OnInit {
       if (!isPlatformBrowser(this.#platformId)) {
         return { orders: [], productsById: new Map() };
       }
-      const orders = await this.#ordersAdmin.listOrders(params.status);
-      const productsById = await this.#ordersAdmin.loadProductStock(orders);
-      return { orders, productsById };
+      try {
+        const orders = await this.#ordersAdmin.listOrders(params.status);
+        const productsById = await this.#ordersAdmin.loadProductStock(orders);
+        return { orders, productsById };
+      } catch (error: unknown) {
+        console.error('[admin/orders] load failed', error);
+        throw error;
+      }
     },
+  });
+
+  readonly loadErrorMessage = computed((): string | null => {
+    const error = this.dataResource.error();
+    return error == null ? null : orderListError(error);
   });
 
   readonly rows = computed((): OrderLineAdminRow[] => {

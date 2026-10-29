@@ -33,8 +33,8 @@
         <app-skeleton class="h-12 w-full" />
         <app-skeleton class="h-12 w-full" />
       </div>
-    } @else if (dataResource.error()) {
-      <p class="font-body-md" role="alert">We couldn't load orders. Try again in a moment.</p>
+    } @else if (loadErrorMessage(); as message) {
+      <p class="font-body-md break-words" role="alert">{{ message }}</p>
     } @else {
       <app-reusable-table
         [data]="rows()"
