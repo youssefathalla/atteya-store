@@ -1,6 +1,6 @@
-<div class="h-full flex flex-col bg-surface">
+<div class="h-full min-h-0 flex flex-col bg-surface">
   <header
-    class="elements-between px-5 pt-safe-top lg:pt-4 pb-4 border-b border-outline-variant bg-surface-container-lowest"
+    class="shrink-0 elements-between px-5 pt-safe-top lg:pt-4 pb-4 border-b border-outline-variant bg-surface-container-lowest"
   >
     <div class="flex items-center gap-2">
       <mat-icon name="shopping_bag" size="xl" />
@@ -20,7 +20,7 @@
     </button>
   </header>
 
-  <div class="flex-1 overflow-y-auto p-6">
+  <div class="flex-1 min-h-0 overflow-y-auto p-6">
     @if (isEmpty()) {
       <div class="elements-center flex-col text-center h-full">
         <div
@@ -80,7 +80,7 @@
   </div>
 
   <footer
-    class="p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] lg:pb-5 border-t border-outline-variant bg-surface-container-lowest space-y-3"
+    class="shrink-0 p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] lg:pb-5 border-t border-outline-variant bg-surface-container-lowest space-y-3"
   >
     <div class="elements-between font-label-lg opacity-80">
       <span>Subtotal</span>
