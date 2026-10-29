@@ -32,6 +32,23 @@ app-main-layout {
   .mat-drawer-content {
     overflow: visible !important;
   }
+
+  // End cart drawer defaults to position:absolute against a min-h-screen container
+  // that grows with page content. That stretches app-cart-drawer past the viewport
+  // so Subtotal/Checkout sit below the fold in empty flex space. Pin to the viewport.
+  mat-drawer.mat-drawer-end {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  mat-drawer.mat-drawer-end .mat-drawer-inner-container {
+    height: 100%;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
 }
 
 mat-drawer {
