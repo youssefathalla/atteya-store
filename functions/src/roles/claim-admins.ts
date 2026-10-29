@@ -1,5 +1,10 @@
 import { getAuth, type UserRecord } from 'firebase-admin/auth';
-import { FieldValue, getFirestore, type WriteResult } from 'firebase-admin/firestore';
+import {
+  FieldValue,
+  getFirestore,
+  type DocumentData,
+  type WriteResult,
+} from 'firebase-admin/firestore';
 import type { Role } from '../auth/require-role.js';
 import { revokeTimeMs } from '../auth/session-revocation.js';
 
@@ -20,6 +25,10 @@ export function readRole(claims: UserRecord['customClaims']): Role {
 /**
  * Auth custom claims are the source of truth. Mirror documents may be missing
  * for an admin that was granted outside this repo.
+ *
+ * Prefer {@link listAdminsViaMirrors} for the Settings list: a full
+ * `listUsers` scan grows with every shopper account and routinely takes
+ * seconds. Keep this scan for last-admin checks and bootstrap healing.
  */
 export async function listClaimAdmins(): Promise<readonly ClaimAdmin[]> {
   const auth = getAuth();
@@ -40,6 +49,85 @@ export async function listClaimAdmins(): Promise<readonly ClaimAdmin[]> {
   }
 
   return admins;
+}
+
+export interface ListedAdmin {
+  readonly uid: string;
+  readonly email: string;
+  readonly updatedAt: string | null;
+  readonly updatedBy: string | null;
+}
+
+const GET_USERS_CHUNK = 100;
+
+function listedAdminFromMirror(
+  uid: string,
+  email: string,
+  data: DocumentData | undefined,
+): ListedAdmin {
+  const mirrorIsAdmin = data?.['role'] === 'admin';
+  const updatedBy = data?.['updatedBy'];
+  return {
+    uid,
+    email,
+    updatedAt: mirrorIsAdmin ? timestampToIso(data?.['updatedAt']) : null,
+    updatedBy: mirrorIsAdmin && typeof updatedBy === 'string' ? updatedBy : null,
+  };
+}
+
+/**
+ * Fast path for the Current admins table: read `roles` where role is admin
+ * (O(admins)), then verify each uid still has the admin claim via getUsers.
+ * Falls back to a full Auth scan only when the mirror index is empty or every
+ * mirror is stale, and heals mirrors so the next open stays fast.
+ *
+ * Console-only claim grants that never wrote `roles/{uid}` stay invisible while
+ * at least one mirrored admin still verifies — run set-admin (or Grant again)
+ * so the mirror exists. setUserRole already reconciles mirrors on every change.
+ */
+export async function listAdminsViaMirrors(): Promise<readonly ListedAdmin[]> {
+  const db = getFirestore();
+  const auth = getAuth();
+  const mirrorSnap = await db.collection('roles').where('role', '==', 'admin').get();
+
+  if (!mirrorSnap.empty) {
+    const byUid = new Map(mirrorSnap.docs.map((doc) => [doc.id, doc.data()] as const));
+    const uids = [...byUid.keys()];
+    const users: UserRecord[] = [];
+
+    for (let i = 0; i < uids.length; i += GET_USERS_CHUNK) {
+      const chunk = uids.slice(i, i + GET_USERS_CHUNK);
+      const result = await auth.getUsers(chunk.map((uid) => ({ uid })));
+      users.push(...result.users);
+    }
+
+    const admins: ListedAdmin[] = [];
+    for (const user of users) {
+      if (readRole(user.customClaims) !== 'admin') continue;
+      admins.push(
+        listedAdminFromMirror(
+          user.uid,
+          (user.email ?? '').trim().toLowerCase(),
+          byUid.get(user.uid),
+        ),
+      );
+    }
+
+    if (admins.length > 0) {
+      return admins;
+    }
+  }
+
+  const claimAdmins = await listClaimAdmins();
+  await reconcileAdminMirrors(claimAdmins);
+  const snaps =
+    claimAdmins.length > 0
+      ? await db.getAll(...claimAdmins.map((admin) => db.doc(`roles/${admin.uid}`)))
+      : [];
+
+  return claimAdmins.map((admin, index) =>
+    listedAdminFromMirror(admin.uid, admin.email, snaps[index]?.data()),
+  );
 }
 
 /**

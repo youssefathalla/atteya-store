@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { injectFunctionsAsync } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { useBreakpoint } from '@shared/utils/breakpoint.utils';
@@ -29,6 +30,8 @@ export class AdminLayoutComponent {
 
   constructor() {
     inject(AuthService).watchAdminAccess();
+    // Warm the Functions SDK so Settings → Admins does not wait on the chunk.
+    void injectFunctionsAsync()();
   }
 
   readonly adminCategories = this.adminNavService.categories;

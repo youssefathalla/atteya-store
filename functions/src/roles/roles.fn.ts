@@ -4,12 +4,12 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole, type Role } from '../auth/require-role.js';
 import {
+  listAdminsViaMirrors,
   listClaimAdmins,
   readRole,
   reconcileAdminMirrors,
   recordSessionRevocation,
   revertRoleMirror,
-  timestampToIso,
 } from './claim-admins.js';
 import { parseSetUserRoleInput } from './roles.validation.js';
 
@@ -44,25 +44,9 @@ function isLastAdminDemotion(role: Role, before: Role, otherAdminCount: number):
 export const listAdmins = onCall(adminCallableOptions(), async (request): Promise<AdminRecord[]> => {
   await requireRole(request, 'admin');
 
-  const claimAdmins = await listClaimAdmins();
-  const db = getFirestore();
-  const snaps =
-    claimAdmins.length > 0
-      ? await db.getAll(...claimAdmins.map((admin) => db.doc(`roles/${admin.uid}`)))
-      : [];
-
-  const admins = claimAdmins.map((admin, index): AdminRecord => {
-    const data = snaps[index]?.data();
-    const mirrorIsAdmin = data?.['role'] === 'admin';
-    const updatedBy = data?.['updatedBy'];
-    return {
-      uid: admin.uid,
-      email: admin.email,
-      updatedAt: mirrorIsAdmin ? timestampToIso(data?.['updatedAt']) : null,
-      updatedBy: mirrorIsAdmin && typeof updatedBy === 'string' ? updatedBy : null,
-    };
-  });
-
+  // Mirror index + getUsers (O(admins)). Full Auth listUsers only on bootstrap
+  // or when every mirror is stale — see listAdminsViaMirrors.
+  const admins = [...(await listAdminsViaMirrors())];
   admins.sort((left, right) => left.email.localeCompare(right.email));
   return admins;
 });
