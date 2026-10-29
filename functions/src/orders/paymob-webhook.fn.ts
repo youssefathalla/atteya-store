@@ -46,8 +46,12 @@ export const paymobWebhook = onRequest(
       return;
     }
 
-    const success = obj['success'] === true || obj['success'] === 'true';
-    const pending = obj['pending'] === true || obj['pending'] === 'true';
+    const success = readPaymobFlag(obj['success']);
+    const pending = readPaymobFlag(obj['pending']);
+    // HMAC-covered flags — voids/refunds/errors can still report success:true.
+    const isVoided = readPaymobFlag(obj['is_voided']);
+    const isRefunded = readPaymobFlag(obj['is_refunded']);
+    const errorOccurred = readPaymobFlag(obj['error_occured']);
     const transactionId = typeof obj['id'] === 'number' ? obj['id'] : Number(obj['id']);
     const amountCents =
       typeof obj['amount_cents'] === 'number' ? obj['amount_cents'] : Number(obj['amount_cents']);
@@ -66,6 +70,9 @@ export const paymobWebhook = onRequest(
       res.status(200).send('pending');
       return;
     }
+
+    // Only a clean capture may confirm. Void/refund/error callbacks must not fulfil.
+    const isCleanCapture = success && !isVoided && !isRefunded && !errorOccurred;
 
     const db = getFirestore();
     const orderRef = db.collection('orders').doc(orderId);
@@ -148,6 +155,10 @@ export const paymobWebhook = onRequest(
           orderId,
           transactionId,
           success,
+          isVoided,
+          isRefunded,
+          errorOccurred,
+          isCleanCapture,
           amountCents,
           receivedAt: now,
         });
@@ -156,7 +167,7 @@ export const paymobWebhook = onRequest(
           return;
         }
 
-        if (success) {
+        if (isCleanCapture) {
           tx.update(orderRef, {
             status: 'confirmed',
             'paymob.transactionId': transactionId,
@@ -165,7 +176,11 @@ export const paymobWebhook = onRequest(
             confirmedBy: 'paymob-webhook',
             updatedAt: now,
           });
-        } else {
+          return;
+        }
+
+        // Failed capture, void, refund, or gateway error — do not fulfil.
+        if (isVoided || isRefunded || errorOccurred || !success) {
           tx.update(orderRef, {
             status: 'failed',
             'paymob.transactionId': transactionId,
@@ -210,6 +225,10 @@ function resolveMerchantOrderId(obj: Record<string, unknown>): string | null {
   if (fromExtra && fromExtra.length >= 8 && fromExtra.length <= 80) return fromExtra;
 
   return null;
+}
+
+function readPaymobFlag(value: unknown): boolean {
+  return value === true || value === 'true';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
