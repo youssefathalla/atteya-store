@@ -16,7 +16,7 @@ export interface CreateCodOrderResponse {
 
 /**
  * Egypt-only cash on delivery. Creates a pending order for fulfilment;
- * payment is collected at delivery (stock decrement still out of scope).
+ * payment is collected at delivery. Admin `confirmCodOrder` decrements stock.
  */
 export const createCodOrder = onCall(
   adminCallableOptions(),

@@ -23,7 +23,26 @@
               </p>
               <p class="font-label-sm opacity-70">Placed {{ formatPlacedAt(order) }}</p>
             </div>
-            <p class="font-title-sm font-bold!">{{ formatTotal(order) }}</p>
+            <div class="elements-end gap-3 flex-wrap">
+              <p class="font-title-sm font-bold!">{{ formatTotal(order) }}</p>
+              @if (canConfirmCod(order)) {
+                <button
+                  matButton="filled"
+                  type="button"
+                  [disabled]="confirmingOrderId() !== null"
+                  [attr.aria-label]="
+                    confirmingOrderId() === order.id ? 'Confirming order…' : 'Confirm cash on delivery order'
+                  "
+                  (click)="confirmCod(order)"
+                >
+                  @if (confirmingOrderId() === order.id) {
+                    <mat-progress-spinner mode="indeterminate" diameter="18" />
+                  } @else {
+                    <span>Confirm order</span>
+                  }
+                </button>
+              }
+            </div>
           </div>
         </li>
       }
