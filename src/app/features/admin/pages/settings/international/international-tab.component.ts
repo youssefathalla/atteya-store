@@ -1,11 +1,22 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, computed, effect, inject, PLATFORM_ID, resource, signal, untracked } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  OnInit,
+  PLATFORM_ID,
+  resource,
+  signal,
+  untracked,
+} from '@angular/core';
 import { doc, getDoc } from 'firebase/firestore';
 import * as v from 'valibot';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { injectFirestore } from '@core/firebase';
 import { formatCairoDisplay } from '@core/services/offers/engine';
+import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
@@ -28,11 +39,20 @@ const DEFAULT_MARKUP = 40;
   imports: [MatButtonModule, MatProgressSpinnerModule, SharedIconModule, SkeletonComponent],
   templateUrl: './international-tab.component.html',
 })
-export class InternationalTabComponent {
+export class InternationalTabComponent implements OnInit {
   readonly #firestore = injectFirestore();
   readonly #platformId = inject(PLATFORM_ID);
   readonly #admin = inject(InternationalAdminService);
   readonly #snackbar = inject(SnackbarService);
+  readonly #seo = inject(SeoService);
+
+  ngOnInit(): void {
+    this.#seo.setPageMetadata({
+      title: 'Outside Egypt | Atteya Admin',
+      description: 'Prices and currencies for customers outside Egypt.',
+      noindex: true,
+    });
+  }
 
   readonly markup = signal(DEFAULT_MARKUP);
   readonly query = signal('');

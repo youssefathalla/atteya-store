@@ -2,6 +2,7 @@ import {
   Component,
   computed,
   inject,
+  OnInit,
   PLATFORM_ID,
   resource,
   signal,
@@ -12,6 +13,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { email, form, maxLength, required, submit } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { signalCollection } from '@shared/utils/firebase/firestore-signals';
 import { TemplateTypeDirective } from '@shared/directives/template-type/template-type.directive';
@@ -44,11 +46,20 @@ import {
   ],
   templateUrl: './admins-tab.component.html',
 })
-export class AdminsTabComponent {
+export class AdminsTabComponent implements OnInit {
   readonly #roles = inject(AdminRolesService);
   readonly #dialogs = inject(AdminRoleDialogService);
   readonly #snackbar = inject(SnackbarService);
+  readonly #seo = inject(SeoService);
   readonly #platformId = inject(PLATFORM_ID);
+
+  ngOnInit(): void {
+    this.#seo.setPageMetadata({
+      title: 'Admins | Atteya Admin',
+      description: 'Choose who can manage the Atteya store.',
+      noindex: true,
+    });
+  }
 
   readonly #isGranting = signal(false);
   readonly #removingUid = signal<string | null>(null);
