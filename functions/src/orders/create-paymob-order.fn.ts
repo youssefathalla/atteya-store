@@ -1,4 +1,9 @@
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import {
+  FieldValue,
+  getFirestore,
+  type DocumentReference,
+  type Firestore,
+} from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
@@ -47,12 +52,12 @@ export const createPaymobOrder = onCall(
       throw new HttpsError('failed-precondition', 'Your order total is too low to pay online.');
     }
 
-    // Enforce the daily cap before minting a Paymob Intention (gateway quota).
-    // The write transaction re-checks under contention.
     const day = utcDayKey();
     const rateLimitRef = db.collection('orderRateLimits').doc(`${caller.uid}_${day}`);
-    const preLimitSnap = await rateLimitRef.get();
-    assertUnderDailyOrderCap(preLimitSnap.data()?.['count']);
+
+    // Reserve the daily slot in a transaction BEFORE minting a Paymob Intention,
+    // so concurrent callers cannot each create gateway sessions then lose the race.
+    await reserveDailyOrderSlot(db, rateLimitRef, caller.uid, day);
 
     const orderRef = db.collection('orders').doc();
     const orderId = orderRef.id;
@@ -96,6 +101,11 @@ export const createPaymobOrder = onCall(
       });
     } catch (error: unknown) {
       console.error('Paymob Intention error', error);
+      try {
+        await releaseDailyOrderSlot(db, rateLimitRef, caller.uid, day);
+      } catch (releaseError: unknown) {
+        console.error('Failed to release order rate-limit slot after Paymob error', releaseError);
+      }
       throw new HttpsError(
         'unavailable',
         'We could not start online payment. Wait a moment and try again.',
@@ -108,45 +118,45 @@ export const createPaymobOrder = onCall(
       intention.clientSecret,
     );
 
-    await db.runTransaction(async (tx) => {
-      const rateLimitSnap = await tx.get(rateLimitRef);
-      const nextRateCount = nextDailyOrderCount(rateLimitSnap.data()?.['count']);
-      const now = FieldValue.serverTimestamp();
-
-      tx.set(
-        rateLimitRef,
-        {
-          uid: caller.uid,
-          day,
-          count: nextRateCount,
+    try {
+      await db.runTransaction(async (tx) => {
+        const now = FieldValue.serverTimestamp();
+        tx.set(orderRef, {
+          id: orderId,
+          status: 'pending',
+          paymentMethod: 'paymob',
+          customerId: caller.uid,
+          customerEmail: caller.email ?? null,
+          shipping: {
+            ...input.shipping,
+          },
+          pricing: priced.pricing,
+          paymob: {
+            intentionId: intention.id,
+            intentionOrderId: intention.intentionOrderId,
+            amountCents,
+            currency: 'EGP',
+            transactionId: null,
+            paidAt: null,
+          },
+          confirmedAt: null,
+          confirmedBy: null,
+          createdAt: now,
           updatedAt: now,
-        },
-        { merge: true },
-      );
-      tx.set(orderRef, {
-        id: orderId,
-        status: 'pending',
-        paymentMethod: 'paymob',
-        customerId: caller.uid,
-        customerEmail: caller.email ?? null,
-        shipping: {
-          ...input.shipping,
-        },
-        pricing: priced.pricing,
-        paymob: {
-          intentionId: intention.id,
-          intentionOrderId: intention.intentionOrderId,
-          amountCents,
-          currency: 'EGP',
-          transactionId: null,
-          paidAt: null,
-        },
-        confirmedAt: null,
-        confirmedBy: null,
-        createdAt: now,
-        updatedAt: now,
+        });
       });
-    });
+    } catch (error: unknown) {
+      console.error('Paymob order write error after Intention', error);
+      try {
+        await releaseDailyOrderSlot(db, rateLimitRef, caller.uid, day);
+      } catch (releaseError: unknown) {
+        console.error('Failed to release order rate-limit slot after write error', releaseError);
+      }
+      throw new HttpsError(
+        'unavailable',
+        'We could not start online payment. Wait a moment and try again.',
+      );
+    }
 
     return {
       orderId,
@@ -157,6 +167,53 @@ export const createPaymobOrder = onCall(
     };
   },
 );
+
+async function reserveDailyOrderSlot(
+  db: Firestore,
+  rateLimitRef: DocumentReference,
+  uid: string,
+  day: string,
+): Promise<void> {
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(rateLimitRef);
+    const nextRateCount = nextDailyOrderCount(snap.data()?.['count']);
+    tx.set(
+      rateLimitRef,
+      {
+        uid,
+        day,
+        count: nextRateCount,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+}
+
+/** Best-effort undo of a reserved slot when Intention/order write fails. */
+async function releaseDailyOrderSlot(
+  db: Firestore,
+  rateLimitRef: DocumentReference,
+  uid: string,
+  day: string,
+): Promise<void> {
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(rateLimitRef);
+    const raw = snap.data()?.['count'];
+    const count = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
+    const next = Math.max(0, count - 1);
+    tx.set(
+      rateLimitRef,
+      {
+        uid,
+        day,
+        count: next,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+}
 
 function assertUnderDailyOrderCap(raw: unknown): void {
   const count = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
