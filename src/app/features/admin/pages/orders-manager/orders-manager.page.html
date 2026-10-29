@@ -1,51 +1,100 @@
-<section class="container-content space-y-6">
-  <header class="space-y-1">
-    <h1 class="font-headline-sm font-bold!">Open orders</h1>
-    <p class="font-body-md opacity-80">
-      Pending Paymob checkouts and Egypt cash-on-delivery orders waiting to be fulfilled.
-    </p>
-  </header>
+<div class="elements-start-col gap-6 w-full">
+  <section class="surface-card p-5 w-full elements-start-col gap-4" aria-label="Orders toolbar">
+    <div>
+      <h1 class="font-title-lg font-bold!">Orders</h1>
+      <p class="font-body-md text-on-surface-variant">
+        Review Paymob and cash-on-delivery orders. Current stock comes from each product right now,
+        not from the amounts stored when the order was placed.
+      </p>
+    </div>
 
-  @if (pendingResource.isLoading()) {
-    <p class="font-body-md opacity-70">Loading orders…</p>
-  } @else if ((pendingResource.value() ?? []).length === 0) {
-    <p class="font-body-md opacity-80">No open orders right now.</p>
-  } @else {
-    <ul class="space-y-4">
-      @for (order of pendingResource.value() ?? []; track order.id) {
-        <li class="surface-card p-5 space-y-3">
-          <div class="elements-between gap-4 flex-wrap">
-            <div>
-              <p class="font-title-sm font-bold! break-all">{{ order.id }}</p>
-              <p class="font-label-sm opacity-70">
-                {{ order.shipping.fullName }} · {{ order.shipping.country }} ·
-                {{ paymentLabel(order) }}
-              </p>
-              <p class="font-label-sm opacity-70">Placed {{ formatPlacedAt(order) }}</p>
-            </div>
-            <div class="elements-end gap-3 flex-wrap">
-              <p class="font-title-sm font-bold!">{{ formatTotal(order) }}</p>
-              @if (canConfirmCod(order)) {
-                <button
-                  matButton="filled"
-                  type="button"
-                  [disabled]="confirmingOrderId() !== null"
-                  [attr.aria-label]="
-                    confirmingOrderId() === order.id ? 'Confirming order…' : 'Confirm cash on delivery order'
-                  "
-                  (click)="confirmCod(order)"
-                >
-                  @if (confirmingOrderId() === order.id) {
-                    <mat-progress-spinner mode="indeterminate" diameter="18" />
-                  } @else {
-                    <span>Confirm order</span>
-                  }
-                </button>
-              }
-            </div>
-          </div>
-        </li>
+    <div class="flex flex-wrap gap-2" role="tablist" aria-label="Filter orders by status">
+      @for (tab of filterTabs; track tab.id) {
+        <button
+          type="button"
+          role="tab"
+          class="border-shape border px-3 py-1.5 font-label-md cursor-pointer"
+          [class.border-primary]="statusFilter() === tab.id"
+          [class.bg-surface-container-highest]="statusFilter() === tab.id"
+          [class.border-outline-variant]="statusFilter() !== tab.id"
+          [attr.aria-selected]="statusFilter() === tab.id"
+          (click)="statusFilter.set(tab.id)"
+        >
+          {{ tab.label }}
+        </button>
       }
-    </ul>
+    </div>
+  </section>
+
+  <section class="surface-card p-5 w-full" aria-label="Orders list">
+    @if (dataResource.isLoading() && !dataResource.hasValue()) {
+      <div class="elements-start-col gap-3" aria-hidden="true">
+        <app-skeleton class="h-12 w-full" />
+        <app-skeleton class="h-12 w-full" />
+        <app-skeleton class="h-12 w-full" />
+      </div>
+    } @else if (dataResource.error()) {
+      <p class="font-body-md" role="alert">We couldn't load orders. Try again in a moment.</p>
+    } @else {
+      <app-reusable-table
+        [data]="rows()"
+        [columns]="columns()"
+        [showHeaderControls]="false"
+        [isLoading]="dataResource.isLoading()"
+      >
+        <p noDataContent class="font-body-md">
+          No orders in this view yet.
+        </p>
+      </app-reusable-table>
+    }
+  </section>
+</div>
+
+<ng-template #orderCell [templateType]="sampleRow" let-row>
+  <div class="elements-start-col gap-0.5 min-w-40">
+    <span class="font-body-md font-bold! break-all">{{ row.orderId }}</span>
+    <span class="font-body-sm text-on-surface-variant">
+      {{ row.customerName }} · {{ row.country }}
+    </span>
+    <span class="font-label-sm text-on-surface-variant">
+      {{ row.paymentLabel }} · {{ row.placedAtLabel }}
+    </span>
+  </div>
+</ng-template>
+
+<ng-template #statusCell [templateType]="sampleRow" let-row>
+  <app-status-badge [value]="row.status" [statusConfig]="orderStatusConfig" />
+</ng-template>
+
+<ng-template #productCell [templateType]="sampleRow" let-row>
+  <a matButton="text" [routerLink]="['/admin/products', row.productId]">
+    <span class="font-body-md">{{ row.productName }}</span>
+  </a>
+</ng-template>
+
+<ng-template #stockCell [templateType]="sampleRow" let-row>
+  <div class="elements-start-col gap-1">
+    <span class="font-body-md font-bold!">{{ stockCountLabel(row) }}</span>
+    <app-status-badge [value]="row.stockStatus" [statusConfig]="stockStatusConfig" />
+  </div>
+</ng-template>
+
+<ng-template #actionsCell [templateType]="sampleRow" let-row>
+  @if (showConfirmCod(row)) {
+    <button
+      matButton="filled"
+      type="button"
+      [disabled]="confirmingOrderId() !== null"
+      [attr.aria-label]="
+        confirmingOrderId() === row.orderId ? 'Confirming order…' : 'Confirm cash on delivery order'
+      "
+      (click)="confirmCod(row)"
+    >
+      @if (confirmingOrderId() === row.orderId) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" />
+      } @else {
+        <span>Confirm order</span>
+      }
+    </button>
   }
-</section>
+</ng-template>
