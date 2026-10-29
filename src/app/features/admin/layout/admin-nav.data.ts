@@ -105,7 +105,8 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         label: 'Orders',
         path: '/admin/orders',
         icon: 'receipt_long',
-        description: 'Track Paymob and cash-on-delivery orders',
+        badge: 'Live',
+        description: 'Track orders and check live product stock on each line',
       },
       {
         id: 'customers',
