@@ -12,7 +12,8 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '@core/services/auth/auth.service';
-import { displayPrice, type PricedProduct } from '@core/services/offers/engine';
+import { displayPrice } from '@core/services/offers/engine';
+import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import { NavService } from '@core/services/navigation';
 import { CatalogService } from '@core/services/products/catalog.service';
@@ -162,20 +163,8 @@ export class CategoryComponent {
     const map = new Map<string, CatalogCardPrice>();
     for (const product of products) {
       if (liveMode) {
-        const priced: PricedProduct = {
-          productId: product.id,
-          name: product.name,
-          brandId: product.brandId,
-          categoryIds: product.categoryIds,
-          type: product.type,
-          modelGroup: product.modelGroup,
-          colors: product.colors,
-          sizes: sizeIds(product),
-          tags: product.tags,
-          price: product.price,
-          compareAtPrice: product.compareAtPrice,
-        };
-        const d = displayPrice(priced, offers, ctx);
+        // Same size labels as PDP (`toPricedProduct`); never feed option ids into displayPrice.
+        const d = displayPrice(toPricedProduct(product), offers, ctx);
         map.set(product.id, {
           price: d.partial ? product.price : d.fromPrice,
           fromPrice: d.partial ? d.fromPrice : null,
@@ -256,11 +245,4 @@ export class CategoryComponent {
     }
     return 'No products in this category yet. Try another category or search.';
   });
-}
-
-function sizeIds(product: {
-  readonly options: readonly { readonly key: string; readonly values: readonly { readonly id: string }[] }[];
-}): readonly string[] {
-  const size = product.options.find((option) => option.key === 'size');
-  return size ? size.values.map((value) => value.id) : [];
 }
