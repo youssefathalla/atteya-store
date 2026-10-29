@@ -10,33 +10,44 @@ import {
   untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { doc, getDoc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import { deleteField, doc, getDoc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
 import { SeoService } from '@core/services/seo';
 import {
   formatCairoDateTimeInput,
   parseCairoDateTimeInput,
+  type ShippingBoxId,
 } from '@core/services/offers/engine';
-import { ShippingSettingsSchema } from '@core/services/shipping/shipping-settings.schema';
+import {
+  DEFAULT_EGYPT_BOXES,
+  DEFAULT_INTERNATIONAL_BOXES,
+  ShippingSettingsSchema,
+  type ShippingBoxDoc,
+} from '@core/services/shipping/shipping-settings.schema';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 
-interface ZoneDraft {
-  id: string;
+type RegionTab = 'egypt' | 'international';
+
+interface BoxDraft {
+  id: ShippingBoxId;
   name: string;
-  fee: number;
-  governorates: string[];
+  maxWeightGrams: number;
+  maxLengthCm: number;
+  maxWidthCm: number;
+  maxHeightCm: number;
+  feeEgp: number;
 }
 
 interface ShippingDraft {
-  baseFee: number;
-  internationalShippingFeeEgp: number;
-  zones: ZoneDraft[];
+  egyptBoxes: BoxDraft[];
+  internationalBoxes: BoxDraft[];
   freeOverActive: boolean;
   freeOverThreshold: number | null;
   promoActive: boolean;
@@ -48,10 +59,13 @@ interface ShippingDraft {
   note: string;
 }
 
+function cloneBoxes(boxes: readonly ShippingBoxDoc[]): BoxDraft[] {
+  return boxes.map((box) => ({ ...box }));
+}
+
 const EMPTY_DRAFT: ShippingDraft = {
-  baseFee: 125,
-  internationalShippingFeeEgp: 750,
-  zones: [],
+  egyptBoxes: cloneBoxes(DEFAULT_EGYPT_BOXES),
+  internationalBoxes: cloneBoxes(DEFAULT_INTERNATIONAL_BOXES),
   freeOverActive: false,
   freeOverThreshold: null,
   promoActive: false,
@@ -81,6 +95,7 @@ function toDate(raw: unknown): Date | null {
   host: { class: 'block w-full' },
   imports: [
     MatButtonModule,
+    MatButtonToggleModule,
     MatCheckboxModule,
     MatProgressSpinnerModule,
     SharedIconModule,
@@ -98,11 +113,12 @@ export class ShippingTabComponent implements OnInit {
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Shipping | Atteya Admin',
-      description: 'Delivery fees, free shipping, and promotions for Egypt.',
+      description: 'Delivery boxes, free shipping, and promotions.',
       noindex: true,
     });
   }
 
+  readonly region = signal<RegionTab>('egypt');
   readonly draft = signal<ShippingDraft>(EMPTY_DRAFT);
   readonly isSaving = signal(false);
   readonly formatInput = formatCairoDateTimeInput;
@@ -124,9 +140,12 @@ export class ShippingTabComponent implements OnInit {
       if (!data) return;
       untracked(() =>
         this.draft.set({
-          baseFee: data.baseFee,
-          internationalShippingFeeEgp: data.internationalShippingFeeEgp ?? 750,
-          zones: data.zones.map((zone) => ({ ...zone, governorates: [...zone.governorates] })),
+          egyptBoxes: cloneBoxes(data.egyptBoxes?.length === 3 ? data.egyptBoxes : DEFAULT_EGYPT_BOXES),
+          internationalBoxes: cloneBoxes(
+            data.internationalBoxes?.length === 3
+              ? data.internationalBoxes
+              : DEFAULT_INTERNATIONAL_BOXES,
+          ),
           freeOverActive: data.freeOver.active,
           freeOverThreshold: data.freeOver.threshold,
           promoActive: data.promo.active,
@@ -139,6 +158,15 @@ export class ShippingTabComponent implements OnInit {
         }),
       );
     });
+  }
+
+  activeBoxes(): BoxDraft[] {
+    const d = this.draft();
+    return this.region() === 'egypt' ? d.egyptBoxes : d.internationalBoxes;
+  }
+
+  setRegion(value: RegionTab): void {
+    this.region.set(value);
   }
 
   numberFrom(event: Event): number | null {
@@ -154,11 +182,11 @@ export class ShippingTabComponent implements OnInit {
     this.draft.update((prev) => ({ ...prev, ...change }));
   }
 
-  setZoneFee(index: number, event: Event): void {
-    const fee = this.numberFrom(event) ?? 0;
+  patchBox(index: number, change: Partial<BoxDraft>): void {
+    const key = this.region() === 'egypt' ? 'egyptBoxes' : 'internationalBoxes';
     this.draft.update((prev) => ({
       ...prev,
-      zones: prev.zones.map((zone, i) => (i === index ? { ...zone, fee } : zone)),
+      [key]: prev[key].map((box, i) => (i === index ? { ...box, ...change } : box)),
     }));
   }
 
@@ -169,12 +197,25 @@ export class ShippingTabComponent implements OnInit {
   async save(): Promise<void> {
     if (this.isSaving()) return;
     const d = this.draft();
-    if (d.baseFee > 2000 || d.zones.some((zone) => zone.fee > 2000)) {
-      this.#snackbar.error('Shipping fees can be up to EGP 2,000.');
+    const allBoxes = [...d.egyptBoxes, ...d.internationalBoxes];
+    if (allBoxes.some((box) => box.feeEgp > 1_000_000)) {
+      this.#snackbar.error('A shipping fee is too high.');
       return;
     }
-    if (d.internationalShippingFeeEgp > 1_000_000) {
-      this.#snackbar.error('International shipping fee is too high.');
+    if (allBoxes.some((box) => !box.name.trim())) {
+      this.#snackbar.error('Give every box a name.');
+      return;
+    }
+    if (allBoxes.some((box) => box.maxWeightGrams < 1)) {
+      this.#snackbar.error('Each box needs a maximum weight.');
+      return;
+    }
+    if (
+      allBoxes.some(
+        (box) => box.maxLengthCm < 1 || box.maxWidthCm < 1 || box.maxHeightCm < 1,
+      )
+    ) {
+      this.#snackbar.error('Each box needs length, width, and height.');
       return;
     }
     if (d.freeOverActive && !d.freeOverThreshold) {
@@ -192,9 +233,8 @@ export class ShippingTabComponent implements OnInit {
         doc(this.#firestore, 'settings', 'shipping'),
         {
           currency: 'EGP',
-          baseFee: d.baseFee,
-          internationalShippingFeeEgp: d.internationalShippingFeeEgp,
-          zones: d.zones,
+          egyptBoxes: d.egyptBoxes,
+          internationalBoxes: d.internationalBoxes,
           freeOver: {
             active: d.freeOverActive,
             threshold: d.freeOverThreshold,
@@ -208,6 +248,10 @@ export class ShippingTabComponent implements OnInit {
             banner: d.promoBanner.trim() || null,
           },
           note: d.note.trim(),
+          // Drop legacy zone / flat-fee fields on the next admin save.
+          baseFee: deleteField(),
+          zones: deleteField(),
+          internationalShippingFeeEgp: deleteField(),
           updatedAt: serverTimestamp(),
           updatedBy: this.#auth.user()?.uid ?? 'admin',
         },

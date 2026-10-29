@@ -14,6 +14,10 @@ export const OrderShippingSchema = v.object({
   country,
   phone: v.pipe(v.string(), v.trim(), v.minLength(6), v.maxLength(20)),
   governorateId: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(40)), null), null),
+  boxId: v.optional(
+    v.nullable(v.picklist(['box1', 'box2', 'box3']), null),
+    null,
+  ),
 });
 
 export const OrderLinePriceSchema = v.object({
@@ -27,7 +31,8 @@ export const OrderLinePriceSchema = v.object({
 });
 
 export const OrderShippingLineSchema = v.object({
-  kind: v.picklist(['domestic-zone', 'international-box']),
+  /** `domestic-zone` kept for orders placed before the box model. */
+  kind: v.picklist(['domestic-zone', 'domestic-box', 'international-box']),
   boxId: v.nullable(v.string(), null),
   priceEgp: v.pipe(v.number(), v.integer(), v.minValue(0)),
   priceDisplay: v.pipe(v.number(), v.finite(), v.minValue(0)),

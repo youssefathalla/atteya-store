@@ -83,7 +83,7 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         path: '/admin/settings/shipping',
         icon: 'local_shipping',
         badge: 'Live',
-        description: 'Delivery fees, free shipping, and promotions',
+        description: 'Egypt and abroad delivery boxes, free shipping, and promotions',
       },
       {
         id: 'international',

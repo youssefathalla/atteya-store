@@ -3,16 +3,25 @@ import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal } from '@ang
 import { doc } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { CurrencyService } from '@core/services/currency/currency.service';
-import { shippingFromFee, type ShippingSettings } from '@core/services/offers/engine';
+import {
+  shippingFromFee,
+  type ShippingBox,
+  type ShippingSettings,
+} from '@core/services/offers/engine';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { signalDoc } from '@shared/utils/firebase/firestore-signals';
-import { ShippingSettingsSchema, type ShippingSettingsDoc } from './shipping-settings.schema';
+import {
+  DEFAULT_EGYPT_BOXES,
+  DEFAULT_INTERNATIONAL_BOXES,
+  ShippingSettingsSchema,
+  type ShippingSettingsDoc,
+} from './shipping-settings.schema';
 
 export function toEngineShipping(docData: ShippingSettingsDoc): ShippingSettings {
   return {
     currency: 'EGP',
-    baseFee: docData.baseFee,
-    zones: docData.zones,
+    egyptBoxes: normalizeBoxes(docData.egyptBoxes, DEFAULT_EGYPT_BOXES),
+    internationalBoxes: normalizeBoxes(docData.internationalBoxes, DEFAULT_INTERNATIONAL_BOXES),
     freeOver: docData.freeOver,
     promo: {
       active: docData.promo.active,
@@ -24,6 +33,14 @@ export function toEngineShipping(docData: ShippingSettingsDoc): ShippingSettings
     },
     note: docData.note,
   };
+}
+
+function normalizeBoxes(
+  boxes: readonly ShippingBox[] | undefined,
+  fallback: readonly ShippingBox[],
+): readonly ShippingBox[] {
+  if (!boxes || boxes.length !== 3) return fallback.map((box) => ({ ...box }));
+  return boxes.map((box) => ({ ...box }));
 }
 
 function toDate(raw: unknown): Date | null {

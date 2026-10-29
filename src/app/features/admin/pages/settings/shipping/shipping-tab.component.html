@@ -1,8 +1,9 @@
 <section class="surface-card p-5 w-full elements-start-col gap-5" aria-label="Shipping settings">
   <div>
-    <h2 class="font-title-md font-bold!">Shipping fees</h2>
+    <h2 class="font-title-md font-bold!">Shipping boxes</h2>
     <p class="font-body-sm text-on-surface-variant">
-      Fees are in whole Egyptian pounds. Changes show on the store right away.
+      Three parcel sizes for Egypt and three for abroad. Fees are whole Egyptian pounds. Changes show
+      on the store right away.
     </p>
   </div>
 
@@ -10,55 +11,109 @@
     <app-skeleton class="h-40 w-full" />
   } @else {
     @let d = draft();
-    <label class="elements-start-col gap-1 font-label-md">
-      Standard fee (EGP)
-      <input
-        type="number"
-        min="0"
-        max="2000"
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
-        [value]="d.baseFee"
-        (input)="patch({ baseFee: numberFrom($event) ?? 0 })"
-      />
-      <span class="font-body-sm text-on-surface-variant">
-        Used when a governorate isn't in any zone below.
-      </span>
-    </label>
 
-    <label class="elements-start-col gap-1 font-label-md">
-      International shipping (EGP)
-      <input
-        type="number"
-        min="0"
-        max="1000000"
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
-        [value]="d.internationalShippingFeeEgp"
-        (input)="patch({ internationalShippingFeeEgp: numberFrom($event) ?? 0 })"
-      />
-      <span class="font-body-sm text-on-surface-variant">
-        Flat fee for orders shipped outside Egypt (until box rates are ready).
-      </span>
-    </label>
+    <mat-button-toggle-group
+      [value]="region()"
+      (change)="setRegion($event.value)"
+      aria-label="Shipping region"
+    >
+      <mat-button-toggle value="egypt">Egypt</mat-button-toggle>
+      <mat-button-toggle value="international">Abroad</mat-button-toggle>
+    </mat-button-toggle-group>
 
-    @if (d.zones.length > 0) {
-      <div class="w-full elements-start-col gap-2">
-        <h3 class="font-label-md font-bold!">Zone fees</h3>
-        @for (zone of d.zones; track zone.id; let i = $index) {
-          <label class="elements-center flex-wrap gap-3 font-body-md">
-            <span class="w-44">{{ zone.name }}</span>
-            <input
-              type="number"
-              min="0"
-              max="2000"
-              class="border-shape border border-outline bg-surface px-3 py-1.5 w-32"
-              [attr.aria-label]="zone.name + ' fee'"
-              [value]="zone.fee"
-              (input)="setZoneFee(i, $event)"
-            />
-          </label>
+    <div class="w-full elements-start-col gap-4">
+      <p class="font-body-sm text-on-surface-variant">
+        @if (region() === 'egypt') {
+          Rates for orders delivered inside Egypt. Chosen by weight (and box size) at checkout.
+        } @else {
+          Rates for orders shipped outside Egypt. Same box sizes, different prices.
         }
-      </div>
-    }
+      </p>
+
+      @for (box of activeBoxes(); track box.id; let i = $index) {
+        <div
+          class="w-full border border-outline-variant border-shape p-4 elements-start-col gap-3"
+          [attr.aria-label]="box.name"
+        >
+          <div class="elements-between flex-wrap gap-3 w-full">
+            <label class="elements-start-col gap-1 font-label-md grow min-w-40">
+              Box name
+              <input
+                type="text"
+                maxlength="60"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                [value]="box.name"
+                (input)="patchBox(i, { name: textFrom($event) })"
+              />
+            </label>
+            <label class="elements-start-col gap-1 font-label-md">
+              Fee (EGP)
+              <input
+                type="number"
+                min="0"
+                max="1000000"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-32"
+                [attr.aria-label]="box.name + ' fee'"
+                [value]="box.feeEgp"
+                (input)="patchBox(i, { feeEgp: numberFrom($event) ?? 0 })"
+              />
+            </label>
+          </div>
+
+          <div class="elements-end flex-wrap gap-3 w-full">
+            <label class="elements-start-col gap-1 font-label-md">
+              Max weight (grams)
+              <input
+                type="number"
+                min="1"
+                max="100000"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+                [attr.aria-label]="box.name + ' max weight'"
+                [value]="box.maxWeightGrams"
+                (input)="patchBox(i, { maxWeightGrams: numberFrom($event) ?? 1 })"
+              />
+            </label>
+            <label class="elements-start-col gap-1 font-label-md">
+              Length (cm)
+              <input
+                type="number"
+                min="1"
+                max="300"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-24"
+                [attr.aria-label]="box.name + ' length'"
+                [value]="box.maxLengthCm"
+                (input)="patchBox(i, { maxLengthCm: numberFrom($event) ?? 1 })"
+              />
+            </label>
+            <label class="elements-start-col gap-1 font-label-md">
+              Width (cm)
+              <input
+                type="number"
+                min="1"
+                max="300"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-24"
+                [attr.aria-label]="box.name + ' width'"
+                [value]="box.maxWidthCm"
+                (input)="patchBox(i, { maxWidthCm: numberFrom($event) ?? 1 })"
+              />
+            </label>
+            <label class="elements-start-col gap-1 font-label-md">
+              Height (cm)
+              <input
+                type="number"
+                min="1"
+                max="300"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-24"
+                [attr.aria-label]="box.name + ' height'"
+                [value]="box.maxHeightCm"
+                (input)="patchBox(i, { maxHeightCm: numberFrom($event) ?? 1 })"
+              />
+            </label>
+          </div>
+          <p class="font-label-sm text-on-surface-variant">Id: {{ box.id }}</p>
+        </div>
+      }
+    </div>
 
     <div class="w-full border-t border-outline-variant pt-4 elements-start-col gap-3">
       <mat-checkbox

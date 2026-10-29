@@ -2,11 +2,21 @@ import { liveOffers } from './item-price.js';
 import { matchProduct } from './match.js';
 import type { Offer, PricedProduct, PricingContext } from './types.js';
 
-export interface ShippingZone {
-  readonly id: string;
+/** Fixed catalogue of three parcel sizes per region. */
+export type ShippingBoxId = 'box1' | 'box2' | 'box3';
+
+export const SHIPPING_BOX_IDS: readonly ShippingBoxId[] = ['box1', 'box2', 'box3'];
+
+export interface ShippingBox {
+  readonly id: ShippingBoxId;
   readonly name: string;
-  readonly fee: number;
-  readonly governorates: readonly string[];
+  /** Inclusive max packed weight for this box. */
+  readonly maxWeightGrams: number;
+  readonly maxLengthCm: number;
+  readonly maxWidthCm: number;
+  readonly maxHeightCm: number;
+  /** Whole EGP fee for this box. */
+  readonly feeEgp: number;
 }
 
 export interface ShippingPromo {
@@ -20,29 +30,79 @@ export interface ShippingPromo {
 
 export interface ShippingSettings {
   readonly currency: 'EGP';
-  readonly baseFee: number;
-  readonly zones: readonly ShippingZone[];
+  readonly egyptBoxes: readonly ShippingBox[];
+  readonly internationalBoxes: readonly ShippingBox[];
   readonly freeOver: { readonly active: boolean; readonly threshold: number | null };
   readonly promo: ShippingPromo;
   readonly note: string;
 }
 
-export type ShippingReason = 'zone' | 'base' | 'promo' | 'freeOver' | 'offer';
+export type ShippingRegion = 'egypt' | 'international';
+
+export type ShippingReason = 'box' | 'promo' | 'freeOver' | 'offer';
 
 export interface ShippingQuote {
   readonly fee: number;
-  readonly baseFee: number;
+  readonly boxId: ShippingBoxId;
+  readonly box: ShippingBox;
   readonly reason: ShippingReason;
   readonly offerId?: string;
 }
 
 export interface ShippingQuoteInput {
-  readonly governorateId: string | null;
+  readonly region: ShippingRegion;
+  /** When null/undefined, auto-pick the smallest fitting box. */
+  readonly boxId?: ShippingBoxId | null;
+  readonly totalWeightGrams: number;
   readonly goodsSubtotal: number;
   readonly lines?: readonly PricedProduct[];
 }
 
-const TIE_ORDER: readonly ShippingReason[] = ['promo', 'freeOver', 'offer', 'zone', 'base'];
+export type SelectShippingBoxResult =
+  | { readonly ok: true; readonly box: ShippingBox; readonly auto: boolean }
+  | {
+      readonly ok: false;
+      readonly code: 'too-heavy' | 'unknown-box' | 'box-too-small' | 'no-boxes';
+    };
+
+const TIE_ORDER: readonly ShippingReason[] = ['promo', 'freeOver', 'offer', 'box'];
+
+export function boxesForRegion(
+  settings: ShippingSettings,
+  region: ShippingRegion,
+): readonly ShippingBox[] {
+  return region === 'egypt' ? settings.egyptBoxes : settings.internationalBoxes;
+}
+
+/** Sort ascending by capacity so the first fit is the smallest box. */
+export function sortedBoxes(boxes: readonly ShippingBox[]): ShippingBox[] {
+  return [...boxes].sort((a, b) => a.maxWeightGrams - b.maxWeightGrams || a.feeEgp - b.feeEgp);
+}
+
+/**
+ * Pick a box by packed weight. Dimensions are capacity metadata for admin /
+ * future product packing — fit today is weight-only (products lack dims).
+ */
+export function selectShippingBox(
+  boxes: readonly ShippingBox[],
+  totalWeightGrams: number,
+  preferredBoxId?: ShippingBoxId | null,
+): SelectShippingBoxResult {
+  if (boxes.length === 0) return { ok: false, code: 'no-boxes' };
+  const ordered = sortedBoxes(boxes);
+  const weight = Math.max(0, Math.round(totalWeightGrams));
+
+  if (preferredBoxId) {
+    const chosen = ordered.find((box) => box.id === preferredBoxId);
+    if (!chosen) return { ok: false, code: 'unknown-box' };
+    if (weight > chosen.maxWeightGrams) return { ok: false, code: 'box-too-small' };
+    return { ok: true, box: chosen, auto: false };
+  }
+
+  const fit = ordered.find((box) => weight <= box.maxWeightGrams);
+  if (!fit) return { ok: false, code: 'too-heavy' };
+  return { ok: true, box: fit, auto: true };
+}
 
 export function shippingQuote(
   settings: ShippingSettings,
@@ -50,12 +110,14 @@ export function shippingQuote(
   offers: readonly Offer[],
   ctx: PricingContext,
 ): ShippingQuote {
-  const zone = input.governorateId
-    ? settings.zones.find((z) => z.governorates.includes(input.governorateId as string))
-    : undefined;
-  const startFee = zone ? zone.fee : settings.baseFee;
+  const boxes = boxesForRegion(settings, input.region);
+  const selected = selectShippingBox(boxes, input.totalWeightGrams, input.boxId);
+  if (!selected.ok) {
+    throw new Error(`shippingQuote: cannot select box (${selected.code})`);
+  }
+
   const candidates: { fee: number; reason: ShippingReason; offerId?: string }[] = [
-    { fee: startFee, reason: zone ? 'zone' : 'base' },
+    { fee: selected.box.feeEgp, reason: 'box' },
   ];
 
   const nowMs = ctx.now.getTime();
@@ -96,12 +158,16 @@ export function shippingQuote(
 
   return {
     fee: lowest,
-    baseFee: settings.baseFee,
+    boxId: selected.box.id,
+    box: selected.box,
     reason: winner.reason,
     ...(winner.offerId ? { offerId: winner.offerId } : {}),
   };
 }
 
+/** Lowest Egypt box fee for storefront “from” copy. */
 export function shippingFromFee(settings: ShippingSettings): number {
-  return Math.min(settings.baseFee, ...settings.zones.map((zone) => zone.fee));
+  const fees = settings.egyptBoxes.map((box) => box.feeEgp);
+  if (fees.length === 0) return 0;
+  return Math.min(...fees);
 }

@@ -2,7 +2,9 @@ import type { DocumentData, Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { getActiveOffers } from '../offers/offer-cache.js';
 import {
+  boxesForRegion,
   priceItem,
+  selectShippingBox,
   shippingQuote,
   type Offer,
   type PricedProduct,
@@ -34,7 +36,8 @@ export interface OrderLinePrice {
 }
 
 export interface OrderShippingLine {
-  readonly kind: 'domestic-zone' | 'international-box';
+  /** `domestic-zone` is legacy; new Egypt orders use `domestic-box`. */
+  readonly kind: 'domestic-zone' | 'domestic-box' | 'international-box';
   readonly boxId: string | null;
   readonly priceEgp: number;
   readonly priceDisplay: number;
@@ -79,42 +82,60 @@ export async function priceStoreOrder(
   const pricedLines: OrderLinePrice[] = [];
   const cartProducts: PricedProduct[] = [];
   let subtotalEgp = 0;
+  let totalWeightGrams = 0;
+  let largestBoxMaxWeight = 0;
+
+  const isInternational = input.shipping.country !== 'EG';
+  const region = isInternational ? 'international' : 'egypt';
+  const regionBoxes = boxesForRegion(shippingConfig.settings, region);
+  largestBoxMaxWeight = Math.max(0, ...regionBoxes.map((box) => box.maxWeightGrams));
 
   for (const line of input.lines) {
-    const { priced, product } = await priceLine(db, line, offers, ctx);
+    const { priced, product, weightGrams } = await priceLine(db, line, offers, ctx);
     pricedLines.push(priced);
     cartProducts.push(product);
     subtotalEgp += priced.unitEgp * line.quantity;
+    // Missing product weight → treat as needing the largest box capacity per unit.
+    const unitWeight =
+      typeof weightGrams === 'number' && weightGrams > 0
+        ? weightGrams
+        : largestBoxMaxWeight;
+    totalWeightGrams += unitWeight * line.quantity;
   }
 
-  const isInternational = input.shipping.country !== 'EG';
-  let shippingLine: OrderShippingLine;
-  if (isInternational) {
-    const fee = shippingConfig.internationalShippingFeeEgp;
-    shippingLine = {
-      kind: 'international-box',
-      boxId: null,
-      priceEgp: fee,
-      priceDisplay: fee,
-    };
-  } else {
-    const quote = shippingQuote(
+  const preferredBoxId = input.shipping.boxId;
+  const selection = selectShippingBox(regionBoxes, totalWeightGrams, preferredBoxId);
+  if (!selection.ok) {
+    throw boxSelectionError(selection.code);
+  }
+
+  let quote;
+  try {
+    quote = shippingQuote(
       shippingConfig.settings,
       {
-        governorateId: input.shipping.governorateId,
+        region,
+        boxId: selection.box.id,
+        totalWeightGrams,
         goodsSubtotal: subtotalEgp,
         lines: cartProducts,
       },
       offers,
       ctx,
     );
-    shippingLine = {
-      kind: 'domestic-zone',
-      boxId: null,
-      priceEgp: quote.fee,
-      priceDisplay: quote.fee,
-    };
+  } catch {
+    throw new HttpsError(
+      'failed-precondition',
+      'We could not work out delivery for this bag. Please try again or contact us.',
+    );
   }
+
+  const shippingLine: OrderShippingLine = {
+    kind: isInternational ? 'international-box' : 'domestic-box',
+    boxId: quote.boxId,
+    priceEgp: quote.fee,
+    priceDisplay: quote.fee,
+  };
 
   const totalEgp = subtotalEgp + shippingLine.priceEgp;
   const fulfilment = resolveFulfilment(input.paymentMethod, isInternational);
@@ -146,12 +167,36 @@ function resolveFulfilment(
   return isInternational ? 'international-paymob' : 'domestic-paymob';
 }
 
+function boxSelectionError(
+  code: 'too-heavy' | 'unknown-box' | 'box-too-small' | 'no-boxes',
+): HttpsError {
+  switch (code) {
+    case 'too-heavy':
+      return new HttpsError(
+        'failed-precondition',
+        'This order is too heavy for our delivery boxes. Remove an item or contact us.',
+      );
+    case 'box-too-small':
+      return new HttpsError(
+        'failed-precondition',
+        'That delivery box is too small for your bag. Choose a larger box.',
+      );
+    case 'unknown-box':
+      return new HttpsError('invalid-argument', 'Choose a delivery box to continue.');
+    default:
+      return new HttpsError(
+        'failed-precondition',
+        'Delivery boxes are not set up yet. Please try again later.',
+      );
+  }
+}
+
 async function priceLine(
   db: Firestore,
   line: OrderLineInput,
   offers: readonly Offer[],
   ctx: PricingContext,
-): Promise<{ priced: OrderLinePrice; product: PricedProduct }> {
+): Promise<{ priced: OrderLinePrice; product: PricedProduct; weightGrams: number | null }> {
   const snap = await db.collection('products').doc(line.productId).get();
   if (!snap.exists) {
     throw new HttpsError('not-found', 'One item in your bag is no longer available.');
@@ -166,8 +211,10 @@ async function priceLine(
   const variant = resolveVariantFacts(data, line);
   const unit = priceItem(product, variant, offers, ctx);
   const unitEgp = unit.effectivePrice;
+  const weightGrams = readWeightGrams(data['weightGrams']);
   return {
     product,
+    weightGrams,
     priced: {
       productId: line.productId,
       variantId: variant?.id ?? null,
@@ -178,6 +225,13 @@ async function priceLine(
       lineDisplay: unitEgp * line.quantity,
     },
   };
+}
+
+function readWeightGrams(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  const rounded = Math.round(raw);
+  if (rounded < 1 || rounded > 100_000) return null;
+  return rounded;
 }
 
 function assertRequiredSelections(data: DocumentData, line: OrderLineInput): void {

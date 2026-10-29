@@ -34,7 +34,8 @@ export interface OrderLinePrice {
 }
 
 export interface OrderShippingLine {
-  readonly kind: 'domestic-zone' | 'international-box';
+  /** `domestic-zone` is legacy (pre box model); new orders use `domestic-box`. */
+  readonly kind: 'domestic-zone' | 'domestic-box' | 'international-box';
   readonly boxId: string | null;
   readonly priceEgp: number;
   readonly priceDisplay: number;

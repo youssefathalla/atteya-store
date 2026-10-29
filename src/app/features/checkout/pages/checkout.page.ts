@@ -22,7 +22,13 @@ import { doc, getDoc } from 'firebase/firestore';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
-import { EGYPT_GOVERNORATES } from '@core/services/offers/engine';
+import {
+  EGYPT_GOVERNORATES,
+  selectShippingBox,
+  sortedBoxes,
+  type ShippingBox,
+  type ShippingBoxId,
+} from '@core/services/offers/engine';
 import {
   CheckoutOrderService,
   type CheckoutPaymentMethod,
@@ -30,6 +36,7 @@ import {
 } from '@core/services/orders/checkout-order.service';
 import { ProductSchema } from '@core/services/products/product.schema';
 import { SeoService } from '@core/services/seo';
+import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import {
@@ -39,6 +46,11 @@ import {
   matchCheckoutCountry,
   matchCheckoutCountryExact,
 } from '../utils/checkout-countries';
+
+interface CheckoutProductInfo {
+  readonly name: string;
+  readonly weightGrams: number | null;
+}
 
 @Component({
   selector: 'app-checkout-page',
@@ -62,6 +74,7 @@ export class CheckoutPageComponent implements OnInit {
   readonly #firestore = injectFirestore();
   readonly #router = inject(Router);
   readonly #seo = inject(SeoService);
+  readonly #shippingSettings = inject(ShippingSettingsService);
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
 
@@ -73,6 +86,8 @@ export class CheckoutPageComponent implements OnInit {
   /** Typed filter text shown in the country autocomplete input. */
   readonly countryQuery = signal('');
   readonly displayCountryLabel = (code: string): string => (code ? countryLabel(code) : '');
+  /** Shopper override; null means follow the auto-selected box. */
+  readonly selectedBoxId = signal<ShippingBoxId | null>(null);
 
   readonly shipping = signal<CheckoutShippingInput>({
     fullName: '',
@@ -84,6 +99,7 @@ export class CheckoutPageComponent implements OnInit {
     country: '',
     phone: '',
     governorateId: null,
+    boxId: null,
   });
 
   readonly filteredCountries = computed(() => filterCheckoutCountries(this.countryQuery()));
@@ -97,10 +113,10 @@ export class CheckoutPageComponent implements OnInit {
     params: () => this.lines(),
     loader: async ({ params: lines }) => {
       if (!isPlatformBrowser(this.#platformId) || lines.length === 0) {
-        return new Map<string, string>();
+        return new Map<string, CheckoutProductInfo>();
       }
       const converter = createValibotConverter(ProductSchema);
-      const names = new Map<string, string>();
+      const products = new Map<string, CheckoutProductInfo>();
       const seen = new Set<string>();
       for (const line of lines) {
         if (seen.has(line.productId)) continue;
@@ -108,10 +124,70 @@ export class CheckoutPageComponent implements OnInit {
         const snap = await getDoc(
           doc(this.#firestore, 'products', line.productId).withConverter(converter),
         );
-        if (snap.exists()) names.set(line.productId, snap.data().name);
+        if (snap.exists()) {
+          const data = snap.data();
+          products.set(line.productId, {
+            name: data.name,
+            weightGrams: typeof data.weightGrams === 'number' ? data.weightGrams : null,
+          });
+        }
       }
-      return names;
+      return products;
     },
+  });
+
+  readonly regionBoxes = computed((): readonly ShippingBox[] => {
+    const settings = this.#shippingSettings.settings();
+    if (!settings) return [];
+    return this.isEgypt() ? settings.egyptBoxes : settings.internationalBoxes;
+  });
+
+  readonly totalWeightGrams = computed(() => {
+    const products = this.productsResource.value();
+    const boxes = this.regionBoxes();
+    const largest = boxes.reduce((max, box) => Math.max(max, box.maxWeightGrams), 0);
+    let total = 0;
+    for (const line of this.lines()) {
+      const info = products?.get(line.productId);
+      const unit =
+        info && typeof info.weightGrams === 'number' && info.weightGrams > 0
+          ? info.weightGrams
+          : largest;
+      total += unit * line.quantity;
+    }
+    return total;
+  });
+
+  readonly weightIncomplete = computed(() => {
+    const products = this.productsResource.value();
+    if (!products) return false;
+    return this.lines().some((line) => {
+      const info = products.get(line.productId);
+      return !info || info.weightGrams === null;
+    });
+  });
+
+  readonly recommendedBox = computed((): ShippingBox | null => {
+    const boxes = this.regionBoxes();
+    if (boxes.length === 0) return null;
+    const result = selectShippingBox(boxes, this.totalWeightGrams(), null);
+    return result.ok ? result.box : null;
+  });
+
+  readonly selectableBoxes = computed((): readonly ShippingBox[] => {
+    return sortedBoxes(this.regionBoxes());
+  });
+
+  readonly activeBoxId = computed((): ShippingBoxId | null => {
+    const selected = this.selectedBoxId();
+    if (selected) return selected;
+    return this.recommendedBox()?.id ?? null;
+  });
+
+  readonly boxTooHeavy = computed(() => {
+    const boxes = this.regionBoxes();
+    if (boxes.length === 0) return false;
+    return !selectShippingBox(boxes, this.totalWeightGrams(), null).ok;
   });
 
   constructor() {
@@ -131,6 +207,18 @@ export class CheckoutPageComponent implements OnInit {
         this.countryQuery.set(countryLabel(geo));
       });
     });
+
+    // When region or bag weight changes, keep selection on a fitting box.
+    effect(() => {
+      const boxes = this.regionBoxes();
+      const weight = this.totalWeightGrams();
+      const selected = this.selectedBoxId();
+      untracked(() => {
+        if (!selected) return;
+        const stillFits = selectShippingBox(boxes, weight, selected);
+        if (!stillFits.ok) this.selectedBoxId.set(null);
+      });
+    });
   }
 
   ngOnInit(): void {
@@ -148,6 +236,7 @@ export class CheckoutPageComponent implements OnInit {
     this.shipping.update((current) => {
       const next = { ...current, [key]: value };
       if (key === 'country') {
+        this.selectedBoxId.set(null);
         if (value !== 'EG') {
           next.governorateId = null;
           if (this.paymentMethod() === 'cash-on-delivery') {
@@ -157,6 +246,21 @@ export class CheckoutPageComponent implements OnInit {
       }
       return next;
     });
+  }
+
+  selectBox(boxId: ShippingBoxId): void {
+    const boxes = this.regionBoxes();
+    const weight = this.totalWeightGrams();
+    const result = selectShippingBox(boxes, weight, boxId);
+    if (!result.ok) {
+      this.#snackbar.error('That box is too small for your bag. Choose a larger one.');
+      return;
+    }
+    this.selectedBoxId.set(boxId);
+  }
+
+  boxFits(box: ShippingBox): boolean {
+    return this.totalWeightGrams() <= box.maxWeightGrams;
   }
 
   onCountryQueryInput(event: Event): void {
@@ -215,7 +319,7 @@ export class CheckoutPageComponent implements OnInit {
   }
 
   productName(productId: string): string {
-    return this.productsResource.value()?.get(productId) ?? 'Item';
+    return this.productsResource.value()?.get(productId)?.name ?? 'Item';
   }
 
   async placeOrder(): Promise<void> {
@@ -234,7 +338,18 @@ export class CheckoutPageComponent implements OnInit {
       return;
     }
     if (draft.country === 'EG' && !draft.governorateId) {
-      this.#snackbar.error('Choose your governorate so we can work out delivery.');
+      this.#snackbar.error('Choose your governorate so we can deliver your order.');
+      return;
+    }
+    if (this.boxTooHeavy()) {
+      this.#snackbar.error(
+        'This order is too heavy for our delivery boxes. Remove an item or contact us.',
+      );
+      return;
+    }
+    const boxId = this.activeBoxId();
+    if (!boxId) {
+      this.#snackbar.error('Choose a delivery box to continue.');
       return;
     }
     const method = this.paymentMethod();
@@ -256,6 +371,7 @@ export class CheckoutPageComponent implements OnInit {
         country: draft.country,
         phone: draft.phone.trim(),
         governorateId: draft.governorateId,
+        boxId,
       };
 
       if (method === 'paymob') {
