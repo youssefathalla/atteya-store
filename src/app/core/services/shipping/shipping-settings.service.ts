@@ -91,10 +91,7 @@ export class ShippingSettingsService {
     const settings = this.settings();
     if (!settings) return '';
     if (this.promoLive() && settings.promo.banner) return settings.promo.banner;
-    if (settings.freeOver.active && settings.freeOver.threshold !== null) {
-      return `Free shipping on orders over EGP ${settings.freeOver.threshold.toLocaleString('en-US')}`;
-    }
-    return '';
+    return this.shippingLine();
   });
 
   readonly shippingLine = computed(() => {

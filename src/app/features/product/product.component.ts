@@ -26,6 +26,7 @@ import { OffersService } from '@core/services/offers/offers.service';
 import { PublicOffersReader } from '@core/services/offers/public-offers.reader';
 import { CatalogService, type Product, toVariantFacts } from '@core/services/products';
 import { SeoService } from '@core/services/seo';
+import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { AddToBagButtonComponent } from './components/add-to-bag-button/add-to-bag-button.component';
 import { ProductGalleryComponent } from './components/product-gallery/product-gallery.component';
@@ -67,6 +68,9 @@ export class ProductComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
   readonly #document = inject(DOCUMENT);
   readonly #platformId = inject(PLATFORM_ID);
+  readonly #shippingSettings = inject(ShippingSettingsService);
+
+  readonly shippingLine = this.#shippingSettings.shippingLine;
 
   /** False until the first browser render so hydration matches server pricing. */
   readonly #hydrated = signal(false);

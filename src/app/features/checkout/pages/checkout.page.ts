@@ -45,6 +45,7 @@ import {
   isCheckoutCountry,
   matchCheckoutCountry,
   matchCheckoutCountryExact,
+  type CheckoutCountryCode,
 } from '../utils/checkout-countries';
 
 interface CheckoutProductInfo {
@@ -83,6 +84,8 @@ export class CheckoutPageComponent implements OnInit {
   readonly paymentMethod = signal<CheckoutPaymentMethod>('paymob');
   /** True once the shopper edits the country field; blocks further geo overwrite. */
   readonly #countryTouched = signal(false);
+  /** Last committed checkout country; blur restores this instead of leaving the field blank. */
+  readonly #lastValidCountry = signal<CheckoutCountryCode>('EG');
   /** Typed filter text shown in the country autocomplete input. */
   readonly countryQuery = signal('');
   readonly displayCountryLabel = (code: string): string => (code ? countryLabel(code) : '');
@@ -243,6 +246,9 @@ export class CheckoutPageComponent implements OnInit {
     this.shipping.update((current) => {
       const next = { ...current, [key]: value };
       if (key === 'country') {
+        if (typeof value === 'string' && isCheckoutCountry(value)) {
+          this.#lastValidCountry.set(value);
+        }
         this.selectedBoxId.set(null);
         if (value !== 'EG') {
           next.governorateId = null;
@@ -302,6 +308,10 @@ export class CheckoutPageComponent implements OnInit {
   #commitCountryFromQuery(): void {
     const selected = this.shipping().country;
     const query = this.countryQuery().trim();
+    if (!query) {
+      this.#restoreLastValidCountry();
+      return;
+    }
     if (selected && isCheckoutCountry(selected) && countryLabel(selected) === query) {
       this.countryQuery.set(countryLabel(selected));
       return;
@@ -320,8 +330,14 @@ export class CheckoutPageComponent implements OnInit {
         return;
       }
     }
-    this.patchShipping('country', '');
-    this.countryQuery.set('');
+    this.#restoreLastValidCountry();
+  }
+
+  #restoreLastValidCountry(): void {
+    const fallback = this.#lastValidCountry();
+    const code = isCheckoutCountry(fallback) ? fallback : 'EG';
+    this.patchShipping('country', code);
+    this.countryQuery.set(countryLabel(code));
   }
 
   setPaymentMethod(method: CheckoutPaymentMethod): void {
