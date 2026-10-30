@@ -129,6 +129,7 @@ export const createPaymobOrder = onCall(
           customerEmail: caller.email ?? null,
           shipping: {
             ...input.shipping,
+            boxId: priced.pricing.shipping?.boxId ?? null,
           },
           pricing: priced.pricing,
           paymob: {

@@ -22,9 +22,6 @@
         }
       </ul>
     }
-    <p class="font-label-sm opacity-70">
-      Your total is calculated in Egyptian pounds when you place the order.
-    </p>
   </section>
 
   <form class="surface-card p-5 space-y-4" (submit)="$event.preventDefault(); placeOrder()">
@@ -141,51 +138,42 @@
       />
     </mat-form-field>
 
-    @if (shipping().country) {
-      <fieldset class="space-y-3 pt-2">
-        <legend class="font-title-md font-bold!">Delivery box</legend>
-        <p class="font-body-sm opacity-70">
-          We pick the smallest box that fits your bag by weight. You can choose a larger box if you
-          prefer.
-        </p>
-        @if (weightIncomplete()) {
-          <p class="font-label-sm opacity-70">
-            Some items have no weight yet, so we use the largest box size as a safe estimate.
-          </p>
-        }
-        @if (boxTooHeavy()) {
-          <p class="font-body-sm text-error">
-            This order is too heavy for our delivery boxes. Remove an item or contact us.
-          </p>
-        } @else if (selectableBoxes().length === 0) {
-          <p class="font-body-sm opacity-70">Delivery boxes are loading…</p>
-        } @else {
-          <mat-radio-group
-            class="elements-start-col gap-3"
-            [value]="activeBoxId()"
-            (change)="selectBox($event.value)"
-            aria-label="Delivery box"
-          >
-            @for (box of selectableBoxes(); track box.id) {
-              <mat-radio-button [value]="box.id" [disabled]="!boxFits(box)">
-                <span class="elements-start-col gap-0.5">
-                  <span class="font-label-md">
-                    {{ box.name }}
-                    @if (recommendedBox()?.id === box.id) {
-                      <span class="opacity-70"> · Suggested</span>
-                    }
-                  </span>
-                  <span class="font-label-sm opacity-70">
-                    Up to {{ box.maxWeightGrams }} g ·
-                    {{ box.maxLengthCm }}×{{ box.maxWidthCm }}×{{ box.maxHeightCm }} cm · EGP
-                    {{ box.feeEgp.toLocaleString('en-US') }}
-                  </span>
-                </span>
-              </mat-radio-button>
-            }
-          </mat-radio-group>
-        }
-      </fieldset>
+    @if (orderSummary(); as summary) {
+      @if (summary.state !== 'need-country') {
+        <section class="space-y-3 pt-2" aria-label="Order total">
+          @if (summary.state === 'ready') {
+            <div class="elements-between gap-4">
+              <span class="font-body-md">Subtotal</span>
+              <span class="font-title-sm font-bold!">{{ summary.subtotal }}</span>
+            </div>
+            <div class="elements-between gap-4">
+              <span class="font-body-md">Shipping</span>
+              <span class="font-title-sm font-bold!">{{ summary.shipping }}</span>
+            </div>
+            <div class="elements-between gap-4">
+              <span class="font-body-md">Total</span>
+              <span class="font-title-sm font-bold!">{{ summary.total }}</span>
+            </div>
+            <p class="font-label-sm opacity-70">
+              Your total is calculated in Egyptian pounds when you place the order.
+            </p>
+          } @else if (summary.state === 'too-heavy') {
+            <p class="font-body-sm text-error" role="alert">
+              This order is too heavy to deliver. Remove an item or contact us.
+            </p>
+          } @else if (summary.state === 'missing-item') {
+            <p class="font-body-sm text-error" role="alert">
+              One item in your bag is no longer available.
+            </p>
+          } @else if (summary.state === 'unavailable') {
+            <p class="font-body-sm text-error" role="alert">
+              We could not work out delivery for this order. Please try again later.
+            </p>
+          } @else {
+            <p class="font-body-sm opacity-70">Working out shipping…</p>
+          }
+        </section>
+      }
     }
 
     <fieldset class="space-y-3 pt-2">

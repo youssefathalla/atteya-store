@@ -104,6 +104,22 @@ export function selectShippingBox(
   return { ok: true, box: fit, auto: true };
 }
 
+/**
+ * Box customers never choose. Smallest box that holds `totalWeightGrams`,
+ * or the largest box when any item has no weight. Never reads a client box id.
+ */
+export function assignShippingBox(
+  boxes: readonly ShippingBox[],
+  totalWeightGrams: number,
+  anyWeightMissing: boolean,
+): SelectShippingBoxResult {
+  if (!anyWeightMissing) {
+    return selectShippingBox(boxes, totalWeightGrams, null);
+  }
+  const largestCapacity = boxes.reduce((max, box) => Math.max(max, box.maxWeightGrams), 0);
+  return selectShippingBox(boxes, largestCapacity, null);
+}
+
 export function shippingQuote(
   settings: ShippingSettings,
   input: ShippingQuoteInput,
