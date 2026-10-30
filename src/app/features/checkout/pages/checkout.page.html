@@ -57,36 +57,6 @@
           autocomplete="address-line1"
         />
       </mat-form-field>
-
-      <mat-form-field class="w-full" subscriptSizing="dynamic">
-        <mat-label>Country</mat-label>
-        <input
-          matInput
-          [matAutocomplete]="countryAuto"
-          [value]="countryQuery()"
-          (input)="onCountryQueryInput($event)"
-          (blur)="onCountryBlur()"
-          autocomplete="country-name"
-          placeholder="Start typing a country"
-        />
-        <mat-autocomplete
-          #countryAuto="matAutocomplete"
-          [displayWith]="displayCountryLabel"
-          (opened)="onCountryAutocompleteOpened()"
-          (closed)="onCountryAutocompleteClosed()"
-          (optionSelected)="onCountrySelected($event)"
-        >
-          @for (country of filteredCountries(); track country.code) {
-            <mat-option
-              [value]="country.code"
-              (mousedown)="$event.preventDefault()"
-              (pointerdown)="onCountryOptionActivate()"
-            >
-              {{ country.label }}
-            </mat-option>
-          }
-        </mat-autocomplete>
-      </mat-form-field>
     } @else {
       <mat-form-field class="w-full" subscriptSizing="dynamic">
         <mat-label>Address line 1</mat-label>
