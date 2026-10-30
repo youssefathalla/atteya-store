@@ -336,7 +336,9 @@ export class CheckoutPageComponent implements OnInit {
   #restoreLastValidCountry(): void {
     const fallback = this.#lastValidCountry();
     const code = isCheckoutCountry(fallback) ? fallback : 'EG';
-    this.patchShipping('country', code);
+    if (this.shipping().country !== code) {
+      this.patchShipping('country', code);
+    }
     this.countryQuery.set(countryLabel(code));
   }
 

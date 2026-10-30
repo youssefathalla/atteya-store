@@ -31,6 +31,10 @@ html[data-cur-pending] app-shipping-banner {
   display: none;
 }
 
+html[data-cur-pending] .pdp-shipping-line {
+  display: none;
+}
+
 body {
   height: 100%;
   margin: 0;
