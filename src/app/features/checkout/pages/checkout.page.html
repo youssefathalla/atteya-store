@@ -112,7 +112,6 @@
             <mat-option
               [value]="country.code"
               (mousedown)="$event.preventDefault()"
-              (touchstart)="$event.preventDefault()"
               (pointerdown)="onCountryOptionActivate()"
             >
               {{ country.label }}
