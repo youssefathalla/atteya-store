@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { checkoutAuthGuard } from '@core/guards/checkout/checkout-auth.guard';
+import { serverCurrencyResolver } from '@core/services/currency/server-currency.resolver';
 import { homeSettingsResolver } from './features/home/resolvers/home-settings.resolver';
 import { productPageResolver } from './features/product/resolvers/product-page.resolver';
 
@@ -9,6 +10,7 @@ export const routes: Routes = [
     path: '',
     loadComponent: () =>
       import('./layout/main/main.component').then((m) => m.MainLayoutComponent),
+    resolve: { serverCurrency: serverCurrencyResolver },
     children: [
       {
         path: '',

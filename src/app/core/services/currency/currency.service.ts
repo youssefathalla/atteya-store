@@ -73,6 +73,7 @@ export class CurrencyService {
 
   /** Runs during SSR before the storefront HTML is rendered. */
   async prepareForServerRender(): Promise<void> {
+    this.#resetForRequest();
     const fromQuery = normalizeCurrencyCode(this.#queryCur());
     if (fromQuery) {
       await this.#finishWithCode(fromQuery, null, { pendingIntl: fromQuery !== 'EGP' });
@@ -87,18 +88,29 @@ export class CurrencyService {
     this.#publishTransfer(code);
   }
 
+  /** Each SSR request gets a fresh currency resolution (Cloud Run reuses the process). */
+  #resetForRequest(): void {
+    this.#generation += 1;
+    this.#settled = false;
+    this.#ready.set(false);
+    this.#clearTimer();
+  }
+
   async #bootClient(): Promise<void> {
     if (this.#settled) {
-      this.#transfer.remove(CURRENCY_BOOT_KEY);
-      const fromQuery = normalizeCurrencyCode(this.#queryCur());
-      this.#stripCurParam();
-      if (fromQuery && fromQuery !== this.#selected()) {
-        this.#settled = false;
-        await this.#finishWithCode(fromQuery, this.#visitorCountry(), {
-          pendingIntl: fromQuery !== 'EGP',
-        });
+      await this.#correctStaleIntlFromHydration();
+      if (this.#settled) {
+        this.#transfer.remove(CURRENCY_BOOT_KEY);
+        const fromQuery = normalizeCurrencyCode(this.#queryCur());
+        this.#stripCurParam();
+        if (fromQuery && fromQuery !== this.#selected()) {
+          this.#settled = false;
+          await this.#finishWithCode(fromQuery, this.#visitorCountry(), {
+            pendingIntl: fromQuery !== 'EGP',
+          });
+        }
+        return;
       }
-      return;
     }
 
     const transferred = this.#transfer.get(CURRENCY_BOOT_KEY, null);
@@ -190,6 +202,21 @@ export class CurrencyService {
     this.#apply(entryFor(code, map));
     this.#settled = true;
     this.#syncDocumentHints(this.#visitorCountry(), true, false);
+  }
+
+  /** SSR missed geo (App Hosting has no CDN country headers); re-read like CSR routes. */
+  async #correctStaleIntlFromHydration(): Promise<void> {
+    if (this.#visitorCountry() !== null || this.#selected() === 'EGP') return;
+    const country = await this.#resolveVisitorCountryClient();
+    if (!country) return;
+    const code = currencyFromCountry(country);
+    if (code === this.#selected()) {
+      this.#visitorCountry.set(country);
+      this.#syncDocumentHints(country, this.#ready(), false);
+      return;
+    }
+    this.#settled = false;
+    await this.#finishWithCode(code, country, { pendingIntl: code !== 'EGP' });
   }
 
   async #resolveInitialCode(): Promise<string> {

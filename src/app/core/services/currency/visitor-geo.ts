@@ -3,7 +3,11 @@ import { IpWhoCountrySchema } from './visitor-geo.schema';
 
 const ISO_COUNTRY = /^[A-Z]{2}$/;
 
+/** Set on the Express request by server middleware before SSR (not from clients). */
+export const VISITOR_COUNTRY_HEADER = 'x-atteya-visitor-country';
+
 const HEADER_COUNTRY = [
+  VISITOR_COUNTRY_HEADER,
   'cf-ipcountry',
   'x-country-code',
   'cloudfront-viewer-country',
@@ -34,6 +38,22 @@ export function countryFromGeoHeaders(headers: Headers): string | null {
   return null;
 }
 
+/**
+ * Ensures geo resolution can use the visitor IP on App Hosting, where CDN geo
+ * headers are absent and the socket may be the only hint before `X-Forwarded-For`.
+ */
+export function enrichHeadersForVisitorGeo(
+  headers: Headers,
+  remoteAddress: string | null | undefined,
+): Headers {
+  if (clientIpFromHeaders(headers)) return headers;
+  const ip = normalizeIp(remoteAddress?.trim() ?? '');
+  if (!ip || isPrivateIp(ip)) return headers;
+  const enriched = new Headers(headers);
+  enriched.set('x-forwarded-for', ip);
+  return enriched;
+}
+
 /** First public client IP from forwarded headers or the socket address. */
 export function clientIpFromHeaders(headers: Headers): string | null {
   const forwarded = headers.get('x-forwarded-for');
@@ -55,10 +75,14 @@ export function clientIpFromHeaders(headers: Headers): string | null {
  * Header geo first, then a short IP lookup when a public address is known.
  * Used on SSR and on `/api/visitor-location` for client-rendered routes.
  */
-export async function resolveVisitorCountry(headers: Headers): Promise<string | null> {
-  const fromHeader = countryFromGeoHeaders(headers);
+export async function resolveVisitorCountry(
+  headers: Headers,
+  remoteAddress?: string | null,
+): Promise<string | null> {
+  const enriched = enrichHeadersForVisitorGeo(headers, remoteAddress);
+  const fromHeader = countryFromGeoHeaders(enriched);
   if (fromHeader) return fromHeader;
-  const ip = clientIpFromHeaders(headers);
+  const ip = clientIpFromHeaders(enriched);
   if (!ip) return null;
   return lookupCountryByIp(ip);
 }
