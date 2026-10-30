@@ -83,10 +83,10 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   return result;
 };
 
-/** 503 must not be cached. A missing product can be cached briefly. A found page keeps the route header. */
+/** 503 and missing product pages carry geo-priced layout; never CDN-cache. Found pages use the route header. */
 function pageCacheControl(status: ProductPageResult['status']): string | null {
-  if (status === 'error') return 'no-store';
-  if (status === 'missing') return 'public, max-age=0, s-maxage=60';
+  if (status === 'error') return 'private, no-store';
+  if (status === 'missing') return 'private, no-store';
   return null;
 }
 
