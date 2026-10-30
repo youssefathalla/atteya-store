@@ -1,7 +1,5 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { EGYPT_GOVERNORATES } from '../offers/engine/governorates.js';
-import type { ShippingBoxId } from '../offers/engine/shipping.js';
-import { SHIPPING_BOX_IDS } from '../offers/engine/shipping.js';
 
 const COUNTRY_CODE = /^[A-Z]{2}$/;
 const MAX_LINES = 20;
@@ -13,7 +11,6 @@ const MAX_POSTAL = 20;
 const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
 const EGYPT_GOVERNORATE_IDS = new Set(EGYPT_GOVERNORATES.map((g) => g.id));
-const BOX_IDS = new Set<string>(SHIPPING_BOX_IDS);
 
 export type StorePaymentMethod = 'paymob' | 'cash-on-delivery';
 
@@ -35,8 +32,6 @@ export interface OrderShippingInput {
   readonly phone: string;
   /** Egypt governorate id (cairo, alexandria, …). Required for EG address. */
   readonly governorateId: string | null;
-  /** Chosen parcel box (`box1`–`box3`). Null lets the server auto-select. */
-  readonly boxId: ShippingBoxId | null;
 }
 
 export interface CreateStoreOrderRequest {
@@ -113,7 +108,6 @@ function parseShipping(raw: unknown): OrderShippingInput {
   const country = readCountry(raw['country']);
   const phone = readText(raw['phone'], MAX_PHONE, 'Enter a phone number we can reach you on.');
   const governorateId = readGovernorate(raw['governorateId'], country);
-  const boxId = readBoxId(raw['boxId']);
   return {
     fullName,
     line1,
@@ -124,16 +118,7 @@ function parseShipping(raw: unknown): OrderShippingInput {
     country,
     phone,
     governorateId,
-    boxId,
   };
-}
-
-function readBoxId(raw: unknown): ShippingBoxId | null {
-  if (raw === null || raw === undefined || raw === '') return null;
-  if (typeof raw !== 'string' || !BOX_IDS.has(raw)) {
-    throw new HttpsError('invalid-argument', 'Choose a delivery box to continue.');
-  }
-  return raw as ShippingBoxId;
 }
 
 function readGovernorate(raw: unknown, country: string): string | null {

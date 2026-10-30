@@ -104,6 +104,37 @@ export function selectShippingBox(
   return { ok: true, box: fit, auto: true };
 }
 
+/** Failures checkout can still hit. A preferred box is never supplied. */
+export type AssignShippingBoxResult =
+  | { readonly ok: true; readonly box: ShippingBox; readonly auto: true }
+  | { readonly ok: false; readonly code: 'too-heavy' | 'no-boxes' };
+
+/**
+ * Box customers never choose. Smallest box that holds `totalWeightGrams`,
+ * or the largest box when any item has no weight. Known weight that already
+ * exceeds every box is still too heavy. Never reads a client box id.
+ */
+export function assignShippingBox(
+  boxes: readonly ShippingBox[],
+  totalWeightGrams: number,
+  anyWeightMissing: boolean,
+): AssignShippingBoxResult {
+  if (boxes.length === 0) return { ok: false, code: 'no-boxes' };
+  const largestCapacity = boxes.reduce((max, box) => Math.max(max, box.maxWeightGrams), 0);
+  const known = Math.max(0, Math.round(totalWeightGrams));
+  if (anyWeightMissing && known > largestCapacity) {
+    return { ok: false, code: 'too-heavy' };
+  }
+  const selected = selectShippingBox(
+    boxes,
+    anyWeightMissing ? largestCapacity : totalWeightGrams,
+    null,
+  );
+  if (selected.ok) return { ok: true, box: selected.box, auto: true };
+  if (selected.code === 'too-heavy') return { ok: false, code: 'too-heavy' };
+  return { ok: false, code: 'no-boxes' };
+}
+
 export function shippingQuote(
   settings: ShippingSettings,
   input: ShippingQuoteInput,

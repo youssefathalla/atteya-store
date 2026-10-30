@@ -36,6 +36,7 @@ export interface OrderLinePrice {
 export interface OrderShippingLine {
   /** `domestic-zone` is legacy (pre box model); new orders use `domestic-box`. */
   readonly kind: 'domestic-zone' | 'domestic-box' | 'international-box';
+  /** Server-assigned parcel. Stored for admins; customers never send or see it. */
   readonly boxId: string | null;
   readonly priceEgp: number;
   readonly priceDisplay: number;

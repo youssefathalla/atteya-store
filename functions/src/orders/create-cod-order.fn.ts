@@ -60,7 +60,10 @@ export const createCodOrder = onCall(
         paymentMethod: 'cash-on-delivery',
         customerId: caller.uid,
         customerEmail: caller.email ?? null,
-        shipping: { ...input.shipping },
+        shipping: {
+          ...input.shipping,
+          boxId: priced.pricing.shipping?.boxId ?? null,
+        },
         pricing: priced.pricing,
         paymob: null,
         confirmedAt: null,
