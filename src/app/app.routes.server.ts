@@ -1,29 +1,28 @@
 import { RenderMode, ServerRoute } from '@angular/ssr';
 
-/** Shared HTML cache: browsers revalidate, the CDN may keep a copy for 60s and serve a stale one for 5 min. */
-const PUBLIC_HTML_CACHE =
-  'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
+/** Geo-priced HTML must not sit on App Hosting CDN (no supported per-visitor cache key). */
+const GEO_PRICED_HTML_CACHE = 'private, no-store';
 
 export const serverRoutes: ServerRoute[] = [
   {
     path: 'category/**',
     renderMode: RenderMode.Server,
-    headers: { 'Cache-Control': PUBLIC_HTML_CACHE },
+    headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
   },
   {
     path: 'brand/**',
     renderMode: RenderMode.Server,
-    headers: { 'Cache-Control': PUBLIC_HTML_CACHE },
+    headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
   },
   {
     path: 'product/**',
     renderMode: RenderMode.Server,
-    headers: { 'Cache-Control': PUBLIC_HTML_CACHE },
+    headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
   },
   {
     path: 'search',
     renderMode: RenderMode.Server,
-    headers: { 'Cache-Control': 'private, no-store' },
+    headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
   },
   {
     path: 'admin/**',
@@ -43,7 +42,7 @@ export const serverRoutes: ServerRoute[] = [
   {
     path: '',
     renderMode: RenderMode.Server,
-    headers: { 'Cache-Control': 'private, no-store' },
+    headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
   },
   {
     path: '**',
