@@ -291,9 +291,9 @@
                   >
                     <mat-icon name="close" />
                   </button>
-                  @if (size.isNew) {
+                  @if (sizeStockEditable(size)) {
                     <label class="elements-start-col gap-1 font-label-md">
-                      Starting stock for {{ size.label }}
+                      {{ sizeStockLabel(size) }}
                       <input
                         class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
                         [class.border-outline]="!sizeStockError(size)"
@@ -301,7 +301,7 @@
                         type="text"
                         inputmode="numeric"
                         autocomplete="off"
-                        [attr.aria-label]="'Starting stock for ' + size.label"
+                        [attr.aria-label]="sizeStockLabel(size)"
                         [attr.aria-invalid]="sizeStockError(size) ? 'true' : null"
                         [attr.aria-describedby]="sizeStockError(size) ? 'size-stock-error-' + $index : null"
                         [value]="size.initialStock"

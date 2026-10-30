@@ -38,6 +38,7 @@ import type {
   ProductFormPayload,
   ProductSizeDraft,
   ProductSizePayload,
+  StockChange,
 } from './models/product-admin.model';
 import { ProductsAdminService } from './services/products-admin.service';
 import { importActionError } from './utils/import-error';
@@ -53,7 +54,7 @@ const QUICK_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'] as const;
 const MAX_PRICE = 1_000_000;
 const MAX_COUNT = 100_000;
 const MAX_WEIGHT_GRAMS = 100_000;
-const STOCK_MESSAGE = 'Starting stock must be a whole number from 0 to 100,000.';
+const STOCK_MESSAGE = 'Stock must be a whole number from 0 to 100,000.';
 const WEIGHT_MESSAGE = 'Weight must be a whole number of grams from 1 to 100,000.';
 
 interface EditorFields {
@@ -497,8 +498,16 @@ export class ProductEditorPageComponent implements OnInit {
     this.sizes.set(list);
   }
 
+  sizeStockEditable(size: ProductSizeDraft): boolean {
+    return this.isCreate() || size.isNew || (!size.isNew && !!size.id && !this.sizeEditorDisabled());
+  }
+
+  sizeStockLabel(size: ProductSizeDraft): string {
+    return size.isNew ? `Starting stock for ${size.label}` : `Stock for ${size.label}`;
+  }
+
   sizeStockError(size: ProductSizeDraft): string {
-    if (!(this.isCreate() || size.isNew)) return '';
+    if (!this.sizeStockEditable(size)) return '';
     const value = size.initialStock;
     if ((this.#saveTried() || value.trim() !== '0') && !isAllowedCount(value)) {
       return STOCK_MESSAGE;
@@ -674,7 +683,7 @@ export class ProductEditorPageComponent implements OnInit {
       const key = label.toLowerCase();
       if (labels.has(key)) return 'This size is already in the list.';
       labels.add(key);
-      if ((this.isCreate() || size.isNew) && !isAllowedCount(size.initialStock)) {
+      if (this.sizeStockEditable(size) && !isAllowedCount(size.initialStock)) {
         return STOCK_MESSAGE;
       }
     }
@@ -692,6 +701,10 @@ export class ProductEditorPageComponent implements OnInit {
       const id = this.productId();
       if (id) {
         await this.#admin.updateProduct({ ...payload, productId: id });
+        const stockChange = this.#stockChange();
+        if (stockChange) {
+          await this.#admin.saveStock(id, stockChange);
+        }
       } else {
         const slug = asText(this.model().slug).trim();
         const result = await this.#admin.createProduct({
@@ -722,6 +735,21 @@ export class ProductEditorPageComponent implements OnInit {
     } catch {
       // Session photos that were not kept stay in Storage.
     }
+  }
+
+  #stockChange(): StockChange | null {
+    const product = this.#loadedProduct();
+    if (this.isCreate() || !product?.stockBySize) return null;
+    const live = product.stockBySize;
+    const stockBySize: Record<string, number> = {};
+    for (const size of this.sizes()) {
+      if (size.isNew || !size.id) continue;
+      const next = Number(size.initialStock.trim());
+      const prev = live[size.id];
+      if (typeof prev === 'number' && prev === next) continue;
+      stockBySize[size.id] = next;
+    }
+    return Object.keys(stockBySize).length > 0 ? { stockBySize } : null;
   }
 
   #payload(): ProductFormPayload {
@@ -799,7 +827,12 @@ function mergeSizeIds(
     used.add(index);
     const match = live[index];
     if (!match) return size;
-    return { id: match.id, label: match.label, initialStock: '0', isNew: false };
+    return {
+      id: match.id,
+      label: match.label,
+      initialStock: stockDraftFromMap(product.stockBySize, match.id),
+      isNew: false,
+    };
   });
 }
 
@@ -809,9 +842,18 @@ function sizeDraftsFrom(product: Product): ProductSizeDraft[] {
   return option.values.map((value) => ({
     id: value.id,
     label: value.label,
-    initialStock: '0',
+    initialStock: stockDraftFromMap(product.stockBySize, value.id),
     isNew: false,
   }));
+}
+
+function stockDraftFromMap(
+  map: Readonly<Record<string, number>> | undefined,
+  sizeId: string,
+): string {
+  if (!map) return '0';
+  const count = map[sizeId];
+  return typeof count === 'number' ? String(count) : '0';
 }
 
 function toSizePayload(size: ProductSizeDraft, create: boolean): ProductSizePayload {
