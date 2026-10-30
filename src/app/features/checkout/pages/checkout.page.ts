@@ -6,6 +6,7 @@ import {
   inject,
   OnInit,
   PLATFORM_ID,
+  resource,
   signal,
   untracked,
 } from '@angular/core';
@@ -17,28 +18,38 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
-import { resource } from '@angular/core';
 import { doc, getDoc } from 'firebase/firestore';
+import { lineDisplayAmount } from '@core/services/cart/cart-pricing';
+import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
+import { toPricedProduct } from '@core/services/offers/offer.model';
+import { OffersService } from '@core/services/offers/offers.service';
 import {
+  assignShippingBox,
+  displayDecimals,
   EGYPT_GOVERNORATES,
-  selectShippingBox,
-  sortedBoxes,
-  type ShippingBox,
-  type ShippingBoxId,
+  priceItem,
+  shippingQuote,
+  toDisplayAmount,
+  type PricedProduct,
+  type PricingContext,
+  type VariantFacts,
 } from '@core/services/offers/engine';
 import {
   CheckoutOrderService,
   type CheckoutPaymentMethod,
   type CheckoutShippingInput,
 } from '@core/services/orders/checkout-order.service';
+import type { Product, ProductVariant } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
+import { toVariantFacts } from '@core/services/products/utils/priced-product.utils';
 import { SeoService } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
+import { formatMoney } from '@shared/utils/money';
 import {
   countryLabel,
   filterCheckoutCountries,
@@ -47,10 +58,30 @@ import {
   matchCheckoutCountryExact,
 } from '../utils/checkout-countries';
 
+const TOO_HEAVY_MESSAGE = 'This order is too heavy to deliver. Remove an item or contact us.';
+const DELIVERY_UNAVAILABLE_MESSAGE =
+  'We could not work out delivery for this order. Please try again later.';
+
 interface CheckoutProductInfo {
   readonly name: string;
   readonly weightGrams: number | null;
+  readonly priced: PricedProduct;
+  readonly options: Product['options'];
+  readonly variants: readonly ProductVariant[];
 }
+
+type CheckoutSummary =
+  | { readonly state: 'need-country' }
+  | { readonly state: 'loading' }
+  | { readonly state: 'missing-item' }
+  | { readonly state: 'too-heavy' }
+  | { readonly state: 'unavailable' }
+  | {
+      readonly state: 'ready';
+      readonly subtotal: string;
+      readonly shipping: string;
+      readonly total: string;
+    };
 
 @Component({
   selector: 'app-checkout-page',
@@ -72,6 +103,7 @@ export class CheckoutPageComponent implements OnInit {
   readonly #checkout = inject(CheckoutOrderService);
   readonly #currency = inject(CurrencyService);
   readonly #firestore = injectFirestore();
+  readonly #offers = inject(OffersService);
   readonly #router = inject(Router);
   readonly #seo = inject(SeoService);
   readonly #shippingSettings = inject(ShippingSettingsService);
@@ -86,8 +118,6 @@ export class CheckoutPageComponent implements OnInit {
   /** Typed filter text shown in the country autocomplete input. */
   readonly countryQuery = signal('');
   readonly displayCountryLabel = (code: string): string => (code ? countryLabel(code) : '');
-  /** Shopper override; null means follow the auto-selected box. */
-  readonly selectedBoxId = signal<ShippingBoxId | null>(null);
 
   readonly shipping = signal<CheckoutShippingInput>({
     fullName: '',
@@ -99,7 +129,6 @@ export class CheckoutPageComponent implements OnInit {
     country: '',
     phone: '',
     governorateId: null,
-    boxId: null,
   });
 
   readonly filteredCountries = computed(() => filterCheckoutCountries(this.countryQuery()));
@@ -129,6 +158,9 @@ export class CheckoutPageComponent implements OnInit {
           products.set(line.productId, {
             name: data.name,
             weightGrams: typeof data.weightGrams === 'number' ? data.weightGrams : null,
+            priced: toPricedProduct(data),
+            options: data.options,
+            variants: data.variants,
           });
         }
       }
@@ -136,58 +168,76 @@ export class CheckoutPageComponent implements OnInit {
     },
   });
 
-  readonly regionBoxes = computed((): readonly ShippingBox[] => {
+  /**
+   * Display-only preview. Place-order ignores this and prices again on the server.
+   * Shipping is one converted amount; the parcel itself stays off this screen.
+   */
+  readonly orderSummary = computed((): CheckoutSummary => {
+    if (!isCheckoutCountry(this.shipping().country)) return { state: 'need-country' };
+    if (!this.#currency.ready() || !this.#offers.ready()) return { state: 'loading' };
+    if (this.productsResource.error()) return { state: 'unavailable' };
+    const products = this.productsResource.value();
     const settings = this.#shippingSettings.settings();
-    if (!settings) return [];
-    return this.isEgypt() ? settings.egyptBoxes : settings.internationalBoxes;
-  });
+    if (!products || !settings) return { state: 'loading' };
 
-  readonly totalWeightGrams = computed(() => {
-    const products = this.productsResource.value();
-    const boxes = this.regionBoxes();
-    const largest = boxes.reduce((max, box) => Math.max(max, box.maxWeightGrams), 0);
-    let total = 0;
-    for (const line of this.lines()) {
-      const info = products?.get(line.productId);
-      const unit =
-        info && typeof info.weightGrams === 'number' && info.weightGrams > 0
-          ? info.weightGrams
-          : largest;
-      total += unit * line.quantity;
-    }
-    return total;
-  });
+    const lines = this.lines();
+    if (lines.some((line) => !products.has(line.productId))) return { state: 'missing-item' };
 
-  readonly weightIncomplete = computed(() => {
-    const products = this.productsResource.value();
-    if (!products) return false;
-    return this.lines().some((line) => {
+    const offers = this.#offers.all();
+    const ctx: PricingContext = { now: new Date(), signedIn: true, codes: [] };
+    const entry = this.#currency.entry();
+    const pricedLines: PricedProduct[] = [];
+    let totalWeightGrams = 0;
+    let anyWeightMissing = false;
+    let subtotalEgp = 0;
+    let subtotalDisplay = 0;
+
+    for (const line of lines) {
       const info = products.get(line.productId);
-      return !info || info.weightGrams === null;
-    });
-  });
+      if (!info) return { state: 'missing-item' };
+      if (typeof info.weightGrams === 'number' && info.weightGrams > 0) {
+        totalWeightGrams += info.weightGrams * line.quantity;
+      } else {
+        anyWeightMissing = true;
+      }
+      const unitEgp = priceItem(info.priced, variantFor(info, line), offers, ctx).effectivePrice;
+      subtotalEgp += unitEgp * line.quantity;
+      subtotalDisplay += lineDisplayAmount(toDisplayAmount(unitEgp, entry), line.quantity);
+      pricedLines.push(info.priced);
+    }
 
-  readonly recommendedBox = computed((): ShippingBox | null => {
-    const boxes = this.regionBoxes();
-    if (boxes.length === 0) return null;
-    const result = selectShippingBox(boxes, this.totalWeightGrams(), null);
-    return result.ok ? result.box : null;
-  });
+    const boxes = this.isEgypt() ? settings.egyptBoxes : settings.internationalBoxes;
+    const selection = assignShippingBox(boxes, totalWeightGrams, anyWeightMissing);
+    if (!selection.ok) {
+      return selection.code === 'too-heavy' ? { state: 'too-heavy' } : { state: 'unavailable' };
+    }
 
-  readonly selectableBoxes = computed((): readonly ShippingBox[] => {
-    return sortedBoxes(this.regionBoxes());
-  });
+    let feeEgp: number;
+    try {
+      feeEgp = shippingQuote(
+        settings,
+        {
+          region: this.isEgypt() ? 'egypt' : 'international',
+          boxId: selection.box.id,
+          totalWeightGrams: anyWeightMissing ? selection.box.maxWeightGrams : totalWeightGrams,
+          goodsSubtotal: subtotalEgp,
+          lines: pricedLines,
+        },
+        offers,
+        ctx,
+      ).fee;
+    } catch {
+      return { state: 'unavailable' };
+    }
 
-  readonly activeBoxId = computed((): ShippingBoxId | null => {
-    const selected = this.selectedBoxId();
-    if (selected) return selected;
-    return this.recommendedBox()?.id ?? null;
-  });
-
-  readonly boxTooHeavy = computed(() => {
-    const boxes = this.regionBoxes();
-    if (boxes.length === 0) return false;
-    return !selectShippingBox(boxes, this.totalWeightGrams(), null).ok;
+    const decimals = displayDecimals(entry.code);
+    const shippingDisplay = toDisplayAmount(feeEgp, entry);
+    return {
+      state: 'ready',
+      subtotal: formatMoney(subtotalDisplay, entry.code, decimals),
+      shipping: formatMoney(shippingDisplay, entry.code, decimals),
+      total: formatMoney(subtotalDisplay + shippingDisplay, entry.code, decimals),
+    };
   });
 
   constructor() {
@@ -199,8 +249,7 @@ export class CheckoutPageComponent implements OnInit {
       if (this.#countryTouched()) return;
       const geo = this.#currency.visitorCountry();
       const ready = this.#currency.ready();
-      const code =
-        geo && isCheckoutCountry(geo) ? geo : ready ? 'EG' : null;
+      const code = geo && isCheckoutCountry(geo) ? geo : ready ? 'EG' : null;
       if (!code) return;
       untracked(() => {
         const label = countryLabel(code);
@@ -212,18 +261,6 @@ export class CheckoutPageComponent implements OnInit {
         if (this.countryQuery() !== label) {
           this.countryQuery.set(label);
         }
-      });
-    });
-
-    // When region or bag weight changes, keep selection on a fitting box.
-    effect(() => {
-      const boxes = this.regionBoxes();
-      const weight = this.totalWeightGrams();
-      const selected = this.selectedBoxId();
-      untracked(() => {
-        if (!selected) return;
-        const stillFits = selectShippingBox(boxes, weight, selected);
-        if (!stillFits.ok) this.selectedBoxId.set(null);
       });
     });
   }
@@ -242,32 +279,14 @@ export class CheckoutPageComponent implements OnInit {
   patchShipping<K extends keyof CheckoutShippingInput>(key: K, value: CheckoutShippingInput[K]): void {
     this.shipping.update((current) => {
       const next = { ...current, [key]: value };
-      if (key === 'country') {
-        this.selectedBoxId.set(null);
-        if (value !== 'EG') {
-          next.governorateId = null;
-          if (this.paymentMethod() === 'cash-on-delivery') {
-            this.paymentMethod.set('paymob');
-          }
+      if (key === 'country' && value !== 'EG') {
+        next.governorateId = null;
+        if (this.paymentMethod() === 'cash-on-delivery') {
+          this.paymentMethod.set('paymob');
         }
       }
       return next;
     });
-  }
-
-  selectBox(boxId: ShippingBoxId): void {
-    const boxes = this.regionBoxes();
-    const weight = this.totalWeightGrams();
-    const result = selectShippingBox(boxes, weight, boxId);
-    if (!result.ok) {
-      this.#snackbar.error('That box is too small for your bag. Choose a larger one.');
-      return;
-    }
-    this.selectedBoxId.set(boxId);
-  }
-
-  boxFits(box: ShippingBox): boolean {
-    return this.totalWeightGrams() <= box.maxWeightGrams;
   }
 
   onCountryQueryInput(event: Event): void {
@@ -352,15 +371,21 @@ export class CheckoutPageComponent implements OnInit {
       this.#snackbar.error('Choose your governorate so we can deliver your order.');
       return;
     }
-    if (this.boxTooHeavy()) {
-      this.#snackbar.error(
-        'This order is too heavy for our delivery boxes. Remove an item or contact us.',
-      );
+    const summary = this.orderSummary();
+    if (summary.state === 'too-heavy') {
+      this.#snackbar.error(TOO_HEAVY_MESSAGE);
       return;
     }
-    const boxId = this.activeBoxId();
-    if (!boxId) {
-      this.#snackbar.error('Choose a delivery box to continue.');
+    if (summary.state === 'missing-item') {
+      this.#snackbar.error('One item in your bag is no longer available.');
+      return;
+    }
+    if (summary.state === 'unavailable') {
+      this.#snackbar.error(DELIVERY_UNAVAILABLE_MESSAGE);
+      return;
+    }
+    if (summary.state !== 'ready') {
+      this.#snackbar.error('Wait a moment while we work out shipping.');
       return;
     }
     const method = this.paymentMethod();
@@ -372,7 +397,6 @@ export class CheckoutPageComponent implements OnInit {
     this.isSubmitting.set(true);
     try {
       const shipping: CheckoutShippingInput = {
-        ...draft,
         fullName: draft.fullName.trim(),
         line1: draft.line1.trim(),
         line2: draft.line2?.trim() || null,
@@ -382,7 +406,6 @@ export class CheckoutPageComponent implements OnInit {
         country: draft.country,
         phone: draft.phone.trim(),
         governorateId: draft.governorateId,
-        boxId,
       };
 
       if (method === 'paymob') {
@@ -417,4 +440,45 @@ export class CheckoutPageComponent implements OnInit {
       this.isSubmitting.set(false);
     }
   }
+}
+
+/**
+ * Preview twin of the server's selection match. `variantId` is accepted only
+ * when it is the row the bag selection resolves to.
+ */
+function variantFor(info: CheckoutProductInfo, line: CartLineDraft): VariantFacts | null {
+  if (info.variants.length > 0) {
+    const matched = info.variants.find((item) =>
+      Object.entries(item.values).every(([key, val]) => line.selection[key] === val),
+    );
+    if (!matched) return null;
+    if (line.variantId != null && line.variantId !== matched.id) return null;
+    return toVariantFacts(info, matched);
+  }
+  return variantFromSelection(info, line.selection);
+}
+
+function variantFromSelection(
+  info: CheckoutProductInfo,
+  selection: Readonly<Record<string, string>>,
+): VariantFacts | null {
+  const sizeId = selection['size'];
+  const colourId = selection['colour'];
+  if (!sizeId && !colourId) return null;
+  const size = optionValue(info, 'size', sizeId);
+  const colour = optionValue(info, 'colour', colourId);
+  return {
+    id: `${sizeId ?? 'any'}-${colourId ?? 'any'}`,
+    size: size?.label ?? null,
+    color: colour?.color ?? null,
+  };
+}
+
+function optionValue(
+  info: CheckoutProductInfo,
+  key: 'size' | 'colour',
+  valueId: string | undefined,
+): Product['options'][number]['values'][number] | undefined {
+  if (!valueId) return undefined;
+  return info.options.find((option) => option.key === key)?.values.find((val) => val.id === valueId);
 }

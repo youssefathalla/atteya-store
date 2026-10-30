@@ -2,9 +2,9 @@ import type { DocumentData, Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { getActiveOffers } from '../offers/offer-cache.js';
 import {
+  assignShippingBox,
   boxesForRegion,
   priceItem,
-  selectShippingBox,
   shippingQuote,
   type Offer,
   type PricedProduct,
@@ -83,28 +83,26 @@ export async function priceStoreOrder(
   const cartProducts: PricedProduct[] = [];
   let subtotalEgp = 0;
   let totalWeightGrams = 0;
-  let largestBoxMaxWeight = 0;
+  let anyWeightMissing = false;
 
   const isInternational = input.shipping.country !== 'EG';
   const region = isInternational ? 'international' : 'egypt';
   const regionBoxes = boxesForRegion(shippingConfig.settings, region);
-  largestBoxMaxWeight = Math.max(0, ...regionBoxes.map((box) => box.maxWeightGrams));
 
   for (const line of input.lines) {
     const { priced, product, weightGrams } = await priceLine(db, line, offers, ctx);
     pricedLines.push(priced);
     cartProducts.push(product);
     subtotalEgp += priced.unitEgp * line.quantity;
-    // Missing product weight → treat as needing the largest box capacity per unit.
-    const unitWeight =
-      typeof weightGrams === 'number' && weightGrams > 0
-        ? weightGrams
-        : largestBoxMaxWeight;
-    totalWeightGrams += unitWeight * line.quantity;
+    if (typeof weightGrams === 'number' && weightGrams > 0) {
+      totalWeightGrams += weightGrams * line.quantity;
+    } else {
+      anyWeightMissing = true;
+    }
   }
 
-  const preferredBoxId = input.shipping.boxId;
-  const selection = selectShippingBox(regionBoxes, totalWeightGrams, preferredBoxId);
+  // Client payloads cannot choose a box. A sent boxId is not on this input.
+  const selection = assignShippingBox(regionBoxes, totalWeightGrams, anyWeightMissing);
   if (!selection.ok) {
     throw boxSelectionError(selection.code);
   }
@@ -116,7 +114,9 @@ export async function priceStoreOrder(
       {
         region,
         boxId: selection.box.id,
-        totalWeightGrams,
+        // Missing weights already chose the largest box. Pass a weight that box
+        // accepts so the quote cannot reject that assignment.
+        totalWeightGrams: anyWeightMissing ? selection.box.maxWeightGrams : totalWeightGrams,
         goodsSubtotal: subtotalEgp,
         lines: cartProducts,
       },
@@ -167,28 +167,17 @@ function resolveFulfilment(
   return isInternational ? 'international-paymob' : 'domestic-paymob';
 }
 
-function boxSelectionError(
-  code: 'too-heavy' | 'unknown-box' | 'box-too-small' | 'no-boxes',
-): HttpsError {
-  switch (code) {
-    case 'too-heavy':
-      return new HttpsError(
-        'failed-precondition',
-        'This order is too heavy for our delivery boxes. Remove an item or contact us.',
-      );
-    case 'box-too-small':
-      return new HttpsError(
-        'failed-precondition',
-        'That delivery box is too small for your bag. Choose a larger box.',
-      );
-    case 'unknown-box':
-      return new HttpsError('invalid-argument', 'Choose a delivery box to continue.');
-    default:
-      return new HttpsError(
-        'failed-precondition',
-        'Delivery boxes are not set up yet. Please try again later.',
-      );
+function boxSelectionError(code: 'too-heavy' | 'no-boxes'): HttpsError {
+  if (code === 'too-heavy') {
+    return new HttpsError(
+      'failed-precondition',
+      'This order is too heavy to deliver. Remove an item or contact us.',
+    );
   }
+  return new HttpsError(
+    'failed-precondition',
+    'We could not work out delivery for this order. Please try again later.',
+  );
 }
 
 async function priceLine(

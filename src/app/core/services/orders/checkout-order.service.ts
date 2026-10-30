@@ -15,8 +15,6 @@ export interface CheckoutShippingInput {
   readonly country: string;
   readonly phone: string;
   readonly governorateId: string | null;
-  /** Parcel box for this order (`box1`–`box3`). Null lets the server auto-select. */
-  readonly boxId: 'box1' | 'box2' | 'box3' | null;
 }
 
 export interface CreatePaymobOrderResult {
