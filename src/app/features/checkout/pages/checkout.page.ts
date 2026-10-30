@@ -442,8 +442,43 @@ export class CheckoutPageComponent implements OnInit {
   }
 }
 
+/**
+ * Preview twin of the server's selection match. `variantId` is accepted only
+ * when it is the row the bag selection resolves to.
+ */
 function variantFor(info: CheckoutProductInfo, line: CartLineDraft): VariantFacts | null {
-  if (!line.variantId) return null;
-  const variant = info.variants.find((item) => item.id === line.variantId);
-  return variant ? toVariantFacts(info, variant) : null;
+  if (info.variants.length > 0) {
+    const matched = info.variants.find((item) =>
+      Object.entries(item.values).every(([key, val]) => line.selection[key] === val),
+    );
+    if (!matched) return null;
+    if (line.variantId != null && line.variantId !== matched.id) return null;
+    return toVariantFacts(info, matched);
+  }
+  return variantFromSelection(info, line.selection);
+}
+
+function variantFromSelection(
+  info: CheckoutProductInfo,
+  selection: Readonly<Record<string, string>>,
+): VariantFacts | null {
+  const sizeId = selection['size'];
+  const colourId = selection['colour'];
+  if (!sizeId && !colourId) return null;
+  const size = optionValue(info, 'size', sizeId);
+  const colour = optionValue(info, 'colour', colourId);
+  return {
+    id: `${sizeId ?? 'any'}-${colourId ?? 'any'}`,
+    size: size?.label ?? null,
+    color: colour?.color ?? null,
+  };
+}
+
+function optionValue(
+  info: CheckoutProductInfo,
+  key: 'size' | 'colour',
+  valueId: string | undefined,
+): Product['options'][number]['values'][number] | undefined {
+  if (!valueId) return undefined;
+  return info.options.find((option) => option.key === key)?.values.find((val) => val.id === valueId);
 }

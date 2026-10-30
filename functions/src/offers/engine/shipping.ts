@@ -111,17 +111,25 @@ export type AssignShippingBoxResult =
 
 /**
  * Box customers never choose. Smallest box that holds `totalWeightGrams`,
- * or the largest box when any item has no weight. Never reads a client box id.
+ * or the largest box when any item has no weight. Known weight that already
+ * exceeds every box is still too heavy. Never reads a client box id.
  */
 export function assignShippingBox(
   boxes: readonly ShippingBox[],
   totalWeightGrams: number,
   anyWeightMissing: boolean,
 ): AssignShippingBoxResult {
-  const weight = anyWeightMissing
-    ? boxes.reduce((max, box) => Math.max(max, box.maxWeightGrams), 0)
-    : totalWeightGrams;
-  const selected = selectShippingBox(boxes, weight, null);
+  if (boxes.length === 0) return { ok: false, code: 'no-boxes' };
+  const largestCapacity = boxes.reduce((max, box) => Math.max(max, box.maxWeightGrams), 0);
+  const known = Math.max(0, Math.round(totalWeightGrams));
+  if (anyWeightMissing && known > largestCapacity) {
+    return { ok: false, code: 'too-heavy' };
+  }
+  const selected = selectShippingBox(
+    boxes,
+    anyWeightMissing ? largestCapacity : totalWeightGrams,
+    null,
+  );
   if (selected.ok) return { ok: true, box: selected.box, auto: true };
   if (selected.code === 'too-heavy') return { ok: false, code: 'too-heavy' };
   return { ok: false, code: 'no-boxes' };
