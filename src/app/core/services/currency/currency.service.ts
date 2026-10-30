@@ -12,6 +12,7 @@ import {
 import { Router } from '@angular/router';
 import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
+import { environment } from '@env/environment';
 import { EGP_ENTRY, type CurrencyEntry } from '@core/services/offers/engine';
 import {
   currencyFromCountry,
@@ -23,7 +24,11 @@ import {
 import { loadPublicCurrency } from './currency-loader';
 import type { PublicCurrencyMap } from './currency.schema';
 import { CURRENCY_BOOT_KEY, type CurrencyBootTransfer } from './currency.state';
-import { countryFromServerVisitorHeader, resolveVisitorCountry } from './visitor-geo';
+import {
+  applyDevLocalGeoFallback,
+  countryFromServerVisitorHeader,
+  resolveVisitorCountry,
+} from './visitor-geo';
 import { VisitorLocationResponseSchema } from './visitor-geo.schema';
 
 const PENDING_TIMEOUT_MS = 2500;
@@ -82,8 +87,9 @@ export class CurrencyService {
     }
     const headers = this.#request?.headers ?? null;
     const preset = headers ? countryFromServerVisitorHeader(headers) : null;
-    const country =
+    const resolved =
       preset ?? (headers ? await resolveVisitorCountry(headers) : null);
+    const country = applyDevLocalGeoFallback(resolved, !environment.production);
     this.#visitorCountry.set(country);
     const code = currencyFromCountry(country);
     await this.#finishWithCode(code, country, { pendingIntl: code !== 'EGP' });
@@ -238,7 +244,7 @@ export class CurrencyService {
       if (!response.ok) return null;
       const parsed = v.safeParse(VisitorLocationResponseSchema, await response.json());
       if (!parsed.success) return null;
-      return parsed.output.country;
+      return applyDevLocalGeoFallback(parsed.output.country, !environment.production);
     } catch {
       return null;
     }

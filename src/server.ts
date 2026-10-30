@@ -10,7 +10,9 @@ import { join, relative, sep } from 'node:path';
 import { applyCdnCacheControl, cdnCacheControlHeader } from './cdn-cache-control.mjs';
 import * as v from 'valibot';
 import { trimRenderedEarlyHints } from './early-hints.mjs';
+import { environment } from './environments/environment.js';
 import {
+  applyDevLocalGeoFallback,
   enrichHeadersForVisitorGeo,
   headersFromRecord,
   resolveVisitorCountry,
@@ -54,7 +56,8 @@ app.use(compression({ threshold: 1024 }));
 app.get('/api/visitor-location', async (req, res) => {
   try {
     const headers = visitorLocationHeaders(req);
-    const country = await resolveVisitorCountry(headers, req.socket.remoteAddress);
+    const resolved = await resolveVisitorCountry(headers, req.socket.remoteAddress);
+    const country = applyDevLocalGeoFallback(resolved, !environment.production);
     const payload = v.parse(VisitorLocationResponseSchema, { country });
     res.setHeader('Cache-Control', 'private, no-store');
     res.json(payload);
@@ -98,7 +101,8 @@ app.use(async (req, res, next) => {
   delete req.headers[VISITOR_COUNTRY_HEADER];
   try {
     const headers = visitorLocationHeaders(req);
-    const country = await resolveVisitorCountry(headers, req.socket.remoteAddress);
+    const resolved = await resolveVisitorCountry(headers, req.socket.remoteAddress);
+    const country = applyDevLocalGeoFallback(resolved, !environment.production);
     if (country) {
       req.headers[VISITOR_COUNTRY_HEADER] = country;
     }
