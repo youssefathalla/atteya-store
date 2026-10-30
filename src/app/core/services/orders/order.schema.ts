@@ -4,21 +4,27 @@ import { timestampSchema } from '@shared/schemas';
 const country = v.pipe(v.string(), v.trim(), v.length(2));
 const currency = v.pipe(v.string(), v.trim(), v.length(3));
 
-export const OrderShippingSchema = v.object({
-  fullName: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
-  line1: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
-  line2: v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(200)), null),
-  city: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80)),
-  region: v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(80)), null),
-  postalCode: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(20)),
-  country,
-  phone: v.pipe(v.string(), v.trim(), v.minLength(6), v.maxLength(20)),
-  governorateId: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(40)), null), null),
-  boxId: v.optional(
-    v.nullable(v.picklist(['box1', 'box2', 'box3']), null),
-    null,
+export const OrderShippingSchema = v.pipe(
+  v.object({
+    fullName: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+    line1: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+    line2: v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(200)), null),
+    city: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80)),
+    region: v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(80)), null),
+    postalCode: v.pipe(v.string(), v.trim(), v.maxLength(20)),
+    country,
+    phone: v.pipe(v.string(), v.trim(), v.minLength(6), v.maxLength(20)),
+    governorateId: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(40)), null), null),
+    boxId: v.optional(
+      v.nullable(v.picklist(['box1', 'box2', 'box3']), null),
+      null,
+    ),
+  }),
+  v.check(
+    (shipping) => shipping.country === 'EG' || shipping.postalCode.length >= 1,
+    'Postal code is required for international delivery.',
   ),
-});
+);
 
 export const OrderLinePriceSchema = v.object({
   productId: v.string(),

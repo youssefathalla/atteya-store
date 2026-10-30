@@ -17,7 +17,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatRadioModule } from '@angular/material/radio';
-import { MatSelectModule } from '@angular/material/select';
 import { doc, getDoc } from 'firebase/firestore';
 import { lineDisplayAmount } from '@core/services/cart/cart-pricing';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
@@ -29,7 +28,6 @@ import { OffersService } from '@core/services/offers/offers.service';
 import {
   assignShippingBox,
   displayDecimals,
-  EGYPT_GOVERNORATES,
   priceItem,
   shippingQuote,
   toDisplayAmount,
@@ -95,7 +93,6 @@ type CheckoutSummary =
     MatInputModule,
     MatProgressSpinnerModule,
     MatRadioModule,
-    MatSelectModule,
   ],
   templateUrl: './checkout.page.html',
 })
@@ -111,7 +108,6 @@ export class CheckoutPageComponent implements OnInit {
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
 
-  readonly governorates = EGYPT_GOVERNORATES;
   readonly isSubmitting = signal(false);
   readonly paymentMethod = signal<CheckoutPaymentMethod>('paymob');
   /** True once the shopper edits the country field; blocks further geo overwrite. */
@@ -403,8 +399,12 @@ export class CheckoutPageComponent implements OnInit {
   async placeOrder(): Promise<void> {
     if (this.isSubmitting() || this.isEmpty()) return;
     const draft = this.shipping();
-    if (!draft.fullName.trim() || !draft.line1.trim() || !draft.city.trim() || !draft.postalCode.trim()) {
+    if (!draft.fullName.trim() || !draft.line1.trim() || !draft.city.trim()) {
       this.#snackbar.error('Fill in your delivery address to continue.');
+      return;
+    }
+    if (draft.country !== 'EG' && !draft.postalCode.trim()) {
+      this.#snackbar.error('Enter your postal code to continue.');
       return;
     }
     if (!isCheckoutCountry(draft.country)) {
@@ -413,10 +413,6 @@ export class CheckoutPageComponent implements OnInit {
     }
     if (!draft.phone.trim()) {
       this.#snackbar.error('Add a phone number we can reach you on.');
-      return;
-    }
-    if (draft.country === 'EG' && !draft.governorateId) {
-      this.#snackbar.error('Choose your governorate so we can deliver your order.');
       return;
     }
     const summary = this.orderSummary();
@@ -447,13 +443,13 @@ export class CheckoutPageComponent implements OnInit {
       const shipping: CheckoutShippingInput = {
         fullName: draft.fullName.trim(),
         line1: draft.line1.trim(),
-        line2: draft.line2?.trim() || null,
+        line2: draft.country === 'EG' ? null : draft.line2?.trim() || null,
         city: draft.city.trim(),
-        region: draft.region?.trim() || null,
-        postalCode: draft.postalCode.trim(),
+        region: draft.country === 'EG' ? null : draft.region?.trim() || null,
+        postalCode: draft.country === 'EG' ? '' : draft.postalCode.trim(),
         country: draft.country,
         phone: draft.phone.trim(),
-        governorateId: draft.governorateId,
+        governorateId: null,
       };
 
       if (method === 'paymob') {
