@@ -120,6 +120,10 @@ export class CheckoutPageComponent implements OnInit {
   readonly #lastValidCountry = signal<CheckoutCountryCode>('EG');
   /** Typed filter text shown in the country autocomplete input. */
   readonly countryQuery = signal('');
+  /** Blur commit waits until the autocomplete panel closes so option taps win. */
+  readonly #countryBlurCommitPending = signal(false);
+  readonly #countryPanelOpen = signal(false);
+  readonly #countryOptionActivating = signal(false);
   readonly displayCountryLabel = (code: string): string => (code ? countryLabel(code) : '');
 
   readonly shipping = signal<CheckoutShippingInput>({
@@ -313,15 +317,41 @@ export class CheckoutPageComponent implements OnInit {
 
   onCountrySelected(event: MatAutocompleteSelectedEvent): void {
     this.#countryTouched.set(true);
+    this.#countryBlurCommitPending.set(false);
+    this.#countryOptionActivating.set(false);
     const code = String(event.option.value);
     if (!isCheckoutCountry(code)) return;
     this.patchShipping('country', code);
     this.countryQuery.set(countryLabel(code));
   }
 
+  onCountryAutocompleteOpened(): void {
+    this.#countryPanelOpen.set(true);
+  }
+
+  onCountryAutocompleteClosed(): void {
+    this.#countryPanelOpen.set(false);
+    // Run after optionSelected in the same turn when the shopper picked from the list.
+    setTimeout(() => {
+      this.#countryOptionActivating.set(false);
+      this.#flushCountryBlurCommit();
+    }, 0);
+  }
+
+  onCountryOptionActivate(): void {
+    this.#countryOptionActivating.set(true);
+  }
+
   onCountryBlur(): void {
-    // Defer so a mat-option click can fire optionSelected before we commit/clear.
-    setTimeout(() => this.#commitCountryFromQuery(), 0);
+    this.#countryBlurCommitPending.set(true);
+    this.#flushCountryBlurCommit();
+  }
+
+  #flushCountryBlurCommit(): void {
+    if (!this.#countryBlurCommitPending()) return;
+    if (this.#countryPanelOpen() || this.#countryOptionActivating()) return;
+    this.#countryBlurCommitPending.set(false);
+    this.#commitCountryFromQuery();
   }
 
   #commitCountryFromQuery(): void {

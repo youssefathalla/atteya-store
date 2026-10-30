@@ -104,10 +104,17 @@
         <mat-autocomplete
           #countryAuto="matAutocomplete"
           [displayWith]="displayCountryLabel"
+          (opened)="onCountryAutocompleteOpened()"
+          (closed)="onCountryAutocompleteClosed()"
           (optionSelected)="onCountrySelected($event)"
         >
           @for (country of filteredCountries(); track country.code) {
-            <mat-option [value]="country.code" (mousedown)="$event.preventDefault()">
+            <mat-option
+              [value]="country.code"
+              (mousedown)="$event.preventDefault()"
+              (touchstart)="$event.preventDefault()"
+              (pointerdown)="onCountryOptionActivate()"
+            >
               {{ country.label }}
             </mat-option>
           }
