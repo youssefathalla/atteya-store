@@ -37,27 +37,7 @@
       />
     </mat-form-field>
 
-    <mat-form-field class="w-full" subscriptSizing="dynamic">
-      <mat-label>Address line 1</mat-label>
-      <input
-        matInput
-        [value]="shipping().line1"
-        (input)="patchShipping('line1', $any($event.target).value)"
-        autocomplete="address-line1"
-      />
-    </mat-form-field>
-
-    <mat-form-field class="w-full" subscriptSizing="dynamic">
-      <mat-label>Address line 2 (optional)</mat-label>
-      <input
-        matInput
-        [value]="shipping().line2 ?? ''"
-        (input)="patchShipping('line2', $any($event.target).value || null)"
-        autocomplete="address-line2"
-      />
-    </mat-form-field>
-
-    <div class="grid gap-4 md:grid-cols-2">
+    @if (isEgypt()) {
       <mat-form-field class="w-full" subscriptSizing="dynamic">
         <mat-label>City</mat-label>
         <input
@@ -69,70 +49,98 @@
       </mat-form-field>
 
       <mat-form-field class="w-full" subscriptSizing="dynamic">
-        <mat-label>Region (optional)</mat-label>
+        <mat-label>Address</mat-label>
         <input
           matInput
-          [value]="shipping().region ?? ''"
-          (input)="patchShipping('region', $any($event.target).value || null)"
-          autocomplete="address-level1"
+          [value]="shipping().line1"
+          (input)="patchShipping('line1', $any($event.target).value)"
+          autocomplete="address-line1"
         />
       </mat-form-field>
-    </div>
-
-    <div class="grid gap-4 md:grid-cols-2">
+    } @else {
       <mat-form-field class="w-full" subscriptSizing="dynamic">
-        <mat-label>Postal code</mat-label>
+        <mat-label>Address line 1</mat-label>
         <input
           matInput
-          [value]="shipping().postalCode"
-          (input)="patchShipping('postalCode', $any($event.target).value)"
-          autocomplete="postal-code"
+          [value]="shipping().line1"
+          (input)="patchShipping('line1', $any($event.target).value)"
+          autocomplete="address-line1"
         />
       </mat-form-field>
 
       <mat-form-field class="w-full" subscriptSizing="dynamic">
-        <mat-label>Country</mat-label>
+        <mat-label>Address line 2 (optional)</mat-label>
         <input
           matInput
-          [matAutocomplete]="countryAuto"
-          [value]="countryQuery()"
-          (input)="onCountryQueryInput($event)"
-          (blur)="onCountryBlur()"
-          autocomplete="country-name"
-          placeholder="Start typing a country"
+          [value]="shipping().line2 ?? ''"
+          (input)="patchShipping('line2', $any($event.target).value || null)"
+          autocomplete="address-line2"
         />
-        <mat-autocomplete
-          #countryAuto="matAutocomplete"
-          [displayWith]="displayCountryLabel"
-          (opened)="onCountryAutocompleteOpened()"
-          (closed)="onCountryAutocompleteClosed()"
-          (optionSelected)="onCountrySelected($event)"
-        >
-          @for (country of filteredCountries(); track country.code) {
-            <mat-option
-              [value]="country.code"
-              (mousedown)="$event.preventDefault()"
-              (pointerdown)="onCountryOptionActivate()"
-            >
-              {{ country.label }}
-            </mat-option>
-          }
-        </mat-autocomplete>
       </mat-form-field>
-    </div>
 
-    @if (isEgypt()) {
-      <mat-form-field class="w-full" subscriptSizing="dynamic">
-        <mat-label>Governorate</mat-label>
-        <mat-select
-          [value]="shipping().governorateId"
-          (valueChange)="patchShipping('governorateId', $event)"
-        >
-          @for (gov of governorates; track gov.id) {
-            <mat-option [value]="gov.id">{{ gov.name }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      <div class="grid gap-4 md:grid-cols-2">
+        <mat-form-field class="w-full" subscriptSizing="dynamic">
+          <mat-label>City</mat-label>
+          <input
+            matInput
+            [value]="shipping().city"
+            (input)="patchShipping('city', $any($event.target).value)"
+            autocomplete="address-level2"
+          />
+        </mat-form-field>
+
+        <mat-form-field class="w-full" subscriptSizing="dynamic">
+          <mat-label>Region (optional)</mat-label>
+          <input
+            matInput
+            [value]="shipping().region ?? ''"
+            (input)="patchShipping('region', $any($event.target).value || null)"
+            autocomplete="address-level1"
+          />
+        </mat-form-field>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <mat-form-field class="w-full" subscriptSizing="dynamic">
+          <mat-label>Postal code</mat-label>
+          <input
+            matInput
+            [value]="shipping().postalCode"
+            (input)="patchShipping('postalCode', $any($event.target).value)"
+            autocomplete="postal-code"
+          />
+        </mat-form-field>
+
+        <mat-form-field class="w-full" subscriptSizing="dynamic">
+          <mat-label>Country</mat-label>
+          <input
+            matInput
+            [matAutocomplete]="countryAutoIntl"
+            [value]="countryQuery()"
+            (input)="onCountryQueryInput($event)"
+            (blur)="onCountryBlur()"
+            autocomplete="country-name"
+            placeholder="Start typing a country"
+          />
+          <mat-autocomplete
+            #countryAutoIntl="matAutocomplete"
+            [displayWith]="displayCountryLabel"
+            (opened)="onCountryAutocompleteOpened()"
+            (closed)="onCountryAutocompleteClosed()"
+            (optionSelected)="onCountrySelected($event)"
+          >
+            @for (country of filteredCountries(); track country.code) {
+              <mat-option
+                [value]="country.code"
+                (mousedown)="$event.preventDefault()"
+                (pointerdown)="onCountryOptionActivate()"
+              >
+                {{ country.label }}
+              </mat-option>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+      </div>
     }
 
     <mat-form-field class="w-full" subscriptSizing="dynamic">

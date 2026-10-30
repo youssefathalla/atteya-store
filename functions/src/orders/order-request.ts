@@ -1,5 +1,4 @@
 import { HttpsError } from 'firebase-functions/v2/https';
-import { EGYPT_GOVERNORATES } from '../offers/engine/governorates.js';
 
 const COUNTRY_CODE = /^[A-Z]{2}$/;
 const MAX_LINES = 20;
@@ -10,8 +9,6 @@ const MAX_CITY = 80;
 const MAX_POSTAL = 20;
 const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
-const EGYPT_GOVERNORATE_IDS = new Set(EGYPT_GOVERNORATES.map((g) => g.id));
-
 export type StorePaymentMethod = 'paymob' | 'cash-on-delivery';
 
 export interface OrderLineInput {
@@ -30,7 +27,7 @@ export interface OrderShippingInput {
   readonly postalCode: string;
   readonly country: string;
   readonly phone: string;
-  /** Egypt governorate id (cairo, alexandria, …). Required for EG address. */
+  /** Legacy Egypt governorate id; no longer collected at checkout (AS-58). */
   readonly governorateId: string | null;
 }
 
@@ -99,15 +96,17 @@ function parseShipping(raw: unknown): OrderShippingInput {
   if (!isRecord(raw)) {
     throw new HttpsError('invalid-argument', 'Enter your delivery address to continue.');
   }
+  const country = readCountry(raw['country']);
   const fullName = readText(raw['fullName'], MAX_NAME, 'Enter the recipient name.');
   const line1 = readText(raw['line1'], MAX_LINE, 'Enter the street address.');
   const line2 = readOptionalText(raw['line2'], MAX_LINE);
   const city = readText(raw['city'], MAX_CITY, 'Enter the city.');
   const region = readOptionalText(raw['region'], MAX_CITY);
-  const postalCode = readText(raw['postalCode'], MAX_POSTAL, 'Enter the postal code.');
-  const country = readCountry(raw['country']);
+  const postalCode =
+    country === 'EG'
+      ? (readOptionalText(raw['postalCode'], MAX_POSTAL) ?? '')
+      : readText(raw['postalCode'], MAX_POSTAL, 'Enter the postal code.');
   const phone = readText(raw['phone'], MAX_PHONE, 'Enter a phone number we can reach you on.');
-  const governorateId = readGovernorate(raw['governorateId'], country);
   return {
     fullName,
     line1,
@@ -117,23 +116,8 @@ function parseShipping(raw: unknown): OrderShippingInput {
     postalCode,
     country,
     phone,
-    governorateId,
+    governorateId: null,
   };
-}
-
-function readGovernorate(raw: unknown, country: string): string | null {
-  if (country !== 'EG') return null;
-  if (raw === null || raw === undefined || raw === '') {
-    throw new HttpsError('invalid-argument', 'Choose your governorate for Egypt delivery.');
-  }
-  if (typeof raw !== 'string') {
-    throw new HttpsError('invalid-argument', 'Choose your governorate for Egypt delivery.');
-  }
-  const trimmed = raw.trim().toLowerCase();
-  if (!EGYPT_GOVERNORATE_IDS.has(trimmed)) {
-    throw new HttpsError('invalid-argument', 'Choose a valid Egypt governorate.');
-  }
-  return trimmed;
 }
 
 function readCountry(raw: unknown): string {
