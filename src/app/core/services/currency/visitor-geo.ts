@@ -7,7 +7,6 @@ const ISO_COUNTRY = /^[A-Z]{2}$/;
 export const VISITOR_COUNTRY_HEADER = 'x-atteya-visitor-country';
 
 const HEADER_COUNTRY = [
-  VISITOR_COUNTRY_HEADER,
   'cf-ipcountry',
   'x-country-code',
   'cloudfront-viewer-country',
@@ -17,6 +16,19 @@ const HEADER_COUNTRY = [
 ] as const;
 
 const GEO_LOOKUP_MS = 1200;
+
+/** Drops a client-sent country hint; only middleware may set {@link VISITOR_COUNTRY_HEADER}. */
+export function stripUntrustedVisitorCountry(headers: Headers): Headers {
+  if (!headers.has(VISITOR_COUNTRY_HEADER)) return headers;
+  const stripped = new Headers(headers);
+  stripped.delete(VISITOR_COUNTRY_HEADER);
+  return stripped;
+}
+
+/** Server-only country stamped by Express before SSR (never from clients). */
+export function countryFromServerVisitorHeader(headers: Headers): string | null {
+  return normalizeCountry(headers.get(VISITOR_COUNTRY_HEADER));
+}
 
 /**
  * Reads an ISO country from CDN or platform geo headers when present.
@@ -79,7 +91,8 @@ export async function resolveVisitorCountry(
   headers: Headers,
   remoteAddress?: string | null,
 ): Promise<string | null> {
-  const enriched = enrichHeadersForVisitorGeo(headers, remoteAddress);
+  const withoutSpoof = stripUntrustedVisitorCountry(headers);
+  const enriched = enrichHeadersForVisitorGeo(withoutSpoof, remoteAddress);
   const fromHeader = countryFromGeoHeaders(enriched);
   if (fromHeader) return fromHeader;
   const ip = clientIpFromHeaders(enriched);

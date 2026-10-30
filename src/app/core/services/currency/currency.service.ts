@@ -23,7 +23,7 @@ import {
 import { loadPublicCurrency } from './currency-loader';
 import type { PublicCurrencyMap } from './currency.schema';
 import { CURRENCY_BOOT_KEY, type CurrencyBootTransfer } from './currency.state';
-import { resolveVisitorCountry } from './visitor-geo';
+import { countryFromServerVisitorHeader, resolveVisitorCountry } from './visitor-geo';
 import { VisitorLocationResponseSchema } from './visitor-geo.schema';
 
 const PENDING_TIMEOUT_MS = 2500;
@@ -81,7 +81,9 @@ export class CurrencyService {
       return;
     }
     const headers = this.#request?.headers ?? null;
-    const country = headers ? await resolveVisitorCountry(headers) : null;
+    const preset = headers ? countryFromServerVisitorHeader(headers) : null;
+    const country =
+      preset ?? (headers ? await resolveVisitorCountry(headers) : null);
     this.#visitorCountry.set(country);
     const code = currencyFromCountry(country);
     await this.#finishWithCode(code, country, { pendingIntl: code !== 'EGP' });

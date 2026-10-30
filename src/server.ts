@@ -14,6 +14,7 @@ import {
   enrichHeadersForVisitorGeo,
   headersFromRecord,
   resolveVisitorCountry,
+  stripUntrustedVisitorCountry,
   VISITOR_COUNTRY_HEADER,
 } from './app/core/services/currency/visitor-geo.js';
 import { VisitorLocationResponseSchema } from './app/core/services/currency/visitor-geo.schema.js';
@@ -63,34 +64,12 @@ app.get('/api/visitor-location', async (req, res) => {
 });
 
 function visitorLocationHeaders(req: express.Request): Headers {
+  delete req.headers[VISITOR_COUNTRY_HEADER];
   const headers = headersFromRecord(
     req.headers as Record<string, string | string[] | undefined>,
   );
-  return enrichHeadersForVisitorGeo(headers, req.socket.remoteAddress);
+  return enrichHeadersForVisitorGeo(stripUntrustedVisitorCountry(headers), req.socket.remoteAddress);
 }
-
-/** Resolve geo once per document request so SSR sees the same country as the API route. */
-app.use(async (req, res, next) => {
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    next();
-    return;
-  }
-  const path = req.path;
-  if (path.startsWith('/api/') || HASHED_BUILD_FILE.test(path) || path.startsWith('/fonts/') || path.startsWith('/media/') || path === '/sw.js') {
-    next();
-    return;
-  }
-  try {
-    const headers = visitorLocationHeaders(req);
-    const country = await resolveVisitorCountry(headers, req.socket.remoteAddress);
-    if (country) {
-      req.headers[VISITOR_COUNTRY_HEADER] = country;
-    }
-  } catch {
-    // Unknown geo; CurrencyService falls back like before.
-  }
-  next();
-});
 
 /**
  * Serve static files from /browser
@@ -109,6 +88,25 @@ app.use(
     },
   }),
 );
+
+/** Resolve geo once per SSR document (after static; no ipwho for favicon, icons, etc.). */
+app.use(async (req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    next();
+    return;
+  }
+  delete req.headers[VISITOR_COUNTRY_HEADER];
+  try {
+    const headers = visitorLocationHeaders(req);
+    const country = await resolveVisitorCountry(headers, req.socket.remoteAddress);
+    if (country) {
+      req.headers[VISITOR_COUNTRY_HEADER] = country;
+    }
+  } catch {
+    // Unknown geo; CurrencyService falls back like before.
+  }
+  next();
+});
 
 /**
  * Handle all other requests by rendering the Angular application.
