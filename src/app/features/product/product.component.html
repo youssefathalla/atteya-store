@@ -38,6 +38,9 @@
               [badges]="pr.badges"
             />
           }
+          @if (shippingLine(); as line) {
+            <p class="pdp-shipping-line font-label-md text-on-surface-variant">{{ line }}</p>
+          }
           @if (!inStock()) {
             <p class="font-label-lg uppercase" role="status">
               {{ removed() ? 'No longer available' : 'Out of stock' }}
