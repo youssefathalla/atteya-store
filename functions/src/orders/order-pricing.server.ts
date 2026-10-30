@@ -167,9 +167,7 @@ function resolveFulfilment(
   return isInternational ? 'international-paymob' : 'domestic-paymob';
 }
 
-function boxSelectionError(
-  code: 'too-heavy' | 'unknown-box' | 'box-too-small' | 'no-boxes',
-): HttpsError {
+function boxSelectionError(code: 'too-heavy' | 'no-boxes'): HttpsError {
   if (code === 'too-heavy') {
     return new HttpsError(
       'failed-precondition',
