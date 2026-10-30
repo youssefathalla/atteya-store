@@ -100,6 +100,15 @@ export async function resolveVisitorCountry(
   return lookupCountryByIp(ip);
 }
 
+/** Non-production only: localhost/private IP geo → Egypt (store home market). */
+export function applyDevLocalGeoFallback(
+  country: string | null,
+  devFallback: boolean,
+): string | null {
+  if (country !== null || !devFallback) return country;
+  return 'EG';
+}
+
 export function headersFromRecord(
   record: Record<string, string | string[] | undefined>,
 ): Headers {
