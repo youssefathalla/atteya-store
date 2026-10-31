@@ -71,6 +71,11 @@ Before approving any task, completing a feature, or declaring code ready:
 - [ ] **Server Route Coverage**: Are all parameterized routes (`:slug`, `:id`) and wildcard routes in `app.routes.ts` mapped in `src/app/app.routes.server.ts` with `RenderMode.Server` (or `getPrerenderParams`)?
 - [ ] **Template Complexity**: Is conditional complexity $\le 3$? Are complex expressions extracted into `@let` variables?
 - [ ] **Deferred Content**: Is heavy below-the-fold content wrapped in `@defer (hydrate on viewport)`? Is above-the-fold content NOT deferred?
+- [ ] **Storefront async UI (storefront only)**: For settings/auth/geo-driven chrome or Firestore-backed SSR body, what does the user see if Firestore is slow — **wrong defaults** or a same-size loading state?
+  - No visible `DEFAULT_*` while `signalDoc()` / settings are still `undefined`.
+  - Layout chrome participates in **`ShellReadyService`** or has SSR `TransferState` seed before listeners.
+  - Lists/grids use **`resource()` / `rxResource()`** + skeletons, not empty-then-pop-in rows.
+  - See **[storefront-loading](file:///.agents/skills/storefront-loading/SKILL.md)** skill for the full tier checklist and banned patterns.
 
 ### 5. 🔒 Security & ReDoS Prevention
 

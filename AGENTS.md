@@ -105,6 +105,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### Storefront shell (first load)
 
+- **Storefront async UI:** Activate the **`storefront-loading`** skill when adding or changing settings-driven chrome, geo/currency-dependent copy, or Firestore-backed SSR route bodies — it holds the full anti-flicker tier checklist (do not duplicate here).
 - **`ShellReadyService`** (`@core/services/shell/`): `ready()` is true when `CurrencyService.ready()`, `ShippingSettingsService.shellReady()`, `NavService.shellReady()` (SSR seed or first live doc), and browser `AuthService.isAuthReady()` (SSR skips Firebase auth). **`chromeReady()`** is currency + shipping + navigation. **`MainLayoutComponent`** shows a one-time `<app-loader>` overlay until `chromeReady()` on the first storefront load (not on every navigation; route changes keep the top pulse only). The shipping banner mounts only when `chromeReady()` so EGP copy does not pop in; SSR HTML still carries route body for LCP. Account menu keeps its own `isAuthReady()` gate.
 
 ### Storefront motion (GSAP)
@@ -129,6 +130,7 @@ Activate the dedicated skills from `.agents/skills/` on demand. `sync-docs`, `as
 - **`ui-design-rules`** for the Component Decision Matrix (Shared UI vs Material vs Tailwind), monochrome identity, and token rules.
 - **`quality-standards`** for A11y guardrails (no fake buttons), ReDoS prevention, and SSR server route registration.
 - **`code-review`** (Pre-Flight Beast Mode Gate) for `npm run preflight` automated audit and the 7-Point Quality Gate before shipping.
+- **`storefront-loading`** for storefront anti-flicker tiers, SSR/`TransferState` seeds, `ShellReadyService`, and async UI checklists.
 - **`angular-developer`** for architecture, components, signals, forms, DI, HTTP, and routing.
 - **`design-system`** for Tailwind v4, Material M3 token overrides, and style partial workflows.
 - **`typescript`** for strict types, Valibot schemas, pure models, and logic utilities.
