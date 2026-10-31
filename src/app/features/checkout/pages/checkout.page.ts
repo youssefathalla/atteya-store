@@ -56,6 +56,7 @@ import {
   matchCheckoutCountryExact,
   type CheckoutCountryCode,
 } from '../utils/checkout-countries';
+import { SharedIconModule } from "@shared/ui/mat-icon";
 
 const TOO_HEAVY_MESSAGE = 'This order is too heavy to deliver. Remove an item or contact us.';
 const DELIVERY_UNAVAILABLE_MESSAGE =
@@ -93,6 +94,7 @@ type CheckoutSummary =
     MatInputModule,
     MatProgressSpinnerModule,
     MatRadioModule,
+    SharedIconModule,
   ],
   templateUrl: './checkout.page.html',
 })

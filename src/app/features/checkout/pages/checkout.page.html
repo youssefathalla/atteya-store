@@ -27,8 +27,9 @@
   <form class="surface-card p-5 space-y-4" (submit)="$event.preventDefault(); placeOrder()">
     <h2 class="font-title-md font-bold!">Delivery address</h2>
 
-    <mat-form-field class="w-full" subscriptSizing="dynamic">
+    <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
       <mat-label>Full name</mat-label>
+      <mat-icon matPrefix name="person" />
       <input
         matInput
         [value]="shipping().fullName"
@@ -38,8 +39,9 @@
     </mat-form-field>
 
     @if (isEgypt()) {
-      <mat-form-field class="w-full" subscriptSizing="dynamic">
+      <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
         <mat-label>City</mat-label>
+        <mat-icon matPrefix name="location_city" />
         <input
           matInput
           [value]="shipping().city"
@@ -48,8 +50,9 @@
         />
       </mat-form-field>
 
-      <mat-form-field class="w-full" subscriptSizing="dynamic">
+      <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
         <mat-label>Address</mat-label>
+        <mat-icon matPrefix name="home" />
         <input
           matInput
           [value]="shipping().line1"
@@ -58,8 +61,9 @@
         />
       </mat-form-field>
     } @else {
-      <mat-form-field class="w-full" subscriptSizing="dynamic">
+      <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
         <mat-label>Address line 1</mat-label>
+        <mat-icon matPrefix name="home" />
         <input
           matInput
           [value]="shipping().line1"
@@ -68,8 +72,9 @@
         />
       </mat-form-field>
 
-      <mat-form-field class="w-full" subscriptSizing="dynamic">
+      <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
         <mat-label>Address line 2 (optional)</mat-label>
+        <mat-icon matPrefix name="layers" />
         <input
           matInput
           [value]="shipping().line2 ?? ''"
@@ -79,8 +84,9 @@
       </mat-form-field>
 
       <div class="grid gap-4 md:grid-cols-2">
-        <mat-form-field class="w-full" subscriptSizing="dynamic">
+        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
           <mat-label>City</mat-label>
+          <mat-icon matPrefix name="location_city" />
           <input
             matInput
             [value]="shipping().city"
@@ -89,8 +95,9 @@
           />
         </mat-form-field>
 
-        <mat-form-field class="w-full" subscriptSizing="dynamic">
+        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
           <mat-label>Region (optional)</mat-label>
+          <mat-icon matPrefix name="grid_view" />
           <input
             matInput
             [value]="shipping().region ?? ''"
@@ -101,8 +108,9 @@
       </div>
 
       <div class="grid gap-4 md:grid-cols-2">
-        <mat-form-field class="w-full" subscriptSizing="dynamic">
+        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
           <mat-label>Postal code</mat-label>
+          <mat-icon matPrefix name="markunread_mailbox" />
           <input
             matInput
             [value]="shipping().postalCode"
@@ -111,8 +119,9 @@
           />
         </mat-form-field>
 
-        <mat-form-field class="w-full" subscriptSizing="dynamic">
+        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
           <mat-label>Country</mat-label>
+          <mat-icon matPrefix name="public" />
           <input
             matInput
             [matAutocomplete]="countryAutoIntl"
@@ -143,8 +152,9 @@
       </div>
     }
 
-    <mat-form-field class="w-full" subscriptSizing="dynamic">
+    <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
       <mat-label>Phone</mat-label>
+      <mat-icon matPrefix name="call" />
       <input
         matInput
         [value]="shipping().phone"
@@ -178,9 +188,7 @@
               This order is too heavy to deliver. Remove an item or contact us.
             </p>
           } @else if (summary.state === 'missing-item') {
-            <p class="font-body-sm text-error" role="alert">
-              One item in your bag is no longer available.
-            </p>
+            <p class="font-body-sm text-error" role="alert">One item in your bag is no longer available.</p>
           } @else if (summary.state === 'unavailable') {
             <p class="font-body-sm text-error" role="alert">
               We could not work out delivery for this order. Please try again later.
@@ -204,9 +212,7 @@
         @if (codAvailable()) {
           <mat-radio-button value="cash-on-delivery">Cash on delivery</mat-radio-button>
         } @else {
-          <p class="font-label-sm opacity-70">
-            Cash on delivery is available when shipping to Egypt.
-          </p>
+          <p class="font-label-sm opacity-70">Cash on delivery is available when shipping to Egypt.</p>
         }
       </mat-radio-group>
     </fieldset>
