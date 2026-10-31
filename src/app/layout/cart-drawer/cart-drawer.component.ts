@@ -3,7 +3,11 @@ import { Component, computed, inject, resource } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { doc, getDoc } from 'firebase/firestore';
-import { canCheckout, cartSubtotalDisplay } from '@core/services/cart/cart-pricing';
+import {
+  canCheckout,
+  cartSubtotalDisplay,
+  lineDisplayAmount,
+} from '@core/services/cart/cart-pricing';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
@@ -11,7 +15,6 @@ import { injectFirestore } from '@core/firebase';
 import { displayDecimals, toDisplayAmount } from '@core/services/offers/engine';
 import { ProductSchema } from '@core/services/products/product.schema';
 import { DrawerService } from '@core/services/drawer/drawer.service';
-import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
@@ -46,7 +49,6 @@ interface CartProductInfo {
     NgOptimizedImage,
     MatButtonModule,
     SharedIconModule,
-    ProductPriceComponent,
     AppImageFallbackDirective,
   ],
   templateUrl: './cart-drawer.component.html',
@@ -120,12 +122,28 @@ export class CartDrawerComponent {
     },
   });
 
-  /** Catalog unit prices converted into the visitor's display currency. */
+  /**
+   * Catalog unit prices converted into the visitor's display currency.
+   * Line totals and the bag subtotal both multiply these (convert, then × qty).
+   */
   readonly #unitDisplayByProductId = computed(() => {
     const entry = this.#currency.entry();
     const map = new Map<string, number>();
     for (const [id, info] of this.productsResource.value() ?? []) {
       map.set(id, toDisplayAmount(info.price, entry));
+    }
+    return map;
+  });
+
+  readonly #listUnitDisplayByProductId = computed(() => {
+    const entry = this.#currency.entry();
+    const map = new Map<string, number>();
+    for (const [id, info] of this.productsResource.value() ?? []) {
+      const list = info.compareAtPrice;
+      if (list === null || list <= info.price) continue;
+      const sale = toDisplayAmount(info.price, entry);
+      const was = toDisplayAmount(list, entry);
+      if (was > sale) map.set(id, was);
     }
     return map;
   });
@@ -144,14 +162,30 @@ export class CartDrawerComponent {
     return normalizeImageKitPath(rawPath);
   }
 
-  /** Line total in EGP (unit × qty) for listing sale display. */
-  lineTotalPrice(info: CartProductInfo, quantity: number): number {
-    return info.price * quantity;
+  /** Line total label — same convert-then-multiply path as the bag subtotal. */
+  lineTotalLabel(productId: string, quantity: number): string {
+    const unit = this.#unitDisplayByProductId().get(productId);
+    if (typeof unit !== 'number') return '';
+    const entry = this.#currency.entry();
+    return formatMoney(lineDisplayAmount(unit, quantity), entry.code, displayDecimals(entry.code));
   }
 
-  lineTotalListPrice(info: CartProductInfo, quantity: number): number | null {
-    const list = info.compareAtPrice;
-    return list !== null && list > info.price ? list * quantity : null;
+  /** Struck compare-at line total when the converted list unit is higher than sale. */
+  lineListLabel(productId: string, quantity: number): string {
+    const listUnit = this.#listUnitDisplayByProductId().get(productId);
+    if (typeof listUnit !== 'number') return '';
+    const entry = this.#currency.entry();
+    return formatMoney(
+      lineDisplayAmount(listUnit, quantity),
+      entry.code,
+      displayDecimals(entry.code),
+    );
+  }
+
+  linePriceClass(productId: string): string {
+    return this.#listUnitDisplayByProductId().has(productId)
+      ? 'font-body-md font-bold!'
+      : 'font-body-md';
   }
 
   selectionLabel(

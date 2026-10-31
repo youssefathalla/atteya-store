@@ -68,9 +68,11 @@ export class MainLayoutComponent {
   );
 
   /** Shipping banner host — contributes to `--storefront-top-chrome`. */
-  readonly shippingChrome = viewChild<ElementRef<HTMLElement>>('shippingChrome');
+  readonly shippingChrome = viewChild('shippingChrome', {
+    read: ElementRef<HTMLElement>,
+  });
   /** Desktop nav host — contributes to `--storefront-top-chrome` (0 when `lg:hidden`). */
-  readonly navChrome = viewChild<ElementRef<HTMLElement>>('navChrome');
+  readonly navChrome = viewChild('navChrome', { read: ElementRef<HTMLElement> });
 
   // Responsive signal to differentiate desktop side drawer vs mobile bottom slide-up
   readonly isDesktop = useBreakpoint(1024);

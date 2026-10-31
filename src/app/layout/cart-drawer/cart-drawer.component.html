@@ -79,13 +79,16 @@
                   <p class="font-label-sm text-on-surface-variant">{{ selection }}</p>
                 }
                 <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
-                <app-product-price
-                  class="pt-0.5"
-                  tone="listing"
-                  [price]="lineTotalPrice(product, line.quantity)"
-                  [listPrice]="lineTotalListPrice(product, line.quantity)"
-                  [badges]="[]"
-                />
+                <div class="elements-center flex-wrap gap-1.5 pt-0.5">
+                  <span [class]="linePriceClass(line.productId)">
+                    {{ lineTotalLabel(line.productId, line.quantity) }}
+                  </span>
+                  @if (lineListLabel(line.productId, line.quantity); as listLabel) {
+                    <span class="font-body-sm text-on-surface-variant line-through">
+                      {{ listLabel }}
+                    </span>
+                  }
+                </div>
               </div>
             } @else {
               <div class="relative size-20 shrink-0 bg-surface-container-high" aria-hidden="true"></div>

@@ -1,6 +1,6 @@
 /**
  * Homepage product rows (AS-73 / AS-83): padel floating tiles + shared scroll nav chrome.
- * New Arrivals uses a shorter media plane so title + ~3 cards + arrow row fit one viewport.
+ * New Arrivals uses portrait media capped to the remaining viewport under top chrome.
  */
 @layer components {
   .padel-tile {
@@ -27,7 +27,7 @@
   }
 
   .row-scroll-nav {
-    @apply elements-center gap-3 pt-4 sm:pt-5;
+    @apply elements-center gap-3 pt-3 sm:pt-4;
   }
 
   .row-scroll-nav__progress {
@@ -40,14 +40,23 @@
   }
 
   /**
-   * Compact listing cards for the homepage New Arrivals row only.
-   * Cap media height against remaining viewport under sticky top chrome so
-   * section title + cards + arrows stay on one screen without vertical scroll.
+   * Homepage New Arrivals: tighten section padding (avoid empty bands above/below)
+   * and use 4:5 media capped so title + cards + arrows fit one viewport.
    */
+  .home-new-arrivals.container-content {
+    padding-block: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .home-new-arrivals.container-content {
+      padding-block: 1.25rem;
+    }
+  }
+
   .home-new-arrivals .product-card__media {
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 4 / 5;
     max-height: calc(
-      100dvh - var(--storefront-top-chrome, 56px) - var(--home-new-arrivals-chrome, 11rem)
+      100dvh - var(--storefront-top-chrome, 56px) - var(--home-new-arrivals-chrome, 7.75rem)
     );
   }
 
@@ -57,14 +66,6 @@
 
   .home-new-arrivals .product-card__swatches {
     @apply pt-1 pb-0.5;
-  }
-
-  .home-new-arrivals .product-card__swatch {
-    @apply size-8 sm:size-9;
-  }
-
-  .home-new-arrivals .product-card__swatch-more {
-    @apply size-8 sm:size-9;
   }
 
   .home-new-arrivals .product-card__info {
