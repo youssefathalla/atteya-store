@@ -1,4 +1,4 @@
-import { DOCUMENT, isPlatformBrowser, NgOptimizedImage } from '@angular/common';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import {
   afterNextRender,
   Component,
@@ -16,18 +16,19 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
 import { displayPrice, type PricedProduct } from '@core/services/offers/engine';
 import { OffersService } from '@core/services/offers/offers.service';
+import type { Product } from '@core/services/products/product.model';
+import { ProductCacheService, ProductService } from '@core/services/products';
 import { SearchService, type SearchSort } from '@core/services/search';
 import { SeoService } from '@core/services/seo';
-import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
-import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
-import { PrefetchProductDirective } from '@shared/directives/prefetch-product';
+import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
+import type { ProductCardPrice } from '@shared/components/product-card/product-card.model';
+import { searchHitToCardData } from '@shared/components/product-card/product-card.utils';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
-import { normalizeImageKitPath } from '@shared/utils/image';
 
 const SORT_OPTIONS: readonly { readonly value: SearchSort; readonly label: string }[] = [
   { value: 'relevance', label: 'Relevance' },
@@ -35,27 +36,15 @@ const SORT_OPTIONS: readonly { readonly value: SearchSort; readonly label: strin
   { value: 'price-desc', label: 'Price: high to low' },
 ];
 
-interface CardPriceView {
-  readonly price: number;
-  readonly fromPrice: number | null;
-  readonly listPrice: number | null;
-  readonly partial: boolean;
-  readonly badges: readonly string[];
-}
-
 @Component({
   selector: 'app-search',
   host: { class: 'block w-full min-h-[60vh] container-content' },
   imports: [
-    NgOptimizedImage,
-    RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    AppImageFallbackDirective,
-    PrefetchProductDirective,
-    ProductPriceComponent,
+    ProductCardComponent,
     SharedIconModule,
     SkeletonComponent,
   ],
@@ -68,6 +57,8 @@ export class SearchComponent implements OnInit {
 
   readonly #router = inject(Router);
   readonly #searchService = inject(SearchService);
+  readonly #products = inject(ProductService);
+  readonly #cache = inject(ProductCacheService);
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);
   readonly #seo = inject(SeoService);
@@ -129,7 +120,7 @@ export class SearchComponent implements OnInit {
     return this.resultsResource.value()?.totalPages ?? 0;
   });
 
-  readonly cardPrices = computed<ReadonlyMap<string, CardPriceView>>(() => {
+  readonly cardPrices = computed<ReadonlyMap<string, ProductCardPrice>>(() => {
     const hits = this.hits();
     const liveMode = this.#offers.ready() && !this.#offers.failed();
     const offers = liveMode ? this.#offers.all() : [];
@@ -138,7 +129,7 @@ export class SearchComponent implements OnInit {
       signedIn: this.#hydrated() && Boolean(this.#auth.user()),
     };
 
-    const map = new Map<string, CardPriceView>();
+    const map = new Map<string, ProductCardPrice>();
     for (const hit of hits) {
       if (liveMode) {
         const priced: PricedProduct = {
@@ -160,18 +151,13 @@ export class SearchComponent implements OnInit {
           fromPrice: d.partial ? d.fromPrice : null,
           listPrice: d.listPrice,
           partial: d.partial,
-          badges: d.badges.map((b) => b.text).slice(0, 3),
+          // Listing cards keep strike-through; skip boxed offer chips.
+          badges: [],
         });
       } else {
         const shown = hit.displayPrice ?? hit.price;
         // Records indexed before `pricePartial` existed keep the old behaviour until search is rebuilt.
         const varies = hit.pricePartial ?? shown !== hit.price;
-        const badges =
-          hit.offerBadges.length > 0
-            ? hit.offerBadges
-            : hit.onSale && hit.discountPercent > 0
-              ? [`${hit.discountPercent}% off`]
-              : [];
         map.set(
           hit.objectID,
           varies
@@ -180,19 +166,50 @@ export class SearchComponent implements OnInit {
                 fromPrice: shown,
                 listPrice: hit.listPrice ?? hit.compareAtPrice,
                 partial: true,
-                badges,
+                badges: [],
               }
             : {
                 price: shown,
                 fromPrice: null,
                 listPrice: hit.listPrice ?? hit.compareAtPrice,
                 partial: false,
-                badges,
+                badges: [],
               },
         );
       }
     }
     return map;
+  });
+
+  readonly #siblingsResource = resource({
+    params: () => {
+      const groups = this.hits()
+        .map((hit) => hit.modelGroup?.trim() ?? '')
+        .filter((group) => group.length > 0);
+      return groups.length > 0 ? groups : undefined;
+    },
+    loader: async ({ params }) => {
+      const map = await this.#products.listPublishedByModelGroups(params, 12);
+      const all: Product[] = [];
+      for (const list of map.values()) all.push(...list);
+      this.#cache.seed(all);
+      return map;
+    },
+  });
+
+  readonly siblingsByGroup = computed((): ReadonlyMap<string, readonly Product[]> => {
+    if (!this.#siblingsResource.hasValue()) return new Map();
+    return this.#siblingsResource.value();
+  });
+
+  readonly cards = computed(() => {
+    const prices = this.cardPrices();
+    const siblings = this.siblingsByGroup();
+    return this.hits().flatMap((hit) => {
+      const price = prices.get(hit.objectID);
+      if (!price) return [];
+      return [searchHitToCardData(hit, price, siblings)];
+    });
   });
 
   readonly skeletonCards = [0, 1, 2, 3, 4, 5, 6, 7] as const;
@@ -313,10 +330,6 @@ export class SearchComponent implements OnInit {
       sort: this.activeSort(),
       page: nextPage,
     });
-  }
-
-  imagePath(rawPath: string): string {
-    return normalizeImageKitPath(rawPath);
   }
 
   #preconnectAlgolia(): void {

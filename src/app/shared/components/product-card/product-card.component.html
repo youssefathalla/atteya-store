@@ -1,0 +1,88 @@
+<a
+  class="product-card__main"
+  [routerLink]="['/product', product().slug]"
+  [appPrefetchProduct]="product().slug"
+>
+  <div class="product-card__media">
+    @if (displayImagePath(); as path) {
+      <img
+        [ngSrc]="imagePath(path)"
+        [appImageFallback]="path"
+        [alt]="displayImageAlt()"
+        fill
+        [priority]="priority()"
+        [sizes]="sizes()"
+        class="product-card__photo"
+      />
+    }
+  </div>
+</a>
+
+<div class="product-card__swatches" aria-label="Available colours">
+  <div
+    class="product-card__swatch-row"
+    appHorizontalScroll
+    [snapToItems]="false"
+    [enableDrag]="true"
+  >
+    @for (colorway of colorwayRow().shown; track colorway.productId) {
+      <a
+        class="product-card__swatch"
+        [class.product-card__swatch--selected]="isSelected(colorway)"
+        [routerLink]="['/product', colorway.slug]"
+        [appPrefetchProduct]="colorway.slug"
+        [attr.aria-label]="colorway.imageAlt"
+        [attr.aria-current]="isSelected(colorway) ? 'page' : null"
+        (mouseenter)="onColorEnter(colorway)"
+        (mouseleave)="onColorLeave()"
+        (focus)="onColorEnter(colorway)"
+        (blur)="onColorLeave()"
+      >
+        @if (colorway.imagePath) {
+          <img
+            [ngSrc]="imagePath(colorway.imagePath)"
+            [appImageFallback]="colorway.imagePath"
+            [alt]=""
+            width="40"
+            height="40"
+            class="product-card__swatch-img"
+          />
+        }
+      </a>
+    }
+    @if (colorwayRow().overflow > 0) {
+      <span class="product-card__swatch-more" aria-hidden="true">
+        +{{ colorwayRow().overflow }}
+      </span>
+    }
+  </div>
+  <div class="product-card__swatch-track" aria-hidden="true"></div>
+</div>
+
+<a
+  class="product-card__info"
+  [routerLink]="['/product', product().slug]"
+  [appPrefetchProduct]="product().slug"
+>
+  @if (product().marketingBadge; as badge) {
+    <span
+      class="product-card__badge"
+      [class.product-card__badge--boxed]="badge.style === 'boxed'"
+    >
+      {{ badge.label }}
+    </span>
+  }
+  <h2 class="product-card__name">{{ product().name }}</h2>
+  @if (product().shortDescription) {
+    <p class="product-card__desc">{{ product().shortDescription }}</p>
+  }
+  <app-product-price
+    class="product-card__price"
+    tone="listing"
+    [price]="product().price.price"
+    [fromPrice]="product().price.fromPrice"
+    [partial]="product().price.partial"
+    [listPrice]="product().price.listPrice"
+    [badges]="product().price.badges"
+  />
+</a>

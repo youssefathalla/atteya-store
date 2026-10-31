@@ -18,6 +18,10 @@ export class ProductPriceComponent {
   readonly fromPrice = input<number | null>(null);
   readonly partial = input(false);
   readonly badges = input<readonly string[]>([]);
+  /** `listing` = regular weight + light sale text (no boxed chips). */
+  readonly tone = input<'default' | 'listing'>('default');
+
+  readonly isListing = computed(() => this.tone() === 'listing');
 
   readonly displayedPrice = computed(() => this.fromPrice() ?? this.price());
 

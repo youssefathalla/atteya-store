@@ -8,4 +8,5 @@
 @import './styles/tailwind/components/navigation';
 @import './styles/tailwind/components/scroll-row';
 @import './styles/tailwind/components/skeleton';
+@import './styles/tailwind/components/product-card';
 @import './styles/tailwind/utils-base';

@@ -1,0 +1,88 @@
+@layer components {
+  /**
+   * On.com-style listing card chrome (AS-71).
+   * No padded frame / radius / shadow on the card shell.
+   * Soft gray media plane + contained floating product photo.
+   * Orange marketing badge is intentional merchandising chrome (not brand primary).
+   */
+  .product-card {
+    --product-card-marketing: #c45c26;
+    --product-card-media-from: #f3f3f3;
+    --product-card-media-to: #e8e8e8;
+  }
+
+  .product-card__main,
+  .product-card__info {
+    @apply block w-full no-underline;
+  }
+
+  .product-card__media {
+    @apply relative w-full overflow-hidden aspect-4/5;
+    background: linear-gradient(180deg, var(--product-card-media-from), var(--product-card-media-to));
+  }
+
+  .product-card__photo {
+    @apply object-contain p-3 sm:p-4;
+    filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.12));
+  }
+
+  .product-card__swatches {
+    @apply w-full pt-2 pb-1 elements-start-col gap-1;
+  }
+
+  .product-card__swatch-row {
+    @apply flex items-end gap-1.5 w-full overflow-x-auto overflow-y-hidden;
+    scrollbar-width: none;
+  }
+
+  .product-card__swatch-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .product-card__swatch {
+    @apply relative shrink-0 size-9 sm:size-10 no-underline;
+  }
+
+  .product-card__swatch-img {
+    @apply size-full object-contain;
+  }
+
+  .product-card__swatch--selected::after {
+    content: '';
+    @apply absolute left-0 right-0 -bottom-1 h-px bg-primary;
+  }
+
+  .product-card__swatch-more {
+    @apply shrink-0 elements-center size-9 sm:size-10 font-label-sm text-on-surface-variant;
+  }
+
+  .product-card__swatch-track {
+    @apply w-full h-px bg-outline-variant;
+  }
+
+  .product-card__info {
+    @apply elements-start-col gap-0.5 pt-2;
+  }
+
+  .product-card__badge {
+    @apply font-label-sm font-mono uppercase tracking-wide;
+    color: var(--product-card-marketing);
+  }
+
+  .product-card__badge--boxed {
+    @apply inline-block px-1.5 py-0.5 border border-shape;
+    border-color: var(--product-card-marketing);
+  }
+
+  .product-card__name {
+    @apply font-title-sm font-bold! line-clamp-2;
+  }
+
+  .product-card__desc {
+    @apply font-body-sm line-clamp-1 text-on-surface-variant;
+  }
+
+  .product-card__price {
+    @apply pt-0.5;
+  }
+}

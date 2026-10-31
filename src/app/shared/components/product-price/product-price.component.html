@@ -1,6 +1,6 @@
 <div class="elements-start-col gap-1.5 w-full">
   <div class="elements-center flex-wrap gap-2">
-    <span class="font-title-sm font-bold!">
+    <span [class]="isListing() ? 'font-body-md' : 'font-title-sm font-bold!'">
       @if (showFromPrefix()) {
         From
       }
@@ -16,9 +16,13 @@
   @if (shownBadges().length > 0) {
     <div class="flex flex-wrap gap-1.5">
       @for (badge of shownBadges(); track badge) {
-        <span class="border-shape border border-outline bg-surface px-2 py-0.5 font-label-sm">
-          {{ badge }}
-        </span>
+        @if (isListing()) {
+          <span class="font-label-sm text-on-surface-variant">{{ badge }}</span>
+        } @else {
+          <span class="border-shape border border-outline bg-surface px-2 py-0.5 font-label-sm">
+            {{ badge }}
+          </span>
+        }
       }
     </div>
   }

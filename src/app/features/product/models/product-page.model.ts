@@ -22,6 +22,7 @@ export type ProductView = Pick<
   | 'options'
   | 'colors'
   | 'tags'
+  | 'marketingBadge'
   | 'trackStock'
   | 'variants'
   | 'stock'
@@ -64,6 +65,7 @@ export function toProductView(product: Product): ProductView {
     options: product.options,
     colors: product.colors,
     tags: product.tags,
+    marketingBadge: product.marketingBadge,
     trackStock: product.trackStock,
     variants: product.variants,
     stock: product.stock,

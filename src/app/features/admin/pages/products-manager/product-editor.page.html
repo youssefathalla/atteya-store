@@ -242,6 +242,40 @@
             </div>
           }
         </div>
+
+        <div class="w-full elements-start-col gap-2">
+          <span class="font-label-md">Marketing badge</span>
+          <p class="font-body-sm text-on-surface-variant">
+            Optional storefront tag (NEW, BESTSELLER, or LIMITED EDITION). Separate from freeform tags.
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            <label class="elements-start-col gap-1.5 w-full">
+              <span class="font-label-sm">Badge</span>
+              <select
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                [value]="marketingBadgeKind()"
+                (change)="onMarketingBadgeKindChange($event)"
+              >
+                @for (option of marketingBadgeKinds; track option.id) {
+                  <option [value]="option.id">{{ option.label }}</option>
+                }
+              </select>
+            </label>
+            <label class="elements-start-col gap-1.5 w-full">
+              <span class="font-label-sm">Style</span>
+              <select
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                [value]="marketingBadgeStyle()"
+                [disabled]="!marketingBadgeKind()"
+                (change)="onMarketingBadgeStyleChange($event)"
+              >
+                @for (option of marketingBadgeStyles; track option.id) {
+                  <option [value]="option.id">{{ option.label }}</option>
+                }
+              </select>
+            </label>
+          </div>
+        </div>
       </section>
 
       <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-sizes">

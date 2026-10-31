@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import { idSchema, slugSchema, timestampSchema } from '@shared/schemas';
 import { ImageAssetSchema } from '@shared/schemas/image.schema';
 import { COLOR_IDS } from './catalog-taxonomy';
+import { MARKETING_BADGE_KINDS, MARKETING_BADGE_STYLES } from './marketing-badge';
 import {
   LOCKABLE_PRODUCT_FIELDS,
   PRODUCT_TYPE_IDS,
@@ -16,6 +17,11 @@ const tagSlugSchema = v.pipe(
   v.maxLength(32),
   v.regex(/^[a-z0-9-]+$/),
 );
+
+export const MarketingBadgeSchema = v.object({
+  kind: v.picklist(MARKETING_BADGE_KINDS),
+  style: v.picklist(MARKETING_BADGE_STYLES),
+});
 
 export const ProductImageSchema = v.object({
   ...ImageAssetSchema.entries,
@@ -73,6 +79,8 @@ export const ProductSchema = v.pipe(
     options: v.pipe(v.array(ProductOptionSchema), v.maxLength(8)),
     colors: v.optional(v.pipe(v.array(v.picklist(COLOR_IDS)), v.maxLength(12)), []),
     tags: v.optional(v.pipe(v.array(tagSlugSchema), v.maxLength(20)), []),
+    /** Merchandising badge (NEW / BESTSELLER / LIMITED EDITION). Distinct from freeform `tags`. */
+    marketingBadge: v.optional(v.nullable(MarketingBadgeSchema), null),
     trackStock: v.boolean(),
     stock: v.optional(wholeNumber),
     stockBySize: v.optional(v.record(v.string(), wholeNumber)),
