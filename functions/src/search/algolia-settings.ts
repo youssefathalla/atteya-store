@@ -13,6 +13,7 @@ export const ATTRIBUTES_FOR_FACETING: readonly string[] = [
   'brandName',
   'typeLabel',
   'sizes',
+  'colors',
   'onSale',
   'hasOffer',
   'maxDiscountPercent',

@@ -11,6 +11,7 @@ import type {
 import { COLOR_PALETTE } from '@core/services/products/catalog-taxonomy';
 import { PRODUCT_TYPES, SIZE_ORDER } from '@core/services/products/product.constants';
 import type { Brand, Category, Product } from '@core/services/products/product.model';
+import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { CONDITION_FIELD_OPTIONS } from '../../models/offer-admin.model';
 
@@ -23,7 +24,7 @@ export interface ValueChoice {
 @Component({
   selector: 'app-condition-group-editor',
   host: { class: 'block w-full' },
-  imports: [MatButtonModule, SharedIconModule],
+  imports: [MatButtonModule, SharedIconModule, ColorSwatchComponent],
   templateUrl: './condition-group-editor.component.html',
 })
 export class ConditionGroupEditorComponent {

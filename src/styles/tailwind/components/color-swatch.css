@@ -1,0 +1,42 @@
+@layer components {
+  /* Palette colour chip — solid fill via --swatch, or four-pane Multi. */
+  .color-swatch {
+    /* Caller sets size only (`size-3`, `size-full`, …). Never pass block/inline-block on the host.
+       Utilities-layer display would beat components-layer @apply, so pin display with !important. */
+    @apply relative shrink-0 overflow-hidden border border-outline;
+    display: inline-grid !important;
+    background-color: var(--swatch, transparent);
+    border-radius: var(--border-shape, 2px);
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .color-swatch--round {
+    border-radius: 9999px;
+  }
+
+  .color-swatch--multi {
+    background-color: transparent;
+  }
+
+  .color-swatch__pane {
+    @apply block size-full;
+  }
+
+  /* Reference: yellow TL, red TR, blue BL, pink BR. */
+  .color-swatch__pane--tl {
+    background-color: #f4c430;
+  }
+
+  .color-swatch__pane--tr {
+    background-color: #d62828;
+  }
+
+  .color-swatch__pane--bl {
+    background-color: #7db8f5;
+  }
+
+  .color-swatch__pane--br {
+    background-color: #e87ea1;
+  }
+}

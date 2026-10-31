@@ -98,12 +98,12 @@
                   [attr.aria-pressed]="hasValue(atom, choice.id)"
                   (click)="toggleValue(gIdx, aIdx, atom, choice.id)"
                 >
-                  @if (choice.swatch) {
-                    <span
-                      class="inline-block size-3 border-shape border border-outline"
-                      [style.background-color]="choice.swatch"
-                      aria-hidden="true"
-                    ></span>
+                  @if (choice.swatch || choice.id === 'multi') {
+                    <app-color-swatch
+                      class="size-3"
+                      [colorId]="choice.id"
+                      [swatch]="choice.swatch ?? null"
+                    />
                   }
                   <span>{{ choice.label }}</span>
                 </button>
