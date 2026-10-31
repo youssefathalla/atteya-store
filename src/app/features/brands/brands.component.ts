@@ -48,12 +48,12 @@ export class BrandsComponent implements OnInit {
           ],
         },
         {
-          title: 'SPORTSWEAR & FOOTWEAR',
+          title: 'SPORTSWEAR',
           brands: [
-            { label: 'On Cloud', path: '/brand/on-cloud', groupTitle: 'SPORTSWEAR & FOOTWEAR' },
-            { label: 'Adidas', path: '/brand/adidas', groupTitle: 'SPORTSWEAR & FOOTWEAR' },
-            { label: 'Siux', path: '/brand/siux', groupTitle: 'SPORTSWEAR & FOOTWEAR' },
-            { label: 'Puma', path: '/brand/puma', groupTitle: 'SPORTSWEAR & FOOTWEAR' },
+            { label: 'On Cloud', path: '/brand/on-cloud', groupTitle: 'SPORTSWEAR' },
+            { label: 'Adidas', path: '/brand/adidas', groupTitle: 'SPORTSWEAR' },
+            { label: 'Siux', path: '/brand/siux', groupTitle: 'SPORTSWEAR' },
+            { label: 'Puma', path: '/brand/puma', groupTitle: 'SPORTSWEAR' },
           ],
         },
       ];

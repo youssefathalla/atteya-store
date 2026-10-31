@@ -10,9 +10,9 @@ import {
 export const DEFAULT_HERO_SLIDES: readonly HeroSlide[] = [
   {
     headline: 'Performance-grade gear.',
-    subtitle: 'Apparel and shoes for however you train.',
+    subtitle: 'Apparel built for however you train.',
     imageUrl: '',
-    imageAlt: 'Athlete training in sportswear and athletic shoes',
+    imageAlt: 'Athlete training in performance sportswear',
     actions: [
       { label: "Shop men's", link: '/category/apparel?gender=men' },
       { label: "Shop women's", link: '/category/apparel?gender=women' },
@@ -28,12 +28,12 @@ export const DEFAULT_HERO_SLIDES: readonly HeroSlide[] = [
     ],
   },
   {
-    headline: 'Built for movement.',
-    subtitle: 'Court-ready footwear designed for explosive agility.',
+    headline: 'Carry the kit.',
+    subtitle: 'Court bags and gear that keep everything ready to play.',
     imageUrl: '',
-    imageAlt: 'Close-up of court performance footwear',
+    imageAlt: 'Padel bag packed with rackets and court gear',
     actions: [
-      { label: 'Shop footwear', link: '/category/footwear' },
+      { label: 'Shop bags', link: '/category/bags' },
     ],
   },
 ];
@@ -53,7 +53,7 @@ export const DEFAULT_SHOP_CATEGORY_CARDS: readonly ShopCategoryCard[] = [
   {
     imageUrl: '',
     imageAlt: 'Professional padel rackets ready for court play',
-    buttonLabel: 'padel',
+    buttonLabel: 'Rackets',
     buttonLink: '/category/rackets',
   },
   {
@@ -79,7 +79,6 @@ export const NAV_LIST_MAX_ITEMS = 10;
 
 const DEFAULT_NAV_LIST_ITEMS: readonly HomeNavListItem[] = [
   { label: 'Rackets', link: '/category/rackets', imageUrl: '', imageAlt: '' },
-  { label: 'Shoes', link: '/category/shoes', imageUrl: '', imageAlt: '' },
   { label: 'Bags', link: '/category/bags', imageUrl: '', imageAlt: '' },
   { label: 'Accessories', link: '/category/accessories', imageUrl: '', imageAlt: '' },
   { label: 'Socks', link: '/category/socks', imageUrl: '', imageAlt: '' },

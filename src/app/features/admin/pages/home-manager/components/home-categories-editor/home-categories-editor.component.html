@@ -96,7 +96,7 @@
           aria-label="Button Label"
           [ngModel]="activeCard().buttonLabel"
           (ngModelChange)="buttonLabelChange.emit($event)"
-          placeholder="e.g. Shoes, Apparel, Accessories"
+          placeholder="e.g. Rackets, Apparel, Accessories"
           required
         />
         <mat-hint>Text shown inside the bottom-left button on Card #{{ activeCardIndex() + 1 }}</mat-hint>
@@ -112,7 +112,7 @@
           aria-label="Button Destination Link"
           [ngModel]="activeCard().buttonLink"
           (ngModelChange)="buttonLinkChange.emit($event)"
-          placeholder="e.g. /category/shoes"
+          placeholder="e.g. /category/rackets"
           required
         />
         <mat-hint>Storefront route opened when a shopper clicks this button</mat-hint>
