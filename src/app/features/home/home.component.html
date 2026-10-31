@@ -13,6 +13,14 @@
   }
 
   @defer (hydrate on viewport) {
+    <app-navigation-list-section [navList]="navList()" [isLoading]="isLoading()" />
+  } @placeholder {
+    <section class="container-content" aria-hidden="true">
+      <app-skeleton class="w-full min-h-120" />
+    </section>
+  }
+
+  @defer (hydrate on viewport) {
     <app-padel-carousel-section />
   } @placeholder {
     <section class="container-content" aria-hidden="true">
@@ -22,14 +30,6 @@
 
   @defer (hydrate on viewport) {
     <app-new-arrivals-section />
-  } @placeholder {
-    <section class="container-content" aria-hidden="true">
-      <app-skeleton class="w-full min-h-120" />
-    </section>
-  }
-
-  @defer (hydrate on viewport) {
-    <app-navigation-list-section [navList]="navList()" [isLoading]="isLoading()" />
   } @placeholder {
     <section class="container-content" aria-hidden="true">
       <app-skeleton class="w-full min-h-120" />

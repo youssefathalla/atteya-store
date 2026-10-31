@@ -1,7 +1,7 @@
 @let count = hero().layoutCount;
 
 <section
-  class="relative w-full h-[calc(100dvh-56px)] overflow-hidden select-none"
+  class="relative w-full h-[calc(100dvh-var(--storefront-top-chrome,56px))] overflow-hidden select-none"
   aria-label="Featured Training Gear"
 >
   <div class="scroll-row h-full" [attr.data-layout]="count">

@@ -1,5 +1,6 @@
 /**
- * Homepage product rows (AS-73): padel floating tiles + shared scroll nav chrome.
+ * Homepage product rows (AS-73 / AS-83): padel floating tiles + shared scroll nav chrome.
+ * New Arrivals uses a shorter media plane so title + ~3 cards + arrow row fit one viewport.
  */
 @layer components {
   .padel-tile {
@@ -36,5 +37,37 @@
   .row-scroll-nav__progress-fill {
     @apply absolute inset-y-0 left-0 bg-primary;
     width: calc(var(--row-scroll-progress, 0) * 100%);
+  }
+
+  /**
+   * Compact listing cards for the homepage New Arrivals row only.
+   * Cap media height against remaining viewport under sticky top chrome so
+   * section title + cards + arrows stay on one screen without vertical scroll.
+   */
+  .home-new-arrivals .product-card__media {
+    aspect-ratio: 1 / 1;
+    max-height: calc(
+      100dvh - var(--storefront-top-chrome, 56px) - var(--home-new-arrivals-chrome, 11rem)
+    );
+  }
+
+  .home-new-arrivals .product-card__photo {
+    @apply p-2 sm:p-3;
+  }
+
+  .home-new-arrivals .product-card__swatches {
+    @apply pt-1 pb-0.5;
+  }
+
+  .home-new-arrivals .product-card__swatch {
+    @apply size-8 sm:size-9;
+  }
+
+  .home-new-arrivals .product-card__swatch-more {
+    @apply size-8 sm:size-9;
+  }
+
+  .home-new-arrivals .product-card__info {
+    @apply pt-1;
   }
 }

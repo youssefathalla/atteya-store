@@ -51,8 +51,8 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 2. **Angular Component Host Sizing**:
    - All section and page components (`app-*-section`, `app-*`) must define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
 3. **Full-Viewport Sections**:
-   - Full-screen heroes directly below the header must use `h-[calc(100dvh-56px)]` (accounting for the 56px / `h-14` navbar).
-   - When a full-height hero is specified, do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to the slide containers, as `aspect-ratio` overrides height in modern CSS.
+ - Full-screen heroes directly below the stacked top chrome must use `h-[calc(100dvh-var(--storefront-top-chrome,56px))]`. `--storefront-top-chrome` is measured from the shipping banner + desktop nav stack (fallback `56px` / `h-14` when chrome is not mounted).
+ - When a full-height hero is specified, do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to the slide containers, as `aspect-ratio` overrides height in modern CSS.
 4. **Section Spacing**:
    - Use `.container-content` as the single unified class for page section layout and responsive container padding (`p-[5cqw]`). Do not append `.section-space` to elements that already have `.container-content`.
 

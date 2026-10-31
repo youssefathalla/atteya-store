@@ -28,9 +28,13 @@
       </div>
     }
     @if (chromeReady()) {
-      <app-shipping-banner />
-      <!-- Store Desktop Navigation Header -->
-      <app-desktop-nav />
+      <!-- Keep banner + nav as siblings so desktop-nav sticky is not clipped by a wrapper. -->
+      <div #shippingChrome class="w-full">
+        <app-shipping-banner />
+      </div>
+      <div #navChrome class="w-full">
+        <app-desktop-nav />
+      </div>
     }
 
     <!-- Main Storefront Page View -->
