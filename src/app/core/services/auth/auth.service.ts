@@ -74,7 +74,8 @@ export class AuthService {
   readonly #needsConsent = signal(false);
   /**
    * False while we still need to read (or finish writing) signup consent for the
-   * current uid. `leaveAfterSignIn` must hold until this is true.
+   * current uid. `leaveAfterSignIn` must hold until this is true so `/login` is
+   * not left before `needsConsent` is known (Bugbot: consent hold race).
    */
   readonly #consentReady = signal(true);
 
