@@ -10,6 +10,7 @@ import {
   PLATFORM_ID,
   resource,
   signal,
+  TransferState,
   viewChild,
 } from '@angular/core';
 import { AuthService } from '@core/services/auth/auth.service';
@@ -26,6 +27,11 @@ import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll'
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { listingCardPrices } from '../../utils/listing-card-prices';
 import { rowScrollProgress, scrollRowByItem } from '../../utils/row-scroll';
+import {
+  HOME_NEW_ARRIVALS_ROW_KEY,
+  putHomeRowSeed,
+  takeHomeRowSeed,
+} from '../../utils/home-row-products.state';
 import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.component';
 
 @Component({
@@ -44,6 +50,7 @@ export class NewArrivalsSectionComponent {
   readonly #cache = inject(ProductCacheService);
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);
+  readonly #transfer = inject(TransferState);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #destroyRef = inject(DestroyRef);
   readonly isBrowser = isPlatformBrowser(this.#platformId);
@@ -57,8 +64,17 @@ export class NewArrivalsSectionComponent {
   readonly #hydrated = signal(false);
   readonly #nowMs = signal(Date.now());
 
+  /** SSR TransferState seed — keeps cards visible across hydrate (no skeleton flash). */
+  readonly #seeded = signal(
+    takeHomeRowSeed(this.#transfer, HOME_NEW_ARRIVALS_ROW_KEY, this.isBrowser),
+  );
+
   readonly #list = resource({
-    loader: () => this.#products.listNewArrivals(NEW_ARRIVALS_LIMIT),
+    loader: async () => {
+      const products = await this.#products.listNewArrivals(NEW_ARRIVALS_LIMIT);
+      putHomeRowSeed(this.#transfer, HOME_NEW_ARRIVALS_ROW_KEY, products, this.isBrowser);
+      return products;
+    },
   });
 
   readonly #siblings = resource({
@@ -79,13 +95,18 @@ export class NewArrivalsSectionComponent {
   });
 
   readonly products = computed(() => {
-    if (this.#list.error() || !this.#list.hasValue()) return [];
-    return this.#list.value() ?? [];
+    if (this.#list.hasValue()) return this.#list.value() ?? [];
+    return this.#seeded() ?? [];
   });
 
-  readonly isLoading = computed(
-    () => this.#list.isLoading() || (!this.#list.hasValue() && !this.#list.error()),
-  );
+  readonly isLoading = computed(() => {
+    if (this.#seeded() !== undefined) return false;
+    if (this.#list.hasValue() || this.#list.error()) return false;
+    return true;
+  });
+
+  /** Hide heading + padding when empty/failed after load. */
+  readonly showSection = computed(() => this.isLoading() || this.products().length > 0);
 
   readonly cards = computed(() => {
     const products = this.products();

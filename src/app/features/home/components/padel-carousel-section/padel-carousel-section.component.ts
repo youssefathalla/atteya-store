@@ -8,6 +8,7 @@ import {
   PLATFORM_ID,
   resource,
   signal,
+  TransferState,
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -19,6 +20,11 @@ import { SkeletonComponent } from '@shared/ui/skeleton';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.component';
 import { rowScrollProgress, scrollRowByItem } from '../../utils/row-scroll';
+import {
+  HOME_PADEL_ROW_KEY,
+  putHomeRowSeed,
+  takeHomeRowSeed,
+} from '../../utils/home-row-products.state';
 
 const PADEL_CAROUSEL_LIMIT = 16;
 
@@ -38,6 +44,7 @@ const PADEL_CAROUSEL_LIMIT = 16;
 })
 export class PadelCarouselSectionComponent {
   readonly #products = inject(ProductService);
+  readonly #transfer = inject(TransferState);
   readonly #platformId = inject(PLATFORM_ID);
   readonly isBrowser = isPlatformBrowser(this.#platformId);
 
@@ -47,19 +54,35 @@ export class PadelCarouselSectionComponent {
   readonly canPrev = signal(false);
   readonly canNext = signal(false);
 
+  /** SSR TransferState seed — keeps tiles visible across hydrate (no skeleton flash). */
+  readonly #seeded = signal(
+    takeHomeRowSeed(this.#transfer, HOME_PADEL_ROW_KEY, this.isBrowser),
+  );
+
   readonly #list = resource({
-    loader: () =>
-      this.#products.listPublished({ categoryId: 'rackets', limit: PADEL_CAROUSEL_LIMIT }),
+    loader: async () => {
+      const products = await this.#products.listPublished({
+        categoryId: 'rackets',
+        limit: PADEL_CAROUSEL_LIMIT,
+      });
+      putHomeRowSeed(this.#transfer, HOME_PADEL_ROW_KEY, products, this.isBrowser);
+      return products;
+    },
   });
 
   readonly products = computed(() => {
-    if (this.#list.error() || !this.#list.hasValue()) return [];
-    return this.#list.value() ?? [];
+    if (this.#list.hasValue()) return this.#list.value() ?? [];
+    return this.#seeded() ?? [];
   });
 
-  readonly isLoading = computed(
-    () => this.#list.isLoading() || (!this.#list.hasValue() && !this.#list.error()),
-  );
+  readonly isLoading = computed(() => {
+    if (this.#seeded() !== undefined) return false;
+    if (this.#list.hasValue() || this.#list.error()) return false;
+    return true;
+  });
+
+  /** Hide heading + padding when empty/failed after load. */
+  readonly showSection = computed(() => this.isLoading() || this.products().length > 0);
 
   constructor() {
     afterRenderEffect((onCleanup) => {

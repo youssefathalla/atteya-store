@@ -1,55 +1,56 @@
-<section class="container-content select-none" aria-label="Padel rackets">
-  @if (isLoading()) {
-    <div
-      class="scroll-row [--scroll-peek:2.5rem] md:[--scroll-cols:3] md:[--scroll-peek:3rem] xl:[--scroll-cols:5] xl:[--scroll-peek:2.5rem]"
-      aria-hidden="true"
-    >
-      @for (slot of [0, 1, 2, 3, 4]; track slot) {
-        <div class="scroll-row-item">
-          <app-skeleton class="aspect-4/5 w-full" />
-        </div>
-      }
-    </div>
-  } @else if (products().length > 0) {
-    <div
-      #scrollRow
-      class="scroll-row [--scroll-peek:2.5rem] md:[--scroll-cols:3] md:[--scroll-peek:3rem] xl:[--scroll-cols:5] xl:[--scroll-peek:2.5rem]"
-      appHorizontalScroll
-    >
-      @for (product of products(); track product.id; let i = $index) {
-        @let path = imagePath(product.images[0]?.path);
-        <a
-          class="scroll-row-item padel-tile"
-          [routerLink]="['/product', product.slug]"
-          [appPrefetchProduct]="product.slug"
-          [attr.aria-label]="product.name"
-        >
-          <div class="padel-tile__media">
-            @if (path) {
-              <img
-                [ngSrc]="path"
-                [appImageFallback]="path"
-                [alt]="product.images[0]?.alt || product.name"
-                fill
-                [priority]="i < 2"
-                sizes="(max-width: 767px) 70vw, (max-width: 1279px) 30vw, 18vw"
-                class="padel-tile__photo"
-              />
-            }
+@if (showSection()) {
+  <section class="container-content select-none" aria-label="Padel rackets">
+    @if (isLoading()) {
+      <div
+        class="scroll-row [--scroll-peek:2.5rem] md:[--scroll-cols:3] md:[--scroll-peek:3rem] xl:[--scroll-cols:5] xl:[--scroll-peek:2.5rem]"
+        aria-hidden="true"
+      >
+        @for (slot of [0, 1, 2, 3, 4]; track slot) {
+          <div class="scroll-row-item">
+            <app-skeleton class="aspect-4/5 w-full" />
           </div>
-          <span class="padel-tile__name">{{ product.name }}</span>
-        </a>
-      }
-    </div>
+        }
+      </div>
+    } @else {
+      <div
+        #scrollRow
+        class="scroll-row [--scroll-peek:2.5rem] md:[--scroll-cols:3] md:[--scroll-peek:3rem] xl:[--scroll-cols:5] xl:[--scroll-peek:2.5rem]"
+        appHorizontalScroll
+      >
+        @for (product of products(); track product.id) {
+          @let path = imagePath(product.images[0]?.path);
+          <a
+            class="scroll-row-item padel-tile"
+            [routerLink]="['/product', product.slug]"
+            [appPrefetchProduct]="product.slug"
+            [attr.aria-label]="product.name"
+          >
+            <div class="padel-tile__media">
+              @if (path) {
+                <img
+                  [ngSrc]="path"
+                  [appImageFallback]="path"
+                  [alt]="product.images[0]?.alt || product.name"
+                  fill
+                  sizes="(max-width: 767px) 70vw, (max-width: 1279px) 30vw, 18vw"
+                  class="padel-tile__photo"
+                />
+              }
+            </div>
+            <span class="padel-tile__name">{{ product.name }}</span>
+          </a>
+        }
+      </div>
 
-    @if (isBrowser && (canPrev() || canNext())) {
-      <app-row-scroll-nav
-        [progress]="progress()"
-        [canPrev]="canPrev()"
-        [canNext]="canNext()"
-        (prev)="prev()"
-        (next)="next()"
-      />
+      @if (isBrowser && (canPrev() || canNext())) {
+        <app-row-scroll-nav
+          [progress]="progress()"
+          [canPrev]="canPrev()"
+          [canNext]="canNext()"
+          (prev)="prev()"
+          (next)="next()"
+        />
+      }
     }
-  }
-</section>
+  </section>
+}
