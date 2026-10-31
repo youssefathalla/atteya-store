@@ -87,6 +87,7 @@ export const createProduct = onCall(
         createdBy: actor.uid,
         updatedBy: actor.uid,
       };
+      if (input.gender !== null) created['gender'] = input.gender;
       if (stock.stockBySize) created['stockBySize'] = stock.stockBySize;
       if (typeof input.weightGrams === 'number') created['weightGrams'] = input.weightGrams;
       tx.create(ref, created);
@@ -125,6 +126,7 @@ export const updateProduct = onCall(
         categoryIds: catalogue.categoryIds,
         brandId: input.brandId,
         modelGroup: input.modelGroup,
+        gender: input.gender === null ? FieldValue.delete() : input.gender,
         colors: [...input.colors],
         tags: [...input.tags],
         marketingBadge: input.marketingBadge,

@@ -4,6 +4,7 @@ import {
   LOCKABLE_PRODUCT_FIELDS,
   PRODUCT_BRAND_IDS,
   PRODUCT_CATEGORY_IDS,
+  PRODUCT_GENDER_IDS,
   PRODUCT_TYPE_IDS,
 } from './product.constants';
 import {
@@ -29,6 +30,7 @@ export interface CategoryTreeNode extends Category {
 export type ProductCategoryId = (typeof PRODUCT_CATEGORY_IDS)[number];
 export type ProductTypeId = (typeof PRODUCT_TYPE_IDS)[number];
 export type BrandId = (typeof PRODUCT_BRAND_IDS)[number];
+export type ProductGenderId = (typeof PRODUCT_GENDER_IDS)[number];
 export type LockableProductField = (typeof LOCKABLE_PRODUCT_FIELDS)[number];
 
 export interface ProductListQuery {

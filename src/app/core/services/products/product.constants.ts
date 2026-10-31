@@ -99,6 +99,16 @@ export const SIZE_ORDER = [
   'T4',
 ] as const;
 
+/** Optional shop-for facet. Missing/empty = not set (storefront may treat as unisex later). */
+export const PRODUCT_GENDER_IDS = ['women', 'men', 'kids', 'unisex'] as const;
+
+export const PRODUCT_GENDERS = [
+  { id: 'women', label: 'Women' },
+  { id: 'men', label: 'Men' },
+  { id: 'kids', label: 'Kids' },
+  { id: 'unisex', label: 'Unisex' },
+] as const;
+
 export const LOCKABLE_PRODUCT_FIELDS = [
   'type',
   'brandId',

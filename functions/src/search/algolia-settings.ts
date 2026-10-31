@@ -22,6 +22,7 @@ export const ATTRIBUTES_FOR_FACETING: readonly string[] = [
   'filterOnly(brandId)',
   'filterOnly(type)',
   'filterOnly(modelGroup)',
+  'filterOnly(gender)',
   'filterOnly(marketingBadgeKind)',
   'filterOnly(inStock)',
   'filterOnly(offerIds)',

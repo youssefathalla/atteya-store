@@ -5,6 +5,7 @@ import { COLOR_IDS } from './catalog-taxonomy';
 import { MARKETING_BADGE_KINDS, MARKETING_BADGE_STYLES } from './marketing-badge';
 import {
   LOCKABLE_PRODUCT_FIELDS,
+  PRODUCT_GENDER_IDS,
   PRODUCT_TYPE_IDS,
 } from './product.constants';
 
@@ -72,6 +73,7 @@ export const ProductSchema = v.pipe(
     type: v.picklist(PRODUCT_TYPE_IDS),
     brandId: slugSchema,
     modelGroup: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80))),
+    gender: v.optional(v.picklist(PRODUCT_GENDER_IDS)),
     currency: v.literal('EGP'),
     price: wholeNumber,
     compareAtPrice: v.nullable(wholeNumber),
