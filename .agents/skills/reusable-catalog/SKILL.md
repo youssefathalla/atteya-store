@@ -71,6 +71,7 @@ All controls integrate seamlessly with **Angular 22 Signal Forms**.
 
 - `<app-base-dialog>`: Foundation shell for dialog titles, content, and action buttons.
 - `<app-confirm-dialog>`: Ready-to-use confirmation dialog (Delete, Cancel, Proceed).
+- `<app-favorites-sign-in-dialog>`: Guest heart prompt (Cancel / Create account / Sign in). Opened by `FavoritesGateService`.
 - `<app-img-preview-dialog>`: Lightbox image preview modal.
 
 ### 💎 Brand, Loaders & Media Editors
@@ -418,7 +419,8 @@ Whenever you find a combination of 4 or more utility classes that is repeated **
 - **Category / brand listings (`src/app/features/category/`)**: `CategoryComponent` lists published products through `ProductService.listPublished` (`categoryIds` array-contains, `brandId`, or unfiltered for `/category/all`). Grid: `CatalogProductGridComponent` (`app-catalog-product-grid`) renders shared `app-product-card` and batch-loads `modelGroup` siblings via `ProductService.listPublishedByModelGroups` (index `published + modelGroup`). Query resolve helper: `utils/catalog-list-query.ts`. Merchandising-only paths (`sale`, `…/new`, `…/best-sellers`) stay empty until dedicated filters exist. **Empty listings:** `catalogListCount()` from `settings/catalog` shows the empty state without card skeletons; while the list fetch runs use page `<app-loader>`, not `[loading]` on the grid. Indexes already cover `published + categoryIds + createdAt` and `published + brandId + createdAt`.
 - **Marketing badge**: product field `marketingBadge: { kind: NEW|BESTSELLER|LIMITED_EDITION, style: plain|boxed } | null` (Valibot + admin editor + Algolia `marketingBadgeKind` / `marketingBadgeStyle` / `shortDescription`). Distinct from freeform `tags` slugs.
 <<<<<<< HEAD
-- **Favorites**: `FavoritesService` (`@core/services/favorites`) listens to `favorites/{uid}/items/{productId}` (`productId`, `slug`, `addedAt`). Call it **favorite** everywhere (not wishlist). Signed-out heart → `/login?returnUrl=…`; `/favorites` (client-rendered, `private, no-store`, `favoritesAuthGuard`) lists saved products; account menu links there when signed in. Rules: owner-only create/delete on items.
+- **Favorites**: `FavoritesService` (`@core/services/favorites`) listens to `favorites/{uid}/items/{productId}` (`productId`, `slug`, `addedAt`). Call it **favorite** everywhere (not wishlist). Guest heart (card + PDP) → `FavoritesGateService` opens `<app-favorites-sign-in-dialog>` (never local/anonymous saves; heart stays outline for guests). Sign in / Create account stashes the product in `sessionStorage` and goes to `/login?returnUrl=…` (`intent=create` for Create account); after auth, `add()` (not toggle) saves it. `/favorites` (client-rendered, `private, no-store`, `favoritesAuthGuard`) unchanged. Rules: owner-only create/delete on items.
+- **User profile / signup consent**: `UserProfileService` writes `users/{uid}` (`termsAcceptedAt`, `termsVersion`, `marketingOptIn`, `marketingOptInAt`). Create-account + Google new-user paths require Terms/Privacy acceptance; marketing opt-in is optional and off by default. Placeholder `/terms` and `/privacy` pages until client legal copy lands. Deploy `fb:rules:dev` before consent writes succeed against live rules.
 =======
 - **New arrival window**: product field `newArrivalUntil: Timestamp | null` (Valibot + admin checkbox/date). Unexpired docs lead the homepage New Arrivals row; expired or null fall through to newest-by-`createdAt` fill. Not indexed in Algolia.
 >>>>>>> 491a768 (AS-73: Homepage padel carousel and New Arrivals row)

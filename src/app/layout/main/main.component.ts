@@ -11,6 +11,7 @@ import {
   RouterOutlet,
 } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
+import { FavoritesGateService } from '@core/services/favorites';
 import { ShellReadyService } from '@core/services/shell/shell-ready.service';
 import { useBreakpoint } from '@shared/utils/breakpoint.utils';
 import { LoaderComponent } from '@shared/ui/loader/loader.component';
@@ -55,6 +56,9 @@ export class MainLayoutComponent {
   readonly isDesktop = useBreakpoint(1024);
 
   constructor() {
+    // Eager: applies a pending favorite after guest heart → sign-in.
+    inject(FavoritesGateService);
+
     effect(() => {
       if (this.chromeReady()) {
         this.#initialShellDone.set(true);

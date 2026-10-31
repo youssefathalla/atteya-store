@@ -16,7 +16,7 @@ export function notifyNotAdmin(snackbar: SnackbarService): void {
   snackbar.info(NOT_ADMIN_MESSAGE);
 }
 
-/** Sends a signed-in person on from `/login`. Holds while Google is being connected. */
+/** Sends a signed-in person on from `/login`. Holds while Google is being connected or consent is incomplete. */
 export function leaveAfterSignIn(
   auth: AuthService,
   router: Router,
@@ -28,7 +28,7 @@ export function leaveAfterSignIn(
   effect(() => {
     const ready = auth.isAuthReady();
     const signedIn = auth.isAuthenticated();
-    const hold = auth.needsGoogleLink() || auth.linkingGoogle();
+    const hold = auth.needsGoogleLink() || auth.linkingGoogle() || auth.needsConsent();
     const admin = auth.isAdmin();
     const requested = returnUrl();
     if (!ready || !signedIn || hold || left) return;

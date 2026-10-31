@@ -1,10 +1,9 @@
 import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
-import { safeReturnUrl } from '@core/services/auth/auth.utils';
-import { FavoritesService } from '@core/services/favorites';
+import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { PrefetchProductDirective } from '@shared/directives/prefetch-product';
@@ -36,7 +35,7 @@ export class ProductCardComponent {
 
   readonly #auth = inject(AuthService);
   readonly #favorites = inject(FavoritesService);
-  readonly #router = inject(Router);
+  readonly #favoritesGate = inject(FavoritesGateService);
 
   /** Hover preview for a sibling colourway photo (does not change navigation). */
   readonly #preview = signal<ProductCardColorway | null>(null);
@@ -91,17 +90,7 @@ export class ProductCardComponent {
   onFavoriteClick(event: Event): void {
     event.preventDefault();
     event.stopPropagation();
-
-    if (!this.#auth.isAuthReady()) return;
-
-    if (!this.#auth.isAuthenticated()) {
-      void this.#router.navigate(['/login'], {
-        queryParams: { returnUrl: safeReturnUrl(this.#router.url) },
-      });
-      return;
-    }
-
     const product = this.product();
-    void this.#favorites.toggle(product.id, product.slug);
+    void this.#favoritesGate.onFavoriteClick(product.id, product.slug);
   }
 }

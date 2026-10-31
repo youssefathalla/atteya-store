@@ -78,6 +78,18 @@ export const routes: Routes = [
         title: 'Sign in | Atteya Store',
       },
       {
+        path: 'terms',
+        loadComponent: () =>
+          import('./features/legal/terms.page').then((m) => m.TermsPage),
+        title: 'Terms and Conditions | Atteya Store',
+      },
+      {
+        path: 'privacy',
+        loadComponent: () =>
+          import('./features/legal/privacy.page').then((m) => m.PrivacyPage),
+        title: 'Privacy Policy | Atteya Store',
+      },
+      {
         path: 'favorites',
         canActivate: [favoritesAuthGuard],
         loadComponent: () =>
