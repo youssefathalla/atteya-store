@@ -18,7 +18,10 @@ export class ProductPriceComponent {
   readonly fromPrice = input<number | null>(null);
   readonly partial = input(false);
   readonly badges = input<readonly string[]>([]);
-  /** `listing` = regular weight + light sale text (no boxed chips). */
+  /**
+   * `listing` (product cards): bold sale + struck compare-at only —
+   * no %/offer badges. Non-sale stays regular weight.
+   */
   readonly tone = input<'default' | 'listing'>('default');
 
   readonly isListing = computed(() => this.tone() === 'listing');
@@ -35,6 +38,14 @@ export class ProductPriceComponent {
     return was > sale ? list : null;
   });
 
+  readonly priceClass = computed(() => {
+    if (!this.isListing()) return 'font-title-sm font-bold!';
+    // Sale price bold; ordinary listing price stays regular (card typography).
+    return this.effectiveListPrice() !== null
+      ? 'font-body-md font-bold!'
+      : 'font-body-md';
+  });
+
   readonly showFromPrefix = computed(
     () =>
       this.partial() ||
@@ -49,6 +60,8 @@ export class ProductPriceComponent {
   });
 
   readonly shownBadges = computed(() => {
+    // Cards never show offer/% chips — only PDP default tone does.
+    if (this.isListing()) return [];
     const badges = this.badges();
     if (this.#currency.entry().code === 'EGP') return badges;
     return badges.filter((badge) => !EGP_AMOUNT.test(badge));

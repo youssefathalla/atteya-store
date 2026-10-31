@@ -8,7 +8,7 @@ export interface ProductCardPrice {
   readonly fromPrice: number | null;
   readonly listPrice: number | null;
   readonly partial: boolean;
-  /** Prefer empty on listing cards; sale uses strike-through + light text instead of chips. */
+  /** Always empty on listing cards; sale is bold + struck compare-at only (no % chips). */
   readonly badges: readonly string[];
 }
 
