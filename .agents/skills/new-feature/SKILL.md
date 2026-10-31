@@ -174,6 +174,8 @@ Storefront features that list or price products use `ProductService` and `Catalo
 2. **Dynamic Route SSR Registration (`src/app/app.routes.server.ts`)**:
    - ⚠️ **MANDATORY**: If the feature introduces parameterized routes (e.g. `path: 'category/:slug'`) or wildcard routes, you **MUST** register them in `src/app/app.routes.server.ts` with `RenderMode.Server` (or provide `getPrerenderParams`).
    - Failure to do this will crash `npm run build` during static prerendering!
+3. **Storefront async UI (when applicable)**:
+   - If the feature shows **settings-driven chrome** or an **SSR body from Firestore**, read [storefront-loading](file:///.agents/skills/storefront-loading/SKILL.md) and apply its checklist (resolvers, `TransferState`, `ShellReadyService`, skeletons — no misleading defaults while loading).
 
 ---
 
