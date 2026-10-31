@@ -1,0 +1,50 @@
+<section class="w-full elements-start-col gap-6" aria-label="Favorites">
+  <header class="w-full elements-start-col gap-1 border-b border-outline-variant pb-6">
+    <h1 class="font-headline-md font-bold! uppercase tracking-tight">Favorites</h1>
+    <p class="font-body-md text-on-surface-variant">
+      Products you saved with the heart on a product card.
+    </p>
+  </header>
+
+  @if (productsResource.error()) {
+    <div class="surface-card p-8 w-full elements-center-col gap-3 text-center" role="alert">
+      <p class="font-title-md font-bold!">We couldn't load your favorites right now.</p>
+      <p class="font-body-md text-on-surface-variant">Please try again in a moment.</p>
+      <button matButton="outlined" type="button" (click)="productsResource.reload()">
+        <span>Try again</span>
+      </button>
+    </div>
+  } @else if (showLoading()) {
+    <div
+      class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full"
+      aria-label="Loading favorites"
+    >
+      @for (slot of skeletonSlots; track slot) {
+        <div class="elements-start-col gap-2">
+          <app-skeleton class="aspect-4/5 w-full" />
+          <app-skeleton class="h-4 w-1/2" />
+          <app-skeleton class="h-5 w-3/4" />
+          <app-skeleton class="h-4 w-2/3" />
+          <app-skeleton class="h-5 w-1/3" />
+        </div>
+      }
+    </div>
+  } @else if (showEmpty()) {
+    <div class="surface-card p-8 w-full elements-center-col gap-3 text-center">
+      <mat-icon name="favorite" />
+      <p class="font-title-md font-bold!">No favorites yet</p>
+      <p class="font-body-md text-on-surface-variant">
+        Tap the heart on a product to save it here.
+      </p>
+      <a matButton="filled" routerLink="/category/all">
+        <span>Browse products</span>
+      </a>
+    </div>
+  } @else {
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
+      @for (card of cards(); track card.id; let i = $index) {
+        <app-product-card [product]="card" [priority]="i < 2" />
+      }
+    </div>
+  }
+</section>

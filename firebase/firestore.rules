@@ -126,12 +126,33 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Per-shopper favorites. Only that signed-in person can read or change their list.
+    // Docs live at favorites/{uid}/items/{productId}. Parent favorites/{uid} is unused.
+    match /favorites/{uid} {
+      allow read, write: if false;
+
+      match /items/{productId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && productId.size() > 0
+          && productId.size() <= 128
+          && request.resource.data.keys().hasOnly(['productId', 'slug', 'addedAt'])
+          && request.resource.data.productId == productId
+          && request.resource.data.slug is string
+          && request.resource.data.slug.size() >= 1
+          && request.resource.data.slug.size() <= 200
+          && request.resource.data.addedAt == request.time;
+        allow update: if false;
+        allow delete: if isOwner(uid);
+      }
+    }
+
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'favorites']);
     }
   }
 }

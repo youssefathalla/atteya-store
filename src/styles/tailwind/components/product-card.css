@@ -11,6 +11,10 @@
     --product-card-media-to: #e8e8e8;
   }
 
+  .product-card__media-wrap {
+    @apply relative w-full;
+  }
+
   .product-card__main,
   .product-card__info {
     @apply block w-full no-underline;
@@ -19,6 +23,10 @@
   .product-card__media {
     @apply relative w-full overflow-hidden aspect-4/5;
     background: linear-gradient(180deg, var(--product-card-media-from), var(--product-card-media-to));
+  }
+
+  .product-card__favorite {
+    @apply absolute top-0 end-0 z-10;
   }
 
   .product-card__photo {
