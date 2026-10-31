@@ -5,11 +5,10 @@
         <legend class="font-label-lg pb-1">{{ option.label }}</legend>
         <div class="flex flex-wrap items-center gap-2">
           @for (value of option.values; track value.id) {
-            @let swatch = swatchHex(option.key, value);
             @let selected = isSelected(option.key, value.id);
             @let avail = available(option.key, value.id);
 
-            @if (swatch) {
+            @if (hasColourSwatch(option.key, value)) {
               <button
                 type="button"
                 class="relative size-9 rounded-full p-0.5 border-2 transition-colors cursor-pointer disabled:cursor-not-allowed"
@@ -23,11 +22,12 @@
                 [attr.aria-label]="optionAriaLabel(option.key, value)"
                 (click)="pick(option.key, value.id)"
               >
-                <span
-                  class="block size-full rounded-full border border-outline-variant"
-                  [style.background-color]="swatch"
-                  aria-hidden="true"
-                ></span>
+                <app-color-swatch
+                  class="block size-full"
+                  round
+                  [colorId]="value.color ?? null"
+                  [swatch]="value.swatch ?? null"
+                />
               </button>
             } @else {
               <button

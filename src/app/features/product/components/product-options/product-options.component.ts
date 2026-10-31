@@ -1,5 +1,6 @@
 import { Component, input, output } from '@angular/core';
-import { COLOR_PALETTE, type ProductOption } from '@core/services/products';
+import type { ProductOption } from '@core/services/products';
+import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
 import type { OptionSelection, ProductView } from '../../models/product-page.model';
 import { isValueAvailable } from '../../utils/product-stock.utils';
 
@@ -9,6 +10,7 @@ const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 @Component({
   selector: 'app-product-options',
+  imports: [ColorSwatchComponent],
   templateUrl: './product-options.component.html',
   host: { class: 'block w-full' },
 })
@@ -35,15 +37,12 @@ export class ProductOptionsComponent {
     return this.available(key, value.id) ? value.label : `${value.label}, sold out`;
   }
 
-  swatchHex(optionKey: string, value: OptionValue): string | null {
-    if (optionKey !== 'colour') return null;
-    if (value.swatch && HEX_COLOR_RE.test(value.swatch)) {
-      return value.swatch;
-    }
-    if (value.color) {
-      return COLOR_PALETTE.find((entry) => entry.id === value.color)?.swatch ?? null;
-    }
-    return null;
+  /** True when this colour option can render a chip (palette id and/or hex). */
+  hasColourSwatch(optionKey: string, value: OptionValue): boolean {
+    if (optionKey !== 'colour') return false;
+    if (value.color === 'multi') return true;
+    if (value.color) return true;
+    return Boolean(value.swatch && HEX_COLOR_RE.test(value.swatch));
   }
 
   pick(key: string, valueId: string): void {

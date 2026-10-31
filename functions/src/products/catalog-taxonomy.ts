@@ -49,8 +49,17 @@ export type ColorId = (typeof COLOR_IDS)[number];
 export interface ColorPaletteEntry {
   readonly id: ColorId;
   readonly label: string;
+  /** Solid hex for UI chips. Multi is rendered as a four-pane swatch (`app-color-swatch`); this hex is a fallback only. */
   readonly swatch: string;
 }
+
+/** Four-pane Multi chip (yellow TL, red TR, blue BL, pink BR). Keep CSS panes in sync. */
+export const MULTI_SWATCH_PANES = {
+  tl: '#f4c430',
+  tr: '#d62828',
+  bl: '#7db8f5',
+  br: '#e87ea1',
+} as const;
 
 export const COLOR_PALETTE: readonly ColorPaletteEntry[] = [
   { id: 'white', label: 'White', swatch: '#ffffff' },
@@ -69,7 +78,8 @@ export const COLOR_PALETTE: readonly ColorPaletteEntry[] = [
   { id: 'brown', label: 'Brown', swatch: '#6f4e37' },
   { id: 'gold', label: 'Gold', swatch: '#d4af37' },
   { id: 'silver', label: 'Silver', swatch: '#c0c0c0' },
-  { id: 'multi', label: 'Multi', swatch: '#555555' },
+  // Fallback only — storefront/admin use the four-pane Multi chip.
+  { id: 'multi', label: 'Multi', swatch: MULTI_SWATCH_PANES.tl },
 ] as const;
 
 const COLOR_RANK = new Map<ColorId, number>(
@@ -168,7 +178,12 @@ const COLOR_SYNONYMS: Readonly<Record<string, ColorId>> = {
   multi: 'multi',
   multicolor: 'multi',
   multicolour: 'multi',
+  'multi color': 'multi',
+  'multi colour': 'multi',
+  'multi-color': 'multi',
+  'multi-colour': 'multi',
   mixed: 'multi',
+  rainbow: 'multi',
 };
 
 const NAME_COLOR_PATTERNS: readonly { readonly id: ColorId; readonly pattern: RegExp }[] = [
@@ -188,7 +203,8 @@ const NAME_COLOR_PATTERNS: readonly { readonly id: ColorId; readonly pattern: Re
   { id: 'brown', pattern: /\b(brown|camel|بني)\b/i },
   { id: 'gold', pattern: /\b(gold|golden|ذهبي)\b/i },
   { id: 'silver', pattern: /\b(silver|فضي)\b/i },
-  { id: 'multi', pattern: /\b(multicolou?r|multi[- ]colou?r)\b/i },
+  // Bare "multi" is a synonym for full labels only — avoid matching "multi-pack" names.
+  { id: 'multi', pattern: /\b(multicolou?r|multi[- ]colou?r|rainbow|mixed)\b/i },
 ];
 
 export function sortColors(colors: Iterable<ColorId>): ColorId[] {

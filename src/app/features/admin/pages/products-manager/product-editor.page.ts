@@ -45,6 +45,7 @@ import type { ImageAsset } from '@shared/schemas';
 import { SelectInputComponent } from '@shared/ui/forms/select-input/select-input.component';
 import { TextFieldInputComponent } from '@shared/ui/forms/text-field-input/text-field-input.component';
 import { TextInputComponent } from '@shared/ui/forms/text-input/text-input.component';
+import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
 import { ImageGalleryEditorComponent } from '@shared/ui/image-gallery-editor';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
@@ -98,6 +99,7 @@ interface EditorFields {
     TextInputComponent,
     TextFieldInputComponent,
     ImageGalleryEditorComponent,
+    ColorSwatchComponent,
     SharedIconModule,
     SkeletonComponent,
   ],

@@ -189,11 +189,11 @@
                 [attr.aria-pressed]="hasColor(color.id)"
                 (click)="toggleColor(color.id)"
               >
-                <span
-                  class="inline-block size-3 border-shape border border-outline"
-                  [style.background-color]="color.swatch"
-                  aria-hidden="true"
-                ></span>
+                <app-color-swatch
+                  class="inline-block size-3"
+                  [colorId]="color.id"
+                  [swatch]="color.swatch"
+                />
                 <span>{{ color.label }}</span>
               </button>
             }
