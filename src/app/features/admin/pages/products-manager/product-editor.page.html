@@ -276,6 +276,37 @@
             </label>
           </div>
         </div>
+
+        <div class="w-full elements-start-col gap-2">
+          <span class="font-label-md">New arrival</span>
+          <p class="font-body-sm text-on-surface-variant">
+            Puts this product at the front of the homepage New arrivals row until the end date. Separate
+            from the NEW marketing badge.
+          </p>
+          <mat-checkbox
+            [checked]="newArrivalChecked()"
+            (change)="onNewArrivalToggle($event.checked)"
+          >
+            Show in New arrivals
+          </mat-checkbox>
+          @if (newArrivalChecked()) {
+            <label class="elements-start-col gap-1.5 w-full max-w-xs">
+              <span class="font-label-sm">Ends on</span>
+              <input
+                type="date"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                [value]="newArrivalUntilInput()"
+                (change)="onNewArrivalDateChange($event)"
+              />
+            </label>
+            @if (newArrivalCountdown(); as countdown) {
+              <p class="font-body-sm text-on-surface-variant" role="status">{{ countdown }}</p>
+            }
+            @if (newArrivalError()) {
+              <p class="font-body-sm" role="alert">{{ newArrivalError() }}</p>
+            }
+          }
+        </div>
       </section>
 
       <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-sizes">

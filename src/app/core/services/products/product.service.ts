@@ -8,6 +8,7 @@ import {
   limit,
   orderBy,
   query,
+  Timestamp,
   where,
   type QueryConstraint,
 } from 'firebase/firestore';
@@ -17,6 +18,12 @@ import { createValibotConverter } from '@shared/utils/firebase/firestore-convert
 import { PRODUCTS_COLLECTION } from './product.constants';
 import type { Product, ProductCountQuery, ProductListQuery } from './product.model';
 import { ProductSchema } from './product.schema';
+import {
+  mergeNewArrivalPool,
+  NEW_ARRIVAL_FLAGGED_FETCH,
+  NEW_ARRIVALS_LIMIT,
+  timestampToMs,
+} from './utils/new-arrival';
 
 /**
  * Public catalogue reads. Every query includes published == true so Firestore rules allow it.
@@ -39,6 +46,33 @@ export class ProductService {
       ),
     );
     return snap.docs.map((item) => item.data());
+  }
+
+  /**
+   * Homepage New Arrivals: unexpired `newArrivalUntil` first (most recently
+   * updated), then newest published by `createdAt`, capped at 10.
+   */
+  async listNewArrivals(max = NEW_ARRIVALS_LIMIT): Promise<readonly Product[]> {
+    const now = Timestamp.now();
+    const [flaggedSnap, newest] = await Promise.all([
+      getDocs(
+        query(
+          this.#products,
+          where('published', '==', true),
+          where('newArrivalUntil', '>', now),
+          orderBy('newArrivalUntil', 'asc'),
+          limit(NEW_ARRIVAL_FLAGGED_FETCH),
+        ),
+      ),
+      this.listPublished({ limit: max }),
+    ]);
+    const flagged = flaggedSnap.docs.map((item) => item.data());
+    return mergeNewArrivalPool(
+      flagged,
+      newest,
+      (product) => timestampToMs(product.updatedAt) ?? 0,
+      max,
+    );
   }
 
   async getBySlug(slug: string): Promise<Product | null> {

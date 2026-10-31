@@ -40,6 +40,14 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "published", "order": "ASCENDING" },
+        { "fieldPath": "newArrivalUntil", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "published", "order": "ASCENDING" },
         { "fieldPath": "modelGroup", "order": "ASCENDING" }
       ]
     },
