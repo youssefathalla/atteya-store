@@ -11,6 +11,8 @@ import {
   type ProductCardData,
   type ProductCardMarketingBadge,
   type ProductCardPrice,
+  type ProductCardSibling,
+  type ProductCardSiblingGroups,
 } from './product-card.model';
 
 export function toMarketingBadgeView(
@@ -33,9 +35,49 @@ export function marketingBadgeFromSearchHit(
   return { kind, style, label: marketingBadgeLabel(kind) };
 }
 
+/** Strip full Product docs down to TransferState-safe sibling thumbs. */
+export function toSiblingGroupsRecord(
+  map: ReadonlyMap<string, readonly Product[]>,
+): ProductCardSiblingGroups {
+  const record: Record<string, ProductCardSibling[]> = {};
+  for (const [group, list] of map) {
+    record[group] = list.map((product) => ({
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      images: product.images.slice(0, 1).map((image) => ({
+        path: image.path,
+        alt: image.alt,
+      })),
+    }));
+  }
+  return record;
+}
+
+export function siblingGroupsMap(
+  record: ProductCardSiblingGroups | undefined | null,
+): ReadonlyMap<string, readonly ProductCardSibling[]> {
+  if (!record) return new Map();
+  return new Map(Object.entries(record));
+}
+
+/** Stable sorted unique model-group keys for resource params / TransferState. */
+export function uniqueModelGroups(
+  values: readonly (string | null | undefined)[],
+): readonly string[] | undefined {
+  const groups = [
+    ...new Set(
+      values
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .filter((value) => value.length > 0),
+    ),
+  ].sort();
+  return groups.length > 0 ? groups : undefined;
+}
+
 export function colorwaysForProduct(
   product: Pick<Product, 'id' | 'slug' | 'name' | 'images' | 'modelGroup'>,
-  siblingsByGroup: ReadonlyMap<string, readonly Product[]>,
+  siblingsByGroup: ReadonlyMap<string, readonly ProductCardSibling[]>,
 ): readonly ProductCardColorway[] {
   const self = toColorway(product);
   const groupKey = product.modelGroup?.trim() ?? '';
@@ -52,7 +94,7 @@ export function colorwaysForProduct(
 
 export function colorwaysForSearchHit(
   hit: Pick<SearchHit, 'objectID' | 'slug' | 'name' | 'image' | 'modelGroup'>,
-  siblingsByGroup: ReadonlyMap<string, readonly Product[]>,
+  siblingsByGroup: ReadonlyMap<string, readonly ProductCardSibling[]>,
 ): readonly ProductCardColorway[] {
   const self: ProductCardColorway = {
     productId: hit.objectID,
@@ -86,7 +128,7 @@ export function visibleColorways(colorways: readonly ProductCardColorway[]): {
 export function productToCardData(
   product: Product,
   price: ProductCardPrice,
-  siblingsByGroup: ReadonlyMap<string, readonly Product[]>,
+  siblingsByGroup: ReadonlyMap<string, readonly ProductCardSibling[]>,
 ): ProductCardData {
   const primary = product.images[0];
   return {
@@ -105,7 +147,7 @@ export function productToCardData(
 export function searchHitToCardData(
   hit: SearchHit,
   price: ProductCardPrice,
-  siblingsByGroup: ReadonlyMap<string, readonly Product[]>,
+  siblingsByGroup: ReadonlyMap<string, readonly ProductCardSibling[]>,
 ): ProductCardData {
   return {
     id: hit.objectID,
@@ -123,7 +165,7 @@ export function searchHitToCardData(
 }
 
 function toColorway(
-  product: Pick<Product, 'id' | 'slug' | 'name' | 'images'>,
+  product: Pick<ProductCardSibling, 'id' | 'slug' | 'name' | 'images'>,
 ): ProductCardColorway {
   const image = product.images[0];
   return {
