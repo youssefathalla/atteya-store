@@ -7,8 +7,6 @@ import { NavService } from '@core/services/navigation';
 import { NavbarActionsComponent } from '../components/navbar-actions/navbar-actions.component';
 import { NavLinksComponent } from './components/nav-links/nav-links.component';
 import { SkeletonComponent } from '@shared/ui/skeleton/skeleton.component';
-import { environment } from '../../../../environments/environment';
-
 @Component({
   selector: 'app-desktop-nav',
   imports: [
@@ -30,9 +28,7 @@ export class DesktopNavComponent {
   readonly #navService = inject(NavService);
 
   readonly categories = this.#navService.storefrontCategories;
-  readonly showNavSkeleton = computed(
-    () => !environment.production && this.#navService.isLoading(),
-  );
+  readonly showNavSkeleton = computed(() => !this.#navService.navLinksReady());
 
   onEscape(): void {
     this.drawerService.close();

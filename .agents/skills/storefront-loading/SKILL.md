@@ -30,7 +30,7 @@ Shared chrome that depends on **client Firebase** or **async settings**:
 | Currency | `CurrencyService.ready()`; EGP-only copy hidden while pending (`html[data-cur-pending]`) |
 | Auth | `AuthService.isAuthReady()` (browser only; account control) |
 | Shipping banner | `shippingSettingsResolver` → `shipping-settings`; `ShippingSettingsService.shellReady()` |
-| Navigation | `navigationSettingsResolver` → `navigation-settings`; `NavService.shellReady()` |
+| Navigation | `navigationSettingsResolver` → `navigation-settings`; `catalogSettingsResolver` → `catalog-settings`; `NavService.shellReady()`; CSR `getDoc` before `onSnapshot` on both docs; desktop nav waits for `navLinksReady()` (nav + `CatalogService.shellReady()`) |
 
 **Policy:** On **initial storefront load**, do not show shipping/nav-dependent chrome until **`ShellReadyService.chromeReady()`** is true. **`ready()`** also waits for auth in the browser. `MainLayoutComponent` uses a one-time `<app-loader>` overlay until `chromeReady()` (route changes keep the top pulse only).
 
@@ -78,6 +78,7 @@ Answer: *“What does the user see in the first ~500ms if Firestore is slow?”*
 | Home settings | `home-settings.resolver.ts`, `HOME_SETTINGS_KEY` (`home-settings`) |
 | Shipping | `shipping-settings.resolver.ts`, `SHIPPING_SETTINGS_KEY` (`shipping-settings`) |
 | Navigation | `navigation-settings.resolver.ts`, `NAVIGATION_SETTINGS_KEY` (`navigation-settings`) |
+| Catalog counts | `catalog-settings.resolver.ts`, `CATALOG_SETTINGS_KEY` (`catalog-settings`) |
 | Currency SSR | `serverCurrencyResolver`, `CurrencyService.prepareForServerRender()`, `CURRENCY_BOOT_KEY` (`currency-boot`) |
 | Product page | `product-page.resolver.ts`, `makeStateKey(\`product-page:${slug}\`)` |
 
