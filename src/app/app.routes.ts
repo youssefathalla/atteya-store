@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { checkoutAuthGuard } from '@core/guards/checkout/checkout-auth.guard';
+import { favoritesAuthGuard } from '@core/guards/favorites/favorites-auth.guard';
 import { serverCurrencyResolver } from '@core/services/currency/server-currency.resolver';
 import { catalogSettingsResolver } from '@core/services/products/catalog-settings.resolver';
 import { navigationSettingsResolver } from '@core/services/navigation/navigation-settings.resolver';
@@ -75,6 +76,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/auth/login/login.component').then((m) => m.LoginComponent),
         title: 'Sign in | Atteya Store',
+      },
+      {
+        path: 'favorites',
+        canActivate: [favoritesAuthGuard],
+        loadComponent: () =>
+          import('./features/favorites/favorites.page').then((m) => m.FavoritesPageComponent),
+        title: 'Favorites | Atteya Store',
       },
       {
         path: 'checkout',

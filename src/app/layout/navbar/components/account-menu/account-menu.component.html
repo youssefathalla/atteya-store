@@ -21,6 +21,10 @@
         <mat-icon name="person" />
         <span>{{ accountLabel() }}</span>
       </button>
+      <a mat-menu-item routerLink="/favorites">
+        <mat-icon name="favorite" />
+        <span>Favorites</span>
+      </a>
       @if (isAdmin()) {
         <a mat-menu-item routerLink="/admin">
           <mat-icon name="dashboard" />

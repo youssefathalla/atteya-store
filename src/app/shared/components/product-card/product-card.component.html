@@ -1,22 +1,40 @@
-<a
-  class="product-card__main"
-  [routerLink]="['/product', product().slug]"
-  [appPrefetchProduct]="product().slug"
->
-  <div class="product-card__media">
-    @if (displayImagePath(); as path) {
-      <img
-        [ngSrc]="imagePath(path)"
-        [appImageFallback]="path"
-        [alt]="displayImageAlt()"
-        fill
-        [priority]="priority()"
-        [sizes]="sizes()"
-        class="product-card__photo"
+<div class="product-card__media-wrap">
+  <a
+    class="product-card__main"
+    [routerLink]="['/product', product().slug]"
+    [appPrefetchProduct]="product().slug"
+  >
+    <div class="product-card__media">
+      @if (displayImagePath(); as path) {
+        <img
+          [ngSrc]="imagePath(path)"
+          [appImageFallback]="path"
+          [alt]="displayImageAlt()"
+          fill
+          [priority]="priority()"
+          [sizes]="sizes()"
+          class="product-card__photo"
+        />
+      }
+    </div>
+  </a>
+
+  <div class="product-card__favorite">
+    <button
+      matIconButton
+      type="button"
+      [attr.aria-label]="favoriteLabel()"
+      [attr.aria-pressed]="isFavorite() ? true : false"
+      [disabled]="favoriteBusy()"
+      (click)="onFavoriteClick($event)"
+    >
+      <mat-icon
+        name="favorite"
+        [type]="isFavorite() ? 'fill' : 'outline'"
       />
-    }
+    </button>
   </div>
-</a>
+</div>
 
 <div class="product-card__swatches" aria-label="Available colours">
   <div
