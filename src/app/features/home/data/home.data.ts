@@ -52,9 +52,9 @@ export const SHOP_CATEGORIES_CARD_COUNT = 3;
 export const DEFAULT_SHOP_CATEGORY_CARDS: readonly ShopCategoryCard[] = [
   {
     imageUrl: '',
-    imageAlt: 'Performance athletic and court shoes',
-    buttonLabel: 'Shoes',
-    buttonLink: '/category/shoes',
+    imageAlt: 'Professional padel rackets ready for court play',
+    buttonLabel: 'padel',
+    buttonLink: '/category/rackets',
   },
   {
     imageUrl: '',
