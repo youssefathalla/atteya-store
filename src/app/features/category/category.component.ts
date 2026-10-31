@@ -139,19 +139,6 @@ export class CategoryComponent {
     return this.productsResource.value() ?? [];
   });
 
-  readonly brandNames = computed((): ReadonlyMap<string, string> => {
-    const map = new Map<string, string>();
-    for (const brand of this.#catalogService.brands() ?? []) {
-      map.set(brand.id, brand.name);
-    }
-    for (const product of this.products()) {
-      if (map.has(product.brandId)) continue;
-      const seed = this.#catalogService.brandBySlug(product.brandId);
-      if (seed) map.set(product.brandId, seed.name);
-    }
-    return map;
-  });
-
   readonly cardPrices = computed<ReadonlyMap<string, CatalogCardPrice>>(() => {
     const products = this.products();
     const liveMode = this.#offers.ready() && !this.#offers.failed();
@@ -171,7 +158,8 @@ export class CategoryComponent {
           fromPrice: d.partial ? d.fromPrice : null,
           listPrice: d.listPrice,
           partial: d.partial,
-          badges: d.badges.map((b) => b.text).slice(0, 3),
+          // Listing cards keep strike-through; skip boxed offer chips.
+          badges: [],
         });
       } else {
         const list = product.compareAtPrice;
@@ -181,9 +169,7 @@ export class CategoryComponent {
           fromPrice: null,
           listPrice: onSale ? list : null,
           partial: false,
-          badges: onSale && list
-            ? [`${Math.round(((list - product.price) / list) * 100)}% off`]
-            : [],
+          badges: [],
         });
       }
     }

@@ -1,6 +1,11 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { collapseSpaces, PRODUCT_TYPES, type ProductTypeId } from './catalog-mapping.js';
 import { COLOR_IDS, type ColorId } from './catalog-taxonomy.js';
+import {
+  isMarketingBadgeKind,
+  isMarketingBadgeStyle,
+  type MarketingBadge,
+} from './marketing-badge.js';
 import { nextSlug } from './slug.js';
 
 const CREATE_ID = /^[A-Za-z0-9]{20}$/;
@@ -51,6 +56,7 @@ export interface ProductFormInput {
   readonly modelGroup: string | null;
   readonly colors: readonly ColorId[];
   readonly tags: readonly string[];
+  readonly marketingBadge: MarketingBadge | null;
   readonly price: number;
   readonly compareAtPrice: number | null;
   readonly published: boolean;
@@ -178,6 +184,7 @@ function parseForm(raw: Record<string, unknown>): ProductFormInput {
     modelGroup: readModelGroup(raw['modelGroup']),
     colors: readColors(raw['colors']),
     tags: readTags(raw['tags']),
+    marketingBadge: readMarketingBadge(raw['marketingBadge']),
     price,
     compareAtPrice: readCompareAtPrice(raw['compareAtPrice'], price),
     published: readPublished(raw['published'], images.length),
@@ -372,6 +379,22 @@ function readTags(value: unknown): string[] {
     tags.push(tag);
   }
   return tags;
+}
+
+function readMarketingBadge(value: unknown): MarketingBadge | null {
+  if (value === undefined || value === null) return null;
+  if (!isPlainObject(value)) {
+    invalid('Choose a marketing badge or leave it empty.');
+  }
+  const kind = value['kind'];
+  const style = value['style'];
+  if (typeof kind !== 'string' || !isMarketingBadgeKind(kind)) {
+    invalid('Choose NEW, BESTSELLER, or LIMITED EDITION.');
+  }
+  if (typeof style !== 'string' || !isMarketingBadgeStyle(style)) {
+    invalid('Choose a plain or boxed badge style.');
+  }
+  return { kind, style };
 }
 
 function readPrice(value: unknown): number {

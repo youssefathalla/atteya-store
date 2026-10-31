@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import { MARKETING_BADGE_KINDS, MARKETING_BADGE_STYLES } from '@core/services/products/marketing-badge';
 
 export const SearchHitImageSchema = v.object({
   path: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(512)),
@@ -35,6 +36,16 @@ export const SearchHitSchema = v.object({
   colors: v.optional(v.array(v.string()), []),
   sizes: v.optional(v.array(v.string()), []),
   tags: v.optional(v.array(v.string()), []),
+  marketingBadgeKind: v.optional(
+    v.nullable(v.picklist(MARKETING_BADGE_KINDS)),
+    null,
+  ),
+  marketingBadgeStyle: v.optional(
+    v.nullable(v.picklist(MARKETING_BADGE_STYLES)),
+    null,
+  ),
+  summary: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(300))), null),
+  shortDescription: v.optional(v.pipe(v.string(), v.maxLength(300)), ''),
   inStock: v.optional(v.boolean(), true),
   image: v.nullable(SearchHitImageSchema, null),
   createdAtMs: v.optional(v.number(), 0),

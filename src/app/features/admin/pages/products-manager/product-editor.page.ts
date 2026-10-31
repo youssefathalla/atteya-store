@@ -22,6 +22,13 @@ import {
   sortColors,
   type ColorId,
 } from '@core/services/products/catalog-taxonomy';
+import {
+  MARKETING_BADGE_KINDS,
+  MARKETING_BADGE_LABELS,
+  MARKETING_BADGE_STYLES,
+  type MarketingBadgeKind,
+  type MarketingBadgeStyle,
+} from '@core/services/products/marketing-badge';
 import { PRODUCT_TYPES, SIZE_ORDER } from '@core/services/products/product.constants';
 import type { Product, ProductTypeId } from '@core/services/products/product.model';
 import { SeoService } from '@core/services/seo';
@@ -111,7 +118,20 @@ export class ProductEditorPageComponent implements OnInit {
   readonly tags = signal<readonly string[]>([]);
   readonly tagInput = signal('');
   readonly tagError = signal('');
+  readonly marketingBadgeKind = signal<MarketingBadgeKind | ''>('');
+  readonly marketingBadgeStyle = signal<MarketingBadgeStyle>('plain');
   readonly colorError = signal('');
+  readonly marketingBadgeKinds = [
+    { id: '', label: 'None' },
+    ...MARKETING_BADGE_KINDS.map((kind) => ({
+      id: kind,
+      label: MARKETING_BADGE_LABELS[kind],
+    })),
+  ] as const;
+  readonly marketingBadgeStyles = MARKETING_BADGE_STYLES.map((style) => ({
+    id: style,
+    label: style === 'boxed' ? 'Boxed outline' : 'Plain text',
+  }));
   readonly sizes = signal<readonly ProductSizeDraft[]>([]);
   readonly sizeInput = signal('');
   readonly sizeError = signal('');
@@ -597,6 +617,8 @@ export class ProductEditorPageComponent implements OnInit {
       this.tags.set([]);
       this.tagInput.set('');
       this.tagError.set('');
+      this.marketingBadgeKind.set('');
+      this.marketingBadgeStyle.set('plain');
       this.colorError.set('');
       this.sizes.set([]);
       this.sizeInput.set('');
@@ -644,6 +666,8 @@ export class ProductEditorPageComponent implements OnInit {
     this.tags.set([...(product.tags ?? [])]);
     this.tagInput.set('');
     this.tagError.set('');
+    this.marketingBadgeKind.set(product.marketingBadge?.kind ?? '');
+    this.marketingBadgeStyle.set(product.marketingBadge?.style ?? 'plain');
     this.colorError.set('');
     this.sizes.set(sizeDraftsFrom(product));
     this.sizeInput.set('');
@@ -752,6 +776,27 @@ export class ProductEditorPageComponent implements OnInit {
     return Object.keys(stockBySize).length > 0 ? { stockBySize } : null;
   }
 
+  onMarketingBadgeKindChange(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+    const value = target.value;
+    this.marketingBadgeKind.set(
+      value === '' ? '' : (value as MarketingBadgeKind),
+    );
+  }
+
+  onMarketingBadgeStyleChange(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+    this.marketingBadgeStyle.set(target.value as MarketingBadgeStyle);
+  }
+
+  #marketingBadgePayload(): ProductFormPayload['marketingBadge'] {
+    const kind = this.marketingBadgeKind();
+    if (!kind) return null;
+    return { kind, style: this.marketingBadgeStyle() };
+  }
+
   #payload(): ProductFormPayload {
     const value = this.model();
     const price = parseWholePounds(asText(value.price)) ?? 0;
@@ -772,6 +817,7 @@ export class ProductEditorPageComponent implements OnInit {
       modelGroup: asText(value.modelGroup).trim() || null,
       colors: this.selectedColors(),
       tags: this.tags(),
+      marketingBadge: this.#marketingBadgePayload(),
       price,
       compareAtPrice,
       published: value.published,

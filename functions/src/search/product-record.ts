@@ -3,8 +3,15 @@ import {
   type Offer,
   type PricedProduct,
 } from '../offers/engine/index.js';
+import { cardShortDescription } from '../products/card-short-description.js';
 import { PRODUCT_TYPES, sizeRank, type ProductTypeId } from '../products/catalog-mapping.js';
 import { categoryIdsFor, DEFAULT_CATEGORY_FOR_TYPE } from '../products/catalog-taxonomy.js';
+import {
+  isMarketingBadgeKind,
+  isMarketingBadgeStyle,
+  type MarketingBadgeKind,
+  type MarketingBadgeStyle,
+} from '../products/marketing-badge.js';
 import { deriveInStock } from '../products/stock.js';
 import type { CachedBrandInfo, CachedCategoryInfo } from './catalog-cache.js';
 
@@ -47,6 +54,10 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly colors: readonly string[];
   readonly sizes: readonly string[];
   readonly tags: readonly string[];
+  readonly marketingBadgeKind: MarketingBadgeKind | null;
+  readonly marketingBadgeStyle: MarketingBadgeStyle | null;
+  readonly summary: string | null;
+  readonly shortDescription: string;
   readonly inStock: boolean;
   readonly image: SearchRecordImage | null;
   readonly createdAtMs: number;
@@ -103,6 +114,10 @@ export function toSearchRecord(
   const colors = readStringArray(data['colors']);
   const sizes = extractSizes(data['options']);
   const tags = readStringArray(data['tags']);
+  const marketingBadge = readMarketingBadge(data['marketingBadge']);
+  const summary = readNullableString(data['summary']);
+  const descriptionHtml = readNullableString(data['descriptionHtml']);
+  const shortDescription = cardShortDescription(summary, descriptionHtml);
   const rawStock = data['stock'];
   const inStock =
     typeof rawStock === 'number' && Number.isFinite(rawStock)
@@ -150,6 +165,10 @@ export function toSearchRecord(
     colors,
     sizes,
     tags,
+    marketingBadgeKind: marketingBadge?.kind ?? null,
+    marketingBadgeStyle: marketingBadge?.style ?? null,
+    summary,
+    shortDescription,
     inStock,
     image,
     createdAtMs,
@@ -355,8 +374,25 @@ function readString(raw: unknown): string {
   return typeof raw === 'string' ? raw.trim() : '';
 }
 
+function readNullableString(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function readStringArray(raw: unknown): string[] {
   return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function readMarketingBadge(
+  raw: unknown,
+): { readonly kind: MarketingBadgeKind; readonly style: MarketingBadgeStyle } | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const kind = (raw as { kind?: unknown }).kind;
+  const style = (raw as { style?: unknown }).style;
+  if (typeof kind !== 'string' || !isMarketingBadgeKind(kind)) return null;
+  if (typeof style !== 'string' || !isMarketingBadgeStyle(style)) return null;
+  return { kind, style };
 }
 
 function readWholeEgp(raw: unknown): number {

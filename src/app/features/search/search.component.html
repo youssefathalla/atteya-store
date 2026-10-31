@@ -70,11 +70,12 @@
       aria-label="Loading search results"
     >
       @for (slot of skeletonCards; track slot) {
-        <div class="surface-card p-3 elements-start-col gap-3">
-          <app-skeleton class="aspect-square w-full" />
-          <app-skeleton class="h-4 w-1/3" />
+        <div class="elements-start-col gap-2">
+          <app-skeleton class="aspect-4/5 w-full" />
+          <app-skeleton class="h-4 w-1/2" />
           <app-skeleton class="h-5 w-3/4" />
-          <app-skeleton class="h-5 w-1/2" />
+          <app-skeleton class="h-4 w-2/3" />
+          <app-skeleton class="h-5 w-1/3" />
         </div>
       }
     </div>
@@ -95,42 +96,8 @@
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
-      @for (hit of hits(); track hit.objectID; let i = $index) {
-        <a
-          [routerLink]="['/product', hit.slug]"
-          [appPrefetchProduct]="hit.slug"
-          class="surface-card p-3 elements-start-col gap-3 border-shape no-underline"
-        >
-          <div class="relative aspect-square w-full overflow-hidden border-shape bg-surface-container">
-            @if (hit.image) {
-              <img
-                [ngSrc]="imagePath(hit.image.path)"
-                [appImageFallback]="hit.image.path"
-                [alt]="hit.image.alt || hit.name"
-                fill
-                [priority]="i < 2"
-                sizes="(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
-                class="object-cover"
-              />
-            }
-          </div>
-
-          <div class="w-full elements-start-col gap-1">
-            <span class="font-label-sm uppercase tracking-wider text-on-surface-variant">
-              {{ hit.brandName }}
-            </span>
-            <h2 class="font-title-sm font-bold! line-clamp-2">{{ hit.name }}</h2>
-            @let pr = cardPrices().get(hit.objectID)!;
-            <app-product-price
-              class="pt-1"
-              [price]="pr.price"
-              [fromPrice]="pr.fromPrice"
-              [partial]="pr.partial"
-              [listPrice]="pr.listPrice"
-              [badges]="pr.badges"
-            />
-          </div>
-        </a>
+      @for (card of cards(); track card.id; let i = $index) {
+        <app-product-card [product]="card" [priority]="i < 2" />
       }
     </div>
 
