@@ -1,6 +1,14 @@
 import { isPlatformBrowser } from '@angular/common';
-import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal } from '@angular/core';
-import { doc } from 'firebase/firestore';
+import {
+  computed,
+  DestroyRef,
+  inject,
+  PLATFORM_ID,
+  Service,
+  signal,
+  TransferState,
+} from '@angular/core';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import {
@@ -9,13 +17,17 @@ import {
   type ShippingSettings,
 } from '@core/services/offers/engine';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
-import { signalDoc } from '@shared/utils/firebase/firestore-signals';
 import {
   DEFAULT_EGYPT_BOXES,
   DEFAULT_INTERNATIONAL_BOXES,
   ShippingSettingsSchema,
   type ShippingSettingsDoc,
 } from './shipping-settings.schema';
+import {
+  SHIPPING_SETTINGS_KEY,
+  shippingSeedToDoc,
+  type ShippingSettingsSeed,
+} from './shipping-settings.state';
 
 export function toEngineShipping(docData: ShippingSettingsDoc): ShippingSettings {
   return {
@@ -52,19 +64,55 @@ function toDate(raw: unknown): Date | null {
   return null;
 }
 
+function seedToDocData(seed: ShippingSettingsSeed | null): ShippingSettingsDoc | null {
+  return seed ? shippingSeedToDoc(seed) : null;
+}
+
 @Service()
 export class ShippingSettingsService {
   readonly #firestore = injectFirestore();
   readonly #currency = inject(CurrencyService);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #destroyRef = inject(DestroyRef);
+  readonly #transfer = inject(TransferState);
   readonly #now = signal(new Date());
 
-  readonly #doc = signalDoc(
-    doc(this.#firestore, 'settings', 'shipping').withConverter(
-      createValibotConverter(ShippingSettingsSchema),
-    ),
+  readonly #shippingDocRef = doc(this.#firestore, 'settings', 'shipping').withConverter(
+    createValibotConverter(ShippingSettingsSchema),
   );
+
+  /** undefined until the SSR seed or first browser snapshot settles. */
+  readonly #doc = signal<ShippingSettingsDoc | null | undefined>(undefined);
+
+  constructor() {
+    if (this.#transfer.hasKey(SHIPPING_SETTINGS_KEY)) {
+      this.#doc.set(seedToDocData(this.#transfer.get(SHIPPING_SETTINGS_KEY, null)));
+      if (isPlatformBrowser(this.#platformId)) {
+        this.#transfer.remove(SHIPPING_SETTINGS_KEY);
+      }
+    } else if (!isPlatformBrowser(this.#platformId)) {
+      this.#doc.set(null);
+    }
+
+    if (isPlatformBrowser(this.#platformId)) {
+      const id = setInterval(() => this.#now.set(new Date()), 60_000);
+      this.#destroyRef.onDestroy(() => clearInterval(id));
+
+      const unsubscribe = onSnapshot(
+        this.#shippingDocRef,
+        (snapshot) => {
+          this.#doc.set(snapshot.exists() ? snapshot.data() : null);
+        },
+        () => {
+          this.#doc.set(null);
+        },
+      );
+      this.#destroyRef.onDestroy(unsubscribe);
+    }
+  }
+
+  /** First shipping value received (SSR seed, explicit null, or live snapshot). */
+  readonly shellReady = computed(() => this.#doc() !== undefined);
 
   readonly settings = computed<ShippingSettings | null>(() => {
     const raw = this.#doc();
@@ -106,11 +154,4 @@ export class ShippingSettingsService {
     if (settings.note) parts.push(settings.note);
     return parts.join(' \u00b7 ');
   });
-
-  constructor() {
-    if (isPlatformBrowser(this.#platformId)) {
-      const id = setInterval(() => this.#now.set(new Date()), 60_000);
-      this.#destroyRef.onDestroy(() => clearInterval(id));
-    }
-  }
 }
