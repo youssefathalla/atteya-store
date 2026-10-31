@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { checkoutAuthGuard } from '@core/guards/checkout/checkout-auth.guard';
 import { serverCurrencyResolver } from '@core/services/currency/server-currency.resolver';
+import { catalogSettingsResolver } from '@core/services/products/catalog-settings.resolver';
 import { navigationSettingsResolver } from '@core/services/navigation/navigation-settings.resolver';
 import { shippingSettingsResolver } from '@core/services/shipping/shipping-settings.resolver';
 import { homeSettingsResolver } from './features/home/resolvers/home-settings.resolver';
@@ -16,6 +17,7 @@ export const routes: Routes = [
       serverCurrency: serverCurrencyResolver,
       shippingSettings: shippingSettingsResolver,
       navigationSettings: navigationSettingsResolver,
+      catalogSettings: catalogSettingsResolver,
     },
     children: [
       {

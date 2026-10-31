@@ -126,6 +126,7 @@ export class NavService {
    * Top nav may render: Firestore categories are present, or bootstrap confirmed a missing doc.
    */
   readonly navLinksReady = computed(() => {
+    if (!this.#catalog.shellReady()) return false;
     const docData = this.#navDoc();
     if (docData === undefined) return false;
     if (docHasCategories(docData)) return true;
