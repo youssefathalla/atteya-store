@@ -4,7 +4,15 @@
     <app-logo />
 
     <!-- Desktop Primary Navigation (Hover for Mega Menu) -->
-    <app-nav-links [categories]="categories()" />
+    @if (showNavSkeleton()) {
+      <div class="hidden lg:flex h-full items-center gap-6 px-4" aria-hidden="true">
+        @for (placeholder of [1, 2, 3, 4, 5]; track placeholder) {
+          <app-skeleton width="4.5rem" height="0.75rem" />
+        }
+      </div>
+    } @else {
+      <app-nav-links [categories]="categories()" />
+    }
 
     <!-- Desktop Utility Actions (Search, Cart, Profile) -->
     <app-navbar-actions />
