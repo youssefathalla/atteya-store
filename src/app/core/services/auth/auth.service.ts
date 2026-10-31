@@ -70,12 +70,19 @@ export class AuthService {
   readonly #pendingGoogleEmail = signal('');
   readonly #redirectError = signal('');
   readonly #linkingGoogle = signal(false);
-  /** New Auth user without a `users/{uid}` terms acceptance yet. */
+  /** Signed-in shopper missing current Terms acceptance on `users/{uid}`. */
   readonly #needsConsent = signal(false);
+  /**
+   * False while we still need to read (or finish writing) signup consent for the
+   * current uid. `leaveAfterSignIn` must hold until this is true.
+   */
+  readonly #consentReady = signal(true);
 
   #pendingCredential: AuthCredential | null = null;
   #generation = 0;
   #refreshInFlight: Promise<AppRole> | null = null;
+  /** In-flight `users/{uid}` consent write so `#applyUser` does not race ahead. */
+  #consentWrite: Promise<void> | null = null;
   readonly #explicitSignOut = signal(false);
   #redirectConsumed = false;
   #readyWaiters: (() => void)[] = [];
@@ -90,6 +97,7 @@ export class AuthService {
   readonly redirectError = this.#redirectError.asReadonly();
   readonly linkingGoogle = this.#linkingGoogle.asReadonly();
   readonly needsConsent = this.#needsConsent.asReadonly();
+  readonly consentReady = this.#consentReady.asReadonly();
 
   /**
    * Subscribes for the signed-in user's role mirror. Reading `value()` in the
@@ -108,6 +116,7 @@ export class AuthService {
           this.#role.set('anon');
           this.#user.set(null);
           this.#needsConsent.set(false);
+          this.#consentReady.set(true);
           this.#markReady();
           return;
         }
@@ -166,9 +175,9 @@ export class AuthService {
     if (!consent.termsAccepted) {
       throw new Error('Accept the Terms and Conditions and Privacy Policy to create an account.');
     }
+    this.#consentReady.set(false);
     const result = await createUserWithEmailAndPassword(this.#auth, email.trim(), password);
-    await this.#profiles.writeSignupConsent(result.user.uid, consent);
-    this.#needsConsent.set(false);
+    await this.#writeConsent(result.user.uid, consent);
   }
 
   /**
@@ -182,17 +191,22 @@ export class AuthService {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
+    // Hold leave-after-sign-in until `#afterCredential` / `#applyUser` finish the profile check.
+    this.#consentReady.set(false);
     try {
       const result = await signInWithPopup(this.#auth, provider, browserPopupRedirectResolver);
       await this.#afterCredential(result, consent);
       return 'popup';
     } catch (error) {
+      this.#consentReady.set(true);
       if (isPopupFallback(error)) {
+        this.#consentReady.set(false);
         this.#markRedirectPending(consent);
         try {
           await signInWithRedirect(this.#auth, provider, browserPopupRedirectResolver);
         } catch (redirectError) {
           this.#clearRedirectPending();
+          this.#consentReady.set(true);
           throw redirectError;
         }
         return 'redirect';
@@ -223,7 +237,7 @@ export class AuthService {
     }
   }
 
-  /** Completes Terms + marketing choice for a new Auth user who signed in without consent. */
+  /** Completes Terms + marketing choice for a signed-in user missing `users/{uid}` consent. */
   async completeConsent(consent: SignupConsent): Promise<void> {
     const uid = this.#user()?.uid;
     if (!uid) {
@@ -232,8 +246,12 @@ export class AuthService {
     if (!consent.termsAccepted) {
       throw new Error('Accept the Terms and Conditions and Privacy Policy to continue.');
     }
-    await this.#profiles.writeSignupConsent(uid, consent);
-    this.#needsConsent.set(false);
+    this.#consentReady.set(false);
+    try {
+      await this.#writeConsent(uid, consent);
+    } finally {
+      this.#consentReady.set(true);
+    }
   }
 
   clearPendingGoogle(): void {
@@ -250,6 +268,7 @@ export class AuthService {
     this.#explicitSignOut.set(true);
     this.clearPendingGoogle();
     this.#needsConsent.set(false);
+    this.#consentReady.set(true);
     this.#role.set('anon');
     this.#user.set(null);
     try {
@@ -356,29 +375,47 @@ export class AuthService {
       this.#role.set('anon');
       this.#user.set(null);
       this.#needsConsent.set(false);
+      this.#consentReady.set(true);
       this.#markReady();
       return;
     }
 
+    this.#consentReady.set(false);
     try {
-      const result = await firebaseUser.getIdTokenResult();
-      if (generation !== this.#generation) return;
-      this.#role.set(roleFromClaims(result.claims));
-      this.#user.set(firebaseUser);
-      this.#markReady();
-    } catch (error) {
-      if (generation !== this.#generation) return;
-      if (isSessionExpired(error)) {
-        await signOut(this.#auth).catch(() => undefined);
-        this.#role.set('anon');
-        this.#user.set(null);
-        this.#needsConsent.set(false);
+      try {
+        const result = await firebaseUser.getIdTokenResult();
+        if (generation !== this.#generation) return;
+        this.#role.set(roleFromClaims(result.claims));
+        this.#user.set(firebaseUser);
         this.#markReady();
-        return;
+      } catch (error) {
+        if (generation !== this.#generation) return;
+        if (isSessionExpired(error)) {
+          await signOut(this.#auth).catch(() => undefined);
+          this.#role.set('anon');
+          this.#user.set(null);
+          this.#needsConsent.set(false);
+          this.#consentReady.set(true);
+          this.#markReady();
+          return;
+        }
+        this.#role.set('user');
+        this.#user.set(firebaseUser);
+        this.#markReady();
       }
-      this.#role.set('user');
-      this.#user.set(firebaseUser);
-      this.#markReady();
+
+      // Wait for any in-flight signup write, then read the profile (survives reload).
+      if (this.#consentWrite) await this.#consentWrite;
+      if (generation !== this.#generation) return;
+      const hasTerms = await this.#profiles.hasCurrentTerms(firebaseUser.uid);
+      if (generation !== this.#generation) return;
+      this.#needsConsent.set(!hasTerms);
+      this.#consentReady.set(true);
+    } catch {
+      if (generation !== this.#generation) return;
+      // Fail closed: keep the shopper on consent until we can confirm Terms.
+      this.#needsConsent.set(true);
+      this.#consentReady.set(true);
     }
   }
 
@@ -388,6 +425,7 @@ export class AuthService {
       this.#role.set('anon');
       this.#user.set(null);
       this.#needsConsent.set(false);
+      this.#consentReady.set(true);
       return 'anon';
     }
 
@@ -405,6 +443,7 @@ export class AuthService {
         this.#role.set('anon');
         this.#user.set(null);
         this.#needsConsent.set(false);
+        this.#consentReady.set(true);
         return 'anon';
       }
       return this.#role();
@@ -413,20 +452,24 @@ export class AuthService {
 
   async #afterCredential(result: UserCredential, consent?: SignupConsent): Promise<void> {
     const info = getAdditionalUserInfo(result);
-    if (!info?.isNewUser) {
-      this.#needsConsent.set(false);
+    if (consent?.termsAccepted && info?.isNewUser) {
+      await this.#writeConsent(result.user.uid, consent);
       return;
     }
+    // Profile check (and needsConsent) is owned by `#applyUser` so reloads stay consistent.
+  }
 
-    if (consent?.termsAccepted) {
-      await this.#profiles.writeSignupConsent(result.user.uid, consent);
-      this.#needsConsent.set(false);
-      return;
-    }
-
-    // Sign-in Google path created a brand-new Auth user — hold navigation for consent UI.
-    const hasTerms = await this.#profiles.hasCurrentTerms(result.user.uid);
-    this.#needsConsent.set(!hasTerms);
+  async #writeConsent(uid: string, consent: SignupConsent): Promise<void> {
+    const write = this.#profiles
+      .writeSignupConsent(uid, consent)
+      .then(() => {
+        this.#needsConsent.set(false);
+      })
+      .finally(() => {
+        if (this.#consentWrite === write) this.#consentWrite = null;
+      });
+    this.#consentWrite = write;
+    await write;
   }
 
   async #consumeRedirectResult(): Promise<void> {

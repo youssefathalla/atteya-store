@@ -29,22 +29,25 @@
     @if (auth.needsConsent()) {
       <div class="elements-start-col gap-4 w-full">
         <div class="elements-start-col gap-3 w-full">
-          <mat-checkbox
-            [checked]="termsAccepted()"
-            (change)="onTermsChange($event.checked)"
-            [disabled]="isBusy()"
-          >
-            <span class="font-body-sm">
-              I agree to the
+          <div class="elements-start-col gap-1">
+            <mat-checkbox
+              [checked]="termsAccepted()"
+              (change)="onTermsChange($event.checked)"
+              [disabled]="isBusy()"
+            >
+              <span class="font-body-sm">I agree to the Terms and Conditions and Privacy Policy</span>
+            </mat-checkbox>
+            <p class="font-body-sm text-on-surface-variant ps-8">
+              Read the
               <a routerLink="/terms" class="underline underline-offset-2" target="_blank" rel="noopener">
                 Terms and Conditions
               </a>
               and
               <a routerLink="/privacy" class="underline underline-offset-2" target="_blank" rel="noopener">
                 Privacy Policy
-              </a>
-            </span>
-          </mat-checkbox>
+              </a>.
+            </p>
+          </div>
           <mat-checkbox
             [checked]="marketingOptIn()"
             (change)="onMarketingChange($event.checked)"
@@ -90,30 +93,33 @@
       } @else {
         @if (showConsent()) {
           <div class="elements-start-col gap-3 w-full">
-            <mat-checkbox
-              [checked]="termsAccepted()"
-              (change)="onTermsChange($event.checked)"
-              [disabled]="isBusy()"
-            >
-              <span class="font-body-sm">
-                I agree to the
+            <div class="elements-start-col gap-1">
+              <mat-checkbox
+                [checked]="termsAccepted()"
+                (change)="onTermsChange($event.checked)"
+                [disabled]="isBusy()"
+              >
+                <span class="font-body-sm">I agree to the Terms and Conditions and Privacy Policy</span>
+              </mat-checkbox>
+              <p class="font-body-sm text-on-surface-variant ps-8">
+                Read the
                 <a routerLink="/terms" class="underline underline-offset-2" target="_blank" rel="noopener">
                   Terms and Conditions
                 </a>
                 and
                 <a routerLink="/privacy" class="underline underline-offset-2" target="_blank" rel="noopener">
                   Privacy Policy
-                </a>
-              </span>
-            </mat-checkbox>
+                </a>.
+              </p>
+            </div>
             <mat-checkbox
               [checked]="marketingOptIn()"
               (change)="onMarketingChange($event.checked)"
               [disabled]="isBusy()"
             >
               <span class="font-body-sm"
-              >Check this box if you want to receive discount offers and similar emails</span
-            >
+                >Check this box if you want to receive discount offers and similar emails</span
+              >
             </mat-checkbox>
           </div>
         }

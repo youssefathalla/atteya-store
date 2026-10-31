@@ -33,7 +33,17 @@ export class FavoritesGateService {
       const signedIn = this.#auth.isAuthenticated();
       const favoritesReady = this.#favorites.ready();
       const needsConsent = this.#auth.needsConsent();
-      if (!this.#isBrowser || !authReady || !signedIn || !favoritesReady || needsConsent) return;
+      const consentReady = this.#auth.consentReady();
+      if (
+        !this.#isBrowser ||
+        !authReady ||
+        !signedIn ||
+        !favoritesReady ||
+        !consentReady ||
+        needsConsent
+      ) {
+        return;
+      }
       untracked(() => void this.#applyPendingFavorite());
     });
   }
