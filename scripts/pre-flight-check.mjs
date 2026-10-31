@@ -8,11 +8,13 @@
  * 4. Dangerous ReDoS Regex Patterns
  * 5. SSR Server Routes Coverage (app.routes.server.ts)
  * 6. Material Symbols icon names (scripts/fonts/material-symbols.icons.txt)
+ * 7. Storefront anti-flicker contract (scripts/storefront-anti-flicker-check.mjs)
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { assertLoginTemplateErrorPlacement } from './login-error-placement.mjs';
+import { assertStorefrontAntiFlicker } from './storefront-anti-flicker-check.mjs';
 
 const SRC_DIR = path.resolve(process.cwd(), 'src');
 let totalErrors = 0;
@@ -548,6 +550,17 @@ try {
 } catch (error) {
   logError(
     path.resolve(process.cwd(), 'src/app/features/auth/login/login.component.html'),
+    1,
+    error instanceof Error ? error.message : String(error),
+  );
+}
+
+try {
+  assertStorefrontAntiFlicker();
+  console.log('\x1b[32m✓\x1b[0m Storefront anti-flicker: nav/catalog seeds, category empty state, app-loader heights');
+} catch (error) {
+  logError(
+    path.resolve(process.cwd(), 'scripts/storefront-anti-flicker-check.mjs'),
     1,
     error instanceof Error ? error.message : String(error),
   );

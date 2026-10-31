@@ -61,6 +61,9 @@ Answer: *“What does the user see in the first ~500ms if Firestore is slow?”*
 ## Banned patterns
 
 - `return DEFAULT_X while doc === undefined` for **visible** storefront chrome.
+- **`visibleStorefrontCategories` / nav links before `CatalogService.shellReady()`** — visitors must not see links that catalog counts will remove a frame later (`navLinksReady` gates desktop nav).
+- **Card-shaped product skeletons before a known-empty category** — use `catalogListCount() === 0` for empty state; page-level `<app-loader>` while the list fetch runs, not `[loading]` on `app-catalog-product-grid`.
+- **`app-loader` `minHeight` outside `LoaderHeight`** — only `'10'|'20'|…|'full'|'parent'` (`loader.model.ts`); preflight enforces this.
 - `@if (text())` with no reserved height when text comes from async settings.
 - Different template branches with **different sizes** for loading vs ready on the same control (e.g. account icon).
 - Full-screen spinner over SSR hero/LCP on home or PDP.

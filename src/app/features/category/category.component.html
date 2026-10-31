@@ -91,12 +91,16 @@
         <span>Return to Home</span>
       </a>
     </section>
+  } @else if (isLoading()) {
+    <div class="py-20 elements-center w-full" role="status" aria-label="Loading products">
+      <app-loader [sectionSpace]="false" minHeight="20" [showMessage]="false" />
+    </div>
   } @else {
     <app-catalog-product-grid
       [products]="products()"
       [brandNames]="brandNames()"
       [prices]="cardPrices()"
-      [loading]="isLoading()"
+      [loading]="false"
     />
   }
 </div>

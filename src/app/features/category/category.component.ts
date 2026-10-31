@@ -24,13 +24,14 @@ import {
   CatalogProductGridComponent,
   type CatalogCardPrice,
 } from './components/catalog-product-grid/catalog-product-grid.component';
+import { LoaderComponent } from '@shared/ui/loader/loader.component';
 import { resolveCatalogListParams, toProductListQuery } from './utils/catalog-list-query';
 
 const PAGE_SIZE = 48;
 
 @Component({
   selector: 'app-category',
-  imports: [RouterLink, MatButtonModule, SharedIconModule, CatalogProductGridComponent],
+  imports: [RouterLink, MatButtonModule, SharedIconModule, CatalogProductGridComponent, LoaderComponent],
   templateUrl: './category.component.html',
   host: {
     class: 'block w-full min-h-[60vh] container-content',
@@ -189,17 +190,38 @@ export class CategoryComponent {
     return map;
   });
 
-  readonly isLoading = computed(
-    () =>
-      this.listParams().kind !== 'unsupported' &&
-      !this.productsResource.error() &&
-      !this.productsResource.hasValue(),
-  );
+  readonly catalogListCount = computed((): number | null => {
+    const summary = this.#catalogService.summary();
+    if (!summary) return null;
+    const params = this.listParams();
+    if (params.kind === 'unsupported') return 0;
+    if (params.kind === 'all') return summary.total;
+    if (params.kind === 'category' && params.filterId) {
+      const id = params.filterId;
+      return summary.categories[id] ?? summary.categories[id.toLowerCase()] ?? 0;
+    }
+    if (params.kind === 'brand' && params.filterId) {
+      const id = params.filterId;
+      return summary.brands[id] ?? summary.brands[id.toLowerCase()] ?? 0;
+    }
+    return null;
+  });
+
+  readonly isLoading = computed(() => {
+    if (this.listParams().kind === 'unsupported') return false;
+    if (this.productsResource.error()) return false;
+    if (this.productsResource.hasValue()) return false;
+    if (this.catalogListCount() === 0) return false;
+    return true;
+  });
 
   readonly showEmpty = computed(() => {
     if (this.listParams().kind === 'unsupported') return true;
     if (this.productsResource.error()) return false;
-    return this.productsResource.hasValue() && this.products().length === 0;
+    if (this.productsResource.hasValue()) {
+      return this.products().length === 0;
+    }
+    return this.catalogListCount() === 0;
   });
 
   readonly displayTitle = computed(() => {

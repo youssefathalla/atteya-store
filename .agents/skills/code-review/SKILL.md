@@ -19,7 +19,7 @@ Before approving any task, completing a feature, or declaring code ready:
    npm run preflight
    ```
 
-   (Executes both `node scripts/pre-flight-check.mjs` and `eslint .`. Must output `✅ Pre-Flight Check PASSED: 0 errors` with zero failures and 0 ESLint errors).
+   (Executes pricing sync, settings check, `node scripts/pre-flight-check.mjs` (includes storefront anti-flicker contract), and `eslint .`. Must output `✅ Pre-Flight Check PASSED: 0 errors` with zero failures and 0 ESLint errors).
 
 2. **Step 2: Run the SSR Build Test**:
 
