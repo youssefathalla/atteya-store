@@ -12,6 +12,10 @@ import {
   type MarketingBadgeKind,
   type MarketingBadgeStyle,
 } from '../products/marketing-badge.js';
+import {
+  PRODUCT_GENDER_IDS,
+  type ProductGenderId,
+} from '../products/product-form.js';
 import { deriveInStock } from '../products/stock.js';
 import type { CachedBrandInfo, CachedCategoryInfo } from './catalog-cache.js';
 
@@ -54,6 +58,7 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly colors: readonly string[];
   readonly sizes: readonly string[];
   readonly tags: readonly string[];
+  readonly gender?: ProductGenderId;
   readonly marketingBadgeKind: MarketingBadgeKind | null;
   readonly marketingBadgeStyle: MarketingBadgeStyle | null;
   readonly summary: string | null;
@@ -63,6 +68,8 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly createdAtMs: number;
   readonly [key: string]: unknown;
 }
+
+const PRODUCT_GENDER_SET = new Set<string>(PRODUCT_GENDER_IDS);
 
 const TYPE_LABEL_BY_ID = new Map<string, string>(
   PRODUCT_TYPES.map((entry) => [entry.id, entry.label]),
@@ -114,6 +121,7 @@ export function toSearchRecord(
   const colors = readStringArray(data['colors']);
   const sizes = extractSizes(data['options']);
   const tags = readStringArray(data['tags']);
+  const gender = readGender(data['gender']);
   const marketingBadge = readMarketingBadge(data['marketingBadge']);
   const summary = readNullableString(data['summary']);
   const descriptionHtml = readNullableString(data['descriptionHtml']);
@@ -165,6 +173,7 @@ export function toSearchRecord(
     colors,
     sizes,
     tags,
+    ...(gender ? { gender } : {}),
     marketingBadgeKind: marketingBadge?.kind ?? null,
     marketingBadgeStyle: marketingBadge?.style ?? null,
     summary,
@@ -368,6 +377,12 @@ function extractTimestampMs(raw: unknown): number {
     if (Number.isFinite(parsed)) return parsed;
   }
   return 0;
+}
+
+function readGender(raw: unknown): ProductGenderId | null {
+  if (typeof raw !== 'string') return null;
+  const gender = raw.trim();
+  return PRODUCT_GENDER_SET.has(gender) ? (gender as ProductGenderId) : null;
 }
 
 function readString(raw: unknown): string {

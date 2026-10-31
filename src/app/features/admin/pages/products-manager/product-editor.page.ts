@@ -29,8 +29,12 @@ import {
   type MarketingBadgeKind,
   type MarketingBadgeStyle,
 } from '@core/services/products/marketing-badge';
-import { PRODUCT_TYPES, SIZE_ORDER } from '@core/services/products/product.constants';
-import type { Product, ProductTypeId } from '@core/services/products/product.model';
+import {
+  PRODUCT_GENDERS,
+  PRODUCT_TYPES,
+  SIZE_ORDER,
+} from '@core/services/products/product.constants';
+import type { Product, ProductGenderId, ProductTypeId } from '@core/services/products/product.model';
 import {
   defaultNewArrivalUntil,
   isActiveNewArrival,
@@ -81,10 +85,16 @@ interface EditorFields {
   categoryId: string;
   brandId: string;
   modelGroup: string;
+  gender: '' | ProductGenderId;
   price: string;
   compareAtPrice: string;
   published: boolean;
 }
+
+const GENDER_OPTIONS: readonly { readonly id: '' | ProductGenderId; readonly label: string }[] = [
+  { id: '', label: 'Not set' },
+  ...PRODUCT_GENDERS,
+];
 
 @Component({
   selector: 'app-product-editor-page',
@@ -115,6 +125,7 @@ export class ProductEditorPageComponent implements OnInit {
   readonly #tracker = new StorageAssetTracker();
 
   readonly types = PRODUCT_TYPES;
+  readonly genderOptions = GENDER_OPTIONS;
   readonly colorPalette = COLOR_PALETTE;
   readonly quickSizes = SIZE_ORDER.filter((label) =>
     (QUICK_SIZES as readonly string[]).includes(label),
@@ -688,6 +699,7 @@ export class ProductEditorPageComponent implements OnInit {
       categoryId: product.categoryId,
       brandId: product.brandId,
       modelGroup: product.modelGroup ?? '',
+      gender: product.gender ?? '',
       price: String(product.price),
       compareAtPrice: product.compareAtPrice === null ? '' : String(product.compareAtPrice),
       published: product.published,
@@ -898,6 +910,7 @@ export class ProductEditorPageComponent implements OnInit {
       categoryId: value.categoryId.trim(),
       brandId: value.brandId.trim(),
       modelGroup: asText(value.modelGroup).trim() || null,
+      gender: value.gender === '' ? null : value.gender,
       colors: this.selectedColors(),
       tags: this.tags(),
       marketingBadge: this.#marketingBadgePayload(),
@@ -930,6 +943,7 @@ function emptyFields(): EditorFields {
     categoryId: defaultCategoryForType(type),
     brandId: '',
     modelGroup: '',
+    gender: '',
     price: '',
     compareAtPrice: '',
     published: false,

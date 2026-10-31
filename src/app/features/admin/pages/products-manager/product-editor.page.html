@@ -172,6 +172,16 @@
           placeholder="on-cloud-short"
         />
         <p class="font-body-sm text-on-surface-variant">{{ groupHint() }}</p>
+        <app-select-input
+          [formField]="editForm.gender"
+          label="Gender"
+          [options]="genderOptions"
+          valueKey="id"
+          labelKey="label"
+        />
+        <p class="font-body-sm text-on-surface-variant">
+          Optional. Leave unset when the product suits everyone. Used for shop filters later.
+        </p>
 
         <div class="w-full elements-start-col gap-2">
           <span class="font-label-md">Colours</span>

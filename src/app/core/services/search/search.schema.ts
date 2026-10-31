@@ -36,6 +36,7 @@ export const SearchHitSchema = v.object({
   colors: v.optional(v.array(v.string()), []),
   sizes: v.optional(v.array(v.string()), []),
   tags: v.optional(v.array(v.string()), []),
+  gender: v.optional(v.picklist(['women', 'men', 'kids', 'unisex'])),
   marketingBadgeKind: v.optional(
     v.nullable(v.picklist(MARKETING_BADGE_KINDS)),
     null,

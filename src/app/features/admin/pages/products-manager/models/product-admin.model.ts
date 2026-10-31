@@ -1,6 +1,6 @@
 import type { ColorId } from '@core/services/products/catalog-taxonomy';
 import type { MarketingBadge } from '@core/services/products/marketing-badge';
-import type { ProductTypeId } from '@core/services/products/product.model';
+import type { ProductGenderId, ProductTypeId } from '@core/services/products/product.model';
 
 export interface ProductTableRow {
   readonly id: string;
@@ -52,6 +52,7 @@ export interface ProductFormPayload {
   readonly categoryId: string;
   readonly brandId: string;
   readonly modelGroup: string | null;
+  readonly gender: ProductGenderId | null;
   readonly colors: readonly ColorId[];
   readonly tags: readonly string[];
   readonly marketingBadge: MarketingBadge | null;
