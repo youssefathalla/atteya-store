@@ -131,7 +131,7 @@ Only use semantic status tokens. Never use arbitrary Tailwind palette colors:
 12. **Layout & Viewport Sizing Standards**:
    - **Top-Level Query Container**: `<main>` inside `main.component.html` carries `@container`. Page-level sections and cards must use `cqw` to remain fluid relative to drawer open/close and responsive main layouts. Never place `@container` on the same element where `cqw` padding is declared.
    - **Angular Component Host Sizing**: All section and page components (`app-*-section`, `app-*`) must define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
-   - **Full-Viewport Sections**: Full-screen heroes directly below the header must use `h-[calc(100dvh-56px)]` (accounting for the 56px / `h-14` navbar). Do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to full-height hero slide containers, as `aspect-ratio` overrides height in modern CSS.
+   - **Full-Viewport Sections**: Full-screen heroes directly below the stacked top chrome must use `h-[calc(100dvh-var(--storefront-top-chrome,56px))]` (measured banner + nav; fallback `56px`). Do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to full-height hero slide containers, as `aspect-ratio` overrides height in modern CSS.
    - **Section Spacing**: Use `.container-content` as the single unified class for page section layout and responsive container padding (`p-[5cqw]`). Do not append `.section-space` to elements that already have `.container-content`.
 
 

@@ -25,6 +25,13 @@
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     overscroll-behavior-x: contain;
+    /* Native bar duplicates homepage row-scroll-nav; keep swipe/drag, hide chrome. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scroll-row::-webkit-scrollbar {
+    display: none;
   }
 
   .scroll-row-item {

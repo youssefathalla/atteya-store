@@ -1,3 +1,4 @@
+import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject, resource } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,24 +8,49 @@ import {
   cartSubtotalDisplay,
   lineDisplayAmount,
 } from '@core/services/cart/cart-pricing';
+import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
 import { displayDecimals, toDisplayAmount } from '@core/services/offers/engine';
 import { ProductSchema } from '@core/services/products/product.schema';
 import { DrawerService } from '@core/services/drawer/drawer.service';
+import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
+import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
+
+interface CartProductOptionValue {
+  readonly id: string;
+  readonly label: string;
+}
+
+interface CartProductOption {
+  readonly key: string;
+  readonly label: string;
+  readonly values: readonly CartProductOptionValue[];
+}
 
 interface CartProductInfo {
   readonly name: string;
+  readonly slug: string;
   readonly price: number;
+  readonly compareAtPrice: number | null;
+  readonly imagePath: string | null;
+  readonly imageAlt: string;
+  readonly options: readonly CartProductOption[];
 }
 
 @Component({
   selector: 'app-cart-drawer',
-  imports: [RouterLink, MatButtonModule, SharedIconModule],
+  imports: [
+    RouterLink,
+    NgOptimizedImage,
+    MatButtonModule,
+    SharedIconModule,
+    AppImageFallbackDirective,
+  ],
   templateUrl: './cart-drawer.component.html',
   host: {
     // min-h-0 lets the flex mid section scroll inside a viewport-bounded drawer
@@ -76,19 +102,48 @@ export class CartDrawerComponent {
         );
         if (snap.exists()) {
           const data = snap.data();
-          products.set(line.productId, { name: data.name, price: data.price });
+          const primary = data.images[0];
+          products.set(line.productId, {
+            name: data.name,
+            slug: data.slug,
+            price: data.price,
+            compareAtPrice: data.compareAtPrice,
+            imagePath: primary?.path ?? null,
+            imageAlt: primary?.alt || data.name,
+            options: data.options.map((option) => ({
+              key: option.key,
+              label: option.label,
+              values: option.values.map((value) => ({ id: value.id, label: value.label })),
+            })),
+          });
         }
       }
       return products;
     },
   });
 
-  /** Catalog unit prices converted into the visitor's display currency. */
+  /**
+   * Catalog unit prices converted into the visitor's display currency.
+   * Line totals and the bag subtotal both multiply these (convert, then × qty).
+   */
   readonly #unitDisplayByProductId = computed(() => {
     const entry = this.#currency.entry();
     const map = new Map<string, number>();
     for (const [id, info] of this.productsResource.value() ?? []) {
       map.set(id, toDisplayAmount(info.price, entry));
+    }
+    return map;
+  });
+
+  readonly #listUnitDisplayByProductId = computed(() => {
+    const entry = this.#currency.entry();
+    const map = new Map<string, number>();
+    for (const [id, info] of this.productsResource.value() ?? []) {
+      const list = info.compareAtPrice;
+      if (list === null || list <= info.price) continue;
+      const sale = toDisplayAmount(info.price, entry);
+      const was = toDisplayAmount(list, entry);
+      if (was > sale) map.set(id, was);
     }
     return map;
   });
@@ -99,15 +154,56 @@ export class CartDrawerComponent {
     return formatMoney(amount, entry.code, displayDecimals(entry.code));
   });
 
-  nameFor(productId: string): string {
-    return this.productsResource.value()?.get(productId)?.name ?? 'Item';
+  productInfo(productId: string): CartProductInfo | undefined {
+    return this.productsResource.value()?.get(productId);
   }
 
-  linePriceLabel(productId: string, quantity: number): string {
+  imagePath(rawPath: string): string {
+    return normalizeImageKitPath(rawPath);
+  }
+
+  /** Line total label — same convert-then-multiply path as the bag subtotal. */
+  lineTotalLabel(productId: string, quantity: number): string {
     const unit = this.#unitDisplayByProductId().get(productId);
     if (typeof unit !== 'number') return '';
     const entry = this.#currency.entry();
     return formatMoney(lineDisplayAmount(unit, quantity), entry.code, displayDecimals(entry.code));
+  }
+
+  /** Struck compare-at line total when the converted list unit is higher than sale. */
+  lineListLabel(productId: string, quantity: number): string {
+    const listUnit = this.#listUnitDisplayByProductId().get(productId);
+    if (typeof listUnit !== 'number') return '';
+    const entry = this.#currency.entry();
+    return formatMoney(
+      lineDisplayAmount(listUnit, quantity),
+      entry.code,
+      displayDecimals(entry.code),
+    );
+  }
+
+  linePriceClass(productId: string): string {
+    return this.#listUnitDisplayByProductId().has(productId)
+      ? 'font-body-md font-bold!'
+      : 'font-body-md';
+  }
+
+  selectionLabel(
+    productId: string,
+    selection: CartLineDraft['selection'],
+  ): string {
+    const info = this.productInfo(productId);
+    const parts: string[] = [];
+    for (const [key, valueId] of Object.entries(selection)) {
+      const id = valueId.trim();
+      if (!id) continue;
+      const option = info?.options.find((item) => item.key === key);
+      const valueLabel = option?.values.find((value) => value.id === id)?.label ?? id;
+      // Skip raw Firestore ids when the product doc has not loaded yet.
+      if (!option && /^[0-9a-f-]{20,}$/i.test(id)) continue;
+      parts.push(valueLabel);
+    }
+    return parts.join(' · ');
   }
 
   onEscape(): void {

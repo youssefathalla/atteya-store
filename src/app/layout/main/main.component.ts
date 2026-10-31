@@ -1,5 +1,17 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, computed, DestroyRef, effect, inject, PLATFORM_ID, signal } from '@angular/core';
+import {
+  afterNextRender,
+  afterRenderEffect,
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  effect,
+  inject,
+  PLATFORM_ID,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   NavigationCancel,
@@ -20,6 +32,9 @@ import { MobileNavComponent } from '../navbar/mobile-nav/mobile-nav.component';
 import { CartDrawerComponent } from '../cart-drawer/cart-drawer.component';
 import { ShippingBannerComponent } from '@shared/components/shipping-banner/shipping-banner.component';
 import { DrawerService } from '@core/services/drawer/drawer.service';
+
+/** Fallback when chrome is not mounted yet (desktop nav h-14). */
+const DEFAULT_TOP_CHROME_PX = 56;
 
 @Component({
   selector: 'app-main-layout',
@@ -52,6 +67,13 @@ export class MainLayoutComponent {
       !this.chromeReady(),
   );
 
+  /** Shipping banner host — contributes to `--storefront-top-chrome`. */
+  readonly shippingChrome = viewChild('shippingChrome', {
+    read: ElementRef<HTMLElement>,
+  });
+  /** Desktop nav host — contributes to `--storefront-top-chrome` (0 when `lg:hidden`). */
+  readonly navChrome = viewChild('navChrome', { read: ElementRef<HTMLElement> });
+
   // Responsive signal to differentiate desktop side drawer vs mobile bottom slide-up
   readonly isDesktop = useBreakpoint(1024);
 
@@ -69,9 +91,31 @@ export class MainLayoutComponent {
       return;
     }
 
+    afterNextRender(() => {
+      this.#syncTopChromeHeight();
+    });
+
+    afterRenderEffect((onCleanup) => {
+      const shipping = this.shippingChrome()?.nativeElement;
+      const nav = this.navChrome()?.nativeElement;
+      if (!shipping && !nav) {
+        this.#setTopChromeHeight(DEFAULT_TOP_CHROME_PX);
+        return;
+      }
+      this.#syncTopChromeHeight();
+      const ro =
+        typeof ResizeObserver !== 'undefined'
+          ? new ResizeObserver(() => this.#syncTopChromeHeight())
+          : null;
+      if (shipping) ro?.observe(shipping);
+      if (nav) ro?.observe(nav);
+      onCleanup(() => ro?.disconnect());
+    });
+
     let timer: ReturnType<typeof setTimeout> | null = null;
     this.#destroyRef.onDestroy(() => {
       if (timer) clearTimeout(timer);
+      this.#setTopChromeHeight(DEFAULT_TOP_CHROME_PX);
     });
 
     this.#router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
@@ -88,5 +132,18 @@ export class MainLayoutComponent {
         this.navigating.set(false);
       }
     });
+  }
+
+  #syncTopChromeHeight(): void {
+    const shipping = this.shippingChrome()?.nativeElement;
+    const nav = this.navChrome()?.nativeElement;
+    const height =
+      Math.ceil(shipping?.getBoundingClientRect().height ?? 0) +
+      Math.ceil(nav?.getBoundingClientRect().height ?? 0);
+    this.#setTopChromeHeight(height > 0 ? height : DEFAULT_TOP_CHROME_PX);
+  }
+
+  #setTopChromeHeight(px: number): void {
+    document.documentElement.style.setProperty('--storefront-top-chrome', `${px}px`);
   }
 }

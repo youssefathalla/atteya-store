@@ -1,6 +1,9 @@
 @if (showSection()) {
-  <section class="container-content select-none" aria-labelledby="new-arrivals-heading">
-    <header class="pb-4 sm:pb-6">
+  <section
+    class="container-content home-new-arrivals select-none"
+    aria-labelledby="new-arrivals-heading"
+  >
+    <header class="pb-2 sm:pb-3">
       <h2 id="new-arrivals-heading" class="font-headline-md sm:font-headline-lg font-bold!">
         New arrivals
       </h2>
@@ -8,7 +11,7 @@
 
     @if (isLoading()) {
       <div
-        class="scroll-row [--scroll-peek:2.5rem] sm:[--scroll-cols:2] lg:[--scroll-cols:3] lg:[--scroll-peek:3.5rem]"
+        class="scroll-row [--scroll-peek:2.5rem] sm:[--scroll-cols:2] md:[--scroll-cols:3] md:[--scroll-peek:3.5rem]"
         aria-hidden="true"
       >
         @for (slot of skeletonSlots; track slot) {
@@ -24,7 +27,7 @@
     } @else {
       <div
         #scrollRow
-        class="scroll-row [--scroll-peek:2.5rem] sm:[--scroll-cols:2] lg:[--scroll-cols:3] lg:[--scroll-peek:3.5rem]"
+        class="scroll-row [--scroll-peek:2.5rem] sm:[--scroll-cols:2] md:[--scroll-cols:3] md:[--scroll-peek:3.5rem]"
         [style.--scroll-peek]="cards().length > 3 ? null : '0px'"
         appHorizontalScroll
       >

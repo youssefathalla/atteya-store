@@ -28,9 +28,9 @@
       </div>
     }
     @if (chromeReady()) {
-      <app-shipping-banner />
-      <!-- Store Desktop Navigation Header -->
-      <app-desktop-nav />
+      <!-- No wrappers around desktop-nav — a short parent becomes the sticky containing block. -->
+      <app-shipping-banner #shippingChrome />
+      <app-desktop-nav #navChrome />
     }
 
     <!-- Main Storefront Page View -->

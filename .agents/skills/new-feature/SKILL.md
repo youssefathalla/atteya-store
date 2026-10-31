@@ -151,7 +151,7 @@ src/app/features/[feature-name]/
    - Angular v22 defaults: do NOT write `standalone: true` or `ChangeDetectionStrategy.OnPush`.
    - All section and page components (`app-*-section`, `app-*`) MUST define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
    - Use `.container-content` (`p-[5cqw]` querying `<main class="@container">`) as the single unified class for page sections. Never combine `.container-content` with `.section-space` or `@container` on the same element.
-   - Full-viewport hero sections directly below the header must use `h-[calc(100dvh-56px)]` (accounting for the 56px / `h-14` navbar) without `aspect-*` classes on slide containers.
+   - Full-viewport hero sections directly below the stacked top chrome must use `h-[calc(100dvh-var(--storefront-top-chrome,56px))]` (measured banner + nav; fallback `56px`) without `aspect-*` classes on slide containers.
 4. **Image Optimization & Uploads**:
    - For all storefront images: use Angular `NgOptimizedImage` (`[ngSrc]`). Never use raw `<img [src]>` for media assets.
    - Always wrap with `@if (imagePath())` and use `normalizeImageKitPath(item.imageUrl)` from `@shared/utils/image.utils`.
