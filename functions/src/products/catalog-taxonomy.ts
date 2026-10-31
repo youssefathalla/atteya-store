@@ -368,17 +368,6 @@ export const SEED_CATEGORIES: readonly SeedCategory[] = [
     published: false,
   },
   {
-    id: 'shoes',
-    slug: 'shoes',
-    name: 'Shoes',
-    parentId: null,
-    ancestorIds: [],
-    path: 'shoes',
-    depth: 0,
-    sortOrder: 30,
-    published: false,
-  },
-  {
     id: 'bags',
     slug: 'bags',
     name: 'Bags & gear',

@@ -36,7 +36,7 @@ export class HomeComponent implements OnInit {
     this.#seoService.setPageMetadata({
       title: 'Atteya Store | Premium Padel & Performance Athletic Gear',
       description:
-        'Discover performance-grade gear, padel rackets, apparel, and footwear engineered for elite training and court excellence.',
+        'Discover performance-grade gear, padel rackets, and apparel engineered for elite training and court excellence.',
     });
   }
 }

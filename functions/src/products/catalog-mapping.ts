@@ -7,7 +7,7 @@
 export const PRODUCT_CATEGORY_IDS = ['rackets', 'apparel', 'bags', 'accessories'] as const;
 export type ProductCategoryId = (typeof PRODUCT_CATEGORY_IDS)[number];
 
-export const PLACEHOLDER_CATEGORY_IDS = ['shoes', 'hoodies', 'tracksuits', 'bundles'] as const;
+export const PLACEHOLDER_CATEGORY_IDS = ['hoodies', 'tracksuits', 'bundles'] as const;
 
 export const PRODUCT_TYPES = [
   { id: 'rackets', label: 'Rackets', category: 'rackets' },

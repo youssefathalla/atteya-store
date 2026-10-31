@@ -18,7 +18,7 @@
         aria-label="Display Label"
         [ngModel]="category().label"
         (ngModelChange)="labelChange.emit($event)"
-        placeholder="e.g. Shoes"
+        placeholder="e.g. Rackets"
       />
     </mat-form-field>
 
@@ -33,7 +33,7 @@
         aria-label="Route / URL Path"
         [ngModel]="category().path"
         (ngModelChange)="pathChange.emit($event)"
-        placeholder="/category/shoes"
+        placeholder="/category/rackets"
       />
       <button
         matIconButton

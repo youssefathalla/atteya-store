@@ -10,7 +10,7 @@ export const CATALOG_DOC = ['settings', 'catalog'] as const;
 
 export const PRODUCT_CATEGORY_IDS = ['rackets', 'apparel', 'bags', 'accessories'] as const;
 
-export const PLACEHOLDER_CATEGORY_IDS = ['shoes', 'hoodies', 'tracksuits', 'bundles'] as const;
+export const PLACEHOLDER_CATEGORY_IDS = ['hoodies', 'tracksuits', 'bundles'] as const;
 
 export const PRODUCT_CATEGORIES = [
   { id: 'rackets', label: 'Rackets' },

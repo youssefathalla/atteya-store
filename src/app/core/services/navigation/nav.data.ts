@@ -75,40 +75,6 @@ export const NAV_CATEGORIES: readonly NavCategory[] = [
     ],
   },
   {
-    id: 'shoes',
-    label: 'SHOES',
-    path: '/category/shoes',
-    megaMenu: [
-      {
-        title: 'HIGHLIGHTS',
-        links: [
-          { label: 'New Footwear Arrivals', path: '/category/shoes/new' },
-          { label: 'Clay Court Specialists', path: '/category/shoes?sole=clay' },
-          { label: 'Omni Court Soles', path: '/category/shoes?sole=omni' },
-          { label: 'All Shoes', path: '/category/shoes' },
-        ],
-      },
-      {
-        title: 'BRANDS',
-        links: [
-          { label: 'On Cloud', path: '/brand/on-cloud', badge: 'HOT', isBrand: true },
-          { label: 'Adidas Court', path: '/brand/adidas', isBrand: true },
-          { label: 'Bullpadel Shoes', path: '/brand/bullpadel', isBrand: true },
-          { label: 'Babolat Jet', path: '/brand/babolat', isBrand: true },
-          { label: 'Head Motion', path: '/brand/head', isBrand: true },
-        ],
-      },
-      {
-        title: 'FOOTWEAR CARE',
-        links: [
-          { label: 'Technical Padel Socks', path: '/category/socks' },
-          { label: 'Shoe Bags', path: '/category/bags?type=shoe-bag' },
-          { label: 'Replacement Insoles', path: '/category/accessories?type=insoles' },
-        ],
-      },
-    ],
-  },
-  {
     id: 'gear',
     label: 'BAGS & GEAR',
     path: '/category/bags',
@@ -157,7 +123,7 @@ export const NAV_CATEGORIES: readonly NavCategory[] = [
         ],
       },
       {
-        title: 'SPORTSWEAR & FOOTWEAR',
+        title: 'SPORTSWEAR',
         links: [
           { label: 'On Cloud', path: '/brand/on-cloud', isBrand: true },
           { label: 'Adidas', path: '/brand/adidas', isBrand: true },
@@ -185,7 +151,6 @@ export const NAV_CATEGORIES: readonly NavCategory[] = [
         links: [
           { label: 'Rackets on Sale (Up to 40% Off)', path: '/category/sale?cat=rackets', badge: '40% OFF' },
           { label: 'Apparel Clearance', path: '/category/sale?cat=apparel' },
-          { label: 'Shoes Outlet', path: '/category/sale?cat=shoes' },
           { label: 'Bags & Accessories Deals', path: '/category/sale?cat=accessories' },
           { label: 'All Sale Items', path: '/category/sale' },
         ],
