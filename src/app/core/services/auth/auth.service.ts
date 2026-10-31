@@ -6,6 +6,8 @@ import { FirebaseError } from 'firebase/app';
 import {
   GoogleAuthProvider,
   browserPopupRedirectResolver,
+  createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   getRedirectResult,
   linkWithCredential,
   onIdTokenChanged,
@@ -16,11 +18,16 @@ import {
   signOut,
   type AuthCredential,
   type User,
+  type UserCredential,
 } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, of } from 'rxjs';
 import { injectAuth, injectFirestore } from '@core/firebase';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
+import {
+  UserProfileService,
+  type SignupConsent,
+} from '@core/services/user-profile';
 import { notifyNotAdmin } from '@features/auth/utils/login-exit';
 import { AUTH_ERROR_MAPPINGS, DEFAULT_AUTH_ERROR } from './auth.errors';
 import { AppRole, GoogleSignInOutcome, roleFromClaims } from './auth.model';
@@ -37,6 +44,8 @@ const PASSWORD_RESET_HIDDEN_CODES = new Set(['auth/user-not-found', 'auth/invali
 
 /** Set immediately before `signInWithRedirect` so other pages skip `getRedirectResult`. */
 const REDIRECT_PENDING_KEY = 'atteya-auth-redirect';
+/** Consent chosen on Create account before a Google redirect completes. */
+const REDIRECT_CONSENT_KEY = 'atteya-auth-redirect-consent';
 
 /**
  * SSR-safe sign-in state. Firebase Auth runs only in the browser.
@@ -49,6 +58,7 @@ const REDIRECT_PENDING_KEY = 'atteya-auth-redirect';
 export class AuthService {
   readonly #auth = injectAuth();
   readonly #firestore = injectFirestore();
+  readonly #profiles = inject(UserProfileService);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #router = inject(Router);
   readonly #snackbar = inject(SnackbarService);
@@ -60,10 +70,20 @@ export class AuthService {
   readonly #pendingGoogleEmail = signal('');
   readonly #redirectError = signal('');
   readonly #linkingGoogle = signal(false);
+  /** Signed-in shopper missing current Terms acceptance on `users/{uid}`. */
+  readonly #needsConsent = signal(false);
+  /**
+   * False while we still need to read (or finish writing) signup consent for the
+   * current uid. `leaveAfterSignIn` must hold until this is true so `/login` is
+   * not left before `needsConsent` is known (Bugbot: consent hold race).
+   */
+  readonly #consentReady = signal(true);
 
   #pendingCredential: AuthCredential | null = null;
   #generation = 0;
   #refreshInFlight: Promise<AppRole> | null = null;
+  /** In-flight `users/{uid}` consent write so `#applyUser` does not race ahead. */
+  #consentWrite: Promise<void> | null = null;
   readonly #explicitSignOut = signal(false);
   #redirectConsumed = false;
   #readyWaiters: (() => void)[] = [];
@@ -77,6 +97,8 @@ export class AuthService {
   readonly pendingGoogleEmail = this.#pendingGoogleEmail.asReadonly();
   readonly redirectError = this.#redirectError.asReadonly();
   readonly linkingGoogle = this.#linkingGoogle.asReadonly();
+  readonly needsConsent = this.#needsConsent.asReadonly();
+  readonly consentReady = this.#consentReady.asReadonly();
 
   /**
    * Subscribes for the signed-in user's role mirror. Reading `value()` in the
@@ -94,6 +116,8 @@ export class AuthService {
           this.#generation += 1;
           this.#role.set('anon');
           this.#user.set(null);
+          this.#needsConsent.set(false);
+          this.#consentReady.set(true);
           this.#markReady();
           return;
         }
@@ -144,25 +168,46 @@ export class AuthService {
   }
 
   /**
+   * Email/password create-account path. Requires terms acceptance on the form.
+   * Firebase may still reject when email/password sign-up is disabled on the project.
+   */
+  async register(email: string, password: string, consent: SignupConsent): Promise<void> {
+    this.clearPendingGoogle();
+    if (!consent.termsAccepted) {
+      throw new Error('Accept the Terms and Conditions and Privacy Policy to create an account.');
+    }
+    this.#consentReady.set(false);
+    const result = await createUserWithEmailAndPassword(this.#auth, email.trim(), password);
+    await this.#writeConsent(result.user.uid, consent);
+  }
+
+  /**
    * Popup first. A blocked popup falls back to a full-page redirect.
    * `@gmail.com` accounts attach to the existing user under "one account per email".
    * Other addresses that already have a password return `'link'` so the page can ask for it.
+   * Pass `consent` on Create account so a brand-new Google user gets a profile write.
    */
-  async loginWithGoogle(): Promise<GoogleSignInOutcome> {
+  async loginWithGoogle(consent?: SignupConsent): Promise<GoogleSignInOutcome> {
     this.clearPendingGoogle();
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
+    // Hold leave-after-sign-in until `#afterCredential` / `#applyUser` finish the profile check.
+    this.#consentReady.set(false);
     try {
-      await signInWithPopup(this.#auth, provider, browserPopupRedirectResolver);
+      const result = await signInWithPopup(this.#auth, provider, browserPopupRedirectResolver);
+      await this.#afterCredential(result, consent);
       return 'popup';
     } catch (error) {
+      this.#consentReady.set(true);
       if (isPopupFallback(error)) {
-        this.#markRedirectPending();
+        this.#consentReady.set(false);
+        this.#markRedirectPending(consent);
         try {
           await signInWithRedirect(this.#auth, provider, browserPopupRedirectResolver);
         } catch (redirectError) {
           this.#clearRedirectPending();
+          this.#consentReady.set(true);
           throw redirectError;
         }
         return 'redirect';
@@ -193,6 +238,23 @@ export class AuthService {
     }
   }
 
+  /** Completes Terms + marketing choice for a signed-in user missing `users/{uid}` consent. */
+  async completeConsent(consent: SignupConsent): Promise<void> {
+    const uid = this.#user()?.uid;
+    if (!uid) {
+      throw new Error('Sign in first, then accept the Terms and Conditions.');
+    }
+    if (!consent.termsAccepted) {
+      throw new Error('Accept the Terms and Conditions and Privacy Policy to continue.');
+    }
+    this.#consentReady.set(false);
+    try {
+      await this.#writeConsent(uid, consent);
+    } finally {
+      this.#consentReady.set(true);
+    }
+  }
+
   clearPendingGoogle(): void {
     this.#pendingCredential = null;
     this.#needsGoogleLink.set(false);
@@ -206,6 +268,8 @@ export class AuthService {
   async logout(): Promise<void> {
     this.#explicitSignOut.set(true);
     this.clearPendingGoogle();
+    this.#needsConsent.set(false);
+    this.#consentReady.set(true);
     this.#role.set('anon');
     this.#user.set(null);
     try {
@@ -279,7 +343,11 @@ export class AuthService {
   mapFirebaseError(error: unknown): string {
     const code = authErrorCode(error);
     if (code) return AUTH_ERROR_MAPPINGS[code] ?? DEFAULT_AUTH_ERROR;
-    if (error instanceof Error && error.message.startsWith('Enter the password')) return error.message;
+    if (error instanceof Error) {
+      if (error.message.startsWith('Enter the password')) return error.message;
+      if (error.message.startsWith('Accept the Terms')) return error.message;
+      if (error.message.startsWith('Sign in first')) return error.message;
+    }
     return DEFAULT_AUTH_ERROR;
   }
 
@@ -307,28 +375,48 @@ export class AuthService {
       if (generation !== this.#generation) return;
       this.#role.set('anon');
       this.#user.set(null);
+      this.#needsConsent.set(false);
+      this.#consentReady.set(true);
       this.#markReady();
       return;
     }
 
+    this.#consentReady.set(false);
     try {
-      const result = await firebaseUser.getIdTokenResult();
-      if (generation !== this.#generation) return;
-      this.#role.set(roleFromClaims(result.claims));
-      this.#user.set(firebaseUser);
-      this.#markReady();
-    } catch (error) {
-      if (generation !== this.#generation) return;
-      if (isSessionExpired(error)) {
-        await signOut(this.#auth).catch(() => undefined);
-        this.#role.set('anon');
-        this.#user.set(null);
+      try {
+        const result = await firebaseUser.getIdTokenResult();
+        if (generation !== this.#generation) return;
+        this.#role.set(roleFromClaims(result.claims));
+        this.#user.set(firebaseUser);
         this.#markReady();
-        return;
+      } catch (error) {
+        if (generation !== this.#generation) return;
+        if (isSessionExpired(error)) {
+          await signOut(this.#auth).catch(() => undefined);
+          this.#role.set('anon');
+          this.#user.set(null);
+          this.#needsConsent.set(false);
+          this.#consentReady.set(true);
+          this.#markReady();
+          return;
+        }
+        this.#role.set('user');
+        this.#user.set(firebaseUser);
+        this.#markReady();
       }
-      this.#role.set('user');
-      this.#user.set(firebaseUser);
-      this.#markReady();
+
+      // Wait for any in-flight signup write, then read the profile (survives reload).
+      if (this.#consentWrite) await this.#consentWrite;
+      if (generation !== this.#generation) return;
+      const hasTerms = await this.#profiles.hasCurrentTerms(firebaseUser.uid);
+      if (generation !== this.#generation) return;
+      this.#needsConsent.set(!hasTerms);
+      this.#consentReady.set(true);
+    } catch {
+      if (generation !== this.#generation) return;
+      // Fail closed: keep the shopper on consent until we can confirm Terms.
+      this.#needsConsent.set(true);
+      this.#consentReady.set(true);
     }
   }
 
@@ -337,6 +425,8 @@ export class AuthService {
     if (!current) {
       this.#role.set('anon');
       this.#user.set(null);
+      this.#needsConsent.set(false);
+      this.#consentReady.set(true);
       return 'anon';
     }
 
@@ -353,10 +443,34 @@ export class AuthService {
         await signOut(this.#auth).catch(() => undefined);
         this.#role.set('anon');
         this.#user.set(null);
+        this.#needsConsent.set(false);
+        this.#consentReady.set(true);
         return 'anon';
       }
       return this.#role();
     }
+  }
+
+  async #afterCredential(result: UserCredential, consent?: SignupConsent): Promise<void> {
+    const info = getAdditionalUserInfo(result);
+    if (consent?.termsAccepted && info?.isNewUser) {
+      await this.#writeConsent(result.user.uid, consent);
+      return;
+    }
+    // Profile check (and needsConsent) is owned by `#applyUser` so reloads stay consistent.
+  }
+
+  async #writeConsent(uid: string, consent: SignupConsent): Promise<void> {
+    const write = this.#profiles
+      .writeSignupConsent(uid, consent)
+      .then(() => {
+        this.#needsConsent.set(false);
+      })
+      .finally(() => {
+        if (this.#consentWrite === write) this.#consentWrite = null;
+      });
+    this.#consentWrite = write;
+    await write;
   }
 
   async #consumeRedirectResult(): Promise<void> {
@@ -366,8 +480,10 @@ export class AuthService {
     const onLogin = globalThis.location?.pathname === '/login';
     if (!this.#redirectPending() && !onLogin) return;
 
+    const consent = this.#readRedirectConsent();
     try {
-      await getRedirectResult(this.#auth, browserPopupRedirectResolver);
+      const result = await getRedirectResult(this.#auth, browserPopupRedirectResolver);
+      if (result) await this.#afterCredential(result, consent ?? undefined);
     } catch (error) {
       if (this.#captureAccountExists(error)) return;
       this.#redirectError.set(this.mapFirebaseError(error));
@@ -384,17 +500,46 @@ export class AuthService {
     }
   }
 
-  #markRedirectPending(): void {
+  #markRedirectPending(consent?: SignupConsent): void {
     try {
       sessionStorage.setItem(REDIRECT_PENDING_KEY, '1');
+      if (consent?.termsAccepted) {
+        sessionStorage.setItem(
+          REDIRECT_CONSENT_KEY,
+          JSON.stringify({
+            termsAccepted: true,
+            marketingOptIn: consent.marketingOptIn === true,
+          }),
+        );
+      } else {
+        sessionStorage.removeItem(REDIRECT_CONSENT_KEY);
+      }
     } catch {
       // Private mode can block storage. `/login` still checks the redirect result.
+    }
+  }
+
+  #readRedirectConsent(): SignupConsent | null {
+    try {
+      const raw = sessionStorage.getItem(REDIRECT_CONSENT_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== 'object') return null;
+      const termsAccepted =
+        'termsAccepted' in parsed && parsed.termsAccepted === true;
+      if (!termsAccepted) return null;
+      const marketingOptIn =
+        'marketingOptIn' in parsed && parsed.marketingOptIn === true;
+      return { termsAccepted: true, marketingOptIn };
+    } catch {
+      return null;
     }
   }
 
   #clearRedirectPending(): void {
     try {
       sessionStorage.removeItem(REDIRECT_PENDING_KEY);
+      sessionStorage.removeItem(REDIRECT_CONSENT_KEY);
     } catch {
       // Ignore blocked storage.
     }

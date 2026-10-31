@@ -19,6 +19,7 @@ import { injectFirestore } from '@core/firebase';
 import { buildPdpGalleryLcpUrl } from '@core/image/image-kit.loader';
 import { AuthService } from '@core/services/auth/auth.service';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
+import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
 import { displayPrice, type Offer, priceItem } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { fromTransferOffer } from '@core/services/offers/offer-transfer';
@@ -28,6 +29,7 @@ import { CatalogService, type Product, toVariantFacts } from '@core/services/pro
 import { SeoService } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 import { AddToBagButtonComponent } from './components/add-to-bag-button/add-to-bag-button.component';
 import { ProductGalleryComponent } from './components/product-gallery/product-gallery.component';
 import { ProductOptionsComponent } from './components/product-options/product-options.component';
@@ -46,6 +48,7 @@ import {
   imports: [
     RouterLink,
     MatButtonModule,
+    SharedIconModule,
     ProductPriceComponent,
     ProductGalleryComponent,
     ProductOptionsComponent,
@@ -64,6 +67,8 @@ export class ProductComponent implements OnInit {
   readonly #liveOffers = inject(OffersService);
   readonly #firestore = injectFirestore();
   readonly #auth = inject(AuthService);
+  readonly #favorites = inject(FavoritesService);
+  readonly #favoritesGate = inject(FavoritesGateService);
   readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);
   readonly #document = inject(DOCUMENT);
@@ -203,6 +208,25 @@ export class ProductComponent implements OnInit {
     };
   });
 
+  readonly isFavorite = computed(() => {
+    const p = this.product();
+    if (!p || !this.#auth.isAuthReady() || !this.#auth.isAuthenticated()) return false;
+    if (!this.#favorites.ready()) return false;
+    return this.#favorites.has(p.id);
+  });
+
+  readonly favoriteBusy = computed(() => {
+    const p = this.product();
+    if (!p) return true;
+    if (this.#favorites.isPending(p.id)) return true;
+    if (this.#auth.isAuthenticated() && !this.#favorites.ready()) return true;
+    return false;
+  });
+
+  readonly favoriteLabel = computed(() =>
+    this.isFavorite() ? 'Remove from favorites' : 'Add to favorites',
+  );
+
   readonly cartLine = computed<CartLineDraft | null>(() => {
     const p = this.product();
     const sel = this.selection();
@@ -269,6 +293,12 @@ export class ProductComponent implements OnInit {
 
   select(key: string, valueId: string): void {
     this.selection.update((current) => ({ ...current, [key]: valueId }));
+  }
+
+  onFavoriteClick(): void {
+    const p = this.product();
+    if (!p) return;
+    void this.#favoritesGate.onFavoriteClick(p.id, p.slug);
   }
 
   retry(): void {

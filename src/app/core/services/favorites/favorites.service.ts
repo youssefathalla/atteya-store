@@ -104,29 +104,70 @@ export class FavoritesService {
         return 'removed';
       }
 
-      if (this.#items().length >= MAX_FAVORITES) {
-        this.#snackbar.error(`You can favorite up to ${MAX_FAVORITES} products.`);
-        return null;
-      }
-
-      await setDoc(ref, {
-        productId: id,
-        slug: productSlug,
-        addedAt: serverTimestamp(),
-      });
-      if (!this.has(id)) {
-        this.#items.update((list) => [
-          { productId: id, slug: productSlug, addedAt: new Date() },
-          ...list,
-        ]);
-      }
-      return 'added';
+      return await this.#createFavorite(uid, id, productSlug);
     } catch {
       this.#snackbar.error("We couldn't update your favorites. Try again.");
       return null;
     } finally {
       this.#markPending(id, false);
     }
+  }
+
+  /**
+   * Add-only for post-sign-in heart recovery. Respects `MAX_FAVORITES`.
+   * Does not remove an already-saved product. Returns `'added'`, `'exists'`, or `null`.
+   */
+  async add(productId: string, slug: string): Promise<'added' | 'exists' | null> {
+    if (!this.#isBrowser || !this.#auth.isAuthReady()) return null;
+    const uid = this.#auth.user()?.uid;
+    if (!uid) return null;
+
+    const id = productId.trim();
+    const productSlug = slug.trim();
+    if (!id || !productSlug) return null;
+    if (this.isPending(id)) return null;
+
+    this.#markPending(id, true);
+    try {
+      await this.waitUntilReady();
+      if (this.#auth.user()?.uid !== uid) return null;
+
+      const ref = this.#itemRef(uid, id);
+      const snap = await getDoc(ref);
+      if (snap.exists()) return 'exists';
+
+      const created = await this.#createFavorite(uid, id, productSlug);
+      return created === 'added' ? 'added' : null;
+    } catch {
+      this.#snackbar.error("We couldn't update your favorites. Try again.");
+      return null;
+    } finally {
+      this.#markPending(id, false);
+    }
+  }
+
+  async #createFavorite(
+    uid: string,
+    id: string,
+    productSlug: string,
+  ): Promise<'added' | null> {
+    if (this.#items().length >= MAX_FAVORITES) {
+      this.#snackbar.error(`You can favorite up to ${MAX_FAVORITES} products.`);
+      return null;
+    }
+
+    await setDoc(this.#itemRef(uid, id), {
+      productId: id,
+      slug: productSlug,
+      addedAt: serverTimestamp(),
+    });
+    if (!this.has(id)) {
+      this.#items.update((list) => [
+        { productId: id, slug: productSlug, addedAt: new Date() },
+        ...list,
+      ]);
+    }
+    return 'added';
   }
 
   #syncListener(authReady: boolean, uid: string | null): void {

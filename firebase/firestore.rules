@@ -147,12 +147,36 @@ service cloud.firestore {
       }
     }
 
+    // Shopper profile (signup consent). Owner creates once at account creation.
+    // Fields: termsAcceptedAt, termsVersion, marketingOptIn, marketingOptInAt.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && validSignupConsent(request.resource.data);
+      // Signup consent is create-once; marketing changes later can widen this.
+      allow update, delete: if false;
+    }
+
+    function validSignupConsent(data) {
+      return data.keys().hasOnly([
+          'termsAcceptedAt',
+          'termsVersion',
+          'marketingOptIn',
+          'marketingOptInAt',
+        ])
+        && data.termsAcceptedAt == request.time
+        && data.termsVersion is string
+        && data.termsVersion.size() > 0
+        && data.termsVersion.size() <= 64
+        && data.marketingOptIn is bool
+        && data.marketingOptInAt == request.time;
+    }
+
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'favorites']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'favorites', 'users']);
     }
   }
 }

@@ -22,12 +22,24 @@
         />
 
         <div class="elements-start-col gap-4">
-          <a
-            [routerLink]="['/brand', p.brandId]"
-            class="font-label-sm uppercase tracking-wider text-on-surface-variant no-underline hover:underline"
-          >
-            {{ brandName() }}
-          </a>
+          <div class="elements-between w-full gap-2 items-start">
+            <a
+              [routerLink]="['/brand', p.brandId]"
+              class="font-label-sm uppercase tracking-wider text-on-surface-variant no-underline hover:underline min-w-0"
+            >
+              {{ brandName() }}
+            </a>
+            <button
+              matIconButton
+              type="button"
+              [attr.aria-label]="favoriteLabel()"
+              [attr.aria-pressed]="isFavorite() ? true : false"
+              [disabled]="favoriteBusy()"
+              (click)="onFavoriteClick()"
+            >
+              <mat-icon name="favorite" [type]="isFavorite() ? 'fill' : 'outline'" />
+            </button>
+          </div>
           <h1 class="font-headline-sm font-bold!" dir="auto">{{ p.name }}</h1>
           @if (price(); as pr) {
             <app-product-price
