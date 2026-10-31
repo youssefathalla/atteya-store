@@ -68,6 +68,9 @@ function seedToDocData(seed: ShippingSettingsSeed | null): ShippingSettingsDoc |
   return seed ? shippingSeedToDoc(seed) : null;
 }
 
+/** Match currency boot so a stuck Firestore listen cannot block the shell forever. */
+const SHELL_READY_TIMEOUT_MS = 2500;
+
 @Service()
 export class ShippingSettingsService {
   readonly #firestore = injectFirestore();
@@ -108,6 +111,15 @@ export class ShippingSettingsService {
         },
       );
       this.#destroyRef.onDestroy(unsubscribe);
+
+      if (this.#doc() === undefined) {
+        const timeoutId = window.setTimeout(() => {
+          if (this.#doc() === undefined) {
+            this.#doc.set(null);
+          }
+        }, SHELL_READY_TIMEOUT_MS);
+        this.#destroyRef.onDestroy(() => window.clearTimeout(timeoutId));
+      }
     }
   }
 
