@@ -105,7 +105,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### Storefront shell (first load)
 
-- **`ShellReadyService`** (`@core/services/shell/`): `ready()` is true when `CurrencyService.ready()`, `ShippingSettingsService.shellReady()` (SSR seed or first live doc), and browser `AuthService.isAuthReady()` (SSR skips Firebase auth). **`chromeReady()`** is currency + shipping only. **`MainLayoutComponent`** shows a one-time `<app-loader>` overlay until `chromeReady()` on the first storefront load (not on every navigation; route changes keep the top pulse only). The shipping banner mounts only when `chromeReady()` so EGP copy does not pop in; SSR HTML still carries route body for LCP. Account menu keeps its own `isAuthReady()` gate.
+- **`ShellReadyService`** (`@core/services/shell/`): `ready()` is true when `CurrencyService.ready()`, `ShippingSettingsService.shellReady()`, `NavService.shellReady()` (SSR seed or first live doc), and browser `AuthService.isAuthReady()` (SSR skips Firebase auth). **`chromeReady()`** is currency + shipping + navigation. **`MainLayoutComponent`** shows a one-time `<app-loader>` overlay until `chromeReady()` on the first storefront load (not on every navigation; route changes keep the top pulse only). The shipping banner mounts only when `chromeReady()` so EGP copy does not pop in; SSR HTML still carries route body for LCP. Account menu keeps its own `isAuthReady()` gate.
 
 ### Storefront motion (GSAP)
 

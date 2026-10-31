@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { LogoComponent } from '@shared/ui/logo/logo.component';
 import { MatButtonModule } from '@angular/material/button';
@@ -6,10 +6,19 @@ import { DrawerService } from '@core/services/drawer/drawer.service';
 import { NavService } from '@core/services/navigation';
 import { NavbarActionsComponent } from '../components/navbar-actions/navbar-actions.component';
 import { NavLinksComponent } from './components/nav-links/nav-links.component';
+import { SkeletonComponent } from '@shared/ui/skeleton/skeleton.component';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-desktop-nav',
-  imports: [SharedIconModule, NavbarActionsComponent, LogoComponent, NavLinksComponent, MatButtonModule],
+  imports: [
+    SharedIconModule,
+    NavbarActionsComponent,
+    LogoComponent,
+    NavLinksComponent,
+    MatButtonModule,
+    SkeletonComponent,
+  ],
   templateUrl: './desktop-nav.component.html',
   host: {
     class: 'hidden lg:block w-full sticky top-0 z-50',
@@ -20,8 +29,10 @@ export class DesktopNavComponent {
   readonly drawerService = inject(DrawerService);
   readonly #navService = inject(NavService);
 
-  // Live categories signal from NavService
   readonly categories = this.#navService.storefrontCategories;
+  readonly showNavSkeleton = computed(
+    () => !environment.production && this.#navService.isLoading(),
+  );
 
   onEscape(): void {
     this.drawerService.close();
