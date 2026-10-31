@@ -144,7 +144,7 @@ export class AuthService {
   }
 
   /**
-   * Popup first. A blocked popup falls back to a full-page redirect.
+   * Popup first. Blocked popups and popup/handler transport failures fall back to redirect.
    * `@gmail.com` accounts attach to the existing user under "one account per email".
    * Other addresses that already have a password return `'link'` so the page can ask for it.
    */

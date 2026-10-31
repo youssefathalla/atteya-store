@@ -13,6 +13,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { assertAuthPopupFallbackContract } from './auth-popup-fallback.mjs';
 import { assertLoginTemplateErrorPlacement } from './login-error-placement.mjs';
 import { assertStorefrontAntiFlicker } from './storefront-anti-flicker-check.mjs';
 
@@ -543,6 +544,17 @@ auditTemplates(templateFiles, tsFiles);
 auditTypeScript(tsFiles);
 auditSSRRoutes();
 auditMaterialIcons();
+
+try {
+  assertAuthPopupFallbackContract();
+  console.log('\x1b[32m✓\x1b[0m Google popup fallback: transport errors redirect, user cancel does not');
+} catch (error) {
+  logError(
+    path.resolve(process.cwd(), 'src/app/core/services/auth/auth.utils.ts'),
+    1,
+    error instanceof Error ? error.message : String(error),
+  );
+}
 
 try {
   assertLoginTemplateErrorPlacement();

@@ -30,9 +30,12 @@ export function readErrorEmail(error: unknown): string {
   return typeof email === 'string' ? email : '';
 }
 
+/** Popup errors that should retry via full-page redirect (not user dismissals). */
 const POPUP_FALLBACK_CODES = new Set([
   'auth/popup-blocked',
   'auth/operation-not-supported-in-this-environment',
+  'auth/network-request-failed',
+  'auth/timeout',
 ]);
 
 export function isPopupFallback(error: unknown): boolean {
