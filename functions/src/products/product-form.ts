@@ -57,6 +57,8 @@ export interface ProductFormInput {
   readonly colors: readonly ColorId[];
   readonly tags: readonly string[];
   readonly marketingBadge: MarketingBadge | null;
+  /** End of New Arrivals window, or null when not flagged. */
+  readonly newArrivalUntil: Date | null;
   readonly price: number;
   readonly compareAtPrice: number | null;
   readonly published: boolean;
@@ -185,6 +187,7 @@ function parseForm(raw: Record<string, unknown>): ProductFormInput {
     colors: readColors(raw['colors']),
     tags: readTags(raw['tags']),
     marketingBadge: readMarketingBadge(raw['marketingBadge']),
+    newArrivalUntil: readNewArrivalUntil(raw['newArrivalUntil']),
     price,
     compareAtPrice: readCompareAtPrice(raw['compareAtPrice'], price),
     published: readPublished(raw['published'], images.length),
@@ -395,6 +398,30 @@ function readMarketingBadge(value: unknown): MarketingBadge | null {
     invalid('Choose a plain or boxed badge style.');
   }
   return { kind, style };
+}
+
+/**
+ * Accepts null (clear), ISO string, or epoch milliseconds.
+ * Must be a real future-or-present instant when set (admin may extend).
+ */
+function readNewArrivalUntil(value: unknown): Date | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
+      invalid('Choose a valid New arrival end date.');
+    }
+    return new Date(value);
+  }
+  if (typeof value !== 'string') {
+    invalid('Choose a valid New arrival end date.');
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  const ms = Date.parse(trimmed);
+  if (!Number.isFinite(ms)) {
+    invalid('Choose a valid New arrival end date.');
+  }
+  return new Date(ms);
 }
 
 function readPrice(value: unknown): number {

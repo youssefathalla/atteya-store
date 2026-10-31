@@ -55,6 +55,8 @@ export interface ProductFormPayload {
   readonly colors: readonly ColorId[];
   readonly tags: readonly string[];
   readonly marketingBadge: MarketingBadge | null;
+  /** ISO timestamp or null when not flagged for New Arrivals. */
+  readonly newArrivalUntil: string | null;
   readonly price: number;
   readonly compareAtPrice: number | null;
   readonly published: boolean;

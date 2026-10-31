@@ -8,6 +8,7 @@ export * from './product.service';
 export * from './product-cache.service';
 export * from './catalog.service';
 export * from './utils/card-short-description';
+export * from './utils/new-arrival';
 export * from './utils/product-price.utils';
 export * from './utils/priced-product.utils';
 export * from './utils/catalog-path';

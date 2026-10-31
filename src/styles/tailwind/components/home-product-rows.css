@@ -1,0 +1,40 @@
+/**
+ * Homepage product rows (AS-73): padel floating tiles + shared scroll nav chrome.
+ */
+@layer components {
+  .padel-tile {
+    @apply relative block w-full no-underline overflow-hidden aspect-4/5;
+    background: linear-gradient(180deg, #f3f3f3 0%, #e6e6e6 100%);
+  }
+
+  .padel-tile__media {
+    @apply absolute inset-0 elements-center p-6 sm:p-8 pb-20;
+  }
+
+  .padel-tile__photo {
+    @apply object-contain size-full max-h-full;
+    filter: drop-shadow(0 12px 22px rgb(0 0 0 / 0.14));
+  }
+
+  .padel-tile__name {
+    @apply absolute bottom-4 left-4 right-4 font-title-md font-bold! z-10;
+  }
+
+  .padel-tile__name::after {
+    content: '';
+    @apply block mt-1 h-0.5 w-5 bg-primary;
+  }
+
+  .row-scroll-nav {
+    @apply elements-center gap-3 pt-4 sm:pt-5;
+  }
+
+  .row-scroll-nav__progress {
+    @apply relative h-px w-28 sm:w-40 bg-outline-variant overflow-hidden;
+  }
+
+  .row-scroll-nav__progress-fill {
+    @apply absolute inset-y-0 left-0 bg-primary;
+    width: calc(var(--row-scroll-progress, 0) * 100%);
+  }
+}

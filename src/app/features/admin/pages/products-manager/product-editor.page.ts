@@ -31,6 +31,14 @@ import {
 } from '@core/services/products/marketing-badge';
 import { PRODUCT_TYPES, SIZE_ORDER } from '@core/services/products/product.constants';
 import type { Product, ProductTypeId } from '@core/services/products/product.model';
+import {
+  defaultNewArrivalUntil,
+  isActiveNewArrival,
+  newArrivalCountdownLabel,
+  parseDateInputValue,
+  timestampToMs,
+  toDateInputValue,
+} from '@core/services/products/utils/new-arrival';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import type { ImageAsset } from '@shared/schemas';
@@ -120,6 +128,9 @@ export class ProductEditorPageComponent implements OnInit {
   readonly tagError = signal('');
   readonly marketingBadgeKind = signal<MarketingBadgeKind | ''>('');
   readonly marketingBadgeStyle = signal<MarketingBadgeStyle>('plain');
+  /** Local YYYY-MM-DD when flagged; empty when not a new arrival. */
+  readonly newArrivalUntilInput = signal('');
+  readonly newArrivalError = signal('');
   readonly colorError = signal('');
   readonly marketingBadgeKinds = [
     { id: '', label: 'None' },
@@ -243,6 +254,24 @@ export class ProductEditorPageComponent implements OnInit {
       ? 'Add at least one photo before showing it on the store.'
       : '',
   );
+
+  readonly newArrivalChecked = computed(() => this.newArrivalUntilInput().trim().length > 0);
+
+  readonly newArrivalCountdown = computed(() => {
+    const date = parseDateInputValue(this.newArrivalUntilInput());
+    if (!date) return null;
+    // End of local day so "today" still counts as active.
+    const untilMs = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      23,
+      59,
+      59,
+      999,
+    ).getTime();
+    return newArrivalCountdownLabel(untilMs);
+  });
 
   readonly editForm = form(this.model, (path) => {
     validate(path.name, ({ value }) => {
@@ -619,6 +648,8 @@ export class ProductEditorPageComponent implements OnInit {
       this.tagError.set('');
       this.marketingBadgeKind.set('');
       this.marketingBadgeStyle.set('plain');
+      this.newArrivalUntilInput.set('');
+      this.newArrivalError.set('');
       this.colorError.set('');
       this.sizes.set([]);
       this.sizeInput.set('');
@@ -668,6 +699,12 @@ export class ProductEditorPageComponent implements OnInit {
     this.tagError.set('');
     this.marketingBadgeKind.set(product.marketingBadge?.kind ?? '');
     this.marketingBadgeStyle.set(product.marketingBadge?.style ?? 'plain');
+    this.newArrivalUntilInput.set(
+      isActiveNewArrival(product.newArrivalUntil)
+        ? toDateInputValue(new Date(timestampToMs(product.newArrivalUntil)!))
+        : '',
+    );
+    this.newArrivalError.set('');
     this.colorError.set('');
     this.sizes.set(sizeDraftsFrom(product));
     this.sizeInput.set('');
@@ -715,6 +752,10 @@ export class ProductEditorPageComponent implements OnInit {
       return STOCK_MESSAGE;
     }
     if (this.weightError()) return this.weightError();
+    if (this.newArrivalError()) return this.newArrivalError();
+    if (this.newArrivalChecked() && !parseDateInputValue(this.newArrivalUntilInput())) {
+      return 'Choose a valid New arrival end date.';
+    }
     return '';
   }
 
@@ -791,10 +832,52 @@ export class ProductEditorPageComponent implements OnInit {
     this.marketingBadgeStyle.set(target.value as MarketingBadgeStyle);
   }
 
+  onNewArrivalToggle(checked: boolean): void {
+    this.newArrivalError.set('');
+    if (!checked) {
+      this.newArrivalUntilInput.set('');
+      return;
+    }
+    if (!this.newArrivalUntilInput().trim()) {
+      this.newArrivalUntilInput.set(toDateInputValue(defaultNewArrivalUntil()));
+    }
+  }
+
+  onNewArrivalDateChange(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const value = target.value;
+    this.newArrivalError.set('');
+    if (!value.trim()) {
+      this.newArrivalUntilInput.set('');
+      return;
+    }
+    if (!parseDateInputValue(value)) {
+      this.newArrivalError.set('Choose a valid New arrival end date.');
+      return;
+    }
+    this.newArrivalUntilInput.set(value);
+  }
+
   #marketingBadgePayload(): ProductFormPayload['marketingBadge'] {
     const kind = this.marketingBadgeKind();
     if (!kind) return null;
     return { kind, style: this.marketingBadgeStyle() };
+  }
+
+  #newArrivalUntilPayload(): string | null {
+    const date = parseDateInputValue(this.newArrivalUntilInput());
+    if (!date) return null;
+    const endOfDay = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      23,
+      59,
+      59,
+      999,
+    );
+    return endOfDay.toISOString();
   }
 
   #payload(): ProductFormPayload {
@@ -818,6 +901,7 @@ export class ProductEditorPageComponent implements OnInit {
       colors: this.selectedColors(),
       tags: this.tags(),
       marketingBadge: this.#marketingBadgePayload(),
+      newArrivalUntil: this.#newArrivalUntilPayload(),
       price,
       compareAtPrice,
       published: value.published,

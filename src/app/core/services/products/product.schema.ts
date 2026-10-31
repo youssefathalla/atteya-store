@@ -81,6 +81,11 @@ export const ProductSchema = v.pipe(
     tags: v.optional(v.pipe(v.array(tagSlugSchema), v.maxLength(20)), []),
     /** Merchandising badge (NEW / BESTSELLER / LIMITED EDITION). Distinct from freeform `tags`. */
     marketingBadge: v.optional(v.nullable(MarketingBadgeSchema), null),
+    /**
+     * Homepage New Arrivals flag end (inclusive). Null/missing = not flagged.
+     * Distinct from `marketingBadge` NEW. Expiry is date-based; no separate boolean.
+     */
+    newArrivalUntil: v.optional(v.nullable(timestampSchema), null),
     trackStock: v.boolean(),
     stock: v.optional(wholeNumber),
     stockBySize: v.optional(v.record(v.string(), wholeNumber)),

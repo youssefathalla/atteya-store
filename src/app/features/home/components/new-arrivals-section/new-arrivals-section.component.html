@@ -1,0 +1,52 @@
+@if (showSection()) {
+  <section class="container-content select-none" aria-labelledby="new-arrivals-heading">
+    <header class="pb-4 sm:pb-6">
+      <h2 id="new-arrivals-heading" class="font-headline-md sm:font-headline-lg font-bold!">
+        New arrivals
+      </h2>
+    </header>
+
+    @if (isLoading()) {
+      <div
+        class="scroll-row [--scroll-peek:2.5rem] sm:[--scroll-cols:2] lg:[--scroll-cols:3] lg:[--scroll-peek:3.5rem]"
+        aria-hidden="true"
+      >
+        @for (slot of skeletonSlots; track slot) {
+          <div class="scroll-row-item elements-start-col gap-2">
+            <app-skeleton class="aspect-4/5 w-full" />
+            <app-skeleton class="h-4 w-1/3" />
+            <app-skeleton class="h-5 w-3/4" />
+            <app-skeleton class="h-4 w-2/3" />
+            <app-skeleton class="h-5 w-1/3" />
+          </div>
+        }
+      </div>
+    } @else {
+      <div
+        #scrollRow
+        class="scroll-row [--scroll-peek:2.5rem] sm:[--scroll-cols:2] lg:[--scroll-cols:3] lg:[--scroll-peek:3.5rem]"
+        [style.--scroll-peek]="cards().length > 3 ? null : '0px'"
+        appHorizontalScroll
+      >
+        @for (card of cards(); track card.id) {
+          <div class="scroll-row-item">
+            <app-product-card
+              [product]="card"
+              sizes="(max-width: 639px) 70vw, (max-width: 1023px) 45vw, 28vw"
+            />
+          </div>
+        }
+      </div>
+
+      @if (isBrowser && (canPrev() || canNext())) {
+        <app-row-scroll-nav
+          [progress]="progress()"
+          [canPrev]="canPrev()"
+          [canNext]="canNext()"
+          (prev)="prev()"
+          (next)="next()"
+        />
+      }
+    }
+  </section>
+}

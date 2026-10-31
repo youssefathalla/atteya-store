@@ -1,5 +1,6 @@
 import {
   FieldValue,
+  Timestamp,
   getFirestore,
   type DocumentData,
   type Firestore,
@@ -70,6 +71,9 @@ export const createProduct = onCall(
         colors: [...input.colors],
         tags: [...input.tags],
         marketingBadge: input.marketingBadge,
+        newArrivalUntil: input.newArrivalUntil
+          ? Timestamp.fromDate(input.newArrivalUntil)
+          : null,
         trackStock: true,
         variants: [],
         stock: stock.stock,
@@ -124,6 +128,9 @@ export const updateProduct = onCall(
         colors: [...input.colors],
         tags: [...input.tags],
         marketingBadge: input.marketingBadge,
+        newArrivalUntil: input.newArrivalUntil
+          ? Timestamp.fromDate(input.newArrivalUntil)
+          : null,
         price: input.price,
         compareAtPrice: input.compareAtPrice,
         published: input.published,

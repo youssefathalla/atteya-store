@@ -2,6 +2,8 @@ import { Component, inject, OnInit } from '@angular/core';
 import { HomeService } from './services/home.service';
 import { HeroSectionComponent } from './components/hero-section/hero-section.component';
 import { ShopCategoriesSectionComponent } from './components/shop-categories-section/shop-categories-section.component';
+import { PadelCarouselSectionComponent } from './components/padel-carousel-section/padel-carousel-section.component';
+import { NewArrivalsSectionComponent } from './components/new-arrivals-section/new-arrivals-section.component';
 import { NavigationListSectionComponent } from './components/navigation-list-section/navigation-list-section.component';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { SeoService } from '@core/services/seo';
@@ -14,6 +16,8 @@ import { SeoService } from '@core/services/seo';
   imports: [
     HeroSectionComponent,
     ShopCategoriesSectionComponent,
+    PadelCarouselSectionComponent,
+    NewArrivalsSectionComponent,
     NavigationListSectionComponent,
     SkeletonComponent,
   ],
