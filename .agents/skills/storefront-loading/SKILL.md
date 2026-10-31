@@ -30,7 +30,7 @@ Shared chrome that depends on **client Firebase** or **async settings**:
 | Currency | `CurrencyService.ready()`; EGP-only copy hidden while pending (`html[data-cur-pending]`) |
 | Auth | `AuthService.isAuthReady()` (browser only; account control) |
 | Shipping banner | `shippingSettingsResolver` → `shipping-settings`; `ShippingSettingsService.shellReady()` |
-| Navigation | `navigationSettingsResolver` → `navigation-settings`; `NavService.shellReady()` |
+| Navigation | `navigationSettingsResolver` → `navigation-settings`; `NavService.shellReady()`; CSR-only loads also `getDoc` before `onSnapshot`; desktop nav waits for `navLinksReady()` |
 
 **Policy:** On **initial storefront load**, do not show shipping/nav-dependent chrome until **`ShellReadyService.chromeReady()`** is true. **`ready()`** also waits for auth in the browser. `MainLayoutComponent` uses a one-time `<app-loader>` overlay until `chromeReady()` (route changes keep the top pulse only).
 

@@ -11,7 +11,7 @@ import {
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavCategory, NAV_CATEGORIES } from '@core/services/navigation';
+import { NavCategory } from '@core/services/navigation';
 
 @Component({
   selector: 'app-nav-links',
@@ -33,7 +33,7 @@ export class NavLinksComponent {
   readonly navLeft = signal<number>(0);
 
   // Categories & Active Mega Menu State
-  readonly categories = input<readonly NavCategory[]>(NAV_CATEGORIES);
+  readonly categories = input<readonly NavCategory[]>([]);
   readonly activeCategoryId = signal<string | null>(null);
 
   // Computed: currently hovered/active category
