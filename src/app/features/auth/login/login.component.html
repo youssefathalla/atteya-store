@@ -50,7 +50,9 @@
             (change)="onMarketingChange($event.checked)"
             [disabled]="isBusy()"
           >
-            <span class="font-body-sm">Send me discount offers and similar emails.</span>
+            <span class="font-body-sm"
+              >Check this box if you want to receive discount offers and similar emails</span
+            >
           </mat-checkbox>
         </div>
         @if (consentError()) {
@@ -109,7 +111,9 @@
               (change)="onMarketingChange($event.checked)"
               [disabled]="isBusy()"
             >
-              <span class="font-body-sm">Send me discount offers and similar emails.</span>
+              <span class="font-body-sm"
+              >Check this box if you want to receive discount offers and similar emails</span
+            >
             </mat-checkbox>
           </div>
         }
