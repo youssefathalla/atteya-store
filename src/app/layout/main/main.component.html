@@ -29,10 +29,9 @@
     }
     @if (chromeReady()) {
       <app-shipping-banner />
+      <!-- Store Desktop Navigation Header -->
+      <app-desktop-nav />
     }
-
-    <!-- Store Desktop Navigation Header -->
-    <app-desktop-nav />
 
     <!-- Main Storefront Page View -->
     <main class="flex-1 w-full pb-20 lg:pb-0 @container">
@@ -71,6 +70,8 @@
     </footer>
 
     <!-- Persistent Mobile Navigation (Bottom bar + slide-up menu + slide-up cart) -->
-    <app-mobile-nav />
+    @if (chromeReady()) {
+      <app-mobile-nav />
+    }
   </mat-drawer-content>
 </mat-drawer-container>
