@@ -62,7 +62,7 @@ All controls integrate seamlessly with **Angular 22 Signal Forms**.
   - `[(value)]` is a two-way signal model. ❌ `[selected]` does not exist.
 - **Colour swatch** (`src/app/shared/ui/color-swatch/`):
   - `<app-color-swatch class="size-3" [colorId]="'multi'" />` or `[colorId]="id" [swatch]="hex"`.
-  - Solid palette colours use `--swatch`; `multi` renders the four-pane chip (yellow / red / blue / pink). Pass `round` for circular PDP buttons. Caller sets size.
+  - Solid palette colours use `--swatch`; `multi` renders the four-pane chip (yellow / red / blue / pink). Pass `round` for circular PDP buttons. Caller sets **size only** — never `block` / `inline-block` (they override the grid and hide Multi panes).
 
 ### 🃏 Cards & Layout Containers (`src/app/shared/ui/cards/`)
 

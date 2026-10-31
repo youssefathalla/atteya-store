@@ -1,8 +1,9 @@
 @layer components {
   /* Palette colour chip — solid fill via --swatch, or four-pane Multi. */
   .color-swatch {
-    /* Caller sets size (`size-3`, `size-full`, …). */
-    @apply relative inline-grid shrink-0 overflow-hidden border border-outline;
+    /* Caller sets size only (`size-3`, `size-full`, …). Never pass block/inline-block —
+       those utilities would override components-layer inline-grid and collapse Multi panes. */
+    @apply relative inline-grid! shrink-0 overflow-hidden border border-outline;
     background-color: var(--swatch, transparent);
     border-radius: var(--border-shape, 2px);
     grid-template-columns: 1fr 1fr;
