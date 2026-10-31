@@ -19,6 +19,21 @@ export interface ProductCardColorway {
   readonly imageAlt: string;
 }
 
+/** Lean sibling shape — JSON-safe for resource TransferState (no Firestore Timestamps). */
+export interface ProductCardSibling {
+  readonly id: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly images: readonly {
+    readonly path: string;
+    readonly alt: string;
+  }[];
+}
+
+export type ProductCardSiblingGroups = Readonly<
+  Record<string, readonly ProductCardSibling[]>
+>;
+
 export interface ProductCardMarketingBadge {
   readonly kind: MarketingBadgeKind;
   readonly style: MarketingBadgeStyle;

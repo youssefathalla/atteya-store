@@ -45,7 +45,14 @@ export const SearchHitSchema = v.object({
     null,
   ),
   summary: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(300))), null),
-  shortDescription: v.optional(v.pipe(v.string(), v.maxLength(300)), ''),
+  // Clip instead of reject so a pre-cap Algolia record never drops the whole hit.
+  shortDescription: v.optional(
+    v.pipe(
+      v.string(),
+      v.transform((value) => (value.length > 300 ? value.slice(0, 300).trimEnd() : value)),
+    ),
+    '',
+  ),
   inStock: v.optional(v.boolean(), true),
   image: v.nullable(SearchHitImageSchema, null),
   createdAtMs: v.optional(v.number(), 0),
