@@ -61,7 +61,12 @@ export class ProductCardComponent {
     return this.#favorites.has(this.product().id);
   });
 
-  readonly favoriteBusy = computed(() => this.#favorites.isPending(this.product().id));
+  /** Block clicks until the favorites list is loaded (avoids create/delete races). */
+  readonly favoriteBusy = computed(() => {
+    if (this.#favorites.isPending(this.product().id)) return true;
+    if (this.#auth.isAuthenticated() && !this.#favorites.ready()) return true;
+    return false;
+  });
 
   readonly favoriteLabel = computed(() =>
     this.isFavorite() ? 'Remove from favorites' : 'Add to favorites',

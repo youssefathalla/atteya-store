@@ -12,6 +12,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   serverTimestamp,
   setDoc,
@@ -42,6 +43,7 @@ export class FavoritesService {
 
   #unsubscribe: Unsubscribe | null = null;
   #attachedUid: string | null = null;
+  #readyWaiters: (() => void)[] = [];
 
   readonly items = this.#items.asReadonly();
   readonly ready = this.#ready.asReadonly();
@@ -64,24 +66,40 @@ export class FavoritesService {
     return this.#pending().has(productId);
   }
 
+  /** Resolves once the favorites listener has delivered (or signed-out empty state). */
+  async waitUntilReady(): Promise<void> {
+    if (this.#ready()) return;
+    await new Promise<void>((resolve) => {
+      this.#readyWaiters.push(resolve);
+    });
+  }
+
   /**
    * Toggle favorite for a signed-in shopper.
-   * Returns `'added'` / `'removed'`, or `null` when not signed in / not ready.
+   * Waits for the listener so local state is warm, then confirms create vs delete
+   * with a live `getDoc` (avoids re-create races rejected by create-only rules).
+   * Returns `'added'` / `'removed'`, or `null` when not signed in / aborted.
    */
   async toggle(productId: string, slug: string): Promise<'added' | 'removed' | null> {
     if (!this.#isBrowser || !this.#auth.isAuthReady()) return null;
     const uid = this.#auth.user()?.uid;
     if (!uid) return null;
-    if (this.isPending(productId)) return null;
 
     const id = productId.trim();
     const productSlug = slug.trim();
     if (!id || !productSlug) return null;
+    if (this.isPending(id)) return null;
 
     this.#markPending(id, true);
     try {
-      if (this.has(id)) {
-        await deleteDoc(this.#itemRef(uid, id));
+      await this.waitUntilReady();
+      if (this.#auth.user()?.uid !== uid) return null;
+
+      const ref = this.#itemRef(uid, id);
+      // Live read beats a stale local `has()` if the first snapshot is still settling.
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        await deleteDoc(ref);
         this.#items.update((list) => list.filter((item) => item.productId !== id));
         return 'removed';
       }
@@ -91,12 +109,11 @@ export class FavoritesService {
         return null;
       }
 
-      await setDoc(this.#itemRef(uid, id), {
+      await setDoc(ref, {
         productId: id,
         slug: productSlug,
         addedAt: serverTimestamp(),
       });
-      // Listener will refresh; optimistic row until then.
       if (!this.has(id)) {
         this.#items.update((list) => [
           { productId: id, slug: productSlug, addedAt: new Date() },
@@ -114,27 +131,27 @@ export class FavoritesService {
 
   #syncListener(authReady: boolean, uid: string | null): void {
     if (!this.#isBrowser) {
-      this.#ready.set(true);
       this.#items.set([]);
+      this.#setReady(true);
       return;
     }
     if (!authReady) {
-      this.#ready.set(false);
+      this.#setReady(false);
       return;
     }
     if (!uid) {
       this.#detach();
       this.#items.set([]);
-      this.#ready.set(true);
+      this.#setReady(true);
       return;
     }
     if (this.#attachedUid === uid && this.#unsubscribe) {
-      this.#ready.set(true);
+      // Already listening; keep current ready flag (true after first snap).
       return;
     }
     this.#detach();
     this.#attachedUid = uid;
-    this.#ready.set(false);
+    this.#setReady(false);
 
     const converter = createValibotConverter(FavoriteItemSchema);
     const items = collection(
@@ -151,14 +168,22 @@ export class FavoritesService {
           .map((entry) => entry.data())
           .sort((a, b) => timeMs(b.addedAt) - timeMs(a.addedAt));
         this.#items.set(next);
-        this.#ready.set(true);
+        this.#setReady(true);
       },
       () => {
         this.#items.set([]);
-        this.#ready.set(true);
+        this.#setReady(true);
         this.#snackbar.error("We couldn't load your favorites.");
       },
     );
+  }
+
+  #setReady(ready: boolean): void {
+    this.#ready.set(ready);
+    if (!ready) return;
+    const waiters = this.#readyWaiters;
+    this.#readyWaiters = [];
+    for (const resolve of waiters) resolve();
   }
 
   #detach(): void {
