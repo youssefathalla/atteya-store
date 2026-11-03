@@ -4,7 +4,7 @@
     @apply grid grid-cols-2 md:grid-cols-3 gap-0.5 w-full;
   }
 
-  /** Desktop browse: results flex; filter column mounts with a short fade/slide. */
+  /** Desktop browse: results flex; filter column mounts with a short fade. */
   .shop-browse-layout {
     @apply w-full flex items-start;
     gap: 0;
@@ -17,26 +17,38 @@
   }
 
   .shop-filters-aside {
-    @apply hidden min-w-0;
+    @apply hidden min-w-0 self-start;
   }
 
+  /**
+   * Sticky lives on the aside itself (viewport scroll). Do not put overflow/transform
+   * on an ancestor of a sticky child — that pins to the ancestor instead.
+   */
   @media (min-width: 768px) {
     .shop-browse-layout--filters-open .shop-filters-aside {
       display: block;
       width: 18rem;
       flex-shrink: 0;
+      align-self: flex-start;
+      position: sticky;
+      top: 1rem;
+      max-height: calc(100dvh - 6rem);
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: var(--mat-sys-outline-variant) transparent;
       animation: shop-filters-in 220ms ease;
     }
   }
 
+  /* Opacity-only: transform on a sticky element breaks sticky while/after animating. */
   @keyframes shop-filters-in {
     from {
       opacity: 0;
-      transform: translateX(-0.75rem);
     }
     to {
       opacity: 1;
-      transform: translateX(0);
     }
   }
 
@@ -46,26 +58,15 @@
     }
   }
 
-  /** Constrained, independently scrolling filter column (AS-90). */
-  .shop-filters-aside__scroll {
-    @apply w-full sticky top-4 self-start;
-    max-height: calc(100dvh - 6rem);
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    scrollbar-color: var(--mat-sys-outline-variant) transparent;
-  }
-
-  .shop-filters-aside__scroll::-webkit-scrollbar {
+  .shop-filters-aside::-webkit-scrollbar {
     width: 4px;
   }
 
-  .shop-filters-aside__scroll::-webkit-scrollbar-track {
+  .shop-filters-aside::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .shop-filters-aside__scroll::-webkit-scrollbar-thumb {
+  .shop-filters-aside::-webkit-scrollbar-thumb {
     background-color: var(--mat-sys-outline-variant);
     border-radius: var(--border-shape, 2px);
   }

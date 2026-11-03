@@ -22,20 +22,18 @@
     >
       @if (filtersOpen()) {
         <aside class="shop-filters-aside" aria-label="Filters">
-          <div class="shop-filters-aside__scroll">
-            <app-shop-filters
-              [filters]="filterState()"
-              (filtersChange)="onFiltersChange($event)"
-              [tab]="activeTab()"
-              [brands]="brands()"
-              [sizes]="sizes()"
-              [colors]="colors()"
-              [priceBounds]="priceBounds()"
-              [showGender]="showGender()"
-              [showSizes]="showSizes()"
-              [accessoriesSubOnly]="accessoriesSubOnly()"
-            />
-          </div>
+          <app-shop-filters
+            [filters]="filterState()"
+            (filtersChange)="onFiltersChange($event)"
+            [tab]="activeTab()"
+            [brands]="brands()"
+            [sizes]="sizes()"
+            [colors]="colors()"
+            [priceBounds]="priceBounds()"
+            [showGender]="showGender()"
+            [showSizes]="showSizes()"
+            [accessoriesSubOnly]="accessoriesSubOnly()"
+          />
         </aside>
       }
 
