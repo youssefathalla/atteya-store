@@ -1,0 +1,50 @@
+@layer components {
+  /** Dense shop listing grid: 2-col mobile, 3-col desktop, ~2px gaps (AS-74). */
+  .shop-product-grid {
+    @apply grid grid-cols-2 md:grid-cols-3 gap-0.5 w-full;
+  }
+
+  .shop-filters-panel {
+    @apply w-full elements-start-col gap-8;
+  }
+
+  .shop-filters-section {
+    @apply w-full elements-start-col gap-3;
+  }
+
+  .shop-filters-heading {
+    @apply font-title-sm font-bold!;
+  }
+
+  .shop-size-grid {
+    @apply grid grid-cols-3 gap-2 w-full;
+  }
+
+  .shop-size-btn {
+    @apply min-h-10 px-2 border border-outline-variant border-shape font-label-md font-mono elements-center hover:bg-surface-container transition-colors;
+  }
+
+  .shop-size-btn--active {
+    @apply bg-primary text-on-primary border-primary;
+  }
+
+  .shop-color-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-2 w-full;
+  }
+
+  .shop-color-row {
+    @apply elements-center gap-3 w-full min-h-10 px-1 border-shape hover:bg-surface-container transition-colors text-start;
+  }
+
+  .shop-color-row--active {
+    @apply bg-surface-container;
+  }
+
+  .shop-price-inputs {
+    @apply elements-center gap-3 w-full;
+  }
+
+  .shop-price-inputs input[type='range'] {
+    @apply w-full accent-primary;
+  }
+}

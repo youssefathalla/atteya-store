@@ -29,6 +29,51 @@ export const routes: Routes = [
         title: 'Atteya Store | Premium Padel & Sports Gear',
       },
       {
+        path: 'shop',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Shop | Atteya Store',
+        data: { preload: true },
+      },
+      {
+        path: 'category/all',
+        redirectTo: 'shop',
+        pathMatch: 'full',
+      },
+      {
+        path: 'category/apparel',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Apparel | Atteya Store',
+        data: { shopCategory: 'apparel', preload: true },
+      },
+      {
+        path: 'category/accessories/bags',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Bags | Atteya Store',
+        data: { shopCategory: 'accessories', shopSubcategory: 'bags', preload: true },
+      },
+      {
+        path: 'category/accessories',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Accessories | Atteya Store',
+        data: { shopCategory: 'accessories', preload: true },
+      },
+      {
+        path: 'category/rackets',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Padel | Atteya Store',
+        data: { shopCategory: 'rackets', preload: true },
+      },
+      {
+        path: 'category/bags',
+        redirectTo: 'category/accessories/bags',
+        pathMatch: 'full',
+      },
+      {
         path: 'category/:slug',
         loadComponent: () =>
           import('./features/category/category.component').then((m) => m.CategoryComponent),

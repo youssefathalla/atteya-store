@@ -3,7 +3,16 @@ import { inject, PLATFORM_ID, Service } from '@angular/core';
 import type { LiteClient } from 'algoliasearch/lite';
 import * as v from 'valibot';
 import { environment } from '@env/environment';
-import type { SearchHit, SearchQueryOptions, SearchResultPage, SearchSort } from './search.model';
+import type {
+  CatalogBrowseOptions,
+  CatalogBrowseResult,
+  CatalogSort,
+  FacetStats,
+  SearchHit,
+  SearchQueryOptions,
+  SearchResultPage,
+  SearchSort,
+} from './search.model';
 import { SearchHitSchema } from './search.schema';
 
 type LiteOptions = NonNullable<Parameters<typeof import('algoliasearch/lite').liteClient>[2]>;
@@ -104,6 +113,113 @@ export class SearchService {
     };
   }
 
+  /**
+   * Empty-query catalogue browse for `/shop` and category shop headers.
+   * Does not force `inStock:true` — the shop In stock filter opts in.
+   * When `disjunctiveFacets` are set, companion queries omit that attribute's
+   * facetFilters so multi-select checkboxes keep sibling values (InstantSearch pattern).
+   */
+  async browseCatalog(options: CatalogBrowseOptions = {}): Promise<CatalogBrowseResult> {
+    if (!this.isConfigured()) {
+      return emptyBrowseResult(false);
+    }
+
+    const client = await this.#getClient();
+    const indexName = this.#resolveCatalogIndexName(options.sort ?? 'featured');
+    const page = Math.max(0, options.page ?? 0);
+    const hitsPerPage = Math.min(96, Math.max(1, options.hitsPerPage ?? 48));
+    const maxValuesPerFacet = options.maxValuesPerFacet ?? 50;
+    const facetFilters = (options.facetFilters ?? []).map((entry) =>
+      typeof entry === 'string' ? entry : [...entry],
+    );
+    const numericFilters = options.numericFilters ? [...options.numericFilters] : undefined;
+    const facets = options.facets ? [...options.facets] : undefined;
+    const disjunctive = options.disjunctiveFacets ?? [];
+
+    interface HitRequest {
+      indexName: string;
+      query: string;
+      page: number;
+      hitsPerPage: number;
+      filters?: string;
+      facetFilters?: (string | string[])[];
+      numericFilters?: string[];
+      facets?: string[];
+      maxValuesPerFacet?: number;
+    }
+
+    const mainRequest: HitRequest = {
+      indexName,
+      query: '',
+      page,
+      hitsPerPage,
+      filters: options.filters,
+      facetFilters: facetFilters.length > 0 ? facetFilters : undefined,
+      numericFilters,
+      facets,
+      maxValuesPerFacet,
+    };
+
+    const requests: HitRequest[] = [mainRequest];
+    const disjunctiveAttrs: string[] = [];
+
+    for (const attr of disjunctive) {
+      if (!facetFilterTouchesAttr(facetFilters, attr)) continue;
+      disjunctiveAttrs.push(attr);
+      requests.push({
+        indexName,
+        query: '',
+        page: 0,
+        hitsPerPage: 0,
+        filters: options.filters,
+        facetFilters: withoutAttrFacetFilters(facetFilters, attr),
+        numericFilters,
+        facets: [attr],
+        maxValuesPerFacet,
+      });
+    }
+
+    const response = await client.searchForHits<Record<string, unknown>>({
+      requests,
+    });
+
+    const first = response.results[0];
+    if (!first) {
+      return emptyBrowseResult(true);
+    }
+
+    const hits: SearchHit[] = [];
+    for (const rawHit of first.hits) {
+      const parsed = v.safeParse(SearchHitSchema, rawHit);
+      if (parsed.success) {
+        hits.push(parsed.output);
+      }
+    }
+
+    const mergedFacets: Record<string, Readonly<Record<string, number>>> = {
+      ...normalizeFacets(first.facets),
+    };
+    for (let i = 0; i < disjunctiveAttrs.length; i++) {
+      const attr = disjunctiveAttrs[i]!;
+      const companion = response.results[i + 1];
+      if (!companion) continue;
+      const companionFacets = normalizeFacets(companion.facets);
+      if (companionFacets[attr]) {
+        mergedFacets[attr] = companionFacets[attr]!;
+      }
+    }
+
+    return {
+      configured: true,
+      hits,
+      totalHits: first.nbHits ?? hits.length,
+      page: first.page ?? page,
+      totalPages: first.nbPages ?? 1,
+      facets: mergedFacets,
+      facetStats: normalizeFacetStats(first.facets_stats),
+    };
+  }
+
   async clearCache(): Promise<void> {
     await (await this.#clientPromise)?.clearCache();
   }
@@ -111,6 +227,13 @@ export class SearchService {
   #resolveIndexName(sort: SearchSort): string {
     if (sort === 'price-asc') return environment.algolia.priceAscIndex;
     if (sort === 'price-desc') return environment.algolia.priceDescIndex;
+    return environment.algolia.indexName;
+  }
+
+  #resolveCatalogIndexName(sort: CatalogSort): string {
+    if (sort === 'price-asc') return environment.algolia.priceAscIndex;
+    if (sort === 'price-desc') return environment.algolia.priceDescIndex;
+    // Featured + Newest share the primary index (customRanking: inStock, createdAtMs).
     return environment.algolia.indexName;
   }
 
@@ -135,4 +258,76 @@ function emptyResult(configured: boolean): SearchResultPage {
     page: 0,
     totalPages: 0,
   };
+}
+
+function emptyBrowseResult(configured: boolean): CatalogBrowseResult {
+  return {
+    configured,
+    hits: [],
+    totalHits: 0,
+    page: 0,
+    totalPages: 0,
+    facets: {},
+    facetStats: {},
+  };
+}
+
+function facetFilterTouchesAttr(
+  facetFilters: readonly (string | readonly string[])[],
+  attr: string,
+): boolean {
+  const prefix = `${attr}:`;
+  for (const entry of facetFilters) {
+    if (typeof entry === 'string') {
+      if (entry.startsWith(prefix)) return true;
+      continue;
+    }
+    if (entry.some((value) => value.startsWith(prefix))) return true;
+  }
+  return false;
+}
+
+function withoutAttrFacetFilters(
+  facetFilters: readonly (string | readonly string[])[],
+  attr: string,
+): (string | string[])[] | undefined {
+  const prefix = `${attr}:`;
+  const kept: (string | string[])[] = [];
+  for (const entry of facetFilters) {
+    if (typeof entry === 'string') {
+      if (!entry.startsWith(prefix)) kept.push(entry);
+      continue;
+    }
+    const inner = entry.filter((value) => !value.startsWith(prefix));
+    if (inner.length > 0) kept.push([...inner]);
+  }
+  return kept.length > 0 ? kept : undefined;
+}
+
+function normalizeFacets(
+  raw: Record<string, Record<string, number>> | undefined,
+): Readonly<Record<string, Readonly<Record<string, number>>>> {
+  if (!raw) return {};
+  const out: Record<string, Readonly<Record<string, number>>> = {};
+  for (const [key, values] of Object.entries(raw)) {
+    out[key] = { ...values };
+  }
+  return out;
+}
+
+function normalizeFacetStats(
+  raw: Record<string, { min?: number; max?: number; avg?: number; sum?: number }> | undefined,
+): Readonly<Record<string, FacetStats>> {
+  if (!raw) return {};
+  const out: Record<string, FacetStats> = {};
+  for (const [key, stats] of Object.entries(raw)) {
+    if (typeof stats.min !== 'number' || typeof stats.max !== 'number') continue;
+    out[key] = {
+      min: stats.min,
+      max: stats.max,
+      avg: stats.avg,
+      sum: stats.sum,
+    };
+  }
+  return out;
 }

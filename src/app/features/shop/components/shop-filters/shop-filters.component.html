@@ -1,0 +1,151 @@
+<div class="shop-filters-panel" aria-label="Product filters">
+  <section class="shop-filters-section">
+    <h2 class="shop-filters-heading">Sort by</h2>
+    <mat-radio-group
+      class="elements-start-col gap-2"
+      [value]="filters().sort"
+      (change)="setSort($event.value)"
+      aria-label="Sort by"
+    >
+      @for (opt of sortOptions; track opt.value) {
+        <mat-radio-button [value]="opt.value">{{ opt.label }}</mat-radio-button>
+      }
+    </mat-radio-group>
+  </section>
+
+  @if (showGender()) {
+    <section class="shop-filters-section">
+      <h2 class="shop-filters-heading">Shop for</h2>
+      <div class="elements-start-col gap-1">
+        @for (opt of genderOptions; track opt.id) {
+          <mat-checkbox
+            [checked]="filters().genders.includes(opt.id)"
+            (change)="toggleGender(opt.id)"
+          >
+            {{ opt.label }}
+          </mat-checkbox>
+        }
+      </div>
+    </section>
+  }
+
+  @if (showCategorySection()) {
+    <section class="shop-filters-section">
+      <h2 class="shop-filters-heading">Category</h2>
+      <div class="elements-start-col gap-1">
+        @for (opt of categoryOptions(); track opt.id) {
+          <mat-checkbox
+            [checked]="filters().categories.includes(opt.id)"
+            (change)="toggleCategory(opt.id)"
+          >
+            {{ opt.label }}
+          </mat-checkbox>
+        }
+      </div>
+    </section>
+  }
+
+  @if (brands().length > 0) {
+    <section class="shop-filters-section">
+      <h2 class="shop-filters-heading">Brand</h2>
+      <div class="elements-start-col gap-1 max-h-64 overflow-y-auto">
+        @for (brand of brands(); track brand.name) {
+          <mat-checkbox
+            [checked]="filters().brands.includes(brand.name)"
+            (change)="toggleBrand(brand.name)"
+          >
+            {{ brand.name }}
+            <span class="opacity-60">({{ brand.count }})</span>
+          </mat-checkbox>
+        }
+      </div>
+    </section>
+  }
+
+  @if (showSizes() && sizes().length > 0) {
+    <section class="shop-filters-section">
+      <h2 class="shop-filters-heading">Size</h2>
+      <div class="shop-size-grid" role="group" aria-label="Size">
+        @for (size of sizes(); track size.label) {
+          <button
+            type="button"
+            class="shop-size-btn"
+            [class.shop-size-btn--active]="filters().sizes.includes(size.label)"
+            [attr.aria-pressed]="filters().sizes.includes(size.label)"
+            (click)="toggleSize(size.label)"
+          >
+            {{ size.label }}
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  @if (colors().length > 0) {
+    <section class="shop-filters-section">
+      <h2 class="shop-filters-heading">Color</h2>
+      <div class="shop-color-grid" role="group" aria-label="Color">
+        @for (color of colors(); track color.id) {
+          <button
+            type="button"
+            class="shop-color-row"
+            [class.shop-color-row--active]="filters().colors.includes(color.id)"
+            [attr.aria-pressed]="filters().colors.includes(color.id)"
+            (click)="toggleColor(color.id)"
+          >
+            <app-color-swatch class="size-5 shrink-0" [colorId]="color.id" />
+            <span class="font-label-md flex-1">{{ color.label }}</span>
+            @if (color.count > 0) {
+              <span class="font-label-sm opacity-60">{{ color.count }}</span>
+            }
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  <section class="shop-filters-section">
+    <h2 class="shop-filters-heading">Price</h2>
+    <p class="font-label-sm opacity-70">
+      {{ priceMinLabel() }} – {{ priceMaxLabel() }}
+    </p>
+    <div class="shop-price-inputs elements-start-col">
+      <label class="w-full elements-start-col gap-1">
+        <span class="font-label-sm opacity-70">From</span>
+        <input
+          type="range"
+          [min]="priceBounds().min"
+          [max]="priceBounds().max"
+          [value]="draftMin()"
+          step="1"
+          (input)="onPriceMinInput($event)"
+          aria-label="Minimum price in Egyptian pounds"
+        />
+      </label>
+      <label class="w-full elements-start-col gap-1">
+        <span class="font-label-sm opacity-70">To</span>
+        <input
+          type="range"
+          [min]="priceBounds().min"
+          [max]="priceBounds().max"
+          [value]="draftMax()"
+          step="1"
+          (input)="onPriceMaxInput($event)"
+          aria-label="Maximum price in Egyptian pounds"
+        />
+      </label>
+    </div>
+  </section>
+
+  <section class="shop-filters-section">
+    <h2 class="shop-filters-heading">Availability</h2>
+    <div class="elements-start-col gap-1">
+      <mat-checkbox [checked]="filters().onSale" (change)="setOnSale($event.checked)">
+        On sale
+      </mat-checkbox>
+      <mat-checkbox [checked]="filters().inStock" (change)="setInStock($event.checked)">
+        In stock
+      </mat-checkbox>
+    </div>
+  </section>
+</div>
