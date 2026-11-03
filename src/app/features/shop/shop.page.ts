@@ -148,8 +148,12 @@ export class ShopPage {
     () => this.resultsResource.value()?.facets ?? {},
   );
 
-  readonly brands = computed(() => brandOptionsFromFacets(this.facets()));
-  readonly sizes = computed(() => sizeOptionsFromFacets(this.facets()));
+  readonly brands = computed(() =>
+    brandOptionsFromFacets(this.facets(), this.filterState().brands),
+  );
+  readonly sizes = computed(() =>
+    sizeOptionsFromFacets(this.facets(), this.filterState().sizes),
+  );
   readonly colors = computed(() =>
     colorOptionsFromFacets(this.facets(), this.filterState().colors),
   );

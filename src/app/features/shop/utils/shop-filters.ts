@@ -133,7 +133,10 @@ export function buildCatalogBrowseOptions(input: {
     .filter((id): id is string => Boolean(id));
 
   if (panelCategoryIds.length > 0 && scopedIds.length === 0) {
-    filterParts.push(panelCategoryIds.map((id) => `categoryIds:${id}`).join(' OR '));
+    // Parenthesize OR so AND with onSale/inStock/gender does not widen the match.
+    filterParts.push(
+      `(${panelCategoryIds.map((id) => `categoryIds:${id}`).join(' OR ')})`,
+    );
   } else if (panelCategoryIds.includes('bags') && tab === 'accessories' && !forceBags) {
     filterParts.push('categoryIds:bags');
   }
@@ -191,14 +194,19 @@ export function buildCatalogBrowseOptions(input: {
       'hierarchicalCategories.lvl0',
       'price',
     ],
+    disjunctiveFacets: ['brandName', 'colors', 'sizes'],
     maxValuesPerFacet: 50,
   };
 }
 
 export function brandOptionsFromFacets(
   facets: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+  selected: readonly string[] = [],
 ): readonly ShopBrandOption[] {
-  const map = facets?.['brandName'] ?? {};
+  const map = { ...(facets?.['brandName'] ?? {}) };
+  for (const name of selected) {
+    if (!(name in map)) map[name] = 0;
+  }
   return Object.entries(map)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
@@ -206,18 +214,25 @@ export function brandOptionsFromFacets(
 
 export function sizeOptionsFromFacets(
   facets: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+  selected: readonly string[] = [],
 ): readonly ShopSizeOption[] {
   const map = facets?.['sizes'] ?? {};
+  const selectedSet = new Set(selected);
   const letter: ShopSizeOption[] = [];
   for (const label of APPAREL_LETTER_SIZES) {
     const count = map[label] ?? 0;
-    if (count > 0) letter.push({ label, count });
+    if (count > 0 || selectedSet.has(label)) letter.push({ label, count });
   }
   // Sock / other apparel labels that appeared in facets (keep data labels as-is).
   const extras = Object.entries(map)
-    .filter(([label, count]) => count > 0 && !LETTER_SIZE_SET.has(label))
+    .filter(([label, count]) => (count > 0 || selectedSet.has(label)) && !LETTER_SIZE_SET.has(label))
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => a.label.localeCompare(b.label));
+  for (const label of selected) {
+    if (!LETTER_SIZE_SET.has(label) && !extras.some((e) => e.label === label) && !(label in map)) {
+      extras.push({ label, count: 0 });
+    }
+  }
   return [...letter, ...extras];
 }
 

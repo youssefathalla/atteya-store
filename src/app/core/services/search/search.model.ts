@@ -40,6 +40,11 @@ export interface CatalogBrowseOptions {
   readonly facetFilters?: readonly (string | readonly string[])[];
   readonly numericFilters?: readonly string[];
   readonly facets?: readonly string[];
+  /**
+   * Multi-select facets that need disjunctive counts (InstantSearch-style).
+   * Companion queries omit that attribute's facetFilters so sibling values stay selectable.
+   */
+  readonly disjunctiveFacets?: readonly string[];
   readonly maxValuesPerFacet?: number;
 }
 
