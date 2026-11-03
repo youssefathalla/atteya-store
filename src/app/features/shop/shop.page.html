@@ -17,16 +17,16 @@
     </section>
   } @else {
     <div
-      class="w-full"
-      [class.md:grid]="filtersOpen()"
-      [class.md:grid-cols-[minmax(16rem,18rem)_minmax(0,1fr)]]="filtersOpen()"
-      [class.md:gap-6]="filtersOpen()"
+      class="shop-browse-layout"
+      [class.shop-browse-layout--filters-open]="filtersOpen()"
     >
-      @if (filtersOpen()) {
-        <aside
-          class="hidden md:block sticky top-4 self-start max-h-[calc(100dvh-6rem)] overflow-y-auto pr-2"
-          aria-label="Filters"
-        >
+      <aside
+        class="shop-filters-aside"
+        aria-label="Filters"
+        [attr.aria-hidden]="!filtersOpen()"
+        [attr.inert]="filtersOpen() ? null : ''"
+      >
+        <div class="shop-filters-aside__scroll">
           <app-shop-filters
             [filters]="filterState()"
             (filtersChange)="onFiltersChange($event)"
@@ -39,10 +39,10 @@
             [showSizes]="showSizes()"
             [accessoriesSubOnly]="accessoriesSubOnly()"
           />
-        </aside>
-      }
+        </div>
+      </aside>
 
-      <div class="w-full elements-start-col gap-6 min-w-0">
+      <div class="shop-browse-results">
         @if (resultsResource.error()) {
           <section class="py-12 text-center surface-card p-8" role="alert">
             <h2 class="font-title-md font-bold! mb-1">We couldn't load products</h2>

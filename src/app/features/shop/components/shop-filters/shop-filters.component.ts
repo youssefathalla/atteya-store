@@ -1,4 +1,13 @@
-import { Component, computed, input, model } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  model,
+  signal,
+} from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatRadioModule } from '@angular/material/radio';
 import type { ColorId } from '@core/services/products/catalog-taxonomy';
@@ -18,6 +27,9 @@ import {
   type ShopTabId,
 } from '../../models/shop.model';
 import { toggleListValue } from '../../utils/shop-filters';
+
+/** Debounce price range commits so dragging does not thrash the router. */
+const PRICE_COMMIT_MS = 200;
 
 @Component({
   selector: 'app-shop-filters',
@@ -40,6 +52,14 @@ export class ShopFiltersComponent {
   readonly sortOptions = SHOP_SORT_OPTIONS;
   readonly genderOptions = SHOP_GENDER_OPTIONS;
 
+  /** Local drafts so the range thumbs move smoothly while the URL catches up. */
+  readonly draftMin = signal(0);
+  readonly draftMax = signal(0);
+
+  readonly #destroyRef = inject(DestroyRef);
+  #priceTimer: ReturnType<typeof setTimeout> | null = null;
+  #priceDragging = false;
+
   readonly categoryOptions = computed(() => {
     if (this.accessoriesSubOnly()) {
       return SHOP_CATEGORY_OPTIONS.filter((o) => o.id === 'bags');
@@ -50,19 +70,22 @@ export class ShopFiltersComponent {
 
   readonly showCategorySection = computed(() => this.categoryOptions().length > 0);
 
-  readonly priceMinLabel = computed(() =>
-    formatMoney(this.filters().priceMin ?? this.priceBounds().min, 'EGP', 0),
-  );
-  readonly priceMaxLabel = computed(() =>
-    formatMoney(this.filters().priceMax ?? this.priceBounds().max, 'EGP', 0),
-  );
+  readonly priceMinLabel = computed(() => formatMoney(this.draftMin(), 'EGP', 0));
+  readonly priceMaxLabel = computed(() => formatMoney(this.draftMax(), 'EGP', 0));
 
-  readonly draftMin = computed(
-    () => this.filters().priceMin ?? this.priceBounds().min,
-  );
-  readonly draftMax = computed(
-    () => this.filters().priceMax ?? this.priceBounds().max,
-  );
+  constructor() {
+    effect(() => {
+      const bounds = this.priceBounds();
+      const state = this.filters();
+      if (this.#priceDragging) return;
+      this.draftMin.set(state.priceMin ?? bounds.min);
+      this.draftMax.set(state.priceMax ?? bounds.max);
+    });
+
+    this.#destroyRef.onDestroy(() => {
+      if (this.#priceTimer !== null) clearTimeout(this.#priceTimer);
+    });
+  }
 
   setSort(sort: ShopFilterState['sort']): void {
     this.#emit({ ...this.filters(), sort, page: 0 });
@@ -119,25 +142,43 @@ export class ShopFiltersComponent {
   onPriceMinInput(event: Event): void {
     const value = Number((event.target as HTMLInputElement).value);
     if (!Number.isFinite(value)) return;
-    const max = this.draftMax();
-    const next = Math.min(value, max);
-    const bounds = this.priceBounds();
-    this.#emit({
-      ...this.filters(),
-      priceMin: next <= bounds.min ? null : next,
-      page: 0,
-    });
+    const next = Math.min(value, this.draftMax());
+    this.#priceDragging = true;
+    this.draftMin.set(next);
+    this.#schedulePriceCommit();
   }
 
   onPriceMaxInput(event: Event): void {
     const value = Number((event.target as HTMLInputElement).value);
     if (!Number.isFinite(value)) return;
-    const min = this.draftMin();
-    const next = Math.max(value, min);
+    const next = Math.max(value, this.draftMin());
+    this.#priceDragging = true;
+    this.draftMax.set(next);
+    this.#schedulePriceCommit();
+  }
+
+  onPriceCommit(): void {
+    this.#flushPriceCommit();
+  }
+
+  #schedulePriceCommit(): void {
+    if (this.#priceTimer !== null) clearTimeout(this.#priceTimer);
+    this.#priceTimer = setTimeout(() => this.#flushPriceCommit(), PRICE_COMMIT_MS);
+  }
+
+  #flushPriceCommit(): void {
+    if (this.#priceTimer !== null) {
+      clearTimeout(this.#priceTimer);
+      this.#priceTimer = null;
+    }
     const bounds = this.priceBounds();
+    const min = this.draftMin();
+    const max = this.draftMax();
+    this.#priceDragging = false;
     this.#emit({
       ...this.filters(),
-      priceMax: next >= bounds.max ? null : next,
+      priceMin: min <= bounds.min ? null : min,
+      priceMax: max >= bounds.max ? null : max,
       page: 0,
     });
   }

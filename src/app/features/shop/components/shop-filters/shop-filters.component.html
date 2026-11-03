@@ -48,7 +48,7 @@
   @if (brands().length > 0) {
     <section class="shop-filters-section">
       <h2 class="shop-filters-heading">Brand</h2>
-      <div class="elements-start-col gap-1 max-h-64 overflow-y-auto">
+      <div class="elements-start-col gap-1">
         @for (brand of brands(); track brand.name) {
           <mat-checkbox
             [checked]="filters().brands.includes(brand.name)"
@@ -119,6 +119,7 @@
           [value]="draftMin()"
           step="1"
           (input)="onPriceMinInput($event)"
+          (change)="onPriceCommit()"
           aria-label="Minimum price in Egyptian pounds"
         />
       </label>
@@ -131,6 +132,7 @@
           [value]="draftMax()"
           step="1"
           (input)="onPriceMaxInput($event)"
+          (change)="onPriceCommit()"
           aria-label="Maximum price in Egyptian pounds"
         />
       </label>

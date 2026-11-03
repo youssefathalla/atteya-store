@@ -249,7 +249,7 @@ export class ShopPage {
 
   goToPage(nextPage: number): void {
     if (nextPage < 0 || nextPage >= this.totalPages()) return;
-    void this.#navigate({ ...this.filterState(), page: nextPage });
+    void this.#navigate({ ...this.filterState(), page: nextPage }, false);
   }
 
   #preconnectAlgolia(): void {
@@ -264,7 +264,11 @@ export class ShopPage {
     head.appendChild(link);
   }
 
-  async #navigate(state: ShopFilterState): Promise<void> {
+  /**
+   * @param preserveScroll When true (default), skip router scroll restoration so
+   * filter tweaks (esp. price drag) do not jump the viewport to the top.
+   */
+  async #navigate(state: ShopFilterState, preserveScroll = true): Promise<void> {
     const tab = this.activeTab();
     const path =
       this.forceBags()
@@ -275,6 +279,7 @@ export class ShopPage {
       queryParams: shopFiltersToQueryParams(state),
       queryParamsHandling: 'merge',
       replaceUrl: true,
+      ...(preserveScroll ? { scroll: 'manual' as const } : {}),
     });
   }
 }
