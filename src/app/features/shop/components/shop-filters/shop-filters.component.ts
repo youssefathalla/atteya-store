@@ -1,6 +1,16 @@
-import { Component, computed, input, model } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  model,
+  signal,
+} from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatSliderModule } from '@angular/material/slider';
 import type { ColorId } from '@core/services/products/catalog-taxonomy';
 import { formatMoney } from '@shared/utils/money';
 import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
@@ -19,10 +29,13 @@ import {
 } from '../../models/shop.model';
 import { toggleListValue } from '../../utils/shop-filters';
 
+/** Debounce after the last thumb move before writing the URL / browsing. */
+const PRICE_COMMIT_MS = 180;
+
 @Component({
   selector: 'app-shop-filters',
   host: { class: 'block w-full' },
-  imports: [MatCheckboxModule, MatRadioModule, ColorSwatchComponent],
+  imports: [MatCheckboxModule, MatRadioModule, MatSliderModule, ColorSwatchComponent],
   templateUrl: './shop-filters.component.html',
 })
 export class ShopFiltersComponent {
@@ -40,6 +53,14 @@ export class ShopFiltersComponent {
   readonly sortOptions = SHOP_SORT_OPTIONS;
   readonly genderOptions = SHOP_GENDER_OPTIONS;
 
+  /** Local drafts so thumbs move smoothly while the URL catches up. */
+  readonly draftMin = signal(0);
+  readonly draftMax = signal(0);
+
+  readonly #destroyRef = inject(DestroyRef);
+  #priceTimer: ReturnType<typeof setTimeout> | null = null;
+  #priceDragging = false;
+
   readonly categoryOptions = computed(() => {
     if (this.accessoriesSubOnly()) {
       return SHOP_CATEGORY_OPTIONS.filter((o) => o.id === 'bags');
@@ -50,19 +71,24 @@ export class ShopFiltersComponent {
 
   readonly showCategorySection = computed(() => this.categoryOptions().length > 0);
 
-  readonly priceMinLabel = computed(() =>
-    formatMoney(this.filters().priceMin ?? this.priceBounds().min, 'EGP', 0),
-  );
-  readonly priceMaxLabel = computed(() =>
-    formatMoney(this.filters().priceMax ?? this.priceBounds().max, 'EGP', 0),
-  );
+  readonly priceMinLabel = computed(() => formatMoney(this.draftMin(), 'EGP', 0));
+  readonly priceMaxLabel = computed(() => formatMoney(this.draftMax(), 'EGP', 0));
 
-  readonly draftMin = computed(
-    () => this.filters().priceMin ?? this.priceBounds().min,
-  );
-  readonly draftMax = computed(
-    () => this.filters().priceMax ?? this.priceBounds().max,
-  );
+  readonly displayPrice = (value: number): string => formatMoney(value, 'EGP', 0);
+
+  constructor() {
+    effect(() => {
+      const bounds = this.priceBounds();
+      const state = this.filters();
+      if (this.#priceDragging) return;
+      this.draftMin.set(state.priceMin ?? bounds.min);
+      this.draftMax.set(state.priceMax ?? bounds.max);
+    });
+
+    this.#destroyRef.onDestroy(() => {
+      if (this.#priceTimer !== null) clearTimeout(this.#priceTimer);
+    });
+  }
 
   setSort(sort: ShopFilterState['sort']): void {
     this.#emit({ ...this.filters(), sort, page: 0 });
@@ -116,28 +142,42 @@ export class ShopFiltersComponent {
     this.#emit({ ...this.filters(), inStock: checked, page: 0 });
   }
 
-  onPriceMinInput(event: Event): void {
-    const value = Number((event.target as HTMLInputElement).value);
+  onPriceMinInput(value: number): void {
     if (!Number.isFinite(value)) return;
-    const max = this.draftMax();
-    const next = Math.min(value, max);
-    const bounds = this.priceBounds();
-    this.#emit({
-      ...this.filters(),
-      priceMin: next <= bounds.min ? null : next,
-      page: 0,
-    });
+    this.#priceDragging = true;
+    this.draftMin.set(Math.min(value, this.draftMax()));
+    this.#schedulePriceCommit();
   }
 
-  onPriceMaxInput(event: Event): void {
-    const value = Number((event.target as HTMLInputElement).value);
+  onPriceMaxInput(value: number): void {
     if (!Number.isFinite(value)) return;
-    const min = this.draftMin();
-    const next = Math.max(value, min);
+    this.#priceDragging = true;
+    this.draftMax.set(Math.max(value, this.draftMin()));
+    this.#schedulePriceCommit();
+  }
+
+  onPriceDragEnd(): void {
+    this.#flushPriceCommit();
+  }
+
+  #schedulePriceCommit(): void {
+    if (this.#priceTimer !== null) clearTimeout(this.#priceTimer);
+    this.#priceTimer = setTimeout(() => this.#flushPriceCommit(), PRICE_COMMIT_MS);
+  }
+
+  #flushPriceCommit(): void {
+    if (this.#priceTimer !== null) {
+      clearTimeout(this.#priceTimer);
+      this.#priceTimer = null;
+    }
     const bounds = this.priceBounds();
+    const min = this.draftMin();
+    const max = this.draftMax();
+    this.#priceDragging = false;
     this.#emit({
       ...this.filters(),
-      priceMax: next >= bounds.max ? null : next,
+      priceMin: min <= bounds.min ? null : min,
+      priceMax: max >= bounds.max ? null : max,
       page: 0,
     });
   }

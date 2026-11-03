@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, resource } from '@angular/core';
+import { Component, computed, effect, inject, input, resource, signal } from '@angular/core';
 import { AuthService } from '@core/services/auth/auth.service';
 import { displayPrice, type PricedProduct } from '@core/services/offers/engine';
 import { OffersService } from '@core/services/offers/offers.service';
@@ -37,6 +37,11 @@ export class ShopGridComponent {
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);
 
+  /** Keep last sibling map while the resource reloads so cards do not flash empty. */
+  readonly #stableSiblings = signal<ReadonlyMap<string, readonly ProductCardSibling[]>>(
+    new Map(),
+  );
+
   readonly #siblingsResource = resource({
     params: () => uniqueModelGroups(this.hits().map((hit) => hit.modelGroup)),
     loader: async ({ params }) => {
@@ -50,10 +55,7 @@ export class ShopGridComponent {
   });
 
   readonly siblingsByGroup = computed(
-    (): ReadonlyMap<string, readonly ProductCardSibling[]> => {
-      if (!this.#siblingsResource.hasValue()) return new Map();
-      return siblingGroupsMap(this.#siblingsResource.value());
-    },
+    (): ReadonlyMap<string, readonly ProductCardSibling[]> => this.#stableSiblings(),
   );
 
   readonly cardPrices = computed<ReadonlyMap<string, ProductCardPrice>>(() => {
@@ -124,4 +126,11 @@ export class ShopGridComponent {
       return [searchHitToCardData(hit, price, siblings)];
     });
   });
+
+  constructor() {
+    effect(() => {
+      if (!this.#siblingsResource.hasValue()) return;
+      this.#stableSiblings.set(siblingGroupsMap(this.#siblingsResource.value()));
+    });
+  }
 }
