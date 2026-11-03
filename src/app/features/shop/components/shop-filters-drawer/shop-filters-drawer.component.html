@@ -1,0 +1,42 @@
+<div
+  class="fixed inset-0 z-40 flex flex-col bg-surface h-dvh w-full transition-transform duration-200 ease-out md:hidden pb-safe-drawer"
+  [class.translate-y-0]="open()"
+  [class.translate-y-full]="!open()"
+  [class.pointer-events-auto]="open()"
+  [class.pointer-events-none]="!open()"
+  [attr.aria-hidden]="!open()"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Filters"
+>
+  <header
+    class="shrink-0 elements-between px-5 pt-safe-top pb-4 border-b border-outline-variant bg-surface-container-lowest"
+  >
+    <h2 class="font-title-md font-bold!">Filters</h2>
+    <button matIconButton type="button" aria-label="Close filters" (click)="closed.emit()">
+      <mat-icon name="close" />
+    </button>
+  </header>
+
+  <div class="flex-1 min-h-0 overflow-y-auto p-5">
+    <app-shop-filters
+      [(filters)]="filters"
+      [tab]="tab()"
+      [brands]="brands()"
+      [sizes]="sizes()"
+      [colors]="colors()"
+      [priceBounds]="priceBounds()"
+      [showGender]="showGender()"
+      [showSizes]="showSizes()"
+      [accessoriesSubOnly]="accessoriesSubOnly()"
+    />
+  </div>
+
+  <footer class="shrink-0 p-4 border-t border-outline-variant bg-surface">
+    <div class="w-full">
+      <button matButton="filled" type="button" (click)="closed.emit()">
+        <span>See results</span>
+      </button>
+    </div>
+  </footer>
+</div>

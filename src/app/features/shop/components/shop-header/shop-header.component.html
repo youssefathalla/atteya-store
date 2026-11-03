@@ -1,0 +1,32 @@
+<header class="w-full elements-start-col gap-6 select-none">
+  <h1 class="font-display-md font-bold! uppercase tracking-tight">{{ title() }}</h1>
+
+  <nav aria-label="Shop categories" class="flex items-center gap-2 flex-wrap">
+    @for (tab of tabs; track tab.id) {
+      @if (activeTab() === tab.id) {
+        <a matButton="tonal" [routerLink]="tab.path" [attr.aria-current]="'page'">
+          <span>{{ tab.label }}</span>
+        </a>
+      } @else {
+        <a matButton [routerLink]="tab.path">
+          <span>{{ tab.label }}</span>
+        </a>
+      }
+    }
+  </nav>
+
+  <div class="w-full elements-between gap-4 border-y border-outline-variant py-3">
+    @if (showFiltersToggle()) {
+      <button matButton="outlined" type="button" (click)="filtersToggle.emit()">
+        <mat-icon name="filter_list" />
+        <span>{{ filtersOpen() ? 'Hide filters' : 'Show filters' }}</span>
+      </button>
+    } @else {
+      <span></span>
+    }
+
+    @if (resultsLabel(); as label) {
+      <p class="font-label-sm uppercase tracking-wider opacity-70">{{ label }}</p>
+    }
+  </div>
+</header>

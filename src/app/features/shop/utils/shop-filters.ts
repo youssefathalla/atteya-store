@@ -1,0 +1,292 @@
+import { COLOR_PALETTE, type ColorId } from '@core/services/products/catalog-taxonomy';
+import type { CatalogBrowseOptions } from '@core/services/search';
+import {
+  APPAREL_LETTER_SIZES,
+  DEFAULT_SHOP_FILTERS,
+  SHOP_CATEGORY_OPTIONS,
+  SHOP_COLOR_IDS,
+  type ShopBrandOption,
+  type ShopCategoryFilterId,
+  type ShopColorOption,
+  type ShopFilterState,
+  type ShopGenderFilterId,
+  type ShopSizeOption,
+  type ShopTabId,
+} from '../models/shop.model';
+
+const COLOR_ID_SET = new Set<string>(SHOP_COLOR_IDS);
+const CATEGORY_ID_SET = new Set<string>(SHOP_CATEGORY_OPTIONS.map((o) => o.id));
+const GENDER_ID_SET = new Set<string>(['women', 'men', 'kids']);
+const LETTER_SIZE_SET = new Set<string>(APPAREL_LETTER_SIZES);
+
+/** Route scope for a shop tab (always applied, not toggled in the panel). */
+export function tabCategoryIds(tab: ShopTabId): readonly string[] {
+  if (tab === 'all') return [];
+  return [tab];
+}
+
+export function resolveShopTab(
+  shopCategory: string | undefined,
+  shopSubcategory: string | undefined,
+): ShopTabId {
+  const cat = (shopCategory ?? '').trim().toLowerCase();
+  const sub = (shopSubcategory ?? '').trim().toLowerCase();
+  if (sub === 'bags' || cat === 'bags') return 'accessories';
+  if (cat === 'apparel') return 'apparel';
+  if (cat === 'accessories') return 'accessories';
+  if (cat === 'rackets' || cat === 'padel') return 'rackets';
+  return 'all';
+}
+
+export function parseShopFilterState(input: {
+  readonly sort?: string | null;
+  readonly category?: string | null;
+  readonly brand?: string | null;
+  readonly size?: string | null;
+  readonly color?: string | null;
+  readonly gender?: string | null;
+  readonly priceMin?: string | null;
+  readonly priceMax?: string | null;
+  readonly onSale?: string | null;
+  readonly inStock?: string | null;
+  readonly page?: string | null;
+  readonly bags?: string | null;
+}): ShopFilterState {
+  const sort =
+    input.sort === 'newest' || input.sort === 'price-asc' || input.sort === 'price-desc'
+      ? input.sort
+      : 'featured';
+
+  const categories = parseList(input.category).filter((id): id is ShopCategoryFilterId =>
+    CATEGORY_ID_SET.has(id),
+  );
+  if (isTruthyParam(input.bags) && !categories.includes('bags')) {
+    categories.push('bags');
+  }
+
+  const colors = parseList(input.color).filter((id): id is ColorId => COLOR_ID_SET.has(id));
+  const genders = parseList(input.gender).filter((id): id is ShopGenderFilterId =>
+    GENDER_ID_SET.has(id),
+  );
+
+  return {
+    sort,
+    categories,
+    brands: parseList(input.brand),
+    sizes: parseList(input.size),
+    colors,
+    genders,
+    priceMin: parseOptionalInt(input.priceMin),
+    priceMax: parseOptionalInt(input.priceMax),
+    onSale: isTruthyParam(input.onSale),
+    inStock: isTruthyParam(input.inStock),
+    page: Math.max(0, parseOptionalInt(input.page) ?? 0),
+  };
+}
+
+export function shopFiltersToQueryParams(
+  state: ShopFilterState,
+): Record<string, string | null> {
+  return {
+    sort: state.sort === 'featured' ? null : state.sort,
+    category: state.categories.length > 0 ? state.categories.join(',') : null,
+    brand: state.brands.length > 0 ? state.brands.join(',') : null,
+    size: state.sizes.length > 0 ? state.sizes.join(',') : null,
+    color: state.colors.length > 0 ? state.colors.join(',') : null,
+    gender: state.genders.length > 0 ? state.genders.join(',') : null,
+    priceMin: state.priceMin !== null ? String(state.priceMin) : null,
+    priceMax: state.priceMax !== null ? String(state.priceMax) : null,
+    onSale: state.onSale ? '1' : null,
+    inStock: state.inStock ? '1' : null,
+    page: state.page > 0 ? String(state.page) : null,
+  };
+}
+
+/**
+ * Build Algolia browse options from the active tab + panel filters.
+ * Tab scope is AND-ed; panel category checkboxes OR within the group.
+ */
+export function buildCatalogBrowseOptions(input: {
+  readonly tab: ShopTabId;
+  readonly filters: ShopFilterState;
+  readonly hitsPerPage?: number;
+  /** When bags is forced by the route (`/category/accessories/bags`). */
+  readonly forceBags?: boolean;
+}): CatalogBrowseOptions {
+  const { tab, filters, forceBags = false } = input;
+  const filterParts: string[] = [];
+  const facetFilters: (string | readonly string[])[] = [];
+
+  const scopedIds = [...tabCategoryIds(tab)];
+  if (forceBags && !scopedIds.includes('bags')) {
+    // Bags is under accessories: require bags leaf (implies accessories tree).
+    scopedIds.length = 0;
+    scopedIds.push('bags');
+  }
+
+  for (const id of scopedIds) {
+    filterParts.push(`categoryIds:${id}`);
+  }
+
+  const panelCategoryIds = filters.categories
+    .map((id) => SHOP_CATEGORY_OPTIONS.find((o) => o.id === id)?.categoryId)
+    .filter((id): id is string => Boolean(id));
+
+  if (panelCategoryIds.length > 0 && scopedIds.length === 0) {
+    filterParts.push(panelCategoryIds.map((id) => `categoryIds:${id}`).join(' OR '));
+  } else if (panelCategoryIds.includes('bags') && tab === 'accessories' && !forceBags) {
+    filterParts.push('categoryIds:bags');
+  }
+
+  if (filters.brands.length > 0) {
+    facetFilters.push(filters.brands.map((name) => `brandName:${name}`));
+  }
+
+  if (filters.sizes.length > 0) {
+    facetFilters.push(filters.sizes.map((size) => `sizes:${size}`));
+  }
+
+  if (filters.colors.length > 0) {
+    facetFilters.push(filters.colors.map((color) => `colors:${color}`));
+  }
+
+  if (filters.genders.length > 0) {
+    // Missing gender should still match (treated as unisex). Index may omit the field.
+    const genderClause = [
+      ...filters.genders.map((g) => `gender:${g}`),
+      'gender:unisex',
+    ].join(' OR ');
+    filterParts.push(`(${genderClause})`);
+  }
+
+  if (filters.onSale) {
+    filterParts.push('onSale:true');
+  }
+
+  if (filters.inStock) {
+    filterParts.push('inStock:true');
+  }
+
+  const numericFilters: string[] = [];
+  if (filters.priceMin !== null) {
+    numericFilters.push(`price>=${filters.priceMin}`);
+  }
+  if (filters.priceMax !== null) {
+    numericFilters.push(`price<=${filters.priceMax}`);
+  }
+
+  return {
+    page: filters.page,
+    hitsPerPage: input.hitsPerPage ?? 48,
+    sort: filters.sort,
+    filters: filterParts.length > 0 ? filterParts.join(' AND ') : undefined,
+    facetFilters: facetFilters.length > 0 ? facetFilters : undefined,
+    numericFilters: numericFilters.length > 0 ? numericFilters : undefined,
+    facets: [
+      'brandName',
+      'colors',
+      'sizes',
+      'onSale',
+      'gender',
+      'hierarchicalCategories.lvl0',
+      'price',
+    ],
+    maxValuesPerFacet: 50,
+  };
+}
+
+export function brandOptionsFromFacets(
+  facets: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+): readonly ShopBrandOption[] {
+  const map = facets?.['brandName'] ?? {};
+  return Object.entries(map)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+export function sizeOptionsFromFacets(
+  facets: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+): readonly ShopSizeOption[] {
+  const map = facets?.['sizes'] ?? {};
+  const letter: ShopSizeOption[] = [];
+  for (const label of APPAREL_LETTER_SIZES) {
+    const count = map[label] ?? 0;
+    if (count > 0) letter.push({ label, count });
+  }
+  // Sock / other apparel labels that appeared in facets (keep data labels as-is).
+  const extras = Object.entries(map)
+    .filter(([label, count]) => count > 0 && !LETTER_SIZE_SET.has(label))
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  return [...letter, ...extras];
+}
+
+export function colorOptionsFromFacets(
+  facets: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+  selected: readonly ColorId[],
+): readonly ShopColorOption[] {
+  const map = facets?.['colors'] ?? {};
+  const selectedSet = new Set(selected);
+  const options: ShopColorOption[] = [];
+
+  for (const id of SHOP_COLOR_IDS) {
+    const count = map[id] ?? 0;
+    // Always surface Multi (and other shop colours) once any colour facet exists,
+    // or when already selected — Multi may have 0 indexed products today.
+    if (count > 0 || selectedSet.has(id) || (id === 'multi' && Object.keys(map).length > 0)) {
+      const label = COLOR_PALETTE.find((entry) => entry.id === id)?.label ?? id;
+      options.push({ id, label, count });
+    }
+  }
+  return options;
+}
+
+export function genderFacetHasData(
+  facets: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+): boolean {
+  const map = facets?.['gender'];
+  if (!map) return false;
+  return Object.values(map).some((count) => count > 0);
+}
+
+export function hasApparelSizes(
+  facets: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+): boolean {
+  const map = facets?.['sizes'] ?? {};
+  return APPAREL_LETTER_SIZES.some((size) => (map[size] ?? 0) > 0);
+}
+
+export function toggleListValue<T extends string>(list: readonly T[], value: T): T[] {
+  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+}
+
+export function filtersEqual(a: ShopFilterState, b: ShopFilterState): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+export function resetShopFilters(keepSort = false): ShopFilterState {
+  return {
+    ...DEFAULT_SHOP_FILTERS,
+    sort: keepSort ? DEFAULT_SHOP_FILTERS.sort : DEFAULT_SHOP_FILTERS.sort,
+  };
+}
+
+function parseList(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+function parseOptionalInt(raw: string | null | undefined): number | null {
+  if (raw === null || raw === undefined || raw.trim() === '') return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function isTruthyParam(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  const v = raw.trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
+}

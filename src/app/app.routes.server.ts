@@ -5,6 +5,11 @@ const GEO_PRICED_HTML_CACHE = 'private, no-store';
 
 export const serverRoutes: ServerRoute[] = [
   {
+    path: 'shop',
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
+  },
+  {
     path: 'category/**',
     renderMode: RenderMode.Server,
     headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
