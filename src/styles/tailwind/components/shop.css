@@ -4,58 +4,55 @@
     @apply grid grid-cols-2 md:grid-cols-3 gap-0.5 w-full;
   }
 
-  /**
-   * Desktop browse shell: collapses the filter column to 0fr when closed,
-   * animates open with extra gap so the grid is not flush against the panel.
-   */
+  /** Desktop browse: results flex; filter column mounts with a short fade/slide. */
   .shop-browse-layout {
-    @apply w-full;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    column-gap: 0;
+    @apply w-full flex items-start;
+    gap: 0;
   }
 
   @media (min-width: 768px) {
-    .shop-browse-layout {
-      grid-template-columns: 0fr minmax(0, 1fr);
-      transition:
-        grid-template-columns 280ms ease,
-        column-gap 280ms ease;
-    }
-
     .shop-browse-layout--filters-open {
-      grid-template-columns: minmax(16rem, 18rem) minmax(0, 1fr);
-      column-gap: 2.5rem;
-    }
-  }
-
-  @media (min-width: 768px) and (prefers-reduced-motion: reduce) {
-    .shop-browse-layout {
-      transition: none;
+      gap: 2.5rem;
     }
   }
 
   .shop-filters-aside {
-    @apply hidden min-w-0 overflow-hidden;
+    @apply hidden min-w-0;
   }
 
   @media (min-width: 768px) {
-    .shop-filters-aside {
+    .shop-browse-layout--filters-open .shop-filters-aside {
       display: block;
+      width: 18rem;
+      flex-shrink: 0;
+      animation: shop-filters-in 220ms ease;
+    }
+  }
+
+  @keyframes shop-filters-in {
+    from {
+      opacity: 0;
+      transform: translateX(-0.75rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shop-browse-layout--filters-open .shop-filters-aside {
+      animation: none;
     }
   }
 
   /** Constrained, independently scrolling filter column (AS-90). */
   .shop-filters-aside__scroll {
-    @apply sticky top-4 self-start pr-1;
-    /* Fixed width so the 0fr closed track can collapse without content min-size fighting it. */
-    width: 18rem;
-    max-width: 100%;
+    @apply w-full sticky top-4 self-start;
     max-height: calc(100dvh - 6rem);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-gutter: stable;
     scrollbar-width: thin;
     scrollbar-color: var(--mat-sys-outline-variant) transparent;
   }
@@ -74,15 +71,21 @@
   }
 
   .shop-browse-results {
-    @apply w-full elements-start-col gap-6 min-w-0;
+    @apply w-full elements-start-col gap-6 min-w-0 flex-1;
   }
 
+  .shop-browse-results--refreshing {
+    @apply opacity-70;
+    transition: opacity 160ms ease;
+  }
+
+  /** On Running–style density: tighter section rhythm than the default card stack. */
   .shop-filters-panel {
-    @apply w-full elements-start-col gap-8;
+    @apply w-full elements-start-col gap-5;
   }
 
   .shop-filters-section {
-    @apply w-full elements-start-col gap-3;
+    @apply w-full elements-start-col gap-2;
   }
 
   .shop-filters-heading {
@@ -90,34 +93,40 @@
   }
 
   .shop-size-grid {
-    @apply grid grid-cols-3 gap-2 w-full;
+    @apply grid grid-cols-3 gap-1.5 w-full;
   }
 
   .shop-size-btn {
-    @apply min-h-10 px-2 border border-outline-variant border-shape font-label-md font-mono elements-center hover:bg-surface-container transition-colors;
+    @apply min-h-9 px-1.5 border border-outline-variant border-shape font-label-md font-mono elements-center hover:bg-surface-container transition-colors;
   }
 
   .shop-size-btn--active {
     @apply bg-primary text-on-primary border-primary;
   }
 
+  /** Always 2-col colour grid (panel is ~18rem); compact swatch + label + count. */
   .shop-color-grid {
-    @apply grid grid-cols-1 sm:grid-cols-2 gap-2 w-full;
+    @apply grid grid-cols-2 gap-x-3 gap-y-1.5 w-full;
   }
 
   .shop-color-row {
-    @apply elements-center gap-3 w-full min-h-10 px-1 border-shape hover:bg-surface-container transition-colors text-start;
+    @apply elements-center gap-2 w-full min-h-9 py-0.5 border-shape hover:bg-surface-container transition-colors text-start;
   }
 
   .shop-color-row--active {
     @apply bg-surface-container;
   }
 
-  .shop-price-inputs {
-    @apply elements-center gap-3 w-full;
+  /** Chunky swatches — larger than card chips, still dense in a 2-col row. */
+  .shop-color-swatch {
+    @apply size-8 shrink-0;
   }
 
-  .shop-price-inputs input[type='range'] {
-    @apply w-full accent-primary;
+  .shop-price-inputs {
+    @apply w-full elements-start-col gap-1;
+  }
+
+  .shop-price-inputs mat-slider {
+    width: 100%;
   }
 }

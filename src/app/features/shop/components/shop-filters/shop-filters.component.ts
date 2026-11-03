@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatSliderModule } from '@angular/material/slider';
 import type { ColorId } from '@core/services/products/catalog-taxonomy';
 import { formatMoney } from '@shared/utils/money';
 import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
@@ -28,13 +29,13 @@ import {
 } from '../../models/shop.model';
 import { toggleListValue } from '../../utils/shop-filters';
 
-/** Debounce price range commits so dragging does not thrash the router. */
-const PRICE_COMMIT_MS = 200;
+/** Debounce after the last thumb move before writing the URL / browsing. */
+const PRICE_COMMIT_MS = 180;
 
 @Component({
   selector: 'app-shop-filters',
   host: { class: 'block w-full' },
-  imports: [MatCheckboxModule, MatRadioModule, ColorSwatchComponent],
+  imports: [MatCheckboxModule, MatRadioModule, MatSliderModule, ColorSwatchComponent],
   templateUrl: './shop-filters.component.html',
 })
 export class ShopFiltersComponent {
@@ -52,7 +53,7 @@ export class ShopFiltersComponent {
   readonly sortOptions = SHOP_SORT_OPTIONS;
   readonly genderOptions = SHOP_GENDER_OPTIONS;
 
-  /** Local drafts so the range thumbs move smoothly while the URL catches up. */
+  /** Local drafts so thumbs move smoothly while the URL catches up. */
   readonly draftMin = signal(0);
   readonly draftMax = signal(0);
 
@@ -72,6 +73,8 @@ export class ShopFiltersComponent {
 
   readonly priceMinLabel = computed(() => formatMoney(this.draftMin(), 'EGP', 0));
   readonly priceMaxLabel = computed(() => formatMoney(this.draftMax(), 'EGP', 0));
+
+  readonly displayPrice = (value: number): string => formatMoney(value, 'EGP', 0);
 
   constructor() {
     effect(() => {
@@ -139,25 +142,21 @@ export class ShopFiltersComponent {
     this.#emit({ ...this.filters(), inStock: checked, page: 0 });
   }
 
-  onPriceMinInput(event: Event): void {
-    const value = Number((event.target as HTMLInputElement).value);
+  onPriceMinInput(value: number): void {
     if (!Number.isFinite(value)) return;
-    const next = Math.min(value, this.draftMax());
     this.#priceDragging = true;
-    this.draftMin.set(next);
+    this.draftMin.set(Math.min(value, this.draftMax()));
     this.#schedulePriceCommit();
   }
 
-  onPriceMaxInput(event: Event): void {
-    const value = Number((event.target as HTMLInputElement).value);
+  onPriceMaxInput(value: number): void {
     if (!Number.isFinite(value)) return;
-    const next = Math.max(value, this.draftMin());
     this.#priceDragging = true;
-    this.draftMax.set(next);
+    this.draftMax.set(Math.max(value, this.draftMin()));
     this.#schedulePriceCommit();
   }
 
-  onPriceCommit(): void {
+  onPriceDragEnd(): void {
     this.#flushPriceCommit();
   }
 

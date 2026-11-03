@@ -20,29 +20,29 @@
       class="shop-browse-layout"
       [class.shop-browse-layout--filters-open]="filtersOpen()"
     >
-      <aside
-        class="shop-filters-aside"
-        aria-label="Filters"
-        [attr.aria-hidden]="!filtersOpen()"
-        [attr.inert]="filtersOpen() ? null : ''"
-      >
-        <div class="shop-filters-aside__scroll">
-          <app-shop-filters
-            [filters]="filterState()"
-            (filtersChange)="onFiltersChange($event)"
-            [tab]="activeTab()"
-            [brands]="brands()"
-            [sizes]="sizes()"
-            [colors]="colors()"
-            [priceBounds]="priceBounds()"
-            [showGender]="showGender()"
-            [showSizes]="showSizes()"
-            [accessoriesSubOnly]="accessoriesSubOnly()"
-          />
-        </div>
-      </aside>
+      @if (filtersOpen()) {
+        <aside class="shop-filters-aside" aria-label="Filters">
+          <div class="shop-filters-aside__scroll">
+            <app-shop-filters
+              [filters]="filterState()"
+              (filtersChange)="onFiltersChange($event)"
+              [tab]="activeTab()"
+              [brands]="brands()"
+              [sizes]="sizes()"
+              [colors]="colors()"
+              [priceBounds]="priceBounds()"
+              [showGender]="showGender()"
+              [showSizes]="showSizes()"
+              [accessoriesSubOnly]="accessoriesSubOnly()"
+            />
+          </div>
+        </aside>
+      }
 
-      <div class="shop-browse-results">
+      <div
+        class="shop-browse-results"
+        [class.shop-browse-results--refreshing]="isRefreshing()"
+      >
         @if (resultsResource.error()) {
           <section class="py-12 text-center surface-card p-8" role="alert">
             <h2 class="font-title-md font-bold! mb-1">We couldn't load products</h2>
@@ -53,6 +53,13 @@
               <span>Try again</span>
             </button>
           </section>
+        } @else if (isLoading()) {
+          <app-shop-grid
+            [hits]="[]"
+            [loading]="true"
+            [hydrated]="hydrated()"
+            [nowMs]="nowMs()"
+          />
         } @else if (showEmpty()) {
           <section class="py-12 text-center surface-card p-8">
             <div class="size-16 border-shape bg-surface-container elements-center mx-auto mb-4">
@@ -69,7 +76,7 @@
         } @else {
           <app-shop-grid
             [hits]="hits()"
-            [loading]="isLoading()"
+            [loading]="false"
             [hydrated]="hydrated()"
             [nowMs]="nowMs()"
           />
