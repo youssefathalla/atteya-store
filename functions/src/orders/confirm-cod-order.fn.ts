@@ -5,7 +5,7 @@ import { requireRole } from '../auth/require-role.js';
 import {
   aggregateOrderStockDemand,
   nextStockAfterDemand,
-  type OrderLineForStock,
+  parseOrderStockLines,
 } from './decrement-order-stock.js';
 
 export interface ConfirmCodOrderResponse {
@@ -46,7 +46,7 @@ export const confirmCodOrder = onCall(
         );
       }
 
-      const lines = parseOrderLines(order);
+      const lines = parseOrderStockLines(order);
       const demandByProduct = aggregateOrderStockDemand(lines);
       const productIds = [...demandByProduct.keys()];
       const productRefs = productIds.map((id) => db.collection('products').doc(id));
@@ -133,37 +133,6 @@ function assertConfirmableCodOrder(order: DocumentData): void {
       'Cash on delivery confirmation is only for Egypt orders.',
     );
   }
-}
-
-function parseOrderLines(order: DocumentData): OrderLineForStock[] {
-  const pricing = isRecord(order['pricing']) ? order['pricing'] : null;
-  const rawLines = pricing && Array.isArray(pricing['lines']) ? pricing['lines'] : null;
-  if (!rawLines || rawLines.length === 0) {
-    throw new HttpsError('failed-precondition', 'This order has no items to confirm.');
-  }
-  const lines: OrderLineForStock[] = [];
-  for (const entry of rawLines) {
-    if (!isRecord(entry)) {
-      throw new HttpsError('failed-precondition', 'This order has an invalid item.');
-    }
-    const productId = entry['productId'];
-    const quantity = entry['quantity'];
-    if (typeof productId !== 'string' || productId.length === 0) {
-      throw new HttpsError('failed-precondition', 'This order has an invalid item.');
-    }
-    if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1) {
-      throw new HttpsError('failed-precondition', 'This order has an invalid item quantity.');
-    }
-    const selectionRaw = entry['selection'];
-    const selection: Record<string, string> = {};
-    if (isRecord(selectionRaw)) {
-      for (const [key, value] of Object.entries(selectionRaw)) {
-        if (typeof value === 'string') selection[key] = value;
-      }
-    }
-    lines.push({ productId, quantity, selection });
-  }
-  return lines;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

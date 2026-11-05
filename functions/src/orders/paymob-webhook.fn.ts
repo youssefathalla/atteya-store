@@ -1,8 +1,21 @@
 import { createHash } from 'node:crypto';
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import {
+  FieldValue,
+  getFirestore,
+  type DocumentData,
+  type DocumentReference,
+  type Firestore,
+  type Transaction,
+} from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { verifyPaymobHmac } from '../paymob/hmac.js';
 import { PAYMOB_HMAC_SECRET, paymobSecrets } from '../paymob/paymob-config.js';
+import type { StockFields } from '../products/stock.js';
+import {
+  aggregateOrderStockDemand,
+  applyStockDemand,
+  parseOrderStockLines,
+} from './decrement-order-stock.js';
 
 /**
  * Paymob Transaction Processed callback (notification_url).
@@ -124,22 +137,24 @@ export const paymobWebhook = onRequest(
         }
         const expectedCents =
           typeof paymob['amountCents'] === 'number' ? paymob['amountCents'] : null;
+        // Both sides must be known and equal; a missing amount never confirms.
         if (
-          expectedCents !== null &&
-          Number.isFinite(amountCents) &&
+          expectedCents === null ||
+          !Number.isFinite(amountCents) ||
           amountCents !== expectedCents
         ) {
           tx.set(eventRef, {
             orderId,
             transactionId,
             ignored: 'amount-mismatch',
-            amountCents,
+            amountCents: Number.isFinite(amountCents) ? amountCents : null,
             expectedCents,
             receivedAt: FieldValue.serverTimestamp(),
           });
           return;
         }
-        if (currency && currency !== 'EGP') {
+        // Payable currency is always EGP; an empty or other currency never confirms.
+        if (currency !== 'EGP') {
           tx.set(eventRef, {
             orderId,
             transactionId,
@@ -149,6 +164,13 @@ export const paymobWebhook = onRequest(
           });
           return;
         }
+
+        const isFinal = data['status'] === 'confirmed' || data['status'] === 'cancelled';
+        const willConfirm = isCleanCapture && !isFinal;
+
+        // Firestore transactions need every read before any write: load the products
+        // whose stock this confirmation takes before writing the event or the order.
+        const stockPlan = willConfirm ? await planPaidOrderStock(tx, db, data) : null;
 
         const now = FieldValue.serverTimestamp();
         tx.set(eventRef, {
@@ -163,19 +185,39 @@ export const paymobWebhook = onRequest(
           receivedAt: now,
         });
 
-        if (data['status'] === 'confirmed' || data['status'] === 'cancelled') {
+        if (isFinal) {
           return;
         }
 
-        if (isCleanCapture) {
+        if (willConfirm && stockPlan) {
+          for (const update of stockPlan.updates) {
+            const patch: DocumentData = {
+              stock: update.next.stock,
+              inStock: update.next.inStock,
+              stockBySize: update.next.stockBySize ?? FieldValue.delete(),
+              updatedAt: now,
+              updatedBy: 'paymob-webhook',
+            };
+            tx.update(update.ref, patch);
+          }
+          const needsReview = stockPlan.issues.length > 0;
           tx.update(orderRef, {
             status: 'confirmed',
             'paymob.transactionId': transactionId,
             'paymob.paidAt': now,
             confirmedAt: now,
             confirmedBy: 'paymob-webhook',
+            stockDecrementedAt: now,
+            stockIssues: stockPlan.issues,
+            needsReview,
             updatedAt: now,
           });
+          if (needsReview) {
+            console.warn('Paymob order confirmed with stock issues', {
+              orderId,
+              issues: stockPlan.issues,
+            });
+          }
           return;
         }
 
@@ -197,6 +239,77 @@ export const paymobWebhook = onRequest(
     res.status(200).send('ok');
   },
 );
+
+export interface PaidOrderStockIssue {
+  readonly productId: string;
+  readonly reason: 'short' | 'unavailable';
+  readonly message: string;
+}
+
+interface PaidOrderStockPlan {
+  readonly updates: readonly { ref: DocumentReference; next: StockFields }[];
+  readonly issues: readonly PaidOrderStockIssue[];
+}
+
+/**
+ * Work out the stock writes for a paid Paymob order. The money is already taken, so
+ * nothing here may stop the confirmation: a count that is too low is floored at 0 and
+ * reported as `short`, and a product that can't be updated is reported as `unavailable`.
+ * The order is then flagged `needsReview` for an admin.
+ */
+async function planPaidOrderStock(
+  tx: Transaction,
+  db: Firestore,
+  order: DocumentData,
+): Promise<PaidOrderStockPlan> {
+  let demandByProduct: ReturnType<typeof aggregateOrderStockDemand>;
+  try {
+    demandByProduct = aggregateOrderStockDemand(parseOrderStockLines(order));
+  } catch (error: unknown) {
+    return {
+      updates: [],
+      issues: [{ productId: '', reason: 'unavailable', message: errorMessage(error) }],
+    };
+  }
+
+  const productIds = [...demandByProduct.keys()];
+  const refs = productIds.map((id) => db.collection('products').doc(id));
+  const snaps = await Promise.all(refs.map((ref) => tx.get(ref)));
+
+  const updates: { ref: DocumentReference; next: StockFields }[] = [];
+  const issues: PaidOrderStockIssue[] = [];
+  for (let i = 0; i < productIds.length; i++) {
+    const productId = productIds[i]!;
+    const snap = snaps[i]!;
+    if (!snap.exists) {
+      issues.push({ productId, reason: 'unavailable', message: 'Product no longer exists.' });
+      continue;
+    }
+    const product = snap.data() ?? {};
+    try {
+      const result = applyStockDemand(
+        { stock: product['stock'], stockBySize: product['stockBySize'], options: product['options'] },
+        demandByProduct.get(productId)!,
+        { allowShortfall: true },
+      );
+      updates.push({ ref: refs[i]!, next: result.next });
+      if (result.short) {
+        issues.push({
+          productId,
+          reason: 'short',
+          message: 'Sold more than was in stock. Stock set to 0.',
+        });
+      }
+    } catch (error: unknown) {
+      issues.push({ productId, reason: 'unavailable', message: errorMessage(error) });
+    }
+  }
+  return { updates, issues };
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Stock could not be updated.';
+}
 
 /** Paymob `order.id` is in the HMAC field list — use it to bind payment to our intention. */
 function resolveSignedPaymobOrderId(obj: Record<string, unknown>): number | null {

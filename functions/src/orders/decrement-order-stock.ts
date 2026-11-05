@@ -77,6 +77,27 @@ export function nextStockAfterDemand(
   product: ProductStockSnapshot,
   demand: ProductStockDemand,
 ): StockFields {
+  return applyStockDemand(product, demand, { allowShortfall: false }).next;
+}
+
+export interface StockDemandResult {
+  readonly next: StockFields;
+  /** True when demand exceeded live stock and counts were floored at 0 (only with `allowShortfall`). */
+  readonly short: boolean;
+}
+
+/**
+ * Same as `nextStockAfterDemand`, but with `allowShortfall: true` a count that is too low
+ * is floored at 0 and reported as `short` instead of throwing. Used when money has already
+ * been taken (Paymob webhook) and the order must still be confirmed and flagged for review.
+ * A missing size, a size no longer on the product, or unset stock still throws.
+ */
+export function applyStockDemand(
+  product: ProductStockSnapshot,
+  demand: ProductStockDemand,
+  opts: { readonly allowShortfall: boolean },
+): StockDemandResult {
+  let short = false;
   const sizeIds = readSizeValueIds(product.options);
   const liveMap = isPlainObject(product.stockBySize) ? product.stockBySize : null;
 
@@ -107,14 +128,19 @@ export function nextStockAfterDemand(
         nextMap[sizeId] = 0;
       }
       if (nextMap[sizeId]! < qty) {
-        throw new HttpsError(
-          'failed-precondition',
-          'Not enough stock left for one of the ordered sizes.',
-        );
+        if (!opts.allowShortfall) {
+          throw new HttpsError(
+            'failed-precondition',
+            'Not enough stock left for one of the ordered sizes.',
+          );
+        }
+        short = true;
+        nextMap[sizeId] = 0;
+        continue;
       }
       nextMap[sizeId]! -= qty;
     }
-    return stockFields(nextMap);
+    return { next: stockFields(nextMap), short };
   }
 
   const qty = demandQuantity(demand);
@@ -126,9 +152,47 @@ export function nextStockAfterDemand(
   }
   const live = Math.max(0, Math.floor(product.stock));
   if (live < qty) {
-    throw new HttpsError('failed-precondition', 'Not enough stock left for one of the ordered items.');
+    if (!opts.allowShortfall) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Not enough stock left for one of the ordered items.',
+      );
+    }
+    return { next: stockFields(null, 0), short: true };
   }
-  return stockFields(null, live - qty);
+  return { next: stockFields(null, live - qty), short };
+}
+
+/** Read `pricing.lines` from a stored order into stock lines (COD confirm and Paymob webhook). */
+export function parseOrderStockLines(order: Readonly<Record<string, unknown>>): OrderLineForStock[] {
+  const pricing = isPlainObject(order['pricing']) ? order['pricing'] : null;
+  const rawLines = pricing && Array.isArray(pricing['lines']) ? pricing['lines'] : null;
+  if (!rawLines || rawLines.length === 0) {
+    throw new HttpsError('failed-precondition', 'This order has no items to confirm.');
+  }
+  const lines: OrderLineForStock[] = [];
+  for (const entry of rawLines) {
+    if (!isPlainObject(entry)) {
+      throw new HttpsError('failed-precondition', 'This order has an invalid item.');
+    }
+    const productId = entry['productId'];
+    const quantity = entry['quantity'];
+    if (typeof productId !== 'string' || productId.length === 0) {
+      throw new HttpsError('failed-precondition', 'This order has an invalid item.');
+    }
+    if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1) {
+      throw new HttpsError('failed-precondition', 'This order has an invalid item quantity.');
+    }
+    const selectionRaw = entry['selection'];
+    const selection: Record<string, string> = {};
+    if (isPlainObject(selectionRaw)) {
+      for (const [key, value] of Object.entries(selectionRaw)) {
+        if (typeof value === 'string') selection[key] = value;
+      }
+    }
+    lines.push({ productId, quantity, selection });
+  }
+  return lines;
 }
 
 function demandQuantity(demand: ProductStockDemand): number {
