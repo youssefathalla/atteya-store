@@ -2,7 +2,7 @@
   <div class="elements-between flex-wrap gap-3 w-full">
     <div>
       <h1 class="font-title-lg font-bold!">Products</h1>
-      <p class="font-body-md">Add and edit products here. Import from EasyOrders is only for the one-time move.</p>
+      <p class="font-body-md">Add and edit products here.</p>
     </div>
     <div class="elements-end flex-wrap gap-2">
       <button
@@ -41,41 +41,8 @@
           <span>Rebuild search</span>
         </button>
       </mat-menu>
-      <button
-        matButton="outlined"
-        type="button"
-        [disabled]="activity() !== null"
-        [attr.aria-label]="activity() === 'preview' ? 'Checking products' : null"
-        (click)="preview.emit()"
-      >
-        @if (activity() === 'preview') {
-          <mat-progress-spinner mode="indeterminate" diameter="18" />
-        } @else {
-          <span>Preview import</span>
-        }
-      </button>
-      <button
-        matButton="outlined"
-        type="button"
-        [disabled]="activity() !== null"
-        [attr.aria-label]="activity() === 'import' ? 'Copying products' : null"
-        (click)="importProducts.emit()"
-      >
-        @if (activity() === 'import') {
-          <mat-progress-spinner mode="indeterminate" diameter="18" />
-        } @else {
-          <span>Import from EasyOrders</span>
-        }
-      </button>
     </div>
   </div>
-
-  @if (progressLabel()) {
-    <div class="w-full elements-start-col gap-2">
-      <p class="font-body-sm">{{ progressLabel() }}</p>
-      <mat-progress-bar mode="determinate" [value]="progressValue()" />
-    </div>
-  }
 
   <div class="elements-end flex-wrap gap-3 w-full">
     <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">

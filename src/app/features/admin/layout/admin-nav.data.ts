@@ -43,7 +43,7 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         label: 'Products',
         path: '/admin/products',
         icon: 'sports_tennis',
-        description: 'Bring products in from EasyOrders and fix how they show in the store',
+        description: 'Add products and change how they show in the store',
       },
       {
         id: 'offers',
