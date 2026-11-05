@@ -182,7 +182,8 @@ describe('InstaPay emails', () => {
   it('store alert says InstaPay is waiting for the transfer', () => {
     const email = renderOrderEmail('store-new-order', read(orderDoc({ paymentMethod: 'instapay' })), ctx);
     assert.match(email.subject, /InstaPay – waiting for transfer/);
-    assert.match(email.text, /Waiting for the shopper's transfer/);
+    assert.ok(email.text.includes(`InstaPay\nWaiting for transfer: ${formatEgp(2450)}`));
+    assert.match(email.text, /once you see it in your bank app/);
   });
 });
 
@@ -207,7 +208,8 @@ describe('order email wording and amounts', () => {
     const confirmed = renderOrderEmail('cod-confirmed', order, ctx);
     assert.ok(!confirmed.text.includes("received your shipping fee"));
     const alert = renderOrderEmail('store-new-order', order, ctx);
-    assert.match(alert.text, /No shipping fee to collect/);
+    assert.ok(alert.text.includes(`Shipping fee: Free\nCash on delivery: ${formatEgp(2370)}`));
+    assert.ok(!alert.text.includes('Shipping fee by InstaPay'));
   });
 
   it('cash on delivery confirmed: fee received, cash amount is total minus shipping', () => {
@@ -252,10 +254,13 @@ describe('order email wording and amounts', () => {
     assert.equal(cod.subject, `New order #ABCDEF – ${formatEgp(2450)} – Cash on Delivery`);
     assert.ok(
       cod.text.includes(
-        `Collect the shipping fee of ${formatEgp(80)} by InstaPay first, then ${formatEgp(2370)} on delivery.`,
+        `Cash on Delivery\nShipping fee by InstaPay: ${formatEgp(80)}\nCash on delivery: ${formatEgp(2370)}`,
       ),
     );
-    assert.match(cod.text, /01012345678/);
+    assert.match(cod.text, /Customer:\n.+\n01012345678\n/);
+    assert.ok(cod.html.includes('<strong>Customer</strong><br>'));
+    assert.ok(!cod.html.includes(' · 01012345678'), 'customer details are one per line');
+    assert.ok(cod.html.includes('background:#e8e8e8'), 'dashboard button is tonal');
 
     const paid = renderOrderEmail(
       'store-new-order',
@@ -263,6 +268,7 @@ describe('order email wording and amounts', () => {
       ctx,
     );
     assert.match(paid.subject, /Paid Online$/);
+    assert.ok(paid.text.includes(`Card or Wallet\nPaid: ${formatEgp(2450)}`));
     assert.match(paid.text, /sold out before this payment/);
   });
 
@@ -282,14 +288,13 @@ describe('order email wording and amounts', () => {
 });
 
 describe('order email photos', () => {
-  it('leaves out the photo column when an item has no photo', () => {
+  it('leaves out the photo when an item has no photo', () => {
     const doc = orderDoc({});
     const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
     pricing.lines[0]!['imagePath'] = null;
     const email = renderOrderEmail('cod-placed', read(doc), ctx);
     assert.ok(!email.html.includes('<img'));
-    assert.ok(!email.html.includes('width="72"'));
-    assert.ok(email.html.includes('colspan="2"'));
+    assert.ok(email.html.includes('Padel Racket &lt;Pro&gt;'));
   });
 });
 

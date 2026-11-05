@@ -254,15 +254,7 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
         ? 'InstaPay – waiting for transfer'
         : 'Paid Online';
   const subject = `New order ${order.ref} – ${formatEgp(order.totalEgp)} – ${label}`;
-  const cash = formatEgp(cashOnDeliveryEgp(order));
-  const payment =
-    method === 'cash-on-delivery'
-      ? order.shippingEgp > 0
-        ? `Cash on Delivery. Collect the shipping fee of ${formatEgp(order.shippingEgp)} by InstaPay first, then ${cash} on delivery.`
-        : `Cash on Delivery. No shipping fee to collect (free shipping). Collect ${cash} on delivery.`
-      : method === 'instapay'
-        ? `InstaPay. Waiting for the shopper's transfer of ${formatEgp(order.totalEgp)}. Confirm the payment in the dashboard once it shows in your bank app.`
-        : `Paid Online (Card or Wallet): ${formatEgp(order.totalEgp)}.`;
+  const payment = storePayment(order);
   const warning = order.needsReview
     ? 'One item sold out before this payment came in. Please check this order.'
     : null;
@@ -270,7 +262,7 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
     order.address.fullName,
     order.address.phone,
     order.customerEmail,
-  ].filter((part): part is string => Boolean(part));
+  ].filter((part): part is string => Boolean(part?.trim()));
   const button = ctx.storefrontUrl
     ? { label: 'Open orders in the dashboard', url: `${ctx.storefrontUrl}/admin/orders` }
     : null;
@@ -278,24 +270,92 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
   const html = layout(ctx.storeName, subject, [
     h1(`New order ${order.ref}`),
     warning ? highlightBox(`⚠ ${warning}`) : '',
-    highlightBox(payment),
-    paragraph(customer.map(escapeHtml).join(' · '), true),
+    storePaymentHtml(payment),
+    labelledLines('Customer', customer),
     itemsTable(order.lines, ctx),
     totalsTable(order, 'Total'),
     addressBlock(order),
-    button ? buttonHtml(button) : '',
+    button ? buttonHtml(button, 'tonal') : '',
   ]);
   const text = joinText([
     `New order ${order.ref}`,
     warning,
-    payment,
-    customer.join(' · '),
+    storePaymentText(payment),
+    `Customer:\n${customer.join('\n')}`,
     itemsText(order.lines),
     totalsText(order, 'Total'),
     `Delivery address:\n${addressLines(order).join('\n')}`,
     button ? `${button.label}: ${button.url}` : null,
   ]);
   return { subject, html, text };
+}
+
+/** What staff collect for a new order: the method on its own, then the amounts. */
+interface StorePayment {
+  readonly method: string;
+  readonly rows: readonly (readonly [string, string])[];
+  readonly note: string | null;
+}
+
+function storePayment(order: OrderEmailOrder): StorePayment {
+  const total = formatEgp(order.totalEgp);
+  switch (order.paymentMethod) {
+    case 'cash-on-delivery':
+      return order.shippingEgp > 0
+        ? {
+            method: 'Cash on Delivery',
+            rows: [
+              ['Shipping fee by InstaPay', formatEgp(order.shippingEgp)],
+              ['Cash on delivery', formatEgp(cashOnDeliveryEgp(order))],
+            ],
+            note: 'Send the order once the shipping fee arrives.',
+          }
+        : {
+            method: 'Cash on Delivery',
+            rows: [
+              ['Shipping fee', 'Free'],
+              ['Cash on delivery', formatEgp(cashOnDeliveryEgp(order))],
+            ],
+            note: null,
+          };
+    case 'instapay':
+      return {
+        method: 'InstaPay',
+        rows: [['Waiting for transfer', total]],
+        note: 'Confirm the payment in the dashboard once you see it in your bank app.',
+      };
+    default:
+      return { method: 'Card or Wallet', rows: [['Paid', total]], note: null };
+  }
+}
+
+function storePaymentText(payment: StorePayment): string {
+  return [
+    payment.method,
+    ...payment.rows.map(([label, value]) => `${label}: ${value}`),
+    payment.note,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join('\n');
+}
+
+function storePaymentHtml(payment: StorePayment): string {
+  const rows = payment.rows
+    .map(
+      ([label, value]) => `<tr>
+<td style="padding:4px 0;">${escapeHtml(label)}</td>
+<td align="right" style="padding:4px 0;font-weight:700;white-space:nowrap;">${escapeHtml(value)}</td>
+</tr>`,
+    )
+    .join('\n');
+  const note = payment.note
+    ? `<p style="margin:8px 0 0;font-size:13px;color:${MUTED};">${escapeHtml(payment.note)}</p>`
+    : '';
+  return `<div style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};">
+<p style="margin:0 0 6px;font-size:17px;font-weight:700;">${escapeHtml(payment.method)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${FONT}font-size:14px;color:${INK};">
+${rows}
+</table>${note}</div>`;
 }
 
 // ── Building blocks ──────────────────────────────────────────────────────────
@@ -406,7 +466,7 @@ export function imageUrl(path: string | null, ctx: OrderEmailContext): string | 
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
-  return `${ctx.imageBaseUrl}/${clean}?tr=w-128,h-160,c-at_max`;
+  return `${ctx.imageBaseUrl}/${clean}?tr=w-192,h-240,c-at_max`;
 }
 
 function addressLines(order: OrderEmailOrder): string[] {
@@ -460,6 +520,7 @@ const FONT = "font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-s
 const INK = '#111111';
 const MUTED = '#555555';
 const LINE = '#e5e5e5';
+const TONAL = '#e8e8e8';
 
 function layout(storeName: string, title: string, blocks: readonly string[]): string {
   return `<!doctype html>
@@ -507,22 +568,22 @@ function highlightBox(textValue: string): string {
   return `<p style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};font-weight:600;">${escapeHtml(textValue)}</p>`;
 }
 
+/**
+ * One card per item: photo on top, then name, options and quantity, then the price, so a
+ * long product name wraps on its own line instead of squeezing the price column.
+ */
 function itemsTable(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): string {
   const rows = lines
     .map((line) => {
       const src = imageUrl(line.imagePath, ctx);
-      // No photo: the name cell takes the photo column too, so there's no empty gap.
-      const photoCell = src
-        ? `<td width="72" valign="top" style="padding:10px 8px 10px 0;border-top:1px solid ${LINE};"><img src="${escapeHtml(src)}" width="64" alt="" style="display:block;width:64px;height:auto;border:0;"></td>\n`
+      const photo = src
+        ? `<img src="${escapeHtml(src)}" width="96" alt="" style="display:block;width:96px;height:auto;border:0;margin:0 0 10px;">\n`
         : '';
-      const nameSpan = src ? '' : ' colspan="2"';
-      return `<tr>
-${photoCell}<td${nameSpan} valign="top" style="padding:10px 8px 10px 0;border-top:1px solid ${LINE};">
-<div style="font-weight:600;">${escapeHtml(lineTitle(line))}</div>
+      return `<tr><td style="padding:14px 0;border-top:1px solid ${LINE};">
+${photo}<div style="font-weight:600;">${escapeHtml(lineTitle(line))}</div>
 <div style="font-size:13px;color:${MUTED};">${escapeHtml(lineDetails(line))}</div>
-</td>
-<td valign="top" align="right" style="padding:10px 0;border-top:1px solid ${LINE};white-space:nowrap;">${escapeHtml(formatEgp(line.lineEgp))}</td>
-</tr>`;
+<div style="margin-top:4px;font-weight:700;">${escapeHtml(formatEgp(line.lineEgp))}</div>
+</td></tr>`;
     })
     .join('\n');
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;${FONT}font-size:14px;color:${INK};">
@@ -535,25 +596,35 @@ function totalsTable(order: OrderEmailOrder, totalLabel: string): string {
     .map(([label, value], index, all) => {
       const isTotal = index === all.length - 1;
       const weight = isTotal ? 'font-weight:700;' : '';
-      const border = index === 0 ? `border-top:1px solid ${LINE};` : '';
+      // A line above the first row (under the items) and above the total.
+      const border = index === 0 || isTotal ? `border-top:1px solid ${LINE};` : '';
+      const pad = isTotal ? 'padding:10px 0 6px;' : 'padding:6px 0;';
       return `<tr>
-<td style="padding:6px 0;${border}${weight}">${escapeHtml(label)}</td>
-<td align="right" style="padding:6px 0;${border}${weight}">${escapeHtml(value)}</td>
+<td style="${pad}${border}${weight}">${escapeHtml(label)}</td>
+<td align="right" style="${pad}${border}${weight}">${escapeHtml(value)}</td>
 </tr>`;
     })
     .join('\n');
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 0;${FONT}font-size:14px;color:${INK};">
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;${FONT}font-size:14px;color:${INK};">
 ${rows}
 </table>`;
 }
 
-function addressBlock(order: OrderEmailOrder): string {
-  const lines = addressLines(order).map(escapeHtml).join('<br>');
-  return `<p style="margin:20px 0 0;font-size:14px;"><strong>Delivery address</strong><br>${lines}</p>`;
+/** A bold label with one value per line (customer details, delivery address). */
+function labelledLines(label: string, lines: readonly string[]): string {
+  const body = lines.map(escapeHtml).join('<br>');
+  return `<p style="margin:20px 0 0;font-size:14px;word-break:break-word;"><strong>${escapeHtml(label)}</strong><br>${body}</p>`;
 }
 
-function buttonHtml(button: EmailButton): string {
-  return `<p style="margin:24px 0 0;"><a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 20px;background:${INK};color:#ffffff;text-decoration:none;font-weight:600;border-radius:2px;">${escapeHtml(button.label)}</a></p>`;
+function addressBlock(order: OrderEmailOrder): string {
+  return labelledLines('Delivery address', addressLines(order));
+}
+
+/** `filled`: black, for the shopper's main action. `tonal`: light grey, readable in light and dark mail apps. */
+function buttonHtml(button: EmailButton, variant: 'filled' | 'tonal' = 'filled'): string {
+  const colors =
+    variant === 'tonal' ? `background:${TONAL};color:${INK};` : `background:${INK};color:#ffffff;`;
+  return `<p style="margin:24px 0 0;"><a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 20px;${colors}text-decoration:none;font-weight:600;border-radius:2px;">${escapeHtml(button.label)}</a></p>`;
 }
 
 export function escapeHtml(value: string): string {
