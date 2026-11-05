@@ -8,6 +8,7 @@ const ctx: OrderEmailContext = {
   storefrontUrl: 'https://shop.example',
   imageBaseUrl: 'https://ik.imagekit.io/atteyastore/dev',
   canReply: true,
+  whatsappNumber: '',
 };
 
 function orderDoc(overrides: {
@@ -213,5 +214,25 @@ describe('order email photos', () => {
     assert.ok(!email.html.includes('<img'));
     assert.ok(!email.html.includes('width="72"'));
     assert.ok(email.html.includes('colspan="2"'));
+  });
+});
+
+describe('order email help line', () => {
+  it('shows the business WhatsApp number with a chat link when set', () => {
+    const email = renderOrderEmail('cod-placed', read(orderDoc({})), { ...ctx, whatsappNumber: '+20 120 565 8954' });
+    assert.ok(email.text.includes('Questions? Message us on WhatsApp: +20 120 565 8954'));
+    assert.ok(email.html.includes('href="https://wa.me/201205658954"'));
+    assert.ok(!email.text.includes('reply to this email'));
+  });
+
+  it('falls back to "reply to this email" without a number', () => {
+    const email = renderOrderEmail('cod-placed', read(orderDoc({})), ctx);
+    assert.ok(email.text.includes('Questions? Just reply to this email.'));
+    assert.ok(!email.html.includes('wa.me'));
+  });
+
+  it('never puts the WhatsApp line in the store alert', () => {
+    const email = renderOrderEmail('store-new-order', read(orderDoc({})), { ...ctx, whatsappNumber: '+20 120 565 8954' });
+    assert.ok(!email.text.includes('Message us on WhatsApp'));
   });
 });

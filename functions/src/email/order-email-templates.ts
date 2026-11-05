@@ -17,6 +17,14 @@ export interface OrderEmailContext {
   readonly imageBaseUrl: string;
   /** True when replies reach a real inbox (RESEND_REPLY_TO is set). */
   readonly canReply: boolean;
+  /** Business WhatsApp number as people read it (`+20 120 565 8954`), or '' for none. */
+  readonly whatsappNumber: string;
+}
+
+/** `wa.me` chat link for a number in any readable format, or null when it has too few digits. */
+export function whatsappLink(number: string): string | null {
+  const digits = number.replace(/\D/g, '');
+  return digits.length >= 8 ? `https://wa.me/${digits}` : null;
 }
 
 export interface RenderedEmail {
@@ -149,7 +157,19 @@ function shopperEmail(
   ctx: OrderEmailContext,
   parts: ShopperEmailParts,
 ): RenderedEmail {
-  const help = ctx.canReply ? 'Questions? Just reply to this email.' : null;
+  const waNumber = ctx.whatsappNumber.trim();
+  const waLink = whatsappLink(waNumber);
+  // WhatsApp is the client's main channel, so it wins over "reply to this email".
+  const help = waLink
+    ? `Questions? Message us on WhatsApp: ${waNumber}`
+    : ctx.canReply
+      ? 'Questions? Just reply to this email.'
+      : null;
+  const helpHtml = waLink
+    ? `<p style="margin:16px 0 0;font-size:13px;color:${MUTED};">Questions? Message us on WhatsApp: <a href="${escapeHtml(waLink)}" style="color:${INK};font-weight:600;">${escapeHtml(waNumber)}</a></p>`
+    : help
+      ? smallText(help)
+      : '';
   const html = layout(parts.subject, [
     h1(parts.heading),
     ...parts.intro.map((line) => paragraph(line)),
@@ -158,7 +178,7 @@ function shopperEmail(
     parts.showTotals ? totalsTable(order, parts.totalLabel ?? 'Total') : '',
     parts.showAddress ? addressBlock(order) : '',
     parts.button ? buttonHtml(parts.button) : '',
-    help ? smallText(help) : '',
+    helpHtml,
   ]);
   const text = joinText([
     parts.heading,
