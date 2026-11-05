@@ -29,6 +29,18 @@ export interface StoreInfo {
     readonly city: string;
     readonly country: string;
   };
+  /**
+   * How shoppers in Egypt pay by InstaPay (full amount, or the cash-on-delivery shipping fee).
+   * Fill one or both. Empty = not set yet: pages and messages then say we'll send the details on WhatsApp.
+   */
+  readonly payments: {
+    readonly instapay: {
+      /** InstaPay address, e.g. `atteyastore@instapay`. */
+      readonly address: string;
+      /** Mobile number linked to InstaPay, as people read it, e.g. `010 1234 5678`. */
+      readonly number: string;
+    };
+  };
   /** Full profile URLs (`https://instagram.com/…`). */
   readonly social: {
     readonly instagram: string;
@@ -52,6 +64,12 @@ export const STORE_INFO: StoreInfo = {
     city: '',
     country: 'Egypt',
   },
+  payments: {
+    instapay: {
+      address: '',
+      number: '',
+    },
+  },
   social: {
     instagram: '',
     facebook: '',
@@ -61,8 +79,13 @@ export const STORE_INFO: StoreInfo = {
   },
 };
 
-/** `wa.me` chat link for a number in any readable format, or null when it is not set. */
-export function whatsappChatUrl(number: string): string | null {
+/**
+ * `wa.me` chat link for a number in any readable format, or null when it is not set.
+ * `text` is the message already written in the chat box (the person still taps send).
+ */
+export function whatsappChatUrl(number: string, text?: string | null): string | null {
   const digits = number.replace(/\D/g, '');
-  return digits.length >= 8 ? `https://wa.me/${digits}` : null;
+  if (digits.length < 8) return null;
+  const url = `https://wa.me/${digits}`;
+  return text ? `${url}?text=${encodeURIComponent(text)}` : url;
 }
