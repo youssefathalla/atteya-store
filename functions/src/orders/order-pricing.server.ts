@@ -25,6 +25,12 @@ export type OrderStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 export type OrderPaymentMethod = StorePaymentMethod;
 export type OrderFulfilment = 'domestic-cod' | 'domestic-paymob' | 'international-paymob';
 
+/** One chosen option, saved as the shopper saw it (e.g. `Size` → `M`). */
+export interface OrderLineOptionLabel {
+  readonly label: string;
+  readonly value: string;
+}
+
 export interface OrderLinePrice {
   readonly productId: string;
   readonly variantId: string | null;
@@ -33,6 +39,15 @@ export interface OrderLinePrice {
   readonly unitEgp: number;
   readonly unitDisplay: number;
   readonly lineDisplay: number;
+  /**
+   * Snapshot of what was bought, saved when the order is placed so emails and the
+   * dashboard still show it after the product is renamed or removed.
+   * Older orders don't have these fields.
+   */
+  readonly name: string;
+  readonly optionLabels: readonly OrderLineOptionLabel[];
+  /** Storage path of the main photo (`products/…`), or null when the product has none. */
+  readonly imagePath: string | null;
 }
 
 export interface OrderShippingLine {
@@ -212,8 +227,41 @@ async function priceLine(
       unitEgp,
       unitDisplay: unitEgp,
       lineDisplay: unitEgp * line.quantity,
+      name: product.name.trim() || 'Item',
+      optionLabels: selectionLabels(data, line.selection),
+      imagePath: mainImagePath(data),
     },
   };
+}
+
+/** Human labels for the chosen options, in the product's option order. */
+export function selectionLabels(
+  data: DocumentData,
+  selection: Readonly<Record<string, string>>,
+): OrderLineOptionLabel[] {
+  const options = data['options'];
+  if (!Array.isArray(options)) return [];
+  const labels: OrderLineOptionLabel[] = [];
+  for (const option of options) {
+    if (!option || typeof option['key'] !== 'string') continue;
+    const picked = selection[option['key']];
+    if (typeof picked !== 'string') continue;
+    const values = Array.isArray(option['values']) ? option['values'] : [];
+    const found = values.find((val: { id?: unknown }) => val?.['id'] === picked);
+    const value = found && typeof found['label'] === 'string' ? found['label'].trim() : '';
+    const label = typeof option['label'] === 'string' ? option['label'].trim() : '';
+    if (label && value) labels.push({ label, value });
+  }
+  return labels;
+}
+
+/** First gallery image path, or null. */
+export function mainImagePath(data: DocumentData): string | null {
+  const images = data['images'];
+  if (!Array.isArray(images)) return null;
+  const first = images[0];
+  const path = first && typeof first['path'] === 'string' ? first['path'].trim() : '';
+  return path.length > 0 ? path : null;
 }
 
 function readWeightGrams(raw: unknown): number | null {

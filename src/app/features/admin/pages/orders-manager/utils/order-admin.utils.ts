@@ -1,4 +1,5 @@
 import { displayDecimals } from '@core/services/offers/engine';
+import { shortOrderRef } from '@core/services/orders/order-ref';
 import type { OrderDoc } from '@core/services/orders/order.schema';
 import { formatMoney } from '@shared/utils/money';
 import type {
@@ -103,6 +104,7 @@ export function toOrderLineAdminRows(
       rows.push({
         id: `${order.id}:${index}:${line.productId}`,
         orderId: order.id,
+        orderRef: shortOrderRef(order.id),
         placedAtLabel,
         customerName: order.shipping.fullName,
         country: order.shipping.country,
@@ -110,8 +112,11 @@ export function toOrderLineAdminRows(
         paymentMethod: order.paymentMethod,
         paymentLabel: payLabel,
         productId: line.productId,
-        productName: product?.name ?? 'Product unavailable',
-        selectionLabel: selectionLabel(product, selection),
+        // Prefer what was saved on the order; older orders fall back to the live product.
+        productName: line.name || product?.name || 'Product unavailable',
+        selectionLabel: line.optionLabels?.length
+          ? line.optionLabels.map((opt) => `${opt.label}: ${opt.value}`).join(' · ')
+          : selectionLabel(product, selection),
         quantity: line.quantity,
         currentStock: stock.count,
         stockStatus: stock.status,

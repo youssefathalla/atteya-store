@@ -2,7 +2,8 @@
   <header class="space-y-2">
     <h1 class="font-headline-md font-bold!">Checkout</h1>
     <p class="font-body-md opacity-80">
-      Pay by card or wallet online. In Egypt you can also pay cash when your order arrives.
+      Pay by card or wallet online. In Egypt you can also choose cash on delivery: you pay the
+      shipping fee first, then the rest when your order arrives.
     </p>
   </header>
 
@@ -211,6 +212,22 @@
         <mat-radio-button value="paymob">Card or wallet (Paymob)</mat-radio-button>
         @if (codAvailable()) {
           <mat-radio-button value="cash-on-delivery">Cash on delivery</mat-radio-button>
+          @if (paymentMethod() === 'cash-on-delivery') {
+            @if (orderSummary(); as summary) {
+              @if (summary.state === 'ready') {
+                <p class="font-body-sm opacity-80" aria-live="polite">
+                  @if (summary.codShippingEgp > 0) {
+                    We'll contact you to collect the shipping fee of
+                    {{ summary.codShipping }} before we send your order. You'll pay the rest,
+                    {{ summary.codCash }}, in cash when it arrives.
+                  } @else {
+                    Shipping is free, so there's nothing to pay before delivery. You'll pay
+                    {{ summary.codCash }} in cash when it arrives.
+                  }
+                </p>
+              }
+            }
+          }
         } @else {
           <p class="font-label-sm opacity-70">Cash on delivery is available when shipping to Egypt.</p>
         }
