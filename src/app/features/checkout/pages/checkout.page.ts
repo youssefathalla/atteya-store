@@ -293,7 +293,7 @@ export class CheckoutPageComponent implements OnInit {
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Checkout | Atteya Store',
-      description: 'Pay by card or wallet, or by InstaPay or cash on delivery in Egypt.',
+      description: 'Pay by Card or Wallet, or by InstaPay or Cash on Delivery in Egypt.',
       noindex: true,
     });
     if (this.isEmpty()) {
@@ -458,7 +458,7 @@ export class CheckoutPageComponent implements OnInit {
     }
     const method = this.paymentMethod();
     if (method !== 'paymob' && draft.country !== 'EG') {
-      this.#snackbar.error('InstaPay and cash on delivery are only available for Egypt.');
+      this.#snackbar.error('InstaPay and Cash on Delivery are only available for Egypt.');
       return;
     }
 

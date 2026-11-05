@@ -62,7 +62,7 @@ function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {
   if (raw === 'cash-on-delivery' && country !== 'EG') {
     throw new HttpsError(
       'failed-precondition',
-      'Cash on delivery is only available for orders delivered in Egypt.',
+      'Cash on Delivery is only available for orders delivered in Egypt.',
     );
   }
   if (raw === 'instapay' && country !== 'EG') {

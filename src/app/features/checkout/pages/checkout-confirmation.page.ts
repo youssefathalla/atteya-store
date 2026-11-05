@@ -165,11 +165,11 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       case 'instapay':
         return 'InstaPay';
       case 'cash-on-delivery':
-        return 'Cash on delivery';
+        return 'Cash on Delivery';
       case 'paymob':
-        return 'Card or wallet';
+        return 'Card or Wallet';
       case 'international-bank-transfer':
-        return 'Bank transfer';
+        return 'Bank Transfer';
       default:
         return '—';
     }
@@ -179,17 +179,17 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     switch (this.stage()) {
       case 'instapay-total-due':
       case 'instapay-fee-due':
-        return 'Waiting for payment';
+        return 'Waiting for Payment';
       case 'cod-free-pending':
-        return 'Waiting for confirmation';
+        return 'Waiting for Confirmation';
       case 'cod-confirmed':
       case 'paid':
       case 'paid-needs-review':
         return 'Confirmed';
       case 'paymob-pending':
-        return 'Confirming payment';
+        return 'Confirming Payment';
       case 'failed':
-        return 'Payment failed';
+        return 'Payment Failed';
       case 'cancelled':
         return 'Cancelled';
       default:
