@@ -30,7 +30,18 @@ export const appConfig: ApplicationConfig = {
       routes,
       withComponentInputBinding(),
       withAutoCleanupInjectors(),
-      withViewTransitions(),
+      withViewTransitions({
+        // Query-only updates (shop filters) must not crossfade the whole page.
+        onViewTransitionCreated: ({ transition, from, to }) => {
+          const pathOf = (snap: typeof from) =>
+            snap.pathFromRoot
+              .flatMap((s) => s.url.map((segment) => segment.path))
+              .join('/');
+          if (pathOf(from) === pathOf(to)) {
+            transition.skipTransition();
+          }
+        },
+      }),
       withPreloading(StorefrontPreloadingStrategy),
       withInMemoryScrolling({
         scrollPositionRestoration: 'enabled',

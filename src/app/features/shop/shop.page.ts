@@ -14,13 +14,18 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 import { SeoService } from '@core/services/seo';
-import { SearchService } from '@core/services/search';
+import { SearchService, type SearchHit } from '@core/services/search';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { ShopFiltersDrawerComponent } from './components/shop-filters-drawer/shop-filters-drawer.component';
 import { ShopFiltersComponent } from './components/shop-filters/shop-filters.component';
 import { ShopGridComponent } from './components/shop-grid/shop-grid.component';
 import { ShopHeaderComponent } from './components/shop-header/shop-header.component';
-import { DEFAULT_SHOP_FILTERS, SHOP_TABS, type ShopFilterState } from './models/shop.model';
+import {
+  DEFAULT_SHOP_FILTERS,
+  SHOP_TABS,
+  type ShopFilterState,
+  type ShopPriceBounds,
+} from './models/shop.model';
 import {
   brandOptionsFromFacets,
   buildCatalogBrowseOptions,
@@ -34,7 +39,14 @@ import {
   sizeOptionsFromFacets,
 } from './utils/shop-filters';
 
-const DEFAULT_PRICE_BOUNDS = { min: 99, max: 19_499 } as const;
+const DEFAULT_PRICE_BOUNDS: ShopPriceBounds = { min: 99, max: 19_499 };
+
+interface ShopCatalogSnapshot {
+  readonly hits: readonly SearchHit[];
+  readonly totalHits: number;
+  readonly totalPages: number;
+  readonly facets: Readonly<Record<string, Readonly<Record<string, number>>>>;
+}
 
 @Component({
   selector: 'app-shop-page',
@@ -77,6 +89,13 @@ export class ShopPage {
   readonly #hydrated = signal(false);
   readonly #nowMs = signal(Date.now());
   readonly filtersOpen = signal(false);
+
+  /** Last successful browse result — kept while the resource reloads (anti-flicker). */
+  readonly #snapshot = signal<ShopCatalogSnapshot | null>(null);
+  /** Catalogue price range frozen after the first stats read so the slider does not collapse. */
+  readonly #frozenPriceBounds = signal<ShopPriceBounds | null>(null);
+  /** Tracks shop tab/bags scope so we only clear the snapshot on a real tab change. */
+  readonly #tabScopeKey = signal('');
 
   readonly activeTab = computed(() =>
     resolveShopTab(this.shopCategory(), this.shopSubcategory()),
@@ -129,24 +148,17 @@ export class ShopPage {
     id: 'shop-catalog',
   });
 
-  readonly hits = computed(() => {
-    if (this.resultsResource.error() || !this.resultsResource.hasValue()) return [];
-    return this.resultsResource.value()?.hits ?? [];
-  });
+  readonly hits = computed(() => this.#snapshot()?.hits ?? []);
 
   readonly totalHits = computed(() => {
-    if (this.resultsResource.error() || !this.resultsResource.hasValue()) return null;
-    return this.resultsResource.value()?.totalHits ?? 0;
+    const snap = this.#snapshot();
+    if (!snap) return null;
+    return snap.totalHits;
   });
 
-  readonly totalPages = computed(() => {
-    if (this.resultsResource.error() || !this.resultsResource.hasValue()) return 0;
-    return this.resultsResource.value()?.totalPages ?? 0;
-  });
+  readonly totalPages = computed(() => this.#snapshot()?.totalPages ?? 0);
 
-  readonly facets = computed(
-    () => this.resultsResource.value()?.facets ?? {},
-  );
+  readonly facets = computed(() => this.#snapshot()?.facets ?? {});
 
   readonly brands = computed(() =>
     brandOptionsFromFacets(this.facets(), this.filterState().brands),
@@ -163,27 +175,31 @@ export class ShopPage {
     () => this.activeTab() === 'accessories' && !this.forceBags(),
   );
 
-  readonly priceBounds = computed(() => {
-    const stats = this.resultsResource.value()?.facetStats?.['price'];
-    if (!stats) return DEFAULT_PRICE_BOUNDS;
-    return {
-      min: Number.isFinite(stats.min) ? Math.floor(stats.min) : DEFAULT_PRICE_BOUNDS.min,
-      max: Number.isFinite(stats.max) ? Math.ceil(stats.max) : DEFAULT_PRICE_BOUNDS.max,
-    };
-  });
+  readonly priceBounds = computed(
+    () => this.#frozenPriceBounds() ?? DEFAULT_PRICE_BOUNDS,
+  );
 
   readonly isConfigured = computed(() => this.#search.isConfigured());
+
+  /** First paint only — never swap the grid for skeletons on filter refreshes. */
   readonly isLoading = computed(
     () =>
       this.isConfigured() &&
       !this.resultsResource.error() &&
-      !this.resultsResource.hasValue(),
+      this.#snapshot() === null &&
+      this.resultsResource.isLoading(),
   );
+
+  readonly isRefreshing = computed(
+    () => this.#snapshot() !== null && this.resultsResource.isLoading(),
+  );
+
   readonly showEmpty = computed(
     () =>
       this.isConfigured() &&
-      this.resultsResource.hasValue() &&
-      this.hits().length === 0,
+      this.#snapshot() !== null &&
+      this.hits().length === 0 &&
+      !this.resultsResource.isLoading(),
   );
 
   readonly #desktop = signal(false);
@@ -193,6 +209,36 @@ export class ShopPage {
     if (isPlatformBrowser(this.#platformId)) {
       this.#search.warm();
     }
+
+    effect(() => {
+      if (!this.resultsResource.hasValue()) return;
+      const value = this.resultsResource.value();
+      if (!value) return;
+      this.#snapshot.set({
+        hits: value.hits,
+        totalHits: value.totalHits,
+        totalPages: value.totalPages,
+        facets: value.facets ?? {},
+      });
+      if (this.#frozenPriceBounds()) return;
+      const stats = value.facetStats?.['price'];
+      if (!stats) return;
+      this.#frozenPriceBounds.set({
+        min: Number.isFinite(stats.min) ? Math.floor(stats.min) : DEFAULT_PRICE_BOUNDS.min,
+        max: Number.isFinite(stats.max) ? Math.ceil(stats.max) : DEFAULT_PRICE_BOUNDS.max,
+      });
+    });
+
+    // Clear the stale snapshot only when the shop tab/bags scope actually changes.
+    effect(() => {
+      const key = `${this.activeTab()}|${this.forceBags() ? 'bags' : ''}`;
+      const prev = this.#tabScopeKey();
+      if (prev !== '' && prev !== key) {
+        this.#snapshot.set(null);
+        this.#frozenPriceBounds.set(null);
+      }
+      this.#tabScopeKey.set(key);
+    });
 
     effect(() => {
       const title = this.pageTitle();
@@ -249,7 +295,7 @@ export class ShopPage {
 
   goToPage(nextPage: number): void {
     if (nextPage < 0 || nextPage >= this.totalPages()) return;
-    void this.#navigate({ ...this.filterState(), page: nextPage });
+    void this.#navigate({ ...this.filterState(), page: nextPage }, false);
   }
 
   #preconnectAlgolia(): void {
@@ -264,7 +310,11 @@ export class ShopPage {
     head.appendChild(link);
   }
 
-  async #navigate(state: ShopFilterState): Promise<void> {
+  /**
+   * @param preserveScroll When true (default), skip router scroll restoration so
+   * filter tweaks (esp. price drag) do not jump the viewport to the top.
+   */
+  async #navigate(state: ShopFilterState, preserveScroll = true): Promise<void> {
     const tab = this.activeTab();
     const path =
       this.forceBags()
@@ -275,6 +325,7 @@ export class ShopPage {
       queryParams: shopFiltersToQueryParams(state),
       queryParamsHandling: 'merge',
       replaceUrl: true,
+      ...(preserveScroll ? { scroll: 'manual' as const } : {}),
     });
   }
 }
