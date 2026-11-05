@@ -19,3 +19,4 @@ export { createPaymobOrder } from './orders/create-paymob-order.fn.js';
 export { createCodOrder } from './orders/create-cod-order.fn.js';
 export { confirmCodOrder } from './orders/confirm-cod-order.fn.js';
 export { paymobWebhook } from './orders/paymob-webhook.fn.js';
+export { sendOrderEmails } from './email/send-order-emails.trigger.js';

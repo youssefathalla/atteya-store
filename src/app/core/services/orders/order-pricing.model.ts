@@ -31,6 +31,10 @@ export interface OrderLinePrice {
   readonly unitDisplay: number;
   readonly lineDisplay: number;
   readonly selection?: Readonly<Record<string, string>>;
+  /** Snapshot saved when the order is placed. Missing on older orders. */
+  readonly name?: string;
+  readonly optionLabels?: readonly { readonly label: string; readonly value: string }[];
+  readonly imagePath?: string | null;
 }
 
 export interface OrderShippingLine {

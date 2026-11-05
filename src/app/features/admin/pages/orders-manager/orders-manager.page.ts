@@ -70,6 +70,7 @@ export class OrdersManagerPageComponent implements OnInit {
   readonly sampleRow: OrderLineAdminRow = {
     id: '',
     orderId: '',
+    orderRef: '',
     placedAtLabel: '',
     customerName: '',
     country: '',

@@ -34,6 +34,10 @@ export const OrderLinePriceSchema = v.object({
   unitEgp: v.pipe(v.number(), v.integer(), v.minValue(0)),
   unitDisplay: v.pipe(v.number(), v.finite(), v.minValue(0)),
   lineDisplay: v.pipe(v.number(), v.finite(), v.minValue(0)),
+  // Snapshot saved when the order is placed (missing on older orders).
+  name: v.optional(v.string()),
+  optionLabels: v.optional(v.array(v.object({ label: v.string(), value: v.string() }))),
+  imagePath: v.optional(v.nullable(v.string())),
 });
 
 export const OrderShippingLineSchema = v.object({

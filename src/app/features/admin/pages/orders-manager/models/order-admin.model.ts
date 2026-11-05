@@ -20,6 +20,8 @@ export interface ProductStockLookup {
 export interface OrderLineAdminRow {
   readonly id: string;
   readonly orderId: string;
+  /** `#A1B2C3`, the number shoppers see in emails and on the confirmation page. */
+  readonly orderRef: string;
   readonly placedAtLabel: string;
   readonly customerName: string;
   readonly country: string;
