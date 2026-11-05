@@ -121,6 +121,34 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ---
 
+## 🗂️ 2. Task Board & Branch Workflow
+
+### Task board (Todoist) — keep it in sync, always
+
+The single source of truth for work is the Todoist project **`atteya-store`** (id `6hqJH3Fp65qrpM8F`). Sections, in order: **To do → In Progress → For Review → QA → Done**, plus **Bugs** and **Open Questions**. Old `AS-xx` ids come from the retired Cursor board and only appear in task descriptions and commit history.
+
+Every agent (Claude Code, Cursor, Antigravity) updates the board as part of the task, not afterwards:
+
+1. **Start**: find the matching task and move it to **In Progress**. If there is none, create it there with a one-line description.
+2. **PR opened**: move it to **For Review** and add a comment with the PR link and a one-line summary.
+3. **Merged to `develop`**: move it to **QA** with a comment saying what to test on dev and any deploy step it needs (`fb:rules:dev`, `fb:fn:dev`, Rebuild search, …).
+4. **Verified, or merged to `main`**: move it to **Done** and complete it.
+5. **Prod needs**: append every merged PR's prod step to the checklist in the "Prod rollout" task.
+6. **Found along the way**: a bug goes in **Bugs**, an undecided choice in **Open Questions**. Never only in chat.
+7. **Blocked on someone else** (usually the client): add the red `blocked` label, keep the task in its current section, and comment exactly what is needed and what to do once it arrives. Code that is complete can still be merged; the label stays until the missing piece lands.
+8. **No stale tasks**: when work makes a task outdated, done, or wrong, update its description or close it with a comment that says why, in the same task.
+
+If the board can't be reached (tool missing or signed out), say so in the final message and list the exact board changes still needed. Never skip them silently.
+
+### Branches and merges
+
+- `main` (default) and `develop` are long-lived. Feature branches come off `develop`, and their PRs target `develop`.
+- **Squash** feature PRs into `develop`. Use **"Create a merge commit"** (never squash) for `develop` → `main` and for any PR that brings `main` back into `develop`. A squash there drops the shared history, and the next `develop` → `main` PR conflicts even when the files already match.
+- GitHub's "Automatically delete head branches" setting is **off** because it would also delete `develop` after a `develop` → `main` PR. `.github/workflows/delete-merged-branches.yml` deletes a merged PR's branch instead and always skips `develop` and `main`. A deleted branch can be restored from its PR page.
+- Firebase deploys run only from an up-to-date `main` (see **Deploy safety**), so a change reaches dev only after `develop` → `main`.
+
+---
+
 ## 🧠 3. Specialized Skills
 
 Activate the dedicated skills from `.agents/skills/` on demand. `sync-docs`, `ask`, and `teacher` live in `.cursor/skills/` because Cursor does not load workflow files:
