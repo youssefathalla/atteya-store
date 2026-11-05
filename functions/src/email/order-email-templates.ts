@@ -1,3 +1,4 @@
+import { whatsappChatUrl } from '../store/store-info.js';
 import type { OrderEmailKind } from './order-email-events.js';
 import type { OrderEmailLine, OrderEmailOrder } from './order-email-model.js';
 
@@ -17,14 +18,10 @@ export interface OrderEmailContext {
   readonly imageBaseUrl: string;
   /** True when replies reach a real inbox (RESEND_REPLY_TO is set). */
   readonly canReply: boolean;
-  /** Business WhatsApp number as people read it (`+20 120 565 8954`), or '' for none. */
+  /** Brand name for the email header (`STORE_INFO.name`). */
+  readonly storeName: string;
+  /** Business WhatsApp as people read it (`STORE_INFO.contact.whatsapp`), or '' for none. */
   readonly whatsappNumber: string;
-}
-
-/** `wa.me` chat link for a number in any readable format, or null when it has too few digits. */
-export function whatsappLink(number: string): string | null {
-  const digits = number.replace(/\D/g, '');
-  return digits.length >= 8 ? `https://wa.me/${digits}` : null;
 }
 
 export interface RenderedEmail {
@@ -158,7 +155,7 @@ function shopperEmail(
   parts: ShopperEmailParts,
 ): RenderedEmail {
   const waNumber = ctx.whatsappNumber.trim();
-  const waLink = whatsappLink(waNumber);
+  const waLink = whatsappChatUrl(waNumber);
   // WhatsApp is the client's main channel, so it wins over "reply to this email".
   const help = waLink
     ? `Questions? Message us on WhatsApp: ${waNumber}`
@@ -170,7 +167,7 @@ function shopperEmail(
     : help
       ? smallText(help)
       : '';
-  const html = layout(parts.subject, [
+  const html = layout(ctx.storeName, parts.subject, [
     h1(parts.heading),
     ...parts.intro.map((line) => paragraph(line)),
     parts.highlight ? highlightBox(parts.highlight) : '',
@@ -216,7 +213,7 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
     ? { label: 'Open orders in the dashboard', url: `${ctx.storefrontUrl}/admin/orders` }
     : null;
 
-  const html = layout(subject, [
+  const html = layout(ctx.storeName, subject, [
     h1(`New order ${order.ref}`),
     warning ? highlightBox(`⚠ ${warning}`) : '',
     highlightBox(payment),
@@ -332,7 +329,7 @@ const INK = '#111111';
 const MUTED = '#555555';
 const LINE = '#e5e5e5';
 
-function layout(title: string, blocks: readonly string[]): string {
+function layout(storeName: string, title: string, blocks: readonly string[]): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -344,7 +341,7 @@ function layout(title: string, blocks: readonly string[]): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;">
 <tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid ${LINE};">
-<tr><td style="padding:20px 24px;border-bottom:1px solid ${LINE};${FONT}font-size:18px;font-weight:700;letter-spacing:2px;color:${INK};">ATTEYA STORE</td></tr>
+<tr><td style="padding:20px 24px;border-bottom:1px solid ${LINE};${FONT}font-size:18px;font-weight:700;letter-spacing:2px;color:${INK};">${escapeHtml(storeName.toUpperCase())}</td></tr>
 <tr><td style="padding:24px;${FONT}color:${INK};font-size:15px;line-height:1.5;">
 ${blocks.filter(Boolean).join('\n')}
 </td></tr>

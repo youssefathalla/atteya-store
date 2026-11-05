@@ -8,6 +8,7 @@ const ctx: OrderEmailContext = {
   storefrontUrl: 'https://shop.example',
   imageBaseUrl: 'https://ik.imagekit.io/atteyastore/dev',
   canReply: true,
+  storeName: 'Atteya Store',
   whatsappNumber: '',
 };
 
@@ -234,5 +235,14 @@ describe('order email help line', () => {
   it('never puts the WhatsApp line in the store alert', () => {
     const email = renderOrderEmail('store-new-order', read(orderDoc({})), { ...ctx, whatsappNumber: '+20 120 565 8954' });
     assert.ok(!email.text.includes('Message us on WhatsApp'));
+  });
+});
+
+describe('store info', () => {
+  it('turns any readable WhatsApp number into a wa.me link, and empty into none', async () => {
+    const { whatsappChatUrl, STORE_INFO } = await import('../store/store-info.js');
+    assert.equal(whatsappChatUrl('+20 120 565 8954'), 'https://wa.me/201205658954');
+    assert.equal(whatsappChatUrl(''), null);
+    assert.equal(STORE_INFO.name, 'Atteya Store');
   });
 });

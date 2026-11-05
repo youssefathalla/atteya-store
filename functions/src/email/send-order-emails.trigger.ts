@@ -3,12 +3,12 @@ import { logger } from 'firebase-functions';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { STOREFRONT_URL } from '../paymob/paymob-config.js';
 import { currentProjectId } from '../project-id.js';
+import { STORE_INFO } from '../store/store-info.js';
 import {
   RESEND_API_KEY,
   RESEND_FROM,
   RESEND_REPLY_TO,
   STORE_ALERT_EMAIL,
-  STORE_WHATSAPP_NUMBER,
 } from './email-config.js';
 import { orderEmailsForWrite, type OrderEmailKind } from './order-email-events.js';
 import { readOrderForEmail, type OrderEmailOrder } from './order-email-model.js';
@@ -111,7 +111,8 @@ function emailContext(): OrderEmailContext {
     storefrontUrl: STOREFRONT_URL.value().trim().replace(/\/+$/, ''),
     imageBaseUrl: imageKitBase(currentProjectId()),
     canReply: RESEND_REPLY_TO.value().trim().includes('@'),
-    whatsappNumber: STORE_WHATSAPP_NUMBER.value().trim(),
+    storeName: STORE_INFO.name,
+    whatsappNumber: STORE_INFO.contact.whatsapp,
   };
 }
 
