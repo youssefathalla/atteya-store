@@ -1,0 +1,19 @@
+@if (loading()) {
+  <div class="shop-product-grid" aria-label="Loading products">
+    @for (slot of skeletonSlots; track slot) {
+      <div class="elements-start-col gap-2">
+        <app-skeleton class="aspect-4/5 w-full" />
+        <app-skeleton class="h-4 w-1/2" />
+        <app-skeleton class="h-5 w-3/4" />
+        <app-skeleton class="h-4 w-2/3" />
+        <app-skeleton class="h-5 w-1/3" />
+      </div>
+    }
+  </div>
+} @else {
+  <div class="shop-product-grid">
+    @for (card of cards(); track card.id; let i = $index) {
+      <app-product-card [product]="card" [priority]="i < 2" />
+    }
+  </div>
+}

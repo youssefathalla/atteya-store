@@ -9,7 +9,7 @@
     "build": "node scripts/build.mjs",
     "build:dev": "ng build --configuration dev",
     "build:prod": "ng build --configuration production",
-    "preflight": "node scripts/sync-pricing-engine.mjs --check && node scripts/check-settings-standalone.mjs && node scripts/pre-flight-check.mjs && eslint .",
+    "preflight": "node scripts/sync-pricing-engine.mjs --check && node scripts/sync-agent-docs.mjs --check && node scripts/check-settings-standalone.mjs && node scripts/pre-flight-check.mjs && eslint .",
     "check:settings-standalone": "node scripts/check-settings-standalone.mjs",
     "sync:agents": "node scripts/sync-agent-docs.mjs",
     "sync:agents:check": "node scripts/sync-agent-docs.mjs --check",
@@ -34,16 +34,16 @@
   "private": true,
   "packageManager": "npm@11.17.0",
   "dependencies": {
-    "@angular/cdk": "^22.2.0",
-    "@angular/common": "^22.2.0",
-    "@angular/compiler": "^22.2.0",
-    "@angular/core": "^22.2.0",
-    "@angular/forms": "^22.2.0",
-    "@angular/material": "^22.2.0",
-    "@angular/platform-browser": "^22.2.0",
-    "@angular/platform-server": "^22.2.0",
-    "@angular/router": "^22.2.0",
-    "@angular/ssr": "^22.2.0",
+    "@angular/cdk": "^22.2.6",
+    "@angular/common": "^22.2.4",
+    "@angular/compiler": "^22.2.4",
+    "@angular/core": "^22.2.4",
+    "@angular/forms": "^22.2.4",
+    "@angular/material": "^22.2.6",
+    "@angular/platform-browser": "^22.2.4",
+    "@angular/platform-server": "^22.2.4",
+    "@angular/router": "^22.2.4",
+    "@angular/ssr": "^22.2.6",
     "@tailwindcss/postcss": "^4.3.3",
     "algoliasearch": "^5.60.0",
     "compression": "^1.8.2",
@@ -57,9 +57,9 @@
     "valibot": "^1.4.2"
   },
   "devDependencies": {
-    "@angular/build": "^22.2.0",
-    "@angular/cli": "^22.2.0",
-    "@angular/compiler-cli": "^22.2.0",
+    "@angular/build": "^22.2.6",
+    "@angular/cli": "^22.2.6",
+    "@angular/compiler-cli": "^22.2.4",
     "@eslint/js": "^10.0.1",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.1",
@@ -77,5 +77,10 @@
     "esbuild@0.28.2": true,
     "lmdb@3.5.6": true,
     "msgpackr-extract@3.0.4": true
+  },
+  "overrides": {
+    "@firebase/firestore": {
+      "@grpc/grpc-js": "^1.14.7"
+    }
   }
 }

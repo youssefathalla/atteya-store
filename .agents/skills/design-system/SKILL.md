@@ -7,7 +7,7 @@ description: The Design Authority for styling and UI. Enforces strict Tailwind v
 
 This skill is the **Design Authority** for the project: the architecture, workflows and full component reference behind the design system.
 
-> **Division of responsibility.** The token vocabulary and hard bans live in `.cursor/rules/design-system.mdc` (Cursor) and `.agents/rules/design-system.md` (Antigravity; body synced from the `.mdc` via `npm run sync:agents`). This skill carries what that contract deliberately omits: the style directory map, the Material override workflow, style-file registration, per-component input reference, and the audit checklist. Edit contract **body** only in the `.mdc`, then sync. Do not duplicate content between contract and skill.
+> **Division of responsibility.** The token vocabulary and hard bans live in `.cursor/rules/design-system.mdc` (Cursor) and `.agents/rules/design-system.md` (Antigravity) and `.claude/rules/design-system.md` (Claude Code), both body-synced from the `.mdc` via `npm run sync:agents`. This skill carries what that contract deliberately omits: the style directory map, the Material override workflow, style-file registration, per-component input reference, and the audit checklist. Edit contract **body** only in the `.mdc`, then sync. Do not duplicate content between contract and skill.
 
 ---
 

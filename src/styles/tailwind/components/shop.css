@@ -1,0 +1,133 @@
+@layer components {
+  /** Dense shop listing grid: 2-col mobile, 3-col desktop, ~2px gaps (AS-74). */
+  .shop-product-grid {
+    @apply grid grid-cols-2 md:grid-cols-3 gap-0.5 w-full;
+  }
+
+  /** Desktop browse: results flex; filter column mounts with a short fade. */
+  .shop-browse-layout {
+    @apply w-full flex items-start;
+    gap: 0;
+  }
+
+  @media (min-width: 768px) {
+    .shop-browse-layout--filters-open {
+      gap: 2.5rem;
+    }
+  }
+
+  .shop-filters-aside {
+    @apply hidden min-w-0 self-start;
+  }
+
+  /**
+   * Sticky lives on the aside itself (viewport scroll). Do not put overflow/transform
+   * on an ancestor of a sticky child — that pins to the ancestor instead.
+   */
+  @media (min-width: 768px) {
+    .shop-browse-layout--filters-open .shop-filters-aside {
+      display: block;
+      width: 18rem;
+      flex-shrink: 0;
+      align-self: flex-start;
+      position: sticky;
+      top: 1rem;
+      max-height: calc(100dvh - 6rem);
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: var(--mat-sys-outline-variant) transparent;
+      animation: shop-filters-in 220ms ease;
+    }
+  }
+
+  /* Opacity-only: transform on a sticky element breaks sticky while/after animating. */
+  @keyframes shop-filters-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shop-browse-layout--filters-open .shop-filters-aside {
+      animation: none;
+    }
+  }
+
+  .shop-filters-aside::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .shop-filters-aside::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .shop-filters-aside::-webkit-scrollbar-thumb {
+    background-color: var(--mat-sys-outline-variant);
+    border-radius: var(--border-shape, 2px);
+  }
+
+  .shop-browse-results {
+    @apply w-full elements-start-col gap-6 min-w-0 flex-1;
+  }
+
+  .shop-browse-results--refreshing {
+    @apply opacity-70;
+    transition: opacity 160ms ease;
+  }
+
+  /** On Running–style density: tighter section rhythm than the default card stack. */
+  .shop-filters-panel {
+    @apply w-full elements-start-col gap-5;
+  }
+
+  .shop-filters-section {
+    @apply w-full elements-start-col gap-2;
+  }
+
+  .shop-filters-heading {
+    @apply font-title-sm font-bold!;
+  }
+
+  .shop-size-grid {
+    @apply grid grid-cols-3 gap-1.5 w-full;
+  }
+
+  .shop-size-btn {
+    @apply min-h-9 px-1.5 border border-outline-variant border-shape font-label-md font-mono elements-center hover:bg-surface-container transition-colors;
+  }
+
+  .shop-size-btn--active {
+    @apply bg-primary text-on-primary border-primary;
+  }
+
+  /** Always 2-col colour grid (panel is ~18rem); compact swatch + label + count. */
+  .shop-color-grid {
+    @apply grid grid-cols-2 gap-x-3 gap-y-1.5 w-full;
+  }
+
+  .shop-color-row {
+    @apply elements-center gap-2 w-full min-h-9 py-0.5 border-shape hover:bg-surface-container transition-colors text-start;
+  }
+
+  .shop-color-row--active {
+    @apply bg-surface-container;
+  }
+
+  /** Chunky swatches — larger than card chips, still dense in a 2-col row. */
+  .shop-color-swatch {
+    @apply size-8 shrink-0;
+  }
+
+  .shop-price-inputs {
+    @apply w-full elements-start-col gap-1;
+  }
+
+  .shop-price-inputs mat-slider {
+    width: 100%;
+  }
+}

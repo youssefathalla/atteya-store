@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard } from '@core/guards/admin/admin.guard';
 import { checkoutAuthGuard } from '@core/guards/checkout/checkout-auth.guard';
 import { favoritesAuthGuard } from '@core/guards/favorites/favorites-auth.guard';
 import { serverCurrencyResolver } from '@core/services/currency/server-currency.resolver';
@@ -27,6 +28,51 @@ export const routes: Routes = [
           import('./features/home/home.component').then((m) => m.HomeComponent),
         resolve: { homeSettings: homeSettingsResolver },
         title: 'Atteya Store | Premium Padel & Sports Gear',
+      },
+      {
+        path: 'shop',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Shop | Atteya Store',
+        data: { preload: true },
+      },
+      {
+        path: 'category/all',
+        redirectTo: 'shop',
+        pathMatch: 'full',
+      },
+      {
+        path: 'category/apparel',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Apparel | Atteya Store',
+        data: { shopCategory: 'apparel', preload: true },
+      },
+      {
+        path: 'category/accessories/bags',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Bags | Atteya Store',
+        data: { shopCategory: 'accessories', shopSubcategory: 'bags', preload: true },
+      },
+      {
+        path: 'category/accessories',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Accessories | Atteya Store',
+        data: { shopCategory: 'accessories', preload: true },
+      },
+      {
+        path: 'category/rackets',
+        loadComponent: () =>
+          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: 'Padel | Atteya Store',
+        data: { shopCategory: 'rackets', preload: true },
+      },
+      {
+        path: 'category/bags',
+        redirectTo: 'category/accessories/bags',
+        pathMatch: 'full',
       },
       {
         path: 'category/:slug',
@@ -116,8 +162,10 @@ export const routes: Routes = [
   },
 
   // 2. Standalone Playground / Design System Sandbox (Completely Isolated from the Store)
+  // Admin only: same guard as /admin, rendered on the client (see app.routes.server.ts).
   {
     path: 'playground',
+    canActivate: [adminGuard],
     loadComponent: () =>
       import('./features/playground/playground.component').then((m) => m.PlaygroundComponent),
     title: 'Design System & Component Playground | Atteya Store',

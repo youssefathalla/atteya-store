@@ -1,0 +1,124 @@
+<div class="w-full elements-start-col gap-6 select-none">
+  <app-shop-header
+    [title]="pageTitle()"
+    [activeTab]="activeTab()"
+    [filtersOpen]="filtersOpen()"
+    [resultCount]="totalHits()"
+    [showFiltersToggle]="isConfigured()"
+    (filtersToggle)="toggleFilters()"
+  />
+
+  @if (!isConfigured()) {
+    <section class="surface-card p-8 w-full elements-center-col gap-2 text-center">
+      <h2 class="font-title-md font-bold!">Shop isn't ready yet</h2>
+      <p class="font-body-md opacity-80 max-w-md">
+        Browse from the top menu while catalogue search is being connected.
+      </p>
+    </section>
+  } @else {
+    <div
+      class="shop-browse-layout"
+      [class.shop-browse-layout--filters-open]="filtersOpen()"
+    >
+      @if (filtersOpen()) {
+        <aside class="shop-filters-aside" aria-label="Filters">
+          <app-shop-filters
+            [filters]="filterState()"
+            (filtersChange)="onFiltersChange($event)"
+            [tab]="activeTab()"
+            [brands]="brands()"
+            [sizes]="sizes()"
+            [colors]="colors()"
+            [priceBounds]="priceBounds()"
+            [showGender]="showGender()"
+            [showSizes]="showSizes()"
+            [accessoriesSubOnly]="accessoriesSubOnly()"
+          />
+        </aside>
+      }
+
+      <div
+        class="shop-browse-results"
+        [class.shop-browse-results--refreshing]="isRefreshing()"
+      >
+        @if (resultsResource.error()) {
+          <section class="py-12 text-center surface-card p-8" role="alert">
+            <h2 class="font-title-md font-bold! mb-1">We couldn't load products</h2>
+            <p class="font-body-sm opacity-80 max-w-md mx-auto mb-6">
+              Please try again in a moment.
+            </p>
+            <button matButton="outlined" type="button" (click)="resultsResource.reload()">
+              <span>Try again</span>
+            </button>
+          </section>
+        } @else if (isLoading()) {
+          <app-shop-grid
+            [hits]="[]"
+            [loading]="true"
+            [hydrated]="hydrated()"
+            [nowMs]="nowMs()"
+          />
+        } @else if (showEmpty()) {
+          <section class="py-12 text-center surface-card p-8">
+            <div class="size-16 border-shape bg-surface-container elements-center mx-auto mb-4">
+              <mat-icon name="inventory_2" size="3xl" />
+            </div>
+            <h2 class="font-title-md font-bold! mb-1">No products match</h2>
+            <p class="font-body-sm opacity-80 max-w-md mx-auto mb-6">
+              Try clearing some filters or pick another category.
+            </p>
+            <button matButton="outlined" type="button" (click)="clearFilters()">
+              <span>Clear filters</span>
+            </button>
+          </section>
+        } @else {
+          <app-shop-grid
+            [hits]="hits()"
+            [loading]="false"
+            [hydrated]="hydrated()"
+            [nowMs]="nowMs()"
+          />
+
+          @if (totalPages() > 1) {
+            <nav class="elements-center gap-3 w-full" aria-label="Shop pages">
+              <button
+                matButton="outlined"
+                type="button"
+                [disabled]="filterState().page <= 0"
+                (click)="goToPage(filterState().page - 1)"
+              >
+                <span>Previous</span>
+              </button>
+              <span class="font-label-sm opacity-70">
+                Page {{ filterState().page + 1 }} of {{ totalPages() }}
+              </span>
+              <button
+                matButton="outlined"
+                type="button"
+                [disabled]="filterState().page + 1 >= totalPages()"
+                (click)="goToPage(filterState().page + 1)"
+              >
+                <span>Next</span>
+              </button>
+            </nav>
+          }
+        }
+      </div>
+    </div>
+  }
+
+  <app-shop-filters-drawer
+    [open]="filtersOpen() && !isDesktopLayout()"
+    [filters]="filterState()"
+    (filtersChange)="onFiltersChange($event)"
+    [tab]="activeTab()"
+    [brands]="brands()"
+    [sizes]="sizes()"
+    [colors]="colors()"
+    [priceBounds]="priceBounds()"
+    [showGender]="showGender()"
+    [showSizes]="showSizes()"
+    [accessoriesSubOnly]="accessoriesSubOnly()"
+    (closed)="closeMobileFilters()"
+  />
+</div>

@@ -11,4 +11,5 @@
 @import './styles/tailwind/components/skeleton';
 @import './styles/tailwind/components/product-card';
 @import './styles/tailwind/components/home-product-rows';
+@import './styles/tailwind/components/shop';
 @import './styles/tailwind/utils-base';

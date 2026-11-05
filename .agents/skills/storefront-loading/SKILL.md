@@ -91,4 +91,4 @@ Services that listen after SSR must **hydrate from `TransferState` before attach
 
 ## Explicit non-goals
 
-- No duplicate policy text elsewhere — **`AGENTS.md`** keeps a short pointer; **`code-review`** and **`new-feature`** link here for the full checklist.
+- No duplicate policy text elsewhere — **`AGENTS.md`** keeps a short pointer; **`preflight-gate`** and **`new-feature`** link here for the full checklist.

@@ -23,7 +23,8 @@ export const ATTRIBUTES_FOR_FACETING: readonly string[] = [
   'filterOnly(brandId)',
   'filterOnly(type)',
   'filterOnly(modelGroup)',
-  'filterOnly(gender)',
+  // Shop needs facet counts to show/hide the Gender filter (AS-74); filterOnly omits values.
+  'gender',
   'filterOnly(marketingBadgeKind)',
   'filterOnly(inStock)',
   'filterOnly(offerIds)',

@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   aggregateOrderStockDemand,
+  applyStockDemand,
   nextStockAfterDemand,
+  parseOrderStockLines,
 } from './decrement-order-stock.js';
 
 describe('aggregateOrderStockDemand', () => {
@@ -109,5 +111,54 @@ describe('nextStockAfterDemand', () => {
       { kind: 'sized', bySize: { m: 2, l: 1 } },
     );
     assert.deepEqual(next, { stock: 7, stockBySize: null, inStock: true });
+  });
+});
+
+describe('applyStockDemand with allowShortfall', () => {
+  const sized = {
+    stock: 3,
+    stockBySize: { s: 1, m: 2 },
+    options: [{ key: 'size', values: [{ id: 's' }, { id: 'm' }] }],
+  };
+
+  it('floors a short size at 0 and reports it', () => {
+    const result = applyStockDemand(sized, { kind: 'sized', bySize: { s: 3 } }, { allowShortfall: true });
+    assert.equal(result.short, true);
+    assert.deepEqual(result.next.stockBySize, { s: 0, m: 2 });
+    assert.equal(result.next.stock, 2);
+  });
+
+  it('floors flat stock at 0 and reports it', () => {
+    const result = applyStockDemand(
+      { stock: 1, stockBySize: undefined, options: [] },
+      { kind: 'flat', quantity: 4 },
+      { allowShortfall: true },
+    );
+    assert.equal(result.short, true);
+    assert.equal(result.next.stock, 0);
+    assert.equal(result.next.inStock, false);
+  });
+
+  it('is not short when stock covers the demand', () => {
+    const result = applyStockDemand(sized, { kind: 'sized', bySize: { m: 2 } }, { allowShortfall: true });
+    assert.equal(result.short, false);
+    assert.deepEqual(result.next.stockBySize, { s: 1, m: 0 });
+  });
+
+  it('still throws without allowShortfall', () => {
+    assert.throws(() => nextStockAfterDemand(sized, { kind: 'sized', bySize: { s: 3 } }));
+  });
+});
+
+describe('parseOrderStockLines', () => {
+  it('reads productId, quantity and string selections', () => {
+    const lines = parseOrderStockLines({
+      pricing: { lines: [{ productId: 'p1', quantity: 2, selection: { size: 'm', bad: 1 } }] },
+    });
+    assert.deepEqual(lines, [{ productId: 'p1', quantity: 2, selection: { size: 'm' } }]);
+  });
+
+  it('rejects an order without lines', () => {
+    assert.throws(() => parseOrderStockLines({ pricing: { lines: [] } }));
   });
 });

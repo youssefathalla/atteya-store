@@ -53,7 +53,7 @@ Check each newly added or updated item against the living docs:
    - Is the architecture documented under **Core Architectural Directives** in `AGENTS.md`?
    - Is the feature lifecycle updated in `new-feature/SKILL.md`?
    - Are styling guardrails reflected in `.cursor/rules/design-system.mdc`?
-   - After editing the design-system contract, run `npm run sync:agents` so `.agents/rules/design-system.md` and workflow mirrors stay aligned.
+   - After editing the design-system contract, run `npm run sync:agents` so `.agents/rules/design-system.md`, the `.claude/` copies, and workflow mirrors stay aligned.
 
 ---
 

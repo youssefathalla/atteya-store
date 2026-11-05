@@ -34,16 +34,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // Rules cannot sum a map, so stock == sum(stockBySize) is enforced by
-    // stockFields() in functions/src/products/stock.ts, not here.
-    // The Admin SDK (import and migration) skips these rules.
-    function validStock(data) {
-      return !('stock' in data) || (
-        data.stock is int && data.stock >= 0 && data.inStock == (data.stock > 0)
-        && (!('stockBySize' in data) || (data.stockBySize is map && data.stockBySize.size() <= 20))
-      );
-    }
-
     // Storefront content: settings/home, settings/navigation, settings/shipping,
     // settings/currency, and sibling docs.
     // Visitors and normal users can read these. Only an admin with a current session can write them.
@@ -74,12 +64,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Products: storefront can read published products; only admins write.
+    // Products: storefront can read published products; admins can read all.
     // Public queries MUST include where('published', '==', true) or they are rejected.
+    // Writes go only through admin callables (createProduct, updateProduct, setProductStock,
+    // confirmCodOrder) and the Paymob webhook, which use the Admin SDK and keep stock,
+    // stockBySize and inStock consistent via stockFields(). Clients, including admins,
+    // cannot write product docs directly.
     match /products/{productId} {
       allow get, list: if resource.data.published == true || isAdmin();
-      allow create, update: if isAdmin() && validStock(request.resource.data);
-      allow delete: if isAdmin();
+      allow write: if false;
     }
 
     // Categories and brands: storefront can read published docs; only admins write.

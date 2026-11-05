@@ -1,5 +1,5 @@
 ---
-name: code-review
+name: preflight-gate
 description: The authoritative Pre-Flight QA Beast Mode Gate. Strictly audits code across Angular v22 standards, Material M3 token purity, Accessibility, ReDoS prevention, SSR route coverage, and catalog reuse before any feature or change is shipped. Run this check before finishing any task.
 ---
 

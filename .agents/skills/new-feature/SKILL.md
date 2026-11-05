@@ -21,7 +21,7 @@ graph TD
     S4["Step 4: Create Signal Service<br/>(angular-developer)"]
     S5["Step 5: Compose UI & Styling<br/>(ui-design-rules & design-system)"]
     S6["Step 6: Register Routing & SSR Server Routes<br/>(quality-standards)"]
-    S7["Step 7: Pre-Flight Beast Mode Gate<br/>(code-review)"]
+    S7["Step 7: Pre-Flight Beast Mode Gate<br/>(preflight-gate)"]
 
     S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
 ```
@@ -181,13 +181,13 @@ Storefront features that list or price products use `ProductService` and `Catalo
 
 ## 🏁 Step 7: Pre-Flight Beast Mode Gate
 >
-> 👉 **Delegate to**: [code-review](file:///.agents/skills/code-review/SKILL.md)
+> 👉 **Delegate to**: [preflight-gate](file:///.agents/skills/preflight-gate/SKILL.md)
 
 Before marking any feature as complete:
 
 1. Run `npm run preflight` to verify zero errors across project rules and ESLint (`node scripts/pre-flight-check.mjs && eslint .`).
 2. Run `npm run build` to verify SSR prerendering passes with code 0.
-3. Run the **Golden 7-Point Audit** in [code-review](file:///.agents/skills/code-review/SKILL.md).
+3. Run the **Golden 7-Point Audit** in [preflight-gate](file:///.agents/skills/preflight-gate/SKILL.md).
 
 ## Step 1b checklist
 
