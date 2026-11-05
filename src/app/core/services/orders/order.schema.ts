@@ -63,6 +63,7 @@ export const OrderPricingSnapshotSchema = v.object({
   totalEgp: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   fulfilment: v.picklist([
     'domestic-cod',
+    'domestic-instapay',
     'domestic-paymob',
     'international-paymob',
     // Legacy bank-transfer fulfilment (pre-Paymob checkout).
@@ -102,8 +103,12 @@ const OrderBaseFields = {
 
 export const StoreOrderSchema = v.object({
   ...OrderBaseFields,
-  paymentMethod: v.picklist(['paymob', 'cash-on-delivery']),
+  paymentMethod: v.picklist(['paymob', 'cash-on-delivery', 'instapay']),
   paymob: v.nullable(OrderPaymobSchema, null),
+  /** Paid (Paymob) while an item had already sold out; staff check the order. */
+  needsReview: v.optional(v.boolean(), false),
+  cancelledAt: v.optional(v.nullable(timestampSchema), null),
+  cancelledBy: v.optional(v.nullable(v.string()), null),
 });
 
 export const LegacyBankTransferOrderSchema = v.object({

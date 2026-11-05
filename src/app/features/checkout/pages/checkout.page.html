@@ -2,8 +2,8 @@
   <header class="space-y-2">
     <h1 class="font-headline-md font-bold!">Checkout</h1>
     <p class="font-body-md opacity-80">
-      Pay by card or wallet online. In Egypt you can also choose cash on delivery: you pay the
-      shipping fee first, then the rest when your order arrives.
+      In Egypt, pay by InstaPay, card or wallet, or cash on delivery (shipping fee by InstaPay
+      first, the rest when your order arrives). Outside Egypt, pay by card or wallet.
     </p>
   </header>
 
@@ -163,6 +163,11 @@
         autocomplete="tel"
         inputmode="tel"
       />
+      @if (isEgypt()) {
+        <mat-hint>Your WhatsApp mobile number, e.g. 010 1234 5678</mat-hint>
+      } @else {
+        <mat-hint>Include your country code, e.g. +971 50 123 4567</mat-hint>
+      }
     </mat-form-field>
 
     @if (orderSummary(); as summary) {
@@ -209,17 +214,29 @@
         (change)="setPaymentMethod($event.value)"
         aria-label="Payment method"
       >
-        <mat-radio-button value="paymob">Card or wallet (Paymob)</mat-radio-button>
-        @if (codAvailable()) {
+        @if (localMethodsAvailable()) {
+          <mat-radio-button value="instapay">InstaPay</mat-radio-button>
+          @if (paymentMethod() === 'instapay') {
+            @if (orderSummary(); as summary) {
+              @if (summary.state === 'ready') {
+                <p class="font-body-sm opacity-80" aria-live="polite">
+                  Pay {{ summary.instapayTotal }} by InstaPay after you place your order, then
+                  send us the screenshot on WhatsApp. We'll confirm it and send your order.
+                </p>
+              }
+            }
+          }
+        }
+        <mat-radio-button value="paymob">Card or wallet</mat-radio-button>
+        @if (localMethodsAvailable()) {
           <mat-radio-button value="cash-on-delivery">Cash on delivery</mat-radio-button>
           @if (paymentMethod() === 'cash-on-delivery') {
             @if (orderSummary(); as summary) {
               @if (summary.state === 'ready') {
                 <p class="font-body-sm opacity-80" aria-live="polite">
                   @if (summary.codShippingEgp > 0) {
-                    We'll contact you to collect the shipping fee of
-                    {{ summary.codShipping }} before we send your order. You'll pay the rest,
-                    {{ summary.codCash }}, in cash when it arrives.
+                    Pay the {{ summary.codShipping }} shipping fee by InstaPay first. You'll pay
+                    the rest, {{ summary.codCash }}, in cash when it arrives.
                   } @else {
                     Shipping is free, so there's nothing to pay before delivery. You'll pay
                     {{ summary.codCash }} in cash when it arrives.
@@ -229,7 +246,9 @@
             }
           }
         } @else {
-          <p class="font-label-sm opacity-70">Cash on delivery is available when shipping to Egypt.</p>
+          <p class="font-label-sm opacity-70">
+            InstaPay and cash on delivery are available when shipping to Egypt.
+          </p>
         }
       </mat-radio-group>
     </fieldset>
