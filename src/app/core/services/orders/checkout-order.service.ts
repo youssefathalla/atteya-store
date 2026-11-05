@@ -3,7 +3,9 @@ import { callableFrom, injectFunctionsAsync } from '@core/firebase';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import type { OrderPricingSnapshot } from '@core/services/orders/order-pricing.model';
 
-export type CheckoutPaymentMethod = 'paymob' | 'cash-on-delivery';
+export type CheckoutPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
+/** Egypt-only methods that staff confirm by hand. */
+export type ManualCheckoutPaymentMethod = 'cash-on-delivery' | 'instapay';
 
 export interface CheckoutShippingInput {
   readonly fullName: string;
@@ -25,10 +27,12 @@ export interface CreatePaymobOrderResult {
   readonly checkoutUrl: string;
 }
 
-export interface CreateCodOrderResult {
+export interface CreateManualOrderResult<
+  M extends ManualCheckoutPaymentMethod = ManualCheckoutPaymentMethod,
+> {
   readonly orderId: string;
   readonly status: 'pending';
-  readonly paymentMethod: 'cash-on-delivery';
+  readonly paymentMethod: M;
   readonly pricing: OrderPricingSnapshot;
 }
 
@@ -66,10 +70,12 @@ export class CheckoutOrderService {
     return response.data;
   }
 
-  async placeCodOrder(args: {
+  /** Egypt-only orders confirmed by staff: cash on delivery or InstaPay. */
+  async placeManualOrder<M extends ManualCheckoutPaymentMethod>(args: {
+    readonly method: M;
     readonly lines: readonly CartLineDraft[];
     readonly shipping: CheckoutShippingInput;
-  }): Promise<CreateCodOrderResult> {
+  }): Promise<CreateManualOrderResult<M>> {
     const call = await callableFrom<
       {
         lines: readonly {
@@ -79,10 +85,10 @@ export class CheckoutOrderService {
           selection: Readonly<Record<string, string>>;
         }[];
         shipping: CheckoutShippingInput;
-        paymentMethod: 'cash-on-delivery';
+        paymentMethod: M;
       },
-      CreateCodOrderResult
-    >(this.#functions(), 'createCodOrder');
+      CreateManualOrderResult<M>
+    >(this.#functions(), args.method === 'instapay' ? 'createInstapayOrder' : 'createCodOrder');
     const response = await call({
       lines: args.lines.map((line) => ({
         productId: line.productId,
@@ -91,7 +97,7 @@ export class CheckoutOrderService {
         selection: line.selection,
       })),
       shipping: args.shipping,
-      paymentMethod: 'cash-on-delivery',
+      paymentMethod: args.method,
     });
     return response.data;
   }
