@@ -26,7 +26,6 @@ export interface HomeRowProductSeed {
   readonly tags: readonly string[];
   readonly marketingBadge: MarketingBadge | null;
   readonly newArrivalUntilMs: number | null;
-  readonly trackStock: boolean;
   readonly published: boolean;
   readonly createdAtMs: number;
   readonly updatedAtMs: number;
@@ -62,7 +61,6 @@ export function toHomeRowProductSeed(product: Product): HomeRowProductSeed {
     tags: [...(product.tags ?? [])],
     marketingBadge: product.marketingBadge ? { ...product.marketingBadge } : null,
     newArrivalUntilMs: timestampToMs(product.newArrivalUntil),
-    trackStock: product.trackStock,
     published: product.published,
     createdAtMs: timestampToMs(product.createdAt) ?? 0,
     updatedAtMs: timestampToMs(product.updatedAt) ?? 0,
@@ -95,7 +93,6 @@ export function fromHomeRowProductSeed(seed: HomeRowProductSeed): Product {
     marketingBadge: seed.marketingBadge ? { ...seed.marketingBadge } : null,
     newArrivalUntil:
       seed.newArrivalUntilMs != null ? Timestamp.fromMillis(seed.newArrivalUntilMs) : null,
-    trackStock: seed.trackStock,
     variants: [],
     published: seed.published,
     searchTokens: [],

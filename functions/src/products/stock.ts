@@ -1,27 +1,5 @@
 import { currentProjectId } from '../project-id.js';
 
-export interface StockInput {
-  readonly trackStock: unknown;
-  readonly variants: unknown;
-  /** EasyOrders product-level quantity. `undefined` = not known (e.g. backfill from Firestore). */
-  readonly productQuantity?: unknown;
-}
-
-/** Legacy availability flag. Kept until PR 1b removes trackStock and variants. */
-export function deriveInStock(input: StockInput): boolean | null {
-  if (input.trackStock === false) return true;
-  if (Array.isArray(input.variants) && input.variants.length > 0) {
-    return input.variants.some((variant) => {
-      if (typeof variant !== 'object' || variant === null) return false;
-      const stock = (variant as { stock?: unknown }).stock;
-      return typeof stock === 'number' && Number.isFinite(stock) && stock > 0;
-    });
-  }
-  if (input.productQuantity === undefined) return null;
-  const quantity = input.productQuantity;
-  return typeof quantity === 'number' && Number.isFinite(quantity) && quantity > 0;
-}
-
 export const DEV_PROJECT_ID = 'atteya-store-dev';
 
 /**
@@ -66,12 +44,14 @@ export interface BootstrapInput {
   readonly variants: unknown;
   /** Stored options array; the size map is keyed by the option whose key is `size`. */
   readonly options: unknown;
-  /** EasyOrders product-level quantity. `undefined` = unknown (migration). */
-  readonly productQuantity?: unknown;
   readonly untrackedDefault: number;
 }
 
-/** Initial stock per the bootstrap rule. null = needs the import (tracked, no variants, quantity unknown). */
+/**
+ * First stock count for a product that has none yet, read from the old `trackStock` / `variants`
+ * fields. Only Check catalogue structure calls this (once per project). null = tracked with no
+ * variant rows, so there is nothing to count from; the admin sets that product's stock by hand.
+ */
 export function bootstrapStock(input: BootstrapInput): StockFields | null {
   const sizeIds = readSizeValueIds(input.options);
   if (input.trackStock === false) {
@@ -106,8 +86,7 @@ export function bootstrapStock(input: BootstrapInput): StockFields | null {
     return stockFields(null, total);
   }
 
-  if (input.productQuantity === undefined) return null;
-  return stockFields(null, wholeCount(input.productQuantity));
+  return null;
 }
 
 function wholeCount(value: unknown): number {

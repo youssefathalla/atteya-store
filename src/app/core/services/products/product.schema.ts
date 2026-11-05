@@ -88,7 +88,6 @@ export const ProductSchema = v.pipe(
      * Distinct from `marketingBadge` NEW. Expiry is date-based; no separate boolean.
      */
     newArrivalUntil: v.optional(v.nullable(timestampSchema), null),
-    trackStock: v.boolean(),
     stock: v.optional(wholeNumber),
     stockBySize: v.optional(v.record(v.string(), wholeNumber)),
     inStock: v.optional(v.boolean(), true),

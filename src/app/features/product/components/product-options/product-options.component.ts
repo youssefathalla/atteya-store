@@ -22,7 +22,7 @@ export class ProductOptionsComponent {
   readonly picked = output<{ key: string; valueId: string }>();
 
   available(key: string, valueId: string): boolean {
-    return isValueAvailable(this.product(), key, valueId, this.selection());
+    return isValueAvailable(this.product(), key, valueId);
   }
 
   isSelected(key: string, valueId: string): boolean {
