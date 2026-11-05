@@ -113,7 +113,8 @@ describe('order email wording and amounts', () => {
   it('cash on delivery placed asks for the shipping fee first, then the rest', () => {
     const email = renderOrderEmail('cod-placed', read(orderDoc({})), ctx);
     assert.equal(email.subject, 'We got your order #ABCDEF');
-    assert.match(email.text, /usually on WhatsApp/);
+    assert.match(email.text, /We'll contact you to confirm it./);
+    assert.ok(!/whatsapp/i.test(email.text + email.html), 'no WhatsApp mention');
     assert.ok(email.text.includes(`shipping fee of ${formatEgp(80)}`));
     assert.ok(email.text.includes(`the rest, ${formatEgp(2370)}, in cash`));
     assert.ok(email.text.includes(`Total: ${formatEgp(2450)}`));
@@ -200,5 +201,17 @@ describe('order email wording and amounts', () => {
   it('skips orders without an email address for the shopper', () => {
     const order = read(orderDoc({ email: null }));
     assert.equal(order.customerEmail, null);
+  });
+});
+
+describe('order email photos', () => {
+  it('leaves out the photo column when an item has no photo', () => {
+    const doc = orderDoc({});
+    const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
+    pricing.lines[0]!['imagePath'] = null;
+    const email = renderOrderEmail('cod-placed', read(doc), ctx);
+    assert.ok(!email.html.includes('<img'));
+    assert.ok(!email.html.includes('width="72"'));
+    assert.ok(email.html.includes('colspan="2"'));
   });
 });

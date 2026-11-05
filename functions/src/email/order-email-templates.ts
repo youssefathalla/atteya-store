@@ -5,8 +5,8 @@ import type { OrderEmailLine, OrderEmailOrder } from './order-email-model.js';
  * Order email copy. Agreed wording lives on the "Order emails with Resend" board task;
  * keep both in step. Amounts are whole Egyptian pounds from the saved order.
  *
- * Cash on delivery (Egypt only): the store collects the shipping fee first (usually on
- * WhatsApp), then the shopper pays the rest (total − shipping) in cash on delivery.
+ * Cash on delivery (Egypt only): the store contacts the shopper to collect the shipping fee
+ * first, then the shopper pays the rest (total − shipping) in cash on delivery.
  * Free shipping means no deposit. Card or wallet (Paymob) is paid in full online.
  */
 
@@ -72,7 +72,7 @@ function codPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmai
     subject: `We got your order ${order.ref}`,
     heading: `Thanks for your order, ${firstName(order)}`,
     intro: [
-      `We've received your order ${order.ref}. We'll contact you, usually on WhatsApp, to confirm it.`,
+      `We've received your order ${order.ref}. We'll contact you to confirm it.`,
     ],
     highlight: payNow,
     showTotals: true,
@@ -356,12 +356,13 @@ function itemsTable(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): s
   const rows = lines
     .map((line) => {
       const src = imageUrl(line.imagePath, ctx);
-      const img = src
-        ? `<img src="${escapeHtml(src)}" width="64" alt="" style="display:block;width:64px;height:auto;border:0;">`
+      // No photo: the name cell takes the photo column too, so there's no empty gap.
+      const photoCell = src
+        ? `<td width="72" valign="top" style="padding:10px 8px 10px 0;border-top:1px solid ${LINE};"><img src="${escapeHtml(src)}" width="64" alt="" style="display:block;width:64px;height:auto;border:0;"></td>\n`
         : '';
+      const nameSpan = src ? '' : ' colspan="2"';
       return `<tr>
-<td width="72" valign="top" style="padding:10px 8px 10px 0;border-top:1px solid ${LINE};">${img}</td>
-<td valign="top" style="padding:10px 8px 10px 0;border-top:1px solid ${LINE};">
+${photoCell}<td${nameSpan} valign="top" style="padding:10px 8px 10px 0;border-top:1px solid ${LINE};">
 <div style="font-weight:600;">${escapeHtml(lineTitle(line))}</div>
 <div style="font-size:13px;color:${MUTED};">${escapeHtml(lineDetails(line))}</div>
 </td>

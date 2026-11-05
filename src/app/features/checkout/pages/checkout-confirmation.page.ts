@@ -99,7 +99,7 @@ export class CheckoutConfirmationPageComponent implements OnInit, OnDestroy {
 
   /**
    * Cash on delivery amounts in whole EGP, from the saved order. The shipping fee is
-   * collected first (usually on WhatsApp); the rest is paid in cash on delivery.
+   * collected first (the store contacts the shopper); the rest is paid in cash on delivery.
    * Same split as the order emails (`functions/src/email/order-email-templates.ts`).
    */
   readonly codAmounts = computed(() => {
@@ -128,13 +128,13 @@ export class CheckoutConfirmationPageComponent implements OnInit, OnDestroy {
     if (status === 'cancelled') return 'This order was cancelled.';
     if (this.isCod()) {
       const amounts = this.codAmounts();
-      if (!amounts) return "We'll contact you, usually on WhatsApp, to confirm your order.";
+      if (!amounts) return "We'll contact you to confirm your order.";
       if (status === 'confirmed') {
         return `Your order is confirmed and we're getting it ready. Please have ${amounts.cash} in cash ready when it arrives.`;
       }
       return amounts.shippingEgp > 0
-        ? `We'll contact you, usually on WhatsApp, to collect the shipping fee of ${amounts.shipping}. Once it's paid, we'll send your order, and you'll pay the rest, ${amounts.cash}, in cash when it arrives.`
-        : `We'll contact you, usually on WhatsApp, to confirm your order. Shipping is free, so you'll pay ${amounts.cash} in cash when it arrives.`;
+        ? `We'll contact you to collect the shipping fee of ${amounts.shipping}. Once it's paid, we'll send your order, and you'll pay the rest, ${amounts.cash}, in cash when it arrives.`
+        : `We'll contact you to confirm your order. Shipping is free, so you'll pay ${amounts.cash} in cash when it arrives.`;
     }
     if (status === 'confirmed') {
       return "Thanks, your payment is confirmed and we're getting your order ready.";
