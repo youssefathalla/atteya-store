@@ -248,7 +248,7 @@ describe('order email wording and amounts', () => {
 
   it('store alert: amounts to collect, phone, and the sold-out warning', () => {
     const cod = renderOrderEmail('store-new-order', read(orderDoc({})), ctx);
-    assert.equal(cod.subject, `New order #ABCDEF – ${formatEgp(2450)} – Cash on delivery`);
+    assert.equal(cod.subject, `New order #ABCDEF – ${formatEgp(2450)} – Cash on Delivery`);
     assert.ok(
       cod.text.includes(
         `Collect the shipping fee of ${formatEgp(80)} by InstaPay first, then ${formatEgp(2370)} on delivery.`,
@@ -261,7 +261,7 @@ describe('order email wording and amounts', () => {
       read(orderDoc({ paymentMethod: 'paymob', status: 'confirmed', needsReview: true })),
       ctx,
     );
-    assert.match(paid.subject, /Paid online$/);
+    assert.match(paid.subject, /Paid Online$/);
     assert.match(paid.text, /sold out before this payment/);
   });
 

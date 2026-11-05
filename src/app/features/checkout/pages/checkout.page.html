@@ -2,8 +2,8 @@
   <header class="space-y-2">
     <h1 class="font-headline-md font-bold!">Checkout</h1>
     <p class="font-body-md opacity-80">
-      In Egypt, pay by InstaPay, card or wallet, or cash on delivery (shipping fee by InstaPay
-      first, the rest when your order arrives). Outside Egypt, pay by card or wallet.
+      In Egypt, pay by InstaPay, Card or Wallet, or Cash on Delivery (shipping fee by InstaPay
+      first, the rest when your order arrives). Outside Egypt, pay by Card or Wallet.
     </p>
   </header>
 
@@ -227,9 +227,9 @@
             }
           }
         }
-        <mat-radio-button value="paymob">Card or wallet</mat-radio-button>
+        <mat-radio-button value="paymob">Card or Wallet</mat-radio-button>
         @if (localMethodsAvailable()) {
-          <mat-radio-button value="cash-on-delivery">Cash on delivery</mat-radio-button>
+          <mat-radio-button value="cash-on-delivery">Cash on Delivery</mat-radio-button>
           @if (paymentMethod() === 'cash-on-delivery') {
             @if (orderSummary(); as summary) {
               @if (summary.state === 'ready') {
@@ -247,7 +247,7 @@
           }
         } @else {
           <p class="font-label-sm opacity-70">
-            InstaPay and cash on delivery are available when shipping to Egypt.
+            InstaPay and Cash on Delivery are available when shipping to Egypt.
           </p>
         }
       </mat-radio-group>

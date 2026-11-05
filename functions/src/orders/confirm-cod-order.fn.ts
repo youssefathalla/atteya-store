@@ -45,7 +45,7 @@ export const confirmCodOrder = onCall(
       if (order['status'] !== 'pending') {
         throw new HttpsError(
           'failed-precondition',
-          'Only open cash on delivery or InstaPay orders can be confirmed.',
+          'Only open Cash on Delivery or InstaPay orders can be confirmed.',
         );
       }
 
@@ -122,7 +122,7 @@ function assertConfirmableCodOrder(order: DocumentData): void {
   if (method !== 'cash-on-delivery' && method !== 'instapay') {
     throw new HttpsError(
       'failed-precondition',
-      'Only cash on delivery and InstaPay orders are confirmed here. Card payments confirm on their own.',
+      'Only Cash on Delivery and InstaPay orders are confirmed here. Card or Wallet payments confirm on their own.',
     );
   }
   const shipping = isRecord(order['shipping']) ? order['shipping'] : null;

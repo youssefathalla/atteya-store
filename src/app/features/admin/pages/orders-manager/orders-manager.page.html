@@ -3,7 +3,7 @@
     <div>
       <h1 class="font-title-lg font-bold!">Orders</h1>
       <p class="font-body-md text-on-surface-variant">
-        Review InstaPay, card and cash-on-delivery orders. Confirm an InstaPay payment only after the
+        Review InstaPay, Card or Wallet, and Cash on Delivery orders. Confirm an InstaPay payment only after the
         money shows in your bank app. Current stock comes from each product right now, not from the
         amounts stored when the order was placed.
       </p>
@@ -102,6 +102,7 @@
       @if (row.whatsappUrl) {
         <a
           matButton="outlined"
+          theme="success"
           [href]="row.whatsappUrl"
           target="_blank"
           rel="noopener"

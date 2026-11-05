@@ -20,7 +20,7 @@ export type CreateCodOrderResponse = CreateManualOrderResponse<'cash-on-delivery
 export type CreateInstapayOrderResponse = CreateManualOrderResponse<'instapay'>;
 
 const EGYPT_ONLY: Record<ManualPaymentMethod, string> = {
-  'cash-on-delivery': 'Cash on delivery is only available for orders delivered in Egypt.',
+  'cash-on-delivery': 'Cash on Delivery is only available for orders delivered in Egypt.',
   instapay: 'InstaPay is only available for orders delivered in Egypt.',
 };
 

@@ -12,6 +12,25 @@
     <p class="font-body-md opacity-80">We could not find this order.</p>
     <a matButton="filled" routerLink="/">Back to the store</a>
   } @else {
+    <section class="surface-card p-5 space-y-4" aria-label="Order details">
+      <div class="elements-between gap-4">
+        <span class="font-label-lg opacity-80">Order</span>
+        <span class="font-title-sm font-bold! tracking-wide break-all">{{ orderRef() }}</span>
+      </div>
+      <div class="elements-between gap-4">
+        <span class="font-label-lg opacity-80">Total</span>
+        <span class="font-title-sm font-bold!">{{ displayTotal() }}</span>
+      </div>
+      <div class="elements-between gap-4">
+        <span class="font-label-lg opacity-80">Payment</span>
+        <span class="font-title-sm font-bold!">{{ paymentLabel() }}</span>
+      </div>
+      <div class="elements-between gap-4">
+        <span class="font-label-lg opacity-80">Status</span>
+        <span class="font-title-sm font-bold!">{{ statusLabel() }}</span>
+      </div>
+    </section>
+
     @if (payBox(); as box) {
       <section class="surface-card p-5 space-y-4" aria-labelledby="pay-heading">
         <h2 id="pay-heading" class="font-title-md font-bold!">
@@ -62,32 +81,19 @@
         }
 
         @if (box.whatsappUrl) {
-          <a matButton="filled" [href]="box.whatsappUrl" target="_blank" rel="noopener">
+          <a
+            matButton="filled"
+            theme="success"
+            [href]="box.whatsappUrl"
+            target="_blank"
+            rel="noopener"
+          >
             <mat-icon name="chat_bubble" />
             <span>{{ box.hasDetails ? 'Send screenshot on WhatsApp' : 'Message us on WhatsApp' }}</span>
           </a>
         }
       </section>
     }
-
-    <section class="surface-card p-5 space-y-4" aria-label="Order details">
-      <div class="elements-between gap-4">
-        <span class="font-label-lg opacity-80">Order</span>
-        <span class="font-title-sm font-bold! tracking-wide break-all">{{ orderRef() }}</span>
-      </div>
-      <div class="elements-between gap-4">
-        <span class="font-label-lg opacity-80">Total</span>
-        <span class="font-title-sm font-bold!">{{ displayTotal() }}</span>
-      </div>
-      <div class="elements-between gap-4">
-        <span class="font-label-lg opacity-80">Payment</span>
-        <span class="font-title-sm font-bold!">{{ paymentLabel() }}</span>
-      </div>
-      <div class="elements-between gap-4">
-        <span class="font-label-lg opacity-80">Status</span>
-        <span class="font-title-sm font-bold!">{{ statusLabel() }}</span>
-      </div>
-    </section>
 
     @if (helpUrl(); as url) {
       <p class="font-body-sm opacity-80">

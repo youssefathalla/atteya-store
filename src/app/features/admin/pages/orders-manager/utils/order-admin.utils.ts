@@ -19,13 +19,13 @@ import type {
 export function paymentLabel(order: OrderDoc): string {
   switch (order.paymentMethod) {
     case 'cash-on-delivery':
-      return 'Cash on delivery';
+      return 'Cash on Delivery';
     case 'instapay':
       return 'InstaPay';
     case 'paymob':
-      return 'Card or wallet (Paymob)';
+      return 'Card or Wallet (Paymob)';
     case 'international-bank-transfer':
-      return 'Bank transfer (legacy)';
+      return 'Bank Transfer (legacy)';
   }
 }
 

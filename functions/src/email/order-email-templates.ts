@@ -249,20 +249,20 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
   const method = order.paymentMethod;
   const label =
     method === 'cash-on-delivery'
-      ? 'Cash on delivery'
+      ? 'Cash on Delivery'
       : method === 'instapay'
         ? 'InstaPay – waiting for transfer'
-        : 'Paid online';
+        : 'Paid Online';
   const subject = `New order ${order.ref} – ${formatEgp(order.totalEgp)} – ${label}`;
   const cash = formatEgp(cashOnDeliveryEgp(order));
   const payment =
     method === 'cash-on-delivery'
       ? order.shippingEgp > 0
-        ? `Cash on delivery. Collect the shipping fee of ${formatEgp(order.shippingEgp)} by InstaPay first, then ${cash} on delivery.`
-        : `Cash on delivery. No shipping fee to collect (free shipping). Collect ${cash} on delivery.`
+        ? `Cash on Delivery. Collect the shipping fee of ${formatEgp(order.shippingEgp)} by InstaPay first, then ${cash} on delivery.`
+        : `Cash on Delivery. No shipping fee to collect (free shipping). Collect ${cash} on delivery.`
       : method === 'instapay'
         ? `InstaPay. Waiting for the shopper's transfer of ${formatEgp(order.totalEgp)}. Confirm the payment in the dashboard once it shows in your bank app.`
-        : `Paid online (card or wallet): ${formatEgp(order.totalEgp)}.`;
+        : `Paid Online (Card or Wallet): ${formatEgp(order.totalEgp)}.`;
   const warning = order.needsReview
     ? 'One item sold out before this payment came in. Please check this order.'
     : null;
