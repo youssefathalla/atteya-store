@@ -41,6 +41,7 @@ export interface MigrateProductCounts {
   colorsFromOptions: number;
   colorsFromName: number;
   colorsMissing: number;
+  colorsKept: number;
   stockNeedsImport: number;
 }
 
@@ -292,6 +293,7 @@ async function backfillProducts(
     colorsFromOptions: 0,
     colorsFromName: 0,
     colorsMissing: 0,
+    colorsKept: 0,
     stockNeedsImport: 0,
   };
   const sample: MigrateProductSample[] = [];
@@ -352,23 +354,33 @@ async function backfillProducts(
       diffNotes.push('options[].color');
     }
 
-    const nameColors =
-      optionBackfill.colors.length === 0 ? extractColorsFromName(name) : [];
-    const resolvedColors =
-      optionBackfill.colors.length > 0 ? optionBackfill.colors : nameColors;
-
-    if (optionBackfill.colors.length > 0) {
-      counts.colorsFromOptions += 1;
-    } else if (nameColors.length > 0) {
-      counts.colorsFromName += 1;
+    // Colours are only ever filled in, never replaced or cleared: anything already
+    // set (by an admin, a script, or an earlier run) is kept even when not locked.
+    const currentColors = Array.isArray(data['colors'])
+      ? data['colors'].filter((item): item is string => typeof item === 'string')
+      : [];
+    if (currentColors.length > 0) {
+      counts.colorsKept += 1;
     } else {
-      counts.colorsMissing += 1;
-    }
+      const nameColors =
+        optionBackfill.colors.length === 0 ? extractColorsFromName(name) : [];
+      const resolvedColors =
+        optionBackfill.colors.length > 0 ? optionBackfill.colors : nameColors;
 
-    if (!currentLocked.includes('colors')) {
-      if (!Array.isArray(data['colors']) || !stringArraysEqual(data['colors'], resolvedColors)) {
+      if (optionBackfill.colors.length > 0) {
+        counts.colorsFromOptions += 1;
+      } else if (nameColors.length > 0) {
+        counts.colorsFromName += 1;
+      } else {
+        counts.colorsMissing += 1;
+      }
+
+      if (resolvedColors.length > 0 && !currentLocked.includes('colors')) {
         patch['colors'] = resolvedColors;
         diffNotes.push(`colors -> [${resolvedColors.join(', ')}]`);
+      } else if (!Array.isArray(data['colors'])) {
+        patch['colors'] = [];
+        diffNotes.push('colors -> []');
       }
     }
 
@@ -464,6 +476,7 @@ async function runDropLegacyPass(db: Firestore, dryRun: boolean): Promise<Migrat
     colorsFromOptions: 0,
     colorsFromName: 0,
     colorsMissing: 0,
+    colorsKept: 0,
     stockNeedsImport: 0,
   };
   const sample: MigrateProductSample[] = [];

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard } from '@core/guards/admin/admin.guard';
 import { checkoutAuthGuard } from '@core/guards/checkout/checkout-auth.guard';
 import { favoritesAuthGuard } from '@core/guards/favorites/favorites-auth.guard';
 import { serverCurrencyResolver } from '@core/services/currency/server-currency.resolver';
@@ -161,8 +162,10 @@ export const routes: Routes = [
   },
 
   // 2. Standalone Playground / Design System Sandbox (Completely Isolated from the Store)
+  // Admin only: same guard as /admin, rendered on the client (see app.routes.server.ts).
   {
     path: 'playground',
+    canActivate: [adminGuard],
     loadComponent: () =>
       import('./features/playground/playground.component').then((m) => m.PlaygroundComponent),
     title: 'Design System & Component Playground | Atteya Store',

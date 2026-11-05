@@ -1,0 +1,55 @@
+name: CI
+
+# Runs the same checks agents and humans run locally before merging.
+# Read-only: never deploys and needs no secrets.
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NG_CLI_ANALYTICS: 'false'
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      # package.json pins packageManager to npm 11.17.0.
+      - name: Use pinned npm
+        run: npm install -g npm@11.17.0
+
+      - name: Install app packages
+        run: npm ci
+
+      - name: Install functions packages
+        run: npm ci --prefix functions
+
+      - name: Preflight (engine sync, agent docs sync, design/a11y scan, eslint)
+        run: npm run preflight
+
+      - name: Cart pricing tests
+        run: npm run test:cart
+
+      - name: Functions build and tests
+        run: npm test --prefix functions
+
+      - name: App build (development)
+        run: npx ng build --configuration development

@@ -18,8 +18,6 @@ import { normalizeImageKitPath } from '@shared/utils/image';
 import type {
   BrandOptionView,
   CategoryOptionView,
-  ImportReport,
-  ImportRowView,
   ProductTableRow,
 } from '../models/product-admin.model';
 
@@ -129,42 +127,6 @@ export function existingModelGroups(products: readonly Product[]): string[] {
     if (product.modelGroup) groups.add(product.modelGroup);
   }
   return [...groups].sort((left, right) => left.localeCompare(right));
-}
-
-export function importSummary(report: ImportReport): string {
-  const counts = report.counts;
-  if (report.dryRun) {
-    return `Preview checked ${report.total} products. Nothing was saved.`;
-  }
-  return `Import finished. ${counts.created} new, ${counts.updated} updated, ${counts.unchanged} unchanged.`;
-}
-
-export function tallyRows(
-  rows: readonly ImportRowView[],
-  key: 'type' | 'brand',
-): { id: string; label: string; count: number }[] {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    const id = row[key];
-    counts.set(id, (counts.get(id) ?? 0) + 1);
-  }
-  const labelFor = key === 'type' ? typeLabel : (id: string) => brandLabel(id);
-  return [...counts.entries()]
-    .map(([id, count]) => ({ id, label: labelFor(id), count }))
-    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
-}
-
-export function modelGroupLines(rows: readonly ImportRowView[]): { id: string; members: string }[] {
-  const groups = new Map<string, string[]>();
-  for (const row of rows) {
-    if (!row.modelGroup) continue;
-    const members = groups.get(row.modelGroup) ?? [];
-    members.push(row.name);
-    groups.set(row.modelGroup, members);
-  }
-  return [...groups.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([id, members]) => ({ id, members: members.join(', ') }));
 }
 
 export function isModelGroup(value: string): boolean {
