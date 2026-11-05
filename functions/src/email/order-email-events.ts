@@ -9,16 +9,21 @@ export type OrderEmailKind =
   | 'cod-placed'
   /** Admin confirmed a cash-on-delivery order (shipping fee received, or free shipping). */
   | 'cod-confirmed'
+  /** Egypt InstaPay placed: transfer the full total, send the screenshot on WhatsApp. */
+  | 'instapay-placed'
+  /** Admin confirmed an InstaPay order (transfer seen in the bank app). */
+  | 'instapay-confirmed'
   /** Paymob payment cleared and the order is confirmed (Egypt or abroad). */
   | 'paid-confirmed'
   /** Paymob reported a failed, voided or refunded payment. */
   | 'payment-failed'
-  /** Store-owner alert: a cash-on-delivery order was placed, or an online payment cleared. */
+  /** Store-owner alert: a cash-on-delivery or InstaPay order was placed, or a card payment cleared. */
   | 'store-new-order';
 
 /**
  * Decide which emails one order write should send, from the state before and after.
  * Pending Paymob orders send nothing: the shopper may never finish paying.
+ * Cancelling sends nothing: staff talk to the shopper on WhatsApp.
  */
 export function orderEmailsForWrite(
   before: OrderEmailOrder | null,
@@ -35,6 +40,16 @@ export function orderEmailsForWrite(
     }
     if (becameConfirmed && statusBefore === 'pending') {
       kinds.push('cod-confirmed');
+    }
+    return kinds;
+  }
+
+  if (after.paymentMethod === 'instapay') {
+    if (before === null && after.status === 'pending') {
+      kinds.push('instapay-placed', 'store-new-order');
+    }
+    if (becameConfirmed && statusBefore === 'pending') {
+      kinds.push('instapay-confirmed');
     }
     return kinds;
   }

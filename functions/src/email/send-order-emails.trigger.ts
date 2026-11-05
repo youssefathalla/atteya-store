@@ -113,6 +113,7 @@ function emailContext(): OrderEmailContext {
     canReply: RESEND_REPLY_TO.value().trim().includes('@'),
     storeName: STORE_INFO.name,
     whatsappNumber: STORE_INFO.contact.whatsapp,
+    instapay: STORE_INFO.payments.instapay,
   };
 }
 

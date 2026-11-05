@@ -16,8 +16,11 @@ export interface ConfirmCodOrderResponse {
 }
 
 /**
- * Admin confirmation for Egypt cash-on-delivery orders.
- * Treats confirmation as paid and decrements product stock atomically (per size when present).
+ * Admin confirmation for Egypt orders paid outside Paymob:
+ * - cash on delivery: the shipping fee was received (or shipping is free);
+ * - InstaPay: the full transfer was seen in the bank app.
+ * Decrements product stock atomically (per size when present). The callable keeps its
+ * original name so deploys never delete or rename a live function.
  */
 export const confirmCodOrder = onCall(
   adminCallableOptions(),
@@ -42,7 +45,7 @@ export const confirmCodOrder = onCall(
       if (order['status'] !== 'pending') {
         throw new HttpsError(
           'failed-precondition',
-          'Only open cash-on-delivery orders can be confirmed.',
+          'Only open cash on delivery or InstaPay orders can be confirmed.',
         );
       }
 
@@ -115,10 +118,11 @@ function parseOrderId(raw: unknown): string {
 }
 
 function assertConfirmableCodOrder(order: DocumentData): void {
-  if (order['paymentMethod'] !== 'cash-on-delivery') {
+  const method = order['paymentMethod'];
+  if (method !== 'cash-on-delivery' && method !== 'instapay') {
     throw new HttpsError(
       'failed-precondition',
-      'Only cash-on-delivery orders are confirmed here. Paymob orders confirm when payment clears.',
+      'Only cash on delivery and InstaPay orders are confirmed here. Card payments confirm on their own.',
     );
   }
   const shipping = isRecord(order['shipping']) ? order['shipping'] : null;
@@ -127,11 +131,8 @@ function assertConfirmableCodOrder(order: DocumentData): void {
     isRecord(order['pricing']) && typeof order['pricing']['fulfilment'] === 'string'
       ? order['pricing']['fulfilment']
       : '';
-  if (country !== 'EG' && fulfilment !== 'domestic-cod') {
-    throw new HttpsError(
-      'failed-precondition',
-      'Cash on delivery confirmation is only for Egypt orders.',
-    );
+  if (country !== 'EG' && fulfilment !== 'domestic-cod' && fulfilment !== 'domestic-instapay') {
+    throw new HttpsError('failed-precondition', 'Only Egypt orders are confirmed here.');
   }
 }
 

@@ -10,7 +10,12 @@ const ctx: OrderEmailContext = {
   canReply: true,
   storeName: 'Atteya Store',
   whatsappNumber: '',
+  instapay: { address: '', number: '' },
 };
+
+const WA = '+20 120 565 8954';
+const INSTAPAY = { address: 'atteya@instapay', number: '010 1234 5678' };
+const withPay: OrderEmailContext = { ...ctx, whatsappNumber: WA, instapay: INSTAPAY };
 
 function orderDoc(overrides: {
   status?: string;
@@ -111,11 +116,80 @@ describe('orderEmailsForWrite', () => {
   });
 });
 
+describe('InstaPay emails', () => {
+  it('InstaPay placed: shopper + store alert; confirmed: shopper only', () => {
+    const pending = read(orderDoc({ paymentMethod: 'instapay' }));
+    const confirmed = read(orderDoc({ paymentMethod: 'instapay', status: 'confirmed' }));
+    const cancelled = read(orderDoc({ paymentMethod: 'instapay', status: 'cancelled' }));
+    assert.deepEqual(orderEmailsForWrite(null, pending), ['instapay-placed', 'store-new-order']);
+    assert.deepEqual(orderEmailsForWrite(pending, confirmed), ['instapay-confirmed']);
+    assert.deepEqual(orderEmailsForWrite(pending, cancelled), []);
+  });
+
+  it('InstaPay placed asks for the full total with the InstaPay details and a WhatsApp button', () => {
+    const email = renderOrderEmail('instapay-placed', read(orderDoc({ paymentMethod: 'instapay' })), withPay);
+    assert.ok(email.text.includes(`Pay ${formatEgp(2450)} by InstaPay:`));
+    assert.ok(email.text.includes('InstaPay address: atteya@instapay'));
+    assert.ok(email.text.includes('InstaPay number: 010 1234 5678'));
+    assert.ok(email.text.includes('Send screenshot on WhatsApp: https://wa.me/201205658954?text='));
+    assert.ok(email.html.includes('https://wa.me/201205658954?text='));
+    const text = decodeURIComponent(email.text.split('?text=')[1]?.split(/\s/)[0] ?? '');
+    assert.match(text, /#ABCDEF/);
+    assert.match(text, /2,450 EGP/);
+  });
+
+  it('InstaPay placed without details set says we will send them', () => {
+    const email = renderOrderEmail(
+      'instapay-placed',
+      read(orderDoc({ paymentMethod: 'instapay' })),
+      { ...withPay, instapay: { address: '', number: '' } },
+    );
+    assert.match(email.text, /Message us on WhatsApp and we'll send you the InstaPay details/);
+    assert.ok(!email.text.includes('screenshot'));
+  });
+
+  it('cash on delivery placed asks for the fee only by InstaPay', () => {
+    const email = renderOrderEmail('cod-placed', read(orderDoc({})), withPay);
+    assert.ok(email.text.includes(`Pay the shipping fee of ${formatEgp(80)} by InstaPay:`));
+    assert.ok(!email.text.includes(`Pay ${formatEgp(2450)}`));
+  });
+
+  it('free shipping cash on delivery has no InstaPay box', () => {
+    const email = renderOrderEmail('cod-placed', read(orderDoc({ shippingEgp: 0 })), withPay);
+    assert.ok(!email.text.includes('InstaPay'));
+    assert.ok(!email.text.includes('screenshot'));
+  });
+
+  it('paid and confirmed emails never ask for money or a screenshot', () => {
+    const cases = [
+      ['instapay-confirmed', orderDoc({ paymentMethod: 'instapay', status: 'confirmed' })],
+      ['paid-confirmed', orderDoc({ paymentMethod: 'paymob', status: 'confirmed' })],
+      ['cod-confirmed', orderDoc({ status: 'confirmed' })],
+    ] as const;
+    for (const [kind, doc] of cases) {
+      const email = renderOrderEmail(kind, read(doc), withPay);
+      assert.ok(!/screenshot|InstaPay address|InstaPay number/.test(email.text), kind);
+    }
+    const paid = renderOrderEmail(
+      'instapay-confirmed',
+      read(orderDoc({ paymentMethod: 'instapay', status: 'confirmed' })),
+      withPay,
+    );
+    assert.ok(paid.text.includes(`InstaPay payment of ${formatEgp(2450)}`));
+  });
+
+  it('store alert says InstaPay is waiting for the transfer', () => {
+    const email = renderOrderEmail('store-new-order', read(orderDoc({ paymentMethod: 'instapay' })), ctx);
+    assert.match(email.subject, /InstaPay – waiting for transfer/);
+    assert.match(email.text, /Waiting for the shopper's transfer/);
+  });
+});
+
 describe('order email wording and amounts', () => {
   it('cash on delivery placed asks for the shipping fee first, then the rest', () => {
     const email = renderOrderEmail('cod-placed', read(orderDoc({})), ctx);
     assert.equal(email.subject, 'We got your order #ABCDEF');
-    assert.match(email.text, /We'll contact you to confirm it./);
+    assert.match(email.text, /We've received your order #ABCDEF./);
     assert.ok(!/whatsapp/i.test(email.text + email.html), 'no WhatsApp mention');
     assert.ok(email.text.includes(`shipping fee of ${formatEgp(80)}`));
     assert.ok(email.text.includes(`the rest, ${formatEgp(2370)}, in cash`));
@@ -177,7 +251,7 @@ describe('order email wording and amounts', () => {
     assert.equal(cod.subject, `New order #ABCDEF – ${formatEgp(2450)} – Cash on delivery`);
     assert.ok(
       cod.text.includes(
-        `Collect the shipping fee of ${formatEgp(80)} first, then ${formatEgp(2370)} on delivery.`,
+        `Collect the shipping fee of ${formatEgp(80)} by InstaPay first, then ${formatEgp(2370)} on delivery.`,
       ),
     );
     assert.match(cod.text, /01012345678/);
