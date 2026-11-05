@@ -33,7 +33,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### 🎨 Design System & Styling
 
-- **The Contract**: Token vocabulary and hard bans live in `.cursor/rules/design-system.mdc` (Cursor auto-loads for `.html`, `.css`, `.scss`, and `.ts`) and `.agents/rules/design-system.md` (Antigravity glob rule). Edit the **body** in `.cursor/rules/design-system.mdc`, then run `npm run sync:agents` so Antigravity stays aligned. Adhere to all semantic tokens, M3 overrides, `<mat-icon name="icon" />` with `SharedIconModule`, and utility extraction rules.
+- **The Contract**: Token vocabulary and hard bans live in `.cursor/rules/design-system.mdc` (Cursor auto-loads for `.html`, `.css`, `.scss`, and `.ts`), `.agents/rules/design-system.md` (Antigravity glob rule), and `.claude/rules/design-system.md` (Claude Code, scoped to the same files). Edit the **body** in `.cursor/rules/design-system.mdc`, then run `npm run sync:agents` so Antigravity and Claude Code stay aligned. Adhere to all semantic tokens, M3 overrides, `<mat-icon name="icon" />` with `SharedIconModule`, and utility extraction rules.
 - **Zero Tailwind on Angular Material**: Angular Material components (`button[matButton]`, `button[matIconButton]`, `<mat-icon>`, `<mat-menu>`, `<mat-drawer>`, etc.) are already fully styled by the M3 theme. **NEVER** apply Tailwind styling, color, transition, or hover classes to Material components. Only style **native HTML elements** (`<div>`, `<nav>`, `<section>`, `<ul>`, `<a>`, etc.) unless explicitly instructed by the user.
 - **Monochrome (Black & White) Identity**: Brand aesthetic is strictly Black & White. `primary` is black; default text is naturally `text-on-surface` (inherited from `body`). **NEVER write `text-on-surface` on any element** — it is already the default inherited color and writing it is banned as redundant class bloat. Never add redundant child color overrides (e.g. `<span class="text-primary">.</span>`), and inherit colors cleanly.
 - **Layout Alignment Shortcuts**: Always use custom layout shortcuts instead of writing verbose flex classes: Row: `elements-center`, `elements-start`, `elements-end`, `elements-between`. Column: `elements-center-col`, `elements-start-col`, `elements-end-col`, `elements-between-col`.
@@ -116,7 +116,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### 📝 Living Documentation Directive
 
-- All agent documentation (`AGENTS.md`, `.agents/skills/`, `.agents/rules/`, `.agents/workflows/`, `.cursor/rules/`) is a living contract. Shared skills stay in `.agents/skills/` (Cursor loads that folder). Cursor-only sources: `.cursor/rules/design-system.mdc` (body synced to `.agents/rules/design-system.md`) and `.cursor/skills/` for `sync-docs`, `ask`, and `teacher` (`ask` / `teacher` bodies sync to `.agents/workflows/` via `npm run sync:agents`). After editing any mirrored source, run `npm run sync:agents`.
+- All agent documentation (`AGENTS.md`, `.agents/skills/`, `.agents/rules/`, `.agents/workflows/`, `.claude/`, `.cursor/rules/`) is a living contract. Shared skills stay in `.agents/skills/` (Cursor loads that folder). Cursor-only sources: `.cursor/rules/design-system.mdc` (body synced to `.agents/rules/design-system.md`) and `.cursor/skills/` for `sync-docs`, `ask`, and `teacher` (`ask` / `teacher` bodies sync to `.agents/workflows/` via `npm run sync:agents`). After editing any mirrored source, run `npm run sync:agents`. **Edit only the sources.** `.claude/skills/`, `.claude/rules/`, `.agents/rules/`, and `.agents/workflows/` are generated copies that `npm run sync:agents` overwrites, and `npm run preflight` fails when they drift. Put a shared skill in `.agents/skills/` (copied to `.claude/skills/`) and a Cursor-only skill in `.cursor/skills/`.
 - Any new technology, service, utility, or architectural pattern added must be documented immediately in the relevant `.agents/skills/` files (`reusable-catalog`, `new-feature`, etc.) and `AGENTS.md` before concluding the task.
 
 ---
@@ -129,7 +129,7 @@ Activate the dedicated skills from `.agents/skills/` on demand. `sync-docs`, `as
 - **`reusable-catalog`** for the living index of shared UI components, extracted Tailwind classes, and the "2+ Duplication Rule".
 - **`ui-design-rules`** for the Component Decision Matrix (Shared UI vs Material vs Tailwind), monochrome identity, and token rules.
 - **`quality-standards`** for A11y guardrails (no fake buttons), ReDoS prevention, and SSR server route registration.
-- **`code-review`** (Pre-Flight Beast Mode Gate) for `npm run preflight` automated audit and the 7-Point Quality Gate before shipping.
+- **`preflight-gate`** (Pre-Flight Beast Mode Gate) for `npm run preflight` automated audit and the 7-Point Quality Gate before shipping.
 - **`storefront-loading`** for storefront anti-flicker tiers, SSR/`TransferState` seeds, `ShellReadyService`, and async UI checklists.
 - **`angular-developer`** for architecture, components, signals, forms, DI, HTTP, and routing.
 - **`design-system`** for Tailwind v4, Material M3 token overrides, and style partial workflows.
@@ -140,7 +140,7 @@ Activate the dedicated skills from `.agents/skills/` on demand. `sync-docs`, `as
 
 ## Learned User Preferences
 
-- Develops with both Cursor and Antigravity; expects `.cursor` and `.agents` agent docs to stay aligned—run `npm run sync:agents` after editing mirrored contract or workflow sources.
+- Develops with Cursor, Antigravity, and Claude Code; expects `.cursor`, `.agents`, and `.claude` agent docs to stay aligned—run `npm run sync:agents` after editing mirrored contract or workflow sources.
 - Develops on Windows; when the GitHub CLI is unavailable, authenticating to the GitHub REST API via `git credential fill` (bearer token) is acceptable.
 
 ## Learned Workspace Facts
