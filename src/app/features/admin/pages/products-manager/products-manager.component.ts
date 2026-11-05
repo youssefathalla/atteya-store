@@ -21,11 +21,10 @@ import type { MigratePass } from './models/product-admin.model';
 import { CatalogToolsService } from './services/catalog-tools.service';
 import { ProductsAdminService } from './services/products-admin.service';
 import { ProductsDialogService } from './services/products-dialog.service';
-import { ProductsImportService } from './services/products-import.service';
 import { ProductsPaginationService } from './services/products-pagination.service';
 import { importActionError } from './utils/import-error';
 import { isSearchTooShort, searchWordsFromTerm } from '@core/services/products/search-tokens';
-import { filterProductRows, importSummary, toProductTableRow } from './utils/product-admin.utils';
+import { filterProductRows, toProductTableRow } from './utils/product-admin.utils';
 
 @Component({
   selector: 'app-products-manager',
@@ -40,7 +39,6 @@ export class ProductsManagerComponent implements OnInit {
   readonly #admin = inject(ProductsAdminService);
   readonly pagination = inject(ProductsPaginationService);
   readonly #dialogs = inject(ProductsDialogService);
-  readonly #importer = inject(ProductsImportService);
   readonly #tools = inject(CatalogToolsService);
   readonly #snackbar = inject(SnackbarService);
   readonly #productCache = inject(ProductCacheService);
@@ -96,13 +94,7 @@ export class ProductsManagerComponent implements OnInit {
     isSearchTooShort(searchWordsFromTerm(this.debouncedSearch())),
   );
 
-  readonly activity = computed<'preview' | 'import' | 'tools' | null>(() => {
-    const mode = this.#importer.mode();
-    if (mode) return mode;
-    return this.#tools.busy() ? 'tools' : null;
-  });
-  readonly progressLabel = this.#importer.progressLabel;
-  readonly progressValue = this.#importer.progressValue;
+  readonly activity = computed<'tools' | null>(() => (this.#tools.busy() ? 'tools' : null));
 
   readonly rows = computed(() =>
     this.isSearchMode() ? (this.searchResource.value()?.rows ?? []) : this.pagination.items(),
@@ -168,34 +160,11 @@ export class ProductsManagerComponent implements OnInit {
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Products | Atteya Admin',
-      description: 'Add, edit and import store products.',
+      description: 'Add and edit store products.',
       noindex: true,
     });
     if (isPlatformBrowser(this.#platformId)) {
       void this.reloadSearchSyncErrors();
-    }
-  }
-
-  async previewImport(): Promise<void> {
-    if (this.activity()) return;
-    try {
-      const report = await this.#importer.run(true);
-      await this.#dialogs.openPreview(report);
-    } catch (error: unknown) {
-      this.#snackbar.error(importActionError(error));
-    }
-  }
-
-  async importProducts(): Promise<void> {
-    if (this.activity()) return;
-    const confirmed = await this.#dialogs.confirmImport();
-    if (!confirmed) return;
-    try {
-      const report = await this.#importer.run(false);
-      this.#snackbar.success(importSummary(report));
-      await this.reloadCatalogue();
-    } catch (error: unknown) {
-      this.#snackbar.error(importActionError(error));
     }
   }
 

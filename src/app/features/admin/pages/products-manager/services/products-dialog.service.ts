@@ -7,13 +7,11 @@ import {
   ConfirmDialogData,
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { CatalogMigrateDialogComponent } from '../dialogs/catalog-migrate-dialog/catalog-migrate-dialog.component';
-import { ImportPreviewDialogComponent } from '../dialogs/import-preview-dialog/import-preview-dialog.component';
 import {
   ProductStockDialogComponent,
   ProductStockDialogData,
 } from '../dialogs/product-stock-dialog/product-stock-dialog.component';
 import type {
-  ImportReport,
   MigrateReport,
   ReindexSearchReport,
   StockChange,
@@ -22,39 +20,6 @@ import type {
 @Service()
 export class ProductsDialogService {
   readonly #dialog = inject(MatDialog);
-
-  async confirmImport(): Promise<boolean> {
-    const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
-      ConfirmDialogComponent,
-      {
-        data: {
-          title: 'Import from EasyOrders',
-          message:
-            'This copies 104 products and their photos from your EasyOrders store. Products you edited here keep your changes.',
-          confirmText: 'Import',
-          cancelText: 'Cancel',
-          theme: 'primary',
-        },
-        width: '480px',
-        maxWidth: '92vw',
-      },
-    );
-    const confirmed = await firstValueFrom(dialogRef.afterClosed());
-    return !!confirmed;
-  }
-
-  async openPreview(report: ImportReport): Promise<void> {
-    const dialogRef = this.#dialog.open<ImportPreviewDialogComponent, ImportReport>(
-      ImportPreviewDialogComponent,
-      {
-        data: report,
-        width: '960px',
-        maxWidth: '96vw',
-        maxHeight: '90vh',
-      },
-    );
-    await firstValueFrom(dialogRef.afterClosed());
-  }
 
   async openMigratePreview(report: MigrateReport): Promise<boolean> {
     const dialogRef = this.#dialog.open<CatalogMigrateDialogComponent, MigrateReport, boolean>(
