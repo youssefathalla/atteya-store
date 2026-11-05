@@ -12,10 +12,17 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { firstValueFrom } from 'rxjs';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { TemplateTypeDirective } from '@shared/directives/template-type/template-type.directive';
+import {
+  ConfirmDialogComponent,
+  type ConfirmDialogData,
+} from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 import { ReusableTable } from '@shared/ui/reusable-table/reusable-table.component';
 import type { TableColumn } from '@shared/ui/reusable-table/table.model';
 import { SkeletonComponent } from '@shared/ui/skeleton';
@@ -44,6 +51,7 @@ const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: st
     MatProgressSpinnerModule,
     TemplateTypeDirective,
     ReusableTable,
+    SharedIconModule,
     SkeletonComponent,
     StatusBadgeComponent,
   ],
@@ -53,13 +61,15 @@ export class OrdersManagerPageComponent implements OnInit {
   readonly #ordersAdmin = inject(OrdersAdminService);
   readonly #seo = inject(SeoService);
   readonly #snackbar = inject(SnackbarService);
+  readonly #dialog = inject(MatDialog);
   readonly #platformId = inject(PLATFORM_ID);
 
   readonly statusFilter = signal<OrderStatusFilter>('pending');
   readonly filterTabs = FILTER_TABS;
 
-  /** Order id currently running confirmCodOrder. */
-  readonly confirmingOrderId = signal<string | null>(null);
+  /** Order id currently being confirmed or cancelled (one action at a time). */
+  readonly busyOrderId = signal<string | null>(null);
+  readonly busyAction = signal<'confirm' | 'cancel' | null>(null);
 
   private readonly orderCell = viewChild<TemplateRef<unknown>>('orderCell');
   private readonly statusCell = viewChild<TemplateRef<unknown>>('statusCell');
@@ -84,6 +94,13 @@ export class OrdersManagerPageComponent implements OnInit {
     currentStock: null,
     stockStatus: 'unset',
     orderTotalLabel: '',
+    phone: '',
+    stage: 'unknown',
+    isFirstLine: false,
+    whatsappUrl: null,
+    confirmAction: null,
+    canCancel: false,
+    amountDueLabel: null,
   };
 
   readonly orderStatusConfig: Record<string, StatusConfig> = {
@@ -142,7 +159,7 @@ export class OrdersManagerPageComponent implements OnInit {
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Orders | Atteya Admin',
-      description: 'Review orders and check live product stock beside each line.',
+      description: 'Review orders, confirm payments, and check live product stock beside each line.',
       noindex: true,
     });
   }
@@ -152,23 +169,94 @@ export class OrdersManagerPageComponent implements OnInit {
     return String(row.currentStock);
   }
 
-  /** Show Confirm once per pending COD order (first line only). */
-  showConfirmCod(row: OrderLineAdminRow): boolean {
-    if (row.paymentMethod !== 'cash-on-delivery' || row.status !== 'pending') return false;
-    return this.rows().find((item) => item.orderId === row.orderId)?.id === row.id;
+  isBusy(row: OrderLineAdminRow, action: 'confirm' | 'cancel'): boolean {
+    return this.busyOrderId() === row.orderId && this.busyAction() === action;
   }
 
-  async confirmCod(row: OrderLineAdminRow): Promise<void> {
-    if (!this.showConfirmCod(row) || this.confirmingOrderId()) return;
-    this.confirmingOrderId.set(row.orderId);
-    try {
+  /**
+   * Cash on delivery: "Confirm order" (shipping fee received, or free shipping).
+   * InstaPay: "Confirm payment" after a check that the money arrived in the bank app.
+   * Both take the items out of stock on the server.
+   */
+  async confirm(row: OrderLineAdminRow): Promise<void> {
+    if (!row.isFirstLine || !row.confirmAction || this.busyOrderId()) return;
+    if (row.confirmAction === 'confirm-payment') {
+      const ok = await this.#ask({
+        title: `Confirm payment for ${row.orderRef}?`,
+        message: `Only confirm after you see ${row.amountDueLabel ?? 'the full amount'} arrive in your bank app. A screenshot alone isn't proof. This takes the items out of stock and emails the shopper.`,
+        confirmText: 'Payment received',
+        cancelText: 'Not yet',
+        theme: 'primary',
+      });
+      if (!ok) return;
+    }
+    await this.#run(row, 'confirm', async () => {
       await this.#ordersAdmin.confirmCodOrder(row.orderId);
-      this.#snackbar.success('Order confirmed. Stock updated.');
+      this.#snackbar.success(
+        row.confirmAction === 'confirm-payment'
+          ? 'Payment confirmed. Stock updated.'
+          : 'Order confirmed. Stock updated.',
+      );
+    });
+  }
+
+  /** Cancel an open order that was never paid. Nothing was taken out of stock. */
+  async cancel(row: OrderLineAdminRow): Promise<void> {
+    if (!row.isFirstLine || !row.canCancel || this.busyOrderId()) return;
+    const ok = await this.#ask({
+      title: `Cancel order ${row.orderRef}?`,
+      message:
+        "The shopper won't be able to pay for it after this. Nothing was taken out of stock, so there's nothing to put back. No email is sent; message the shopper on WhatsApp if needed.",
+      confirmText: 'Cancel order',
+      cancelText: 'Keep order',
+      theme: 'error',
+    });
+    if (!ok) return;
+    await this.#run(row, 'cancel', async () => {
+      await this.#ordersAdmin.cancelOrder(row.orderId);
+      this.#snackbar.success('Order cancelled.');
+    });
+  }
+
+  /** The number can't be turned into a WhatsApp link safely: let staff copy and check it. */
+  showCopyPhone(row: OrderLineAdminRow): boolean {
+    return (
+      !row.whatsappUrl && row.stage !== 'paymob-pending' && row.stage !== 'unknown' && !!row.phone
+    );
+  }
+
+  async copyPhone(row: OrderLineAdminRow): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(row.phone);
+      this.#snackbar.success('Phone number copied.');
+    } catch {
+      this.#snackbar.info(`Couldn't copy. The number is ${row.phone}.`);
+    }
+  }
+
+  async #run(
+    row: OrderLineAdminRow,
+    action: 'confirm' | 'cancel',
+    work: () => Promise<void>,
+  ): Promise<void> {
+    this.busyOrderId.set(row.orderId);
+    this.busyAction.set(action);
+    try {
+      await work();
       this.dataResource.reload();
     } catch (error: unknown) {
       this.#snackbar.error(orderActionError(error));
     } finally {
-      this.confirmingOrderId.set(null);
+      this.busyOrderId.set(null);
+      this.busyAction.set(null);
     }
+  }
+
+  async #ask(data: ConfirmDialogData): Promise<boolean> {
+    const ref = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      { data, width: '440px' },
+    );
+    return (await firstValueFrom(ref.afterClosed())) === true;
   }
 }
