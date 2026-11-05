@@ -81,6 +81,10 @@ type CheckoutSummary =
       readonly subtotal: string;
       readonly shipping: string;
       readonly total: string;
+      /** Cash on delivery split in EGP (same as the order emails): fee first, rest at the door. */
+      readonly codShippingEgp: number;
+      readonly codShipping: string;
+      readonly codCash: string;
     };
 
 @Component({
@@ -242,6 +246,9 @@ export class CheckoutPageComponent implements OnInit {
       subtotal: formatMoney(subtotalDisplay, entry.code, decimals),
       shipping: formatMoney(shippingDisplay, entry.code, decimals),
       total: formatMoney(subtotalDisplay + shippingDisplay, entry.code, decimals),
+      codShippingEgp: feeEgp,
+      codShipping: formatMoney(feeEgp, 'EGP', 0),
+      codCash: formatMoney(subtotalEgp, 'EGP', 0),
     };
   });
 

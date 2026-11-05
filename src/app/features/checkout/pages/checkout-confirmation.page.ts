@@ -15,6 +15,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { doc, getDoc } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import type { CreateCodOrderResult } from '@core/services/orders/checkout-order.service';
+import { shortOrderRef } from '@core/services/orders/order-ref';
 import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
 import { displayDecimals } from '@core/services/offers/engine';
 import { SeoService } from '@core/services/seo';
@@ -93,25 +94,53 @@ export class CheckoutConfirmationPageComponent implements OnInit, OnDestroy {
     );
   }
 
+  /** `#A1B2C3`, the same number the order emails use. */
+  readonly orderRef = computed(() => shortOrderRef(this.orderId()));
+
+  /**
+   * Cash on delivery amounts in whole EGP, from the saved order. The shipping fee is
+   * collected first (usually on WhatsApp); the rest is paid in cash on delivery.
+   * Same split as the order emails (`functions/src/email/order-email-templates.ts`).
+   */
+  readonly codAmounts = computed(() => {
+    const pricing = this.order()?.pricing ?? this.seed()?.pricing;
+    if (!pricing) return null;
+    const shippingEgp = pricing.shipping?.priceEgp ?? 0;
+    const totalEgp = pricing.totalEgp ?? pricing.subtotalEgp + shippingEgp;
+    return {
+      shippingEgp,
+      shipping: formatMoney(shippingEgp, 'EGP', 0),
+      cash: formatMoney(Math.max(0, totalEgp - shippingEgp), 'EGP', 0),
+    };
+  });
+
   headline(): string {
     const status = this.status();
-    if (this.isCod()) return 'Order placed — pay on delivery';
-    if (status === 'confirmed') return 'Payment received';
-    if (status === 'failed') return 'Payment did not go through';
     if (status === 'cancelled') return 'Order cancelled';
+    if (this.isCod()) return status === 'confirmed' ? 'Order confirmed' : 'Order placed';
+    if (status === 'confirmed') return 'Payment received';
+    if (status === 'failed') return "Your payment didn't go through";
     return 'Confirming your payment';
   }
 
   bodyCopy(): string {
     const status = this.status();
+    if (status === 'cancelled') return 'This order was cancelled.';
     if (this.isCod()) {
-      return 'We will prepare your order. Pay cash when it arrives.';
+      const amounts = this.codAmounts();
+      if (!amounts) return "We'll contact you, usually on WhatsApp, to confirm your order.";
+      if (status === 'confirmed') {
+        return `Your order is confirmed and we're getting it ready. Please have ${amounts.cash} in cash ready when it arrives.`;
+      }
+      return amounts.shippingEgp > 0
+        ? `We'll contact you, usually on WhatsApp, to collect the shipping fee of ${amounts.shipping}. Once it's paid, we'll send your order, and you'll pay the rest, ${amounts.cash}, in cash when it arrives.`
+        : `We'll contact you, usually on WhatsApp, to confirm your order. Shipping is free, so you'll pay ${amounts.cash} in cash when it arrives.`;
     }
     if (status === 'confirmed') {
-      return 'Thanks — your payment is confirmed and we are preparing your order.';
+      return "Thanks, your payment is confirmed and we're getting your order ready.";
     }
     if (status === 'failed') {
-      return 'No charge went through. You can return to checkout and try again.';
+      return "You haven't been charged. If you'd still like these items, please place the order again.";
     }
     return 'If you just finished paying, this page updates when Paymob confirms the payment.';
   }

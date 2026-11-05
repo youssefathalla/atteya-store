@@ -13,7 +13,7 @@
     <section class="surface-card p-5 space-y-4">
       <div class="elements-between gap-4">
         <span class="font-label-lg opacity-80">Order</span>
-        <span class="font-title-sm font-bold! tracking-wide break-all">{{ orderId() }}</span>
+        <span class="font-title-sm font-bold! tracking-wide break-all">{{ orderRef() }}</span>
       </div>
       <div class="elements-between gap-4">
         <span class="font-label-lg opacity-80">Total</span>
@@ -43,9 +43,11 @@
 
     <div class="elements-start gap-3 flex-wrap">
       @if (status() === 'failed') {
-        <a matButton="filled" routerLink="/checkout">Try checkout again</a>
+        <!-- The bag is emptied before Paymob opens, so send shoppers to the shop, not checkout. -->
+        <a matButton="filled" routerLink="/shop">Shop again</a>
+      } @else {
+        <a matButton="filled" routerLink="/">Continue shopping</a>
       }
-      <a matButton="filled" routerLink="/">Continue shopping</a>
     </div>
   }
 </section>
