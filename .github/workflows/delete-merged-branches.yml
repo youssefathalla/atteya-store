@@ -1,0 +1,32 @@
+name: Delete merged branches
+
+# Replaces GitHub's "Automatically delete head branches" setting, which would also
+# delete `develop` after a develop -> main PR. This deletes a PR's branch after it
+# merges, except the long-lived `develop` and `main`. Branch protection is not
+# available on this plan, so this is what keeps those two safe.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  delete-head-branch:
+    # Only merged PRs whose branch lives in this repository (not forks).
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref != 'develop' &&
+      github.event.pull_request.head.ref != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the merged branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          # A branch already deleted by hand is fine.
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" \
+            || echo "Branch $BRANCH was already gone."
