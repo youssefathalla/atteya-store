@@ -125,7 +125,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### Task board (Todoist) — keep it in sync, always
 
-The single source of truth for work is the Todoist project **`atteya-store`** (id `6hqJH3Fp65qrpM8F`). Sections, in order: **To do → In Progress → For Review → QA → Done**, plus **Bugs** and **Open Questions**. Old `AS-xx` ids come from the retired Cursor board and only appear in task descriptions and commit history.
+The single source of truth for work is the Todoist project **`atteya-store`** (id `6hqJH3Fp65qrpM8F`). Sections, in order: **To do → In Progress → For Review → QA → Done**, plus **Bugs**, **Open Questions**, and **Blocked**. Old `AS-xx` ids come from the retired Cursor board and only appear in task descriptions and commit history.
 
 Every agent (Claude Code, Cursor, Antigravity) updates the board as part of the task, not afterwards:
 
@@ -135,7 +135,7 @@ Every agent (Claude Code, Cursor, Antigravity) updates the board as part of the 
 4. **Verified, or merged to `main`**: move it to **Done** and complete it.
 5. **Prod needs**: append every merged PR's prod step to the checklist in the "Prod rollout" task.
 6. **Found along the way**: a bug goes in **Bugs**, an undecided choice in **Open Questions**. Never only in chat.
-7. **Blocked on someone else** (usually the client): add the red `blocked` label, keep the task in its current section, and comment exactly what is needed and what to do once it arrives. Code that is complete can still be merged; the label stays until the missing piece lands.
+7. **Blocked on someone else** (usually the client): move the task to **Blocked**, add the red `blocked` label, and comment exactly what is needed and what to do once it arrives. Code that is complete can still be merged. When the missing piece lands, remove the label and move the task to the section its work has reached (usually **QA**).
 8. **No stale tasks**: when work makes a task outdated, done, or wrong, update its description or close it with a comment that says why, in the same task.
 
 If the board can't be reached (tool missing or signed out), say so in the final message and list the exact board changes still needed. Never skip them silently.
