@@ -66,8 +66,8 @@ export const STORE_INFO: StoreInfo = {
   },
   payments: {
     instapay: {
-      address: '',
-      number: '',
+      address: 'youseifatteya@instapay',
+      number: '01280035035',
     },
   },
   social: {
