@@ -48,7 +48,7 @@ for (const t of targets) {
 
 const touchesIndexes = targets.some((t) => t === 'firestore' || t === 'firestore:indexes');
 
-const guard = runGuard();
+const guard = runGuard(alias);
 if (!guard.ok) process.exit(1);
 
 if (touchesIndexes) {

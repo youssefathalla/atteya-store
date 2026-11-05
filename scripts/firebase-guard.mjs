@@ -1,6 +1,10 @@
 /**
- * Blocks Firebase deploy scripts unless checkout is clean, on main, and matches origin/main.
- * Also validates firebase/firestore.indexes.json.
+ * Blocks Firebase deploy scripts unless checkout is clean, on the deploy branch for that
+ * project, and matches its origin. Also validates firebase/firestore.indexes.json.
+ *
+ * TEMPORARY (until the app is finished and develop is merged into main): dev deploys run from
+ * an up-to-date `develop`; prod deploys still need an up-to-date `main`. After the final merge,
+ * set `dev` back to 'main' (see the "Develop-only until launch" rule in AGENTS.md).
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -26,19 +30,28 @@ function trimOutput({ result }) {
   return (result.stdout ?? '').trim() || (result.stderr ?? '').trim();
 }
 
+/** Branch each Firebase project deploys from. */
+export const DEPLOY_BRANCH = { dev: 'develop', prod: 'main' };
+
 /**
+ * @param {'dev' | 'prod'} alias Firebase project alias being deployed.
  * @returns {{ ok: true, sha: string } | { ok: false }}
  */
-export function runGuard() {
+export function runGuard(alias) {
+  const expected = DEPLOY_BRANCH[alias];
+  if (!expected) {
+    console.error(`${RED}✖ Deploy blocked:${RESET} unknown project alias "${alias}". Use dev or prod.`);
+    return { ok: false };
+  }
   const branchOut = runGit(['rev-parse', '--abbrev-ref', 'HEAD']);
   if (branchOut.error) {
     console.error(`${RED}✖ Deploy blocked:${RESET} ${branchOut.error}`);
     return { ok: false };
   }
   const branch = trimOutput(branchOut);
-  if (branch !== 'main') {
+  if (branch !== expected) {
     console.error(
-      `${RED}✖ Deploy blocked:${RESET} current branch is "${branch}", not main. Run: git checkout main && git pull`,
+      `${RED}✖ Deploy blocked:${RESET} ${alias} deploys run from ${expected}, but the current branch is "${branch}". Run: git checkout ${expected} && git pull`,
     );
     return { ok: false };
   }
@@ -55,7 +68,7 @@ export function runGuard() {
     return { ok: false };
   }
 
-  const fetchOut = runGit(['fetch', 'origin', 'main', '--quiet']);
+  const fetchOut = runGit(['fetch', 'origin', expected, '--quiet']);
   if (fetchOut.error) {
     console.error(`${RED}✖ Deploy blocked:${RESET} ${fetchOut.error}`);
     return { ok: false };
@@ -68,7 +81,7 @@ export function runGuard() {
   }
 
   const headOut = runGit(['rev-parse', 'HEAD']);
-  const originOut = runGit(['rev-parse', 'origin/main']);
+  const originOut = runGit(['rev-parse', `origin/${expected}`]);
   if (headOut.error || originOut.error) {
     console.error(`${RED}✖ Deploy blocked:${RESET} could not read git refs.`);
     return { ok: false };
@@ -76,10 +89,10 @@ export function runGuard() {
   const head = trimOutput(headOut);
   const originMain = trimOutput(originOut);
   if (head !== originMain) {
-    const countsOut = runGit(['rev-list', '--left-right', '--count', 'HEAD...origin/main']);
+    const countsOut = runGit(['rev-list', '--left-right', '--count', `HEAD...origin/${expected}`]);
     const [ahead = '0', behind = '0'] = trimOutput(countsOut).split(/\s+/);
     console.error(
-      `${RED}✖ Deploy blocked:${RESET} local main is not up to date with origin/main (ahead ${ahead}, behind ${behind}). Run: git pull`,
+      `${RED}✖ Deploy blocked:${RESET} local ${expected} is not up to date with origin/${expected} (ahead ${ahead}, behind ${behind}). Run: git pull`,
     );
     return { ok: false };
   }
@@ -118,11 +131,12 @@ export function runGuard() {
   }
 
   const shortSha = head.slice(0, 7);
-  console.log(`${GREEN}✔ On up-to-date main (${shortSha}). Safe to deploy.${RESET}`);
+  console.log(`${GREEN}✔ On up-to-date ${expected} (${shortSha}). Safe to deploy to ${alias}.${RESET}`);
   return { ok: true, sha: shortSha };
 }
 
 if (isMainModule(import.meta.url)) {
-  const guard = runGuard();
+  // `npm run fb:guard -- dev|prod` (prod when omitted).
+  const guard = runGuard(process.argv[2] === 'dev' ? 'dev' : 'prod');
   process.exit(guard.ok ? 0 : 1);
 }
