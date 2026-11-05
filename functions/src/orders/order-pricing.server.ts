@@ -304,13 +304,6 @@ function assertLineStock(data: DocumentData, line: OrderLineInput): void {
   if (typeof data['stock'] === 'number' && data['stock'] < line.quantity) {
     throw new HttpsError('failed-precondition', 'One item in your bag is out of stock.');
   }
-  const variants = data['variants'];
-  if (Array.isArray(variants) && variants.length > 0) {
-    const variant = resolveVariantFacts(data, line);
-    if (!variant || (typeof variant.stock === 'number' && variant.stock < line.quantity)) {
-      throw new HttpsError('failed-precondition', 'One item in your bag is out of stock.');
-    }
-  }
 }
 
 /**

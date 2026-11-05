@@ -74,7 +74,6 @@ export const createProduct = onCall(
         newArrivalUntil: input.newArrivalUntil
           ? Timestamp.fromDate(input.newArrivalUntil)
           : null,
-        trackStock: true,
         variants: [],
         stock: stock.stock,
         inStock: stock.inStock,

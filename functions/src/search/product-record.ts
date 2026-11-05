@@ -16,7 +16,6 @@ import {
   PRODUCT_GENDER_IDS,
   type ProductGenderId,
 } from '../products/product-form.js';
-import { deriveInStock } from '../products/stock.js';
 import type { CachedBrandInfo, CachedCategoryInfo } from './catalog-cache.js';
 
 export interface SearchRecordImage {
@@ -130,9 +129,7 @@ export function toSearchRecord(
   const inStock =
     typeof rawStock === 'number' && Number.isFinite(rawStock)
       ? rawStock > 0
-      : typeof data['inStock'] === 'boolean'
-        ? data['inStock']
-        : computeInStock(data['trackStock'], data['variants']);
+      : data['inStock'] === true;
   const image = extractPrimaryImage(data['images'], name);
   const createdAtMs = extractTimestampMs(data['createdAt']);
 
@@ -341,10 +338,6 @@ function extractSizes(rawOptions: unknown): string[] {
   }
 
   return found.sort((a, b) => sizeRank(a) - sizeRank(b));
-}
-
-function computeInStock(rawTrackStock: unknown, rawVariants: unknown): boolean {
-  return deriveInStock({ trackStock: rawTrackStock, variants: rawVariants }) ?? false;
 }
 
 function extractPrimaryImage(rawImages: unknown, fallbackAlt: string): SearchRecordImage | null {
