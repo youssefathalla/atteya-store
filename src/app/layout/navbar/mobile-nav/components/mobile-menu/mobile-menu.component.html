@@ -83,26 +83,28 @@
           }
         </div>
 
-        <!-- Quick Utilities & Playground -->
-        <div class="pt-4 pb-2 space-y-2">
-          <a
-            routerLink="/playground"
-            (click)="closeMenu()"
-            class="elements-between border-shape bg-surface-container-high p-3 hover:bg-surface-container-highest transition-colors"
-          >
-            <div class="flex items-center gap-2.5">
-              <mat-icon name="science" size="sm" />
-              <span class="font-title-sm font-bold! uppercase tracking-wider"
-                >Dev Playground</span
-              >
-            </div>
-            <span
-              class="font-label-sm bg-primary-container text-on-primary-container px-2 py-0.5 border-shape font-bold!"
+        <!-- Quick Utilities & Playground (admins only) -->
+        @if (isAdmin()) {
+          <div class="pt-4 pb-2 space-y-2">
+            <a
+              routerLink="/playground"
+              (click)="closeMenu()"
+              class="elements-between border-shape bg-surface-container-high p-3 hover:bg-surface-container-highest transition-colors"
             >
-              Lab
-            </span>
-          </a>
-        </div>
+              <div class="flex items-center gap-2.5">
+                <mat-icon name="science" size="sm" />
+                <span class="font-title-sm font-bold! uppercase tracking-wider"
+                  >Dev Playground</span
+                >
+              </div>
+              <span
+                class="font-label-sm bg-primary-container text-on-primary-container px-2 py-0.5 border-shape font-bold!"
+              >
+                Lab
+              </span>
+            </a>
+          </div>
+        }
       </div>
     </div>
 

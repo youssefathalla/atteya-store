@@ -2,6 +2,7 @@ import { Component, computed, inject, linkedSignal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { AuthService } from '@core/services/auth/auth.service';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 import { NavCategory, NavService } from '@core/services/navigation';
 
@@ -16,7 +17,10 @@ import { NavCategory, NavService } from '@core/services/navigation';
 export class MobileMenuComponent {
   readonly drawerService = inject(DrawerService);
   readonly #navService = inject(NavService);
+  readonly #auth = inject(AuthService);
   readonly categories = this.#navService.storefrontCategories;
+  /** The design playground is admin-only, so its link shows only for admins. */
+  readonly isAdmin = this.#auth.isAdmin;
 
   // Reactive bottom sheet open state
   readonly isOpen = computed(() => this.drawerService.isOpen('menu'));

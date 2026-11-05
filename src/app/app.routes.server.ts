@@ -37,6 +37,11 @@ export const serverRoutes: ServerRoute[] = [
     path: 'login',
     renderMode: RenderMode.Client,
   },
+  // Admin-only sandbox: the guard needs the browser session, so it is never prerendered.
+  {
+    path: 'playground',
+    renderMode: RenderMode.Client,
+  },
   {
     path: 'terms',
     renderMode: RenderMode.Prerender,
