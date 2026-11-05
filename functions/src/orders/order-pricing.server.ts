@@ -23,7 +23,11 @@ import type {
 
 export type OrderStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 export type OrderPaymentMethod = StorePaymentMethod;
-export type OrderFulfilment = 'domestic-cod' | 'domestic-paymob' | 'international-paymob';
+export type OrderFulfilment =
+  | 'domestic-cod'
+  | 'domestic-instapay'
+  | 'domestic-paymob'
+  | 'international-paymob';
 
 /** One chosen option, saved as the shopper saw it (e.g. `Size` → `M`). */
 export interface OrderLineOptionLabel {
@@ -179,6 +183,7 @@ function resolveFulfilment(
   isInternational: boolean,
 ): OrderFulfilment {
   if (method === 'cash-on-delivery') return 'domestic-cod';
+  if (method === 'instapay') return 'domestic-instapay';
   return isInternational ? 'international-paymob' : 'domestic-paymob';
 }
 

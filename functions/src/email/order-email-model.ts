@@ -7,7 +7,7 @@
  * Orders never store the shopper's display currency, so emails show EGP only.
  */
 
-export type OrderEmailPaymentMethod = 'paymob' | 'cash-on-delivery';
+export type OrderEmailPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
 export type OrderEmailStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 
 export interface OrderEmailLine {
@@ -43,7 +43,7 @@ export interface OrderEmailOrder {
   readonly subtotalEgp: number;
   readonly shippingEgp: number;
   readonly totalEgp: number;
-  /** Paymob confirmed while an item had already sold out (see paymobWebhook). */
+  /** Paid (Paymob) while an item had already sold out (see paymobWebhook). */
   readonly needsReview: boolean;
 }
 
@@ -59,7 +59,13 @@ export function readOrderForEmail(
 ): OrderEmailOrder | null {
   if (!data) return null;
   const paymentMethod = data['paymentMethod'];
-  if (paymentMethod !== 'paymob' && paymentMethod !== 'cash-on-delivery') return null;
+  if (
+    paymentMethod !== 'paymob' &&
+    paymentMethod !== 'cash-on-delivery' &&
+    paymentMethod !== 'instapay'
+  ) {
+    return null;
+  }
   const status = data['status'];
   if (
     status !== 'pending' &&

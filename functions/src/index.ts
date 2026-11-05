@@ -16,7 +16,8 @@ export { onShippingSettingsWritten } from './shipping/on-shipping-settings-writt
 export { refreshExchangeRates } from './intl/refresh-exchange-rates.schedule.js';
 export { refreshExchangeRatesNow, setInternationalPricing } from './intl/intl-pricing.fn.js';
 export { createPaymobOrder } from './orders/create-paymob-order.fn.js';
-export { createCodOrder } from './orders/create-cod-order.fn.js';
+export { createCodOrder, createInstapayOrder } from './orders/create-manual-order.fn.js';
 export { confirmCodOrder } from './orders/confirm-cod-order.fn.js';
+export { cancelOrder } from './orders/cancel-order.fn.js';
 export { paymobWebhook } from './orders/paymob-webhook.fn.js';
 export { sendOrderEmails } from './email/send-order-emails.trigger.js';
