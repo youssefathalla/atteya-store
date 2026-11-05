@@ -35,16 +35,16 @@
       <section class="surface-card p-5 space-y-4" aria-labelledby="pay-heading">
         <h2 id="pay-heading" class="font-title-md font-bold!">
           @if (box.reason === 'shipping-fee') {
-            Next step: pay the {{ box.amount ? box.amount + ' ' : '' }}shipping fee
+            Pay the {{ box.amount ? box.amount + ' ' : '' }}shipping fee by InstaPay
           } @else {
-            Next step: pay {{ box.amount ?? 'the total' }}
+            Pay {{ box.amount ? box.amount + ' ' : '' }}by InstaPay
           }
         </h2>
 
         @if (box.hasDetails) {
           <ol class="list-decimal ps-5 space-y-3 font-body-md">
             <li class="space-y-2">
-              <p>Send {{ box.amount ?? 'the amount' }} by InstaPay to:</p>
+              <p>Transfer to:</p>
               @if (box.address) {
                 <div class="elements-between gap-3 flex-wrap">
                   <span class="font-title-sm font-bold! break-all">{{ box.address }}</span>
@@ -72,12 +72,10 @@
                 </div>
               }
             </li>
-            <li>Send us the screenshot of the transfer on WhatsApp.</li>
+            <li>Send us a screenshot of the transfer.</li>
           </ol>
         } @else {
-          <p class="font-body-md">
-            Message us on WhatsApp and we'll send you the InstaPay details.
-          </p>
+          <p class="font-body-md">We'll send you the InstaPay details on WhatsApp.</p>
         }
 
         @if (box.whatsappUrl) {
@@ -89,7 +87,7 @@
             rel="noopener"
           >
             <mat-icon name="chat_bubble" />
-            <span>{{ box.hasDetails ? 'Send screenshot on WhatsApp' : 'Message us on WhatsApp' }}</span>
+            <span>{{ box.hasDetails ? 'Send on WhatsApp' : 'Message us on WhatsApp' }}</span>
           </a>
         }
       </section>

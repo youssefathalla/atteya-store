@@ -136,11 +136,11 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     const cash = this.#cash();
     switch (this.stage()) {
       case 'instapay-total-due':
-        return "One more step: pay by InstaPay and send us the screenshot. We'll confirm your order as soon as the money arrives.";
+        return "We'll confirm your order as soon as we receive your payment.";
       case 'instapay-fee-due':
         return cash
-          ? `One more step: pay the shipping fee by InstaPay and send us the screenshot. Then we'll send your order, and you'll pay the rest, ${cash}, in cash when it arrives.`
-          : "One more step: pay the shipping fee by InstaPay and send us the screenshot. Then we'll send your order.";
+          ? `We'll send your order once we receive the shipping fee. You'll pay the rest, ${cash}, in cash when it arrives.`
+          : "We'll send your order once we receive the shipping fee.";
       case 'cod-free-pending':
         return `Shipping is free, so there's nothing to pay now. We'll message you to confirm your order, and you'll pay ${cash ?? 'the total'} in cash when it arrives.`;
       case 'cod-confirmed':

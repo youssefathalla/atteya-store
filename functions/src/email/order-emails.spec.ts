@@ -128,10 +128,11 @@ describe('InstaPay emails', () => {
 
   it('InstaPay placed asks for the full total with the InstaPay details and a WhatsApp button', () => {
     const email = renderOrderEmail('instapay-placed', read(orderDoc({ paymentMethod: 'instapay' })), withPay);
-    assert.ok(email.text.includes(`Pay ${formatEgp(2450)} by InstaPay:`));
+    assert.ok(email.text.includes(`Pay ${formatEgp(2450)} by InstaPay to:`));
     assert.ok(email.text.includes('InstaPay address: atteya@instapay'));
     assert.ok(email.text.includes('InstaPay number: 010 1234 5678'));
-    assert.ok(email.text.includes('Send screenshot on WhatsApp: https://wa.me/201205658954?text='));
+    assert.ok(email.text.includes('Then send us a screenshot of the transfer.'));
+    assert.ok(email.text.includes('Send on WhatsApp: https://wa.me/201205658954?text='));
     assert.ok(email.html.includes('https://wa.me/201205658954?text='));
     const text = decodeURIComponent(email.text.split('?text=')[1]?.split(/\s/)[0] ?? '');
     assert.match(text, /#ABCDEF/);
@@ -144,13 +145,13 @@ describe('InstaPay emails', () => {
       read(orderDoc({ paymentMethod: 'instapay' })),
       { ...withPay, instapay: { address: '', number: '' } },
     );
-    assert.match(email.text, /Message us on WhatsApp and we'll send you the InstaPay details/);
+    assert.match(email.text, /We'll send you the InstaPay details on WhatsApp/);
     assert.ok(!email.text.includes('screenshot'));
   });
 
   it('cash on delivery placed asks for the fee only by InstaPay', () => {
     const email = renderOrderEmail('cod-placed', read(orderDoc({})), withPay);
-    assert.ok(email.text.includes(`Pay the shipping fee of ${formatEgp(80)} by InstaPay:`));
+    assert.ok(email.text.includes(`Pay the ${formatEgp(80)} shipping fee by InstaPay to:`));
     assert.ok(!email.text.includes(`Pay ${formatEgp(2450)}`));
   });
 
@@ -191,7 +192,7 @@ describe('order email wording and amounts', () => {
     assert.equal(email.subject, 'We got your order #ABCDEF');
     assert.match(email.text, /We've received your order #ABCDEF./);
     assert.ok(!/whatsapp/i.test(email.text + email.html), 'no WhatsApp mention');
-    assert.ok(email.text.includes(`shipping fee of ${formatEgp(80)}`));
+    assert.ok(email.text.includes(`the ${formatEgp(80)} shipping fee`));
     assert.ok(email.text.includes(`the rest, ${formatEgp(2370)}, in cash`));
     assert.ok(email.text.includes(`Total: ${formatEgp(2450)}`));
     assert.ok(!email.text.includes('01012345678'), 'shopper emails never repeat the phone');

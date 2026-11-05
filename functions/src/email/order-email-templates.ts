@@ -87,7 +87,7 @@ function codPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmai
   const cash = formatEgp(cashOnDeliveryEgp(order));
   const feeFirst = order.shippingEgp > 0;
   const payNow = feeFirst
-    ? `To send it out, we first need the shipping fee of ${formatEgp(order.shippingEgp)} by InstaPay. You'll pay the rest, ${cash}, in cash when it arrives.`
+    ? `We'll send your order once we receive the shipping fee. You'll pay the rest, ${cash}, in cash when it arrives.`
     : `Shipping is free on this order, so there's nothing to pay now. You'll pay ${cash} in cash when it arrives.`;
   return shopperEmail(order, ctx, {
     subject: `We got your order ${order.ref}`,
@@ -126,7 +126,7 @@ function instapayPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): Rendere
     subject: `We got your order ${order.ref}`,
     heading: `Thanks for your order, ${firstName(order)}`,
     intro: [
-      `We've received your order ${order.ref}. Once your InstaPay transfer arrives, we'll confirm it and get your order ready.`,
+      `We've received your order ${order.ref}. We'll confirm it as soon as we receive your payment.`,
     ],
     highlight: null,
     payment: payBox(order, ctx),
@@ -330,29 +330,29 @@ function payBox(order: OrderEmailOrder, ctx: OrderEmailContext): PayBox | null {
   if (!due) return null;
 
   const amount = due.amountEgp !== null ? ` ${formatEgp(due.amountEgp)}` : '';
-  const what = due.reason === 'shipping-fee' ? `the shipping fee of${amount}` : amount.trim() || 'the total';
+  const what = due.reason === 'shipping-fee' ? `the${amount} shipping fee` : amount.trim() || 'the total';
   const waUrl = whatsappChatUrl(ctx.whatsappNumber, shopperWhatsappText(stage, input, ctx.instapay));
   const details = hasInstapayDetails(ctx.instapay);
   const lines: string[] = [];
 
   if (details) {
-    lines.push(`Pay ${what} by InstaPay:`);
+    lines.push(`Pay ${what} by InstaPay to:`);
     const address = ctx.instapay.address.trim();
     const number = ctx.instapay.number.trim();
     if (address) lines.push(`InstaPay address: ${address}`);
     if (number) lines.push(`InstaPay number: ${number}`);
     lines.push(
       waUrl
-        ? 'Then send us the screenshot on WhatsApp.'
+        ? 'Then send us a screenshot of the transfer.'
         : ctx.canReply
-          ? 'Then reply to this email with the screenshot.'
-          : 'Then send us the screenshot.',
+          ? 'Then reply to this email with a screenshot of the transfer.'
+          : 'Then send us a screenshot of the transfer.',
     );
   } else {
     lines.push(`Pay ${what} by InstaPay.`);
     lines.push(
       waUrl
-        ? "Message us on WhatsApp and we'll send you the InstaPay details."
+        ? "We'll send you the InstaPay details on WhatsApp."
         : "We'll send you the InstaPay details.",
     );
   }
@@ -360,7 +360,7 @@ function payBox(order: OrderEmailOrder, ctx: OrderEmailContext): PayBox | null {
   return {
     lines,
     whatsapp: waUrl
-      ? { label: details ? 'Send screenshot on WhatsApp' : 'Message us on WhatsApp', url: waUrl }
+      ? { label: details ? 'Send on WhatsApp' : 'Message us on WhatsApp', url: waUrl }
       : null,
   };
 }

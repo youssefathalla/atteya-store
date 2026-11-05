@@ -2,8 +2,7 @@
   <header class="space-y-2">
     <h1 class="font-headline-md font-bold!">Checkout</h1>
     <p class="font-body-md opacity-80">
-      In Egypt, pay by InstaPay, Card or Wallet, or Cash on Delivery (shipping fee by InstaPay
-      first, the rest when your order arrives). Outside Egypt, pay by Card or Wallet.
+      Add your delivery address, then choose how to pay.
     </p>
   </header>
 
@@ -220,8 +219,8 @@
             @if (orderSummary(); as summary) {
               @if (summary.state === 'ready') {
                 <p class="font-body-sm opacity-80" aria-live="polite">
-                  Pay {{ summary.instapayTotal }} by InstaPay after you place your order, then
-                  send us the screenshot on WhatsApp. We'll confirm it and send your order.
+                  After you place your order, transfer {{ summary.instapayTotal }} by InstaPay and
+                  send us a screenshot on WhatsApp. We'll confirm your payment and send your order.
                 </p>
               }
             }
