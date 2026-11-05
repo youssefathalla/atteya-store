@@ -19,9 +19,9 @@ export class OfferSettingsComponent {
   readonly saleItemsExplanation = computed(() => {
     switch (this.draft().saleItems) {
       case 'bestOf':
-        return 'Example (list EGP 2,000, EasyOrders sale EGP 1,700, offer 20% off): 20% of 2,000 = EGP 1,600 beats 1,700, so the shopper pays EGP 1,600 (never both discounts).';
+        return 'Example (list EGP 2,000, sale price EGP 1,700, offer 20% off): 20% of 2,000 = EGP 1,600 beats 1,700, so the shopper pays EGP 1,600 (never both discounts).';
       case 'exclude':
-        return 'Example: products that already have an EasyOrders sale price are skipped and stay at EGP 1,700.';
+        return 'Example: products that already have a sale price are skipped and stay at EGP 1,700.';
       case 'stack':
         return 'Example: products already on sale get this discount on top of their sale price (20% of 1,700 = EGP 1,360).';
     }

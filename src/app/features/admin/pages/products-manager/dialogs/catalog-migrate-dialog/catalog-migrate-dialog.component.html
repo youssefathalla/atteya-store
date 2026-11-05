@@ -32,8 +32,9 @@
   @if (report.pass === 'add') {
     <p class="font-body-sm">
       <span class="font-bold!">Colours:</span>
-      {{ report.products.colorsFromOptions }} from options, {{ report.products.colorsFromName }} from
-      name, {{ report.products.colorsMissing }} without a colour
+      {{ report.products.colorsKept }} already set and kept, {{ report.products.colorsFromOptions }} filled
+      from options, {{ report.products.colorsFromName }} filled from name,
+      {{ report.products.colorsMissing }} still without a colour
     </p>
     @if (report.products.stockNeedsImport > 0) {
       <p class="font-body-sm">

@@ -9,7 +9,7 @@ import {
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
-import { LOCKABLE_FIELDS, type LockableField } from './product-document.js';
+import { LOCKABLE_FIELDS, type LockableField } from './lockable-fields.js';
 import {
   descriptionToHtml,
   nextSizeOption,
