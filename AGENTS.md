@@ -130,7 +130,13 @@ The single source of truth for work is Linear: workspace `youssefathalla`, team 
 Every agent (Claude Code, Cursor, Antigravity) updates the board as part of the task, not afterwards:
 
 1. **Start**: find the matching issue (search the project first, so you never create a duplicate) and move it to **In Progress**. If there is none, create it in project Atteya Store with a one-line description.
-2. **Branch, commit and PR**: name the branch `feature/<short-name>` (features, improvements, docs, tooling) or `fix/<short-name>` (bugs), where `<short-name>` is 2–5 lowercase words joined by hyphens (`feature/shipping-weights`, `fix/sign-in-errors`). No username, Linear id or date in the branch, and ignore Linear's suggested `youssefathalla/you-123-…` name. Put the issue id at the start of the PR title (`YOU-123 Clear sign-in errors on mode switch`), so Linear's GitHub link attaches the PR and moves the issue; commits may mention it too. Full rule: the **`branch-naming`** skill. A Claude Code `PreToolUse` hook (`.claude/settings.json`) and a Cursor `beforeShellExecution` hook (`.cursor/hooks.json`) run `scripts/hooks/check-branch-name.mjs` and block a branch create or rename that breaks it.
+2. **Branch, commit and PR**: name the branch `feature/<short-name>` (features, improvements, docs, tooling) or `fix/<short-name>` (bugs), where `<short-name>` is 2–5 lowercase words joined by hyphens (`feature/shipping-weights`, `fix/sign-in-errors`). No username, Linear id or date in the branch, and ignore Linear's suggested `youssefathalla/you-123-…` name. Because the branch no longer carries the id, **the PR title is what links the PR to Linear**:
+   - **PR title starts with the issue id**: `YOU-123 Clear sign-in errors on mode switch` (several issues: `YOU-31 YOU-32 …`). This attaches the PR and drives the status automation. The `PR title` GitHub check (`.github/workflows/pr-title.yml`) fails a PR into `develop` or `main` whose title has no `YOU-<number>`; PRs from `develop` or `main` themselves are skipped.
+   - **PR description's first line is `Linear: YOU-123`** as a backup link. Never write "Fixes YOU-123", "Closes YOU-123" or other closing words: they mark the issue Done on merge into `develop` and skip QA.
+   - **Commit messages start with the issue id**: `YOU-123 Short summary`.
+   - Still comment on the issue with the PR link after opening it (step 3).
+
+   Full rule: the **`branch-naming`** skill. A Claude Code `PreToolUse` hook (`.claude/settings.json`) and a Cursor `beforeShellExecution` hook (`.cursor/hooks.json`) run `scripts/hooks/check-branch-name.mjs` and block a branch create or rename that breaks it.
 3. **PR opened**: move it to **In Review** and add a comment with the PR link and a one-line summary.
 4. **Pushed or merged to `develop`**: move it to **QA** with a comment saying what to test on dev and any deploy step it needs (`fb:rules:dev`, `fb:fn:dev`, Rebuild search, …).
 5. **Verified, or merged to `main`**: move it to **Done**.
@@ -163,7 +169,7 @@ If Linear can't be reached (tool missing or signed out), say so in the final mes
 Activate the dedicated skills from `.agents/skills/` on demand. `sync-docs`, `ask`, and `teacher` live in `.cursor/skills/` because Cursor does not load workflow files:
 
 - **`new-feature`** for the end-to-end feature lifecycle, LIFT folder structure, and orchestration.
-- **`branch-naming`** for git branch names (`feature/<short-name>` or `fix/<short-name>`, Linear id in the PR title). Load it before creating, naming or renaming a branch or opening a PR.
+- **`branch-naming`** for git branch names (`feature/<short-name>` or `fix/<short-name>`), and PR titles and commit messages that start with the Linear id (`YOU-123 …`) so the Linear link keeps working. Load it before creating, naming or renaming a branch, writing a commit message, or opening a PR.
 - **`reusable-catalog`** for the living index of shared UI components, extracted Tailwind classes, and the "2+ Duplication Rule".
 - **`ui-design-rules`** for the Component Decision Matrix (Shared UI vs Material vs Tailwind), monochrome identity, and token rules.
 - **`copywriting`** for the house writing style: title case for buttons and payment/status names, say each thing once, money and order-ref formats, and order messages that match the order's real state. Read it before writing any user-facing text, email or WhatsApp message.
