@@ -584,7 +584,7 @@ function totalsRows(order: OrderEmailOrder, totalLabel: string): [string, string
   if (order.feeToBeAgreed) {
     return [
       ['Subtotal', formatEgp(order.subtotalEgp)],
-      ['Shipping', 'To be agreed'],
+      ['Shipping', "We'll contact you"],
       [totalLabel, `${formatEgp(order.subtotalEgp)} + shipping`],
     ];
   }

@@ -398,7 +398,7 @@ describe('large order: delivery fee to be agreed', () => {
       const order = read(orderDoc({ paymentMethod: kind === 'cod-placed' ? 'cash-on-delivery' : 'instapay', feeAgreed: false }));
       const email = renderOrderEmail(kind, order, withPay);
       assert.match(email.text, /message you on WhatsApp to agree the delivery fee/);
-      assert.match(email.text, /Shipping: To be agreed/);
+      assert.match(email.text, /Shipping: We'll contact you/);
       assert.doesNotMatch(email.text, /atteya@instapay|screenshot/);
     }
   });
