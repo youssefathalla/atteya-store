@@ -1,0 +1,8 @@
+{
+  "$comment": "Single source of truth for the Linear board. The PR title check, the branch-name hook and the agent docs all read teamKey from here. When the Linear team key changes, change teamKey and move the old key into previousTeamKeys.",
+  "workspace": "youssefathalla",
+  "team": "Atteye-Store",
+  "teamKey": "ATS",
+  "previousTeamKeys": ["YOU"],
+  "project": "Atteya Store"
+}
