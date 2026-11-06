@@ -88,13 +88,13 @@ export const ProductSchema = v.pipe(
      * Distinct from `marketingBadge` NEW. Expiry is date-based; no separate boolean.
      */
     newArrivalUntil: v.optional(v.nullable(timestampSchema), null),
-    trackStock: v.boolean(),
     stock: v.optional(wholeNumber),
     stockBySize: v.optional(v.record(v.string(), wholeNumber)),
     inStock: v.optional(v.boolean(), true),
     weightGrams: v.optional(
       v.fallback(
-        v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100_000))),
+        // 0 g = never adds to the parcel (socks). null/missing = not set.
+        v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100_000))),
         null,
       ),
     ),

@@ -119,6 +119,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // One doc per order email (`{orderId}_{kind}`): sent / failed status for admins.
+    // Only the sendOrderEmails trigger (Admin SDK) writes it.
+    match /orderEmails/{emailId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Per-shopper favorites. Only that signed-in person can read or change their list.
     // Docs live at favorites/{uid}/items/{productId}. Parent favorites/{uid} is unused.
     match /favorites/{uid} {
@@ -169,7 +176,7 @@ service cloud.firestore {
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'favorites', 'users']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'users']);
     }
   }
 }

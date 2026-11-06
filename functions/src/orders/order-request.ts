@@ -1,4 +1,5 @@
 import { HttpsError } from 'firebase-functions/v2/https';
+import { isEgyptMobile } from '../store/order-messages.js';
 
 const COUNTRY_CODE = /^[A-Z]{2}$/;
 const MAX_LINES = 20;
@@ -9,7 +10,7 @@ const MAX_CITY = 80;
 const MAX_POSTAL = 20;
 const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
-export type StorePaymentMethod = 'paymob' | 'cash-on-delivery';
+export type StorePaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
 
 export interface OrderLineInput {
   readonly productId: string;
@@ -44,17 +45,30 @@ export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderReq
   const lines = parseLines(data['lines']);
   const shipping = parseShipping(data['shipping']);
   const paymentMethod = parsePaymentMethod(data['paymentMethod'], shipping.country);
+  // Staff reach Egypt shoppers on WhatsApp (InstaPay screenshot, cash-on-delivery fee).
+  if (shipping.country === 'EG' && !isEgyptMobile(shipping.phone)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Enter an Egyptian mobile number, e.g. 010 1234 5678.',
+    );
+  }
   return { lines, shipping, paymentMethod };
 }
 
 function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {
-  if (raw !== 'paymob' && raw !== 'cash-on-delivery') {
+  if (raw !== 'paymob' && raw !== 'cash-on-delivery' && raw !== 'instapay') {
     throw new HttpsError('invalid-argument', 'Choose how you want to pay.');
   }
   if (raw === 'cash-on-delivery' && country !== 'EG') {
     throw new HttpsError(
       'failed-precondition',
-      'Cash on delivery is only available for orders delivered in Egypt.',
+      'Cash on Delivery is only available for orders delivered in Egypt.',
+    );
+  }
+  if (raw === 'instapay' && country !== 'EG') {
+    throw new HttpsError(
+      'failed-precondition',
+      'InstaPay is only available for orders delivered in Egypt.',
     );
   }
   return raw;

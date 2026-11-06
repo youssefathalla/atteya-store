@@ -45,6 +45,18 @@ const ProductStockLookupSchema = v.object({
 const ORDERS_PAGE_SIZE = 50;
 const PRODUCT_LOOKUP_CHUNK = 20;
 
+export interface CancelOrderResult {
+  readonly orderId: string;
+  readonly status: 'cancelled';
+  readonly changed: boolean;
+}
+
+export interface SetDeliveryFeeResult {
+  readonly orderId: string;
+  readonly feeEgp: number;
+  readonly totalEgp: number;
+}
+
 export interface ConfirmCodOrderResult {
   readonly orderId: string;
   readonly status: 'confirmed';
@@ -103,11 +115,34 @@ export class OrdersAdminService {
     return byId;
   }
 
-  /** Confirm a pending Egypt COD order and decrement stock (server transaction). */
+  /**
+   * Confirm a pending Egypt cash-on-delivery (fee received) or InstaPay (transfer received)
+   * order and decrement stock (server transaction).
+   */
   async confirmCodOrder(orderId: string): Promise<ConfirmCodOrderResult> {
     const call = await callableFrom<{ orderId: string }, ConfirmCodOrderResult>(
       this.#functions(),
       'confirmCodOrder',
+    );
+    const response = await call({ orderId });
+    return response.data;
+  }
+
+  /** Save the delivery fee agreed on WhatsApp for a large Egypt order (open orders only). */
+  async setDeliveryFee(orderId: string, feeEgp: number): Promise<SetDeliveryFeeResult> {
+    const call = await callableFrom<{ orderId: string; feeEgp: number }, SetDeliveryFeeResult>(
+      this.#functions(),
+      'setDeliveryFee',
+    );
+    const response = await call({ orderId, feeEgp });
+    return response.data;
+  }
+
+  /** Cancel an open cash-on-delivery or InstaPay order that was never paid. */
+  async cancelOrder(orderId: string): Promise<CancelOrderResult> {
+    const call = await callableFrom<{ orderId: string }, CancelOrderResult>(
+      this.#functions(),
+      'cancelOrder',
     );
     const response = await call({ orderId });
     return response.data;

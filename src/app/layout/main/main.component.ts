@@ -12,7 +12,8 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs';
 import {
   NavigationCancel,
   NavigationEnd,
@@ -32,6 +33,8 @@ import { MobileNavComponent } from '../navbar/mobile-nav/mobile-nav.component';
 import { CartDrawerComponent } from '../cart-drawer/cart-drawer.component';
 import { ShippingBannerComponent } from '@shared/components/shipping-banner/shipping-banner.component';
 import { DrawerService } from '@core/services/drawer/drawer.service';
+import { LogoComponent } from '@shared/ui/logo/logo.component';
+import { chromeModeOf } from './chrome-mode';
 
 /** Fallback when chrome is not mounted yet (desktop nav h-14). */
 const DEFAULT_TOP_CHROME_PX = 56;
@@ -47,6 +50,7 @@ const DEFAULT_TOP_CHROME_PX = 56;
     MobileNavComponent,
     ShippingBannerComponent,
     LoaderComponent,
+    LogoComponent,
   ],
   templateUrl: './main.component.html',
 })
@@ -60,9 +64,23 @@ export class MainLayoutComponent {
   readonly #initialShellDone = signal(false);
 
   readonly chromeReady = this.#shell.chromeReady;
+  /**
+   * Single-task pages (route `data: FOCUS_CHROME`: Sign in, Checkout) show only the logo bar.
+   * The router state is already the target one while this layout is created, so the first
+   * paint (server and browser) uses the right chrome.
+   */
+  readonly focusChrome = toSignal(
+    this.#router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => chromeModeOf(this.#router.routerState.snapshot.root) === 'focus'),
+    ),
+    { initialValue: chromeModeOf(this.#router.routerState.snapshot.root) === 'focus' },
+  );
+  /** Focus pages don't use the navigation or banner, so they never wait for them. */
   readonly showInitialShellLoader = computed(
     () =>
       isPlatformBrowser(this.#platformId) &&
+      !this.focusChrome() &&
       !this.#initialShellDone() &&
       !this.chromeReady(),
   );

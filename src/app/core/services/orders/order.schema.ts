@@ -34,14 +34,22 @@ export const OrderLinePriceSchema = v.object({
   unitEgp: v.pipe(v.number(), v.integer(), v.minValue(0)),
   unitDisplay: v.pipe(v.number(), v.finite(), v.minValue(0)),
   lineDisplay: v.pipe(v.number(), v.finite(), v.minValue(0)),
+  // Snapshot saved when the order is placed (missing on older orders).
+  name: v.optional(v.string()),
+  optionLabels: v.optional(v.array(v.object({ label: v.string(), value: v.string() }))),
+  imagePath: v.optional(v.nullable(v.string())),
 });
 
 export const OrderShippingLineSchema = v.object({
-  /** `domestic-zone` kept for orders placed before the box model. */
-  kind: v.picklist(['domestic-zone', 'domestic-box', 'international-box']),
+  /**
+   * `domestic-zone` kept for orders placed before the box model. `domestic-agreed`: Egypt order
+   * heavier than the biggest box; the fee is 0 until staff set it (`feeAgreed` true).
+   */
+  kind: v.picklist(['domestic-zone', 'domestic-box', 'international-box', 'domestic-agreed']),
   boxId: v.nullable(v.string(), null),
   priceEgp: v.pipe(v.number(), v.integer(), v.minValue(0)),
   priceDisplay: v.pipe(v.number(), v.finite(), v.minValue(0)),
+  feeAgreed: v.optional(v.boolean()),
 });
 
 export const OrderPricingSnapshotSchema = v.object({
@@ -59,6 +67,7 @@ export const OrderPricingSnapshotSchema = v.object({
   totalEgp: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   fulfilment: v.picklist([
     'domestic-cod',
+    'domestic-instapay',
     'domestic-paymob',
     'international-paymob',
     // Legacy bank-transfer fulfilment (pre-Paymob checkout).
@@ -98,8 +107,12 @@ const OrderBaseFields = {
 
 export const StoreOrderSchema = v.object({
   ...OrderBaseFields,
-  paymentMethod: v.picklist(['paymob', 'cash-on-delivery']),
+  paymentMethod: v.picklist(['paymob', 'cash-on-delivery', 'instapay']),
   paymob: v.nullable(OrderPaymobSchema, null),
+  /** Paid (Paymob) while an item had already sold out; staff check the order. */
+  needsReview: v.optional(v.boolean(), false),
+  cancelledAt: v.optional(v.nullable(timestampSchema), null),
+  cancelledBy: v.optional(v.nullable(v.string()), null),
 });
 
 export const LegacyBankTransferOrderSchema = v.object({

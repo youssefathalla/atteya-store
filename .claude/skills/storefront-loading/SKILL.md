@@ -32,7 +32,7 @@ Shared chrome that depends on **client Firebase** or **async settings**:
 | Shipping banner | `shippingSettingsResolver` → `shipping-settings`; `ShippingSettingsService.shellReady()` |
 | Navigation | `navigationSettingsResolver` → `navigation-settings`; `catalogSettingsResolver` → `catalog-settings`; `NavService.shellReady()`; CSR `getDoc` before `onSnapshot` on both docs; desktop nav waits for `navLinksReady()` (nav + `CatalogService.shellReady()`) |
 
-**Policy:** On **initial storefront load**, do not show shipping/nav-dependent chrome until **`ShellReadyService.chromeReady()`** is true. **`ready()`** also waits for auth in the browser. `MainLayoutComponent` uses a one-time `<app-loader>` overlay until `chromeReady()` (route changes keep the top pulse only).
+**Policy:** On **initial storefront load**, do not show shipping/nav-dependent chrome until **`ShellReadyService.chromeReady()`** is true. **`ready()`** also waits for auth in the browser. `MainLayoutComponent` uses a one-time `<app-loader>` overlay until `chromeReady()` (route changes keep the top pulse only). Focus-chrome routes (`data: FOCUS_CHROME`: `/login`, `/checkout`) show only the logo bar and skip that overlay, so a page there must handle its own loading (checkout waits for `CurrencyService.ready()`).
 
 **SSR:** Seed settings the chrome shows via `getDoc` + `TransferState` so first HTML matches Egypt/EGP paths where applicable.
 

@@ -2,7 +2,7 @@
  * Prices are re-computed server-side at checkout from Firestore + settings, never trusted from the client.
  *
  * Paymob Egypt Accept charges whole EGP (amount_cents = totalEgp * 100).
- * Cash on delivery is Egypt shipping only.
+ * Cash on delivery and InstaPay are Egypt shipping only.
  * `isInternational` is decided by the shipping country, not a visitor display toggle.
  * Shipping stays a separate line. Product markup is never applied to that line for Paymob/COD
  * (payable currency is always EGP at the gateway).
@@ -20,7 +20,11 @@ export interface OrderPricingSnapshot {
   readonly shipping: OrderShippingLine | null;
   readonly totalDisplay: number;
   readonly totalEgp?: number;
-  readonly fulfilment: 'domestic-cod' | 'domestic-paymob' | 'international-paymob';
+  readonly fulfilment:
+    | 'domestic-cod'
+    | 'domestic-instapay'
+    | 'domestic-paymob'
+    | 'international-paymob';
 }
 
 export interface OrderLinePrice {
@@ -31,13 +35,23 @@ export interface OrderLinePrice {
   readonly unitDisplay: number;
   readonly lineDisplay: number;
   readonly selection?: Readonly<Record<string, string>>;
+  /** Snapshot saved when the order is placed. Missing on older orders. */
+  readonly name?: string;
+  readonly optionLabels?: readonly { readonly label: string; readonly value: string }[];
+  readonly imagePath?: string | null;
 }
 
 export interface OrderShippingLine {
-  /** `domestic-zone` is legacy (pre box model); new orders use `domestic-box`. */
-  readonly kind: 'domestic-zone' | 'domestic-box' | 'international-box';
+  /**
+   * `domestic-zone` is legacy (pre box model); new orders use `domestic-box`.
+   * `domestic-agreed`: Egypt order heavier than the biggest box. The fee is 0 and the total is the
+   * items only until staff set the agreed fee (`setDeliveryFee`), which sets `feeAgreed`.
+   */
+  readonly kind: 'domestic-zone' | 'domestic-box' | 'international-box' | 'domestic-agreed';
   /** Server-assigned parcel. Stored for admins; customers never send or see it. */
   readonly boxId: string | null;
   readonly priceEgp: number;
   readonly priceDisplay: number;
+  /** Only on `domestic-agreed`: true once staff saved the fee. */
+  readonly feeAgreed?: boolean;
 }

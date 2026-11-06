@@ -1,4 +1,14 @@
+import {
+  isDeliveryFeeToBeAgreed,
+  orderStage,
+  paymentDue,
+  shopperWhatsappNumber,
+  staffWhatsappText,
+} from '@core/config/order-messages';
+import { whatsappChatUrl } from '@core/config/store-info';
 import { displayDecimals } from '@core/services/offers/engine';
+import { orderMessageInput } from '@core/services/orders/order-message-input';
+import { shortOrderRef } from '@core/services/orders/order-ref';
 import type { OrderDoc } from '@core/services/orders/order.schema';
 import { formatMoney } from '@shared/utils/money';
 import type {
@@ -8,9 +18,16 @@ import type {
 } from '../models/order-admin.model';
 
 export function paymentLabel(order: OrderDoc): string {
-  if (order.paymentMethod === 'cash-on-delivery') return 'Cash on delivery';
-  if (order.paymentMethod === 'international-bank-transfer') return 'Bank transfer (legacy)';
-  return 'Paymob';
+  switch (order.paymentMethod) {
+    case 'cash-on-delivery':
+      return 'Cash on Delivery';
+    case 'instapay':
+      return 'InstaPay';
+    case 'paymob':
+      return 'Card or Wallet (Paymob)';
+    case 'international-bank-transfer':
+      return 'Bank Transfer (legacy)';
+  }
 }
 
 export function formatPlacedAt(order: OrderDoc): string {
@@ -25,11 +42,12 @@ export function formatPlacedAt(order: OrderDoc): string {
 }
 
 export function formatOrderTotal(order: OrderDoc): string {
-  return formatMoney(
+  const total = formatMoney(
     order.pricing.totalDisplay,
     order.pricing.currency,
     displayDecimals(order.pricing.currency),
   );
+  return isDeliveryFeeToBeAgreed(order.pricing.shipping) ? `${total} + shipping` : total;
 }
 
 /** Collect unique product ids from order pricing lines. */
@@ -83,6 +101,52 @@ export function selectionLabel(
     .join(' · ');
 }
 
+/**
+ * Order-level actions, decided by the order's current stage. The WhatsApp text always matches
+ * the status loaded now (the list reloads after every confirm or cancel).
+ */
+export function orderActions(order: OrderDoc): Pick<
+  OrderLineAdminRow,
+  | 'stage'
+  | 'whatsappUrl'
+  | 'confirmAction'
+  | 'canCancel'
+  | 'amountDueLabel'
+  | 'deliveryFeeAction'
+  | 'deliveryFeeEgp'
+> {
+  const input = orderMessageInput(order);
+  const stage = orderStage(input);
+  const shopperNumber = shopperWhatsappNumber(order.shipping.phone, order.shipping.country);
+  const text = staffWhatsappText(stage, input, order.shipping.fullName);
+  const due = paymentDue(stage, input);
+  const open = order.status === 'pending';
+  const manual = order.paymentMethod === 'cash-on-delivery' || order.paymentMethod === 'instapay';
+  const shipping = order.pricing.shipping;
+  const agreedLine = manual && open && shipping?.kind === 'domestic-agreed';
+  // Confirm waits until the delivery fee of a large order is saved.
+  const canConfirm = open && stage !== 'fee-to-be-agreed';
+  return {
+    stage,
+    whatsappUrl: shopperNumber && text ? whatsappChatUrl(shopperNumber, text) : null,
+    confirmAction:
+      canConfirm && order.paymentMethod === 'cash-on-delivery'
+        ? 'confirm-order'
+        : canConfirm && order.paymentMethod === 'instapay'
+          ? 'confirm-payment'
+          : null,
+    canCancel: open && manual,
+    amountDueLabel: due?.amountEgp != null ? formatMoney(due.amountEgp, 'EGP', 0) : null,
+    deliveryFeeAction: agreedLine
+      ? isDeliveryFeeToBeAgreed(shipping)
+        ? 'set'
+        : 'change'
+      : null,
+    deliveryFeeEgp:
+      agreedLine && !isDeliveryFeeToBeAgreed(shipping) ? (shipping?.priceEgp ?? null) : null,
+  };
+}
+
 /** One table row per order line, with live stock from product docs. */
 export function toOrderLineAdminRows(
   orders: readonly OrderDoc[],
@@ -94,6 +158,7 @@ export function toOrderLineAdminRows(
     const placedAtLabel = formatPlacedAt(order);
     const payLabel = paymentLabel(order);
     const orderTotalLabel = formatOrderTotal(order);
+    const actions = orderActions(order);
 
     order.pricing.lines.forEach((line, index) => {
       const product = productsById.get(line.productId) ?? null;
@@ -103,6 +168,7 @@ export function toOrderLineAdminRows(
       rows.push({
         id: `${order.id}:${index}:${line.productId}`,
         orderId: order.id,
+        orderRef: shortOrderRef(order.id),
         placedAtLabel,
         customerName: order.shipping.fullName,
         country: order.shipping.country,
@@ -110,12 +176,18 @@ export function toOrderLineAdminRows(
         paymentMethod: order.paymentMethod,
         paymentLabel: payLabel,
         productId: line.productId,
-        productName: product?.name ?? 'Product unavailable',
-        selectionLabel: selectionLabel(product, selection),
+        // Prefer what was saved on the order; older orders fall back to the live product.
+        productName: line.name || product?.name || 'Product unavailable',
+        selectionLabel: line.optionLabels?.length
+          ? line.optionLabels.map((opt) => `${opt.label}: ${opt.value}`).join(' · ')
+          : selectionLabel(product, selection),
         quantity: line.quantity,
         currentStock: stock.count,
         stockStatus: stock.status,
         orderTotalLabel,
+        phone: order.shipping.phone,
+        isFirstLine: index === 0,
+        ...actions,
       });
     });
   }

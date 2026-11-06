@@ -42,7 +42,7 @@ export interface MigrateProductCounts {
   colorsFromName: number;
   colorsMissing: number;
   colorsKept: number;
-  stockNeedsImport: number;
+  stockMissing: number;
 }
 
 export interface MigrateProductSample {
@@ -294,7 +294,7 @@ async function backfillProducts(
     colorsFromName: 0,
     colorsMissing: 0,
     colorsKept: 0,
-    stockNeedsImport: 0,
+    stockMissing: 0,
   };
   const sample: MigrateProductSample[] = [];
   const writes: { ref: DocumentReference; data: DocumentData }[] = [];
@@ -414,7 +414,7 @@ async function backfillProducts(
         untrackedDefault: untrackedDefaultStock(),
       });
       if (boot === null) {
-        counts.stockNeedsImport += 1;
+        counts.stockMissing += 1;
       } else {
         patch['stock'] = boot.stock;
         patch['inStock'] = boot.inStock;
@@ -477,7 +477,7 @@ async function runDropLegacyPass(db: Firestore, dryRun: boolean): Promise<Migrat
     colorsFromName: 0,
     colorsMissing: 0,
     colorsKept: 0,
-    stockNeedsImport: 0,
+    stockMissing: 0,
   };
   const sample: MigrateProductSample[] = [];
   const writes: { ref: DocumentReference; data: DocumentData }[] = [];

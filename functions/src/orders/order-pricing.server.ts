@@ -2,13 +2,18 @@ import type { DocumentData, Firestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { getActiveOffers } from '../offers/offer-cache.js';
 import {
-  assignShippingBox,
   boxesForRegion,
+  parcelWeight,
+  planDelivery,
   priceItem,
   shippingQuote,
+  type DeliveryPlan,
   type Offer,
+  type ParcelLine,
   type PricedProduct,
   type PricingContext,
+  type ShippingRegion,
+  type ShippingSettings,
   type VariantFacts,
 } from '../offers/engine/index.js';
 import {
@@ -23,7 +28,17 @@ import type {
 
 export type OrderStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 export type OrderPaymentMethod = StorePaymentMethod;
-export type OrderFulfilment = 'domestic-cod' | 'domestic-paymob' | 'international-paymob';
+export type OrderFulfilment =
+  | 'domestic-cod'
+  | 'domestic-instapay'
+  | 'domestic-paymob'
+  | 'international-paymob';
+
+/** One chosen option, saved as the shopper saw it (e.g. `Size` → `M`). */
+export interface OrderLineOptionLabel {
+  readonly label: string;
+  readonly value: string;
+}
 
 export interface OrderLinePrice {
   readonly productId: string;
@@ -33,14 +48,30 @@ export interface OrderLinePrice {
   readonly unitEgp: number;
   readonly unitDisplay: number;
   readonly lineDisplay: number;
+  /**
+   * Snapshot of what was bought, saved when the order is placed so emails and the
+   * dashboard still show it after the product is renamed or removed.
+   * Older orders don't have these fields.
+   */
+  readonly name: string;
+  readonly optionLabels: readonly OrderLineOptionLabel[];
+  /** Storage path of the main photo (`products/…`), or null when the product has none. */
+  readonly imagePath: string | null;
 }
 
 export interface OrderShippingLine {
-  /** `domestic-zone` is legacy; new Egypt orders use `domestic-box`. */
-  readonly kind: 'domestic-zone' | 'domestic-box' | 'international-box';
+  /**
+   * `domestic-zone` is legacy; new Egypt orders use `domestic-box`.
+   * `domestic-agreed`: an Egypt order heavier than the biggest box. Staff agree the fee with the
+   * shopper on WhatsApp and save it with `setDeliveryFee`; until then `feeAgreed` is false and
+   * the price is 0 (and the order total is the items only).
+   */
+  readonly kind: 'domestic-zone' | 'domestic-box' | 'international-box' | 'domestic-agreed';
   readonly boxId: string | null;
   readonly priceEgp: number;
   readonly priceDisplay: number;
+  /** Only on `domestic-agreed`: true once staff saved the fee. */
+  readonly feeAgreed?: boolean;
 }
 
 export interface OrderPricingSnapshot {
@@ -82,8 +113,7 @@ export async function priceStoreOrder(
   const pricedLines: OrderLinePrice[] = [];
   const cartProducts: PricedProduct[] = [];
   let subtotalEgp = 0;
-  let totalWeightGrams = 0;
-  let anyWeightMissing = false;
+  const parcelLines: ParcelLine[] = [];
 
   const isInternational = input.shipping.country !== 'EG';
   const region = isInternational ? 'international' : 'egypt';
@@ -94,48 +124,21 @@ export async function priceStoreOrder(
     pricedLines.push(priced);
     cartProducts.push(product);
     subtotalEgp += priced.unitEgp * line.quantity;
-    if (typeof weightGrams === 'number' && weightGrams > 0) {
-      totalWeightGrams += weightGrams * line.quantity;
-    } else {
-      anyWeightMissing = true;
-    }
+    parcelLines.push({ weightGrams, quantity: line.quantity });
   }
 
   // Client payloads cannot choose a box. A sent boxId is not on this input.
-  const selection = assignShippingBox(regionBoxes, totalWeightGrams, anyWeightMissing);
-  if (!selection.ok) {
-    throw boxSelectionError(selection.code);
-  }
-
-  let quote;
-  try {
-    quote = shippingQuote(
-      shippingConfig.settings,
-      {
-        region,
-        boxId: selection.box.id,
-        // Missing weights already chose the largest box. Pass a weight that box
-        // accepts so the quote cannot reject that assignment.
-        totalWeightGrams: anyWeightMissing ? selection.box.maxWeightGrams : totalWeightGrams,
-        goodsSubtotal: subtotalEgp,
-        lines: cartProducts,
-      },
-      offers,
-      ctx,
-    );
-  } catch {
-    throw new HttpsError(
-      'failed-precondition',
-      'We could not work out delivery for this bag. Please try again or contact us.',
-    );
-  }
-
-  const shippingLine: OrderShippingLine = {
-    kind: isInternational ? 'international-box' : 'domestic-box',
-    boxId: quote.boxId,
-    priceEgp: quote.fee,
-    priceDisplay: quote.fee,
-  };
+  const plan = planDelivery(regionBoxes, region, parcelWeight(parcelLines));
+  const shippingLine = quoteShippingLine(plan, {
+    settings: shippingConfig.settings,
+    region,
+    isInternational,
+    paymentMethod: input.paymentMethod,
+    subtotalEgp,
+    cartProducts,
+    offers,
+    ctx,
+  });
 
   const totalEgp = subtotalEgp + shippingLine.priceEgp;
   const fulfilment = resolveFulfilment(input.paymentMethod, isInternational);
@@ -164,20 +167,76 @@ function resolveFulfilment(
   isInternational: boolean,
 ): OrderFulfilment {
   if (method === 'cash-on-delivery') return 'domestic-cod';
+  if (method === 'instapay') return 'domestic-instapay';
   return isInternational ? 'international-paymob' : 'domestic-paymob';
 }
 
-function boxSelectionError(code: 'too-heavy' | 'no-boxes'): HttpsError {
-  if (code === 'too-heavy') {
-    return new HttpsError(
+interface ShippingLineContext {
+  readonly settings: ShippingSettings;
+  readonly region: ShippingRegion;
+  readonly isInternational: boolean;
+  readonly paymentMethod: StorePaymentMethod;
+  readonly subtotalEgp: number;
+  readonly cartProducts: readonly PricedProduct[];
+  readonly offers: readonly Offer[];
+  readonly ctx: PricingContext;
+}
+
+/**
+ * The order's delivery line. An Egypt order heavier than the biggest box is placed with the fee
+ * to be agreed (InstaPay or Cash on Delivery only: a card can't be charged an unknown amount).
+ * Promotions and free shipping don't apply to it; staff set the fee they agreed.
+ */
+function quoteShippingLine(plan: DeliveryPlan, c: ShippingLineContext): OrderShippingLine {
+  switch (plan.kind) {
+    case 'to-be-agreed':
+      if (c.paymentMethod === 'paymob') {
+        throw new HttpsError(
+          'failed-precondition',
+          "Card or Wallet isn't available for large orders, because we agree the delivery fee with you first. Choose InstaPay or Cash on Delivery.",
+        );
+      }
+      return { kind: 'domestic-agreed', boxId: null, priceEgp: 0, priceDisplay: 0, feeAgreed: false };
+    case 'too-heavy':
+      throw new HttpsError(
+        'failed-precondition',
+        'This order is too heavy to send abroad. Remove an item or message us.',
+      );
+    case 'unavailable':
+      throw new HttpsError(
+        'failed-precondition',
+        'We could not work out delivery for this order. Please try again later.',
+      );
+    case 'box':
+      break;
+  }
+
+  let quote;
+  try {
+    quote = shippingQuote(
+      c.settings,
+      {
+        region: c.region,
+        boxId: plan.box.id,
+        totalWeightGrams: plan.quoteWeightGrams,
+        goodsSubtotal: c.subtotalEgp,
+        lines: c.cartProducts,
+      },
+      c.offers,
+      c.ctx,
+    );
+  } catch {
+    throw new HttpsError(
       'failed-precondition',
-      'This order is too heavy to deliver. Remove an item or contact us.',
+      'We could not work out delivery for this bag. Please try again or contact us.',
     );
   }
-  return new HttpsError(
-    'failed-precondition',
-    'We could not work out delivery for this order. Please try again later.',
-  );
+  return {
+    kind: c.isInternational ? 'international-box' : 'domestic-box',
+    boxId: quote.boxId,
+    priceEgp: quote.fee,
+    priceDisplay: quote.fee,
+  };
 }
 
 async function priceLine(
@@ -212,14 +271,48 @@ async function priceLine(
       unitEgp,
       unitDisplay: unitEgp,
       lineDisplay: unitEgp * line.quantity,
+      name: product.name.trim() || 'Item',
+      optionLabels: selectionLabels(data, line.selection),
+      imagePath: mainImagePath(data),
     },
   };
 }
 
+/** Human labels for the chosen options, in the product's option order. */
+export function selectionLabels(
+  data: DocumentData,
+  selection: Readonly<Record<string, string>>,
+): OrderLineOptionLabel[] {
+  const options = data['options'];
+  if (!Array.isArray(options)) return [];
+  const labels: OrderLineOptionLabel[] = [];
+  for (const option of options) {
+    if (!option || typeof option['key'] !== 'string') continue;
+    const picked = selection[option['key']];
+    if (typeof picked !== 'string') continue;
+    const values = Array.isArray(option['values']) ? option['values'] : [];
+    const found = values.find((val: { id?: unknown }) => val?.['id'] === picked);
+    const value = found && typeof found['label'] === 'string' ? found['label'].trim() : '';
+    const label = typeof option['label'] === 'string' ? option['label'].trim() : '';
+    if (label && value) labels.push({ label, value });
+  }
+  return labels;
+}
+
+/** First gallery image path, or null. */
+export function mainImagePath(data: DocumentData): string | null {
+  const images = data['images'];
+  if (!Array.isArray(images)) return null;
+  const first = images[0];
+  const path = first && typeof first['path'] === 'string' ? first['path'].trim() : '';
+  return path.length > 0 ? path : null;
+}
+
+/** Product weight in grams. 0 is real (socks never add to the parcel); null = not set. */
 function readWeightGrams(raw: unknown): number | null {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
   const rounded = Math.round(raw);
-  if (rounded < 1 || rounded > 100_000) return null;
+  if (rounded < 0 || rounded > 100_000) return null;
   return rounded;
 }
 
@@ -255,13 +348,6 @@ function assertLineStock(data: DocumentData, line: OrderLineInput): void {
   }
   if (typeof data['stock'] === 'number' && data['stock'] < line.quantity) {
     throw new HttpsError('failed-precondition', 'One item in your bag is out of stock.');
-  }
-  const variants = data['variants'];
-  if (Array.isArray(variants) && variants.length > 0) {
-    const variant = resolveVariantFacts(data, line);
-    if (!variant || (typeof variant.stock === 'number' && variant.stock < line.quantity)) {
-      throw new HttpsError('failed-precondition', 'One item in your bag is out of stock.');
-    }
   }
 }
 

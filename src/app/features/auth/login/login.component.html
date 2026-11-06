@@ -1,232 +1,216 @@
 <section class="container-content min-h-[calc(100dvh-56px)] elements-center">
-  <div class="w-full max-w-md elements-start-col gap-8">
-    <div class="elements-start-col gap-2">
-      <p class="font-label-md uppercase tracking-widest">Account</p>
-      <h1 class="font-headline-lg font-bold!">
-        @if (auth.needsConsent()) {
-          Almost done
-        } @else if (isCreateIntent()) {
-          Create account
-        } @else {
-          Sign in
-        }
-      </h1>
-      <p class="font-body-md text-on-surface-variant">
-        @if (auth.needsConsent()) {
-          Accept the store terms to finish setting up your account.
-        } @else if (isCreateIntent()) {
-          Use Google, or email and a password. You will need to accept the terms first.
-        } @else {
-          Use Google, or the email and password for your account.
-        }
-      </p>
-    </div>
-
-    @if (notice()) {
-      <p class="font-body-sm" role="status">{{ notice() }}</p>
-    }
-
-    @if (auth.needsConsent()) {
-      <div class="elements-start-col gap-4 w-full">
-        <div class="elements-start-col gap-3 w-full">
-          <div class="elements-start-col gap-1">
-            <mat-checkbox
-              [checked]="termsAccepted()"
-              (change)="onTermsChange($event.checked)"
-              [disabled]="isBusy()"
-            >
-              <span class="font-body-sm">I agree to the Terms and Conditions and Privacy Policy</span>
-            </mat-checkbox>
-            <p class="font-body-sm text-on-surface-variant ps-8">
-              Read the
-              <a routerLink="/terms" class="underline underline-offset-2" target="_blank" rel="noopener">
-                Terms and Conditions
-              </a>
-              and
-              <a routerLink="/privacy" class="underline underline-offset-2" target="_blank" rel="noopener">
-                Privacy Policy
-              </a>.
-            </p>
-          </div>
-          <mat-checkbox
-            [checked]="marketingOptIn()"
-            (change)="onMarketingChange($event.checked)"
-            [disabled]="isBusy()"
-          >
-            <span class="font-body-sm"
-              >Check this box if you want to receive discount offers and similar emails</span
-            >
-          </mat-checkbox>
-        </div>
-        @if (consentError()) {
-          <p class="font-body-sm text-error" role="alert">{{ consentError() }}</p>
-        }
-        <div class="w-full [&>button]:w-full">
-          <button
-            matButton="filled"
-            type="button"
-            (click)="saveConsent()"
-            [disabled]="isBusy() || !canSubmitCreate()"
-            [attr.aria-label]="isConsentBusy() ? 'Saving...' : null"
-          >
-            @if (isConsentBusy()) {
-              <mat-progress-spinner mode="indeterminate" diameter="18" />
-            } @else {
-              <span>Continue</span>
-            }
-          </button>
-        </div>
-      </div>
-    } @else {
-      @if (auth.needsGoogleLink()) {
-        <div class="elements-start-col gap-3">
-          <p class="font-body-md">
-            @if (auth.pendingGoogleEmail()) {
-              This email already has a password. Enter it to connect Google to
-              {{ auth.pendingGoogleEmail() }}.
-            } @else {
-              This email already has a password. Enter it to connect Google to the same account.
-            }
+  @if (showPageLoader()) {
+    <app-loader [sectionSpace]="false" minHeight="40" [showMessage]="false" bg="surface" />
+  } @else {
+    <div class="w-full max-w-md elements-start-col gap-8">
+      <header class="elements-start-col gap-3">
+        <p class="font-label-md uppercase tracking-widest text-on-surface-variant">
+          @if (showConsentStep()) {
+            One last step
+          } @else {
+            Account
+          }
+        </p>
+        <h1 class="font-headline-lg font-bold!">
+          @if (showConsentStep()) {
+            Almost done
+          } @else if (isCreateIntent()) {
+            Create account
+          } @else {
+            Sign in
+          }
+        </h1>
+        <p class="font-body-lg text-on-surface-variant">
+          @if (showConsentStep()) {
+            Agree to the store terms to finish setting up your account.
+          } @else if (isCreateIntent()) {
+            Use Google, or sign up with an email and password.
+          } @else {
+            Use Google, or the email and password for your account.
+          }
+        </p>
+        @if (showConsentStep() && auth.user()?.email; as email) {
+          <p class="font-body-sm text-on-surface-variant">
+            Signed in as <span class="font-bold!">{{ email }}</span>
           </p>
-          <button matButton type="button" (click)="useDifferentAccount()">Use a different account</button>
-        </div>
-      } @else {
-        @if (showConsent()) {
-          <div class="elements-start-col gap-3 w-full">
-            <div class="elements-start-col gap-1">
-              <mat-checkbox
-                [checked]="termsAccepted()"
-                (change)="onTermsChange($event.checked)"
-                [disabled]="isBusy()"
-              >
-                <span class="font-body-sm">I agree to the Terms and Conditions and Privacy Policy</span>
-              </mat-checkbox>
-              <p class="font-body-sm text-on-surface-variant ps-8">
-                Read the
-                <a routerLink="/terms" class="underline underline-offset-2" target="_blank" rel="noopener">
-                  Terms and Conditions
-                </a>
-                and
-                <a routerLink="/privacy" class="underline underline-offset-2" target="_blank" rel="noopener">
-                  Privacy Policy
-                </a>.
-              </p>
-            </div>
-            <mat-checkbox
-              [checked]="marketingOptIn()"
-              (change)="onMarketingChange($event.checked)"
-              [disabled]="isBusy()"
-            >
-              <span class="font-body-sm"
-                >Check this box if you want to receive discount offers and similar emails</span
-              >
-            </mat-checkbox>
-          </div>
         }
+      </header>
 
-        <div class="w-full [&>button]:w-full">
-          <button
-            matButton="outlined"
-            type="button"
-            (click)="continueWithGoogle()"
-            [disabled]="isBusy() || (showConsent() && !canSubmitCreate())"
-            [attr.aria-label]="isGoogleBusy() ? 'Signing in with Google...' : null"
-          >
-            @if (isGoogleBusy()) {
-              <mat-progress-spinner mode="indeterminate" diameter="18" />
-            } @else {
-              <span>Continue with Google</span>
-            }
-          </button>
-        </div>
-        <div class="elements-center gap-4 w-full">
-          <span class="h-px flex-1 bg-outline-variant"></span>
-          <span class="font-label-sm">or</span>
-          <span class="h-px flex-1 bg-outline-variant"></span>
-        </div>
+      @if (notice()) {
+        <p class="font-body-sm" role="status">{{ notice() }}</p>
       }
 
-      <form class="form-space w-full" novalidate (submit)="onSubmit($event)">
-        <app-text-input
-          [formField]="loginForm.email"
-          label="Email"
-          type="email"
-          inputMode="email"
-          icon="mail"
-          placeholder="you@email.com"
-        />
-        <app-password-input
-          [formField]="loginForm.password"
-          label="Password"
-          icon="lock"
-          placeholder="Password"
-        />
-        @if (shownError()) {
-          <p class="font-body-sm text-error" role="alert">{{ shownError() }}</p>
-        }
-        @if (!isCreateIntent()) {
-          <div class="elements-between">
+      @if (showConsentStep()) {
+        <div class="elements-start-col gap-6 w-full">
+          <app-consent-choices
+            [(termsAccepted)]="termsAccepted"
+            [(marketingOptIn)]="marketingOptIn"
+            [disabled]="isBusy()"
+          />
+          @if (consentError()) {
+            <p class="font-body-sm text-error" role="alert">{{ consentError() }}</p>
+          }
+          <div class="w-full [&>button]:w-full">
             <button
-              matButton
+              matButton="filled"
               type="button"
-              (click)="sendReset()"
-              [disabled]="isBusy()"
-              [attr.aria-label]="isResetting() ? 'Sending reset link...' : null"
+              (click)="saveConsent()"
+              [disabled]="isBusy() || !termsAccepted()"
+              [attr.aria-label]="isConsentBusy() ? 'Finishing your account...' : null"
             >
-              @if (isResetting()) {
+              @if (isConsentBusy()) {
                 <mat-progress-spinner mode="indeterminate" diameter="18" />
               } @else {
-                <span>Forgot password?</span>
+                <span>Continue</span>
               }
             </button>
           </div>
-        }
-
-        <div class="w-full [&>button]:w-full">
-          <button
-            matButton="filled"
-            type="submit"
-            [disabled]="isBusy() || (isCreateIntent() && !canSubmitCreate())"
-            [attr.aria-label]="isEmailBusy() ? (isCreateIntent() ? 'Creating account...' : 'Signing in...') : null"
-          >
-            @if (isEmailBusy()) {
-              <mat-progress-spinner mode="indeterminate" diameter="18" />
-            } @else {
-              <span>
-                @if (auth.needsGoogleLink()) {
-                  Connect Google
-                } @else if (isCreateIntent()) {
-                  Create account
-                } @else {
-                  Sign in
-                }
-              </span>
-            }
-          </button>
+          <!-- The only way off this step without agreeing (every other page sends them back). -->
+          <p class="font-body-sm text-on-surface-variant elements-start gap-1">
+            Not your account?
+            <button matButton type="button" (click)="auth.logout()" [disabled]="isBusy()">
+              Sign Out
+            </button>
+          </p>
         </div>
-      </form>
-
-      <p class="font-body-sm text-on-surface-variant">
-        @if (isCreateIntent()) {
-          Already have an account?
-          <a
-            routerLink="/login"
-            [queryParams]="{ returnUrl: returnUrl() }"
-            class="underline underline-offset-2"
-          >
-            Sign in
-          </a>
+      } @else {
+        @if (auth.needsGoogleLink()) {
+          <div class="elements-start-col gap-3">
+            <p class="font-body-md">
+              @if (auth.pendingGoogleEmail()) {
+                This email already has a password. Enter it to connect Google to
+                {{ auth.pendingGoogleEmail() }}.
+              } @else {
+                This email already has a password. Enter it to connect Google to the same account.
+              }
+            </p>
+            <button matButton type="button" (click)="useDifferentAccount()">Use a Different Account</button>
+          </div>
         } @else {
-          New here?
-          <a
-            routerLink="/login"
-            [queryParams]="{ returnUrl: returnUrl(), intent: 'create' }"
-            class="underline underline-offset-2"
-          >
-            Create account
-          </a>
+          <ng-container [ngTemplateOutlet]="googleButton" />
+          <ng-container [ngTemplateOutlet]="orDivider" />
         }
-      </p>
-    }
-  </div>
+
+        <form class="form-space w-full" novalidate (submit)="onSubmit($event)">
+          <app-text-input
+            [formField]="loginForm.email"
+            label="Email"
+            type="email"
+            inputMode="email"
+            icon="mail"
+            placeholder="you@email.com"
+          />
+          <app-password-input
+            [formField]="loginForm.password"
+            label="Password"
+            icon="lock"
+            placeholder="Password"
+          />
+          @if (shownError()) {
+            <p class="font-body-sm text-error" role="alert">{{ shownError() }}</p>
+          }
+          @if (!isCreateIntent()) {
+            <div class="elements-between">
+              <button
+                matButton
+                type="button"
+                (click)="sendReset()"
+                [disabled]="isBusy()"
+                [attr.aria-label]="isResetting() ? 'Sending reset link...' : null"
+              >
+                @if (isResetting()) {
+                  <mat-progress-spinner mode="indeterminate" diameter="18" />
+                } @else {
+                  <span>Forgot Password?</span>
+                }
+              </button>
+            </div>
+          }
+          @if (isCreateIntent() && !auth.needsGoogleLink()) {
+            <div class="elements-start-col gap-2 w-full pb-2">
+              <app-consent-choices
+                [(termsAccepted)]="termsAccepted"
+                [(marketingOptIn)]="marketingOptIn"
+                [disabled]="isBusy()"
+              />
+              @if (termsError()) {
+                <p class="font-body-sm text-error" role="alert">{{ termsError() }}</p>
+              }
+            </div>
+          }
+
+          <div class="w-full [&>button]:w-full">
+            <button
+              matButton="filled"
+              type="submit"
+              [disabled]="isBusy()"
+              [attr.aria-label]="isEmailBusy() ? (isCreateIntent() ? 'Creating account...' : 'Signing in...') : null"
+            >
+              @if (isEmailBusy()) {
+                <mat-progress-spinner mode="indeterminate" diameter="18" />
+              } @else {
+                <span>
+                  @if (auth.needsGoogleLink()) {
+                    Connect Google
+                  } @else if (isCreateIntent()) {
+                    Create Account
+                  } @else {
+                    Sign In
+                  }
+                </span>
+              }
+            </button>
+          </div>
+        </form>
+
+        <p class="font-body-sm text-on-surface-variant">
+          @if (isCreateIntent()) {
+            Already have an account?
+            <a
+              routerLink="/login"
+              [queryParams]="{ returnUrl: returnUrl() }"
+              class="underline underline-offset-2"
+            >
+              Sign in
+            </a>
+          } @else {
+            New here?
+            <a
+              routerLink="/login"
+              [queryParams]="{ returnUrl: returnUrl(), intent: 'create' }"
+              class="underline underline-offset-2"
+            >
+              Create account
+            </a>
+          }
+        </p>
+      }
+    </div>
+  }
 </section>
+
+<ng-template #googleButton>
+  <div class="w-full [&>button]:w-full">
+    <button
+      matButton="outlined"
+      type="button"
+      (click)="continueWithGoogle()"
+      [disabled]="isBusy()"
+      [attr.aria-label]="isGoogleBusy() ? 'Signing in with Google...' : null"
+    >
+      @if (isGoogleBusy()) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" />
+      } @else {
+        <span>Continue with Google</span>
+      }
+    </button>
+  </div>
+</ng-template>
+
+<ng-template #orDivider>
+  <div class="elements-center gap-4 w-full">
+    <span class="h-px flex-1 bg-outline-variant"></span>
+    <span class="font-label-sm">or</span>
+    <span class="h-px flex-1 bg-outline-variant"></span>
+  </div>
+</ng-template>

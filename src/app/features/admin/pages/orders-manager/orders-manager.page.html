@@ -3,8 +3,10 @@
     <div>
       <h1 class="font-title-lg font-bold!">Orders</h1>
       <p class="font-body-md text-on-surface-variant">
-        Review Paymob and cash-on-delivery orders. Current stock comes from each product right now,
-        not from the amounts stored when the order was placed.
+        Review InstaPay, Card or Wallet, and Cash on Delivery orders. Confirm an InstaPay payment only after the
+        money shows in your bank app. For a large order, agree the delivery fee with the customer on
+        WhatsApp, then use Set Delivery Fee before you confirm it. Current stock comes from each product right now, not from the
+        amounts stored when the order was placed.
       </p>
     </div>
 
@@ -52,10 +54,11 @@
 
 <ng-template #orderCell [templateType]="sampleRow" let-row>
   <div class="elements-start-col gap-0.5 min-w-40">
-    <span class="font-body-md font-bold! break-all">{{ row.orderId }}</span>
+    <span class="font-body-md font-bold! break-all" [attr.title]="row.orderId">{{ row.orderRef }}</span>
     <span class="font-body-sm text-on-surface-variant">
       {{ row.customerName }} · {{ row.country }}
     </span>
+    <span class="font-label-sm text-on-surface-variant">{{ row.phone }}</span>
     <span class="font-label-sm text-on-surface-variant">
       {{ row.paymentLabel }} · {{ row.placedAtLabel }}
     </span>
@@ -80,21 +83,90 @@
 </ng-template>
 
 <ng-template #actionsCell [templateType]="sampleRow" let-row>
-  @if (showConfirmCod(row)) {
-    <button
-      matButton="filled"
-      type="button"
-      [disabled]="confirmingOrderId() !== null"
-      [attr.aria-label]="
-        confirmingOrderId() === row.orderId ? 'Confirming order…' : 'Confirm cash on delivery order'
-      "
-      (click)="confirmCod(row)"
-    >
-      @if (confirmingOrderId() === row.orderId) {
-        <mat-progress-spinner mode="indeterminate" diameter="18" />
-      } @else {
-        <span>Confirm order</span>
+  @if (row.isFirstLine) {
+    <div class="elements-start-col gap-2 min-w-44">
+      @if (row.deliveryFeeAction === 'set') {
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="busyOrderId() !== null"
+          [attr.aria-label]="isBusy(row, 'fee') ? 'Saving delivery fee…' : null"
+          (click)="setDeliveryFee(row)"
+        >
+          @if (isBusy(row, 'fee')) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Set Delivery Fee</span>
+          }
+        </button>
       }
-    </button>
+      @if (row.confirmAction) {
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="busyOrderId() !== null"
+          [attr.aria-label]="isBusy(row, 'confirm') ? 'Confirming…' : null"
+          (click)="confirm(row)"
+        >
+          @if (isBusy(row, 'confirm')) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>{{ row.confirmAction === 'confirm-payment' ? 'Confirm Payment' : 'Confirm Order' }}</span>
+          }
+        </button>
+      }
+      @if (row.whatsappUrl) {
+        <a
+          matButton="outlined"
+          theme="success"
+          [href]="row.whatsappUrl"
+          target="_blank"
+          rel="noopener"
+          [attr.aria-label]="'Message ' + row.customerName + ' on WhatsApp'"
+        >
+          <mat-icon name="chat_bubble" />
+          <span>WhatsApp</span>
+        </a>
+      } @else if (showCopyPhone(row)) {
+        <button
+          matButton="outlined"
+          type="button"
+          [attr.aria-label]="'Copy phone number of ' + row.customerName"
+          (click)="copyPhone(row)"
+        >
+          <span>Copy Number</span>
+        </button>
+      }
+      @if (row.deliveryFeeAction === 'change') {
+        <button
+          matButton="text"
+          type="button"
+          [disabled]="busyOrderId() !== null"
+          [attr.aria-label]="isBusy(row, 'fee') ? 'Saving delivery fee…' : null"
+          (click)="setDeliveryFee(row)"
+        >
+          @if (isBusy(row, 'fee')) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Change Delivery Fee</span>
+          }
+        </button>
+      }
+      @if (row.canCancel) {
+        <button
+          matButton="text"
+          type="button"
+          [disabled]="busyOrderId() !== null"
+          [attr.aria-label]="isBusy(row, 'cancel') ? 'Cancelling order…' : null"
+          (click)="cancel(row)"
+        >
+          @if (isBusy(row, 'cancel')) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Cancel Order</span>
+          }
+        </button>
+      }
+    </div>
   }
 </ng-template>

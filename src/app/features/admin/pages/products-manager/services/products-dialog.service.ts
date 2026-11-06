@@ -7,6 +7,7 @@ import {
   ConfirmDialogData,
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { CatalogMigrateDialogComponent } from '../dialogs/catalog-migrate-dialog/catalog-migrate-dialog.component';
+import { ProductWeightsDialogComponent } from '../dialogs/product-weights-dialog/product-weights-dialog.component';
 import {
   ProductStockDialogComponent,
   ProductStockDialogData,
@@ -35,6 +36,14 @@ export class ProductsDialogService {
     return !!apply;
   }
 
+  openShippingWeights(): void {
+    this.#dialog.open(ProductWeightsDialogComponent, {
+      width: '640px',
+      maxWidth: '96vw',
+      maxHeight: '90vh',
+    });
+  }
+
   async confirmReindex(preview: ReindexSearchReport): Promise<boolean> {
     const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
       ConfirmDialogComponent,
@@ -42,7 +51,7 @@ export class ProductsDialogService {
         data: {
           title: 'Rebuild search',
           message: `This will apply search settings and sync ${preview.indexed} published products to ${preview.indexName}.`,
-          confirmText: 'Rebuild search',
+          confirmText: 'Rebuild Search',
           cancelText: 'Cancel',
           theme: 'primary',
         },

@@ -132,3 +132,4 @@ All UI copy (buttons, dialogs, snackbars, hints, empty states) must follow human
 1. **Outcome over Mechanism**: Describe what happens from the user's perspective, not backend operations.
 2. **Everyday Words**: Use simple, familiar terminology. No technical or system jargon.
 3. **Reassuring Feedback**: Provide calm, constructive guidance with clear next steps.
+4. **Title Case Actions**: Buttons, menu items and dialog actions capitalise the main words and keep small connecting words lower case ("Place Order", "Add to Bag", "Send on WhatsApp", "Back to the Store"). Payment method and order status names are written the same way ("Cash on Delivery", "Waiting for Payment"). Sentences, hints, snackbars and aria-labels stay sentence case.

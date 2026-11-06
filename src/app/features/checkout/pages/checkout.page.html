@@ -2,7 +2,7 @@
   <header class="space-y-2">
     <h1 class="font-headline-md font-bold!">Checkout</h1>
     <p class="font-body-md opacity-80">
-      Pay by card or wallet online. In Egypt you can also pay cash when your order arrives.
+      Add your delivery address, then choose how to pay.
     </p>
   </header>
 
@@ -162,6 +162,11 @@
         autocomplete="tel"
         inputmode="tel"
       />
+      @if (isEgypt()) {
+        <mat-hint>Your WhatsApp mobile number, e.g. 010 1234 5678</mat-hint>
+      } @else {
+        <mat-hint>Include your country code, e.g. +971 50 123 4567</mat-hint>
+      }
     </mat-form-field>
 
     @if (orderSummary(); as summary) {
@@ -180,12 +185,19 @@
               <span class="font-body-md">Total</span>
               <span class="font-title-sm font-bold!">{{ summary.total }}</span>
             </div>
-            <p class="font-label-sm opacity-70">
-              Your total is calculated in Egyptian pounds when you place the order.
-            </p>
+            @if (summary.feeToBeAgreed) {
+              <p class="font-body-sm" aria-live="polite">
+                This is a large order, so we'll message you on WhatsApp to agree the delivery fee
+                before we send it.
+              </p>
+            } @else {
+              <p class="font-label-sm opacity-70">
+                Your total is calculated in Egyptian pounds when you place the order.
+              </p>
+            }
           } @else if (summary.state === 'too-heavy') {
             <p class="font-body-sm text-error" role="alert">
-              This order is too heavy to deliver. Remove an item or contact us.
+              This order is too heavy to send abroad. Remove an item or message us.
             </p>
           } @else if (summary.state === 'missing-item') {
             <p class="font-body-sm text-error" role="alert">One item in your bag is no longer available.</p>
@@ -208,17 +220,63 @@
         (change)="setPaymentMethod($event.value)"
         aria-label="Payment method"
       >
-        <mat-radio-button value="paymob">Card or wallet (Paymob)</mat-radio-button>
-        @if (codAvailable()) {
-          <mat-radio-button value="cash-on-delivery">Cash on delivery</mat-radio-button>
+        @if (localMethodsAvailable()) {
+          <mat-radio-button value="instapay">InstaPay</mat-radio-button>
+          @if (paymentMethod() === 'instapay') {
+            @if (orderSummary(); as summary) {
+              @if (summary.state === 'ready') {
+                <p class="font-body-sm opacity-80" aria-live="polite">
+                  @if (summary.feeToBeAgreed) {
+                    Once we agree the delivery fee on WhatsApp, transfer the total by InstaPay and
+                    send us a screenshot. We'll confirm your payment and send your order.
+                  } @else {
+                    After you place your order, transfer {{ summary.instapayTotal }} by InstaPay and
+                    send us a screenshot on WhatsApp. We'll confirm your payment and send your order.
+                  }
+                </p>
+              }
+            }
+          }
+        }
+        @if (!feeToBeAgreed()) {
+          <mat-radio-button value="paymob">Card or Wallet</mat-radio-button>
+        }
+        @if (localMethodsAvailable()) {
+          <mat-radio-button value="cash-on-delivery">Cash on Delivery</mat-radio-button>
+          @if (paymentMethod() === 'cash-on-delivery') {
+            @if (orderSummary(); as summary) {
+              @if (summary.state === 'ready') {
+                <p class="font-body-sm opacity-80" aria-live="polite">
+                  @if (summary.feeToBeAgreed) {
+                    Once we agree the delivery fee on WhatsApp, pay it by InstaPay. You'll pay
+                    {{ summary.codCash }} for your items in cash when they arrive.
+                  } @else if (summary.codShippingEgp > 0) {
+                    Pay the {{ summary.codShipping }} shipping fee by InstaPay first. You'll pay
+                    the rest, {{ summary.codCash }}, in cash when it arrives.
+                  } @else {
+                    Shipping is free, so there's nothing to pay before delivery. You'll pay
+                    {{ summary.codCash }} in cash when it arrives.
+                  }
+                </p>
+              }
+            }
+          }
         } @else {
-          <p class="font-label-sm opacity-70">Cash on delivery is available when shipping to Egypt.</p>
+          <p class="font-label-sm opacity-70">
+            InstaPay and Cash on Delivery are available when shipping to Egypt.
+          </p>
+        }
+        @if (feeToBeAgreed()) {
+          <p class="font-label-sm opacity-70">
+            Card or Wallet isn't available for large orders, because we agree the delivery fee with
+            you first.
+          </p>
         }
       </mat-radio-group>
     </fieldset>
 
     <div class="elements-end gap-3 pt-2">
-      <a matButton="text" routerLink="/">Keep shopping</a>
+      <a matButton="text" routerLink="/">Keep Shopping</a>
       <button
         matButton="filled"
         type="submit"
@@ -228,9 +286,9 @@
         @if (isSubmitting()) {
           <mat-progress-spinner mode="indeterminate" diameter="18" />
         } @else if (paymentMethod() === 'paymob') {
-          <span>Pay online</span>
+          <span>Pay Online</span>
         } @else {
-          <span>Place order</span>
+          <span>Place Order</span>
         }
       </button>
     </div>

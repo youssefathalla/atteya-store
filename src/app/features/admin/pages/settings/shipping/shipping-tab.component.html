@@ -2,7 +2,7 @@
   <div>
     <h2 class="font-title-md font-bold!">Shipping boxes</h2>
     <p class="font-body-sm text-on-surface-variant">
-      Three parcel sizes for Egypt and three for abroad. Fees are whole Egyptian pounds. Changes show
+      Up to three parcel sizes for Egypt and for abroad. Fees are whole Egyptian pounds. Changes show
       on the store right away.
     </p>
   </div>
@@ -24,9 +24,13 @@
     <div class="w-full elements-start-col gap-4">
       <p class="font-body-sm text-on-surface-variant">
         @if (region() === 'egypt') {
-          Rates for orders delivered inside Egypt. Chosen by weight (and box size) at checkout.
+          Rates for orders delivered inside Egypt, picked by the order's weight at checkout. Orders
+          heavier than the biggest box can still be placed: you agree the delivery fee with the
+          shopper on WhatsApp, then set it in Orders. Free shipping and promotions don't apply to
+          those orders.
         } @else {
-          Rates for orders shipped outside Egypt. Same box sizes, different prices.
+          Rates for orders shipped outside Egypt, picked by the order's weight at checkout. Orders
+          heavier than the biggest box can't be placed.
         }
       </p>
 
@@ -110,8 +114,22 @@
               />
             </label>
           </div>
-          <p class="font-label-sm text-on-surface-variant">Id: {{ box.id }}</p>
+          <div class="elements-between gap-3 w-full">
+            <p class="font-label-sm text-on-surface-variant">Id: {{ box.id }}</p>
+            @if ($last && activeBoxes().length > 1) {
+              <button matButton="text" type="button" (click)="removeLastBox()">
+                <mat-icon name="delete" />
+                <span>Remove Box</span>
+              </button>
+            }
+          </div>
         </div>
+      }
+      @if (activeBoxes().length < 3) {
+        <button matButton="outlined" type="button" (click)="addBox()">
+          <mat-icon name="add" />
+          <span>Add Box</span>
+        </button>
       }
     </div>
 
@@ -220,7 +238,7 @@
         <mat-icon name="check" />
       }
       @if (!isSaving()) {
-        <span>Save shipping</span>
+        <span>Save Shipping</span>
       }
     </button>
   }

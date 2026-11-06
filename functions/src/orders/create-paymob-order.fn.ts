@@ -6,6 +6,7 @@ import {
 } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
+import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
 import { requireRole } from '../auth/require-role.js';
 import {
   buildUnifiedCheckoutUrl,
@@ -16,8 +17,7 @@ import {
 import { paymobSecrets, requireConfiguredPaymob } from '../paymob/paymob-config.js';
 import { parseCreateStoreOrderRequest } from './order-request.js';
 import { priceStoreOrder, type OrderPricingSnapshot } from './order-pricing.server.js';
-
-const MAX_ORDERS_PER_UID_PER_UTC_DAY = 20;
+import { nextDailyOrderCount, utcDayKey } from './order-rate-limit.js';
 
 export interface CreatePaymobOrderResponse {
   readonly orderId: string;
@@ -31,6 +31,7 @@ export const createPaymobOrder = onCall(
   adminCallableOptions({ secrets: [...paymobSecrets()] }),
   async (request): Promise<CreatePaymobOrderResponse> => {
     const caller = await requireRole(request, 'user');
+    await requireAcceptedTerms(caller.uid);
     const input = parseCreateStoreOrderRequest({
       ...(isRecord(request.data) ? request.data : {}),
       paymentMethod: 'paymob',
@@ -214,29 +215,6 @@ async function releaseDailyOrderSlot(
       { merge: true },
     );
   });
-}
-
-function assertUnderDailyOrderCap(raw: unknown): void {
-  const count = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
-  if (count >= MAX_ORDERS_PER_UID_PER_UTC_DAY) {
-    throw new HttpsError(
-      'resource-exhausted',
-      'You have placed too many orders today. Try again tomorrow.',
-    );
-  }
-}
-
-function nextDailyOrderCount(raw: unknown): number {
-  assertUnderDailyOrderCap(raw);
-  const count = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
-  return count + 1;
-}
-
-function utcDayKey(now = new Date()): string {
-  const y = String(now.getUTCFullYear());
-  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(now.getUTCDate()).padStart(2, '0');
-  return `${y}${m}${d}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

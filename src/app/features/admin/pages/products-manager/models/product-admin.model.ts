@@ -116,7 +116,7 @@ export interface MigrateProductCountsView {
   readonly colorsFromName: number;
   readonly colorsMissing: number;
   readonly colorsKept: number;
-  readonly stockNeedsImport: number;
+  readonly stockMissing: number;
 }
 
 export interface MigrateProductSampleView {

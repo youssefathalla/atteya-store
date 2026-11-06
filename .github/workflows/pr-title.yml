@@ -1,0 +1,41 @@
+name: PR title
+
+# Branch names no longer carry the Linear id (<type>/<short-name>, e.g. feature/shipping-weights),
+# so the PR title is what links a PR to its Linear issue. Fails when the title has no <KEY>-<number>,
+# where <KEY> is teamKey in linear.config.json (one place to change when the Linear team key changes).
+# The develop -> main merge and back-merges from main are skipped.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  linear-id:
+    if: github.head_ref != 'develop' && github.head_ref != 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Read the Linear team key
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: linear.config.json
+          sparse-checkout-cone-mode: false
+
+      - name: Title contains a Linear issue id
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          KEY=$(jq -r '.teamKey' linear.config.json)
+          if ! printf '%s' "$KEY" | grep -Eq '^[A-Z][A-Z0-9]{0,6}$'; then
+            echo "::error title=Bad Linear team key::teamKey in linear.config.json must be uppercase letters or digits (got '$KEY')."
+            exit 1
+          fi
+          if printf '%s' "$PR_TITLE" | grep -Eq "(^|[^A-Za-z0-9])${KEY}-[0-9]+"; then
+            echo "PR title has a Linear issue id."
+          else
+            echo "::error title=PR title needs a Linear issue id::Start the PR title with the issue id, e.g. '${KEY}-123 Clear sign-in errors on mode switch'. See .agents/skills/branch-naming/SKILL.md."
+            exit 1
+          fi
