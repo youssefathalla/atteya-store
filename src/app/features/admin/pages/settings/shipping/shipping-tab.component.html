@@ -118,7 +118,7 @@
             @if ($last && activeBoxes().length > 1) {
               <button matButton="text" type="button" (click)="removeLastBox()">
                 <mat-icon name="delete" />
-                <span>Remove box</span>
+                <span>Remove Box</span>
               </button>
             }
           </div>
@@ -127,7 +127,7 @@
       @if (activeBoxes().length < 3) {
         <button matButton="outlined" type="button" (click)="addBox()">
           <mat-icon name="add" />
-          <span>Add box</span>
+          <span>Add Box</span>
         </button>
       }
     </div>
@@ -237,7 +237,7 @@
         <mat-icon name="check" />
       }
       @if (!isSaving()) {
-        <span>Save shipping</span>
+        <span>Save Shipping</span>
       }
     </button>
   }

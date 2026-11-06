@@ -12,7 +12,7 @@
         (click)="addProduct.emit()"
       >
         <mat-icon name="add" />
-        <span>Add product</span>
+        <span>Add Product</span>
       </button>
       <button
         matButton="outlined"
@@ -27,18 +27,18 @@
           <mat-icon name="build" />
         }
         @if (activity() !== 'tools') {
-          <span>Catalogue tools</span>
+          <span>Catalogue Tools</span>
         }
       </button>
       <mat-menu #catalogToolsMenu="matMenu">
         <button mat-menu-item type="button" (click)="checkCatalog.emit()">
-          <span>Check catalogue structure</span>
+          <span>Check Catalogue Structure</span>
         </button>
         <button mat-menu-item type="button" (click)="removeLegacy.emit()">
-          <span>Remove old fields</span>
+          <span>Remove Old Fields</span>
         </button>
         <button mat-menu-item type="button" (click)="rebuildSearch.emit()">
-          <span>Rebuild search</span>
+          <span>Rebuild Search</span>
         </button>
       </mat-menu>
     </div>

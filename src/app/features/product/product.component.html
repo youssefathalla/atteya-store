@@ -97,13 +97,13 @@
     <section class="container-content elements-center-col gap-4 py-16 text-center">
       <h1 class="font-headline-sm font-bold!">We couldn't find this product</h1>
       <p class="font-body-md">It may have sold out or been removed.</p>
-      <a matButton="outlined" routerLink="/search">Search the shop</a>
+      <a matButton="outlined" routerLink="/search">Search the Shop</a>
     </section>
   }
   @case ('error') {
     <section class="container-content elements-center-col gap-4 py-16 text-center">
       <p class="font-body-md">We couldn't load this product right now.</p>
-      <button matButton="outlined" type="button" (click)="retry()">Try again</button>
+      <button matButton="outlined" type="button" (click)="retry()">Try Again</button>
     </section>
   }
 }

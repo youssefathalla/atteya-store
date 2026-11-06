@@ -5,7 +5,7 @@
       <p class="font-body-md text-on-surface-variant">
         Review InstaPay, Card or Wallet, and Cash on Delivery orders. Confirm an InstaPay payment only after the
         money shows in your bank app. For a large order, agree the delivery fee with the customer on
-        WhatsApp, then use Set delivery fee before you confirm it. Current stock comes from each product right now, not from the
+        WhatsApp, then use Set Delivery Fee before you confirm it. Current stock comes from each product right now, not from the
         amounts stored when the order was placed.
       </p>
     </div>
@@ -96,7 +96,7 @@
           @if (isBusy(row, 'fee')) {
             <mat-progress-spinner mode="indeterminate" diameter="18" />
           } @else {
-            <span>Set delivery fee</span>
+            <span>Set Delivery Fee</span>
           }
         </button>
       }
@@ -111,7 +111,7 @@
           @if (isBusy(row, 'confirm')) {
             <mat-progress-spinner mode="indeterminate" diameter="18" />
           } @else {
-            <span>{{ row.confirmAction === 'confirm-payment' ? 'Confirm payment' : 'Confirm order' }}</span>
+            <span>{{ row.confirmAction === 'confirm-payment' ? 'Confirm Payment' : 'Confirm Order' }}</span>
           }
         </button>
       }
@@ -134,7 +134,7 @@
           [attr.aria-label]="'Copy phone number of ' + row.customerName"
           (click)="copyPhone(row)"
         >
-          <span>Copy number</span>
+          <span>Copy Number</span>
         </button>
       }
       @if (row.deliveryFeeAction === 'change') {
@@ -148,7 +148,7 @@
           @if (isBusy(row, 'fee')) {
             <mat-progress-spinner mode="indeterminate" diameter="18" />
           } @else {
-            <span>Change delivery fee</span>
+            <span>Change Delivery Fee</span>
           }
         </button>
       }
@@ -163,7 +163,7 @@
           @if (isBusy(row, 'cancel')) {
             <mat-progress-spinner mode="indeterminate" diameter="18" />
           } @else {
-            <span>Cancel order</span>
+            <span>Cancel Order</span>
           }
         </button>
       }

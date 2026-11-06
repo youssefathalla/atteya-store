@@ -88,7 +88,7 @@
               This email already has a password. Enter it to connect Google to the same account.
             }
           </p>
-          <button matButton type="button" (click)="useDifferentAccount()">Use a different account</button>
+          <button matButton type="button" (click)="useDifferentAccount()">Use a Different Account</button>
         </div>
       } @else {
         @if (showConsent()) {
@@ -176,7 +176,7 @@
               @if (isResetting()) {
                 <mat-progress-spinner mode="indeterminate" diameter="18" />
               } @else {
-                <span>Forgot password?</span>
+                <span>Forgot Password?</span>
               }
             </button>
           </div>
@@ -196,9 +196,9 @@
                 @if (auth.needsGoogleLink()) {
                   Connect Google
                 } @else if (isCreateIntent()) {
-                  Create account
+                  Create Account
                 } @else {
-                  Sign in
+                  Sign In
                 }
               </span>
             }
