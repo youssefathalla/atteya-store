@@ -10,7 +10,7 @@
     <p class="font-body-md opacity-70">Loading your order…</p>
   } @else if (order() === null) {
     <p class="font-body-md opacity-80">We could not find this order.</p>
-    <a matButton="filled" routerLink="/">Back to the store</a>
+    <a matButton="filled" routerLink="/">Back to the Store</a>
   } @else {
     <section class="surface-card p-5 space-y-4" aria-label="Order details">
       <div class="elements-between gap-4">
@@ -87,7 +87,7 @@
             rel="noopener"
           >
             <mat-icon name="chat_bubble" />
-            <span>{{ box.hasDetails ? 'Send on WhatsApp' : 'Message us on WhatsApp' }}</span>
+            <span>{{ box.hasDetails ? 'Send on WhatsApp' : 'Message Us on WhatsApp' }}</span>
           </a>
         }
       </section>
@@ -105,9 +105,9 @@
     <div class="elements-start gap-3 flex-wrap">
       @if (stage() === 'failed') {
         <!-- The bag is emptied before Paymob opens, so send shoppers to the shop, not checkout. -->
-        <a matButton="filled" routerLink="/shop">Shop again</a>
+        <a matButton="filled" routerLink="/shop">Shop Again</a>
       } @else {
-        <a matButton="outlined" routerLink="/">Continue shopping</a>
+        <a matButton="outlined" routerLink="/">Continue Shopping</a>
       }
     </div>
   }

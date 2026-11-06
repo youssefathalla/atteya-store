@@ -28,12 +28,12 @@
       @if (isAdmin()) {
         <a mat-menu-item routerLink="/admin">
           <mat-icon name="dashboard" />
-          <span>Admin dashboard</span>
+          <span>Admin Dashboard</span>
         </a>
       }
       <button mat-menu-item type="button" (click)="signOut()">
         <mat-icon name="logout" />
-        <span>Sign out</span>
+        <span>Sign Out</span>
       </button>
     </mat-menu>
   }
@@ -52,7 +52,7 @@
     <mat-menu #menu="matMenu" [yPosition]="yPosition()" xPosition="before">
       <a mat-menu-item routerLink="/login" [queryParams]="signInParams()">
         <mat-icon name="login" />
-        <span>Sign in</span>
+        <span>Sign In</span>
       </a>
     </mat-menu>
   }
