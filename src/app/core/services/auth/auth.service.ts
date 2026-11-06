@@ -1,6 +1,6 @@
 import { Service, computed, effect, inject, signal, untracked, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, toObservable } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { FirebaseError } from 'firebase/app';
 import {
@@ -21,7 +21,7 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { Observable, of } from 'rxjs';
+import { Observable, filter, firstValueFrom, of } from 'rxjs';
 import { injectAuth, injectFirestore } from '@core/firebase';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import {
@@ -78,6 +78,7 @@ export class AuthService {
    * not left before `needsConsent` is known (Bugbot: consent hold race).
    */
   readonly #consentReady = signal(true);
+  readonly #consentReady$ = toObservable(this.#consentReady);
 
   #pendingCredential: AuthCredential | null = null;
   #generation = 0;
@@ -149,6 +150,16 @@ export class AuthService {
     return new Promise((resolve) => {
       this.#readyWaiters.push(resolve);
     });
+  }
+
+  /**
+   * Auth is ready and, for a signed-in person, `needsConsent` is known (the `users/{uid}`
+   * terms check or a signup write has finished). Guards call this before reading `needsConsent`.
+   */
+  async waitForAccountReady(): Promise<void> {
+    await this.waitForAuthReady();
+    if (this.#consentReady()) return;
+    await firstValueFrom(this.#consentReady$.pipe(filter(Boolean)));
   }
 
   async refreshRole(force = true): Promise<AppRole> {

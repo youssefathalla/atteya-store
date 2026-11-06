@@ -21,7 +21,7 @@
         @if (showConsentStep()) {
           Agree to the store terms to finish setting up your account.
         } @else if (isCreateIntent()) {
-          Use an email and password, or your Google account.
+          Use Google, or sign up with an email and password.
         } @else {
           Use Google, or the email and password for your account.
         }
@@ -44,15 +44,15 @@
           [(marketingOptIn)]="marketingOptIn"
           [disabled]="isBusy()"
         />
-        @if (consentError()) {
-          <p class="font-body-sm text-error" role="alert">{{ consentError() }}</p>
+        @if (termsError() || consentError(); as message) {
+          <p class="font-body-sm text-error" role="alert">{{ message }}</p>
         }
         <div class="w-full [&>button]:w-full">
           <button
             matButton="filled"
             type="button"
             (click)="saveConsent()"
-            [disabled]="isBusy() || !canSubmitCreate()"
+            [disabled]="isBusy()"
             [attr.aria-label]="isConsentBusy() ? 'Finishing your account...' : null"
           >
             @if (isConsentBusy()) {
@@ -76,7 +76,7 @@
           </p>
           <button matButton type="button" (click)="useDifferentAccount()">Use a Different Account</button>
         </div>
-      } @else if (!isCreateIntent()) {
+      } @else {
         <ng-container [ngTemplateOutlet]="googleButton" />
         <ng-container [ngTemplateOutlet]="orDivider" />
       }
@@ -117,19 +117,23 @@
           </div>
         }
         @if (isCreateIntent() && !auth.needsGoogleLink()) {
-          <app-consent-choices
-            class="pb-2"
-            [(termsAccepted)]="termsAccepted"
-            [(marketingOptIn)]="marketingOptIn"
-            [disabled]="isBusy()"
-          />
+          <div class="elements-start-col gap-2 w-full pb-2">
+            <app-consent-choices
+              [(termsAccepted)]="termsAccepted"
+              [(marketingOptIn)]="marketingOptIn"
+              [disabled]="isBusy()"
+            />
+            @if (termsError()) {
+              <p class="font-body-sm text-error" role="alert">{{ termsError() }}</p>
+            }
+          </div>
         }
 
         <div class="w-full [&>button]:w-full">
           <button
             matButton="filled"
             type="submit"
-            [disabled]="isBusy() || (isCreateIntent() && !canSubmitCreate())"
+            [disabled]="isBusy()"
             [attr.aria-label]="isEmailBusy() ? (isCreateIntent() ? 'Creating account...' : 'Signing in...') : null"
           >
             @if (isEmailBusy()) {
@@ -148,11 +152,6 @@
           </button>
         </div>
       </form>
-
-      @if (isCreateIntent() && !auth.needsGoogleLink()) {
-        <ng-container [ngTemplateOutlet]="orDivider" />
-        <ng-container [ngTemplateOutlet]="googleButton" />
-      }
 
       <p class="font-body-sm text-on-surface-variant">
         @if (isCreateIntent()) {
@@ -185,7 +184,7 @@
       matButton="outlined"
       type="button"
       (click)="continueWithGoogle()"
-      [disabled]="isBusy() || (showConsent() && !canSubmitCreate())"
+      [disabled]="isBusy()"
       [attr.aria-label]="isGoogleBusy() ? 'Signing in with Google...' : null"
     >
       @if (isGoogleBusy()) {
