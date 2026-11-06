@@ -27,51 +27,58 @@
         <app-loader [sectionSpace]="false" minHeight="40" [showMessage]="false" bg="surface" />
       </div>
     }
-    @if (chromeReady()) {
+    @if (focusChrome()) {
+      <!-- Single-task pages (Sign in, Checkout): logo only, links home. Same h-14 as the nav. -->
+      <header class="h-14 w-full border-b border-outline-variant bg-surface elements-center">
+        <app-logo />
+      </header>
+    } @else if (chromeReady()) {
       <!-- No wrappers around desktop-nav — a short parent becomes the sticky containing block. -->
       <app-shipping-banner #shippingChrome />
       <app-desktop-nav #navChrome />
     }
 
-    <!-- Main Storefront Page View -->
-    <main class="flex-1 w-full pb-20 lg:pb-0 @container">
+    <!-- Main Storefront Page View (bottom padding clears the mobile bottom bar) -->
+    <main class="flex-1 w-full @container" [class]="focusChrome() ? '' : 'pb-20 lg:pb-0'">
       <router-outlet />
     </main>
 
-    <!-- Store Minimal Footer -->
-    <footer
-      class="w-full bg-surface-container-lowest border-t border-outline-variant py-10 pb-24 lg:pb-10 px-4 sm:px-6 lg:px-8 mt-auto select-none"
-    >
-      <div class="max-w-7xl mx-auto elements-between flex-col sm:flex-row gap-6">
-        <div class="flex items-center gap-2">
-          <span class="font-display-sm font-bold! tracking-widest uppercase"> ATTEYA. </span>
-          <span class="font-label-sm font-mono opacity-80"> | Premier Padel & Sports Store </span>
-        </div>
+    @if (!focusChrome()) {
+      <!-- Store Minimal Footer -->
+      <footer
+        class="w-full bg-surface-container-lowest border-t border-outline-variant py-10 pb-24 lg:pb-10 px-4 sm:px-6 lg:px-8 mt-auto select-none"
+      >
+        <div class="max-w-7xl mx-auto elements-between flex-col sm:flex-row gap-6">
+          <div class="flex items-center gap-2">
+            <span class="font-display-sm font-bold! tracking-widest uppercase"> ATTEYA. </span>
+            <span class="font-label-sm font-mono opacity-80"> | Premier Padel & Sports Store </span>
+          </div>
 
-        <div class="flex items-center gap-6 font-label-md font-bold! tracking-wider uppercase opacity-80">
-          <span>Official Dealer</span>
-          <span>100% Authentic</span>
-          <span>Express Shipping</span>
-        </div>
+          <div class="flex items-center gap-6 font-label-md font-bold! tracking-wider uppercase opacity-80">
+            <span>Official Dealer</span>
+            <span>100% Authentic</span>
+            <span>Express Shipping</span>
+          </div>
 
-        <div class="flex items-center gap-3 font-label-sm opacity-80">
-          <p>&copy; 2026 Atteya Store. All rights reserved.</p>
-          <span>&bull;</span>
-          <a
-            routerLink="/login"
-            [queryParams]="{ returnUrl: '/admin' }"
-            rel="nofollow"
-            class="transition-colors underline-offset-4 hover:underline"
-          >
-            Admin Portal
-          </a>
+          <div class="flex items-center gap-3 font-label-sm opacity-80">
+            <p>&copy; 2026 Atteya Store. All rights reserved.</p>
+            <span>&bull;</span>
+            <a
+              routerLink="/login"
+              [queryParams]="{ returnUrl: '/admin' }"
+              rel="nofollow"
+              class="transition-colors underline-offset-4 hover:underline"
+            >
+              Admin Portal
+            </a>
+          </div>
         </div>
-      </div>
-    </footer>
+      </footer>
 
-    <!-- Persistent Mobile Navigation (Bottom bar + slide-up menu + slide-up cart) -->
-    @if (chromeReady()) {
-      <app-mobile-nav />
+      <!-- Persistent Mobile Navigation (Bottom bar + slide-up menu + slide-up cart) -->
+      @if (chromeReady()) {
+        <app-mobile-nav />
+      }
     }
   </mat-drawer-content>
 </mat-drawer-container>
