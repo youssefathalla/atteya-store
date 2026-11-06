@@ -18,6 +18,7 @@ import { looksLikeEmail } from '@core/services/auth/auth.utils';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import type { SignupConsent } from '@core/services/user-profile';
+import { LoaderComponent } from '@shared/ui/loader/loader.component';
 import { PasswordInputComponent } from '@shared/ui/forms/password-input/password-input.component';
 import { TextInputComponent } from '@shared/ui/forms/text-input/text-input.component';
 import { ConsentChoicesComponent } from './components/consent-choices/consent-choices.component';
@@ -40,6 +41,7 @@ const PASSWORD_RESET_NOTICE =
     RouterLink,
     MatButtonModule,
     MatProgressSpinnerModule,
+    LoaderComponent,
     TextInputComponent,
     PasswordInputComponent,
     ConsentChoicesComponent,
@@ -91,6 +93,17 @@ export class LoginComponent implements OnInit {
     () => this.#busy() || (this.#leaving() ? this.#lastAction() : ''),
   );
 
+  /**
+   * Before Firebase restores a session (or finishes the terms check), and while a person who
+   * arrived already signed in is being sent on, show a loader instead of a form they can't use.
+   * After a button press the form stays, with that button's spinner (`#lastAction`).
+   */
+  readonly showPageLoader = computed(
+    () =>
+      this.#busy() === '' &&
+      this.#lastAction() === '' &&
+      (!this.#auth.isAuthReady() || !this.#auth.consentReady() || this.#leaving()),
+  );
   readonly isBusy = computed(() => this.#active() !== '');
   readonly isGoogleBusy = computed(() => this.#active() === 'google');
   readonly isEmailBusy = computed(() => this.#active() === 'email');

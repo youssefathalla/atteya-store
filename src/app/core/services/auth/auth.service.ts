@@ -224,7 +224,15 @@ export class AuthService {
       throw new Error('Accept the Terms and Conditions and Privacy Policy to create an account.');
     }
     this.#consentReady.set(false);
-    const result = await createUserWithEmailAndPassword(this.#auth, email.trim(), password);
+    let result: UserCredential;
+    try {
+      result = await createUserWithEmailAndPassword(this.#auth, email.trim(), password);
+    } catch (error) {
+      // No account was made, so no `#applyUser` will settle the flag; `waitForAccountReady` would hang.
+      this.#consentReady.set(true);
+      throw error;
+    }
+    // A failed write still settles: `#applyUser` awaits it, fails closed and sets the flag.
     await this.#writeConsent(result.user.uid, consent);
   }
 
