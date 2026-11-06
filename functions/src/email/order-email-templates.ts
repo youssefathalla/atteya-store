@@ -305,10 +305,10 @@ function storePayment(order: OrderEmailOrder): StorePayment {
         ? {
             method: 'Cash on Delivery',
             rows: [
-              ['Shipping Fee by InstaPay', formatEgp(order.shippingEgp)],
+              ['Shipping Fee', formatEgp(order.shippingEgp)],
               ['Cash at the Door', formatEgp(cashOnDeliveryEgp(order))],
             ],
-            note: 'Send the order once the shipping fee arrives.',
+            note: 'Send the order once the shipping fee arrives on InstaPay.',
           }
         : {
             method: 'Cash on Delivery',
@@ -351,7 +351,7 @@ function storePaymentHtml(payment: StorePayment): string {
   const note = payment.note
     ? `<p style="margin:8px 0 0;font-size:13px;color:${MUTED};">${escapeHtml(payment.note)}</p>`
     : '';
-  return `<div style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};">
+  return `<div style="margin:16px 0;padding:6px 8px;border:1px solid ${INK};">
 <p style="margin:0 0 6px;font-size:17px;font-weight:700;">${escapeHtml(payment.method)}</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${FONT}font-size:14px;color:${INK};">
 ${rows}
@@ -560,11 +560,11 @@ function smallText(textValue: string): string {
 function payBoxHtml(box: PayBox): string {
   const lines = box.lines.map(escapeHtml).join('<br>');
   const button = box.whatsapp ? buttonHtml(box.whatsapp) : '';
-  return `<div style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};"><p style="margin:0;">${lines}</p>${button}</div>`;
+  return `<div style="margin:16px 0;padding:6px 8px;border:1px solid ${INK};"><p style="margin:0;">${lines}</p>${button}</div>`;
 }
 
 function highlightBox(textValue: string): string {
-  return `<p style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};font-weight:600;">${escapeHtml(textValue)}</p>`;
+  return `<p style="margin:16px 0;padding:6px 8px;border:1px solid ${INK};font-weight:600;">${escapeHtml(textValue)}</p>`;
 }
 
 /** Short tags for a line's options: "Size M" for the size, the plain value for the rest. */

@@ -209,7 +209,7 @@ describe('order email wording and amounts', () => {
     assert.ok(!confirmed.text.includes("received your shipping fee"));
     const alert = renderOrderEmail('store-new-order', order, ctx);
     assert.ok(alert.text.includes(`Shipping Fee: Free\nCash at the Door: ${formatEgp(2370)}`));
-    assert.ok(!alert.text.includes('Shipping Fee by InstaPay'));
+    assert.ok(!alert.text.includes('arrives on InstaPay'), 'no fee to wait for');
   });
 
   it('cash on delivery confirmed: fee received, cash amount is total minus shipping', () => {
@@ -254,7 +254,7 @@ describe('order email wording and amounts', () => {
     assert.equal(cod.subject, `New Order #ABCDEF – ${formatEgp(2450)} – Cash on Delivery`);
     assert.ok(
       cod.text.includes(
-        `Cash on Delivery\nShipping Fee by InstaPay: ${formatEgp(80)}\nCash at the Door: ${formatEgp(2370)}`,
+        `Cash on Delivery\nShipping Fee: ${formatEgp(80)}\nCash at the Door: ${formatEgp(2370)}`,
       ),
     );
     assert.match(cod.text, /Customer:\n.+\n01012345678\n/);
