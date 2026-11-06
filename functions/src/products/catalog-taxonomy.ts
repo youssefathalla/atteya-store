@@ -508,8 +508,8 @@ export function categoryIdsFor(leafId: string): string[] {
 /**
  * Shipping weight in grams by category (client figures, Nov 2026). 0 = never adds to the parcel
  * (socks). Categories not listed have no default: the admin enters a weight, or leaves it empty
- * (checkout then charges the biggest box). Used to prefill the product form and by
- * `functions/scripts/set-product-weights.mjs`. Keep identical in both catalog-taxonomy copies.
+ * (checkout then charges the biggest box). Staff can override these per category in Catalogue
+ * Tools → Shipping Weights. Keep identical in both catalog-taxonomy copies.
  */
 export const DEFAULT_WEIGHT_GRAMS_BY_CATEGORY: Readonly<Record<string, number>> = {
   't-shirts': 250,
@@ -524,14 +524,32 @@ export const JACKET_WEIGHT_GRAMS = 800;
 const JACKET_NAME = /\b(jacket|windbreaker)\b|جاكيت|جاكت/i;
 
 /**
- * Default weight for a product from its category ids (leaf first) and name, or null when there
- * is none. A jacket in any category weighs 800 g.
+ * Default weight saved by staff on each category (`categories/{id}.defaultWeightGrams`,
+ * Catalogue Tools → Shipping Weights). A number is the weight, `null` means "no default" on
+ * purpose, and a category that is missing here falls back to `DEFAULT_WEIGHT_GRAMS_BY_CATEGORY`.
  */
-export function defaultWeightGrams(categoryIds: readonly string[], name = ''): number | null {
+export type CategoryWeightDefaults = Readonly<Record<string, number | null>>;
+
+/**
+ * Default weight for a product from its category ids (leaf first, then parents) and name, or null
+ * when there is none. A jacket in any category weighs 800 g.
+ */
+export function defaultWeightGrams(
+  categoryIds: readonly string[],
+  name = '',
+  saved: CategoryWeightDefaults = {},
+): number | null {
   if (JACKET_NAME.test(name)) return JACKET_WEIGHT_GRAMS;
   for (const id of categoryIds) {
-    const grams = DEFAULT_WEIGHT_GRAMS_BY_CATEGORY[id];
+    const grams = Object.hasOwn(saved, id) ? saved[id] : DEFAULT_WEIGHT_GRAMS_BY_CATEGORY[id];
     if (typeof grams === 'number') return grams;
   }
   return null;
+}
+
+/** Category weight as staff saved it: a whole number of grams, null (no default) or undefined (not set). */
+export function readCategoryWeight(raw: unknown): number | null | undefined {
+  if (raw === null) return null;
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0 || raw > 100_000) return undefined;
+  return raw;
 }

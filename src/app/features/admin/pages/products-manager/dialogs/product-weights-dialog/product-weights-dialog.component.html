@@ -1,0 +1,131 @@
+<h2 mat-dialog-title class="font-title-lg font-bold!">Shipping Weights</h2>
+<mat-dialog-content class="elements-start-col gap-6">
+  <p class="font-body-md opacity-85">
+    Checkout uses each product's weight to work out the delivery fee. Set a default weight for each
+    category, then fill the products that have none. A weight already on a product is never
+    replaced.
+  </p>
+
+  @if (reportResource.isLoading() && !report()) {
+    <div class="elements-start-col gap-3 w-full" aria-hidden="true">
+      <app-skeleton class="h-10 w-full" />
+      <app-skeleton class="h-10 w-full" />
+      <app-skeleton class="h-10 w-full" />
+    </div>
+  } @else if (reportResource.error()) {
+    <p class="font-body-md" role="alert">
+      We couldn't load the shipping weights. Close this and try again.
+    </p>
+  } @else if (report(); as r) {
+    <section class="w-full elements-start-col gap-3" aria-labelledby="weights-defaults">
+      <h3 id="weights-defaults" class="font-title-md font-bold!">Default Weight per Category</h3>
+      <p class="font-body-sm text-on-surface-variant">
+        Grams. Use 0 for small items like socks that don't add to the parcel. Leave it empty when
+        there's no default yet.
+      </p>
+      <ul class="w-full elements-start-col gap-2">
+        @for (category of r.categories; track category.id) {
+          <li class="w-full elements-between flex-wrap gap-3 border-b border-outline-variant pb-2">
+            <label class="elements-start-col gap-1 font-label-md grow" [for]="'weight-' + category.id">
+              <span class="font-body-md">{{ category.name }}</span>
+              @if (category.missing > 0) {
+                <span class="font-label-sm text-on-surface-variant">
+                  {{ category.missing }} {{ category.missing === 1 ? 'product has' : 'products have' }} no weight
+                </span>
+              }
+            </label>
+            <div class="elements-start-col gap-1">
+              <input
+                class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
+                [class.border-outline]="!fieldError(category.id)"
+                [class.border-error]="!!fieldError(category.id)"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                [id]="'weight-' + category.id"
+                [attr.aria-label]="category.name + ' default weight in grams'"
+                [attr.aria-invalid]="fieldError(category.id) ? 'true' : null"
+                [value]="drafts()[category.id] ?? ''"
+                [disabled]="busy()"
+                (input)="onDraft(category.id, $event)"
+              />
+              @if (fieldError(category.id); as error) {
+                <p class="font-body-sm max-w-40" role="alert">{{ error }}</p>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+      <button
+        matButton="filled"
+        type="button"
+        [disabled]="saveDisabled()"
+        [attr.aria-label]="isSaving() ? 'Saving default weights' : null"
+        (click)="saveDefaults()"
+      >
+        @if (isSaving()) {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <span>Save Defaults</span>
+        }
+      </button>
+    </section>
+
+    <section class="w-full elements-start-col gap-3" aria-labelledby="weights-missing">
+      <h3 id="weights-missing" class="font-title-md font-bold!">
+        Products Without a Weight ({{ r.missingTotal }})
+      </h3>
+      @if (r.missingTotal === 0) {
+        <p class="font-body-md">Every product has a weight.</p>
+      } @else {
+        <p class="font-body-sm text-on-surface-variant">
+          Until they have one, an order with any of these is charged the biggest box. Open a product
+          to type its weight, or fill them all from the defaults above.
+          @if (r.missingTotal > r.missing.length) {
+            Showing the first {{ r.missing.length }}.
+          }
+        </p>
+        <ul class="w-full elements-start-col gap-1">
+          @for (row of r.missing; track row.id) {
+            <li class="w-full elements-between flex-wrap gap-2">
+              <a
+                class="underline font-body-md"
+                [routerLink]="['/admin/products', row.id]"
+                mat-dialog-close
+              >
+                {{ row.name }}
+              </a>
+              <span class="font-label-sm text-on-surface-variant">
+                {{ categoryNames().get(row.categoryId) ?? 'No category' }} ·
+                @if (row.suggestedGrams !== null) {
+                  gets {{ row.suggestedGrams }} g
+                } @else {
+                  no default
+                }
+              </span>
+            </li>
+          }
+        </ul>
+        @if (changeCount() > 0) {
+          <p class="font-body-sm" role="status">Save your default weights first.</p>
+        }
+        <button
+          matButton="outlined"
+          type="button"
+          [disabled]="fillDisabled()"
+          [attr.aria-label]="isFilling() ? 'Filling empty weights' : null"
+          (click)="fillEmpty()"
+        >
+          @if (isFilling()) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Fill Empty Weights</span>
+          }
+        </button>
+      }
+    </section>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end" class="px-6 pb-4">
+  <button matButton="text" type="button" mat-dialog-close>Close</button>
+</mat-dialog-actions>

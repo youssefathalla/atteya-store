@@ -202,6 +202,12 @@ export class ProductsManagerComponent implements OnInit {
     }
   }
 
+  /** Default weight per category, products without a weight, and Fill Empty Weights. */
+  openShippingWeights(): void {
+    if (this.activity()) return;
+    this.#dialogs.openShippingWeights();
+  }
+
   addProduct(): void {
     if (this.activity()) return;
     void this.#router.navigate(['/admin/products/new']);

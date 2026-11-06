@@ -17,6 +17,14 @@ export const CategorySchema = v.object({
   image: v.nullable(ImageAssetSchema),
   published: v.boolean(),
   productCount: wholeNumber,
+  /**
+   * Shipping weight in grams for products in this category (Catalogue Tools → Shipping Weights).
+   * null = no default on purpose; missing = the built-in default (`defaultWeightGrams()`).
+   */
+  // Written only by the `productWeights` callable, which checks the range.
+  defaultWeightGrams: v.optional(
+    v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100_000))),
+  ),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
 });

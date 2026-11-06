@@ -7,6 +7,7 @@
     (checkCatalog)="runMigration('add')"
     (removeLegacy)="runMigration('dropLegacy')"
     (rebuildSearch)="rebuildSearch()"
+    (shippingWeights)="openShippingWeights()"
     (addProduct)="addProduct()"
   />
   @if (searchSyncErrors() > 0) {

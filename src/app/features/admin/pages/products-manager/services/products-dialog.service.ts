@@ -7,6 +7,7 @@ import {
   ConfirmDialogData,
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { CatalogMigrateDialogComponent } from '../dialogs/catalog-migrate-dialog/catalog-migrate-dialog.component';
+import { ProductWeightsDialogComponent } from '../dialogs/product-weights-dialog/product-weights-dialog.component';
 import {
   ProductStockDialogComponent,
   ProductStockDialogData,
@@ -33,6 +34,14 @@ export class ProductsDialogService {
     );
     const apply = await firstValueFrom(dialogRef.afterClosed());
     return !!apply;
+  }
+
+  openShippingWeights(): void {
+    this.#dialog.open(ProductWeightsDialogComponent, {
+      width: '640px',
+      maxWidth: '96vw',
+      maxHeight: '90vh',
+    });
   }
 
   async confirmReindex(preview: ReindexSearchReport): Promise<boolean> {
