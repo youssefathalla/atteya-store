@@ -1,6 +1,6 @@
 ---
 name: branch-naming
-description: The git branch, PR title and commit message rules for Atteya Store (<type>/<short-name> with type feature, fix, hotfix, refactor, perf, docs, test, chore or ci; PR title and commits start with the Linear id YOU-123 so the Linear link keeps working; worktrees only in .claude/worktrees/<name>). Load it whenever you are about to create, name or rename a git branch (git checkout -b, git switch -c, git branch, git worktree add), create or remove a worktree, write a commit message, or open a pull request.
+description: The git branch, PR title and commit message rules for Atteya Store (<type>/<short-name> with type feature, fix, hotfix, refactor, perf, docs, test, chore or ci; PR title and commits start with the Linear id YOU-123 so the Linear link keeps working). Load it whenever you are about to create, name or rename a git branch (git checkout -b, git switch -c, git branch, git worktree add -b), write a commit message, or open a pull request.
 ---
 
 # Branch Names
@@ -59,21 +59,8 @@ Ignore Linear's "Copy git branch name" suggestion (`youssefathalla/you-123-…`)
 - Branch off the latest `develop`: `git fetch origin` then `git switch -c feature/short-name origin/develop`. This includes `hotfix/` branches until launch.
 - PRs target `develop` and are squash-merged (see `AGENTS.md` section 2).
 
-## Worktrees (parallel sessions)
-
-Use a worktree whenever another session may be working in the main project folder, so the two never touch each other's files or branch.
-
-- **Location**: agent worktrees live only in `.claude/worktrees/<name>` inside the main project folder. Never a sibling folder (`../wt`), a temp folder, or a folder nested inside another worktree. `.claude/worktrees/` is in `.gitignore`.
-- **Create** from the main project folder, named after the branch's short name:
-  `git fetch origin` then `git worktree add .claude/worktrees/shipping-weights -b feature/shipping-weights origin/develop`
-  From inside another worktree, use the full path `<main project folder>/.claude/worktrees/<name>` (or `../<name>`, which lands next to it).
-- **Set up**: a worktree has no `node_modules`. Run `npm ci` (and `npm ci --prefix functions` when touching functions) before a build or `npm run preflight`.
-- **Claude Code's own worktrees** (`claude --worktree`, subagents with `isolation: worktree`, `EnterWorktree`) already go to `.claude/worktrees/`. `.claude/settings.json` sets `worktree.baseRef` to `"head"`, so they start from the main folder's checkout instead of the stale `main`. Their branch is named `worktree-<name>`: before committing, create your working branch with `git switch -c <type>/<short-name> origin/develop`.
-- **Main project folder**: keep it on an up-to-date `develop` (`git pull` before starting). Don't check out a working branch there while other sessions run; use a worktree.
-- **Clean up** after the PR merges: `git worktree remove .claude/worktrees/<name>`, then `git branch -D <type>/<short-name>`. Check `git status` in the worktree first; never remove one that has uncommitted or unpushed work you didn't make.
-
 ## Enforcement
 
-- **Claude Code**: a `PreToolUse` hook in `.claude/settings.json` runs `scripts/hooks/check-branch-name.mjs` on every Bash and PowerShell command. It blocks `git checkout -b`, `git switch -c`, `git branch <name>`, `git branch -m`, and `git worktree add -b` when the new name breaks this rule, and `git worktree add` / `git worktree move` to a path outside `.claude/worktrees/<name>`, and explains why. Fix it and run it again.
+- **Claude Code**: a `PreToolUse` hook in `.claude/settings.json` runs `scripts/hooks/check-branch-name.mjs` on every Bash and PowerShell command. It blocks `git checkout -b`, `git switch -c`, `git branch <name>`, `git branch -m`, and `git worktree add -b` when the new name breaks this rule, and explains why. Rename and run it again.
 - **Cursor**: the same script runs as a `beforeShellExecution` hook from `.cursor/hooks.json` (`--cursor` flag).
 - Listing, switching to and deleting branches are never blocked. Branches Claude Code creates for its own isolated worktrees (`worktree-agent-…`) are not created through the shell, so the hook does not see them.
