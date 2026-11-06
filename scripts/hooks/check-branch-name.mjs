@@ -3,7 +3,8 @@
  * (see `.agents/skills/branch-naming/SKILL.md`): `<type>/<short-name>`, where type is one of
  * feature, fix, hotfix, refactor, perf, docs, test, chore, ci (`feat/` and `bugfix/` are not allowed)
  * and `<short-name>` is 2-5 lowercase words (a-z, 0-9) joined by single hyphens, 50 characters at most in total,
- * with no Linear id (`you-123`; the id goes in the PR title).
+ * with no Linear id (`<key>-123`; the id goes in the PR title). The current and retired team keys come from
+ * `linear.config.json`, so a Linear key change needs no edit here.
  * `main` and `develop` are exempt.
  *
  * Claude Code (PreToolUse on Bash and PowerShell, wired in `.claude/settings.json`):
@@ -20,6 +21,7 @@
  * Test: echo '{"tool_input":{"command":"git switch -c my-branch"}}' | node scripts/hooks/check-branch-name.mjs
  */
 import { readFileSync } from 'node:fs';
+import { allTeamKeysOrEmpty } from '../lib/linear-config.mjs';
 
 const CURSOR = process.argv.includes('--cursor');
 const MAX_LENGTH = 50;
@@ -30,11 +32,20 @@ const MIN_WORDS = 2;
 const MAX_WORDS = 5;
 const WORD = /^[a-z0-9]+$/;
 const DIGITS = /^[0-9]+$/;
-const LINEAR_ID_WORD = /^you[0-9]+$/;
+/** Current and retired Linear team keys in lowercase (`ats`, `you`), from `linear.config.json`. */
+const TEAM_KEYS = allTeamKeysOrEmpty().map((key) => key.toLowerCase());
+/** The current key for messages; `KEY` when the config can't be read. */
+const CURRENT_KEY = TEAM_KEYS[0]?.toUpperCase() ?? 'KEY';
 
-/** True when the short-name words carry a Linear id (`you-123` or `you123`), which belongs in the PR title. */
+/** True when the short-name words carry a Linear id (`<key>-123` or `<key>123`), which belongs in the PR title. */
 function hasLinearId(words) {
-  return words.some((word, i) => LINEAR_ID_WORD.test(word) || (word === 'you' && DIGITS.test(words[i + 1] ?? '')));
+  return words.some((word, i) =>
+    TEAM_KEYS.some(
+      (key) =>
+        (word === key && DIGITS.test(words[i + 1] ?? '')) ||
+        (word.startsWith(key) && DIGITS.test(word.slice(key.length))),
+    ),
+  );
 }
 
 /** True when `name` follows `<type>/<short-name>`: an allowed type, then 2-5 lowercase words, no Linear id. */
@@ -187,7 +198,7 @@ function ruleMessage(bad) {
     '  ci/        GitHub Actions and deploy scripts    ci/pr-title-check',
     'Not feat/ or bugfix/: use feature/ and fix/.',
     '<short-name> is 2-5 lowercase words (a-z, 0-9) joined by hyphens, 50 characters at most in total.',
-    'No username, Linear id or date: put the Linear id (YOU-123) in the PR title instead.',
+    `No username, Linear id or date: put the Linear id (${CURRENT_KEY}-123) in the PR title instead.`,
     'Rename it and run the command again.',
     'Full rule: .agents/skills/branch-naming/SKILL.md',
   ].join('\n');

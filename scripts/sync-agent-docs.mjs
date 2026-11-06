@@ -9,7 +9,7 @@
  * Contracts and workflows (body mirrored; each tool keeps its own YAML front matter dialect):
  *   - `.cursor/rules/design-system.mdc`  → `.agents/rules/design-system.md` (Antigravity)
  *                                        → `.claude/rules/design-system.md` (Claude Code)
- *   - `.cursor/skills/ask|teacher/SKILL.md` → `.agents/workflows/ask|teacher.md` (Antigravity)
+ *   - `.cursor/skills/ask|teacher|sync-docs/SKILL.md` → `.agents/workflows/ask|teacher|sync-docs.md` (Antigravity)
  *
  * Skills (whole folders copied byte for byte, so `references/` and `scripts/` come along):
  *   - `.agents/skills/<name>/` → `.claude/skills/<name>/`  (Cursor and Antigravity read the source directly)
@@ -26,6 +26,7 @@ const BODY_ONLY = [
   { from: '.cursor/rules/design-system.mdc', to: '.claude/rules/design-system.md' },
   { from: '.cursor/skills/ask/SKILL.md', to: '.agents/workflows/ask.md' },
   { from: '.cursor/skills/teacher/SKILL.md', to: '.agents/workflows/teacher.md' },
+  { from: '.cursor/skills/sync-docs/SKILL.md', to: '.agents/workflows/sync-docs.md' },
 ];
 
 /** Skill roots that feed `.claude/skills/`. */
