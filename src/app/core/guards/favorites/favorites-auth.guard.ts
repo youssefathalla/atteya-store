@@ -1,20 +1,6 @@
-import { isPlatformBrowser } from '@angular/common';
-import { inject, PLATFORM_ID } from '@angular/core';
-import { CanActivateFn, RedirectCommand, Router } from '@angular/router';
-import { AuthService } from '@core/services/auth/auth.service';
-import { safeReturnUrl } from '@core/services/auth/auth.utils';
+import { CanActivateFn } from '@angular/router';
+import { requireAgreedAccount } from '../account/require-account';
 
-/** Favorites is personal — send visitors to sign in first. */
-export const favoritesAuthGuard: CanActivateFn = async (_route, state) => {
-  if (!isPlatformBrowser(inject(PLATFORM_ID))) return true;
-
-  const auth = inject(AuthService);
-  const router = inject(Router);
-  await auth.waitForAuthReady();
-
-  if (auth.isAuthenticated()) return true;
-
-  throw new RedirectCommand(
-    router.createUrlTree(['/login'], { queryParams: { returnUrl: safeReturnUrl(state.url) } }),
-  );
-};
+/** Favorites is personal — send visitors to sign in, and new accounts to the terms step, first. */
+export const favoritesAuthGuard: CanActivateFn = (_route, state) =>
+  requireAgreedAccount(state.url);

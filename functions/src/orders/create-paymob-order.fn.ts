@@ -6,6 +6,7 @@ import {
 } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
+import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
 import { requireRole } from '../auth/require-role.js';
 import {
   buildUnifiedCheckoutUrl,
@@ -30,6 +31,7 @@ export const createPaymobOrder = onCall(
   adminCallableOptions({ secrets: [...paymobSecrets()] }),
   async (request): Promise<CreatePaymobOrderResponse> => {
     const caller = await requireRole(request, 'user');
+    await requireAcceptedTerms(caller.uid);
     const input = parseCreateStoreOrderRequest({
       ...(isRecord(request.data) ? request.data : {}),
       paymentMethod: 'paymob',

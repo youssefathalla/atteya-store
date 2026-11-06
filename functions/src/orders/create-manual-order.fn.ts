@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
+import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
 import { requireRole } from '../auth/require-role.js';
 import { parseCreateStoreOrderRequest } from './order-request.js';
 import { priceStoreOrder, type OrderPricingSnapshot } from './order-pricing.server.js';
@@ -48,6 +49,7 @@ async function createManualOrder<M extends ManualPaymentMethod>(
   method: M,
 ): Promise<CreateManualOrderResponse<M>> {
   const caller = await requireRole(request, 'user');
+  await requireAcceptedTerms(caller.uid);
   const input = parseCreateStoreOrderRequest({
     ...(isRecord(request.data) ? request.data : {}),
     paymentMethod: method,
