@@ -44,15 +44,15 @@
           [(marketingOptIn)]="marketingOptIn"
           [disabled]="isBusy()"
         />
-        @if (termsError() || consentError(); as message) {
-          <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+        @if (consentError()) {
+          <p class="font-body-sm text-error" role="alert">{{ consentError() }}</p>
         }
         <div class="w-full [&>button]:w-full">
           <button
             matButton="filled"
             type="button"
             (click)="saveConsent()"
-            [disabled]="isBusy()"
+            [disabled]="isBusy() || !termsAccepted()"
             [attr.aria-label]="isConsentBusy() ? 'Finishing your account...' : null"
           >
             @if (isConsentBusy()) {

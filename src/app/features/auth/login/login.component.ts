@@ -168,11 +168,8 @@ export class LoginComponent implements OnInit {
   }
 
   async saveConsent(): Promise<void> {
-    if (this.isBusy() || !this.#auth.needsConsent()) return;
-    if (!this.termsAccepted()) {
-      this.#termsMissing.set(true);
-      return;
-    }
+    // Continue stays disabled until the terms box is ticked.
+    if (this.isBusy() || !this.#auth.needsConsent() || !this.termsAccepted()) return;
     await this.#run('consent', async () => {
       await this.#auth.completeConsent(this.#consentDraft());
       this.#snackbar.success("You're all set");
