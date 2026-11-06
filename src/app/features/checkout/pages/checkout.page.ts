@@ -83,7 +83,7 @@ type CheckoutSummary =
       readonly state: 'ready';
       /**
        * Egypt order heavier than the biggest box: we message the shopper on WhatsApp to agree
-       * the delivery fee. Card or Wallet is hidden; `shipping` reads "To be agreed".
+       * the delivery fee. Card or Wallet is hidden; `shipping` reads "We'll contact you".
        */
       readonly feeToBeAgreed: boolean;
       readonly subtotal: string;
@@ -244,7 +244,7 @@ export class CheckoutPageComponent implements OnInit {
         state: 'ready',
         feeToBeAgreed: true,
         subtotal: formatMoney(subtotalDisplay, entry.code, decimals),
-        shipping: 'To be agreed',
+        shipping: "We'll contact you",
         total: `${formatMoney(subtotalDisplay, entry.code, decimals)} + shipping`,
         instapayTotal: formatMoney(subtotalEgp, 'EGP', 0),
         codShippingEgp: 0,
