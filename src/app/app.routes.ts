@@ -7,6 +7,7 @@ import { catalogSettingsResolver } from '@core/services/products/catalog-setting
 import { navigationSettingsResolver } from '@core/services/navigation/navigation-settings.resolver';
 import { shippingSettingsResolver } from '@core/services/shipping/shipping-settings.resolver';
 import { homeSettingsResolver } from './features/home/resolvers/home-settings.resolver';
+import { FOCUS_CHROME } from './layout/main/chrome-mode';
 import { productPageResolver } from './features/product/resolvers/product-page.resolver';
 
 export const routes: Routes = [
@@ -122,6 +123,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/auth/login/login.component').then((m) => m.LoginComponent),
         title: 'Sign in | Atteya Store',
+        data: FOCUS_CHROME,
       },
       {
         path: 'terms',
@@ -148,6 +150,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/checkout/pages/checkout.page').then((m) => m.CheckoutPageComponent),
         title: 'Checkout | Atteya Store',
+        data: FOCUS_CHROME,
       },
       {
         path: 'checkout/confirmation/:orderId',
