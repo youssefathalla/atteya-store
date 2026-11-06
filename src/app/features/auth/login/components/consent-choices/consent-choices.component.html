@@ -1,0 +1,29 @@
+<div class="w-full border border-outline-variant border-shape divide-y divide-outline-variant">
+  <div class="elements-start items-start gap-1 p-2 pe-4">
+    <mat-checkbox
+      id="consent-terms"
+      [checked]="termsAccepted()"
+      (change)="termsAccepted.set($event.checked)"
+      [disabled]="disabled()"
+      [required]="true"
+    />
+    <label for="consent-terms-input" class="flex-1 min-w-0 pt-2.5 font-body-md cursor-pointer">
+      I agree to the
+      <a routerLink="/terms" target="_blank" rel="noopener" class="underline underline-offset-2">Terms and Conditions</a>
+      and
+      <a routerLink="/privacy" target="_blank" rel="noopener" class="underline underline-offset-2">Privacy Policy</a>
+    </label>
+  </div>
+
+  <div class="elements-start items-start gap-1 p-2 pe-4">
+    <mat-checkbox
+      id="consent-offers"
+      [checked]="marketingOptIn()"
+      (change)="marketingOptIn.set($event.checked)"
+      [disabled]="disabled()"
+    />
+    <label for="consent-offers-input" class="flex-1 min-w-0 pt-2.5 font-body-md cursor-pointer">
+      Get offers and new arrivals by email
+    </label>
+  </div>
+</div>
