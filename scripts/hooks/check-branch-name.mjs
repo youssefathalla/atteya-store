@@ -2,7 +2,8 @@
  * Agent hook: blocks creating or renaming a git branch whose name breaks the house rule
  * (see `.agents/skills/branch-naming/SKILL.md`): `<type>/<short-name>`, where type is one of
  * feature, fix, hotfix, refactor, perf, docs, test, chore, ci (`feat/` and `bugfix/` are not allowed)
- * and `<short-name>` is lowercase words (a-z, 0-9) joined by single hyphens, 50 characters at most in total.
+ * and `<short-name>` is 2-5 lowercase words (a-z, 0-9) joined by single hyphens, 50 characters at most in total,
+ * with no Linear id (`you-123`; the id goes in the PR title).
  * `main` and `develop` are exempt.
  *
  * Claude Code (PreToolUse on Bash and PowerShell, wired in `.claude/settings.json`):
@@ -25,18 +26,27 @@ const MAX_LENGTH = 50;
 const EXEMPT = new Set(['main', 'develop']);
 const TYPES = ['feature', 'fix', 'hotfix', 'refactor', 'perf', 'docs', 'test', 'chore', 'ci'];
 const PREFIXES = TYPES.map((type) => `${type}/`);
+const MIN_WORDS = 2;
+const MAX_WORDS = 5;
 const WORD = /^[a-z0-9]+$/;
+const DIGITS = /^[0-9]+$/;
+const LINEAR_ID_WORD = /^you[0-9]+$/;
 
-/** True when `name` follows `<type>/<short-name>` with an allowed type. */
+/** True when the short-name words carry a Linear id (`you-123` or `you123`), which belongs in the PR title. */
+function hasLinearId(words) {
+  return words.some((word, i) => LINEAR_ID_WORD.test(word) || (word === 'you' && DIGITS.test(words[i + 1] ?? '')));
+}
+
+/** True when `name` follows `<type>/<short-name>`: an allowed type, then 2-5 lowercase words, no Linear id. */
 export function isValidBranchName(name) {
   if (EXEMPT.has(name)) return true;
   if (name.length > MAX_LENGTH) return false;
   const prefix = PREFIXES.find((p) => name.startsWith(p));
   if (!prefix) return false;
-  return name
-    .slice(prefix.length)
-    .split('-')
-    .every((word) => WORD.test(word));
+  const words = name.slice(prefix.length).split('-');
+  if (words.length < MIN_WORDS || words.length > MAX_WORDS) return false;
+  if (!words.every((word) => WORD.test(word))) return false;
+  return !hasLinearId(words);
 }
 
 /**
