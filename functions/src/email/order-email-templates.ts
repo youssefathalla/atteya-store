@@ -351,7 +351,7 @@ function storePaymentHtml(payment: StorePayment): string {
   const note = payment.note
     ? `<p style="margin:8px 0 0;font-size:13px;color:${MUTED};">${escapeHtml(payment.note)}</p>`
     : '';
-  return `<div style="margin:16px 0;padding:6px 8px;border:1px solid ${INK};">
+  return `<div style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};">
 <p style="margin:0 0 6px;font-size:17px;font-weight:700;">${escapeHtml(payment.method)}</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${FONT}font-size:14px;color:${INK};">
 ${rows}
@@ -531,10 +531,10 @@ function layout(storeName: string, title: string, blocks: readonly string[]): st
 </head>
 <body style="margin:0;padding:0;background:#f5f5f5;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;">
-<tr><td align="center" style="padding:24px 12px;">
+<tr><td align="center" style="padding:12px 6px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid ${LINE};">
-<tr><td style="padding:20px 24px;border-bottom:1px solid ${LINE};${FONT}font-size:18px;font-weight:700;letter-spacing:2px;color:${INK};">${escapeHtml(storeName.toUpperCase())}</td></tr>
-<tr><td style="padding:24px;${FONT}color:${INK};font-size:15px;line-height:1.5;">
+<tr><td style="padding:14px 12px;border-bottom:1px solid ${LINE};${FONT}font-size:18px;font-weight:700;letter-spacing:2px;color:${INK};">${escapeHtml(storeName.toUpperCase())}</td></tr>
+<tr><td style="padding:12px;${FONT}color:${INK};font-size:15px;line-height:1.5;">
 ${blocks.filter(Boolean).join('\n')}
 </td></tr>
 </table>
@@ -560,11 +560,11 @@ function smallText(textValue: string): string {
 function payBoxHtml(box: PayBox): string {
   const lines = box.lines.map(escapeHtml).join('<br>');
   const button = box.whatsapp ? buttonHtml(box.whatsapp) : '';
-  return `<div style="margin:16px 0;padding:6px 8px;border:1px solid ${INK};"><p style="margin:0;">${lines}</p>${button}</div>`;
+  return `<div style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};"><p style="margin:0;">${lines}</p>${button}</div>`;
 }
 
 function highlightBox(textValue: string): string {
-  return `<p style="margin:16px 0;padding:6px 8px;border:1px solid ${INK};font-weight:600;">${escapeHtml(textValue)}</p>`;
+  return `<p style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};font-weight:600;">${escapeHtml(textValue)}</p>`;
 }
 
 /** Short tags for a line's options: "Size M" for the size, the plain value for the rest. */
