@@ -47,6 +47,37 @@ const MigrateResponseSchema = v.object({
   ),
 });
 
+const grams = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100_000));
+
+const ProductWeightsSchema = v.object({
+  categories: v.array(
+    v.object({
+      id: v.string(),
+      name: v.string(),
+      path: v.string(),
+      savedGrams: v.optional(v.nullable(grams)),
+      grams: v.nullable(grams),
+      missing: wholeNumber,
+    }),
+  ),
+  missingTotal: wholeNumber,
+  missing: v.array(
+    v.object({
+      id: v.string(),
+      name: v.string(),
+      categoryId: v.string(),
+      suggestedGrams: v.nullable(grams),
+    }),
+  ),
+  filled: wholeNumber,
+});
+
+export type ProductWeightsReport = v.InferOutput<typeof ProductWeightsSchema>;
+
+export type ProductWeightsRequest =
+  | { readonly action: 'preview' | 'fillEmpty' }
+  | { readonly action: 'saveDefaults'; readonly weights: Readonly<Record<string, number | null>> };
+
 interface MigratePayload {
   readonly dryRun: boolean;
   readonly pass: MigratePass;
@@ -80,6 +111,24 @@ export class CatalogToolsService {
     } finally {
       this.#busy.set(false);
     }
+  }
+
+  /**
+   * Shipping weights (`productWeights` callable): preview, save category defaults, or fill the
+   * products that have no weight. Every call returns the fresh report.
+   */
+  async productWeights(request: ProductWeightsRequest): Promise<ProductWeightsReport> {
+    const call = await callableFrom<ProductWeightsRequest, unknown>(
+      this.#functions(),
+      'productWeights',
+      { timeout: 300_000 },
+    );
+    const result = await call(request);
+    const parsed = v.safeParse(ProductWeightsSchema, result.data);
+    if (!parsed.success) {
+      throw new Error('The shipping weights loaded, but the response was unexpected.');
+    }
+    return parsed.output;
   }
 
   async reindexSearch(dryRun: boolean): Promise<ReindexSearchReport> {

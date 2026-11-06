@@ -387,7 +387,7 @@ export class ProductEditorPageComponent implements OnInit {
     effect(() => {
       const { categoryId, name } = this.model();
       if (!this.isCreate()) return;
-      const suggested = defaultWeightGrams([categoryId], name);
+      const suggested = this.#suggestWeight(categoryId, name);
       untracked(() => {
         const current = this.weight().trim();
         if (current !== '' && current !== this.#suggestedWeight) return;
@@ -662,6 +662,20 @@ export class ProductEditorPageComponent implements OnInit {
     });
   }
 
+  /**
+   * Default shipping weight for a new product: the category's saved default (Catalogue Tools →
+   * Shipping Weights), then its parent's, then the built-in one; a "jacket" is 800 g.
+   */
+  #suggestWeight(categoryId: string, name: string): number | null {
+    const categories = this.editorResource.value()?.categories ?? [];
+    const saved: Record<string, number | null> = {};
+    for (const category of categories) {
+      if (category.defaultWeightGrams !== undefined) saved[category.id] = category.defaultWeightGrams;
+    }
+    const ancestors = categories.find((category) => category.id === categoryId)?.ancestorIds ?? [];
+    return defaultWeightGrams([categoryId, ...ancestors], name, saved);
+  }
+
   #apply(product: Product | null): void {
     if (!product) {
       if (!this.#createdId()) this.#createdId.set(this.#admin.newProductId());
@@ -686,7 +700,7 @@ export class ProductEditorPageComponent implements OnInit {
       this.sizeInput.set('');
       this.sizeError.set('');
       this.flatStock.set('0');
-      const weight = defaultWeightGrams([fields.categoryId], fields.name);
+      const weight = this.#suggestWeight(fields.categoryId, fields.name);
       this.#suggestedWeight = weight === null ? '' : String(weight);
       this.weight.set(this.#suggestedWeight);
       this.formError.set('');
