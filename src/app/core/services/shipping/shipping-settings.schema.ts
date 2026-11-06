@@ -17,20 +17,21 @@ export const ShippingBoxSchema = v.object({
   feeEgp: fee,
 });
 
-const threeBoxes = v.pipe(
+/** One to three boxes with different ids. A region may use fewer than three. */
+const boxList = v.pipe(
   v.array(ShippingBoxSchema),
-  v.minLength(3),
+  v.minLength(1),
   v.maxLength(3),
   v.check(
-    (boxes) => {
-      const ids = boxes.map((box) => box.id);
-      return ids.includes('box1') && ids.includes('box2') && ids.includes('box3');
-    },
-    'Shipping must define box1, box2, and box3.',
+    (boxes) => new Set(boxes.map((box) => box.id)).size === boxes.length,
+    'Each shipping box needs a different id.',
   ),
 );
 
-/** Placeholder defaults when a live doc still has the legacy zone model. */
+/**
+ * Egypt (client rates): up to 1 kg = 115 EGP, up to 3 kg = 135 EGP. Heavier orders have no box:
+ * staff agree the delivery fee on WhatsApp. Keep in step with functions/src/shipping/shipping-settings.ts.
+ */
 export const DEFAULT_EGYPT_BOXES = [
   {
     id: 'box1' as const,
@@ -44,20 +45,11 @@ export const DEFAULT_EGYPT_BOXES = [
   {
     id: 'box2' as const,
     name: 'Box 2',
-    maxWeightGrams: 5_000,
+    maxWeightGrams: 3_000,
     maxLengthCm: 45,
     maxWidthCm: 35,
     maxHeightCm: 20,
-    feeEgp: 140,
-  },
-  {
-    id: 'box3' as const,
-    name: 'Box 3',
-    maxWeightGrams: 10_000,
-    maxLengthCm: 60,
-    maxWidthCm: 45,
-    maxHeightCm: 35,
-    feeEgp: 180,
+    feeEgp: 135,
   },
 ];
 
@@ -93,8 +85,8 @@ export const DEFAULT_INTERNATIONAL_BOXES = [
 
 export const ShippingSettingsSchema = v.object({
   currency: v.optional(v.literal('EGP'), 'EGP'),
-  egyptBoxes: v.optional(threeBoxes, () => DEFAULT_EGYPT_BOXES.map((box) => ({ ...box }))),
-  internationalBoxes: v.optional(threeBoxes, () =>
+  egyptBoxes: v.optional(boxList, () => DEFAULT_EGYPT_BOXES.map((box) => ({ ...box }))),
+  internationalBoxes: v.optional(boxList, () =>
     DEFAULT_INTERNATIONAL_BOXES.map((box) => ({ ...box })),
   ),
   freeOver: v.optional(

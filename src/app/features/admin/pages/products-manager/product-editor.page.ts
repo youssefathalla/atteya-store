@@ -19,6 +19,7 @@ import { Router } from '@angular/router';
 import { StorageAssetTracker, StorageUploadService } from '@core/services/storage';
 import {
   COLOR_PALETTE,
+  defaultWeightGrams,
   sortColors,
   type ColorId,
 } from '@core/services/products/catalog-taxonomy';
@@ -75,7 +76,7 @@ const MAX_PRICE = 1_000_000;
 const MAX_COUNT = 100_000;
 const MAX_WEIGHT_GRAMS = 100_000;
 const STOCK_MESSAGE = 'Stock must be a whole number from 0 to 100,000.';
-const WEIGHT_MESSAGE = 'Weight must be a whole number of grams from 1 to 100,000.';
+const WEIGHT_MESSAGE = 'Weight must be a whole number of grams from 0 to 100,000.';
 
 interface EditorFields {
   name: string;
@@ -173,6 +174,8 @@ export class ProductEditorPageComponent implements OnInit {
   #lastType: ProductTypeId = PRODUCT_TYPES[0].id;
   #lastSuggestedCategory = defaultCategoryForType(PRODUCT_TYPES[0].id);
   #categoryPicked = false;
+  /** Last weight the form filled in from the category ('' = none), so a typed weight is kept. */
+  #suggestedWeight = '';
   #descriptionBaseline = '';
   #descriptionTouched = false;
   #hydratedKey = '';
@@ -377,6 +380,21 @@ export class ProductEditorPageComponent implements OnInit {
           });
         }
       }
+    });
+
+    // New products: fill the shipping weight from the category (and "jacket" in the name) while
+    // the field is empty or still holds the last suggestion. A typed weight is never replaced.
+    effect(() => {
+      const { categoryId, name } = this.model();
+      if (!this.isCreate()) return;
+      const suggested = defaultWeightGrams([categoryId], name);
+      untracked(() => {
+        const current = this.weight().trim();
+        if (current !== '' && current !== this.#suggestedWeight) return;
+        const next = suggested === null ? '' : String(suggested);
+        this.#suggestedWeight = next;
+        if (current !== next) this.weight.set(next);
+      });
     });
 
     effect(() => {
@@ -668,7 +686,9 @@ export class ProductEditorPageComponent implements OnInit {
       this.sizeInput.set('');
       this.sizeError.set('');
       this.flatStock.set('0');
-      this.weight.set('');
+      const weight = defaultWeightGrams([fields.categoryId], fields.name);
+      this.#suggestedWeight = weight === null ? '' : String(weight);
+      this.weight.set(this.#suggestedWeight);
       this.formError.set('');
       this.#saveTried.set(false);
       this.#loadedProduct.set(null);
@@ -1101,7 +1121,7 @@ function parseWeightGrams(raw: string): number | null {
   const text = raw.trim();
   if (!/^\d+$/.test(text)) return null;
   const value = Number(text);
-  return Number.isSafeInteger(value) && value >= 1 && value <= MAX_WEIGHT_GRAMS ? value : null;
+  return Number.isSafeInteger(value) && value >= 0 && value <= MAX_WEIGHT_GRAMS ? value : null;
 }
 
 function isAllowedCount(raw: string): boolean {

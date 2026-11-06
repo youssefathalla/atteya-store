@@ -1,4 +1,5 @@
 import {
+  isDeliveryFeeToBeAgreed,
   orderStage,
   paymentDue,
   shopperWhatsappNumber,
@@ -41,11 +42,12 @@ export function formatPlacedAt(order: OrderDoc): string {
 }
 
 export function formatOrderTotal(order: OrderDoc): string {
-  return formatMoney(
+  const total = formatMoney(
     order.pricing.totalDisplay,
     order.pricing.currency,
     displayDecimals(order.pricing.currency),
   );
+  return isDeliveryFeeToBeAgreed(order.pricing.shipping) ? `${total} + shipping` : total;
 }
 
 /** Collect unique product ids from order pricing lines. */
@@ -105,7 +107,13 @@ export function selectionLabel(
  */
 export function orderActions(order: OrderDoc): Pick<
   OrderLineAdminRow,
-  'stage' | 'whatsappUrl' | 'confirmAction' | 'canCancel' | 'amountDueLabel'
+  | 'stage'
+  | 'whatsappUrl'
+  | 'confirmAction'
+  | 'canCancel'
+  | 'amountDueLabel'
+  | 'deliveryFeeAction'
+  | 'deliveryFeeEgp'
 > {
   const input = orderMessageInput(order);
   const stage = orderStage(input);
@@ -114,17 +122,28 @@ export function orderActions(order: OrderDoc): Pick<
   const due = paymentDue(stage, input);
   const open = order.status === 'pending';
   const manual = order.paymentMethod === 'cash-on-delivery' || order.paymentMethod === 'instapay';
+  const shipping = order.pricing.shipping;
+  const agreedLine = manual && open && shipping?.kind === 'domestic-agreed';
+  // Confirm waits until the delivery fee of a large order is saved.
+  const canConfirm = open && stage !== 'fee-to-be-agreed';
   return {
     stage,
     whatsappUrl: shopperNumber && text ? whatsappChatUrl(shopperNumber, text) : null,
     confirmAction:
-      open && order.paymentMethod === 'cash-on-delivery'
+      canConfirm && order.paymentMethod === 'cash-on-delivery'
         ? 'confirm-order'
-        : open && order.paymentMethod === 'instapay'
+        : canConfirm && order.paymentMethod === 'instapay'
           ? 'confirm-payment'
           : null,
     canCancel: open && manual,
     amountDueLabel: due?.amountEgp != null ? formatMoney(due.amountEgp, 'EGP', 0) : null,
+    deliveryFeeAction: agreedLine
+      ? isDeliveryFeeToBeAgreed(shipping)
+        ? 'set'
+        : 'change'
+      : null,
+    deliveryFeeEgp:
+      agreedLine && !isDeliveryFeeToBeAgreed(shipping) ? (shipping?.priceEgp ?? null) : null,
   };
 }
 

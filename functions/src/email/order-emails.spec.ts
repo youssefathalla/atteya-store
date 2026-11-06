@@ -25,6 +25,8 @@ function orderDoc(overrides: {
   country?: string;
   needsReview?: boolean;
   email?: string | null;
+  /** Large order: `domestic-agreed` shipping, fee not set (`false`) or set (`true`). */
+  feeAgreed?: boolean;
 }): Record<string, unknown> {
   const subtotal = overrides.subtotalEgp ?? 2370;
   const shipping = overrides.shippingEgp ?? 80;
@@ -57,8 +59,17 @@ function orderDoc(overrides: {
         },
       ],
       subtotalEgp: subtotal,
-      shipping: { kind: 'domestic-box', boxId: 'box1', priceEgp: shipping, priceDisplay: shipping },
-      totalEgp: subtotal + shipping,
+      shipping:
+        overrides.feeAgreed === undefined
+          ? { kind: 'domestic-box', boxId: 'box1', priceEgp: shipping, priceDisplay: shipping }
+          : {
+              kind: 'domestic-agreed',
+              boxId: null,
+              priceEgp: overrides.feeAgreed ? shipping : 0,
+              priceDisplay: overrides.feeAgreed ? shipping : 0,
+              feeAgreed: overrides.feeAgreed,
+            },
+      totalEgp: overrides.feeAgreed === false ? subtotal : subtotal + shipping,
     },
   };
 }
@@ -332,5 +343,50 @@ describe('store info', () => {
     assert.equal(whatsappChatUrl('+20 120 565 8954'), 'https://wa.me/201205658954');
     assert.equal(whatsappChatUrl(''), null);
     assert.equal(STORE_INFO.name, 'Atteya Store');
+  });
+});
+
+describe('large order: delivery fee to be agreed', () => {
+  const placed = read(orderDoc({ feeAgreed: false }));
+  const set = read(orderDoc({ feeAgreed: true, shippingEgp: 250 }));
+
+  it('reads the fee as not agreed until staff set it', () => {
+    assert.equal(placed.feeToBeAgreed, true);
+    assert.equal(placed.totalEgp, 2370);
+    assert.equal(set.feeToBeAgreed, false);
+    assert.equal(set.totalEgp, 2620);
+  });
+
+  it('sends the delivery-fee email once, when the fee is first saved', () => {
+    assert.deepEqual(orderEmailsForWrite(null, placed), ['cod-placed', 'store-new-order']);
+    assert.deepEqual(orderEmailsForWrite(placed, set), ['delivery-fee-set']);
+    // A later correction while still open sends nothing.
+    assert.deepEqual(orderEmailsForWrite(set, set), []);
+    const instapayPlaced = read(orderDoc({ paymentMethod: 'instapay', feeAgreed: false }));
+    const instapaySet = read(orderDoc({ paymentMethod: 'instapay', feeAgreed: true }));
+    assert.deepEqual(orderEmailsForWrite(instapayPlaced, instapaySet), ['delivery-fee-set']);
+  });
+
+  it('placed emails say we will agree the fee on WhatsApp and ask for no payment', () => {
+    for (const kind of ['cod-placed', 'instapay-placed'] as const) {
+      const order = read(orderDoc({ paymentMethod: kind === 'cod-placed' ? 'cash-on-delivery' : 'instapay', feeAgreed: false }));
+      const email = renderOrderEmail(kind, order, withPay);
+      assert.match(email.text, /message you on WhatsApp to agree the delivery fee/);
+      assert.match(email.text, /Shipping: To be agreed/);
+      assert.doesNotMatch(email.text, /atteya@instapay|screenshot/);
+    }
+  });
+
+  it('store alert asks staff to agree the fee', () => {
+    const email = renderOrderEmail('store-new-order', placed, withPay);
+    assert.match(email.subject, /Agree Delivery Fee/);
+    assert.match(email.text, /Delivery Fee: To Be Agreed/);
+  });
+
+  it('fee-set email shows the fee and the InstaPay box for it', () => {
+    const email = renderOrderEmail('delivery-fee-set', set, withPay);
+    assert.match(email.text, new RegExp(`delivery fee for your order #ABCDEF is ${formatEgp(250)}`));
+    assert.match(email.text, /atteya@instapay/);
+    assert.match(email.text, new RegExp(`the ${formatEgp(250)} shipping fee`));
   });
 });

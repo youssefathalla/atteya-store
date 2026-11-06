@@ -31,9 +31,17 @@ export interface OrderMessageInput {
   readonly totalEgp: number | null;
   /** Paid, but an item ran short when the payment cleared. */
   readonly needsReview: boolean;
+  /**
+   * Egypt order heavier than the biggest box whose delivery fee staff haven't set yet
+   * (`pricing.shipping.kind === 'domestic-agreed'` and `feeAgreed !== true`). Missing = false.
+   * While true, `shippingEgp` and `totalEgp` should be null: neither amount is known.
+   */
+  readonly feeToBeAgreed?: boolean;
 }
 
 export type OrderStage =
+  /** InstaPay or cash on delivery, large order: staff agree the delivery fee on WhatsApp first. */
+  | 'fee-to-be-agreed'
   /** InstaPay order waiting for the full transfer. */
   | 'instapay-total-due'
   /** Cash on delivery waiting for the shipping fee (above 0) by InstaPay. */
@@ -61,6 +69,16 @@ export interface PaymentDue {
   readonly reason: 'total' | 'shipping-fee';
 }
 
+/**
+ * True for a saved `pricing.shipping` line whose delivery fee staff haven't set yet: an Egypt
+ * order heavier than the biggest box (`kind: 'domestic-agreed'`, `feeAgreed` not true).
+ */
+export function isDeliveryFeeToBeAgreed(shipping: unknown): boolean {
+  if (!shipping || typeof shipping !== 'object') return false;
+  const line = shipping as Record<string, unknown>;
+  return line['kind'] === 'domestic-agreed' && line['feeAgreed'] !== true;
+}
+
 export function orderStage(order: OrderMessageInput): OrderStage {
   const { paymentMethod, status } = order;
   if (status === 'cancelled') return 'cancelled';
@@ -68,6 +86,12 @@ export function orderStage(order: OrderMessageInput): OrderStage {
   const confirmed = status === 'confirmed';
   const pending = status === 'pending';
   const paidStage: OrderStage = order.needsReview ? 'paid-needs-review' : 'paid';
+  const manual = paymentMethod === 'instapay' || paymentMethod === 'cash-on-delivery';
+
+  // Nothing can be paid until the delivery fee is agreed, so no InstaPay box yet.
+  if (manual && pending && order.country === 'EG' && order.feeToBeAgreed === true) {
+    return 'fee-to-be-agreed';
+  }
 
   if (paymentMethod === 'instapay') {
     // InstaPay is Egypt-only; anything else is not ours to explain.
@@ -145,6 +169,8 @@ export function shopperWhatsappText(
   switch (stage) {
     case 'paymob-pending':
       return null;
+    case 'fee-to-be-agreed':
+      return `مرحباً، طلبي رقم ${ref}. عايز أعرف مصاريف الشحن.`;
     case 'failed':
       return `مرحباً، الدفع لطلبي رقم ${ref} ما اكتملش. ممكن تساعدوني؟`;
     default:
@@ -172,6 +198,9 @@ export function staffWhatsappText(
   const where = instapayWhere(info);
 
   switch (stage) {
+    case 'fee-to-be-agreed':
+      // Staff add the fee they quote, then save it in the dashboard (Set delivery fee).
+      return `${greeting}\nطلبك وصلنا، ولأنه طلب كبير هنتفق معاك على مصاريف الشحن قبل ما نشحنه.`;
     case 'instapay-total-due': {
       const total = positiveEgp(order.totalEgp);
       const amount = total !== null ? formatEgpPlain(total) : 'إجمالي الطلب';

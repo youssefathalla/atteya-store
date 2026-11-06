@@ -559,8 +559,9 @@ function readWeightGrams(raw: Record<string, unknown>): number | null | undefine
   if (!Object.hasOwn(raw, 'weightGrams')) return undefined;
   const value = raw['weightGrams'];
   if (value === undefined || value === null) return null;
-  if (!isIntegerInRange(value, 1, MAX_WEIGHT_GRAMS)) {
-    invalid('Weight must be a whole number of grams from 1 to 100,000.');
+  // 0 is allowed: small items such as socks never add to the parcel.
+  if (!isIntegerInRange(value, 0, MAX_WEIGHT_GRAMS)) {
+    invalid('Weight must be a whole number of grams from 0 to 100,000.');
   }
   return value;
 }

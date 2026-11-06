@@ -63,6 +63,12 @@ function cloneBoxes(boxes: readonly ShippingBoxDoc[]): BoxDraft[] {
   return boxes.map((box) => ({ ...box }));
 }
 
+const BOX_IDS: readonly ShippingBoxId[] = ['box1', 'box2', 'box3'];
+
+function sortedById(boxes: readonly ShippingBoxDoc[]): ShippingBoxDoc[] {
+  return [...boxes].sort((a, b) => BOX_IDS.indexOf(a.id) - BOX_IDS.indexOf(b.id));
+}
+
 const EMPTY_DRAFT: ShippingDraft = {
   egyptBoxes: cloneBoxes(DEFAULT_EGYPT_BOXES),
   internationalBoxes: cloneBoxes(DEFAULT_INTERNATIONAL_BOXES),
@@ -140,12 +146,8 @@ export class ShippingTabComponent implements OnInit {
       if (!data) return;
       untracked(() =>
         this.draft.set({
-          egyptBoxes: cloneBoxes(data.egyptBoxes?.length === 3 ? data.egyptBoxes : DEFAULT_EGYPT_BOXES),
-          internationalBoxes: cloneBoxes(
-            data.internationalBoxes?.length === 3
-              ? data.internationalBoxes
-              : DEFAULT_INTERNATIONAL_BOXES,
-          ),
+          egyptBoxes: cloneBoxes(sortedById(data.egyptBoxes)),
+          internationalBoxes: cloneBoxes(sortedById(data.internationalBoxes)),
           freeOverActive: data.freeOver.active,
           freeOverThreshold: data.freeOver.threshold,
           promoActive: data.promo.active,
@@ -190,6 +192,27 @@ export class ShippingTabComponent implements OnInit {
     }));
   }
 
+  /** Adds the next box (up to three), starting from the biggest box so far. */
+  addBox(): void {
+    const key = this.region() === 'egypt' ? 'egyptBoxes' : 'internationalBoxes';
+    this.draft.update((prev) => {
+      const boxes = prev[key];
+      const id = BOX_IDS[boxes.length];
+      const last = boxes.at(-1);
+      if (!id || !last) return prev;
+      const box: BoxDraft = { ...last, id, name: `Box ${boxes.length + 1}` };
+      return { ...prev, [key]: [...boxes, box] };
+    });
+  }
+
+  /** Removes the last box. Orders heavier than the boxes left are handled as described above them. */
+  removeLastBox(): void {
+    const key = this.region() === 'egypt' ? 'egyptBoxes' : 'internationalBoxes';
+    this.draft.update((prev) =>
+      prev[key].length > 1 ? { ...prev, [key]: prev[key].slice(0, -1) } : prev,
+    );
+  }
+
   dateFrom(event: Event, endOfDay: boolean): Date | null {
     return parseCairoDateTimeInput((event.target as HTMLInputElement).value, endOfDay);
   }
@@ -204,6 +227,10 @@ export class ShippingTabComponent implements OnInit {
     }
     if (allBoxes.some((box) => !box.name.trim())) {
       this.#snackbar.error('Give every box a name.');
+      return;
+    }
+    if (d.egyptBoxes.length < 1 || d.internationalBoxes.length < 1) {
+      this.#snackbar.error('Each region needs at least one box.');
       return;
     }
     if (allBoxes.some((box) => box.maxWeightGrams < 1)) {

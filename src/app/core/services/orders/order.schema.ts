@@ -41,11 +41,15 @@ export const OrderLinePriceSchema = v.object({
 });
 
 export const OrderShippingLineSchema = v.object({
-  /** `domestic-zone` kept for orders placed before the box model. */
-  kind: v.picklist(['domestic-zone', 'domestic-box', 'international-box']),
+  /**
+   * `domestic-zone` kept for orders placed before the box model. `domestic-agreed`: Egypt order
+   * heavier than the biggest box; the fee is 0 until staff set it (`feeAgreed` true).
+   */
+  kind: v.picklist(['domestic-zone', 'domestic-box', 'international-box', 'domestic-agreed']),
   boxId: v.nullable(v.string(), null),
   priceEgp: v.pipe(v.number(), v.integer(), v.minValue(0)),
   priceDisplay: v.pipe(v.number(), v.finite(), v.minValue(0)),
+  feeAgreed: v.optional(v.boolean()),
 });
 
 export const OrderPricingSnapshotSchema = v.object({

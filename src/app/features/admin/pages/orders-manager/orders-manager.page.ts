@@ -28,11 +28,17 @@ import type { TableColumn } from '@shared/ui/reusable-table/table.model';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.component';
 import type { StatusConfig } from '@shared/ui/status-badge/status.model';
+import {
+  DeliveryFeeDialogComponent,
+  type DeliveryFeeDialogData,
+} from './dialogs/delivery-fee-dialog/delivery-fee-dialog.component';
 import type { OrderLineAdminRow, OrderStatusFilter } from './models/order-admin.model';
 import { OrdersAdminService } from './services/orders-admin.service';
 import { orderActionError } from './utils/order-action-error';
 import { toOrderLineAdminRows } from './utils/order-admin.utils';
 import { orderListError } from './utils/order-list-error';
+
+type OrderAction = 'confirm' | 'cancel' | 'fee';
 
 const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: string }[] = [
   { id: 'pending', label: 'Open' },
@@ -69,7 +75,7 @@ export class OrdersManagerPageComponent implements OnInit {
 
   /** Order id currently being confirmed or cancelled (one action at a time). */
   readonly busyOrderId = signal<string | null>(null);
-  readonly busyAction = signal<'confirm' | 'cancel' | null>(null);
+  readonly busyAction = signal<OrderAction | null>(null);
 
   private readonly orderCell = viewChild<TemplateRef<unknown>>('orderCell');
   private readonly statusCell = viewChild<TemplateRef<unknown>>('statusCell');
@@ -101,6 +107,8 @@ export class OrdersManagerPageComponent implements OnInit {
     confirmAction: null,
     canCancel: false,
     amountDueLabel: null,
+    deliveryFeeAction: null,
+    deliveryFeeEgp: null,
   };
 
   readonly orderStatusConfig: Record<string, StatusConfig> = {
@@ -169,7 +177,7 @@ export class OrdersManagerPageComponent implements OnInit {
     return String(row.currentStock);
   }
 
-  isBusy(row: OrderLineAdminRow, action: 'confirm' | 'cancel'): boolean {
+  isBusy(row: OrderLineAdminRow, action: OrderAction): boolean {
     return this.busyOrderId() === row.orderId && this.busyAction() === action;
   }
 
@@ -197,6 +205,24 @@ export class OrdersManagerPageComponent implements OnInit {
           ? 'Payment confirmed. Stock updated.'
           : 'Order confirmed. Stock updated.',
       );
+    });
+  }
+
+  /**
+   * Large Egypt order: save the delivery fee agreed with the shopper on WhatsApp. Sets the order
+   * total, so the shopper's order page shows what to pay; Confirm unlocks after this.
+   */
+  async setDeliveryFee(row: OrderLineAdminRow): Promise<void> {
+    if (!row.isFirstLine || !row.deliveryFeeAction || this.busyOrderId()) return;
+    const ref = this.#dialog.open<DeliveryFeeDialogComponent, DeliveryFeeDialogData, number>(
+      DeliveryFeeDialogComponent,
+      { data: { orderRef: row.orderRef, currentFeeEgp: row.deliveryFeeEgp }, width: '440px' },
+    );
+    const fee = await firstValueFrom(ref.afterClosed());
+    if (typeof fee !== 'number') return;
+    await this.#run(row, 'fee', async () => {
+      await this.#ordersAdmin.setDeliveryFee(row.orderId, fee);
+      this.#snackbar.success('Delivery fee saved.');
     });
   }
 
@@ -236,7 +262,7 @@ export class OrdersManagerPageComponent implements OnInit {
 
   async #run(
     row: OrderLineAdminRow,
-    action: 'confirm' | 'cancel',
+    action: OrderAction,
     work: () => Promise<void>,
   ): Promise<void> {
     this.busyOrderId.set(row.orderId);

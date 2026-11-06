@@ -504,3 +504,34 @@ export function categoryIdsFor(leafId: string): string[] {
   if (!category) return [leafId];
   return [...category.ancestorIds, category.id];
 }
+
+/**
+ * Shipping weight in grams by category (client figures, Nov 2026). 0 = never adds to the parcel
+ * (socks). Categories not listed have no default: the admin enters a weight, or leaves it empty
+ * (checkout then charges the biggest box). Used to prefill the product form and by
+ * `functions/scripts/set-product-weights.mjs`. Keep identical in both catalog-taxonomy copies.
+ */
+export const DEFAULT_WEIGHT_GRAMS_BY_CATEGORY: Readonly<Record<string, number>> = {
+  't-shirts': 250,
+  shorts: 250,
+  hoodies: 800,
+  socks: 0,
+};
+
+/** Jackets have no category of their own; they weigh the same as a hoodie. */
+export const JACKET_WEIGHT_GRAMS = 800;
+
+const JACKET_NAME = /\b(jacket|windbreaker)\b|جاكيت|جاكت/i;
+
+/**
+ * Default weight for a product from its category ids (leaf first) and name, or null when there
+ * is none. A jacket in any category weighs 800 g.
+ */
+export function defaultWeightGrams(categoryIds: readonly string[], name = ''): number | null {
+  if (JACKET_NAME.test(name)) return JACKET_WEIGHT_GRAMS;
+  for (const id of categoryIds) {
+    const grams = DEFAULT_WEIGHT_GRAMS_BY_CATEGORY[id];
+    if (typeof grams === 'number') return grams;
+  }
+  return null;
+}

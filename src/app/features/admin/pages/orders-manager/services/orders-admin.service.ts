@@ -51,6 +51,12 @@ export interface CancelOrderResult {
   readonly changed: boolean;
 }
 
+export interface SetDeliveryFeeResult {
+  readonly orderId: string;
+  readonly feeEgp: number;
+  readonly totalEgp: number;
+}
+
 export interface ConfirmCodOrderResult {
   readonly orderId: string;
   readonly status: 'confirmed';
@@ -119,6 +125,16 @@ export class OrdersAdminService {
       'confirmCodOrder',
     );
     const response = await call({ orderId });
+    return response.data;
+  }
+
+  /** Save the delivery fee agreed on WhatsApp for a large Egypt order (open orders only). */
+  async setDeliveryFee(orderId: string, feeEgp: number): Promise<SetDeliveryFeeResult> {
+    const call = await callableFrom<{ orderId: string; feeEgp: number }, SetDeliveryFeeResult>(
+      this.#functions(),
+      'setDeliveryFee',
+    );
+    const response = await call({ orderId, feeEgp });
     return response.data;
   }
 

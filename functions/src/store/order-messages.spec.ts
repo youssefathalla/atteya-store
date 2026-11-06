@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   cashOnDeliveryEgp,
+  isDeliveryFeeToBeAgreed,
   isEgyptMobile,
   orderStage,
   paymentDue,
@@ -29,7 +30,12 @@ function order(overrides: Partial<OrderMessageInput> = {}): OrderMessageInput {
   };
 }
 
+/** Large Egypt order whose delivery fee isn't agreed yet: neither amount is known. */
+const TO_AGREE = { shippingEgp: null, totalEgp: null, feeToBeAgreed: true } as const;
+
 const ALL_STAGES: readonly [OrderStage, OrderMessageInput][] = [
+  ['fee-to-be-agreed', order(TO_AGREE)],
+  ['fee-to-be-agreed', order({ paymentMethod: 'cash-on-delivery', ...TO_AGREE })],
   ['instapay-total-due', order()],
   ['instapay-fee-due', order({ paymentMethod: 'cash-on-delivery' })],
   ['cod-free-pending', order({ paymentMethod: 'cash-on-delivery', shippingEgp: 0, totalEgp: 1380 })],
@@ -57,6 +63,42 @@ describe('orderStage', () => {
 
   it('does not guess free shipping when the saved fee is unreadable', () => {
     assert.equal(orderStage(order({ paymentMethod: 'cash-on-delivery', shippingEgp: null })), 'unknown');
+  });
+});
+
+describe('delivery fee to be agreed', () => {
+  it('reads the saved shipping line', () => {
+    assert.equal(isDeliveryFeeToBeAgreed({ kind: 'domestic-agreed', feeAgreed: false }), true);
+    assert.equal(isDeliveryFeeToBeAgreed({ kind: 'domestic-agreed' }), true);
+    assert.equal(isDeliveryFeeToBeAgreed({ kind: 'domestic-agreed', feeAgreed: true }), false);
+    assert.equal(isDeliveryFeeToBeAgreed({ kind: 'domestic-box', priceEgp: 115 }), false);
+    assert.equal(isDeliveryFeeToBeAgreed(null), false);
+  });
+
+  it('only applies while the order is open; confirmed and cancelled orders keep their stage', () => {
+    assert.equal(orderStage(order({ ...TO_AGREE, status: 'cancelled' })), 'cancelled');
+    assert.equal(
+      orderStage(order({ paymentMethod: 'cash-on-delivery', status: 'confirmed', shippingEgp: 200, totalEgp: 2200 })),
+      'cod-confirmed',
+    );
+  });
+
+  it('asks for nothing and mentions no InstaPay until the fee is set', () => {
+    const input = order({ paymentMethod: 'cash-on-delivery', ...TO_AGREE });
+    assert.equal(paymentDue(orderStage(input), input), null);
+    assert.equal(cashOnDeliveryEgp(input), null);
+    assert.equal(
+      shopperWhatsappText('fee-to-be-agreed', input, INSTAPAY),
+      'مرحباً، طلبي رقم #A1B2C3. عايز أعرف مصاريف الشحن.',
+    );
+    assert.match(staffWhatsappText('fee-to-be-agreed', input, 'Ahmed Ali', INSTAPAY) ?? '', /نتفق معاك على مصاريف الشحن/);
+  });
+
+  it('once the fee is set the order asks for money as usual', () => {
+    const cod = order({ paymentMethod: 'cash-on-delivery', shippingEgp: 200, totalEgp: 2200 });
+    assert.deepEqual(paymentDue(orderStage(cod), cod), { amountEgp: 200, reason: 'shipping-fee' });
+    const instapay = order({ shippingEgp: 200, totalEgp: 2200 });
+    assert.deepEqual(paymentDue(orderStage(instapay), instapay), { amountEgp: 2200, reason: 'total' });
   });
 });
 

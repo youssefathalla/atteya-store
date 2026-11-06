@@ -12,8 +12,9 @@ export const DEFAULT_SHIPPING_NOTE =
   'Shipping fee is paid upfront; the rest is paid on delivery. Delivery in 1\u20134 days.';
 
 /**
- * Placeholder box rates until the client supplies final prices.
- * Egypt ≈ former zone range; abroad ≈ former flat 750 mid-tier.
+ * Egypt (client rates, Nov 2026): up to 1 kg = 115 EGP, up to 3 kg = 135 EGP. Heavier orders
+ * have no box: staff agree the delivery fee on WhatsApp (`planDelivery()` → `to-be-agreed`).
+ * Abroad: placeholder rates until the client supplies final prices.
  */
 export const DEFAULT_EGYPT_BOXES: readonly ShippingBox[] = [
   {
@@ -28,20 +29,11 @@ export const DEFAULT_EGYPT_BOXES: readonly ShippingBox[] = [
   {
     id: 'box2',
     name: 'Box 2',
-    maxWeightGrams: 5_000,
+    maxWeightGrams: 3_000,
     maxLengthCm: 45,
     maxWidthCm: 35,
     maxHeightCm: 20,
-    feeEgp: 140,
-  },
-  {
-    id: 'box3',
-    name: 'Box 3',
-    maxWeightGrams: 10_000,
-    maxLengthCm: 60,
-    maxWidthCm: 45,
-    maxHeightCm: 35,
-    feeEgp: 180,
+    feeEgp: 135,
   },
 ];
 
@@ -140,20 +132,22 @@ function cloneBox(box: ShippingBox): Record<string, unknown> {
   };
 }
 
+/**
+ * One to three boxes with different ids, in id order. Any unreadable box (or a repeated id)
+ * rejects the whole list so checkout falls back to the defaults instead of a partial table.
+ */
 function parseBoxes(raw: unknown): readonly ShippingBox[] | null {
-  if (!Array.isArray(raw) || raw.length === 0) return null;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > SHIPPING_BOX_IDS.length) return null;
   const byId = new Map<ShippingBoxId, ShippingBox>();
   for (const entry of raw) {
     const box = parseBox(entry);
-    if (!box) continue;
+    if (!box || byId.has(box.id)) return null;
     byId.set(box.id, box);
   }
-  const ordered: ShippingBox[] = [];
-  for (const id of SHIPPING_BOX_IDS) {
+  return SHIPPING_BOX_IDS.flatMap((id) => {
     const box = byId.get(id);
-    if (box) ordered.push(box);
-  }
-  return ordered.length === SHIPPING_BOX_IDS.length ? ordered : null;
+    return box ? [box] : [];
+  });
 }
 
 function parseBox(raw: unknown): ShippingBox | null {
