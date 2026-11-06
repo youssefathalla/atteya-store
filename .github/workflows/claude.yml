@@ -42,6 +42,16 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           base_branch: develop
+          # Opus 5.5 ignores top-level effortLevel in user settings; set per-model
+          # via modelSettings (code.claude.com/docs/en/model-config + settings-reference).
+          # Prefer settings over --effort: CLAUDE_ARGS --effort was not reaching SDK options.
+          settings: |
+            {
+              "modelSettings": {
+                "claude-opus-5-5": {
+                  "effortLevel": "high"
+                }
+              }
+            }
           claude_args: |
             --model claude-opus-5-5
-            --effort high
