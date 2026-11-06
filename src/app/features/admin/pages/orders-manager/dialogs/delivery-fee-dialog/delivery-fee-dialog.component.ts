@@ -46,7 +46,7 @@ const MAX_FEE_EGP = 100_000;
       </mat-dialog-content>
       <mat-dialog-actions align="end" class="gap-2 px-6 pb-4">
         <button matButton="text" type="button" [mat-dialog-close]="undefined">Cancel</button>
-        <button matButton="filled" type="submit" [disabled]="parsed() === null">Save fee</button>
+        <button matButton="filled" type="submit" [disabled]="parsed() === null">Save Fee</button>
       </mat-dialog-actions>
     </form>
   `,
