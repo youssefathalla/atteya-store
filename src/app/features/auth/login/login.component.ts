@@ -1,8 +1,8 @@
 import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { submit } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '@core/services/auth/auth.service';
 import { looksLikeEmail } from '@core/services/auth/auth.utils';
@@ -11,8 +11,11 @@ import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import type { SignupConsent } from '@core/services/user-profile';
 import { PasswordInputComponent } from '@shared/ui/forms/password-input/password-input.component';
 import { TextInputComponent } from '@shared/ui/forms/text-input/text-input.component';
+import { ConsentChoicesComponent } from './components/consent-choices/consent-choices.component';
 import { createLoginForm } from '../utils/login-form';
 import { leaveAfterSignIn } from '../utils/login-exit';
+
+type LoginAction = 'google' | 'email' | 'reset' | 'consent';
 
 const PASSWORD_RESET_NOTICE =
   "If an account uses that email, we've sent a link to reset the password.";
@@ -21,12 +24,13 @@ const PASSWORD_RESET_NOTICE =
   selector: 'app-login',
   host: { class: 'block w-full' },
   imports: [
+    NgTemplateOutlet,
     RouterLink,
     MatButtonModule,
-    MatCheckboxModule,
     MatProgressSpinnerModule,
     TextInputComponent,
     PasswordInputComponent,
+    ConsentChoicesComponent,
   ],
   templateUrl: './login.component.html',
 })
@@ -45,7 +49,9 @@ export class LoginComponent implements OnInit {
   readonly auth = this.#auth;
   readonly loginForm = this.#draft.loginForm;
 
-  readonly #busy = signal<'google' | 'email' | 'reset' | 'consent' | ''>('');
+  readonly #busy = signal<LoginAction | ''>('');
+  /** The last action that worked. Its button keeps the spinner while the page leaves. */
+  readonly #lastAction = signal<LoginAction | ''>('');
   readonly #errorMessage = signal('');
   readonly #notice = signal('');
   readonly termsAccepted = signal(false);
@@ -55,11 +61,29 @@ export class LoginComponent implements OnInit {
   readonly showConsent = computed(() => this.isCreateIntent() || this.#auth.needsConsent());
   readonly canSubmitCreate = computed(() => this.termsAccepted());
 
-  readonly isBusy = computed(() => this.#busy() !== '');
-  readonly isGoogleBusy = computed(() => this.#busy() === 'google');
-  readonly isEmailBusy = computed(() => this.#busy() === 'email');
-  readonly isResetting = computed(() => this.#busy() === 'reset');
-  readonly isConsentBusy = computed(() => this.#busy() === 'consent');
+  /**
+   * Signed in and nothing keeps the person here: `leaveAfterSignIn` is about to
+   * navigate. The page holds its last state (spinner) instead of flashing the form.
+   */
+  readonly #leaving = computed(
+    () =>
+      this.#auth.isAuthenticated() &&
+      !this.#auth.needsGoogleLink() &&
+      !this.#auth.needsConsent(),
+  );
+  readonly #active = computed(
+    () => this.#busy() || (this.#leaving() ? this.#lastAction() : ''),
+  );
+
+  readonly isBusy = computed(() => this.#active() !== '');
+  readonly isGoogleBusy = computed(() => this.#active() === 'google');
+  readonly isEmailBusy = computed(() => this.#active() === 'email');
+  readonly isResetting = computed(() => this.#active() === 'reset');
+  readonly isConsentBusy = computed(() => this.#active() === 'consent');
+  /** The "Almost done" step stays on screen after Continue until the page leaves. */
+  readonly showConsentStep = computed(
+    () => this.#auth.needsConsent() || this.isConsentBusy(),
+  );
   readonly notice = this.#notice.asReadonly();
   /** Sign-in / create form feedback (must stay below the password field — AS-34). */
   readonly shownError = computed(() =>
@@ -131,7 +155,7 @@ export class LoginComponent implements OnInit {
     }
     await this.#run('consent', async () => {
       await this.#auth.completeConsent(this.#consentDraft());
-      this.#snackbar.success('Thanks — you are all set');
+      this.#snackbar.success("You're all set");
     });
   }
 
@@ -155,14 +179,6 @@ export class LoginComponent implements OnInit {
     this.#clearFeedback();
   }
 
-  onTermsChange(checked: boolean): void {
-    this.termsAccepted.set(checked);
-  }
-
-  onMarketingChange(checked: boolean): void {
-    this.marketingOptIn.set(checked);
-  }
-
   #consentDraft(): SignupConsent {
     return {
       termsAccepted: this.termsAccepted(),
@@ -170,15 +186,14 @@ export class LoginComponent implements OnInit {
     };
   }
 
-  async #run(
-    kind: 'google' | 'email' | 'reset' | 'consent',
-    action: () => Promise<void>,
-  ): Promise<void> {
+  async #run(kind: LoginAction, action: () => Promise<void>): Promise<void> {
     this.#clearFeedback();
     this.#busy.set(kind);
+    this.#lastAction.set(kind);
     try {
       await action();
     } catch (error) {
+      this.#lastAction.set('');
       this.#notice.set('');
       this.#errorMessage.set(this.#auth.mapFirebaseError(error));
     } finally {
