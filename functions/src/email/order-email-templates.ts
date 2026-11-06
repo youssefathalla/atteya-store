@@ -251,7 +251,7 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
     method === 'cash-on-delivery'
       ? 'Cash on Delivery'
       : method === 'instapay'
-        ? 'InstaPay – waiting for transfer'
+        ? 'InstaPay – Waiting for Transfer'
         : 'Paid Online';
   const subject = `New Order ${order.ref} – ${formatEgp(order.totalEgp)} – ${label}`;
   const payment = storePayment(order);
