@@ -62,6 +62,13 @@
             }
           </button>
         </div>
+        <!-- The only way off this step without agreeing (every other page sends them back). -->
+        <p class="font-body-sm text-on-surface-variant elements-start gap-1">
+          Not your account?
+          <button matButton type="button" (click)="auth.logout()" [disabled]="isBusy()">
+            Sign Out
+          </button>
+        </p>
       </div>
     } @else {
       @if (auth.needsGoogleLink()) {

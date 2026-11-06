@@ -1,7 +1,7 @@
 import { Service, computed, effect, inject, signal, untracked, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { rxResource, toObservable } from '@angular/core/rxjs-interop';
-import { Router } from '@angular/router';
+import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router } from '@angular/router';
 import { FirebaseError } from 'firebase/app';
 import {
   GoogleAuthProvider,
@@ -21,7 +21,7 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { Observable, filter, firstValueFrom, of } from 'rxjs';
+import { Observable, filter, firstValueFrom, map, of } from 'rxjs';
 import { injectAuth, injectFirestore } from '@core/firebase';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import {
@@ -44,6 +44,9 @@ const PASSWORD_RESET_HIDDEN_CODES = new Set(['auth/user-not-found', 'auth/invali
 
 /** Set immediately before `signInWithRedirect` so other pages skip `getRedirectResult`. */
 const REDIRECT_PENDING_KEY = 'atteya-auth-redirect';
+/** Pages an account that still needs to agree may stay on: the terms step and what it links to. */
+const CONSENT_STEP_PATHS = new Set(['/login', '/terms', '/privacy']);
+
 /** Consent chosen on Create account before a Google redirect completes. */
 const REDIRECT_CONSENT_KEY = 'atteya-auth-redirect-consent';
 
@@ -79,6 +82,8 @@ export class AuthService {
    */
   readonly #consentReady = signal(true);
   readonly #consentReady$ = toObservable(this.#consentReady);
+  /** The `users/{uid}` terms read failed, so `needsConsent` is a fail-closed guess. */
+  readonly #consentCheckFailed = signal(false);
 
   #pendingCredential: AuthCredential | null = null;
   #generation = 0;
@@ -142,6 +147,37 @@ export class AuthService {
 
     effect(() => {
       this.#roleMirror.value();
+    });
+
+    if (isPlatformBrowser(this.#platformId)) this.#holdUntilConsent();
+  }
+
+  /**
+   * An account that has not agreed to the terms (a new Google sign-in that left the
+   * "Almost done" step) is sent back to it from any page, then returned to that page.
+   * Skipped when the terms check itself failed (offline): checkout and the order
+   * functions still refuse such an account, but browsing is not blocked by a network error.
+   */
+  #holdUntilConsent(): void {
+    const url = toSignal(
+      this.#router.events.pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        map((event): string | null => event.urlAfterRedirects),
+      ),
+      { initialValue: this.#router.navigated ? this.#router.url : null },
+    );
+
+    effect(() => {
+      const current = url();
+      if (current === null || !this.#consentReady() || !this.#needsConsent()) return;
+      if (this.#consentCheckFailed()) return;
+      const path = current.split(/[?#]/, 1)[0] ?? current;
+      if (CONSENT_STEP_PATHS.has(path)) return;
+      untracked(() => {
+        void this.#router.navigate(['/login'], {
+          queryParams: { returnUrl: safeReturnUrl(current) },
+        });
+      });
     });
   }
 
@@ -421,11 +457,13 @@ export class AuthService {
       if (generation !== this.#generation) return;
       const hasTerms = await this.#profiles.hasCurrentTerms(firebaseUser.uid);
       if (generation !== this.#generation) return;
+      this.#consentCheckFailed.set(false);
       this.#needsConsent.set(!hasTerms);
       this.#consentReady.set(true);
     } catch {
       if (generation !== this.#generation) return;
       // Fail closed: keep the shopper on consent until we can confirm Terms.
+      this.#consentCheckFailed.set(true);
       this.#needsConsent.set(true);
       this.#consentReady.set(true);
     }
