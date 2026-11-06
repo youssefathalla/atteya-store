@@ -72,6 +72,8 @@ export function renderOrderEmail(
       return instapayPlaced(order, ctx);
     case 'instapay-confirmed':
       return instapayConfirmed(order, ctx);
+    case 'delivery-fee-set':
+      return deliveryFeeSet(order, ctx);
     case 'paid-confirmed':
       return paidConfirmed(order, ctx);
     case 'payment-failed':
@@ -83,7 +85,22 @@ export function renderOrderEmail(
 
 // ── Shopper emails ───────────────────────────────────────────────────────────
 
+/** Said on every email of a large order whose delivery fee isn't set yet. */
+const FEE_TO_AGREE =
+  "It's a large order, so we'll message you on WhatsApp to agree the delivery fee before we send it.";
+
 function codPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+  if (order.feeToBeAgreed) {
+    return shopperEmail(order, ctx, {
+      subject: `We got your order ${order.ref}`,
+      heading: `Thanks for your order, ${firstName(order)}`,
+      intro: [`We've received your order ${order.ref}. ${FEE_TO_AGREE}`],
+      highlight: `Once we agree it, pay the delivery fee by InstaPay. You'll pay ${formatEgp(order.subtotalEgp)} for your items in cash when they arrive.`,
+      showTotals: true,
+      showAddress: true,
+      button: orderButton(order, ctx),
+    });
+  }
   const cash = formatEgp(cashOnDeliveryEgp(order));
   const feeFirst = order.shippingEgp > 0;
   const payNow = feeFirst
@@ -122,6 +139,18 @@ function codConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedE
 }
 
 function instapayPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+  if (order.feeToBeAgreed) {
+    return shopperEmail(order, ctx, {
+      subject: `We got your order ${order.ref}`,
+      heading: `Thanks for your order, ${firstName(order)}`,
+      intro: [`We've received your order ${order.ref}. ${FEE_TO_AGREE}`],
+      highlight:
+        "Once we agree it, transfer the total by InstaPay and we'll confirm your order.",
+      showTotals: true,
+      showAddress: true,
+      button: orderButton(order, ctx),
+    });
+  }
   return shopperEmail(order, ctx, {
     subject: `We got your order ${order.ref}`,
     heading: `Thanks for your order, ${firstName(order)}`,
@@ -147,6 +176,33 @@ function instapayConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): Rend
     showTotals: true,
     totalLabel: 'Total paid',
     showAddress: true,
+    button: orderButton(order, ctx),
+  });
+}
+
+/** Staff saved the delivery fee they agreed with the shopper on a large order. */
+function deliveryFeeSet(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+  const fee = order.shippingEgp > 0 ? formatEgp(order.shippingEgp) : null;
+  const intro = fee
+    ? `The delivery fee for your order ${order.ref} is ${fee}.`
+    : `Good news: delivery is free on your order ${order.ref}.`;
+  let highlight: string | null;
+  if (order.paymentMethod === 'cash-on-delivery') {
+    const cash = formatEgp(cashOnDeliveryEgp(order));
+    highlight = fee
+      ? `We'll send your order once we receive the delivery fee. You'll pay the rest, ${cash}, in cash when it arrives.`
+      : `There's nothing to pay now. You'll pay ${cash} in cash when it arrives.`;
+  } else {
+    highlight = "We'll confirm your order as soon as we receive your payment.";
+  }
+  return shopperEmail(order, ctx, {
+    subject: `Delivery fee for your order ${order.ref}`,
+    heading: 'Your delivery fee is ready',
+    intro: [intro],
+    highlight,
+    payment: payBox(order, ctx),
+    showTotals: true,
+    showAddress: false,
     button: orderButton(order, ctx),
   });
 }
@@ -253,7 +309,12 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
       : method === 'instapay'
         ? 'InstaPay – Waiting for Transfer'
         : 'Paid Online';
-  const subject = `New Order ${order.ref} – ${formatEgp(order.totalEgp)} – ${label}`;
+  const amount = order.feeToBeAgreed
+    ? `${formatEgp(order.subtotalEgp)} + Delivery`
+    : formatEgp(order.totalEgp);
+  const subject = order.feeToBeAgreed
+    ? `New Order ${order.ref} – ${amount} – Agree Delivery Fee`
+    : `New Order ${order.ref} – ${amount} – ${label}`;
   const payment = storePayment(order);
   const warning = order.needsReview
     ? 'One item sold out before this payment came in. Please check this order.'
@@ -299,6 +360,16 @@ interface StorePayment {
 
 function storePayment(order: OrderEmailOrder): StorePayment {
   const total = formatEgp(order.totalEgp);
+  if (order.feeToBeAgreed) {
+    return {
+      method: order.paymentMethod === 'instapay' ? 'InstaPay' : 'Cash on Delivery',
+      rows: [
+        ['Items', formatEgp(order.subtotalEgp)],
+        ['Delivery Fee', 'To Be Agreed'],
+      ],
+      note: 'This order is heavier than the biggest box. Agree the delivery fee with the customer on WhatsApp, then set it in the dashboard.',
+    };
+  }
   switch (order.paymentMethod) {
     case 'cash-on-delivery':
       return order.shippingEgp > 0
@@ -372,9 +443,11 @@ function messageInput(order: OrderEmailOrder): OrderMessageInput {
     paymentMethod: order.paymentMethod,
     status: order.status,
     country: order.address.country,
-    shippingEgp: order.shippingEgp,
-    totalEgp: order.totalEgp,
+    // Not known until staff set the delivery fee.
+    shippingEgp: order.feeToBeAgreed ? null : order.shippingEgp,
+    totalEgp: order.feeToBeAgreed ? null : order.totalEgp,
     needsReview: order.needsReview,
+    feeToBeAgreed: order.feeToBeAgreed,
   };
 }
 
@@ -490,6 +563,13 @@ function countryName(code: string): string {
 }
 
 function totalsRows(order: OrderEmailOrder, totalLabel: string): [string, string][] {
+  if (order.feeToBeAgreed) {
+    return [
+      ['Subtotal', formatEgp(order.subtotalEgp)],
+      ['Shipping', 'To be agreed'],
+      [totalLabel, `${formatEgp(order.subtotalEgp)} + shipping`],
+    ];
+  }
   return [
     ['Subtotal', formatEgp(order.subtotalEgp)],
     ['Shipping', order.shippingEgp > 0 ? formatEgp(order.shippingEgp) : 'Free'],

@@ -93,7 +93,8 @@ export const ProductSchema = v.pipe(
     inStock: v.optional(v.boolean(), true),
     weightGrams: v.optional(
       v.fallback(
-        v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100_000))),
+        // 0 g = never adds to the parcel (socks). null/missing = not set.
+        v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100_000))),
         null,
       ),
     ),

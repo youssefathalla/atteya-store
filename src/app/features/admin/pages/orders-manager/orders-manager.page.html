@@ -4,7 +4,8 @@
       <h1 class="font-title-lg font-bold!">Orders</h1>
       <p class="font-body-md text-on-surface-variant">
         Review InstaPay, Card or Wallet, and Cash on Delivery orders. Confirm an InstaPay payment only after the
-        money shows in your bank app. Current stock comes from each product right now, not from the
+        money shows in your bank app. For a large order, agree the delivery fee with the customer on
+        WhatsApp, then use Set delivery fee before you confirm it. Current stock comes from each product right now, not from the
         amounts stored when the order was placed.
       </p>
     </div>
@@ -84,6 +85,21 @@
 <ng-template #actionsCell [templateType]="sampleRow" let-row>
   @if (row.isFirstLine) {
     <div class="elements-start-col gap-2 min-w-44">
+      @if (row.deliveryFeeAction === 'set') {
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="busyOrderId() !== null"
+          [attr.aria-label]="isBusy(row, 'fee') ? 'Saving delivery fee…' : null"
+          (click)="setDeliveryFee(row)"
+        >
+          @if (isBusy(row, 'fee')) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Set delivery fee</span>
+          }
+        </button>
+      }
       @if (row.confirmAction) {
         <button
           matButton="filled"
@@ -119,6 +135,21 @@
           (click)="copyPhone(row)"
         >
           <span>Copy number</span>
+        </button>
+      }
+      @if (row.deliveryFeeAction === 'change') {
+        <button
+          matButton="text"
+          type="button"
+          [disabled]="busyOrderId() !== null"
+          [attr.aria-label]="isBusy(row, 'fee') ? 'Saving delivery fee…' : null"
+          (click)="setDeliveryFee(row)"
+        >
+          @if (isBusy(row, 'fee')) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Change delivery fee</span>
+          }
         </button>
       }
       @if (row.canCancel) {

@@ -48,6 +48,13 @@ export interface OrderLineAdminRow {
   readonly confirmAction: 'confirm-order' | 'confirm-payment' | null;
   /** Pending cash on delivery or InstaPay: never paid, safe to cancel. */
   readonly canCancel: boolean;
+  /**
+   * Large Egypt order: `set` while the delivery fee is still to be agreed, `change` once saved
+   * and the order is still open. Null for every other order.
+   */
+  readonly deliveryFeeAction: 'set' | 'change' | null;
+  /** Delivery fee saved on the order in whole EGP (for the Change dialog). */
+  readonly deliveryFeeEgp: number | null;
   /** Money staff should see arrive before confirming, e.g. `EGP 1,500`. Null when nothing is due. */
   readonly amountDueLabel: string | null;
 }

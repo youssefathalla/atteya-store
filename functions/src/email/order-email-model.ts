@@ -6,6 +6,7 @@
  * `pricing.subtotalEgp`, `pricing.shipping.priceEgp`, `pricing.totalEgp`.
  * Orders never store the shopper's display currency, so emails show EGP only.
  */
+import { isDeliveryFeeToBeAgreed } from '../store/order-messages.js';
 
 export type OrderEmailPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
 export type OrderEmailStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
@@ -45,6 +46,11 @@ export interface OrderEmailOrder {
   readonly totalEgp: number;
   /** Paid (Paymob) while an item had already sold out (see paymobWebhook). */
   readonly needsReview: boolean;
+  /**
+   * Large Egypt order whose delivery fee staff haven't set yet. `shippingEgp` is then 0 and
+   * `totalEgp` is the items only; emails say the fee is to be agreed instead of showing them.
+   */
+  readonly feeToBeAgreed: boolean;
 }
 
 /** `#` + first 6 characters of the order id in capitals. Keep in step with the Angular copy. */
@@ -131,6 +137,7 @@ export function readOrderForEmail(
     shippingEgp,
     totalEgp,
     needsReview: data['needsReview'] === true,
+    feeToBeAgreed: isDeliveryFeeToBeAgreed(shipping),
   };
 }
 

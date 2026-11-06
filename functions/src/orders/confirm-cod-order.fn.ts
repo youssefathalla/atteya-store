@@ -2,6 +2,7 @@ import { FieldValue, getFirestore, type DocumentData } from 'firebase-admin/fire
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
+import { isDeliveryFeeToBeAgreed } from '../store/order-messages.js';
 import {
   aggregateOrderStockDemand,
   nextStockAfterDemand,
@@ -133,6 +134,13 @@ function assertConfirmableCodOrder(order: DocumentData): void {
       : '';
   if (country !== 'EG' && fulfilment !== 'domestic-cod' && fulfilment !== 'domestic-instapay') {
     throw new HttpsError('failed-precondition', 'Only Egypt orders are confirmed here.');
+  }
+  const pricing = isRecord(order['pricing']) ? order['pricing'] : null;
+  if (order['status'] === 'pending' && isDeliveryFeeToBeAgreed(pricing?.['shipping'])) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Set the delivery fee you agreed with the customer before confirming this order.',
+    );
   }
 }
 

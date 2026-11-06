@@ -112,6 +112,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
 
   readonly headline = computed(() => {
     switch (this.stage()) {
+      case 'fee-to-be-agreed':
       case 'instapay-total-due':
       case 'instapay-fee-due':
       case 'cod-free-pending':
@@ -135,6 +136,8 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   readonly bodyCopy = computed(() => {
     const cash = this.#cash();
     switch (this.stage()) {
+      case 'fee-to-be-agreed':
+        return "It's a large order, so we'll message you on WhatsApp to agree the delivery fee. Once it's agreed, this page shows what to pay.";
       case 'instapay-total-due':
         return "We'll confirm your order as soon as we receive your payment.";
       case 'instapay-fee-due':
@@ -177,6 +180,8 @@ export class CheckoutConfirmationPageComponent implements OnInit {
 
   readonly statusLabel = computed(() => {
     switch (this.stage()) {
+      case 'fee-to-be-agreed':
+        return 'Waiting for Delivery Fee';
       case 'instapay-total-due':
       case 'instapay-fee-due':
         return 'Waiting for Payment';
@@ -200,7 +205,12 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   readonly displayTotal = computed(() => {
     const pricing = this.order()?.pricing;
     if (!pricing) return '—';
-    return formatMoney(pricing.totalDisplay, pricing.currency, displayDecimals(pricing.currency));
+    const total = formatMoney(
+      pricing.totalDisplay,
+      pricing.currency,
+      displayDecimals(pricing.currency),
+    );
+    return this.stage() === 'fee-to-be-agreed' ? `${total} + shipping` : total;
   });
 
   ngOnInit(): void {

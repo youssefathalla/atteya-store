@@ -3,7 +3,7 @@ import { liveOffers } from './item-price';
 import { matchProduct } from './match';
 import type { Offer, PricedProduct, PricingContext } from './types';
 
-/** Fixed catalogue of three parcel sizes per region. */
+/** Up to three parcel sizes per region (a region may use fewer, e.g. Egypt uses box1 and box2). */
 export type ShippingBoxId = 'box1' | 'box2' | 'box3';
 
 export const SHIPPING_BOX_IDS: readonly ShippingBoxId[] = ['box1', 'box2', 'box3'];
@@ -134,6 +134,70 @@ export function assignShippingBox(
   if (selected.ok) return { ok: true, box: selected.box, auto: true };
   if (selected.code === 'too-heavy') return { ok: false, code: 'too-heavy' };
   return { ok: false, code: 'no-boxes' };
+}
+
+/** One bag line for weighing: the product's weight (null = not set) and how many. */
+export interface ParcelLine {
+  readonly weightGrams: number | null;
+  readonly quantity: number;
+}
+
+export interface ParcelWeight {
+  /** Sum of the known weights. 0 g counts as known (socks never add to the parcel). */
+  readonly totalWeightGrams: number;
+  /** True when any product has no weight set. */
+  readonly anyWeightMissing: boolean;
+}
+
+/** Total packed weight of a bag. A weight of 0 is real; only a missing weight is unknown. */
+export function parcelWeight(lines: readonly ParcelLine[]): ParcelWeight {
+  let totalWeightGrams = 0;
+  let anyWeightMissing = false;
+  for (const line of lines) {
+    const weight = line.weightGrams;
+    if (typeof weight === 'number' && Number.isFinite(weight) && weight >= 0) {
+      totalWeightGrams += Math.round(weight) * Math.max(0, line.quantity);
+    } else {
+      anyWeightMissing = true;
+    }
+  }
+  return { totalWeightGrams, anyWeightMissing };
+}
+
+/**
+ * How a bag is delivered:
+ * - `box`: the assigned box. `quoteWeightGrams` is a weight that box accepts, to pass to
+ *   `shippingQuote` (missing weights already chose the largest box).
+ * - `to-be-agreed`: Egypt only. Heavier than the largest Egypt box, so staff agree the
+ *   delivery fee with the shopper on WhatsApp after the order is placed.
+ * - `too-heavy`: abroad, heavier than the largest box. Cannot be ordered.
+ * - `unavailable`: no boxes are set up.
+ */
+export type DeliveryPlan =
+  | { readonly kind: 'box'; readonly box: ShippingBox; readonly quoteWeightGrams: number }
+  | { readonly kind: 'to-be-agreed' }
+  | { readonly kind: 'too-heavy' }
+  | { readonly kind: 'unavailable' };
+
+export function planDelivery(
+  boxes: readonly ShippingBox[],
+  region: ShippingRegion,
+  weight: ParcelWeight,
+): DeliveryPlan {
+  const selection = assignShippingBox(boxes, weight.totalWeightGrams, weight.anyWeightMissing);
+  if (selection.ok) {
+    return {
+      kind: 'box',
+      box: selection.box,
+      quoteWeightGrams: weight.anyWeightMissing
+        ? selection.box.maxWeightGrams
+        : weight.totalWeightGrams,
+    };
+  }
+  if (selection.code === 'too-heavy') {
+    return region === 'egypt' ? { kind: 'to-be-agreed' } : { kind: 'too-heavy' };
+  }
+  return { kind: 'unavailable' };
 }
 
 export function shippingQuote(

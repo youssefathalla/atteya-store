@@ -13,6 +13,8 @@ export type OrderEmailKind =
   | 'instapay-placed'
   /** Admin confirmed an InstaPay order (transfer seen in the bank app). */
   | 'instapay-confirmed'
+  /** Large Egypt order (InstaPay or cash on delivery): staff saved the agreed delivery fee. */
+  | 'delivery-fee-set'
   /** Paymob payment cleared and the order is confirmed (Egypt or abroad). */
   | 'paid-confirmed'
   /** Paymob reported a failed, voided or refunded payment. */
@@ -33,11 +35,15 @@ export function orderEmailsForWrite(
   const kinds: OrderEmailKind[] = [];
   const statusBefore = before?.status ?? null;
   const becameConfirmed = after.status === 'confirmed' && statusBefore !== 'confirmed';
+  // Only the first time the fee is saved; a later correction is told on WhatsApp.
+  const feeJustSet =
+    before !== null && before.feeToBeAgreed && !after.feeToBeAgreed && after.status === 'pending';
 
   if (after.paymentMethod === 'cash-on-delivery') {
     if (before === null && after.status === 'pending') {
       kinds.push('cod-placed', 'store-new-order');
     }
+    if (feeJustSet) kinds.push('delivery-fee-set');
     if (becameConfirmed && statusBefore === 'pending') {
       kinds.push('cod-confirmed');
     }
@@ -48,6 +54,7 @@ export function orderEmailsForWrite(
     if (before === null && after.status === 'pending') {
       kinds.push('instapay-placed', 'store-new-order');
     }
+    if (feeJustSet) kinds.push('delivery-fee-set');
     if (becameConfirmed && statusBefore === 'pending') {
       kinds.push('instapay-confirmed');
     }
