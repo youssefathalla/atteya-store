@@ -32,7 +32,7 @@ graph TD
 
 > 👉 **Delegate to**: [branch-naming](file:///.agents/skills/branch-naming/SKILL.md)
 
-Start the work on its own branch off the latest `develop`, named `feature/<short-name>` (or `fix/<short-name>` for a bug), e.g. `git switch -c feature/shipping-weights origin/develop`. The Linear id goes in the PR title, not the branch name.
+Start the work on its own branch off the latest `develop`, named `<type>/<short-name>`: usually `feature/` for a new feature (or `fix/` for a bug; the skill lists the other types such as `refactor/`, `perf/`, `chore/`), e.g. `git switch -c feature/shipping-weights origin/develop`. The Linear id goes in the PR title, not the branch name.
 
 ---
 

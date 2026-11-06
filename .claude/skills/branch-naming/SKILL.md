@@ -1,18 +1,29 @@
 ---
 name: branch-naming
-description: The git branch, PR title and commit message rules for Atteya Store (feature/<short-name> or fix/<short-name>; PR title and commits start with the Linear id YOU-123 so the Linear link keeps working). Load it whenever you are about to create, name or rename a git branch (git checkout -b, git switch -c, git branch, git worktree add -b), write a commit message, or open a pull request.
+description: The git branch, PR title and commit message rules for Atteya Store (<type>/<short-name> with type feature, fix, hotfix, refactor, perf, docs, test, chore or ci; PR title and commits start with the Linear id YOU-123 so the Linear link keeps working). Load it whenever you are about to create, name or rename a git branch (git checkout -b, git switch -c, git branch, git worktree add -b), write a commit message, or open a pull request.
 ---
 
 # Branch Names
 
 Every working branch is named `<type>/<short-name>`.
 
-| Type | Use it for |
-| --- | --- |
-| `feature/` | New features, improvements, copy changes, docs, agent docs, tooling, CI, refactors: anything that is not a bug fix. |
-| `fix/` | A bug, or anything that is broken or behaves wrongly today. |
+| Type | Use it for | Example |
+| --- | --- | --- |
+| `feature/` | A new feature or a visible improvement for shoppers or staff. | `feature/shipping-weights` |
+| `fix/` | A bug, or anything that is broken or behaves wrongly today. | `fix/sign-in-errors` |
+| `hotfix/` | An urgent fix that must ship on its own. After launch it branches from `main`; until then it comes off `develop` like everything else (develop-only rule in `AGENTS.md`). | `hotfix/checkout-total-zero` |
+| `refactor/` | Restructuring code with no change in behaviour. | `refactor/order-stage-helpers` |
+| `perf/` | Speed, bundle size, Lighthouse. | `perf/lazy-load-algolia` |
+| `docs/` | Agent docs, `AGENTS.md`, skills and READMEs only. | `docs/branch-naming-rule` |
+| `test/` | Tests only. | `test/order-messages-cases` |
+| `chore/` | Dependencies, config, scripts, cleanup. | `chore/update-angular-deps` |
+| `ci/` | GitHub Actions and deploy scripts. | `ci/pr-title-check` |
 
-When in doubt: if the work makes something that is broken work again, it is `fix/`. Otherwise it is `feature/`. A Linear issue labelled `Bug` is `fix/`.
+No other prefix is allowed: write `feature/`, not `feat/`, and `fix/`, not `bugfix/`.
+
+## How to choose
+
+Pick the type of the main change. If a branch does several things, use the one that matters most to the user: `fix/` beats `refactor/`, and `feature/` beats `chore/`. A Linear issue labelled `Bug` is `fix/` (or `hotfix/` when it can't wait).
 
 ## The short name
 
@@ -25,8 +36,9 @@ When in doubt: if the work makes something that is broken work again, it is `fix
 | `feature/shipping-weights` | `youssefathalla/you-123-shipping-weights` | Old format: username and Linear id |
 | `fix/sign-in-errors` | `fix/you-45-sign-in-errors` | Linear id belongs in the PR title |
 | `feature/simple-branch-names` | `feature/simple_branch_names` | Underscores |
-| `fix/cart-total-rounding` | `bugfix/cart-total` | Only `feature/` and `fix/` |
-| `feature/order-emails` | `feature/2026-11-06-order-emails` | Dates |
+| `fix/cart-total-rounding` | `bugfix/cart-total` | Not an allowed type: use `fix/` |
+| `feature/order-emails` | `feat/order-emails` | Not an allowed type: use `feature/` |
+| `chore/update-firebase-sdk` | `chore/2026-11-06-firebase` | Dates |
 | `feature/admin-product-search` | `admin-search` | No type prefix |
 
 `main` and `develop` are the long-lived branches and are exempt.
@@ -44,7 +56,7 @@ Ignore Linear's "Copy git branch name" suggestion (`youssefathalla/you-123-…`)
 
 ## Where branches start and end
 
-- Branch off the latest `develop`: `git fetch origin` then `git switch -c feature/short-name origin/develop`.
+- Branch off the latest `develop`: `git fetch origin` then `git switch -c feature/short-name origin/develop`. This includes `hotfix/` branches until launch.
 - PRs target `develop` and are squash-merged (see `AGENTS.md` section 2).
 
 ## Enforcement

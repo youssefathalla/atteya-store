@@ -1,6 +1,6 @@
 name: PR title
 
-# Branch names no longer carry the Linear id (feature/<short-name>, fix/<short-name>),
+# Branch names no longer carry the Linear id (<type>/<short-name>, e.g. feature/shipping-weights),
 # so the PR title is what links a PR to its Linear issue. Fails when the title has no YOU-<number>.
 # The develop -> main merge and back-merges from main are skipped.
 on:

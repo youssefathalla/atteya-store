@@ -1,11 +1,8 @@
 /**
  * Agent hook: blocks creating or renaming a git branch whose name breaks the house rule
- * (see `.agents/skills/branch-naming/SKILL.md`):
- *
- *   feature/<short-name>   new features, improvements, docs, tooling
- *   fix/<short-name>       bugs and anything broken
- *
- * `<short-name>` is lowercase words (a-z, 0-9) joined by single hyphens, 50 characters at most in total.
+ * (see `.agents/skills/branch-naming/SKILL.md`): `<type>/<short-name>`, where type is one of
+ * feature, fix, hotfix, refactor, perf, docs, test, chore, ci (`feat/` and `bugfix/` are not allowed)
+ * and `<short-name>` is lowercase words (a-z, 0-9) joined by single hyphens, 50 characters at most in total.
  * `main` and `develop` are exempt.
  *
  * Claude Code (PreToolUse on Bash and PowerShell, wired in `.claude/settings.json`):
@@ -26,10 +23,11 @@ import { readFileSync } from 'node:fs';
 const CURSOR = process.argv.includes('--cursor');
 const MAX_LENGTH = 50;
 const EXEMPT = new Set(['main', 'develop']);
-const PREFIXES = ['feature/', 'fix/'];
+const TYPES = ['feature', 'fix', 'hotfix', 'refactor', 'perf', 'docs', 'test', 'chore', 'ci'];
+const PREFIXES = TYPES.map((type) => `${type}/`);
 const WORD = /^[a-z0-9]+$/;
 
-/** True when `name` follows `feature/<short-name>` or `fix/<short-name>`. */
+/** True when `name` follows `<type>/<short-name>` with an allowed type. */
 export function isValidBranchName(name) {
   if (EXEMPT.has(name)) return true;
   if (name.length > MAX_LENGTH) return false;
@@ -167,10 +165,20 @@ export function badBranchNames(command) {
 function ruleMessage(bad) {
   return [
     `Branch name "${bad.join('", "')}" does not follow the branch rule.`,
-    'Use feature/<short-name> for features, improvements, docs and tooling, or fix/<short-name> for bugs.',
+    'Use <type>/<short-name>. Types (pick the main change; fix beats refactor, feature beats chore):',
+    '  feature/   new feature or visible improvement   feature/shipping-weights',
+    '  fix/       a bug or anything broken             fix/sign-in-errors',
+    '  hotfix/    urgent fix that ships on its own     hotfix/checkout-total-zero',
+    '  refactor/  restructuring, no behaviour change   refactor/order-stage-helpers',
+    '  perf/      speed, bundle size, Lighthouse       perf/lazy-load-algolia',
+    '  docs/      agent docs, skills, READMEs only     docs/branch-naming-rule',
+    '  test/      tests only                           test/order-messages-cases',
+    '  chore/     dependencies, config, cleanup        chore/update-angular-deps',
+    '  ci/        GitHub Actions and deploy scripts    ci/pr-title-check',
+    'Not feat/ or bugfix/: use feature/ and fix/.',
     '<short-name> is 2-5 lowercase words (a-z, 0-9) joined by hyphens, 50 characters at most in total.',
     'No username, Linear id or date: put the Linear id (YOU-123) in the PR title instead.',
-    'Examples: feature/shipping-weights, fix/sign-in-errors. Rename it and run the command again.',
+    'Rename it and run the command again.',
     'Full rule: .agents/skills/branch-naming/SKILL.md',
   ].join('\n');
 }
