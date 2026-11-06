@@ -28,6 +28,14 @@ graph TD
 
 ---
 
+## 🌿 Before Step 1: Branch
+
+> 👉 **Delegate to**: [branch-naming](file:///.agents/skills/branch-naming/SKILL.md)
+
+Start the work on its own branch off the latest `develop`, named `feature/<short-name>` (or `fix/<short-name>` for a bug), e.g. `git switch -c feature/shipping-weights origin/develop`. The Linear id goes in the PR title, not the branch name.
+
+---
+
 ## 📂 Step 1: Check Existing Building Blocks First
 >
 > 👉 **Delegate to**: [reusable-catalog](file:///.agents/skills/reusable-catalog/SKILL.md)

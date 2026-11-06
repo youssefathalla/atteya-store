@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "node scripts/hooks/check-branch-name.mjs --cursor"
+      }
+    ]
+  }
+}
