@@ -137,7 +137,7 @@ Every agent (Claude Code, Cursor, Antigravity) updates the board as part of the 
    - **Commit messages start with the issue id**: `YOU-123 Short summary`.
    - Still comment on the issue with the PR link after opening it (step 3).
 
-   Full rule: the **`branch-naming`** skill. A Claude Code `PreToolUse` hook (`.claude/settings.json`) and a Cursor `beforeShellExecution` hook (`.cursor/hooks.json`) run `scripts/hooks/check-branch-name.mjs` and block a branch create or rename that breaks it.
+   Full rule: the **`branch-naming`** skill. A Claude Code `PreToolUse` hook (`.claude/settings.json`) and a Cursor `beforeShellExecution` hook (`.cursor/hooks.json`) run `scripts/hooks/check-branch-name.mjs` and block a branch create or rename that breaks it, and a worktree outside `.claude/worktrees/<name>`.
 3. **PR opened**: move it to **In Review** and add a comment with the PR link and a one-line summary.
 4. **Pushed or merged to `develop`**: move it to **QA** with a comment saying what to test on dev and any deploy step it needs (`fb:rules:dev`, `fb:fn:dev`, Rebuild search, …).
 5. **Verified, or merged to `main`**: move it to **Done**.
@@ -159,6 +159,7 @@ If Linear can't be reached (tool missing or signed out), say so in the final mes
 > - **Last step of the project** (the "Final merge to main" task on the board): merge `develop` → `main` with a merge commit, set `DEPLOY_BRANCH.dev` back to `'main'`, delete this block, then run the prod rollout. After that the normal flow below applies again: new client features are built on `develop` and merged to `main` when each one is finished.
 
 - `main` (default) and `develop` are long-lived. Working branches (`feature/…`, `fix/…`, `hotfix/…`, `refactor/…`, `perf/…`, `docs/…`, `test/…`, `chore/…`, `ci/…`; see the **`branch-naming`** skill) come off `develop`, and their PRs target `develop`.
+- **Worktrees stay inside the project**: parallel agent sessions work in `.claude/worktrees/<name>` (gitignored), never in a folder outside the project. Create one from the main project folder with `git worktree add .claude/worktrees/<short-name> -b <type>/<short-name> origin/develop`, run `npm ci` in it, and remove it with its branch after the PR merges. The main project folder stays on an up-to-date `develop`. `.claude/settings.json` sets `worktree.baseRef: "head"` so Claude Code's own worktrees (`--worktree`, subagent isolation) start from that `develop` instead of `main`, and the branch hook blocks `git worktree add`/`move` to any other path.
 - **Squash** feature PRs into `develop`. Use **"Create a merge commit"** (never squash) for `develop` → `main` and for any PR that brings `main` back into `develop`. A squash there drops the shared history, and the next `develop` → `main` PR conflicts even when the files already match.
 - GitHub's "Automatically delete head branches" setting is **off** because it would also delete `develop` after a `develop` → `main` PR. `.github/workflows/delete-merged-branches.yml` deletes a merged PR's branch instead and always skips `develop` and `main`. A deleted branch can be restored from its PR page.
 - Firebase deploys run only from an up-to-date `main` (see **Deploy safety**), so a change reaches dev only after `develop` → `main`. *(Suspended by the develop-only rule above: until launch, dev deploys run from `develop`.)*
@@ -170,7 +171,7 @@ If Linear can't be reached (tool missing or signed out), say so in the final mes
 Activate the dedicated skills from `.agents/skills/` on demand. `sync-docs`, `ask`, and `teacher` live in `.cursor/skills/` because Cursor does not load workflow files:
 
 - **`new-feature`** for the end-to-end feature lifecycle, LIFT folder structure, and orchestration.
-- **`branch-naming`** for git branch names (`<type>/<short-name>`: `feature`, `fix`, `hotfix`, `refactor`, `perf`, `docs`, `test`, `chore` or `ci`), and PR titles and commit messages that start with the Linear id (`YOU-123 …`) so the Linear link keeps working. Load it before creating, naming or renaming a branch, writing a commit message, or opening a PR.
+- **`branch-naming`** for git branch names (`<type>/<short-name>`: `feature`, `fix`, `hotfix`, `refactor`, `perf`, `docs`, `test`, `chore` or `ci`), and PR titles and commit messages that start with the Linear id (`YOU-123 …`) so the Linear link keeps working, and where worktrees go (`.claude/worktrees/<name>` only). Load it before creating, naming or renaming a branch, creating a worktree, writing a commit message, or opening a PR.
 - **`reusable-catalog`** for the living index of shared UI components, extracted Tailwind classes, and the "2+ Duplication Rule".
 - **`ui-design-rules`** for the Component Decision Matrix (Shared UI vs Material vs Tailwind), monochrome identity, and token rules.
 - **`copywriting`** for the house writing style: title case for buttons and payment/status names, say each thing once, money and order-ref formats, and order messages that match the order's real state. Read it before writing any user-facing text, email or WhatsApp message.
