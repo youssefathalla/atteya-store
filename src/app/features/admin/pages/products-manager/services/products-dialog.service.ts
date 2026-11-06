@@ -42,7 +42,7 @@ export class ProductsDialogService {
         data: {
           title: 'Rebuild search',
           message: `This will apply search settings and sync ${preview.indexed} published products to ${preview.indexName}.`,
-          confirmText: 'Rebuild search',
+          confirmText: 'Rebuild Search',
           cancelText: 'Cancel',
           theme: 'primary',
         },

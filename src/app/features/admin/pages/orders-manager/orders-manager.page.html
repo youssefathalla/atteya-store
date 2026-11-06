@@ -95,7 +95,7 @@
           @if (isBusy(row, 'confirm')) {
             <mat-progress-spinner mode="indeterminate" diameter="18" />
           } @else {
-            <span>{{ row.confirmAction === 'confirm-payment' ? 'Confirm payment' : 'Confirm order' }}</span>
+            <span>{{ row.confirmAction === 'confirm-payment' ? 'Confirm Payment' : 'Confirm Order' }}</span>
           }
         </button>
       }
@@ -118,7 +118,7 @@
           [attr.aria-label]="'Copy phone number of ' + row.customerName"
           (click)="copyPhone(row)"
         >
-          <span>Copy number</span>
+          <span>Copy Number</span>
         </button>
       }
       @if (row.canCancel) {
@@ -132,7 +132,7 @@
           @if (isBusy(row, 'cancel')) {
             <mat-progress-spinner mode="indeterminate" diameter="18" />
           } @else {
-            <span>Cancel order</span>
+            <span>Cancel Order</span>
           }
         </button>
       }

@@ -16,8 +16,8 @@ export type FavoritesSignInDialogResult = 'sign-in' | 'create' | null;
     </mat-dialog-content>
     <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 flex-wrap">
       <button matButton="text" type="button" (click)="close(null)">Cancel</button>
-      <button matButton="outlined" type="button" (click)="close('create')">Create account</button>
-      <button matButton="filled" type="button" (click)="close('sign-in')">Sign in</button>
+      <button matButton="outlined" type="button" (click)="close('create')">Create Account</button>
+      <button matButton="filled" type="button" (click)="close('sign-in')">Sign In</button>
     </mat-dialog-actions>
   `,
 })

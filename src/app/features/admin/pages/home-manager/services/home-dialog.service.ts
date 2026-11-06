@@ -81,8 +81,8 @@ export class HomeDialogService {
           title: 'Use menu links',
           message:
             'Replace this list with the links from your menu? Photos on these links will be cleared.',
-          confirmText: 'Replace links',
-          cancelText: 'Keep editing',
+          confirmText: 'Replace Links',
+          cancelText: 'Keep Editing',
           theme: 'warning',
         },
         width: '480px',

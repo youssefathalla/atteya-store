@@ -253,7 +253,7 @@
     </fieldset>
 
     <div class="elements-end gap-3 pt-2">
-      <a matButton="text" routerLink="/">Keep shopping</a>
+      <a matButton="text" routerLink="/">Keep Shopping</a>
       <button
         matButton="filled"
         type="submit"
@@ -263,9 +263,9 @@
         @if (isSubmitting()) {
           <mat-progress-spinner mode="indeterminate" diameter="18" />
         } @else if (paymentMethod() === 'paymob') {
-          <span>Pay online</span>
+          <span>Pay Online</span>
         } @else {
-          <span>Place order</span>
+          <span>Place Order</span>
         }
       </button>
     </div>

@@ -184,8 +184,8 @@ export class OrdersManagerPageComponent implements OnInit {
       const ok = await this.#ask({
         title: `Confirm payment for ${row.orderRef}?`,
         message: `Only confirm after you see ${row.amountDueLabel ?? 'the full amount'} arrive in your bank app. A screenshot alone isn't proof. This takes the items out of stock and emails the shopper.`,
-        confirmText: 'Payment received',
-        cancelText: 'Not yet',
+        confirmText: 'Payment Received',
+        cancelText: 'Not Yet',
         theme: 'primary',
       });
       if (!ok) return;
@@ -207,8 +207,8 @@ export class OrdersManagerPageComponent implements OnInit {
       title: `Cancel order ${row.orderRef}?`,
       message:
         "The shopper won't be able to pay for it after this. Nothing was taken out of stock, so there's nothing to put back. No email is sent; message the shopper on WhatsApp if needed.",
-      confirmText: 'Cancel order',
-      cancelText: 'Keep order',
+      confirmText: 'Cancel Order',
+      cancelText: 'Keep Order',
       theme: 'error',
     });
     if (!ok) return;

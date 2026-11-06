@@ -17,7 +17,7 @@ export class AdminRoleDialogService {
         data: {
           title: 'Remove admin access',
           message: `Remove admin access for ${email}? They will no longer be able to manage the store.`,
-          confirmText: 'Remove admin',
+          confirmText: 'Remove Admin',
           cancelText: 'Cancel',
           theme: 'error',
         },
