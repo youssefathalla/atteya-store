@@ -123,22 +123,23 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ## 🗂️ 2. Task Board & Branch Workflow
 
-### Task board (Todoist) — keep it in sync, always
+### Task board (Linear) — keep it in sync, always
 
-The single source of truth for work is the Todoist project **`atteya-store`** (id `6hqJH3Fp65qrpM8F`). Sections, in order: **To do → In Progress → For Review → QA → Done**, plus **Bugs**, **Open Questions**, and **Blocked**. Old `AS-xx` ids come from the retired Cursor board and only appear in task descriptions and commit history.
+The single source of truth for work is Linear: workspace `youssefathalla`, team **Youssefathalla** (key `YOU`), project **Atteya Store** (`P-YOU-1`). Issues are `YOU-123`. Statuses, in order: **Backlog → Todo → In Progress → In Review → QA → Done**, plus **Canceled** and **Duplicate**. Labels: `Bug`, `Open Questions`, `Blocked`, `Feature`, `Improvement`. The Todoist board was retired on Nov 6, 2026 and old `AS-xx` ids come from the earlier Cursor board; both only appear in issue descriptions and commit history.
 
 Every agent (Claude Code, Cursor, Antigravity) updates the board as part of the task, not afterwards:
 
-1. **Start**: find the matching task and move it to **In Progress**. If there is none, create it there with a one-line description.
-2. **PR opened**: move it to **For Review** and add a comment with the PR link and a one-line summary.
-3. **Merged to `develop`**: move it to **QA** with a comment saying what to test on dev and any deploy step it needs (`fb:rules:dev`, `fb:fn:dev`, Rebuild search, …).
-4. **Verified, or merged to `main`**: move it to **Done** and complete it.
-5. **Prod needs**: append every merged PR's prod step to the checklist in the "Prod rollout" task.
-6. **Found along the way**: a bug goes in **Bugs**, an undecided choice in **Open Questions**. Never only in chat.
-7. **Blocked on someone else** (usually the client): move the task to **Blocked**, add the red `blocked` label, and comment exactly what is needed and what to do once it arrives. Code that is complete can still be merged. When the missing piece lands, remove the label and move the task to the section its work has reached (usually **QA**).
-8. **No stale tasks**: when work makes a task outdated, done, or wrong, update its description or close it with a comment that says why, in the same task.
+1. **Start**: find the matching issue (search the project first, so you never create a duplicate) and move it to **In Progress**. If there is none, create it in project Atteya Store with a one-line description.
+2. **Branch, commit and PR**: put the issue id in the branch name (`youssefathalla/you-123-short-name`, Linear's suggested branch) and in the PR title, so Linear's GitHub link attaches the PR and moves the issue.
+3. **PR opened**: move it to **In Review** and add a comment with the PR link and a one-line summary.
+4. **Pushed or merged to `develop`**: move it to **QA** with a comment saying what to test on dev and any deploy step it needs (`fb:rules:dev`, `fb:fn:dev`, Rebuild search, …).
+5. **Verified, or merged to `main`**: move it to **Done**.
+6. **Prod needs**: append every merged change's prod step to the checklist in the "Prod rollout" issue.
+7. **Found along the way**: create an issue with the `Bug` label for a bug (status **Todo**) or the `Open Questions` label for an undecided choice (status **Backlog**). Never only in chat.
+8. **Blocked on someone else** (usually the client): add the red `Blocked` label, keep the status the work has reached, and comment exactly what is needed and what to do once it arrives. Code that is complete can still be merged. When the missing piece lands, remove the label and move the issue on.
+9. **No stale issues**: when work makes an issue outdated, done, or wrong, update its description, or move it to **Done** / **Canceled** with a comment that says why, in the same issue.
 
-If the board can't be reached (tool missing or signed out), say so in the final message and list the exact board changes still needed. Never skip them silently.
+If Linear can't be reached (tool missing or signed out), say so in the final message and list the exact board changes still needed. Never skip them silently.
 
 ### Branches and merges
 
