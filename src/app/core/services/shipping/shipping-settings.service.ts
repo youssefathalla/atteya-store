@@ -51,7 +51,8 @@ function normalizeBoxes(
   boxes: readonly ShippingBox[] | undefined,
   fallback: readonly ShippingBox[],
 ): readonly ShippingBox[] {
-  if (!boxes || boxes.length !== 3) return fallback.map((box) => ({ ...box }));
+  // A region may use one to three boxes (Egypt uses two); only an empty list falls back.
+  if (!boxes || boxes.length === 0) return fallback.map((box) => ({ ...box }));
   return boxes.map((box) => ({ ...box }));
 }
 

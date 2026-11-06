@@ -506,16 +506,29 @@ export function categoryIdsFor(leafId: string): string[] {
 }
 
 /**
- * Shipping weight in grams by category (client figures, Nov 2026). 0 = never adds to the parcel
- * (socks). Categories not listed have no default: the admin enters a weight, or leaves it empty
- * (checkout then charges the biggest box). Staff can override these per category in Catalogue
- * Tools → Shipping Weights. Keep identical in both catalog-taxonomy copies.
+ * Shipping weight in grams by category. T-shirts, shorts, hoodies and socks are the client's
+ * figures (Nov 2026); the rest are our estimates until the client confirms them. 0 = never adds
+ * to the parcel (socks). A category not listed has no default: the admin enters a weight, or
+ * leaves it empty (checkout then counts each unit as `ASSUMED_WEIGHT_GRAMS`). Staff can override
+ * every value per category in Catalogue Tools → Shipping Weights. Keep identical in both
+ * catalog-taxonomy copies.
  */
 export const DEFAULT_WEIGHT_GRAMS_BY_CATEGORY: Readonly<Record<string, number>> = {
+  // Client figures.
   't-shirts': 250,
   shorts: 250,
   hoodies: 800,
   socks: 0,
+  // Estimates (padel gear is predictable; the client corrects them in the admin).
+  tracksuits: 700,
+  rackets: 400,
+  bags: 900,
+  balls: 250,
+  grips: 50,
+  bottles: 200,
+  supports: 100,
+  sets: 500,
+  bundles: 500,
 };
 
 /** Jackets have no category of their own; they weigh the same as a hoodie. */

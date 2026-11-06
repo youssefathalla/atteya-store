@@ -73,7 +73,9 @@ export function renderOrderEmail(
     case 'instapay-confirmed':
       return instapayConfirmed(order, ctx);
     case 'delivery-fee-set':
-      return deliveryFeeSet(order, ctx);
+      return deliveryFeeSet(order, ctx, false);
+    case 'delivery-fee-changed':
+      return deliveryFeeSet(order, ctx, true);
     case 'paid-confirmed':
       return paidConfirmed(order, ctx);
     case 'payment-failed':
@@ -180,12 +182,26 @@ function instapayConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): Rend
   });
 }
 
-/** Staff saved the delivery fee they agreed with the shopper on a large order. */
-function deliveryFeeSet(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+/**
+ * Staff saved the delivery fee they agreed with the shopper on a large order (`changed` = a
+ * later correction of that fee; the amounts to pay are the new ones).
+ */
+function deliveryFeeSet(
+  order: OrderEmailOrder,
+  ctx: OrderEmailContext,
+  changed: boolean,
+): RenderedEmail {
   const fee = order.shippingEgp > 0 ? formatEgp(order.shippingEgp) : null;
-  const intro = fee
-    ? `The delivery fee for your order ${order.ref} is ${fee}.`
-    : `Good news: delivery is free on your order ${order.ref}.`;
+  const intro = [
+    fee
+      ? `The delivery fee for your order ${order.ref} is ${changed ? 'now ' : ''}${fee}.`
+      : `Good news: delivery is ${changed ? 'now ' : ''}free on your order ${order.ref}.`,
+  ];
+  if (changed) {
+    intro.push(
+      "If you've already sent a different amount, message us on WhatsApp and we'll sort it out.",
+    );
+  }
   let highlight: string | null;
   if (order.paymentMethod === 'cash-on-delivery') {
     const cash = formatEgp(cashOnDeliveryEgp(order));
@@ -196,9 +212,11 @@ function deliveryFeeSet(order: OrderEmailOrder, ctx: OrderEmailContext): Rendere
     highlight = "We'll confirm your order as soon as we receive your payment.";
   }
   return shopperEmail(order, ctx, {
-    subject: `Delivery fee for your order ${order.ref}`,
-    heading: 'Your delivery fee is ready',
-    intro: [intro],
+    subject: changed
+      ? `Updated delivery fee for your order ${order.ref}`
+      : `Delivery fee for your order ${order.ref}`,
+    heading: changed ? 'Your delivery fee has changed' : 'Your delivery fee is ready',
+    intro,
     highlight,
     payment: payBox(order, ctx),
     showTotals: true,

@@ -6,7 +6,12 @@ describe('defaultWeightGrams', () => {
   it('uses the built-in weights when nothing is saved', () => {
     assert.equal(defaultWeightGrams(['t-shirts', 'apparel']), 250);
     assert.equal(defaultWeightGrams(['socks']), 0);
-    assert.equal(defaultWeightGrams(['bags']), null);
+    // Estimates for the padel gear until the client confirms them.
+    assert.equal(defaultWeightGrams(['rackets', 'accessories']), 400);
+    assert.equal(defaultWeightGrams(['bottles']), 200);
+    assert.equal(defaultWeightGrams(['bags']), 900);
+    // A parent category has no default of its own.
+    assert.equal(defaultWeightGrams(['accessories']), null);
   });
 
   it('a weight saved on the category wins over the built-in one', () => {

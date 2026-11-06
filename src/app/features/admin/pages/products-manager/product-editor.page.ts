@@ -383,14 +383,14 @@ export class ProductEditorPageComponent implements OnInit {
     });
 
     // New products: fill the shipping weight from the category (and "jacket" in the name) while
-    // the field is empty or still holds the last suggestion. A typed weight is never replaced.
+    // the field still holds the last suggestion. A weight the admin typed, or cleared, stays.
     effect(() => {
       const { categoryId, name } = this.model();
       if (!this.isCreate()) return;
       const suggested = this.#suggestWeight(categoryId, name);
       untracked(() => {
         const current = this.weight().trim();
-        if (current !== '' && current !== this.#suggestedWeight) return;
+        if (current !== this.#suggestedWeight) return;
         const next = suggested === null ? '' : String(suggested);
         this.#suggestedWeight = next;
         if (current !== next) this.weight.set(next);

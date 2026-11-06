@@ -17,7 +17,8 @@ const MAX_FEE_EGP = 100_000;
  * (`pricing.shipping.kind === 'domestic-agreed'`, InstaPay or Cash on Delivery). Sets the shipping
  * line and the order total, so the confirmation page and `paymentDue()` ask for the right amount.
  * Can be changed again while the order is still open. The first save emails the shopper
- * (`delivery-fee-set`). Stock is not touched: that still happens on confirm.
+ * (`delivery-fee-set`); each later change emails the new fee (`delivery-fee-changed`). Stock is
+ * not touched: that still happens on confirm.
  */
 export const setDeliveryFee = onCall(
   adminCallableOptions(),

@@ -51,6 +51,10 @@ export interface OrderEmailOrder {
    * `totalEgp` is the items only; emails say the fee is to be agreed instead of showing them.
    */
   readonly feeToBeAgreed: boolean;
+  /** Large Egypt order whose delivery fee staff have saved (`domestic-agreed` + `feeAgreed`). */
+  readonly deliveryFeeAgreed: boolean;
+  /** When staff last saved the delivery fee (`deliveryFeeSetAt`, epoch ms), or null. */
+  readonly deliveryFeeSetAtMs: number | null;
 }
 
 /** `#` + first 6 characters of the order id in capitals. Keep in step with the Angular copy. */
@@ -138,7 +142,20 @@ export function readOrderForEmail(
     totalEgp,
     needsReview: data['needsReview'] === true,
     feeToBeAgreed: isDeliveryFeeToBeAgreed(shipping),
+    deliveryFeeAgreed: shipping?.['kind'] === 'domestic-agreed' && shipping['feeAgreed'] === true,
+    deliveryFeeSetAtMs: timestampMs(data['deliveryFeeSetAt']),
   };
+}
+
+/** Firestore Timestamp (or Date / epoch ms) → epoch ms, else null. */
+function timestampMs(raw: unknown): number | null {
+  if (raw instanceof Date) return raw.getTime();
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (isRecord(raw) && typeof raw['toMillis'] === 'function') {
+    const ms = (raw as { toMillis: () => unknown }).toMillis();
+    return typeof ms === 'number' && Number.isFinite(ms) ? ms : null;
+  }
+  return null;
 }
 
 function readOptionLabels(raw: unknown): { label: string; value: string }[] {

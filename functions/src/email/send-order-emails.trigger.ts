@@ -10,7 +10,7 @@ import {
   RESEND_REPLY_TO,
   STORE_ALERT_EMAIL,
 } from './email-config.js';
-import { orderEmailsForWrite, type OrderEmailKind } from './order-email-events.js';
+import { claimId, orderEmailsForWrite, type OrderEmailKind } from './order-email-events.js';
 import { readOrderForEmail, type OrderEmailOrder } from './order-email-model.js';
 import { renderOrderEmail, type OrderEmailContext } from './order-email-templates.js';
 import { sendResendEmail } from './resend-client.js';
@@ -63,7 +63,8 @@ async function sendOnce(
     return;
   }
 
-  const ref = db.collection('orderEmails').doc(`${order.id}_${kind}`);
+  const claim = claimId(kind, order);
+  const ref = db.collection('orderEmails').doc(claim);
   try {
     await ref.create({
       orderId: order.id,
@@ -88,7 +89,7 @@ async function sendOnce(
       html: email.html,
       text: email.text,
       ...(replyTo ? { replyTo } : {}),
-      idempotencyKey: `order-email/${order.id}/${kind}`,
+      idempotencyKey: `order-email/${claim}`,
     });
     await ref.update({ status: 'sent', resendId, sentAt: FieldValue.serverTimestamp() });
   } catch (error: unknown) {

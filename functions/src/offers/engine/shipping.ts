@@ -110,30 +110,28 @@ export type AssignShippingBoxResult =
   | { readonly ok: false; readonly code: 'too-heavy' | 'no-boxes' };
 
 /**
- * Box customers never choose. Smallest box that holds `totalWeightGrams`,
- * or the largest box when any item has no weight. Known weight that already
- * exceeds every box is still too heavy. Never reads a client box id.
+ * Box customers never choose: the smallest box that holds `totalWeightGrams`
+ * (a `parcelWeight()` total, so products without a weight are already counted).
+ * Never reads a client box id.
  */
 export function assignShippingBox(
   boxes: readonly ShippingBox[],
   totalWeightGrams: number,
-  anyWeightMissing: boolean,
 ): AssignShippingBoxResult {
   if (boxes.length === 0) return { ok: false, code: 'no-boxes' };
-  const largestCapacity = boxes.reduce((max, box) => Math.max(max, box.maxWeightGrams), 0);
-  const known = Math.max(0, Math.round(totalWeightGrams));
-  if (anyWeightMissing && known > largestCapacity) {
-    return { ok: false, code: 'too-heavy' };
-  }
-  const selected = selectShippingBox(
-    boxes,
-    anyWeightMissing ? largestCapacity : totalWeightGrams,
-    null,
-  );
+  const selected = selectShippingBox(boxes, totalWeightGrams, null);
   if (selected.ok) return { ok: true, box: selected.box, auto: true };
   if (selected.code === 'too-heavy') return { ok: false, code: 'too-heavy' };
   return { ok: false, code: 'no-boxes' };
 }
+
+/**
+ * Weight counted for each unit of a product that has no weight yet. A last resort: every
+ * category has a default (`DEFAULT_WEIGHT_GRAMS_BY_CATEGORY`), so this only applies to a product
+ * in a category with none. 500 g sits in the middle of the catalogue's range, so a single such
+ * item still fits the smallest Egypt box and the normal weight rule applies.
+ */
+export const ASSUMED_WEIGHT_GRAMS = 500;
 
 /** One bag line for weighing: the product's weight (null = not set) and how many. */
 export interface ParcelLine {
@@ -142,22 +140,27 @@ export interface ParcelLine {
 }
 
 export interface ParcelWeight {
-  /** Sum of the known weights. 0 g counts as known (socks never add to the parcel). */
+  /**
+   * Packed weight: the known weights plus `ASSUMED_WEIGHT_GRAMS` per unit without a weight.
+   * 0 g is a known weight (socks never add to the parcel).
+   */
   readonly totalWeightGrams: number;
-  /** True when any product has no weight set. */
+  /** True when any product had no weight and was counted as `ASSUMED_WEIGHT_GRAMS`. */
   readonly anyWeightMissing: boolean;
 }
 
-/** Total packed weight of a bag. A weight of 0 is real; only a missing weight is unknown. */
+/** Total packed weight of a bag. A weight of 0 is real; a missing weight counts as 500 g. */
 export function parcelWeight(lines: readonly ParcelLine[]): ParcelWeight {
   let totalWeightGrams = 0;
   let anyWeightMissing = false;
   for (const line of lines) {
     const weight = line.weightGrams;
+    const quantity = Math.max(0, line.quantity);
     if (typeof weight === 'number' && Number.isFinite(weight) && weight >= 0) {
-      totalWeightGrams += Math.round(weight) * Math.max(0, line.quantity);
+      totalWeightGrams += Math.round(weight) * quantity;
     } else {
       anyWeightMissing = true;
+      totalWeightGrams += ASSUMED_WEIGHT_GRAMS * quantity;
     }
   }
   return { totalWeightGrams, anyWeightMissing };
@@ -165,8 +168,7 @@ export function parcelWeight(lines: readonly ParcelLine[]): ParcelWeight {
 
 /**
  * How a bag is delivered:
- * - `box`: the assigned box. `quoteWeightGrams` is a weight that box accepts, to pass to
- *   `shippingQuote` (missing weights already chose the largest box).
+ * - `box`: the assigned box. `quoteWeightGrams` is the parcel weight to pass to `shippingQuote`.
  * - `to-be-agreed`: Egypt only. Heavier than the largest Egypt box, so staff agree the
  *   delivery fee with the shopper on WhatsApp after the order is placed.
  * - `too-heavy`: abroad, heavier than the largest box. Cannot be ordered.
@@ -183,15 +185,9 @@ export function planDelivery(
   region: ShippingRegion,
   weight: ParcelWeight,
 ): DeliveryPlan {
-  const selection = assignShippingBox(boxes, weight.totalWeightGrams, weight.anyWeightMissing);
+  const selection = assignShippingBox(boxes, weight.totalWeightGrams);
   if (selection.ok) {
-    return {
-      kind: 'box',
-      box: selection.box,
-      quoteWeightGrams: weight.anyWeightMissing
-        ? selection.box.maxWeightGrams
-        : weight.totalWeightGrams,
-    };
+    return { kind: 'box', box: selection.box, quoteWeightGrams: weight.totalWeightGrams };
   }
   if (selection.code === 'too-heavy') {
     return region === 'egypt' ? { kind: 'to-be-agreed' } : { kind: 'too-heavy' };
