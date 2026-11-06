@@ -60,3 +60,5 @@ firebase-debug.*.log
 firestore-debug.log
 ui-debug.log
 
+# Agent worktrees (see the branch-naming skill)
+.claude/worktrees/
