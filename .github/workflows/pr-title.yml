@@ -1,0 +1,29 @@
+name: PR title
+
+# Branch names no longer carry the Linear id (<type>/<short-name>, e.g. feature/shipping-weights),
+# so the PR title is what links a PR to its Linear issue. Fails when the title has no YOU-<number>.
+# The develop -> main merge and back-merges from main are skipped.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  linear-id:
+    if: github.head_ref != 'develop' && github.head_ref != 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Title contains a Linear issue id
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if printf '%s' "$PR_TITLE" | grep -Eq 'YOU-[0-9]+'; then
+            echo "PR title has a Linear issue id."
+          else
+            echo "::error title=PR title needs a Linear issue id::Start the PR title with the issue id, e.g. 'YOU-123 Clear sign-in errors on mode switch'. See .agents/skills/branch-naming/SKILL.md."
+            exit 1
+          fi
