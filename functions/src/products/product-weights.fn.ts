@@ -39,7 +39,10 @@ export interface CategoryWeightRow {
   readonly path: string;
   /** The default staff saved, or null. Undefined when nothing is saved yet. */
   readonly savedGrams: number | null | undefined;
-  /** What a product in this category gets now (saved, else built-in), or null for none. */
+  /**
+   * What a product in this category gets now: its own default (saved, else built-in), then its
+   * parents' — the same lookup Fill Empty Weights uses. Null for none.
+   */
   readonly grams: number | null;
   /** Products in this category (leaf) that still have no weight. */
   readonly missing: number;
@@ -76,6 +79,8 @@ interface CategoryInfo {
   readonly id: string;
   readonly name: string;
   readonly path: string;
+  /** Parent categories, root first (`categories/{id}.ancestorIds`). */
+  readonly ancestorIds: readonly string[];
   readonly saved: number | null | undefined;
 }
 
@@ -96,6 +101,9 @@ async function loadCategories(db: Firestore): Promise<CategoryInfo[]> {
         id: doc.id,
         name: typeof data['name'] === 'string' ? data['name'] : doc.id,
         path: typeof data['path'] === 'string' ? data['path'] : doc.id,
+        ancestorIds: Array.isArray(data['ancestorIds'])
+          ? data['ancestorIds'].filter((id): id is string => typeof id === 'string')
+          : [],
         saved: readCategoryWeight(data['defaultWeightGrams']),
       };
     })
@@ -145,7 +153,7 @@ async function buildReport(db: Firestore): Promise<Omit<ProductWeightsReport, 'f
       name: category.name,
       path: category.path,
       savedGrams: category.saved,
-      grams: defaultWeightGrams([category.id], '', saved),
+      grams: defaultWeightGrams([category.id, ...category.ancestorIds], '', saved),
       missing: missingByCategory.get(category.id) ?? 0,
     })),
     missingTotal: missingProducts.length,

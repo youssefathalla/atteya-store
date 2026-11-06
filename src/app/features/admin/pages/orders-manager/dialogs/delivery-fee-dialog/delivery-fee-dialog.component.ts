@@ -25,7 +25,7 @@ const MAX_FEE_EGP = 100_000;
       <mat-dialog-content class="elements-start-col gap-3">
         <p class="font-body-md opacity-85">
           Enter the fee you agreed with the customer on WhatsApp. Their order page and the amount
-          to pay update right away. The first time, we also email them.
+          to pay update right away, and we email them the fee.
         </p>
         <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
           <mat-label>Delivery fee (EGP)</mat-label>

@@ -20,8 +20,9 @@
     <section class="w-full elements-start-col gap-3" aria-labelledby="weights-defaults">
       <h3 id="weights-defaults" class="font-title-md font-bold!">Default Weight per Category</h3>
       <p class="font-body-sm text-on-surface-variant">
-        Grams. Use 0 for small items like socks that don't add to the parcel. Leave it empty when
-        there's no default yet.
+        Grams. T-shirts, shorts, hoodies and socks are the client's figures; the other values are
+        our estimates until the client confirms them. Use 0 for small items like socks that don't
+        add to the parcel. Leave it empty when there's no default yet.
       </p>
       <ul class="w-full elements-start-col gap-2">
         @for (category of r.categories; track category.id) {
@@ -79,8 +80,8 @@
         <p class="font-body-md">Every product has a weight.</p>
       } @else {
         <p class="font-body-sm text-on-surface-variant">
-          Until they have one, an order with any of these is charged the biggest box. Open a product
-          to type its weight, or fill them all from the defaults above.
+          Until they have one, checkout counts each of these as 500 g. Open a product to type its
+          weight, or fill them all from the defaults above.
           @if (r.missingTotal > r.missing.length) {
             Showing the first {{ r.missing.length }}.
           }

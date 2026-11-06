@@ -43,8 +43,13 @@ describe('client shipping examples (Egypt)', () => {
     assert.equal(fee([{ weightGrams: HOODIE, quantity: 4 }]), 'to-be-agreed');
   });
 
-  it('a product without a weight charges the biggest box, unless the rest is already too heavy', () => {
-    assert.equal(fee([{ weightGrams: null, quantity: 1 }]), 135);
+  it('a product without a weight counts as 500 g per unit', () => {
+    assert.equal(parcelWeight([{ weightGrams: null, quantity: 2 }]).totalWeightGrams, 1_000);
+    assert.equal(parcelWeight([{ weightGrams: null, quantity: 1 }]).anyWeightMissing, true);
+    assert.equal(fee([{ weightGrams: null, quantity: 2 }]), 115);
+    assert.equal(fee([{ weightGrams: null, quantity: 1 }, { weightGrams: TEE, quantity: 3 }]), 135);
+    assert.equal(fee([{ weightGrams: null, quantity: 6 }]), 135);
+    assert.equal(fee([{ weightGrams: null, quantity: 7 }]), 'to-be-agreed');
     assert.equal(fee([{ weightGrams: null, quantity: 1 }, { weightGrams: HOODIE, quantity: 4 }]), 'to-be-agreed');
   });
 

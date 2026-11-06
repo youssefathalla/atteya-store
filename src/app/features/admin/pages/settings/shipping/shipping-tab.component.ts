@@ -197,7 +197,8 @@ export class ShippingTabComponent implements OnInit {
     const key = this.region() === 'egypt' ? 'egyptBoxes' : 'internationalBoxes';
     this.draft.update((prev) => {
       const boxes = prev[key];
-      const id = BOX_IDS[boxes.length];
+      // First free id, so a saved list with a gap (box1 + box3) never gets a repeated id.
+      const id = BOX_IDS.find((candidate) => !boxes.some((box) => box.id === candidate));
       const last = boxes.at(-1);
       if (!id || !last) return prev;
       const box: BoxDraft = { ...last, id, name: `Box ${boxes.length + 1}` };

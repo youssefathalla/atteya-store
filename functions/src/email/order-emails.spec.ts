@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { orderEmailsForWrite } from './order-email-events.js';
+import { claimId, orderEmailsForWrite } from './order-email-events.js';
 import { readOrderForEmail, shortOrderRef, type OrderEmailOrder } from './order-email-model.js';
 import { formatEgp, renderOrderEmail, type OrderEmailContext } from './order-email-templates.js';
 
@@ -357,14 +357,40 @@ describe('large order: delivery fee to be agreed', () => {
     assert.equal(set.totalEgp, 2620);
   });
 
-  it('sends the delivery-fee email once, when the fee is first saved', () => {
+  it('sends the delivery-fee email when the fee is first saved, and again on each change', () => {
     assert.deepEqual(orderEmailsForWrite(null, placed), ['cod-placed', 'store-new-order']);
     assert.deepEqual(orderEmailsForWrite(placed, set), ['delivery-fee-set']);
-    // A later correction while still open sends nothing.
+    // A write that keeps the fee sends nothing; a different fee tells the shopper.
     assert.deepEqual(orderEmailsForWrite(set, set), []);
+    const changed = read(orderDoc({ feeAgreed: true, shippingEgp: 300 }));
+    assert.deepEqual(orderEmailsForWrite(set, changed), ['delivery-fee-changed']);
+    // Confirming after the fee is set is just the confirmation.
+    const confirmed = read(orderDoc({ feeAgreed: true, shippingEgp: 250, status: 'confirmed' }));
+    assert.deepEqual(orderEmailsForWrite(set, confirmed), ['cod-confirmed']);
+    // A normal order whose shipping differs between writes never gets the fee emails.
+    assert.deepEqual(orderEmailsForWrite(read(orderDoc({})), read(orderDoc({ shippingEgp: 90 }))), []);
     const instapayPlaced = read(orderDoc({ paymentMethod: 'instapay', feeAgreed: false }));
     const instapaySet = read(orderDoc({ paymentMethod: 'instapay', feeAgreed: true }));
     assert.deepEqual(orderEmailsForWrite(instapayPlaced, instapaySet), ['delivery-fee-set']);
+  });
+
+  it('fee-changed email says the fee is now different and shows the new InstaPay amount', () => {
+    const changed = read(orderDoc({ paymentMethod: 'instapay', feeAgreed: true, shippingEgp: 300 }));
+    const email = renderOrderEmail('delivery-fee-changed', changed, withPay);
+    assert.match(email.subject, /Updated delivery fee/);
+    assert.match(email.text, new RegExp(`is now ${formatEgp(300)}`));
+    assert.match(email.text, /already sent a different amount/);
+    assert.match(email.text, new RegExp(formatEgp(2670)));
+  });
+
+  it('claims the fee-changed email per save, every other email once per order', () => {
+    const changed = read(orderDoc({ feeAgreed: true, shippingEgp: 300 }));
+    assert.equal(claimId('delivery-fee-set', set), 'abcdef123456_delivery-fee-set');
+    assert.equal(claimId('delivery-fee-changed', changed), 'abcdef123456_delivery-fee-changed_300');
+    const withTime = readOrderForEmail('abcdef123456', { ...orderDoc({ feeAgreed: true, shippingEgp: 300 }), deliveryFeeSetAt: new Date(1_700_000_000_000) });
+    assert.ok(withTime);
+    assert.equal(withTime.deliveryFeeSetAtMs, 1_700_000_000_000);
+    assert.equal(claimId('delivery-fee-changed', withTime), 'abcdef123456_delivery-fee-changed_1700000000000');
   });
 
   it('placed emails say we will agree the fee on WhatsApp and ask for no payment', () => {
