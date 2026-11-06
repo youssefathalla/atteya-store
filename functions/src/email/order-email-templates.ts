@@ -183,7 +183,7 @@ function paymentFailed(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
     highlight: null,
     showTotals: false,
     showAddress: false,
-    button: ctx.storefrontUrl ? { label: 'Shop again', url: `${ctx.storefrontUrl}/shop` } : null,
+    button: ctx.storefrontUrl ? { label: 'Shop Again', url: `${ctx.storefrontUrl}/shop` } : null,
   });
 }
 
@@ -236,7 +236,7 @@ function shopperEmail(
     parts.payment ? payBoxText(parts.payment) : null,
     itemsText(order.lines),
     parts.showTotals ? totalsText(order, parts.totalLabel ?? 'Total') : null,
-    parts.showAddress ? `Delivery address:\n${addressLines(order).join('\n')}` : null,
+    parts.showAddress ? `Delivery Address:\n${addressLines(order).join('\n')}` : null,
     parts.button ? `${parts.button.label}: ${parts.button.url}` : null,
     help,
   ]);
@@ -253,7 +253,7 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
       : method === 'instapay'
         ? 'InstaPay – waiting for transfer'
         : 'Paid Online';
-  const subject = `New order ${order.ref} – ${formatEgp(order.totalEgp)} – ${label}`;
+  const subject = `New Order ${order.ref} – ${formatEgp(order.totalEgp)} – ${label}`;
   const payment = storePayment(order);
   const warning = order.needsReview
     ? 'One item sold out before this payment came in. Please check this order.'
@@ -264,11 +264,11 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
     order.customerEmail,
   ].filter((part): part is string => Boolean(part?.trim()));
   const button = ctx.storefrontUrl
-    ? { label: 'Open orders in the dashboard', url: `${ctx.storefrontUrl}/admin/orders` }
+    ? { label: 'Open Orders in the Dashboard', url: `${ctx.storefrontUrl}/admin/orders` }
     : null;
 
   const html = layout(ctx.storeName, subject, [
-    h1(`New order ${order.ref}`),
+    h1(`New Order ${order.ref}`),
     warning ? highlightBox(`⚠ ${warning}`) : '',
     storePaymentHtml(payment),
     labelledLines('Customer', customer),
@@ -278,13 +278,13 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
     button ? buttonHtml(button, 'tonal') : '',
   ]);
   const text = joinText([
-    `New order ${order.ref}`,
+    `New Order ${order.ref}`,
     warning,
     storePaymentText(payment),
     `Customer:\n${customer.join('\n')}`,
     itemsText(order.lines),
     totalsText(order, 'Total'),
-    `Delivery address:\n${addressLines(order).join('\n')}`,
+    `Delivery Address:\n${addressLines(order).join('\n')}`,
     button ? `${button.label}: ${button.url}` : null,
   ]);
   return { subject, html, text };
@@ -305,23 +305,23 @@ function storePayment(order: OrderEmailOrder): StorePayment {
         ? {
             method: 'Cash on Delivery',
             rows: [
-              ['Shipping fee by InstaPay', formatEgp(order.shippingEgp)],
-              ['Cash on delivery', formatEgp(cashOnDeliveryEgp(order))],
+              ['Shipping Fee by InstaPay', formatEgp(order.shippingEgp)],
+              ['Cash at the Door', formatEgp(cashOnDeliveryEgp(order))],
             ],
             note: 'Send the order once the shipping fee arrives.',
           }
         : {
             method: 'Cash on Delivery',
             rows: [
-              ['Shipping fee', 'Free'],
-              ['Cash on delivery', formatEgp(cashOnDeliveryEgp(order))],
+              ['Shipping Fee', 'Free'],
+              ['Cash at the Door', formatEgp(cashOnDeliveryEgp(order))],
             ],
             note: null,
           };
     case 'instapay':
       return {
         method: 'InstaPay',
-        rows: [['Waiting for transfer', total]],
+        rows: [['Waiting for Transfer', total]],
         note: 'Confirm the payment in the dashboard once you see it in your bank app.',
       };
     default:
@@ -420,7 +420,7 @@ function payBox(order: OrderEmailOrder, ctx: OrderEmailContext): PayBox | null {
   return {
     lines,
     whatsapp: waUrl
-      ? { label: details ? 'Send on WhatsApp' : 'Message us on WhatsApp', url: waUrl }
+      ? { label: details ? 'Send on WhatsApp' : 'Message Us on WhatsApp', url: waUrl }
       : null,
   };
 }
@@ -438,7 +438,7 @@ interface EmailButton {
 function orderButton(order: OrderEmailOrder, ctx: OrderEmailContext): EmailButton | null {
   if (!ctx.storefrontUrl) return null;
   return {
-    label: 'View your order',
+    label: 'View Your Order',
     url: `${ctx.storefrontUrl}/checkout/confirmation/${encodeURIComponent(order.id)}`,
   };
 }
@@ -453,8 +453,7 @@ function lineTitle(line: OrderEmailLine): string {
 }
 
 function lineDetails(line: OrderEmailLine): string {
-  const options = line.optionLabels.map((opt) => `${opt.label}: ${opt.value}`);
-  return [...options, `Qty ${line.quantity}`].join(' · ');
+  return [...lineTags(line), `Qty ${line.quantity}`].join(' · ');
 }
 
 export function imageUrl(path: string | null, ctx: OrderEmailContext): string | null {
@@ -568,27 +567,48 @@ function highlightBox(textValue: string): string {
   return `<p style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};font-weight:600;">${escapeHtml(textValue)}</p>`;
 }
 
+/** Short tags for a line's options: "Size M" for the size, the plain value for the rest. */
+function lineTags(line: OrderEmailLine): string[] {
+  return line.optionLabels
+    .map((opt) => (opt.label.trim().toLowerCase() === 'size' ? `Size ${opt.value}` : opt.value))
+    .filter((tag) => tag.trim().length > 0);
+}
+
 /**
- * One card per item: photo on top, then name, options and quantity, then the price, so a
- * long product name wraps on its own line instead of squeezing the price column.
+ * One bordered card per item: photo and name with option tags on top, then a grey strip with
+ * the quantity and the line price. Long names wrap inside the card and never squeeze the price.
  */
 function itemsTable(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): string {
-  const rows = lines
+  const count = lines.reduce((sum, line) => sum + line.quantity, 0);
+  const cards = lines
     .map((line) => {
       const src = imageUrl(line.imagePath, ctx);
-      const photo = src
-        ? `<img src="${escapeHtml(src)}" width="96" alt="" style="display:block;width:96px;height:auto;border:0;margin:0 0 10px;">\n`
+      const photoCell = src
+        ? `<td width="84" valign="top" style="padding:12px 0 12px 12px;"><img src="${escapeHtml(src)}" width="72" alt="" style="display:block;width:72px;height:auto;border:0;border-radius:2px;"></td>\n`
         : '';
-      return `<tr><td style="padding:14px 0;border-top:1px solid ${LINE};">
-${photo}<div style="font-weight:600;">${escapeHtml(lineTitle(line))}</div>
-<div style="font-size:13px;color:${MUTED};">${escapeHtml(lineDetails(line))}</div>
-<div style="margin-top:4px;font-weight:700;">${escapeHtml(formatEgp(line.lineEgp))}</div>
-</td></tr>`;
+      const tags = lineTags(line)
+        .map(
+          (tag) =>
+            `<span style="display:inline-block;margin:6px 6px 0 0;padding:1px 8px;border:1px solid #d4d4d4;font-size:12px;color:#444444;">${escapeHtml(tag)}</span>`,
+        )
+        .join('');
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;border:1px solid ${LINE};border-radius:2px;${FONT}font-size:14px;color:${INK};">
+<tr>
+${photoCell}<td valign="top" style="padding:12px;">
+<div style="font-weight:600;">${escapeHtml(lineTitle(line))}</div>${tags ? `\n<div>${tags}</div>` : ''}
+</td>
+</tr>
+<tr><td${src ? ' colspan="2"' : ''} style="padding:8px 12px;border-top:1px solid ${LINE};background:#fafafa;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${FONT}font-size:14px;color:${INK};"><tr>
+<td style="color:${MUTED};">Qty ${line.quantity}</td>
+<td align="right" style="font-weight:700;white-space:nowrap;">${escapeHtml(formatEgp(line.lineEgp))}</td>
+</tr></table>
+</td></tr>
+</table>`;
     })
     .join('\n');
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;${FONT}font-size:14px;color:${INK};">
-${rows}
-</table>`;
+  return `<p style="margin:24px 0 10px;font-size:13px;font-weight:700;letter-spacing:1px;color:${MUTED};">ITEMS (${count})</p>
+${cards}`;
 }
 
 function totalsTable(order: OrderEmailOrder, totalLabel: string): string {
@@ -596,8 +616,8 @@ function totalsTable(order: OrderEmailOrder, totalLabel: string): string {
     .map(([label, value], index, all) => {
       const isTotal = index === all.length - 1;
       const weight = isTotal ? 'font-weight:700;' : '';
-      // A line above the first row (under the items) and above the total.
-      const border = index === 0 || isTotal ? `border-top:1px solid ${LINE};` : '';
+      // A line above the total only; the item cards already close off the list.
+      const border = isTotal ? `border-top:1px solid ${LINE};` : '';
       const pad = isTotal ? 'padding:10px 0 6px;' : 'padding:6px 0;';
       return `<tr>
 <td style="${pad}${border}${weight}">${escapeHtml(label)}</td>
@@ -605,7 +625,7 @@ function totalsTable(order: OrderEmailOrder, totalLabel: string): string {
 </tr>`;
     })
     .join('\n');
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;${FONT}font-size:14px;color:${INK};">
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 0;${FONT}font-size:14px;color:${INK};">
 ${rows}
 </table>`;
 }
@@ -617,7 +637,7 @@ function labelledLines(label: string, lines: readonly string[]): string {
 }
 
 function addressBlock(order: OrderEmailOrder): string {
-  return labelledLines('Delivery address', addressLines(order));
+  return labelledLines('Delivery Address', addressLines(order));
 }
 
 /** `filled`: black, for the shopper's main action. `tonal`: light grey, readable in light and dark mail apps. */

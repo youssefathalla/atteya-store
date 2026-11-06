@@ -182,7 +182,7 @@ describe('InstaPay emails', () => {
   it('store alert says InstaPay is waiting for the transfer', () => {
     const email = renderOrderEmail('store-new-order', read(orderDoc({ paymentMethod: 'instapay' })), ctx);
     assert.match(email.subject, /InstaPay – waiting for transfer/);
-    assert.ok(email.text.includes(`InstaPay\nWaiting for transfer: ${formatEgp(2450)}`));
+    assert.ok(email.text.includes(`InstaPay\nWaiting for Transfer: ${formatEgp(2450)}`));
     assert.match(email.text, /once you see it in your bank app/);
   });
 });
@@ -208,8 +208,8 @@ describe('order email wording and amounts', () => {
     const confirmed = renderOrderEmail('cod-confirmed', order, ctx);
     assert.ok(!confirmed.text.includes("received your shipping fee"));
     const alert = renderOrderEmail('store-new-order', order, ctx);
-    assert.ok(alert.text.includes(`Shipping fee: Free\nCash on delivery: ${formatEgp(2370)}`));
-    assert.ok(!alert.text.includes('Shipping fee by InstaPay'));
+    assert.ok(alert.text.includes(`Shipping Fee: Free\nCash at the Door: ${formatEgp(2370)}`));
+    assert.ok(!alert.text.includes('Shipping Fee by InstaPay'));
   });
 
   it('cash on delivery confirmed: fee received, cash amount is total minus shipping', () => {
@@ -245,16 +245,16 @@ describe('order email wording and amounts', () => {
       ctx,
     );
     assert.match(email.text, /haven't been charged/);
-    assert.ok(email.text.includes('Shop again: https://shop.example/shop'));
+    assert.ok(email.text.includes('Shop Again: https://shop.example/shop'));
     assert.ok(!email.text.toLowerCase().includes('bag'));
   });
 
   it('store alert: amounts to collect, phone, and the sold-out warning', () => {
     const cod = renderOrderEmail('store-new-order', read(orderDoc({})), ctx);
-    assert.equal(cod.subject, `New order #ABCDEF – ${formatEgp(2450)} – Cash on Delivery`);
+    assert.equal(cod.subject, `New Order #ABCDEF – ${formatEgp(2450)} – Cash on Delivery`);
     assert.ok(
       cod.text.includes(
-        `Cash on Delivery\nShipping fee by InstaPay: ${formatEgp(80)}\nCash on delivery: ${formatEgp(2370)}`,
+        `Cash on Delivery\nShipping Fee by InstaPay: ${formatEgp(80)}\nCash at the Door: ${formatEgp(2370)}`,
       ),
     );
     assert.match(cod.text, /Customer:\n.+\n01012345678\n/);
@@ -295,6 +295,14 @@ describe('order email photos', () => {
     const email = renderOrderEmail('cod-placed', read(doc), ctx);
     assert.ok(!email.html.includes('<img'));
     assert.ok(email.html.includes('Padel Racket &lt;Pro&gt;'));
+  });
+
+  it('shows each item as a card with its quantity and price, and counts every unit', () => {
+    const email = renderOrderEmail('store-new-order', read(orderDoc({})), ctx);
+    assert.match(email.html, /ITEMS \(\d+\)/);
+    assert.ok(email.html.includes('Qty '));
+    assert.ok(email.html.includes('background:#fafafa'), 'quantity and price strip');
+    assert.ok(email.html.includes('View Your Order') || email.html.includes('Open Orders in the Dashboard'));
   });
 });
 
