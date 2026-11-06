@@ -11,7 +11,7 @@ import type { OrderEmailKind } from './order-email-events.js';
 import type { OrderEmailLine, OrderEmailOrder } from './order-email-model.js';
 
 /**
- * Order email copy. Agreed wording lives on the "Order emails with Resend" board task;
+ * Order email copy. Agreed wording lives on the "Order emails with Resend" Linear issue (YOU-10);
  * keep both in step. Amounts are whole Egyptian pounds from the saved order.
  *
  * Cash on delivery (Egypt only): the shopper pays the shipping fee first by InstaPay, then the
