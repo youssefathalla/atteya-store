@@ -181,7 +181,7 @@ describe('InstaPay emails', () => {
 
   it('store alert says InstaPay is waiting for the transfer', () => {
     const email = renderOrderEmail('store-new-order', read(orderDoc({ paymentMethod: 'instapay' })), ctx);
-    assert.match(email.subject, /InstaPay – waiting for transfer/);
+    assert.match(email.subject, /InstaPay – Waiting for Transfer/);
     assert.ok(email.text.includes(`InstaPay\nWaiting for Transfer: ${formatEgp(2450)}`));
     assert.match(email.text, /once you see it in your bank app/);
   });
