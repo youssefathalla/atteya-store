@@ -1,6 +1,8 @@
 import { isPlatformBrowser } from '@angular/common';
 import { Component, computed, inject, PLATFORM_ID } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
 import { AuthService } from '@core/services/auth/auth.service';
 import { safeReturnUrl } from '@core/services/auth/auth.utils';
@@ -55,9 +57,17 @@ export class FooterComponent {
   });
   readonly isAdmin = this.#auth.isAdmin;
 
-  returnUrl(): string {
-    return safeReturnUrl(this.#router.url);
-  }
+  /**
+   * Where Sign In / Create Account bring the visitor back to. A signal, because the footer
+   * stays mounted across navigations and would otherwise keep the first page's URL (zoneless).
+   */
+  readonly returnUrl = toSignal(
+    this.#router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => safeReturnUrl(this.#router.url)),
+    ),
+    { initialValue: safeReturnUrl(this.#router.url) },
+  );
 
   signOut(): void {
     void this.#auth.logout();
