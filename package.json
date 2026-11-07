@@ -20,6 +20,7 @@
     "watch": "ng build --watch --configuration development",
     "lint": "eslint .",
     "test:cart": "node --experimental-strip-types --test scripts/cart-pricing.spec.mjs",
+    "agent:build": "node scripts/agent-build.mjs",
     "serve:ssr:atteya-store": "node dist/atteya-store/server/server.mjs",
     "fb:guard": "node scripts/firebase-guard.mjs",
     "fb:indexes:check:dev": "node scripts/check-indexes.mjs dev",
