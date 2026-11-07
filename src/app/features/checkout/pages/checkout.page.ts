@@ -24,6 +24,7 @@ import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
 import { isEgyptMobile } from '@core/config/order-messages';
+import { isCardOrWalletLive, STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import {
@@ -62,6 +63,8 @@ import {
 import { SharedIconModule } from "@shared/ui/mat-icon";
 
 const TOO_HEAVY_MESSAGE = 'This order is too heavy to send abroad. Remove an item or message us.';
+const ABROAD_COMING_SOON_MESSAGE =
+  "Ordering from outside Egypt is coming soon. Message us on WhatsApp and we'll help you order.";
 const DELIVERY_UNAVAILABLE_MESSAGE =
   'We could not work out delivery for this order. Please try again later.';
 
@@ -125,17 +128,26 @@ export class CheckoutPageComponent implements OnInit {
   readonly #platformId = inject(PLATFORM_ID);
 
   readonly isSubmitting = signal(false);
+  /**
+   * Card or Wallet can be picked (`STORE_INFO.payments.cardOrWallet`). While it is
+   * `'coming-soon'` it is listed greyed out and visitors outside Egypt order on WhatsApp.
+   */
+  readonly cardOrWalletLive = isCardOrWalletLive();
+  /** Business WhatsApp chat for visitors outside Egypt while Card or Wallet is coming soon. */
+  readonly whatsappUrl = whatsappChatUrl(STORE_INFO.contact.whatsapp);
   /** What the shopper picked; null = not chosen yet (Egypt then starts on InstaPay). */
   readonly #chosenMethod = signal<CheckoutPaymentMethod | null>(null);
   /**
    * Egypt: InstaPay (default), card or wallet, or cash on delivery.
-   * Abroad: card or wallet only, whatever was picked before.
+   * Abroad: card or wallet only, whatever was picked before; null while Card or Wallet is
+   * coming soon (nothing to pay with, so checkout points to WhatsApp instead).
    */
-  readonly paymentMethod = computed<CheckoutPaymentMethod>(() => {
-    if (!this.isEgypt()) return 'paymob';
+  readonly paymentMethod = computed<CheckoutPaymentMethod | null>(() => {
+    if (!this.isEgypt()) return this.cardOrWalletLive ? 'paymob' : null;
     const chosen = this.#chosenMethod() ?? 'instapay';
+    if (chosen !== 'paymob') return chosen;
     // A card can't be charged before the delivery fee of a large order is agreed.
-    return chosen === 'paymob' && this.feeToBeAgreed() ? 'instapay' : chosen;
+    return this.cardOrWalletLive && !this.feeToBeAgreed() ? 'paymob' : 'instapay';
   });
   /** True once the shopper edits the country field; blocks further geo overwrite. */
   readonly #countryTouched = signal(false);
@@ -168,6 +180,11 @@ export class CheckoutPageComponent implements OnInit {
   readonly isEgypt = computed(() => this.shipping().country === 'EG');
   /** InstaPay and cash on delivery are Egypt-only. */
   readonly localMethodsAvailable = computed(() => this.isEgypt());
+  /** A country outside Egypt is chosen while Card or Wallet is coming soon: order on WhatsApp. */
+  readonly abroadOrderingClosed = computed(() => {
+    const country = this.shipping().country;
+    return !this.cardOrWalletLive && isCheckoutCountry(country) && country !== 'EG';
+  });
 
   readonly productsResource = resource({
     params: () => this.lines(),
@@ -319,7 +336,9 @@ export class CheckoutPageComponent implements OnInit {
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Checkout | Atteya Store',
-      description: 'Pay by Card or Wallet, or by InstaPay or Cash on Delivery in Egypt.',
+      description: this.cardOrWalletLive
+        ? 'Pay by Card or Wallet, or by InstaPay or Cash on Delivery in Egypt.'
+        : 'Pay by InstaPay or Cash on Delivery in Egypt.',
       noindex: true,
     });
     if (this.isEmpty()) {
@@ -434,7 +453,7 @@ export class CheckoutPageComponent implements OnInit {
 
   setPaymentMethod(method: CheckoutPaymentMethod): void {
     if (method !== 'paymob' && !this.localMethodsAvailable()) return;
-    if (method === 'paymob' && this.feeToBeAgreed()) return;
+    if (method === 'paymob' && (!this.cardOrWalletLive || this.feeToBeAgreed())) return;
     this.#chosenMethod.set(method);
   }
 
@@ -444,6 +463,10 @@ export class CheckoutPageComponent implements OnInit {
 
   async placeOrder(): Promise<void> {
     if (this.isSubmitting() || this.isEmpty()) return;
+    if (this.abroadOrderingClosed()) {
+      this.#snackbar.error(ABROAD_COMING_SOON_MESSAGE);
+      return;
+    }
     const draft = this.shipping();
     if (!draft.fullName.trim() || !draft.line1.trim() || !draft.city.trim()) {
       this.#snackbar.error('Fill in your delivery address to continue.');
@@ -484,6 +507,10 @@ export class CheckoutPageComponent implements OnInit {
       return;
     }
     const method = this.paymentMethod();
+    if (method === null) {
+      this.#snackbar.error(ABROAD_COMING_SOON_MESSAGE);
+      return;
+    }
     if (method !== 'paymob' && draft.country !== 'EG') {
       this.#snackbar.error('InstaPay and Cash on Delivery are only available for Egypt.');
       return;
