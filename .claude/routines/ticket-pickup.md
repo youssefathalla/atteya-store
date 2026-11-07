@@ -21,8 +21,9 @@ Read the issue description and all of its comments. Then read the code it touche
 Do NOT build, and stop after this step, when any of these is true:
 - The ticket is vague, or two reasonable readings would give different results.
 - It needs a product, design, pricing or wording decision nobody has made, or anything from the client.
-- It needs a deploy, a Firebase console change, a new secret or env value, or a data migration run.
+- It needs something only a person can do before the change works: a Firebase or Google Cloud console change, a new secret or env value, running a data migration on live data, or anything on production.
 - It needs changes under `.github/`.
+A normal dev deploy after merge (`fb:rules:dev`, `fb:fn:dev`, `fb:indexes:dev`) is NOT a reason to stop: build the change and list that deploy step in the PR (step 5).
 In that case comment exactly what is missing as a short list of questions or items, move it to **Blocked** (waiting on someone else) or **Backlog** with the label `Open Questions` (an undecided choice), and remove the label `agent`. Final message: "<id> needs input: <one line>."
 
 ## 4. Build it
