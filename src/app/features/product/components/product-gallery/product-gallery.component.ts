@@ -62,17 +62,19 @@ export class ProductGalleryComponent {
   /** Photos fully in view at once: 1, or 2 side by side on wide screens. */
   readonly perView = signal(1);
 
-  /** Index of the last photo in view, so the counter reads "2–3/3" at the end of a two-up row. */
+  /** Index of the last photo in view (screen readers hear "Photos 2 and 3 of 3"). */
   readonly lastShown = computed(() =>
     Math.min(this.active() + this.perView() - 1, Math.max(this.displayImages().length - 1, 0)),
   );
 
-  /** "1/4" on one-up screens, "1–2/4" when two photos are in view. */
+  /**
+   * "1/3": the first photo in view, except at the end of the row, which always reads "3/3"
+   * (with two photos side by side the last one is never the first in view).
+   */
   readonly counter = computed(() => {
-    const first = this.active() + 1;
-    const last = this.lastShown() + 1;
     const total = this.displayImages().length;
-    return last > first ? `${first}–${last}/${total}` : `${first}/${total}`;
+    const shown = this.atEnd() ? total : this.active() + 1;
+    return `${shown}/${total}`;
   });
 
   /** What screen readers hear: "Photo 1 of 4" or "Photos 1 and 2 of 4". */
