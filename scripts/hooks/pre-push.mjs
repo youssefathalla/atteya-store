@@ -73,7 +73,11 @@ function changedFiles(localSha, remoteSha) {
 function run(label, command, args) {
   const started = Date.now();
   process.stdout.write(`${DIM}→ ${label}${RESET}\n`);
-  const result = spawnSync(command, args, { stdio: 'inherit', shell: process.platform === 'win32' });
+  // npm/npx are .cmd files on Windows and need a shell. The arguments are fixed strings in this
+  // file (never user input), so one command line is safe and avoids Node's args-with-shell warning.
+  const result = process.platform === 'win32'
+    ? spawnSync([command, ...args].join(' '), { stdio: 'inherit', shell: true })
+    : spawnSync(command, args, { stdio: 'inherit' });
   const seconds = Math.round((Date.now() - started) / 1000);
   if (result.status !== 0) {
     fail([`${label} failed (${seconds}s). Fix it, commit, and push again.`, `Run it yourself: ${[command, ...args].join(' ')}`]);
