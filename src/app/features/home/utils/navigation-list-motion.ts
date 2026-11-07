@@ -12,6 +12,25 @@ function photoIndex(photo: HTMLElement): number {
 }
 
 /**
+ * The `<img>` inside the photo for `index` when it has not finished loading,
+ * otherwise null. A swap to a photo that is still downloading would fade in
+ * an empty frame and then pop the picture in, so the caller waits for it.
+ * A photo that has finally failed (both the ImageKit and the Storage URL)
+ * will never load, so it counts as settled: `AppImageFallbackDirective`
+ * keeps `.skeleton` on the image only while it is still trying.
+ */
+export function pendingNavListImage(
+  photos: readonly HTMLElement[],
+  index: number,
+): HTMLImageElement | null {
+  const photo = photos.find((candidate) => photoIndex(candidate) === index);
+  const img = photo?.querySelector('img');
+  if (!img || !img.complete) return img ?? null;
+  if (img.naturalWidth > 0) return null;
+  return img.classList.contains('skeleton') ? img : null;
+}
+
+/**
  * Puts the active photo on top with no tween. Used before hydration styles
  * are replaced, and whenever motion should not play.
  */

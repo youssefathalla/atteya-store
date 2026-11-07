@@ -1,5 +1,6 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { NavService } from '@core/services/navigation';
@@ -13,7 +14,7 @@ interface BrandCardItem {
 
 @Component({
   selector: 'app-brands',
-  imports: [RouterLink, MatButtonModule, SharedIconModule],
+  imports: [RouterLink, LinkTargetPipe, MatButtonModule, SharedIconModule],
   templateUrl: './brands.component.html',
   host: {
     class: 'block w-full min-h-[60vh] container-content',
@@ -53,7 +54,6 @@ export class BrandsComponent implements OnInit {
             { label: 'On Cloud', path: '/brand/on-cloud', groupTitle: 'SPORTSWEAR' },
             { label: 'Adidas', path: '/brand/adidas', groupTitle: 'SPORTSWEAR' },
             { label: 'Siux', path: '/brand/siux', groupTitle: 'SPORTSWEAR' },
-            { label: 'Puma', path: '/brand/puma', groupTitle: 'SPORTSWEAR' },
           ],
         },
       ];

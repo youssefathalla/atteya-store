@@ -28,7 +28,7 @@
             } @else {
               <a
                 class="nav-list-link"
-                [routerLink]="item.link"
+                [routerLink]="item.link | linkTarget"
                 (mouseenter)="activate(idx)"
                 (focusin)="activate(idx)"
               >

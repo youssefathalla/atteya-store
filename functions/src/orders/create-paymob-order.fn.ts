@@ -15,6 +15,7 @@ import {
   toPaymobCountry,
 } from '../paymob/paymob-client.js';
 import { paymobSecrets, requireConfiguredPaymob } from '../paymob/paymob-config.js';
+import { isCardOrWalletLive } from '../store/store-info.js';
 import { parseCreateStoreOrderRequest } from './order-request.js';
 import { priceStoreOrder, type OrderPricingSnapshot } from './order-pricing.server.js';
 import { nextDailyOrderCount, utcDayKey } from './order-rate-limit.js';
@@ -31,6 +32,12 @@ export const createPaymobOrder = onCall(
   adminCallableOptions({ secrets: [...paymobSecrets()] }),
   async (request): Promise<CreatePaymobOrderResponse> => {
     const caller = await requireRole(request, 'user');
+    if (!isCardOrWalletLive()) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Card or Wallet is coming soon. Choose another way to pay, or message us on WhatsApp to order.',
+      );
+    }
     await requireAcceptedTerms(caller.uid);
     const input = parseCreateStoreOrderRequest({
       ...(isRecord(request.data) ? request.data : {}),

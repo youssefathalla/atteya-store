@@ -4,7 +4,7 @@
       @let hasMenu = (category.megaMenu?.length ?? 0) > 0;
       <li class="h-full flex items-center">
         <a
-          [routerLink]="category.path"
+          [routerLink]="category.path | linkTarget"
           (click)="onCategoryClick(category, $event)"
           [attr.aria-haspopup]="hasMenu ? 'true' : null"
           [attr.aria-expanded]="hasMenu ? activeCategoryId() === category.id : null"
@@ -41,7 +41,7 @@
             <ul class="flex flex-col gap-2.5">
               @for (link of column.links; track link.label) {
                 <li>
-                  <a [routerLink]="link.path" (click)="closeMegaMenuImmediate()" class="nav-menu-link">
+                  <a [routerLink]="link.path | linkTarget" (click)="closeMegaMenuImmediate()" class="nav-menu-link">
                     <span class="nav-label">
                       {{ link.label }}
                     </span>
