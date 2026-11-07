@@ -108,7 +108,6 @@ jobs:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
           STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
-          WORKFLOW_SKIP: ${{ steps.claude.outputs.skipped_due_to_workflow_validation_mismatch }}
         with:
           script: |
             const fs = require('fs');
@@ -148,9 +147,26 @@ jobs:
               try { report = JSON.parse(process.env.STRUCTURED_OUTPUT); } catch { /* no report */ }
             }
 
+            // The Claude action skips itself (a safety check) when this workflow file differs
+            // from the copy on the default branch. It does not expose that as an output, so
+            // compare the two copies here.
+            let workflowSkipped = false;
+            if (!report) {
+              const path = '.github/workflows/claude-review.yml';
+              const read = async (ref) => {
+                try {
+                  const { data } = await github.rest.repos.getContent({ owner, repo, path, ref });
+                  return typeof data.content === 'string' ? Buffer.from(data.content, 'base64').toString('utf8') : null;
+                } catch { return null; }
+              };
+              const defaultBranch = context.payload.repository?.default_branch || 'develop';
+              const [onDefault, onPr] = await Promise.all([read(defaultBranch), read(sha)]);
+              workflowSkipped = onDefault === null || onDefault !== onPr;
+            }
+
             const marker = `<!-- claude-review-trial ${sha} -->`;
             const lines = [marker, `**Claude review (trial)** for \`${sha.slice(0, 7)}\`. Shadow mode: nothing was changed. Compare with Bugbot on the same commit.`, ''];
-            if (String(process.env.WORKFLOW_SKIP || '').trim() === 'true') {
+            if (workflowSkipped) {
               lines.push('Not reviewed: this pull request changes `.github/workflows/claude-review.yml`, and the Claude action only runs when that file matches the copy on the default branch (a safety check). It reviews normally once this change is merged.');
             } else if (!report || !Array.isArray(report.findings)) {
               lines.push(`The review did not finish (step outcome: ${clean(process.env.CLAUDE_OUTCOME, 40) || 'unknown'}). Check the workflow run for the reason, for example a usage limit.`);
