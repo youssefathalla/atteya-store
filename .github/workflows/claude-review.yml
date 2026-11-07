@@ -76,7 +76,8 @@ jobs:
 
             1. Run `git diff origin/${{ env.BASE_REF }}...HEAD --stat`, then read the full diff
                (`git diff origin/${{ env.BASE_REF }}...HEAD`) and `git log origin/${{ env.BASE_REF }}..HEAD`.
-            2. Read `AGENTS.md`. For the areas the diff touches, read the matching rules:
+            2. Read `.cursor/BUGBOT.md` (this project's review checklist: money, stock, security, SSR, shared copies,
+               UI rules; Bugbot uses the same file) and `AGENTS.md`. For the areas the diff touches, read the matching rules:
                `.cursor/rules/design-system.mdc` and `.agents/skills/ui-design-rules/SKILL.md` for templates and styles,
                `.agents/skills/quality-standards/SKILL.md` for accessibility, security, ReDoS and SSR,
                `.agents/skills/copywriting/SKILL.md` for user-facing text, `.agents/skills/typescript/SKILL.md` for models and schemas.

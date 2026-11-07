@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prepare": "node scripts/hooks/install-git-hooks.mjs",
     "ng": "ng",
     "start": "ng serve",
     "dev": "ng serve",

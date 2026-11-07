@@ -1,0 +1,3 @@
+
+# Git hooks run under sh: keep LF even on Windows checkouts.
+scripts/git-hooks/* text eol=lf
