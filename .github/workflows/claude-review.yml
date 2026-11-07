@@ -117,13 +117,16 @@ jobs:
             const sha = String(process.env.HEAD_SHA || '');
             if (!Number.isInteger(prNumber) || !/^[0-9a-f]{40}$/.test(sha)) return;
 
-            // No @mentions or HTML from model text in the comment.
+            // No @mentions and no live HTML from model text in the comment. `<` and `>` are
+            // escaped, not removed, so types like Signal<T> and tags like <mat-icon> still show.
             const clean = (value, max) => String(value || '')
               .replace(/@/g, '＠')
-              .replace(/<[^>]*>/g, ' ')
               .replace(/\r/g, '')
               .trim()
-              .slice(0, max);
+              .slice(0, max)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
 
             let report = null;
             let turns = null;
@@ -167,7 +170,7 @@ jobs:
             const marker = `<!-- claude-review-trial ${sha} -->`;
             const lines = [marker, `**Claude review (trial)** for \`${sha.slice(0, 7)}\`. Shadow mode: nothing was changed. Compare with Bugbot on the same commit.`, ''];
             if (workflowSkipped) {
-              lines.push('Not reviewed: this pull request changes `.github/workflows/claude-review.yml`, and the Claude action only runs when that file matches the copy on the default branch (a safety check). It reviews normally once this change is merged.');
+              lines.push(`Not reviewed: this commit's \`.github/workflows/claude-review.yml\` is missing from, or differs from, the copy on the default branch (\`${clean(context.payload.repository?.default_branch, 50)}\`), and the Claude action only runs when the two match (a safety check). Once the copies match (this change merged, or this branch updated from the default branch), it reviews normally.`);
             } else if (!report || !Array.isArray(report.findings)) {
               lines.push(`The review did not finish (step outcome: ${clean(process.env.CLAUDE_OUTCOME, 40) || 'unknown'}). Check the workflow run for the reason, for example a usage limit.`);
             } else {
