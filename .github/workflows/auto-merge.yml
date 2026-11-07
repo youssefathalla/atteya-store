@@ -7,7 +7,8 @@
 #     "neutral" means it found some, and bugbot-claude-fix.yml takes over),
 #   - the CI "checks" job and the "linear-id" PR title check passed,
 #   - no other check failed or is still running,
-#   - no unresolved review thread from a person and no "changes requested",
+#   - no unresolved review thread from a person or from the Cursor Security Agent
+#     (its check ends "success" even when it reports something) and no "changes requested",
 #   - GitHub says the PR can merge (no conflicts).
 # Then it squash-merges into develop and deletes the branch.
 #
@@ -134,14 +135,18 @@ jobs:
               const failed = [...byName.values()].filter((run) => bad.includes(run.conclusion)).map((run) => run.name);
               if (failed.length) { stop(`Failed checks: ${failed.join(', ')}.`); continue; }
 
-              // People's review threads and "changes requested".
+              // Open review threads and "changes requested".
+              // Bugbot threads are covered by the Bugbot check above (success on the latest
+              // commit means it found nothing left). The Cursor Security Agent's check ends
+              // "success" even when it reports something, so its open threads block the merge
+              // until they are resolved, like a person's.
               const gql = await github.graphql(
                 `query($owner: String!, $repo: String!, $n: Int!) {
                   repository(owner: $owner, name: $repo) {
                     pullRequest(number: $n) {
                       reviewDecision
                       reviewThreads(first: 100) {
-                        nodes { isResolved comments(first: 1) { nodes { author { login } } } }
+                        nodes { isResolved comments(first: 1) { nodes { author { login } body } } }
                       }
                     }
                   }
@@ -150,8 +155,16 @@ jobs:
               );
               const pull = gql.repository.pullRequest;
               if (pull.reviewDecision === 'CHANGES_REQUESTED') { stop('Changes were requested.'); continue; }
-              const openHumanThreads = pull.reviewThreads.nodes.filter((thread) => {
-                if (thread.isResolved) return false;
+              const open = pull.reviewThreads.nodes.filter((thread) => !thread.isResolved);
+              const isSecurity = (thread) => {
+                const first = thread.comments.nodes[0] || {};
+                const body = typeof first.body === 'string' ? first.body : '';
+                return /^cursor(\[bot\])?$/.test(first.author?.login || '')
+                  && (body.includes('Agentic Security Review') || (body.includes('CURSOR_AUTOMATION_ID') && !body.includes('BUGBOT_BUG_ID')));
+              };
+              const openSecurity = open.filter(isSecurity);
+              if (openSecurity.length) { stop(`${openSecurity.length} security finding(s) are still open.`); continue; }
+              const openHumanThreads = open.filter((thread) => {
                 const login = thread.comments.nodes[0]?.author?.login || '';
                 return !/^(cursor|claude)(\[bot\])?$/.test(login);
               });
