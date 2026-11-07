@@ -2,13 +2,27 @@
   /**
    * Product page.
    * Gallery: one photo per view below xl, two side by side from xl up.
-   * Native scroll-snap row: swipe on touch, arrows on every screen, no wheel hijack.
+   * Native scroll-snap row: swipe on touch, drag with a mouse, arrows on every screen,
+   * no wheel hijack.
    */
   .pdp-gallery-track {
-    @apply flex w-full gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth;
+    @apply flex w-full gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth select-none;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
     -ms-overflow-style: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pdp-gallery-track:not(.pdp-gallery-track--single) {
+      cursor: grab;
+    }
+  }
+
+  /* While the mouse drags, the row follows the pointer 1:1; snapping comes back on release. */
+  .pdp-gallery-track.pdp-gallery-track--dragging {
+    scroll-snap-type: none;
+    scroll-behavior: auto;
+    cursor: grabbing;
   }
 
   .pdp-gallery-track::-webkit-scrollbar {
@@ -21,6 +35,17 @@
 
   .pdp-gallery-slide {
     @apply relative w-full shrink-0 snap-start overflow-hidden aspect-4/5 bg-surface-container;
+  }
+
+  /*
+   * Beside the details column, photos and the arrows under them always fit in the window:
+   * the frame stops growing at the window height (less the top bar, the page's top padding
+   * and the arrow row) and the photo sits centred in it. `cqw` is <main>'s width.
+   */
+  @media (min-width: 48rem) {
+    .pdp-gallery-slide {
+      max-height: max(20rem, calc(100dvh - var(--storefront-top-chrome, 56px) - 5cqw - 4.5rem));
+    }
   }
 
   @media (min-width: 80rem) {

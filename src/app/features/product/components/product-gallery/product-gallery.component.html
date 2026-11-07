@@ -7,6 +7,11 @@
     tabindex="0"
     [attr.aria-label]="name() + ' photos'"
     (scroll)="onScroll()"
+    (pointerdown)="onPointerDown($event)"
+    (pointermove)="onPointerMove($event)"
+    (pointerup)="onPointerEnd($event)"
+    (pointercancel)="onPointerEnd($event)"
+    (dragstart)="$event.preventDefault()"
   >
     @for (img of photos; track img.path; let i = $index) {
       <div class="pdp-gallery-slide">

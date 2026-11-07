@@ -1,14 +1,20 @@
 @switch (page().status) {
   @case ('found') {
     @let p = product()!;
-    <article class="container-content elements-start-col gap-8">
+    <article class="container-content elements-start-col">
+      <!-- Phone: photos, details, sections. md+: photos with the sections under them, details beside both. -->
       <div
-        class="grid w-full items-start gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-12"
+        class="grid w-full items-start gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:grid-rows-[auto_1fr] md:gap-8 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-12"
       >
-        <app-product-gallery [images]="p.images" [name]="p.name" [activeColourImage]="colourImage()" />
+        <app-product-gallery
+          class="md:col-start-1 md:row-start-1"
+          [images]="p.images"
+          [name]="p.name"
+          [activeColourImage]="colourImage()"
+        />
 
         <div
-          class="elements-start-col gap-5 md:sticky md:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)]"
+          class="elements-start-col gap-5 md:col-start-2 md:row-span-2 md:row-start-1 md:sticky md:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)]"
         >
           <nav aria-label="Breadcrumb" class="w-full">
             <ol class="pdp-kicker flex flex-wrap items-center gap-x-2 gap-y-1 list-none m-0 p-0">
@@ -96,47 +102,49 @@
             (choiceMissing)="onChoiceMissing()"
           />
         </div>
-      </div>
 
-      <div class="w-full border-t border-outline">
-        @if (hasDescription()) {
-          <details class="pdp-section" [open]="!p.summary">
+        <div class="w-full border-t border-outline md:col-start-1 md:row-start-2">
+          @if (hasDescription()) {
+            <details class="pdp-section" [open]="!p.summary">
+              <summary>
+                <span>Details</span>
+                <span class="pdp-section__icon-open" aria-hidden="true"
+                  ><mat-icon name="add" size="lg"
+                /></span>
+                <span class="pdp-section__icon-close" aria-hidden="true"
+                  ><mat-icon name="close" size="lg"
+                /></span>
+              </summary>
+              <div
+                dir="auto"
+                class="pdp-section__body [&_p]:mb-3 [&_ul]:list-disc [&_ul]:ps-5 [&_ol]:list-decimal [&_ol]:ps-5 [&_a]:underline"
+                [innerHTML]="p.descriptionHtml"
+              ></div>
+            </details>
+          }
+
+          <details class="pdp-section">
             <summary>
-              <span>Details</span>
+              <span>Shipping</span>
               <span class="pdp-section__icon-open" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
               <span class="pdp-section__icon-close" aria-hidden="true"
                 ><mat-icon name="close" size="lg"
               /></span>
             </summary>
-            <div
-              dir="auto"
-              class="pdp-section__body [&_p]:mb-3 [&_ul]:list-disc [&_ul]:ps-5 [&_ol]:list-decimal [&_ol]:ps-5 [&_a]:underline"
-              [innerHTML]="p.descriptionHtml"
-            ></div>
+            <div class="pdp-section__body">
+              @let notes = shippingNotes();
+              @if (notes && notes.length > 0) {
+                <ul class="pdp-shipping-line elements-start-col gap-1 list-none m-0 p-0">
+                  @for (note of notes; track $index) {
+                    <li>{{ note }}</li>
+                  }
+                </ul>
+              } @else {
+                <p>Shipping is worked out at checkout.</p>
+              }
+            </div>
           </details>
-        }
-
-        <details class="pdp-section">
-          <summary>
-            <span>Shipping</span>
-            <span class="pdp-section__icon-open" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
-            <span class="pdp-section__icon-close" aria-hidden="true"
-              ><mat-icon name="close" size="lg"
-            /></span>
-          </summary>
-          <div class="pdp-section__body">
-            @let notes = shippingNotes();
-            @if (notes && notes.length > 0) {
-              <ul class="pdp-shipping-line elements-start-col gap-1 list-none m-0 p-0">
-                @for (note of notes; track $index) {
-                  <li>{{ note }}</li>
-                }
-              </ul>
-            } @else {
-              <p>Shipping is worked out at checkout.</p>
-            }
-          </div>
-        </details>
+        </div>
       </div>
     </article>
   }
