@@ -1,5 +1,10 @@
 # Same-PR fixes for each finished Bugbot review that found issues.
-# Claude's push makes Bugbot review again, so this repeats until Bugbot is clean
+# Bugbot skips pushes made by a bot (Claude's push is claude[bot]) and ignores
+# "bugbot run" when a bot posts it, so after a push the last step posts
+# "bugbot run" as the repo owner with the BUGBOT_TRIGGER_TOKEN secret (a
+# fine-grained token for this repo with only Pull requests: read and write).
+# Only that step gets the token, after Claude has finished. Bugbot then reviews
+# again, so this repeats until Bugbot is clean
 # or 3 rounds have run (then it leaves a "needs a person" comment). A clean
 # Bugbot run plus green checks lets auto-merge.yml merge the PR into develop.
 # Stays inactive until the repository variable BUGBOT_CLAUDE_FIX is exactly "enabled".
@@ -644,6 +649,7 @@ jobs:
             --json-schema '{"type":"object","additionalProperties":false,"required":["items","tests_run"],"properties":{"tests_run":{"type":"boolean"},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["bug_id","status","path","reason"],"properties":{"bug_id":{"type":"string"},"status":{"type":"string","enum":["fixed","unfixed"]},"path":{"type":"string"},"reason":{"type":"string"}}}}}}'
 
       - name: Post the result
+        id: report
         if: always()
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
@@ -721,6 +727,8 @@ jobs:
             }
             const shaOk = typeof push.sha === 'string' && /^[0-9a-f]{40}$/.test(push.sha);
             const pushed = push.pushed === true && shaOk;
+            // The next step asks Bugbot to review this commit (it skips pushes made by a bot).
+            core.setOutput('pushed_sha', pushed ? push.sha : '');
             const pushReason = reasons[push.reason] || reasons['no-push-result'];
             const pushNote = pushed ? pushedNotes[push.reason] || '' : '';
             const changed = new Set(read('/opt/bugbot-guard/out/changed-paths.txt').split('\n').map((line) => line.trim()).filter(Boolean));
@@ -810,4 +818,69 @@ jobs:
               repo,
               issue_number: Number(prNumber),
               body,
+            });
+
+      # Bugbot skips commits pushed by a bot and ignores "bugbot run" from a bot account,
+      # so ask as the repo owner. BUGBOT_TRIGGER_TOKEN: fine-grained, this repo only,
+      # Pull requests: read and write. It is only in this step, after Claude has finished.
+      # The outcome is the "status" output: github-script overwrites "result" with the return value.
+      - name: Ask Bugbot to Review the Fix
+        id: rerun
+        if: always() && steps.report.outputs.pushed_sha != ''
+        continue-on-error: true
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          HAS_TOKEN: ${{ secrets.BUGBOT_TRIGGER_TOKEN != '' }}
+          PUSHED_SHA: ${{ steps.report.outputs.pushed_sha }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+        with:
+          github-token: ${{ secrets.BUGBOT_TRIGGER_TOKEN || github.token }}
+          script: |
+            if (process.env.HAS_TOKEN !== 'true') {
+              core.setOutput('status', 'no-token');
+              return;
+            }
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = Number(process.env.PR_NUMBER);
+            const pushed = String(process.env.PUSHED_SHA || '');
+            if (!Number.isInteger(prNumber) || prNumber <= 0 || !/^[0-9a-f]{40}$/.test(pushed)) {
+              core.setOutput('status', 'bad-input');
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+            if (pr.state !== 'open' || pr.head?.sha !== pushed) {
+              // A newer push (or a closed PR): Bugbot reviews the owner's own pushes by itself.
+              core.setOutput('status', 'moved');
+              return;
+            }
+            await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: 'bugbot run' });
+            core.setOutput('status', 'asked');
+
+      - name: Say When Bugbot Was Not Asked
+        if: >-
+          always() && steps.report.outputs.pushed_sha != '' &&
+          steps.rerun.outputs.status != 'asked' && steps.rerun.outputs.status != 'moved'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          STATUS: ${{ steps.rerun.outputs.status }}
+          PUSHED_SHA: ${{ steps.report.outputs.pushed_sha }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER);
+            if (!Number.isInteger(prNumber) || prNumber <= 0) return;
+            const sha = String(process.env.PUSHED_SHA || '').slice(0, 7);
+            const why = process.env.STATUS === 'no-token'
+              ? 'The BUGBOT_TRIGGER_TOKEN repo secret is not set.'
+              : 'The BUGBOT_TRIGGER_TOKEN repo secret did not work (it may have expired). Make a new one and save it under the same name.';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: [
+                `**🔧 Claude Fix** · Bugbot was not asked to review \`${sha}\``,
+                '',
+                `${why} Bugbot skips pushes made by a bot, so comment \`bugbot run\` on this PR yourself to continue the review loop.`,
+              ].join('\n'),
             });
