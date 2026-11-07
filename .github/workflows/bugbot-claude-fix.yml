@@ -823,6 +823,7 @@ jobs:
       # Bugbot skips commits pushed by a bot and ignores "bugbot run" from a bot account,
       # so ask as the repo owner. BUGBOT_TRIGGER_TOKEN: fine-grained, this repo only,
       # Pull requests: read and write. It is only in this step, after Claude has finished.
+      # The outcome is the "status" output: github-script overwrites "result" with the return value.
       - name: Ask Bugbot to Review the Fix
         id: rerun
         if: always() && steps.report.outputs.pushed_sha != ''
@@ -836,7 +837,7 @@ jobs:
           github-token: ${{ secrets.BUGBOT_TRIGGER_TOKEN || github.token }}
           script: |
             if (process.env.HAS_TOKEN !== 'true') {
-              core.setOutput('result', 'no-token');
+              core.setOutput('status', 'no-token');
               return;
             }
             const owner = context.repo.owner;
@@ -844,25 +845,25 @@ jobs:
             const prNumber = Number(process.env.PR_NUMBER);
             const pushed = String(process.env.PUSHED_SHA || '');
             if (!Number.isInteger(prNumber) || prNumber <= 0 || !/^[0-9a-f]{40}$/.test(pushed)) {
-              core.setOutput('result', 'bad-input');
+              core.setOutput('status', 'bad-input');
               return;
             }
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
             if (pr.state !== 'open' || pr.head?.sha !== pushed) {
               // A newer push (or a closed PR): Bugbot reviews the owner's own pushes by itself.
-              core.setOutput('result', 'moved');
+              core.setOutput('status', 'moved');
               return;
             }
             await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: 'bugbot run' });
-            core.setOutput('result', 'asked');
+            core.setOutput('status', 'asked');
 
       - name: Say When Bugbot Was Not Asked
         if: >-
           always() && steps.report.outputs.pushed_sha != '' &&
-          steps.rerun.outputs.result != 'asked' && steps.rerun.outputs.result != 'moved'
+          steps.rerun.outputs.status != 'asked' && steps.rerun.outputs.status != 'moved'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
-          RESULT: ${{ steps.rerun.outputs.result }}
+          STATUS: ${{ steps.rerun.outputs.status }}
           PUSHED_SHA: ${{ steps.report.outputs.pushed_sha }}
           PR_NUMBER: ${{ env.PR_NUMBER }}
         with:
@@ -870,7 +871,7 @@ jobs:
             const prNumber = Number(process.env.PR_NUMBER);
             if (!Number.isInteger(prNumber) || prNumber <= 0) return;
             const sha = String(process.env.PUSHED_SHA || '').slice(0, 7);
-            const why = process.env.RESULT === 'no-token'
+            const why = process.env.STATUS === 'no-token'
               ? 'The BUGBOT_TRIGGER_TOKEN repo secret is not set.'
               : 'The BUGBOT_TRIGGER_TOKEN repo secret did not work (it may have expired). Make a new one and save it under the same name.';
             await github.rest.issues.createComment({
