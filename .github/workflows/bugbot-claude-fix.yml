@@ -36,7 +36,7 @@ jobs:
     permissions:
       contents: read
       issues: write
-      pull-requests: read
+      pull-requests: write
     outputs:
       proceed: ${{ steps.claim.outputs.proceed }}
       review_id: ${{ steps.claim.outputs.review_id }}
@@ -195,7 +195,7 @@ jobs:
     permissions:
       contents: read
       issues: write
-      pull-requests: read
+      pull-requests: write
       id-token: write
     env:
       BUG_IDS: ${{ needs.gate.outputs.bug_ids }}
