@@ -2,19 +2,19 @@
   @case ('found') {
     @let p = product()!;
     <article class="container-content elements-start-col">
-      <!-- Phone: photos, details, sections. md+: photos with the sections under them, details beside both. -->
+      <!-- Phone and tablet: photos, details, sections. lg+ (1024px): photos with the sections under them, details beside both. -->
       <div
-        class="grid w-full items-start gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:grid-rows-[auto_1fr] md:gap-8 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-12"
+        class="grid w-full items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-12"
       >
         <app-product-gallery
-          class="md:col-start-1 md:row-start-1"
+          class="lg:col-start-1 lg:row-start-1"
           [images]="p.images"
           [name]="p.name"
           [activeColourImage]="colourImage()"
         />
 
         <div
-          class="elements-start-col gap-5 md:col-start-2 md:row-span-2 md:row-start-1 md:sticky md:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)]"
+          class="elements-start-col gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)]"
         >
           <nav aria-label="Breadcrumb" class="w-full">
             <ol class="pdp-kicker flex flex-wrap items-center gap-x-2 gap-y-1 list-none m-0 p-0">
@@ -104,7 +104,7 @@
           />
         </div>
 
-        <div class="w-full border-t border-outline md:col-start-1 md:row-start-2">
+        <div class="w-full border-t border-outline lg:col-start-1 lg:row-start-2">
           @if (hasDescription()) {
             <details class="pdp-section" [open]="!p.summary">
               <summary>
