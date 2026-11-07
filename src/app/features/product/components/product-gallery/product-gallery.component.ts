@@ -68,13 +68,12 @@ export class ProductGalleryComponent {
   );
 
   /**
-   * "1/3": the first photo in view, except at the end of the row, which always reads "3/3"
-   * (with two photos side by side the last one is never the first in view).
+   * Counts positions, not photos: with two photos side by side, 4 photos are 3 positions
+   * ("1/3" … "3/3"); one photo at a time, it is "1/4" … "4/4".
    */
   readonly counter = computed(() => {
-    const total = this.displayImages().length;
-    const shown = this.atEnd() ? total : this.active() + 1;
-    return `${shown}/${total}`;
+    const positions = Math.max(1, this.displayImages().length - this.perView() + 1);
+    return `${Math.min(this.active() + 1, positions)}/${positions}`;
   });
 
   /** What screen readers hear: "Photo 1 of 4" or "Photos 1 and 2 of 4". */
