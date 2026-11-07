@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser, NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import type { gsap as GsapNamespace } from 'gsap';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
@@ -41,6 +42,7 @@ let nextTitleId = 0;
   styleUrl: './navigation-list-section.component.scss',
   imports: [
     RouterLink,
+    LinkTargetPipe,
     NgOptimizedImage,
     NgTemplateOutlet,
     AppImageFallbackDirective,

@@ -1,5 +1,6 @@
 import { Component, computed, inject, linkedSignal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { AuthService } from '@core/services/auth/auth.service';
@@ -8,7 +9,7 @@ import { NavCategory, NavService } from '@core/services/navigation';
 
 @Component({
   selector: 'app-mobile-menu',
-  imports: [RouterLink, MatButtonModule, SharedIconModule],
+  imports: [RouterLink, LinkTargetPipe, MatButtonModule, SharedIconModule],
   templateUrl: './mobile-menu.component.html',
   host: {
     '(window:keydown.escape)': 'onEscape()',

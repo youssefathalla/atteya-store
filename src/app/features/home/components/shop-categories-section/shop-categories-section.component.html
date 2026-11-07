@@ -93,7 +93,7 @@
               {{ card.buttonLabel }}
             </button>
           } @else {
-            <a [routerLink]="card.buttonLink" matButton="elevated">
+            <a [routerLink]="card.buttonLink | linkTarget" matButton="elevated">
               {{ card.buttonLabel }}
             </a>
           }
