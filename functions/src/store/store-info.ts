@@ -11,6 +11,9 @@
  * shipped to every visitor's browser.
  */
 
+/** Whether shoppers can pay by Card or Wallet yet (see `StoreInfo.payments.cardOrWallet`). */
+export type CardOrWalletStatus = 'coming-soon' | 'live';
+
 export interface StoreInfo {
   /** Brand name as shoppers see it. */
   readonly name: string;
@@ -34,6 +37,12 @@ export interface StoreInfo {
    * Fill one or both. Empty = not set yet: pages and messages then say we'll send the details on WhatsApp.
    */
   readonly payments: {
+    /**
+     * Card or Wallet (Paymob). `'coming-soon'` until the client's Paymob account is live:
+     * checkout shows it greyed out with a "Coming soon" tag, visitors outside Egypt are sent to
+     * WhatsApp to order, and `createPaymobOrder` refuses. `'live'` turns it on everywhere.
+     */
+    readonly cardOrWallet: CardOrWalletStatus;
     readonly instapay: {
       /** InstaPay address, e.g. `atteyastore@instapay`. */
       readonly address: string;
@@ -65,6 +74,7 @@ export const STORE_INFO: StoreInfo = {
     country: 'Egypt',
   },
   payments: {
+    cardOrWallet: 'coming-soon',
     instapay: {
       address: 'youseifatteya@instapay',
       number: '01280035035',
@@ -78,6 +88,11 @@ export const STORE_INFO: StoreInfo = {
     youtube: '',
   },
 };
+
+/** True once Card or Wallet can be chosen at checkout and `createPaymobOrder` accepts orders. */
+export function isCardOrWalletLive(info: StoreInfo = STORE_INFO): boolean {
+  return info.payments.cardOrWallet === 'live';
+}
 
 /**
  * `wa.me` chat link for a number in any readable format, or null when it is not set.
