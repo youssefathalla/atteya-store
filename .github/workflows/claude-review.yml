@@ -9,7 +9,7 @@
 # Stays inactive until the repository variable CLAUDE_REVIEW is exactly "enabled".
 # The job always ends green so a failed or skipped review never blocks auto-merge.
 
-name: Claude review
+name: Claude Review
 
 on:
   pull_request:
@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   review:
-    name: Claude review (trial)
+    name: Claude Review (Trial)
     if: >-
       vars.CLAUDE_REVIEW == 'enabled' &&
       github.event.pull_request.draft == false &&
@@ -110,6 +110,9 @@ jobs:
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
           STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
         with:
+          # Post as claude[bot] (the Claude GitHub App token the action used) so the comment
+          # shows Claude's name; fall back to github-actions[bot] when the action did not run.
+          github-token: ${{ steps.claude.outputs.github_token || github.token }}
           script: |
             const fs = require('fs');
             const owner = context.repo.owner;
@@ -169,7 +172,7 @@ jobs:
             }
 
             const marker = `<!-- claude-review-trial ${sha} -->`;
-            const lines = [marker, `**Claude review (trial)** for \`${sha.slice(0, 7)}\`. Shadow mode: nothing was changed. Compare with Bugbot on the same commit.`, ''];
+            const lines = [marker, `**🤖 Claude Review** · trial · commit \`${sha.slice(0, 7)}\``, '', 'Shadow mode: nothing was changed. Compare with Bugbot on the same commit.', ''];
             if (workflowSkipped) {
               lines.push(`Not reviewed: this commit's \`.github/workflows/claude-review.yml\` is missing from, or differs from, the copy on the default branch (\`${clean(context.payload.repository?.default_branch, 50)}\`), and the Claude action only runs when the two match (a safety check). Once the copies match (this change merged, or this branch updated from the default branch), it reviews normally.`);
             } else if (!report || !Array.isArray(report.findings)) {
@@ -180,7 +183,16 @@ jobs:
                 .filter((f) => f && typeof f === 'object')
                 .sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3))
                 .slice(0, 20);
-              lines.push(clean(report.summary, 600), '');
+              // Keep the summary whole when it fits; otherwise end it at the last full sentence.
+              const rawSummary = String(report.summary || '').trim();
+              const SUMMARY_MAX = 1500;
+              let summary = rawSummary;
+              if (rawSummary.length > SUMMARY_MAX) {
+                const cut = rawSummary.slice(0, SUMMARY_MAX);
+                const end = cut.lastIndexOf('. ');
+                summary = end > SUMMARY_MAX / 3 ? cut.slice(0, end + 1) : `${cut}…`;
+              }
+              lines.push(clean(summary, SUMMARY_MAX + 1), '');
               if (findings.length === 0) {
                 lines.push('No issues found.');
               } else {
@@ -206,8 +218,15 @@ jobs:
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: prNumber, per_page: 100 });
             const existing = comments.find((c) => typeof c.body === 'string' && c.body.startsWith(marker));
             const body = lines.join('\n');
+            // A re-run may post with a different account (claude[bot] or github-actions[bot]),
+            // which cannot edit the other's comment, so fall back to a new comment.
+            let updated = false;
             if (existing) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-            } else {
+              try {
+                await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+                updated = true;
+              } catch { /* posted by the other account */ }
+            }
+            if (!updated) {
               await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
             }

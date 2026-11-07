@@ -1,4 +1,4 @@
-name: PR title
+name: PR Title
 
 # Branch names no longer carry the Linear id (<type>/<short-name>, e.g. feature/shipping-weights),
 # so the PR title is what links a PR to its Linear issue. Fails when the title has no <KEY>-<number>,
@@ -14,6 +14,7 @@ permissions:
 
 jobs:
   linear-id:
+    name: Linear ID in Title
     if: github.head_ref != 'develop' && github.head_ref != 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 2

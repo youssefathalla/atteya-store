@@ -6,7 +6,7 @@
 # Does not edit .github/workflows/claude.yml.
 # Action pin 61a9c274fa7110a66dfafc1bbbced03833eb25fe is v1 / v1.0.269 (verified 2026-11-06).
 
-name: Bugbot Claude fix
+name: Claude Fix
 
 on:
   pull_request_review:
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   gate:
-    name: Claim one pass
+    name: Claim a Fix Round
     if: >-
       vars.BUGBOT_CLAUDE_FIX == 'enabled' &&
       github.event.action == 'submitted' &&
@@ -30,7 +30,8 @@ jobs:
       github.event.pull_request.base.ref == 'develop' &&
       github.event.pull_request.user.login == 'youssefathalla' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.review.body, '<!-- BUGBOT_REVIEW -->')
+      (contains(github.event.review.body, '<!-- BUGBOT_REVIEW -->') ||
+       contains(github.event.review.body, 'CURSOR_AUTOMATION_ID'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -62,8 +63,13 @@ jobs:
             if (context.payload.action !== 'submitted') return;
 
             const body = typeof review.body === 'string' ? review.body : '';
-            if (!body.includes('<!-- BUGBOT_REVIEW -->')) return;
-            if (!/found\s+[1-9]\d*\s+potential\s+issue/i.test(body)) return;
+            // Two reviewers feed this loop: Cursor Bugbot (BUGBOT_REVIEW summary, one
+            // BUGBOT_BUG_ID per finding) and the Cursor Security Agent (CURSOR_AUTOMATION_ID
+            // review, one "Agentic Security Review" comment per finding, id sec-<comment id>).
+            const isBugbot = body.includes('<!-- BUGBOT_REVIEW -->');
+            const isSecurity = !isBugbot && body.includes('CURSOR_AUTOMATION_ID');
+            if (!isBugbot && !isSecurity) return;
+            if (isBugbot && !/found\s+[1-9]\d*\s+potential\s+issue/i.test(body)) return;
 
             const live = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
             const pr = live.data;
@@ -89,19 +95,6 @@ jobs:
               per_page: 100,
             });
             const passes = allComments.filter((comment) => typeof comment.body === 'string' && comment.body.startsWith('<!-- bugbot-claude-pass ')).length;
-            if (passes >= MAX_PASSES) {
-              const limitMarker = '<!-- bugbot-claude-limit -->';
-              if (!allComments.some((comment) => typeof comment.body === 'string' && comment.body.includes(limitMarker))) {
-                await github.rest.issues.createComment({
-                  owner,
-                  repo,
-                  issue_number: prNumber,
-                  body: `${limitMarker}\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and Bugbot still finds issues, so it stops here. This one needs a person. It will not be merged automatically while Bugbot finds issues.\n`,
-                });
-              }
-              core.info(`Reached ${MAX_PASSES} fix rounds. Not starting.`);
-              return;
-            }
 
             const defaultBranch = context.payload.repository?.default_branch;
             if (!defaultBranch || !/^[A-Za-z0-9._/-]+$/.test(defaultBranch)) return;
@@ -118,6 +111,13 @@ jobs:
             }
 
             const bugPattern = /<!--\s*BUGBOT_BUG_ID:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*-->/;
+            const findingId = (comment) => {
+              const raw = typeof comment.body === 'string' ? comment.body : '';
+              const match = raw.match(bugPattern);
+              if (match) return match[1].toLowerCase();
+              if (raw.includes('Agentic Security Review') && Number.isInteger(comment.id)) return `sec-${comment.id}`;
+              return null;
+            };
             let bugs = [];
             for (let attempt = 0; attempt < 4; attempt++) {
               const comments = await github.paginate(
@@ -127,9 +127,8 @@ jobs:
               const seen = new Set();
               bugs = [];
               for (const comment of comments) {
-                const match = typeof comment.body === 'string' ? comment.body.match(bugPattern) : null;
-                if (!match) continue;
-                const id = match[1].toLowerCase();
+                const id = findingId(comment);
+                if (!id) continue;
                 if (seen.has(id)) continue;
                 seen.add(id);
                 bugs.push(id);
@@ -138,7 +137,23 @@ jobs:
               if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 5000));
             }
             if (bugs.length === 0) {
-              core.info('No BUGBOT_BUG_ID comments. Not starting.');
+              core.info('No finding comments in this review. Not starting.');
+              return;
+            }
+
+            // The round cap only applies when this review really has findings, so a clean
+            // re-review (Bugbot or security) never posts the "stopped" comment.
+            if (passes >= MAX_PASSES) {
+              const limitMarker = '<!-- bugbot-claude-limit -->';
+              if (!allComments.some((comment) => typeof comment.body === 'string' && comment.body.includes(limitMarker))) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  body: `${limitMarker}\n**🛑 Claude Fix** · stopped, needs you\n\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and the reviewers (Bugbot or the security review) still find issues, so it stops here. This one needs a person. It will not be merged automatically while issues are open.\n`,
+                });
+              }
+              core.info(`Reached ${MAX_PASSES} fix rounds. Not starting.`);
               return;
             }
 
@@ -164,7 +179,7 @@ jobs:
               owner,
               repo,
               issue_number: prNumber,
-              body: `${marker}\nPass claimed by run ${context.runId} for review ${review.id} at ${sha}.\n`,
+              body: `${marker}\n**🔧 Claude Fix** · round ${passes + 1} of ${MAX_PASSES} started\n\nClaude is fixing the ${isSecurity ? 'security review' : 'Bugbot'} findings from review ${review.id} at \`${sha.slice(0, 7)}\` (run ${context.runId}). A report follows when it is done.\n`,
             });
             const after = await listMarkers();
             const winner = after[0];
@@ -187,7 +202,7 @@ jobs:
             core.setOutput('issue_id', issueId);
 
   fix:
-    name: Fix on this pull request
+    name: Fix Review Findings
     needs: gate
     if: needs.gate.result == 'success' && needs.gate.outputs.proceed == 'true'
     runs-on: ubuntu-latest
@@ -261,8 +276,8 @@ jobs:
             core.setOutput('reason', 'ok');
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-            const allowed = new Set(String(process.env.BUG_IDS || '').split(',').map((id) => id.trim()).filter((id) => uuid.test(id)));
+            const idOk = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|sec-[0-9]{1,20})$/;
+            const allowed = new Set(String(process.env.BUG_IDS || '').split(',').map((id) => id.trim()).filter((id) => idOk.test(id)));
             const reviewId = Number(process.env.REVIEW_ID);
             const prNumber = Number(process.env.PR_NUMBER);
             const fail = (reason) => {
@@ -284,23 +299,26 @@ jobs:
               for (const comment of comments) {
                 const raw = typeof comment.body === 'string' ? comment.body : '';
                 const match = raw.match(bugPattern);
-                if (!match) continue;
-                const bugId = match[1].toLowerCase();
+                const security = !match && raw.includes('Agentic Security Review') && Number.isInteger(comment.id);
+                if (!match && !security) continue;
+                const bugId = match ? match[1].toLowerCase() : `sec-${comment.id}`;
                 if (!allowed.has(bugId) || seen.has(bugId)) continue;
                 seen.add(bugId);
                 const described = raw.match(/<!-- DESCRIPTION START -->([\s\S]*?)<!-- DESCRIPTION END -->/);
-                let text = described ? described[1] : raw;
+                let text = described ? described[1] : raw.split(/<div><a href=|<sup>Reviewed by/)[0];
                 text = text.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\u0000/g, '');
                 text = text.replace(/\s+/g, ' ').trim().slice(0, 2000);
-                const titleLine = raw.match(/^###\s+(.+)$/m);
-                const severityLine = raw.match(/\*\*([A-Za-z ]+Severity)\*\*/);
+                const titleLine = security ? null : raw.match(/^###\s+(.+)$/m);
+                const severityLine = security
+                  ? raw.match(/Severity:\s*([A-Za-z]+)/)
+                  : raw.match(/\*\*([A-Za-z ]+Severity)\*\*/);
                 const line = Number.isInteger(comment.line) ? comment.line : (Number.isInteger(comment.original_line) ? comment.original_line : null);
                 findings.push({
                   bug_id: bugId,
                   path: String(comment.path || '').slice(0, 300),
                   line,
                   severity: severityLine ? severityLine[1].slice(0, 40) : '',
-                  title: titleLine ? titleLine[1].replace(/\s+/g, ' ').trim().slice(0, 200) : '',
+                  title: security ? 'Security review finding' : (titleLine ? titleLine[1].replace(/\s+/g, ' ').trim().slice(0, 200) : ''),
                   description: text,
                 });
               }
@@ -638,11 +656,14 @@ jobs:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
           TOKEN_SKIP: ${{ steps.claude.outputs.skipped_due_to_workflow_validation_mismatch }}
         with:
+          # Post as claude[bot] (the Claude GitHub App token the action used) so the report
+          # shows Claude's name; fall back to github-actions[bot] when the action did not run.
+          github-token: ${{ steps.claude.outputs.github_token || github.token }}
           script: |
             const fs = require('fs');
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+            const uuid = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|sec-[0-9]{1,20})$/;
             const reviewId = String(process.env.REVIEW_ID || '');
             const reviewed = String(process.env.REVIEWED_SHA || '');
             const prNumber = String(process.env.PR_NUMBER || '');
@@ -667,6 +688,7 @@ jobs:
               'no-findings': 'The review comments were not available. Nothing was changed.',
               'token-skipped': 'Claude did not run because a GitHub App token was refused.',
               'commit-failed': 'The commit was not created. Nothing was pushed.',
+              'workflow-changed': 'Claude did not run: this pull request changes .github/workflows/bugbot-claude-fix.yml, and the Claude action only runs when that file matches the copy on the default branch (a safety check). Fix this one by hand.',
             };
             // Notes for a push that did land. These never turn a pushed commit into "not pushed".
             const pushedNotes = {
@@ -684,6 +706,21 @@ jobs:
             } catch { /* no recorded push */ }
             if (String(process.env.TOKEN_SKIP || '').trim() === 'true' && push.pushed !== true) {
               push = { pushed: false, reason: 'token-skipped', sha: '' };
+            }
+            // The Claude action skips itself (a safety check) when this workflow file differs
+            // from the copy on the default branch, and does not expose that as an output.
+            // Compare the two copies so the report says why nothing happened.
+            if (push.pushed !== true && push.reason === 'no-push-result') {
+              const path = '.github/workflows/bugbot-claude-fix.yml';
+              const readFile = async (ref) => {
+                try {
+                  const { data } = await github.rest.repos.getContent({ owner, repo, path, ref });
+                  return typeof data.content === 'string' ? Buffer.from(data.content, 'base64').toString('utf8') : null;
+                } catch { return null; }
+              };
+              const defaultBranch = context.payload.repository?.default_branch || 'develop';
+              const [onDefault, onPr] = await Promise.all([readFile(defaultBranch), readFile(reviewed)]);
+              if (onDefault === null || onDefault !== onPr) push = { pushed: false, reason: 'workflow-changed', sha: '' };
             }
             const shaOk = typeof push.sha === 'string' && /^[0-9a-f]{40}$/.test(push.sha);
             const pushed = push.pushed === true && shaOk;
@@ -746,7 +783,9 @@ jobs:
             const body = [
               `<!-- bugbot-claude-report ${reviewId} ${reviewed} -->`,
               '',
-              `Bugbot fix pass for review ${reviewId} at ${reviewed}.`,
+              `**🔧 Claude Fix** · review ${reviewId} · commit \`${reviewed.slice(0, 7)}\``,
+              '',
+              `Fix round for review ${reviewId} at ${reviewed}.`,
               '',
               'Confirmed fixed: none. A changed file is not treated as proof a bug is fixed.',
               '',
