@@ -79,7 +79,10 @@ jobs:
             const OWN_JOB = 'Merge When Clean';
             // Checks that never hold up a merge: this job, and the Claude review trial, which
             // only posts findings.
-            const IGNORED = new Set([OWN_JOB, 'Merge when clean', 'Claude Review (Trial)', 'Claude review (trial)']);
+            // "Claim a Fix Round" (bugbot-claude-fix.yml) also starts on Bugbot's clean review and
+            // only decides whether to fix; waiting for it made the merge skip with nothing to
+            // start it again. A real fix round is still covered by Bugbot or the Claude verdict.
+            const IGNORED = new Set([OWN_JOB, 'Merge when clean', 'Claude Review (Trial)', 'Claude review (trial)', 'Claim a Fix Round']);
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
             const sha = context.payload.check_run?.head_sha || context.payload.workflow_run?.head_sha || '';
