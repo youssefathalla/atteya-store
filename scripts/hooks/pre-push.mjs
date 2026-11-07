@@ -155,6 +155,7 @@ function main() {
   files = [...new Set(files)];
   const touches = (patterns) => unknown || files.some((f) => patterns.some((re) => re.test(f)));
 
+  const checksStarted = Date.now();
   process.stdout.write(`${DIM}Pre-push checks (${unknown ? 'all' : `${files.length} changed file(s)`}). git push --no-verify skips them.${RESET}\n`);
   run('Preflight (engine sync, docs sync, design/a11y scan, eslint)', 'npm', ['run', 'preflight']);
   run('Cart pricing tests', 'npm', ['run', 'test:cart']);
@@ -165,7 +166,8 @@ function main() {
   if (touches(APP_PATHS)) {
     run('App build (development)', 'npx', ['ng', 'build', '--configuration', 'development']);
   }
-  process.stdout.write(`${GREEN}✓ Pre-push checks passed.${RESET}\n`);
+  const totalSeconds = Math.round((Date.now() - checksStarted) / 1000);
+  process.stdout.write(`${GREEN}✓ Pre-push checks passed in ${totalSeconds}s.${RESET}\n`);
 }
 
 main();
