@@ -112,7 +112,7 @@
                   {{ action.label }}
                 </button>
               } @else {
-                <a [routerLink]="action.link" matButton="elevated">
+                <a [routerLink]="action.link | linkTarget" matButton="elevated">
                   {{ action.label }}
                 </a>
               }

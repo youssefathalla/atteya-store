@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { MatAnchor, MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
@@ -27,6 +28,7 @@ import { HomeShopCategories, ShopCategoryCard } from '../../models/home.model';
   templateUrl: './shop-categories-section.component.html',
   imports: [
     RouterLink,
+    LinkTargetPipe,
     NgOptimizedImage,
     AppImageFallbackDirective,
     SkeletonComponent,

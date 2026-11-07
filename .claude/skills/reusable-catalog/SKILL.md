@@ -200,7 +200,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 - **`NavService`** (`src/app/core/services/navigation/nav.service.ts`):
   - Main layout SSR: `navigationSettingsResolver` reads `settings/navigation` once and seeds TransferState (`navigation-settings`); the browser hydrates before `onSnapshot`, then the live doc replaces it. CSR-only first loads (`ng serve`, empty shell) run the same `getDoc` once **before** attaching `onSnapshot`, then keep the listener for live edits. Bundled `NAV_CATEGORIES` apply only when the doc is missing or has no categories — not while loading when a seed or getDoc result exists.
   - `categories`: Computed signal for the saved navigation catalog, with the bundled fallback when unseeded. The Navigation manager and category pages keep this unfiltered list.
-  - `storefrontCategories`: The same list with empty known categories and brands removed once `settings/catalog` has counts. Desktop nav, the mobile menu, and the brands directory read this. Unknown placeholders (sale, tracksuits, best-sellers, shape filters) stay.
+  - `storefrontCategories`: The same list with empty known categories and brands removed once `settings/catalog` has counts. Desktop nav, the mobile menu, and the brands directory read this. Unknown placeholders (sale, best-sellers, shape filters) stay, so the built-in `NAV_CATEGORIES` (`nav.data.ts`) link only to pages that exist today: the shop routes (`/shop`, `/category/rackets|apparel|accessories`, `/category/accessories/bags`, optionally with a shop filter the page reads such as `?onSale=1`), published category pages (`/category/<id>`), published brand pages (`/brand/<id>`), and `/brands`. Never add merchandising paths (`…/new`, `…/best-sellers`, `…/pro`), unpublished placeholders (`hoodies`, `tracksuits`, `bundles`, `puma`), or query filters the page ignores (`?type=`, `?shape=`, `?cat=`). Templates bind every saved link through `\| linkTarget`.
   - `shellReady` / `isLoading` / `navLinksReady`: First doc value (SSR seed, CSR getDoc, or snapshot) plus `CatalogService.shellReady()` so empty-category trimming does not flash every link before counts arrive; desktop nav skeleton until `navLinksReady`.
   - `updateNavigation(categories)`, `seedDefaultNavigation()`.
 - **`ProductCacheService`** (`src/app/core/services/products/product-cache.service.ts`):
@@ -257,6 +257,8 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - Legacy. Converts integer pence into formatted GBP currency strings. Do not use it for Egyptian pounds.
 - **`EgpPricePipe`** (`src/app/shared/pipes/egp-price.pipe.ts`):
   - Name: `egpPrice`. Admin screens. Formats a whole Egyptian pound amount through `formatMoney` (`en-EG`, currency `EGP`, no fraction digits), for example `EGP 599`. Storefront prices use `app-product-price` instead.
+- **`LinkTargetPipe`** (`src/app/shared/pipes/link-target.pipe.ts`):
+  - Name: `linkTarget`. Use on every `[routerLink]` bound to a saved link string (navigation menus, home hero buttons, shop tiles, navigation list): `[routerLink]="link.path | linkTarget"`. A plain string `routerLink` treats `?` and `#` as part of the path (`/shop?onSale=1` opens `/shop%3FonSale%3D1`), so links with a query or fragment are parsed into a `UrlTree` with `Router.parseUrl`; other values pass through.
 - **`TimestampDatePipe`** (`src/app/shared/pipes/`):
   - Formats Firestore `Timestamp` objects into localized date strings.
 

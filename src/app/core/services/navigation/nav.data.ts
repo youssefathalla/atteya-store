@@ -1,5 +1,14 @@
 import { NavCategory } from './nav.model';
 
+/**
+ * Built-in navigation, used when `settings/navigation` is missing (and by Admin → Navigation
+ * "reset to defaults"). Every link must open a page that exists today with matching products:
+ * a shop route (`/shop`, `/category/rackets|apparel|accessories`, `/category/accessories/bags`,
+ * optionally with a shop filter such as `?onSale=1`), a published category page
+ * (`/category/<id>`), a published brand page (`/brand/<id>`), or `/brands`.
+ * Do not link merchandising paths (`…/new`, `…/best-sellers`), unpublished categories or brands,
+ * or query filters the page does not read.
+ */
 export const NAV_CATEGORIES: readonly NavCategory[] = [
   {
     id: 'rackets',
@@ -8,23 +17,7 @@ export const NAV_CATEGORIES: readonly NavCategory[] = [
     megaMenu: [
       {
         title: 'HIGHLIGHTS',
-        links: [
-          { label: 'New Arrivals 2026', path: '/category/rackets/new', badge: 'NEW' },
-          { label: 'Best Sellers', path: '/category/rackets/best-sellers' },
-          { label: 'Pro Player Edition', path: '/category/rackets/pro' },
-          { label: 'Padel Bundles', path: '/category/bundles', badge: 'SAVE' },
-          { label: 'All Rackets', path: '/category/rackets' },
-        ],
-      },
-      {
-        title: 'PLAYING STYLE',
-        links: [
-          { label: 'Diamond (Power)', path: '/category/rackets?shape=diamond' },
-          { label: 'Teardrop (Balanced)', path: '/category/rackets?shape=teardrop' },
-          { label: 'Round (Control)', path: '/category/rackets?shape=round' },
-          { label: 'Junior Rackets', path: '/category/rackets?level=junior' },
-          { label: 'Beginner / Intermediate', path: '/category/rackets?level=beginner' },
-        ],
+        links: [{ label: 'All Rackets', path: '/category/rackets' }],
       },
       {
         title: 'TOP BRANDS',
@@ -46,30 +39,23 @@ export const NAV_CATEGORIES: readonly NavCategory[] = [
     megaMenu: [
       {
         title: 'FEATURED',
-        links: [
-          { label: 'New In Clothing', path: '/category/apparel/new' },
-          { label: 'Best Sellers', path: '/category/apparel/best-sellers' },
-          { label: 'Team Uniforms', path: '/category/apparel/teams' },
-          { label: 'All Clothing', path: '/category/apparel' },
-        ],
+        links: [{ label: 'All Clothing', path: '/category/apparel' }],
       },
       {
         title: 'MEN & WOMEN',
         links: [
-          { label: 'Zipped Hoodies', path: '/category/hoodies', badge: 'POPULAR' },
           { label: 'Padel Shorts', path: '/category/shorts' },
           { label: 'T-Shirts & Polos', path: '/category/t-shirts' },
-          { label: 'Tracksuits & Pants', path: '/category/tracksuits' },
           { label: 'Performance Socks', path: '/category/socks' },
         ],
       },
       {
         title: 'BRANDS IN APPAREL',
         links: [
-          { label: 'Adidas Padel', path: '/brand/adidas' },
-          { label: 'Bullpadel Wear', path: '/brand/bullpadel' },
-          { label: 'Nox Performance', path: '/brand/nox' },
-          { label: 'Head Sports', path: '/brand/head' },
+          { label: 'Adidas', path: '/brand/adidas' },
+          { label: 'Bullpadel', path: '/brand/bullpadel' },
+          { label: 'Nox', path: '/brand/nox' },
+          { label: 'Head', path: '/brand/head' },
         ],
       },
     ],
@@ -77,33 +63,19 @@ export const NAV_CATEGORIES: readonly NavCategory[] = [
   {
     id: 'gear',
     label: 'BAGS & GEAR',
-    path: '/category/bags',
+    path: '/category/accessories/bags',
     megaMenu: [
       {
         title: 'BAGS',
-        links: [
-          { label: 'Paleteros (Racket Bags)', path: '/category/bags?type=paletero', badge: 'TOP' },
-          { label: 'Padel Backpacks', path: '/category/bags?type=backpack' },
-          { label: 'Duffel Bags', path: '/category/bags?type=duffel' },
-          { label: 'All Bags', path: '/category/bags' },
-        ],
+        links: [{ label: 'All Bags', path: '/category/accessories/bags' }],
       },
       {
         title: 'ACCESSORIES',
         links: [
-          { label: 'Overgrips & Protectors', path: '/category/accessories?type=grips' },
-          { label: 'Padel Balls (Cans & Boxes)', path: '/category/accessories?type=balls' },
-          { label: 'Wristbands & Headbands', path: '/category/accessories?type=wristbands' },
-          { label: 'Caps & Visors', path: '/category/accessories?type=caps' },
-          { label: 'Water Bottles', path: '/category/accessories?type=bottles' },
-        ],
-      },
-      {
-        title: 'BUNDLES & PACKS',
-        links: [
-          { label: 'Racket + Bag Bundles', path: '/category/bundles?type=starter', badge: 'VALUE' },
-          { label: 'Ball Multi-packs', path: '/category/accessories?type=balls-bulk' },
-          { label: 'Overgrip Tins (60 pcs)', path: '/category/accessories?type=grips-bulk' },
+          { label: 'Overgrips & Protectors', path: '/category/grips' },
+          { label: 'Padel Balls', path: '/category/balls' },
+          { label: 'Water Bottles', path: '/category/bottles' },
+          { label: 'All Accessories', path: '/category/accessories' },
         ],
       },
     ],
@@ -128,15 +100,6 @@ export const NAV_CATEGORIES: readonly NavCategory[] = [
           { label: 'On Cloud', path: '/brand/on-cloud', isBrand: true },
           { label: 'Adidas', path: '/brand/adidas', isBrand: true },
           { label: 'Siux', path: '/brand/siux', isBrand: true },
-          { label: 'Puma', path: '/brand/puma', isBrand: true },
-        ],
-      },
-      {
-        title: 'DISCOVER',
-        links: [
-          { label: 'All Brands Directory', path: '/brands' },
-          { label: 'Official Warranty Partners', path: '/about/warranty' },
-          { label: 'Brand Size Guides', path: '/size-guide' },
         ],
       },
     ],
@@ -144,23 +107,15 @@ export const NAV_CATEGORIES: readonly NavCategory[] = [
   {
     id: 'sale',
     label: 'SALE',
-    path: '/category/sale',
+    path: '/shop?onSale=1',
     megaMenu: [
       {
         title: 'DEALS BY CATEGORY',
         links: [
-          { label: 'Rackets on Sale (Up to 40% Off)', path: '/category/sale?cat=rackets', badge: '40% OFF' },
-          { label: 'Apparel Clearance', path: '/category/sale?cat=apparel' },
-          { label: 'Bags & Accessories Deals', path: '/category/sale?cat=accessories' },
-          { label: 'All Sale Items', path: '/category/sale' },
-        ],
-      },
-      {
-        title: 'SPECIAL PACKS',
-        links: [
-          { label: 'Super Bundles', path: '/category/bundles', badge: 'BEST BUY' },
-          { label: 'Last Season Stock', path: '/category/sale?type=outlet' },
-          { label: 'Flash Deals', path: '/category/sale?type=flash' },
+          { label: 'Rackets on Sale', path: '/category/rackets?onSale=1' },
+          { label: 'Apparel on Sale', path: '/category/apparel?onSale=1' },
+          { label: 'Bags & Accessories on Sale', path: '/category/accessories?onSale=1' },
+          { label: 'All Sale Items', path: '/shop?onSale=1' },
         ],
       },
     ],
