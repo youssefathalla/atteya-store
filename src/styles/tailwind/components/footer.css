@@ -1,0 +1,24 @@
+/**
+ * Storefront footer (`app-footer`, src/app/layout/footer/).
+ *
+ *   .footer-heading  Column title (Shop, Help, Account)
+ *   .footer-link     Text link or native button inside a column or the bottom row
+ *   .footer-social   Square icon link holding an inline brand SVG (`.footer-social svg` is 20px)
+ */
+@layer components {
+  .footer-heading {
+    @apply font-title-sm font-bold! uppercase tracking-wider;
+  }
+
+  .footer-link {
+    @apply font-body-md opacity-80 transition-opacity hover:opacity-100 hover:underline underline-offset-4 cursor-pointer text-left;
+  }
+
+  .footer-social {
+    @apply size-10 elements-center border border-outline-variant border-shape opacity-80 transition-opacity hover:opacity-100 hover:border-primary;
+
+    svg {
+      @apply size-5;
+    }
+  }
+}

@@ -23,3 +23,4 @@ export { cancelOrder } from './orders/cancel-order.fn.js';
 export { setDeliveryFee } from './orders/set-delivery-fee.fn.js';
 export { paymobWebhook } from './orders/paymob-webhook.fn.js';
 export { sendOrderEmails } from './email/send-order-emails.trigger.js';
+export { subscribeToEmails } from './marketing/subscribe-to-emails.fn.js';

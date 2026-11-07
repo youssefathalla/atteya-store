@@ -1,0 +1,35 @@
+<form class="elements-start-col gap-4 w-full" novalidate (submit)="onSubmit($event)">
+  <div class="elements-start-col gap-2">
+    <h2 class="footer-heading">Stay in the Loop</h2>
+    <p class="font-body-md opacity-80">Be the first to hear about new arrivals and offers.</p>
+  </div>
+
+  <div class="elements-start-col sm:flex-row sm:items-start sm:justify-start gap-3 w-full">
+    <app-text-input
+      class="flex-1"
+      [formField]="signupForm.email"
+      label="Email"
+      type="email"
+      inputMode="email"
+      icon="mail"
+      placeholder="you@email.com"
+    />
+    <button
+      matButton="filled"
+      type="submit"
+      class="sm:mt-2"
+      [disabled]="isSending()"
+      [attr.aria-label]="isSending() ? 'Signing you up...' : null"
+    >
+      @if (isSending()) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" />
+      } @else {
+        <span>Sign Up</span>
+      }
+    </button>
+  </div>
+
+  <p class="font-body-sm min-h-5" role="status" aria-live="polite" [class.text-error]="feedback()?.tone === 'error'">
+    {{ feedback()?.text }}
+  </p>
+</form>

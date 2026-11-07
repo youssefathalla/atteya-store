@@ -126,6 +126,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Footer email sign-ups (new arrivals and offers) and their per-connection daily counters.
+    // Only the subscribeToEmails callable (Admin SDK) reads or writes them. No client access,
+    // admins included: the list holds personal emails and is exported from the console.
+    match /emailSignups/{id} {
+      allow read, write: if false;
+    }
+
+    match /emailSignupRateLimits/{id} {
+      allow read, write: if false;
+    }
+
     // Per-shopper favorites. Only that signed-in person can read or change their list.
     // Docs live at favorites/{uid}/items/{productId}. Parent favorites/{uid} is unused.
     match /favorites/{uid} {
@@ -176,7 +187,7 @@ service cloud.firestore {
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'users']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'users', 'emailSignups', 'emailSignupRateLimits']);
     }
   }
 }
