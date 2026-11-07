@@ -111,9 +111,6 @@ jobs:
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
           STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
         with:
-          # Post as claude[bot] (the Claude GitHub App token the action used) so the comment
-          # shows Claude's name; fall back to github-actions[bot] when the action did not run.
-          github-token: ${{ steps.claude.outputs.github_token || github.token }}
           script: |
             const fs = require('fs');
             const owner = context.repo.owner;
