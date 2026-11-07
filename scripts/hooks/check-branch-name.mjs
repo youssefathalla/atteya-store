@@ -29,7 +29,7 @@
  *       echo '{"tool_input":{"command":"gh pr create --title \"Fix it\""}}' | node scripts/hooks/check-branch-name.mjs
  */
 import { readFileSync } from 'node:fs';
-import { allTeamKeysOrEmpty } from '../lib/linear-config.mjs';
+import { allTeamKeysOrEmpty, readLinearConfig } from '../lib/linear-config.mjs';
 import { isMainModule } from '../lib/is-main-module.mjs';
 
 const CURSOR = process.argv.includes('--cursor');
@@ -45,6 +45,14 @@ const DIGITS = /^[0-9]+$/;
 const TEAM_KEYS = allTeamKeysOrEmpty().map((key) => key.toLowerCase());
 /** The current key for messages; `KEY` when the config can't be read. */
 const CURRENT_KEY = TEAM_KEYS[0]?.toUpperCase() ?? 'KEY';
+/** The Linear workspace slug for issue links; a placeholder when the config can't be read. */
+const WORKSPACE = (() => {
+  try {
+    return readLinearConfig().workspace || '<workspace>';
+  } catch {
+    return '<workspace>';
+  }
+})();
 
 /** True when the short-name words carry a Linear id (`<key>-123` or `<key>123`), which belongs in the PR title. */
 function hasLinearId(words) {
@@ -226,7 +234,7 @@ function prTitleMessage(bad) {
     `PR title "${bad.join('", "')}" has no Linear issue id.`,
     `Start the title with the issue id, e.g. "${CURRENT_KEY}-123 Clear sign-in errors on mode switch" (several: "${CURRENT_KEY}-31 ${CURRENT_KEY}-32 ...").`,
     'No issue yet? Find or create it in Linear first (AGENTS.md section 2), then use its id.',
-    `The description's first line should be "Linear: ${CURRENT_KEY}-123". Never write "Fixes" or "Closes" before the id.`,
+    `The description's first line should be a link to the issue: "Linear: [${CURRENT_KEY}-123](https://linear.app/${WORKSPACE}/issue/${CURRENT_KEY}-123)". Never write "Fixes" or "Closes" before the id.`,
     'Full rule: .agents/skills/branch-naming/SKILL.md',
   ].join('\n');
 }
