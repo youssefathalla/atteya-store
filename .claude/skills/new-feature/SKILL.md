@@ -163,7 +163,7 @@ src/app/features/[feature-name]/
 4. **Image Optimization & Uploads**:
    - For all storefront images: use Angular `NgOptimizedImage` (`[ngSrc]`). Never use raw `<img [src]>` for media assets.
    - Always wrap with `@if (imagePath())` and use `normalizeImageKitPath(item.imageUrl)` from `@shared/utils/image.utils`.
-   - Provide `fill` (or explicit `width`/`height`), `priority` on above-the-fold/hero elements, and responsive `sizes` (e.g. `sizes="100vw"`).
+   - Provide `fill` (or explicit `width`/`height`), `priority` on above-the-fold/hero elements, and responsive `sizes` (e.g. `sizes="100vw"`). Never put a bare pixel value in `sizes` (`sizes="80px"`): `NgOptimizedImage` throws NG02952 in dev builds and the photo never loads. A small fixed thumbnail (cart line, colour swatch) uses `width`/`height` plus `class="size-full object-contain"` instead of `fill`.
    - For uploading images: inject `StorageUploadService` from `@core/services/storage` and call `await this.storageUpload.uploadImage(file, folder)`.
 
 ---
