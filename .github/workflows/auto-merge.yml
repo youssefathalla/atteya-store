@@ -1,0 +1,190 @@
+# Merges a pull request into develop once it is clean, so the loop
+#   push -> Bugbot review -> Claude fix (bugbot-claude-fix.yml) -> Bugbot again -> merge
+# runs without anyone pressing the button.
+#
+# "Clean" means, all on the PR's latest commit:
+#   - the "Cursor Bugbot" check finished with success (Bugbot found no issues;
+#     "neutral" means it found some, and bugbot-claude-fix.yml takes over),
+#   - the CI "checks" job and the "linear-id" PR title check passed,
+#   - no other check failed or is still running,
+#   - no unresolved review thread from a person and no "changes requested",
+#   - GitHub says the PR can merge (no conflicts).
+# Then it squash-merges into develop and deletes the branch.
+#
+# Never merges into main. Skips draft PRs, PRs with the "no-auto-merge" label,
+# PRs from forks or from anyone but the repository owner, and PRs that change
+# anything under .github/ (those wait for a person; the workflow token cannot
+# merge workflow changes anyway).
+#
+# check_run and workflow_run only run the copy of this file on the repository's
+# default branch, so it is live only once this file is on the default branch.
+# Stays inactive until the repository variable AUTO_MERGE is exactly "enabled".
+#
+# A merge made with the workflow token does not start other workflows, so this
+# job deletes the merged branch itself (delete-merged-branches.yml will not run)
+# and CI does not run again on the push to develop (it already passed on the PR).
+
+name: Auto-merge
+
+on:
+  check_run:
+    types: [completed]
+  workflow_run:
+    workflows: [CI, PR title]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: auto-merge-${{ github.event.check_run.head_sha || github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    name: Merge when clean
+    if: >-
+      vars.AUTO_MERGE == 'enabled' && (
+        (github.event_name == 'check_run' && github.event.check_run.app.slug == 'cursor') ||
+        (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      checks: read
+    steps:
+      - name: Merge the pull request if it is clean
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const BASE = 'develop';
+            const OPT_OUT_LABEL = 'no-auto-merge';
+            const BUGBOT = 'Cursor Bugbot';
+            const REQUIRED = ['checks', 'linear-id'];
+            const OWN_JOB = 'Merge when clean';
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            const sha = context.payload.check_run?.head_sha || context.payload.workflow_run?.head_sha || '';
+            if (!/^[0-9a-f]{40}$/.test(sha)) {
+              core.info('No commit on this event.');
+              return;
+            }
+
+            const commentOnce = async (prNumber, marker, text) => {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: prNumber, per_page: 100,
+              });
+              if (comments.some((c) => typeof c.body === 'string' && c.body.includes(marker))) return;
+              await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: `${marker}\n${text}\n` });
+            };
+
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({ owner, repo, commit_sha: sha });
+            const candidates = prs.filter((p) => p.state === 'open' && p.head?.sha === sha && p.base?.ref === BASE);
+            if (candidates.length === 0) {
+              core.info(`No open pull request into ${BASE} has ${sha} as its latest commit.`);
+              return;
+            }
+
+            for (const candidate of candidates) {
+              const n = candidate.number;
+              const stop = (why) => core.info(`#${n}: ${why} Not merging.`);
+
+              // Read the PR again; wait for GitHub to work out whether it can merge.
+              let pr;
+              for (let attempt = 0; attempt < 6; attempt++) {
+                pr = (await github.rest.pulls.get({ owner, repo, pull_number: n })).data;
+                if (pr.mergeable !== null) break;
+                await sleep(5000);
+              }
+              if (pr.state !== 'open') { stop('It is not open.'); continue; }
+              if (pr.draft) { stop('It is a draft.'); continue; }
+              if (pr.base?.ref !== BASE) { stop(`It does not target ${BASE}.`); continue; }
+              if (pr.head?.sha !== sha) { stop('A newer commit was pushed.'); continue; }
+              if (pr.head?.repo?.full_name !== `${owner}/${repo}`) { stop('It comes from a fork.'); continue; }
+              if (pr.user?.login !== owner) { stop('It was not opened by the repository owner.'); continue; }
+              if ((pr.labels || []).some((l) => l.name === OPT_OUT_LABEL)) { stop(`It has the ${OPT_OUT_LABEL} label.`); continue; }
+              if (['develop', 'main'].includes(pr.head?.ref)) { stop('Its branch is develop or main.'); continue; }
+
+              // Checks on the latest commit.
+              const runs = await github.paginate(github.rest.checks.listForRef, {
+                owner, repo, ref: sha, filter: 'latest', per_page: 100,
+              });
+              const byName = new Map();
+              for (const run of runs) {
+                if (run.name === OWN_JOB) continue;
+                const seen = byName.get(run.name);
+                if (!seen || new Date(run.started_at) > new Date(seen.started_at)) byName.set(run.name, run);
+              }
+              const bugbot = byName.get(BUGBOT);
+              if (!bugbot || bugbot.status !== 'completed') { stop('Bugbot has not finished on this commit.'); continue; }
+              if (bugbot.conclusion !== 'success') { stop(`Bugbot ended with "${bugbot.conclusion}" (issues found or an error).`); continue; }
+              const missing = REQUIRED.filter((name) => byName.get(name)?.status !== 'completed');
+              if (missing.length) { stop(`Still waiting for: ${missing.join(', ')}.`); continue; }
+              const failedRequired = REQUIRED.filter((name) => byName.get(name).conclusion !== 'success');
+              if (failedRequired.length) { stop(`Did not pass: ${failedRequired.join(', ')}.`); continue; }
+              const running = [...byName.values()].filter((run) => run.status !== 'completed').map((run) => run.name);
+              if (running.length) { stop(`Still running: ${running.join(', ')}.`); continue; }
+              const bad = ['failure', 'cancelled', 'timed_out', 'action_required', 'stale', 'startup_failure'];
+              const failed = [...byName.values()].filter((run) => bad.includes(run.conclusion)).map((run) => run.name);
+              if (failed.length) { stop(`Failed checks: ${failed.join(', ')}.`); continue; }
+
+              // People's review threads and "changes requested".
+              const gql = await github.graphql(
+                `query($owner: String!, $repo: String!, $n: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $n) {
+                      reviewDecision
+                      reviewThreads(first: 100) {
+                        nodes { isResolved comments(first: 1) { nodes { author { login } } } }
+                      }
+                    }
+                  }
+                }`,
+                { owner, repo, n },
+              );
+              const pull = gql.repository.pullRequest;
+              if (pull.reviewDecision === 'CHANGES_REQUESTED') { stop('Changes were requested.'); continue; }
+              const openHumanThreads = pull.reviewThreads.nodes.filter((thread) => {
+                if (thread.isResolved) return false;
+                const login = thread.comments.nodes[0]?.author?.login || '';
+                return !/^(cursor|claude)(\[bot\])?$/.test(login);
+              });
+              if (openHumanThreads.length) { stop(`${openHumanThreads.length} review thread(s) from a person are still open.`); continue; }
+
+              // Workflow and agent settings changes wait for a person.
+              const files = await github.paginate(github.rest.pulls.listFiles, { owner, repo, pull_number: n, per_page: 100 });
+              if (files.some((f) => f.filename.startsWith('.github/'))) {
+                await commentOnce(n, '<!-- auto-merge-needs-person -->',
+                  'Bugbot found no issues and the checks passed, but this pull request changes files under `.github/`, so it is not merged automatically. Merge it yourself when you are happy with it.');
+                stop('It changes files under .github/.');
+                continue;
+              }
+
+              if (pr.mergeable !== true) { stop(`GitHub cannot merge it yet (mergeable: ${pr.mergeable}, state: ${pr.mergeable_state}).`); continue; }
+
+              try {
+                await github.rest.pulls.merge({
+                  owner, repo, pull_number: n, sha, merge_method: 'squash',
+                  commit_title: `${pr.title} (#${n})`,
+                });
+              } catch (error) {
+                stop(`The merge was refused: ${error.message}`);
+                continue;
+              }
+              core.info(`#${n}: merged into ${BASE}.`);
+
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: n,
+                body: `<!-- auto-merged -->\nMerged into \`${BASE}\` automatically: Bugbot found no issues on the latest commit and all checks passed.`,
+              });
+
+              try {
+                await github.rest.git.deleteRef({ owner, repo, ref: `heads/${pr.head.ref}` });
+              } catch (error) {
+                core.info(`Could not delete ${pr.head.ref}: ${error.message}`);
+              }
+            }
