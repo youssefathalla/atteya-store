@@ -6,7 +6,7 @@
 # Does not edit .github/workflows/claude.yml.
 # Action pin 61a9c274fa7110a66dfafc1bbbced03833eb25fe is v1 / v1.0.269 (verified 2026-11-06).
 
-name: Bugbot Claude fix
+name: Claude Fix
 
 on:
   pull_request_review:
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   gate:
-    name: Claim one pass
+    name: Claim a Fix Round
     if: >-
       vars.BUGBOT_CLAUDE_FIX == 'enabled' &&
       github.event.action == 'submitted' &&
@@ -102,7 +102,7 @@ jobs:
                   owner,
                   repo,
                   issue_number: prNumber,
-                  body: `${limitMarker}\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and the reviewers (Bugbot or the security review) still find issues, so it stops here. This one needs a person. It will not be merged automatically while issues are open.\n`,
+                  body: `${limitMarker}\n**🛑 Claude Fix** · stopped, needs you\n\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and the reviewers (Bugbot or the security review) still find issues, so it stops here. This one needs a person. It will not be merged automatically while issues are open.\n`,
                 });
               }
               core.info(`Reached ${MAX_PASSES} fix rounds. Not starting.`);
@@ -176,7 +176,7 @@ jobs:
               owner,
               repo,
               issue_number: prNumber,
-              body: `${marker}\nPass claimed by run ${context.runId} for review ${review.id} at ${sha}.\n`,
+              body: `${marker}\n**🔧 Claude Fix** · round ${passes + 1} of ${MAX_PASSES} started\n\nClaude is fixing the ${isSecurity ? 'security review' : 'Bugbot'} findings from review ${review.id} at \`${sha.slice(0, 7)}\` (run ${context.runId}). A report follows when it is done.\n`,
             });
             const after = await listMarkers();
             const winner = after[0];
@@ -199,7 +199,7 @@ jobs:
             core.setOutput('issue_id', issueId);
 
   fix:
-    name: Fix on this pull request
+    name: Fix Review Findings
     needs: gate
     if: needs.gate.result == 'success' && needs.gate.outputs.proceed == 'true'
     runs-on: ubuntu-latest
@@ -653,6 +653,9 @@ jobs:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
           TOKEN_SKIP: ${{ steps.claude.outputs.skipped_due_to_workflow_validation_mismatch }}
         with:
+          # Post as claude[bot] (the Claude GitHub App token the action used) so the report
+          # shows Claude's name; fall back to github-actions[bot] when the action did not run.
+          github-token: ${{ steps.claude.outputs.github_token || github.token }}
           script: |
             const fs = require('fs');
             const owner = context.repo.owner;
@@ -777,7 +780,9 @@ jobs:
             const body = [
               `<!-- bugbot-claude-report ${reviewId} ${reviewed} -->`,
               '',
-              `Bugbot fix pass for review ${reviewId} at ${reviewed}.`,
+              `**🔧 Claude Fix** · review ${reviewId} · commit \`${reviewed.slice(0, 7)}\``,
+              '',
+              `Fix round for review ${reviewId} at ${reviewed}.`,
               '',
               'Confirmed fixed: none. A changed file is not treated as proof a bug is fixed.',
               '',

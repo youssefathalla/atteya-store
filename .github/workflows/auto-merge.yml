@@ -31,7 +31,8 @@ on:
   check_run:
     types: [completed]
   workflow_run:
-    workflows: [CI, PR title]
+    # "PR title" is the old name, still used by branches made before the rename.
+    workflows: [CI, PR Title, PR title]
     types: [completed]
 
 permissions: {}
@@ -42,7 +43,7 @@ concurrency:
 
 jobs:
   merge:
-    name: Merge when clean
+    name: Merge When Clean
     if: >-
       vars.AUTO_MERGE == 'enabled' && (
         (github.event_name == 'check_run' && github.event.check_run.app.slug == 'cursor') ||
@@ -65,10 +66,16 @@ jobs:
             const BASE = 'develop';
             const OPT_OUT_LABEL = 'no-auto-merge';
             const BUGBOT = 'Cursor Bugbot';
-            const REQUIRED = ['checks', 'linear-id'];
-            const OWN_JOB = 'Merge when clean';
-            // Checks that never hold up a merge: the Claude review trial only posts findings.
-            const IGNORED = new Set([OWN_JOB, 'Claude review (trial)']);
+            // Required checks by their current name, then the old name that branches made
+            // before the rename still report.
+            const REQUIRED = [
+              ['Build and Test', 'checks'],
+              ['Linear ID in Title', 'linear-id'],
+            ];
+            const OWN_JOB = 'Merge When Clean';
+            // Checks that never hold up a merge: this job, and the Claude review trial, which
+            // only posts findings.
+            const IGNORED = new Set([OWN_JOB, 'Merge when clean', 'Claude Review (Trial)', 'Claude review (trial)']);
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
             const sha = context.payload.check_run?.head_sha || context.payload.workflow_run?.head_sha || '';
@@ -125,9 +132,10 @@ jobs:
               const bugbot = byName.get(BUGBOT);
               if (!bugbot || bugbot.status !== 'completed') { stop('Bugbot has not finished on this commit.'); continue; }
               if (bugbot.conclusion !== 'success') { stop(`Bugbot ended with "${bugbot.conclusion}" (issues found or an error).`); continue; }
-              const missing = REQUIRED.filter((name) => byName.get(name)?.status !== 'completed');
+              const required = REQUIRED.map((names) => ({ label: names[0], run: names.map((name) => byName.get(name)).find(Boolean) }));
+              const missing = required.filter((r) => r.run?.status !== 'completed').map((r) => r.label);
               if (missing.length) { stop(`Still waiting for: ${missing.join(', ')}.`); continue; }
-              const failedRequired = REQUIRED.filter((name) => byName.get(name).conclusion !== 'success');
+              const failedRequired = required.filter((r) => r.run.conclusion !== 'success').map((r) => r.label);
               if (failedRequired.length) { stop(`Did not pass: ${failedRequired.join(', ')}.`); continue; }
               const running = [...byName.values()].filter((run) => run.status !== 'completed').map((run) => run.name);
               if (running.length) { stop(`Still running: ${running.join(', ')}.`); continue; }
@@ -177,7 +185,7 @@ jobs:
               const files = await github.paginate(github.rest.pulls.listFiles, { owner, repo, pull_number: n, per_page: 100 });
               if (files.some((f) => f.filename.startsWith('.github/'))) {
                 await commentOnce(n, '<!-- auto-merge-needs-person -->',
-                  'Bugbot found no issues and the checks passed, but this pull request changes files under `.github/`, so it is not merged automatically. Merge it yourself when you are happy with it.');
+                  '**✋ Auto-merge** · waiting for you\n\nBugbot found no issues and the checks passed, but this pull request changes files under `.github/`, so it is not merged automatically. Merge it yourself when you are happy with it.');
                 stop('It changes files under .github/.');
                 continue;
               }
@@ -197,7 +205,7 @@ jobs:
 
               await github.rest.issues.createComment({
                 owner, repo, issue_number: n,
-                body: `<!-- auto-merged -->\nMerged into \`${BASE}\` automatically: Bugbot found no issues on the latest commit and all checks passed.`,
+                body: `<!-- auto-merged -->\n**✅ Auto-merge** · merged\n\nMerged into \`${BASE}\` automatically: Bugbot found no issues on the latest commit, no security finding is open, and all checks passed.`,
               });
 
               try {

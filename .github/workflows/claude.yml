@@ -1,4 +1,4 @@
-name: Claude Code
+name: Claude Mentions
 
 on:
   issue_comment:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   claude:
+    name: Answer @claude
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
