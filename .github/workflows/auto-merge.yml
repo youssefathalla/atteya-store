@@ -154,7 +154,7 @@ jobs:
               // Bugbot "couldn't run" (for example the Cursor usage limit): its check ends with the
               // title "Error". Then the Claude review of this commit is the gate instead.
               const bugbotOut = bugbot.conclusion !== 'success' &&
-                (bugbot.output?.title === 'Error' || /bugbot (run )?failed to run|failed to run/i.test(String(bugbot.output?.summary || '')));
+                (bugbot.output?.title === 'Error' || /failed to run/i.test(String(bugbot.output?.summary || '')));
               let usedClaude = false;
               if (bugbot.conclusion !== 'success' && !bugbotOut) { stop(`Bugbot ended with "${bugbot.conclusion}" (issues found or an error).`); continue; }
               if (bugbotOut) {

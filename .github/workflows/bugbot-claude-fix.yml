@@ -169,14 +169,17 @@ jobs:
                 core.info('Bugbot ran on this commit (or has not finished), so Bugbot drives the fixes. Not starting.');
                 return;
               }
-              const verdictMarker = `<!-- claude-review-verdict ${sha} issues -->`;
+              // The newest Claude review verdict for this commit (a re-run may post a second
+              // comment); only act when that newest one says "issues".
+              const verdictPrefix = `<!-- claude-review-verdict ${sha} `;
               const verdictComment = allComments
-                .filter((c) => c.user?.login === 'github-actions[bot]' && typeof c.body === 'string' && c.body.includes(verdictMarker))
+                .filter((c) => c.user?.login === 'github-actions[bot]' && typeof c.body === 'string' && c.body.includes(verdictPrefix))
                 .sort((a, b) => b.id - a.id)[0];
-              const encoded = verdictComment ? verdictComment.body.match(/<!-- claude-review-findings ([A-Za-z0-9+/=]+) -->/) : null;
+              const latestIsIssues = Boolean(verdictComment && verdictComment.body.includes(`${verdictPrefix}issues -->`));
+              const encoded = latestIsIssues ? verdictComment.body.match(/<!-- claude-review-findings ([A-Za-z0-9+/=]+) -->/) : null;
               let data = [];
               try { data = encoded ? JSON.parse(Buffer.from(encoded[1], 'base64').toString('utf8')) : []; } catch { data = []; }
-              if (!verdictComment || !Array.isArray(data) || data.length === 0) {
+              if (!latestIsIssues || !Array.isArray(data) || data.length === 0) {
                 core.info('The Claude review found nothing to fix on this commit. Not starting.');
                 return;
               }

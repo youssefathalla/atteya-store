@@ -180,17 +180,22 @@ jobs:
             const validFindings = finished ? report.findings.filter((f) => f && typeof f === 'object').slice(0, 20) : [];
             const verdict = !finished ? 'none' : (validFindings.length ? 'issues' : 'clean');
             const lines = [marker, `<!-- claude-review-verdict ${sha} ${verdict} -->`];
+            let hidden = null;
             if (verdict === 'issues') {
-              const data = validFindings.map((f) => ({
+              const rank = { high: 0, medium: 1, low: 2 };
+              const data = [...validFindings].sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3)).map((f) => ({
                 severity: String(f.severity || '').slice(0, 10),
                 category: String(f.category || '').slice(0, 10),
                 path: String(f.path || '').slice(0, 300),
                 line: Number.isInteger(f.line) && f.line > 0 ? f.line : null,
                 title: String(f.title || '').slice(0, 200),
-                explanation: String(f.explanation || '').slice(0, 1500),
-                fix: String(f.fix || '').slice(0, 800),
+                explanation: String(f.explanation || '').slice(0, 800),
+                fix: String(f.fix || '').slice(0, 400),
               }));
-              lines.push(`<!-- claude-review-findings ${Buffer.from(JSON.stringify(data), 'utf8').toString('base64')} -->`);
+              // Most severe first. The comment must stay under GitHub's 65,536 characters, so the
+              // hidden data is sized once the visible text is known (see below).
+              hidden = { index: lines.length, data };
+              lines.push('');
             }
             lines.push(`**🤖 Claude Review** · trial · commit \`${sha.slice(0, 7)}\``, '', 'Shadow mode unless Bugbot could not run: then auto-merge and Claude Fix use this review instead.', '');
             if (workflowSkipped) {
@@ -237,6 +242,19 @@ jobs:
 
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: prNumber, per_page: 100 });
             const existing = comments.find((c) => typeof c.body === 'string' && c.body.startsWith(marker));
+            if (hidden) {
+              // Fit the hidden findings into what is left of the 65,536-character limit, dropping
+              // the least severe ones first. Claude Fix fixes only what is in this data.
+              const visibleLength = lines.join('\n').length;
+              const encode = (items) => `<!-- claude-review-findings ${Buffer.from(JSON.stringify(items), 'utf8').toString('base64')} -->`;
+              let items = hidden.data;
+              let encoded = encode(items);
+              while (visibleLength + encoded.length > 64000 && items.length > 1) {
+                items = items.slice(0, -1);
+                encoded = encode(items);
+              }
+              lines[hidden.index] = encoded;
+            }
             const body = lines.join('\n');
             // A re-run may post with a different account (claude[bot] or github-actions[bot]),
             // which cannot edit the other's comment, so fall back to a new comment.
