@@ -7,6 +7,10 @@
 # again, so this repeats until Bugbot is clean
 # or 3 rounds have run (then it leaves a "needs a person" comment). A clean
 # Bugbot run plus green checks lets auto-merge.yml merge the PR into develop.
+# When Bugbot could not run on a commit (its check ends with the title "Error", for example the
+# Cursor usage limit), the Claude review of that commit (claude-review.yml, workflow_run below)
+# feeds the same rounds instead: its findings get ids cr-<comment id>-<n>. Claude's push is then
+# reviewed by Claude again, and auto-merge.yml uses that verdict.
 # Stays inactive until the repository variable BUGBOT_CLAUDE_FIX is exactly "enabled".
 # Does not edit .github/workflows/claude.yml.
 # Action pin 61a9c274fa7110a66dfafc1bbbced03833eb25fe is v1 / v1.0.269 (verified 2026-11-06).
@@ -16,27 +20,37 @@ name: Claude Fix
 on:
   pull_request_review:
     types: [submitted]
+  workflow_run:
+    workflows: [Claude Review]
+    types: [completed]
 
 permissions: {}
 
 concurrency:
-  group: bugbot-claude-pr-${{ github.event.pull_request.number }}
+  group: bugbot-claude-pr-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha }}
   cancel-in-progress: false
 
 jobs:
   gate:
     name: Claim a Fix Round
     if: >-
-      vars.BUGBOT_CLAUDE_FIX == 'enabled' &&
-      github.event.action == 'submitted' &&
-      github.event.review.user.login == 'cursor[bot]' &&
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.state == 'open' &&
-      github.event.pull_request.base.ref == 'develop' &&
-      github.event.pull_request.user.login == 'youssefathalla' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (contains(github.event.review.body, '<!-- BUGBOT_REVIEW -->') ||
-       contains(github.event.review.body, 'CURSOR_AUTOMATION_ID'))
+      vars.BUGBOT_CLAUDE_FIX == 'enabled' && ((
+        github.event_name == 'pull_request_review' &&
+        github.event.action == 'submitted' &&
+        github.event.review.user.login == 'cursor[bot]' &&
+        github.event.pull_request.draft == false &&
+        github.event.pull_request.state == 'open' &&
+        github.event.pull_request.base.ref == 'develop' &&
+        github.event.pull_request.user.login == 'youssefathalla' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        (contains(github.event.review.body, '<!-- BUGBOT_REVIEW -->') ||
+         contains(github.event.review.body, 'CURSOR_AUTOMATION_ID'))
+      ) || (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      ))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -61,20 +75,34 @@ jobs:
             const repo = context.repo.repo;
             core.setOutput('proceed', 'false');
 
+            // Three reviewers feed this loop: Cursor Bugbot (BUGBOT_REVIEW summary, one
+            // BUGBOT_BUG_ID per finding), the Cursor Security Agent (CURSOR_AUTOMATION_ID
+            // review, one "Agentic Security Review" comment per finding, id sec-<comment id>),
+            // and, only when Bugbot could not run on the commit, the Claude review
+            // (claude-review.yml verdict comment, ids cr-<comment id>-<n>).
+            const fromClaude = context.eventName === 'workflow_run';
             const review = context.payload.review || {};
-            const eventPr = context.payload.pull_request || {};
-            const prNumber = eventPr.number;
-            if (!prNumber || !review.id || review.user?.login !== 'cursor[bot]') return;
-            if (context.payload.action !== 'submitted') return;
-
-            const body = typeof review.body === 'string' ? review.body : '';
-            // Two reviewers feed this loop: Cursor Bugbot (BUGBOT_REVIEW summary, one
-            // BUGBOT_BUG_ID per finding) and the Cursor Security Agent (CURSOR_AUTOMATION_ID
-            // review, one "Agentic Security Review" comment per finding, id sec-<comment id>).
-            const isBugbot = body.includes('<!-- BUGBOT_REVIEW -->');
-            const isSecurity = !isBugbot && body.includes('CURSOR_AUTOMATION_ID');
-            if (!isBugbot && !isSecurity) return;
-            if (isBugbot && !/found\s+[1-9]\d*\s+potential\s+issue/i.test(body)) return;
+            let prNumber;
+            let reviewId;
+            let reviewedSha;
+            let isSecurity = false;
+            if (fromClaude) {
+              const run = context.payload.workflow_run || {};
+              prNumber = run.pull_requests?.[0]?.number;
+              reviewedSha = String(run.head_sha || '');
+              if (!prNumber || !/^[0-9a-f]{40}$/.test(reviewedSha)) return;
+            } else {
+              prNumber = (context.payload.pull_request || {}).number;
+              if (!prNumber || !review.id || review.user?.login !== 'cursor[bot]') return;
+              if (context.payload.action !== 'submitted') return;
+              const body = typeof review.body === 'string' ? review.body : '';
+              const isBugbot = body.includes('<!-- BUGBOT_REVIEW -->');
+              isSecurity = !isBugbot && body.includes('CURSOR_AUTOMATION_ID');
+              if (!isBugbot && !isSecurity) return;
+              if (isBugbot && !/found\s+[1-9]\d*\s+potential\s+issue/i.test(body)) return;
+              reviewId = review.id;
+              reviewedSha = review.commit_id;
+            }
 
             const live = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
             const pr = live.data;
@@ -83,7 +111,7 @@ jobs:
             if (pr.user?.login !== 'youssefathalla') return;
             const sha = pr.head?.sha || '';
             const ref = pr.head?.ref || '';
-            if (!/^[0-9a-f]{40}$/.test(sha) || sha !== review.commit_id) return;
+            if (!/^[0-9a-f]{40}$/.test(sha) || sha !== reviewedSha) return;
             if (!/^[A-Za-z0-9._/-]+$/.test(ref) || ref.includes('..') || ref.startsWith('-') || ref.endsWith('/')) return;
 
             // Linear id for the commit message (`<KEY>-123 …`), read from the PR title.
@@ -124,7 +152,41 @@ jobs:
               return null;
             };
             let bugs = [];
-            for (let attempt = 0; attempt < 4; attempt++) {
+            if (fromClaude) {
+              // Only when Bugbot could not run on this commit (its check ends with the title
+              // "Error", for example the Cursor usage limit). Bugbot fails within seconds of a
+              // push and the Claude review takes minutes, but wait a little in case.
+              let bugbot = null;
+              for (let attempt = 0; attempt < 6; attempt++) {
+                const runs = await github.paginate(github.rest.checks.listForRef, { owner, repo, ref: sha, check_name: 'Cursor Bugbot', per_page: 100 });
+                bugbot = runs.sort((a, b) => new Date(b.started_at) - new Date(a.started_at))[0] || null;
+                if (bugbot?.status === 'completed') break;
+                await new Promise((resolve) => setTimeout(resolve, 20000));
+              }
+              const bugbotOut = bugbot?.status === 'completed' && bugbot.conclusion !== 'success' &&
+                (bugbot.output?.title === 'Error' || /failed to run/i.test(String(bugbot.output?.summary || '')));
+              if (!bugbotOut) {
+                core.info('Bugbot ran on this commit (or has not finished), so Bugbot drives the fixes. Not starting.');
+                return;
+              }
+              // The newest Claude review verdict for this commit (a re-run may post a second
+              // comment); only act when that newest one says "issues".
+              const verdictPrefix = `<!-- claude-review-verdict ${sha} `;
+              const verdictComment = allComments
+                .filter((c) => c.user?.login === 'github-actions[bot]' && typeof c.body === 'string' && c.body.includes(verdictPrefix))
+                .sort((a, b) => b.id - a.id)[0];
+              const latestIsIssues = Boolean(verdictComment && verdictComment.body.includes(`${verdictPrefix}issues -->`));
+              const encoded = latestIsIssues ? verdictComment.body.match(/<!-- claude-review-findings ([A-Za-z0-9+/=]+) -->/) : null;
+              let data = [];
+              try { data = encoded ? JSON.parse(Buffer.from(encoded[1], 'base64').toString('utf8')) : []; } catch { data = []; }
+              if (!latestIsIssues || !Array.isArray(data) || data.length === 0) {
+                core.info('The Claude review found nothing to fix on this commit. Not starting.');
+                return;
+              }
+              reviewId = verdictComment.id;
+              bugs = data.slice(0, 20).map((_, i) => `cr-${verdictComment.id}-${i}`);
+            }
+            for (let attempt = 0; !fromClaude && attempt < 4; attempt++) {
               const comments = await github.paginate(
                 'GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments',
                 { owner, repo, pull_number: prNumber, review_id: review.id, per_page: 100 },
@@ -162,7 +224,7 @@ jobs:
               return;
             }
 
-            const marker = `<!-- bugbot-claude-pass ${review.id} ${sha} -->`;
+            const marker = `<!-- bugbot-claude-pass ${reviewId} ${sha} -->`;
             const listMarkers = async () => {
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner,
@@ -184,7 +246,7 @@ jobs:
               owner,
               repo,
               issue_number: prNumber,
-              body: `${marker}\n**🔧 Claude Fix** · round ${passes + 1} of ${MAX_PASSES} started\n\nClaude is fixing the ${isSecurity ? 'security review' : 'Bugbot'} findings from review ${review.id} at \`${sha.slice(0, 7)}\` (run ${context.runId}). A report follows when it is done.\n`,
+              body: `${marker}\n**🔧 Claude Fix** · round ${passes + 1} of ${MAX_PASSES} started\n\nClaude is fixing the ${fromClaude ? 'Claude review (Bugbot could not run)' : (isSecurity ? 'security review' : 'Bugbot')} findings from review ${reviewId} at \`${sha.slice(0, 7)}\` (run ${context.runId}). A report follows when it is done.\n`,
             });
             const after = await listMarkers();
             const winner = after[0];
@@ -199,7 +261,7 @@ jobs:
             }
 
             core.setOutput('proceed', 'true');
-            core.setOutput('review_id', String(review.id));
+            core.setOutput('review_id', String(reviewId));
             core.setOutput('sha', sha);
             core.setOutput('head_ref', ref);
             core.setOutput('pr_number', String(prNumber));
@@ -281,7 +343,7 @@ jobs:
             core.setOutput('reason', 'ok');
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const idOk = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|sec-[0-9]{1,20})$/;
+            const idOk = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|sec-[0-9]{1,20}|cr-[0-9]{1,20}-[0-9]{1,2})$/;
             const allowed = new Set(String(process.env.BUG_IDS || '').split(',').map((id) => id.trim()).filter((id) => idOk.test(id)));
             const reviewId = Number(process.env.REVIEW_ID);
             const prNumber = Number(process.env.PR_NUMBER);
@@ -291,6 +353,40 @@ jobs:
             };
             if (!allowed.size || !Number.isInteger(reviewId) || !Number.isInteger(prNumber)) {
               fail('no-findings');
+              return;
+            }
+            // Claude review findings (Bugbot could not run): read them from that review's
+            // comment, posted by this repository's workflow bot.
+            if ([...allowed].every((id) => id.startsWith('cr-'))) {
+              try {
+                const { data: comment } = await github.rest.issues.getComment({ owner, repo, comment_id: reviewId });
+                const encoded = comment.user?.login === 'github-actions[bot]' && typeof comment.body === 'string'
+                  ? comment.body.match(/<!-- claude-review-findings ([A-Za-z0-9+/=]+) -->/)
+                  : null;
+                const data = encoded ? JSON.parse(Buffer.from(encoded[1], 'base64').toString('utf8')) : [];
+                const findings = [];
+                (Array.isArray(data) ? data.slice(0, 20) : []).forEach((f, i) => {
+                  const bugId = `cr-${reviewId}-${i}`;
+                  if (!allowed.has(bugId) || !f || typeof f !== 'object') return;
+                  const strip = (value, max) => String(value || '').replace(/\u0000/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+                  findings.push({
+                    bug_id: bugId,
+                    path: strip(f.path, 300),
+                    line: Number.isInteger(f.line) && f.line > 0 ? f.line : null,
+                    severity: strip(f.severity, 40),
+                    title: strip(f.title, 200),
+                    description: strip(`${f.explanation || ''} Suggested fix: ${f.fix || ''}`, 2000),
+                  });
+                });
+                if (findings.length === 0) {
+                  fail('no-findings');
+                  return;
+                }
+                fs.writeFileSync('.bugbot-findings.json', JSON.stringify({ untrusted: true, findings }));
+                core.setOutput('go', 'true');
+              } catch {
+                fail('no-findings');
+              }
               return;
             }
             try {
@@ -666,7 +762,7 @@ jobs:
             const fs = require('fs');
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const uuid = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|sec-[0-9]{1,20})$/;
+            const uuid = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|sec-[0-9]{1,20}|cr-[0-9]{1,20}-[0-9]{1,2})$/;
             const reviewId = String(process.env.REVIEW_ID || '');
             const reviewed = String(process.env.REVIEWED_SHA || '');
             const prNumber = String(process.env.PR_NUMBER || '');
