@@ -4,6 +4,7 @@
  *
  *   npm run agent:build -- <KEY>-51 <KEY>-52
  *   npm run agent:build -- --dry-run <KEY>-51      (shows what it would do, sends nothing)
+ *   npm run agent:build -- --help                  (or -h: prints how to use it, starts nothing)
  *
  * Each id becomes one start ("fire") of the routine with the message `Build <id>`. The routine
  * (`.claude/routines/ticket-pickup.md`) reads only the ticket id from that message, then claims,
@@ -53,6 +54,28 @@ function setupHelp() {
   ];
 }
 
+/** Printed for --help / -h. Reads no token and starts nothing. */
+function usageHelp(teamKey) {
+  return [
+    'Start the Claude ticket routine right away, once per Linear ticket.',
+    '',
+    'Usage:',
+    `  npm run agent:build -- ${teamKey}-51 ${teamKey}-52`,
+    '',
+    'Options:',
+    '  --dry-run   Show what would be started and whether a token was found. Sends nothing.',
+    '  --help, -h  Show this help.',
+    '',
+    `Up to ${MAX_TICKETS} tickets per run. Each ticket gets its own cloud session.`,
+    '',
+    'Token: read from the environment variable',
+    `  ${TOKEN_ENV}`,
+    'or from the file',
+    '  %USERPROFILE%\\.atteya-store\\routine-token   (~/.atteya-store/routine-token)',
+    'Run without a token to see the one-time setup steps.',
+  ];
+}
+
 async function fire(token, id) {
   const response = await fetch(FIRE_URL, {
     method: 'POST',
@@ -83,6 +106,10 @@ async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
   const { teamKey } = readLinearConfig();
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(usageHelp(teamKey).join('\n'));
+    return;
+  }
   const idPattern = new RegExp(`^${teamKey}-[0-9]{1,6}$`);
   const ids = [...new Set(args.filter((a) => !a.startsWith('--')).map((a) => a.trim().toUpperCase()))];
 
