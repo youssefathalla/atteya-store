@@ -1,10 +1,12 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { logger } from 'firebase-functions';
 import { onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions, requireAppCheck } from '../auth/callable-options.js';
 import { utcDayKey } from '../orders/order-rate-limit.js';
 import {
   emailSignupDocId,
   hashCallerIp,
+  MAX_EMAIL_SIGNUPS_PER_UTC_DAY,
   nextDailySignupCount,
   nextStoreSignupCount,
   parseEmailSignupRequest,
@@ -43,13 +45,16 @@ export const subscribeToEmails = onCall(
     const rateLimitRef = limits.doc(`${hashCallerIp(ip)}_${day}`);
     const signupRef = db.collection('emailSignups').doc(emailSignupDocId(input.email));
 
-    return db.runTransaction(async (tx) => {
+    // Set inside the transaction (which may retry) and logged once after it commits.
+    let filledStoreCap = false;
+    const result = await db.runTransaction(async (tx) => {
       const [storeSnap, rateSnap, signupSnap] = await Promise.all([
         tx.get(storeLimitRef),
         tx.get(rateLimitRef),
         tx.get(signupRef),
       ]);
       const storeCount = nextStoreSignupCount(storeSnap.data()?.['count']);
+      filledStoreCap = storeCount === MAX_EMAIL_SIGNUPS_PER_UTC_DAY;
       const count = nextDailySignupCount(rateSnap.data()?.['count']);
       const now = FieldValue.serverTimestamp();
       const expireAt = rateLimitExpireAt();
@@ -67,5 +72,14 @@ export const subscribeToEmails = onCall(
       });
       return { status: 'subscribed' as const };
     });
+
+    if (filledStoreCap) {
+      // Real visitors now get "We can't take more sign-ups today" until UTC midnight.
+      logger.error('Email sign-ups reached the store-wide daily cap', {
+        day,
+        cap: MAX_EMAIL_SIGNUPS_PER_UTC_DAY,
+      });
+    }
+    return result;
   },
 );
