@@ -114,11 +114,11 @@
     @apply relative block size-16 overflow-hidden bg-surface-container border-b-2 border-transparent transition-colors;
   }
 
-  a.pdp-colour-thumb:hover {
+  a.pdp-colour-thumb:not([aria-current='page']):hover {
     @apply border-outline;
   }
 
-  .pdp-colour-thumb[aria-current='true'] {
+  .pdp-colour-thumb[aria-current='page'] {
     @apply border-primary;
   }
 

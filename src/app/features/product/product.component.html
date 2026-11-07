@@ -79,7 +79,8 @@
             @defer (on idle) {
               <app-product-siblings
                 [modelGroup]="p.modelGroup"
-                [excludeId]="p.id"
+                [currentId]="p.id"
+                [currentSlug]="p.slug"
                 [currentImage]="p.images[0] ?? null"
                 [currentName]="p.name"
                 [label]="coloursLabel()"
