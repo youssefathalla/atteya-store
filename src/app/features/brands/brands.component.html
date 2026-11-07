@@ -43,7 +43,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           @for (brand of group.brands; track brand.path) {
             <a
-              [routerLink]="brand.path"
+              [routerLink]="brand.path | linkTarget"
               class="group block p-6 bg-surface-container-lowest border border-outline-variant border-shape hover:border-primary transition-all duration-200 hover:shadow-md cursor-pointer"
             >
               <div class="flex items-start justify-between">
