@@ -256,13 +256,20 @@ export class NavigationListSectionComponent {
       if (this.#destroyed || this.activeIndex() !== index) return;
       this.#syncPhotos(index, true);
     };
-    // Only `load` counts: after an ImageKit error the fallback directive
-    // retries the Storage URL on the same <img>. The timer covers a photo
+    // After an ImageKit error the fallback directive (its listener runs
+    // first) retries the Storage URL on the same <img>, so `complete` is
+    // false again and we keep waiting. A second error leaves it complete:
+    // the photo has finally failed, so swap now. The timer covers a photo
     // that never arrives.
+    const onError = (): void => {
+      if (img.complete) play();
+    };
     img.addEventListener('load', play);
+    img.addEventListener('error', onError);
     const timer = setTimeout(play, PHOTO_WAIT_MS);
     this.#cancelPhotoWait = () => {
       img.removeEventListener('load', play);
+      img.removeEventListener('error', onError);
       clearTimeout(timer);
     };
   }
