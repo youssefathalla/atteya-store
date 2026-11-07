@@ -95,19 +95,6 @@ jobs:
               per_page: 100,
             });
             const passes = allComments.filter((comment) => typeof comment.body === 'string' && comment.body.startsWith('<!-- bugbot-claude-pass ')).length;
-            if (passes >= MAX_PASSES) {
-              const limitMarker = '<!-- bugbot-claude-limit -->';
-              if (!allComments.some((comment) => typeof comment.body === 'string' && comment.body.includes(limitMarker))) {
-                await github.rest.issues.createComment({
-                  owner,
-                  repo,
-                  issue_number: prNumber,
-                  body: `${limitMarker}\n**🛑 Claude Fix** · stopped, needs you\n\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and the reviewers (Bugbot or the security review) still find issues, so it stops here. This one needs a person. It will not be merged automatically while issues are open.\n`,
-                });
-              }
-              core.info(`Reached ${MAX_PASSES} fix rounds. Not starting.`);
-              return;
-            }
 
             const defaultBranch = context.payload.repository?.default_branch;
             if (!defaultBranch || !/^[A-Za-z0-9._/-]+$/.test(defaultBranch)) return;
@@ -151,6 +138,22 @@ jobs:
             }
             if (bugs.length === 0) {
               core.info('No finding comments in this review. Not starting.');
+              return;
+            }
+
+            // The round cap only applies when this review really has findings, so a clean
+            // re-review (Bugbot or security) never posts the "stopped" comment.
+            if (passes >= MAX_PASSES) {
+              const limitMarker = '<!-- bugbot-claude-limit -->';
+              if (!allComments.some((comment) => typeof comment.body === 'string' && comment.body.includes(limitMarker))) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  body: `${limitMarker}\n**🛑 Claude Fix** · stopped, needs you\n\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and the reviewers (Bugbot or the security review) still find issues, so it stops here. This one needs a person. It will not be merged automatically while issues are open.\n`,
+                });
+              }
+              core.info(`Reached ${MAX_PASSES} fix rounds. Not starting.`);
               return;
             }
 
