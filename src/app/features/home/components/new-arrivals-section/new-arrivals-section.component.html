@@ -30,6 +30,10 @@
         class="scroll-row [--scroll-peek:2.5rem] sm:[--scroll-cols:2] md:[--scroll-cols:3] md:[--scroll-peek:3.5rem]"
         [style.--scroll-peek]="cards().length > 3 ? null : '0px'"
         appHorizontalScroll
+        appRowScrollLock
+        #lock="rowScrollLock"
+        [enableWheel]="false"
+        [snapToItems]="!lock.enabled()"
       >
         @for (card of cards(); track card.id) {
           <div class="scroll-row-item">
@@ -46,8 +50,8 @@
           [progress]="progress()"
           [canPrev]="canPrev()"
           [canNext]="canNext()"
-          (prev)="prev()"
-          (next)="next()"
+          (prev)="lock.step(-1)"
+          (next)="lock.step(1)"
         />
       }
     }
