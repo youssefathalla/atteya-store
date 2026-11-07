@@ -10,6 +10,9 @@
 #   - no unresolved review thread from a person or from the Cursor Security Agent
 #     (its check ends "success" even when it reports something) and no "changes requested",
 #   - GitHub says the PR can merge (no conflicts).
+# When Bugbot could not run on the commit (Cursor usage limit: its check ends with the title
+# "Error"), a "clean" verdict from the Claude review of that commit (claude-review.yml) counts
+# instead of Bugbot's success, so this also runs when Claude Review finishes.
 # Then it squash-merges into develop and deletes the branch.
 #
 # Never merges into main. Skips draft PRs, PRs with the "no-auto-merge" label,
@@ -32,7 +35,8 @@ on:
     types: [completed]
   workflow_run:
     # "PR title" is the old name, still used by branches made before the rename.
-    workflows: [CI, PR Title, PR title]
+    # "Claude Review": its verdict is the gate when Bugbot could not run on a commit.
+    workflows: [CI, PR Title, PR title, Claude Review]
     types: [completed]
 
 permissions: {}
@@ -84,6 +88,22 @@ jobs:
               return;
             }
 
+            // The Claude review's verdict for a commit (claude-review.yml): clean, issues or none.
+            // Only comments posted by this repository's workflow bot count.
+            const claudeVerdict = async (prNumber, commit) => {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: prNumber, per_page: 100,
+              });
+              const pattern = new RegExp(`<!-- claude-review-verdict ${commit} (clean|issues|none) -->`);
+              let verdict = 'none';
+              for (const c of comments) {
+                if (c.user?.login !== 'github-actions[bot]') continue;
+                const match = typeof c.body === 'string' ? c.body.match(pattern) : null;
+                if (match) verdict = match[1];
+              }
+              return verdict;
+            };
+
             const commentOnce = async (prNumber, marker, text) => {
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner, repo, issue_number: prNumber, per_page: 100,
@@ -131,7 +151,22 @@ jobs:
               }
               const bugbot = byName.get(BUGBOT);
               if (!bugbot || bugbot.status !== 'completed') { stop('Bugbot has not finished on this commit.'); continue; }
-              if (bugbot.conclusion !== 'success') { stop(`Bugbot ended with "${bugbot.conclusion}" (issues found or an error).`); continue; }
+              // Bugbot "couldn't run" (for example the Cursor usage limit): its check ends with the
+              // title "Error". Then the Claude review of this commit is the gate instead.
+              const bugbotOut = bugbot.conclusion !== 'success' &&
+                (bugbot.output?.title === 'Error' || /bugbot (run )?failed to run|failed to run/i.test(String(bugbot.output?.summary || '')));
+              let usedClaude = false;
+              if (bugbot.conclusion !== 'success' && !bugbotOut) { stop(`Bugbot ended with "${bugbot.conclusion}" (issues found or an error).`); continue; }
+              if (bugbotOut) {
+                const verdict = await claudeVerdict(n, sha);
+                if (verdict !== 'clean') {
+                  stop(verdict === 'issues'
+                    ? 'Bugbot could not run, and the Claude review found issues on this commit.'
+                    : 'Bugbot could not run, and the Claude review has no result on this commit yet.');
+                  continue;
+                }
+                usedClaude = true;
+              }
               const required = REQUIRED.map((names) => ({ label: names[0], run: names.map((name) => byName.get(name)).find(Boolean) }));
               const missing = required.filter((r) => r.run?.status !== 'completed').map((r) => r.label);
               if (missing.length) { stop(`Still waiting for: ${missing.join(', ')}.`); continue; }
@@ -205,7 +240,9 @@ jobs:
 
               await github.rest.issues.createComment({
                 owner, repo, issue_number: n,
-                body: `<!-- auto-merged -->\n**✅ Auto-merge** · merged\n\nMerged into \`${BASE}\` automatically: Bugbot found no issues on the latest commit, no security finding is open, and all checks passed.`,
+                body: usedClaude
+                  ? `<!-- auto-merged -->\n**✅ Auto-merge** · merged\n\nMerged into \`${BASE}\` automatically: Bugbot could not run (Cursor usage limit), so the Claude review was used and found no issues on the latest commit. No security finding is open, and all checks passed.`
+                  : `<!-- auto-merged -->\n**✅ Auto-merge** · merged\n\nMerged into \`${BASE}\` automatically: Bugbot found no issues on the latest commit, no security finding is open, and all checks passed.`,
               });
 
               try {

@@ -8,6 +8,9 @@
 # same usage limits as interactive Claude Code.
 # Stays inactive until the repository variable CLAUDE_REVIEW is exactly "enabled".
 # The job always ends green so a failed or skipped review never blocks auto-merge.
+# Each comment carries <!-- claude-review-verdict <sha> clean|issues|none --> (and the findings
+# as base64 JSON when there are issues). When Bugbot could not run on a commit (Cursor usage
+# limit), auto-merge.yml accepts a clean verdict and bugbot-claude-fix.yml fixes the findings.
 
 name: Claude Review
 
@@ -170,7 +173,26 @@ jobs:
             }
 
             const marker = `<!-- claude-review-trial ${sha} -->`;
-            const lines = [marker, `**🤖 Claude Review** · trial · commit \`${sha.slice(0, 7)}\``, '', 'Shadow mode: nothing was changed. Compare with Bugbot on the same commit.', ''];
+            // Machine-readable result for auto-merge.yml and bugbot-claude-fix.yml, which use this
+            // review instead of Bugbot when Bugbot could not run (for example the Cursor usage limit).
+            // clean = finished with no findings, issues = finished with findings, none = no result.
+            const finished = !workflowSkipped && report && Array.isArray(report.findings);
+            const validFindings = finished ? report.findings.filter((f) => f && typeof f === 'object').slice(0, 20) : [];
+            const verdict = !finished ? 'none' : (validFindings.length ? 'issues' : 'clean');
+            const lines = [marker, `<!-- claude-review-verdict ${sha} ${verdict} -->`];
+            if (verdict === 'issues') {
+              const data = validFindings.map((f) => ({
+                severity: String(f.severity || '').slice(0, 10),
+                category: String(f.category || '').slice(0, 10),
+                path: String(f.path || '').slice(0, 300),
+                line: Number.isInteger(f.line) && f.line > 0 ? f.line : null,
+                title: String(f.title || '').slice(0, 200),
+                explanation: String(f.explanation || '').slice(0, 1500),
+                fix: String(f.fix || '').slice(0, 800),
+              }));
+              lines.push(`<!-- claude-review-findings ${Buffer.from(JSON.stringify(data), 'utf8').toString('base64')} -->`);
+            }
+            lines.push(`**🤖 Claude Review** · trial · commit \`${sha.slice(0, 7)}\``, '', 'Shadow mode unless Bugbot could not run: then auto-merge and Claude Fix use this review instead.', '');
             if (workflowSkipped) {
               lines.push(`Not reviewed: this commit's \`.github/workflows/claude-review.yml\` is missing from, or differs from, the copy on the default branch (\`${clean(context.payload.repository?.default_branch, 50)}\`), and the Claude action only runs when the two match (a safety check). Once the copies match (this change merged, or this branch updated from the default branch), it reviews normally.`);
             } else if (!report || !Array.isArray(report.findings)) {
