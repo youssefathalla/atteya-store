@@ -18,8 +18,9 @@
  * the script runs is skipped instead of overwritten; run it again to pick it up.
  * Re-running is safe: products already using the new name are left alone.
  *
- * Offers whose size conditions mention an old name are listed (not changed):
- * edit those offers in the admin after applying.
+ * Offers whose size conditions mention an old name (in `conditions`, `exclude`
+ * or a buy-X-get-Y `reward.getConditions`) are listed (not changed): edit those
+ * offers in the admin after applying.
  *
  * After applying, run "Rebuild search" in Catalogue Tools so Algolia picks up the
  * new size names. Agents never run --apply.
@@ -132,17 +133,30 @@ for (const [label, count] of [...labelCounts.entries()].sort((a, b) => a[0].loca
 const offers = await db.collection('offers').limit(500).get();
 const oldNames = new Set(Object.keys(RENAMES));
 const offersToEdit = [];
-for (const snap of offers.docs) {
-  const groups = snap.data().conditions?.anyOf;
-  if (!Array.isArray(groups)) continue;
-  const hit = groups.some((group) =>
-    (Array.isArray(group?.allOf) ? group.allOf : []).some(
+const asList = (value) => (Array.isArray(value) ? value : []);
+/** True when a conditions object ({ anyOf: [{ allOf: [...] }] }) names an old size. */
+const mentionsOldSize = (conditions) =>
+  asList(conditions?.anyOf).some((group) =>
+    asList(group?.allOf).some(
       (atom) =>
         atom?.field === 'sizes' &&
-        [...(atom.in ?? []), ...(atom.notIn ?? [])].some((size) => oldNames.has(trimmed(size))),
+        [...asList(atom.in), ...asList(atom.notIn)].some((size) => oldNames.has(trimmed(size))),
     ),
   );
-  if (hit) offersToEdit.push(`${snap.data().name ?? snap.id} (${snap.id})`);
+for (const snap of offers.docs) {
+  const data = snap.data();
+  // Sizes can appear in the main conditions, in the exclude list, and in the
+  // "get" conditions of a buy-X-get-Y reward.
+  const places = [
+    ['conditions', data.conditions],
+    ['exclude', data.exclude],
+    ['reward.getConditions', data.reward?.getConditions],
+  ]
+    .filter(([, conditions]) => mentionsOldSize(conditions))
+    .map(([where]) => where);
+  if (places.length > 0) {
+    offersToEdit.push(`${data.name ?? snap.id} (${snap.id})  in ${places.join(', ')}`);
+  }
 }
 if (offersToEdit.length > 0) {
   console.log('\nOffers with a size condition using an old name (edit these in the admin):');
