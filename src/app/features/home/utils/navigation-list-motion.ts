@@ -12,6 +12,21 @@ function photoIndex(photo: HTMLElement): number {
 }
 
 /**
+ * The `<img>` inside the photo for `index` when it has not finished loading,
+ * otherwise null. A swap to a photo that is still downloading would fade in
+ * an empty frame and then pop the picture in, so the caller waits for it.
+ */
+export function pendingNavListImage(
+  photos: readonly HTMLElement[],
+  index: number,
+): HTMLImageElement | null {
+  const photo = photos.find((candidate) => photoIndex(candidate) === index);
+  const img = photo?.querySelector('img');
+  if (!img) return null;
+  return img.complete && img.naturalWidth > 0 ? null : img;
+}
+
+/**
  * Puts the active photo on top with no tween. Used before hydration styles
  * are replaced, and whenever motion should not play.
  */

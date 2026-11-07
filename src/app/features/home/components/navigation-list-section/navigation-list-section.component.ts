@@ -23,12 +23,16 @@ import { normalizeImageKitPath } from '@shared/utils/image';
 import { NAV_LIST_MAX_ITEMS } from '../../data/home.data';
 import { HomeNavList, HomeNavListItem } from '../../models/home.model';
 import {
+  pendingNavListImage,
   playNavListSwap,
   settleNavListPhotos,
 } from '../../utils/navigation-list-motion';
 
 type GsapApi = typeof GsapNamespace;
 type GsapContext = ReturnType<GsapApi['context']>;
+
+/** Longest wait for an incoming photo before the swap plays anyway. */
+const PHOTO_WAIT_MS = 1200;
 
 let nextTitleId = 0;
 
@@ -94,6 +98,7 @@ export class NavigationListSectionComponent {
   #destroyed = false;
   #lastAnimated = -1;
   #animatedPhotoCount = 0;
+  #cancelPhotoWait: (() => void) | null = null;
 
   constructor() {
     afterNextRender(() => this.#bootBrowser());
@@ -188,6 +193,7 @@ export class NavigationListSectionComponent {
   readonly #onDesktopChange = (event: MediaQueryListEvent): void => {
     this.#desktopPhotos.set(event.matches);
     if (event.matches) return;
+    this.#stopPhotoWait();
     this.#lastAnimated = -1;
     this.#animatedPhotoCount = 0;
     this.#ctx?.revert();
@@ -204,7 +210,7 @@ export class NavigationListSectionComponent {
     this.#syncPhotos(this.activeIndex());
   };
 
-  #syncPhotos(index: number): void {
+  #syncPhotos(index: number, skipWait = false): void {
     const gsap = this.#gsap;
     const ctx = this.#ctx;
     if (!gsap || !ctx || !this.#desktopPhotos()) return;
@@ -215,8 +221,23 @@ export class NavigationListSectionComponent {
     if (photos.length === 0) return;
     if (this.#lastAnimated === index && this.#animatedPhotoCount === photos.length) return;
 
+    this.#stopPhotoWait();
     const first = this.#lastAnimated < 0;
     const indexChanged = this.#lastAnimated !== index;
+
+    // Keep the current photo on screen until the next one has downloaded,
+    // so the change never fades through an empty frame.
+    if (!first && indexChanged && !skipWait) {
+      const pending = pendingNavListImage(photos, index);
+      if (pending) {
+        // The `is-active` class would show its loading shimmer on top meanwhile.
+        const incoming = pending.closest<HTMLElement>('[data-nav-photo]');
+        if (incoming) ctx.add(() => gsap.set(incoming, { opacity: 0, overwrite: 'auto' }));
+        this.#waitForPhoto(pending, index);
+        return;
+      }
+    }
+
     this.#lastAnimated = index;
     this.#animatedPhotoCount = photos.length;
 
@@ -229,7 +250,30 @@ export class NavigationListSectionComponent {
     });
   }
 
+  #waitForPhoto(img: HTMLImageElement, index: number): void {
+    const play = (): void => {
+      this.#stopPhotoWait();
+      if (this.#destroyed || this.activeIndex() !== index) return;
+      this.#syncPhotos(index, true);
+    };
+    // Only `load` counts: after an ImageKit error the fallback directive
+    // retries the Storage URL on the same <img>. The timer covers a photo
+    // that never arrives.
+    img.addEventListener('load', play);
+    const timer = setTimeout(play, PHOTO_WAIT_MS);
+    this.#cancelPhotoWait = () => {
+      img.removeEventListener('load', play);
+      clearTimeout(timer);
+    };
+  }
+
+  #stopPhotoWait(): void {
+    this.#cancelPhotoWait?.();
+    this.#cancelPhotoWait = null;
+  }
+
   #teardown(): void {
+    this.#stopPhotoWait();
     this.#destroyed = true;
     this.#desktopQuery?.removeEventListener('change', this.#onDesktopChange);
     this.#reduceQuery?.removeEventListener('change', this.#onReduceChange);
