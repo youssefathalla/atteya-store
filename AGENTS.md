@@ -126,7 +126,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### Task board (Linear) — keep it in sync, always
 
-The single source of truth for work is Linear. Workspace, team, team key and project names live in **`linear.config.json`** at the repo root (read it; never hard-code them in docs). Issue ids are `<KEY>-123`, where `<KEY>` is that file's `teamKey`. Linear builds the id from the team key, not from the team or project name, so renaming the team or project changes no ids; a key change is a one-line edit to `teamKey` (move the old key into `previousTeamKeys`, which the branch hook still blocks and `npm run preflight` flags in docs). Statuses, in order: **Backlog → Todo → In Progress → In Review → QA → Done**, plus **Canceled** and **Duplicate**. Labels: `Bug`, `Open Questions`, `Blocked`, `Feature`, `Improvement`. The Todoist board was retired on Nov 6, 2026 and old `AS-xx` ids come from the earlier Cursor board; both only appear in issue descriptions and commit history.
+The single source of truth for work is Linear. Workspace, team, team key and project names live in **`linear.config.json`** at the repo root (read it; never hard-code them in docs). Issue ids are `<KEY>-123`, where `<KEY>` is that file's `teamKey`. Linear builds the id from the team key, not from the team or project name, so renaming the team or project changes no ids; a key change is a one-line edit to `teamKey` (move the old key into `previousTeamKeys`, which the branch hook still blocks and `npm run preflight` flags in docs). Statuses (board columns), in order: **Backlog → Bugs → Todo → In Progress → To Review → QA → Done**, plus **Blocked** (waiting on someone else), **Canceled** and **Duplicate**. **Bugs** holds open bugs nobody has started (Linear's Unstarted group, next to Todo). Every issue sits in exactly one column. Labels say what kind of work it is: `Bug`, `Feature`, `Improvement`, `Open Questions`. The old `Blocked` label is replaced by the **Blocked** column; don't add it. The Todoist board was retired on Nov 6, 2026 and old `AS-xx` ids come from the earlier Cursor board; both only appear in issue descriptions and commit history.
 
 Every agent (Claude Code, Cursor, Antigravity) updates the board as part of the task, not afterwards:
 
@@ -138,12 +138,12 @@ Every agent (Claude Code, Cursor, Antigravity) updates the board as part of the 
    - Still comment on the issue with the PR link after opening it (step 3).
 
    Full rule: the **`branch-naming`** skill. A Claude Code `PreToolUse` hook (`.claude/settings.json`) and a Cursor `beforeShellExecution` hook (`.cursor/hooks.json`) run `scripts/hooks/check-branch-name.mjs` and block a branch create or rename that breaks it. Antigravity has no hook wired in this repo, so follow the skill by hand there; the `PR title` check applies to every tool.
-3. **PR opened**: move it to **In Review** and add a comment with the PR link and a one-line summary.
+3. **PR opened**: move it to **To Review** and add a comment with the PR link and a one-line summary.
 4. **Pushed or merged to `develop`**: move it to **QA** with a comment saying what to test on dev and any deploy step it needs (`fb:rules:dev`, `fb:fn:dev`, Rebuild search, …).
 5. **Verified, or merged to `main`**: move it to **Done**.
 6. **Prod needs**: append every merged change's prod step to the checklist in the "Prod rollout" issue.
-7. **Found along the way**: create an issue with the `Bug` label for a bug (status **Todo**) or the `Open Questions` label for an undecided choice (status **Backlog**). Never only in chat.
-8. **Blocked on someone else** (usually the client): add the red `Blocked` label, keep the status the work has reached, and comment exactly what is needed and what to do once it arrives. Code that is complete can still be merged. When the missing piece lands, remove the label and move the issue on.
+7. **Found along the way**: create an issue with the `Bug` label for a bug (status **Bugs**) or the `Open Questions` label for an undecided choice (status **Backlog**). Never only in chat. When work on a bug starts it moves to **In Progress** like any issue and keeps the `Bug` label.
+8. **Blocked on someone else** (usually the client): move it to **Blocked** and comment exactly what is needed, what to do once it arrives, and which status it goes back to (the one it was in, e.g. **QA**). Code that is complete can still be merged. When the missing piece lands, move it back to that status and carry on.
 9. **No stale issues**: when work makes an issue outdated, done, or wrong, update its description, or move it to **Done** / **Canceled** with a comment that says why, in the same issue.
 
 If Linear can't be reached (tool missing or signed out), say so in the final message and list the exact board changes still needed. Never skip them silently.
