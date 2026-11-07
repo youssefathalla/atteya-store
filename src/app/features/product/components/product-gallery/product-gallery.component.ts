@@ -9,6 +9,7 @@ import {
   inject,
   input,
   linkedSignal,
+  signal,
   untracked,
   viewChild,
 } from '@angular/core';
@@ -57,6 +58,30 @@ export class ProductGalleryComponent {
 
   /** Index of the first photo in view. Back to 0 when the photo list changes (another colour). */
   readonly active = linkedSignal({ source: this.displayImages, computation: () => 0 });
+
+  /** Photos fully in view at once: 1, or 2 side by side on wide screens. */
+  readonly perView = signal(1);
+
+  /** Index of the last photo in view, so the counter reads "2–3/3" at the end of a two-up row. */
+  readonly lastShown = computed(() =>
+    Math.min(this.active() + this.perView() - 1, Math.max(this.displayImages().length - 1, 0)),
+  );
+
+  /** "1/4" on one-up screens, "1–2/4" when two photos are in view. */
+  readonly counter = computed(() => {
+    const first = this.active() + 1;
+    const last = this.lastShown() + 1;
+    const total = this.displayImages().length;
+    return last > first ? `${first}–${last}/${total}` : `${first}/${total}`;
+  });
+
+  /** What screen readers hear: "Photo 1 of 4" or "Photos 1 and 2 of 4". */
+  readonly counterSpoken = computed(() => {
+    const first = this.active() + 1;
+    const last = this.lastShown() + 1;
+    const total = this.displayImages().length;
+    return last > first ? `Photos ${first} and ${last} of ${total}` : `Photo ${first} of ${total}`;
+  });
 
   /** True once the last photo is in view (two fit at once on wide screens). */
   readonly atEnd = linkedSignal({
@@ -167,7 +192,9 @@ export class ProductGalleryComponent {
     const el = this.track()?.nativeElement;
     if (!el) return;
     const last = this.displayImages().length - 1;
-    const index = Math.round(el.scrollLeft / this.#stride(el));
+    const stride = this.#stride(el);
+    this.perView.set(Math.max(1, Math.round(el.clientWidth / stride)));
+    const index = Math.round(el.scrollLeft / stride);
     this.active.set(Math.min(Math.max(index, 0), Math.max(last, 0)));
     this.atEnd.set(el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
   }

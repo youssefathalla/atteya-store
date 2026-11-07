@@ -54,9 +54,9 @@
       >
         <mat-icon name="arrow_back" />
       </button>
-      <p class="pdp-kicker min-w-12 text-center" aria-live="polite">
-        <span class="sr-only">Photo </span>{{ active() + 1 }}<span aria-hidden="true">/</span
-        ><span class="sr-only"> of </span>{{ photos.length }}
+      <p class="pdp-kicker min-w-16 text-center" aria-live="polite">
+        <span aria-hidden="true">{{ counter() }}</span
+        ><span class="sr-only">{{ counterSpoken() }}</span>
       </p>
       <button matIconButton type="button" aria-label="Next photo" [disabled]="atEnd()" (click)="step(1)">
         <mat-icon name="arrow_forward" />
