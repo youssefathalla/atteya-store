@@ -45,8 +45,6 @@ export function parseShopFilterState(input: {
   readonly size?: string | null;
   readonly color?: string | null;
   readonly gender?: string | null;
-  readonly priceMin?: string | null;
-  readonly priceMax?: string | null;
   readonly onSale?: string | null;
   readonly inStock?: string | null;
   readonly page?: string | null;
@@ -76,8 +74,6 @@ export function parseShopFilterState(input: {
     sizes: parseList(input.size),
     colors,
     genders,
-    priceMin: parseOptionalInt(input.priceMin),
-    priceMax: parseOptionalInt(input.priceMax),
     onSale: isTruthyParam(input.onSale),
     inStock: isTruthyParam(input.inStock),
     page: Math.max(0, parseOptionalInt(input.page) ?? 0),
@@ -94,8 +90,9 @@ export function shopFiltersToQueryParams(
     size: state.sizes.length > 0 ? state.sizes.join(',') : null,
     color: state.colors.length > 0 ? state.colors.join(',') : null,
     gender: state.genders.length > 0 ? state.genders.join(',') : null,
-    priceMin: state.priceMin !== null ? String(state.priceMin) : null,
-    priceMax: state.priceMax !== null ? String(state.priceMax) : null,
+    // The price filter was removed; clear any price range left in old links.
+    priceMin: null,
+    priceMax: null,
     onSale: state.onSale ? '1' : null,
     inStock: state.inStock ? '1' : null,
     page: state.page > 0 ? String(state.page) : null,
@@ -170,21 +167,12 @@ export function buildCatalogBrowseOptions(input: {
     filterParts.push('inStock:true');
   }
 
-  const numericFilters: string[] = [];
-  if (filters.priceMin !== null) {
-    numericFilters.push(`price>=${filters.priceMin}`);
-  }
-  if (filters.priceMax !== null) {
-    numericFilters.push(`price<=${filters.priceMax}`);
-  }
-
   return {
     page: filters.page,
     hitsPerPage: input.hitsPerPage ?? 48,
     sort: filters.sort,
     filters: filterParts.length > 0 ? filterParts.join(' AND ') : undefined,
     facetFilters: facetFilters.length > 0 ? facetFilters : undefined,
-    numericFilters: numericFilters.length > 0 ? numericFilters : undefined,
     facets: [
       'brandName',
       'colors',
@@ -192,7 +180,6 @@ export function buildCatalogBrowseOptions(input: {
       'onSale',
       'gender',
       'hierarchicalCategories.lvl0',
-      'price',
     ],
     disjunctiveFacets: ['brandName', 'colors', 'sizes'],
     maxValuesPerFacet: 50,

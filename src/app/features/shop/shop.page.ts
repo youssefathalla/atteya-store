@@ -24,7 +24,6 @@ import {
   DEFAULT_SHOP_FILTERS,
   SHOP_TABS,
   type ShopFilterState,
-  type ShopPriceBounds,
 } from './models/shop.model';
 import {
   brandOptionsFromFacets,
@@ -38,8 +37,6 @@ import {
   shopFiltersToQueryParams,
   sizeOptionsFromFacets,
 } from './utils/shop-filters';
-
-const DEFAULT_PRICE_BOUNDS: ShopPriceBounds = { min: 99, max: 19_499 };
 
 interface ShopCatalogSnapshot {
   readonly hits: readonly SearchHit[];
@@ -73,8 +70,6 @@ export class ShopPage {
   readonly size = input<string>();
   readonly color = input<string>();
   readonly gender = input<string>();
-  readonly priceMin = input<string>();
-  readonly priceMax = input<string>();
   readonly onSale = input<string>();
   readonly inStock = input<string>();
   readonly page = input<string>();
@@ -92,8 +87,6 @@ export class ShopPage {
 
   /** Last successful browse result — kept while the resource reloads (anti-flicker). */
   readonly #snapshot = signal<ShopCatalogSnapshot | null>(null);
-  /** Catalogue price range frozen after the first stats read so the slider does not collapse. */
-  readonly #frozenPriceBounds = signal<ShopPriceBounds | null>(null);
   /** Tracks shop tab/bags scope so we only clear the snapshot on a real tab change. */
   readonly #tabScopeKey = signal('');
 
@@ -123,8 +116,6 @@ export class ShopPage {
       size: this.size(),
       color: this.color(),
       gender: this.gender(),
-      priceMin: this.priceMin(),
-      priceMax: this.priceMax(),
       onSale: this.onSale(),
       inStock: this.inStock(),
       page: this.page(),
@@ -175,10 +166,6 @@ export class ShopPage {
     () => this.activeTab() === 'accessories' && !this.forceBags(),
   );
 
-  readonly priceBounds = computed(
-    () => this.#frozenPriceBounds() ?? DEFAULT_PRICE_BOUNDS,
-  );
-
   readonly isConfigured = computed(() => this.#search.isConfigured());
 
   /** First paint only — never swap the grid for skeletons on filter refreshes. */
@@ -220,13 +207,6 @@ export class ShopPage {
         totalPages: value.totalPages,
         facets: value.facets ?? {},
       });
-      if (this.#frozenPriceBounds()) return;
-      const stats = value.facetStats?.['price'];
-      if (!stats) return;
-      this.#frozenPriceBounds.set({
-        min: Number.isFinite(stats.min) ? Math.floor(stats.min) : DEFAULT_PRICE_BOUNDS.min,
-        max: Number.isFinite(stats.max) ? Math.ceil(stats.max) : DEFAULT_PRICE_BOUNDS.max,
-      });
     });
 
     // Clear the stale snapshot only when the shop tab/bags scope actually changes.
@@ -235,7 +215,6 @@ export class ShopPage {
       const prev = this.#tabScopeKey();
       if (prev !== '' && prev !== key) {
         this.#snapshot.set(null);
-        this.#frozenPriceBounds.set(null);
       }
       this.#tabScopeKey.set(key);
     });
@@ -312,7 +291,7 @@ export class ShopPage {
 
   /**
    * @param preserveScroll When true (default), skip router scroll restoration so
-   * filter tweaks (esp. price drag) do not jump the viewport to the top.
+   * filter tweaks do not jump the viewport to the top.
    */
   async #navigate(state: ShopFilterState, preserveScroll = true): Promise<void> {
     const tab = this.activeTab();

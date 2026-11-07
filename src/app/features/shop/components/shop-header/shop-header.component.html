@@ -17,7 +17,12 @@
 
   <div class="w-full elements-between gap-4 border-y border-outline-variant py-3">
     @if (showFiltersToggle()) {
-      <button matButton="outlined" type="button" (click)="filtersToggle.emit()">
+      <button
+        matButton="outlined"
+        type="button"
+        [attr.aria-expanded]="filtersOpen()"
+        (click)="filtersToggle.emit()"
+      >
         <mat-icon name="filter_list" />
         <span>{{ filtersOpen() ? 'Hide Filters' : 'Show Filters' }}</span>
       </button>
