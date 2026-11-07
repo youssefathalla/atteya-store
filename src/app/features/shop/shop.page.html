@@ -16,12 +16,14 @@
       </p>
     </section>
   } @else {
-    <div
-      class="shop-browse-layout"
-      [class.shop-browse-layout--filters-open]="filtersOpen()"
-    >
+    <div class="shop-browse-layout">
       @if (filtersOpen()) {
-        <aside class="shop-filters-aside" aria-label="Filters">
+        <aside
+          class="shop-filters-aside shop-filters-scroll"
+          aria-label="Filters"
+          animate.enter="shop-filters-aside--enter"
+          animate.leave="shop-filters-aside--leave"
+        >
           <app-shop-filters
             [filters]="filterState()"
             (filtersChange)="onFiltersChange($event)"
@@ -29,7 +31,6 @@
             [brands]="brands()"
             [sizes]="sizes()"
             [colors]="colors()"
-            [priceBounds]="priceBounds()"
             [showGender]="showGender()"
             [showSizes]="showSizes()"
             [accessoriesSubOnly]="accessoriesSubOnly()"
@@ -115,7 +116,6 @@
     [brands]="brands()"
     [sizes]="sizes()"
     [colors]="colors()"
-    [priceBounds]="priceBounds()"
     [showGender]="showGender()"
     [showSizes]="showSizes()"
     [accessoriesSubOnly]="accessoriesSubOnly()"

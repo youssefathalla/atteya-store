@@ -42,11 +42,6 @@ export interface ShopSizeOption {
   readonly count: number;
 }
 
-export interface ShopPriceBounds {
-  readonly min: number;
-  readonly max: number;
-}
-
 /** URL / UI filter state for the shop listing. */
 export interface ShopFilterState {
   readonly sort: CatalogSort;
@@ -55,8 +50,6 @@ export interface ShopFilterState {
   readonly sizes: readonly string[];
   readonly colors: readonly ColorId[];
   readonly genders: readonly ShopGenderFilterId[];
-  readonly priceMin: number | null;
-  readonly priceMax: number | null;
   readonly onSale: boolean;
   readonly inStock: boolean;
   readonly page: number;
@@ -128,8 +121,6 @@ export const DEFAULT_SHOP_FILTERS: ShopFilterState = {
   sizes: [],
   colors: [],
   genders: [],
-  priceMin: null,
-  priceMax: null,
   onSale: false,
   inStock: false,
   page: 0,

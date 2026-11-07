@@ -4,16 +4,36 @@
     @apply grid grid-cols-2 md:grid-cols-3 gap-0.5 w-full;
   }
 
-  /** Desktop browse: results flex; filter column mounts with a short fade. */
+  /** Desktop browse: results flex; the filter column slides/fades in and out. */
   .shop-browse-layout {
     @apply w-full flex items-start;
     gap: 0;
   }
 
-  @media (min-width: 768px) {
-    .shop-browse-layout--filters-open {
-      gap: 2.5rem;
-    }
+  /**
+   * Scroll box for the filter panel (desktop aside + phone drawer body). The stable
+   * gutter keeps the size boxes and checkboxes clear of the scrollbar.
+   */
+  .shop-filters-scroll {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--mat-sys-outline-variant) transparent;
+  }
+
+  .shop-filters-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .shop-filters-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .shop-filters-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--mat-sys-outline-variant);
+    border-radius: var(--border-shape, 2px);
   }
 
   .shop-filters-aside {
@@ -21,11 +41,14 @@
   }
 
   /**
-   * Sticky lives on the aside itself (viewport scroll). Do not put overflow/transform
-   * on an ancestor of a sticky child — that pins to the ancestor instead.
+   * The aside only exists while filters are open (and while it animates out), so its
+   * desktop styles do not hang off a layout modifier: Hide Filters must not hide it
+   * before the leave animation runs. Sticky lives on the aside itself (viewport scroll).
+   * Do not put overflow/transform on an ancestor of a sticky child — that pins to the
+   * ancestor instead. The slide runs on the panel inside, the fade on the aside.
    */
   @media (min-width: 768px) {
-    .shop-browse-layout--filters-open .shop-filters-aside {
+    .shop-filters-aside {
       display: block;
       width: 18rem;
       flex-shrink: 0;
@@ -33,17 +56,28 @@
       position: sticky;
       top: 1rem;
       max-height: calc(100dvh - 6rem);
-      overflow-x: hidden;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      scrollbar-width: thin;
-      scrollbar-color: var(--mat-sys-outline-variant) transparent;
-      animation: shop-filters-in 220ms ease;
+      margin-inline-end: 2.5rem;
+      padding-inline-end: 1rem;
+    }
+
+    .shop-filters-aside--enter {
+      animation: shop-filters-fade-in 220ms ease-out;
+    }
+
+    .shop-filters-aside--enter > * {
+      animation: shop-filters-slide-in 220ms ease-out;
+    }
+
+    .shop-filters-aside--leave {
+      animation: shop-filters-fade-out 180ms ease-in forwards;
+    }
+
+    .shop-filters-aside--leave > * {
+      animation: shop-filters-slide-out 180ms ease-in forwards;
     }
   }
 
-  /* Opacity-only: transform on a sticky element breaks sticky while/after animating. */
-  @keyframes shop-filters-in {
+  @keyframes shop-filters-fade-in {
     from {
       opacity: 0;
     }
@@ -52,23 +86,41 @@
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .shop-browse-layout--filters-open .shop-filters-aside {
-      animation: none;
+  @keyframes shop-filters-fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
     }
   }
 
-  .shop-filters-aside::-webkit-scrollbar {
-    width: 4px;
+  @keyframes shop-filters-slide-in {
+    from {
+      transform: translateX(-1rem);
+    }
+    to {
+      transform: none;
+    }
   }
 
-  .shop-filters-aside::-webkit-scrollbar-track {
-    background: transparent;
+  @keyframes shop-filters-slide-out {
+    from {
+      transform: none;
+    }
+    to {
+      transform: translateX(-1rem);
+    }
   }
 
-  .shop-filters-aside::-webkit-scrollbar-thumb {
-    background-color: var(--mat-sys-outline-variant);
-    border-radius: var(--border-shape, 2px);
+  /* Reduced motion: no animation, so Angular adds and removes the aside at once. */
+  @media (prefers-reduced-motion: reduce) {
+    .shop-filters-aside--enter,
+    .shop-filters-aside--enter > *,
+    .shop-filters-aside--leave,
+    .shop-filters-aside--leave > * {
+      animation: none;
+    }
   }
 
   .shop-browse-results {
@@ -93,25 +145,35 @@
     @apply font-title-sm font-bold!;
   }
 
+  /** One list of sizes, three ~56px boxes per row. */
   .shop-size-grid {
-    @apply grid grid-cols-3 gap-1.5 w-full;
+    @apply grid grid-cols-3 gap-3 w-full;
   }
 
   .shop-size-btn {
-    @apply min-h-9 px-1.5 border border-outline-variant border-shape font-label-md font-mono elements-center hover:bg-surface-container transition-colors;
+    @apply min-h-14 px-2 border border-outline-variant border-shape font-label-md font-mono elements-center text-center hover:bg-surface-container transition-colors;
   }
 
   .shop-size-btn--active {
     @apply bg-primary text-on-primary border-primary;
   }
 
-  /** Always 2-col colour grid (panel is ~18rem); compact swatch + label + count. */
+  /** Always 2-col colour grid (panel is ~18rem). */
   .shop-color-grid {
     @apply grid grid-cols-2 gap-x-3 gap-y-1.5 w-full;
   }
 
+  /**
+   * Fixed columns — swatch | name | tick — so every row lines up whatever the
+   * name's length. The tick column is always reserved, ticked or not.
+   */
   .shop-color-row {
-    @apply elements-center gap-2 w-full min-h-9 py-0.5 border-shape hover:bg-surface-container transition-colors text-start;
+    @apply grid items-center gap-2 w-full min-h-9 py-0.5 pe-1 border-shape hover:bg-surface-container transition-colors text-start;
+    grid-template-columns: auto minmax(0, 1fr) 1.25rem;
+  }
+
+  .shop-color-tick {
+    @apply elements-center size-5;
   }
 
   .shop-color-row--active {
@@ -120,14 +182,6 @@
 
   /** Chunky swatches — larger than card chips, still dense in a 2-col row. */
   .shop-color-swatch {
-    @apply size-8 shrink-0;
-  }
-
-  .shop-price-inputs {
-    @apply w-full elements-start-col gap-1;
-  }
-
-  .shop-price-inputs mat-slider {
-    width: 100%;
+    @apply size-7 shrink-0;
   }
 }

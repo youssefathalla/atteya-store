@@ -1,5 +1,5 @@
 <div
-  class="fixed inset-0 z-40 flex flex-col bg-surface h-dvh w-full transition-transform duration-200 ease-out md:hidden pb-safe-drawer"
+  class="fixed inset-0 z-40 flex flex-col bg-surface h-dvh w-full transition-transform duration-200 ease-out motion-reduce:transition-none md:hidden pb-safe-drawer"
   [class.translate-y-0]="open()"
   [class.translate-y-full]="!open()"
   [class.pointer-events-auto]="open()"
@@ -18,14 +18,13 @@
     </button>
   </header>
 
-  <div class="flex-1 min-h-0 overflow-y-auto p-5">
+  <div class="shop-filters-scroll flex-1 min-h-0 p-5">
     <app-shop-filters
       [(filters)]="filters"
       [tab]="tab()"
       [brands]="brands()"
       [sizes]="sizes()"
       [colors]="colors()"
-      [priceBounds]="priceBounds()"
       [showGender]="showGender()"
       [showSizes]="showSizes()"
       [accessoriesSubOnly]="accessoriesSubOnly()"
