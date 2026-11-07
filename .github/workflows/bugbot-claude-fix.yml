@@ -682,6 +682,7 @@ jobs:
               'no-findings': 'The review comments were not available. Nothing was changed.',
               'token-skipped': 'Claude did not run because a GitHub App token was refused.',
               'commit-failed': 'The commit was not created. Nothing was pushed.',
+              'workflow-changed': 'Claude did not run: this pull request changes .github/workflows/bugbot-claude-fix.yml, and the Claude action only runs when that file matches the copy on the default branch (a safety check). Fix this one by hand.',
             };
             // Notes for a push that did land. These never turn a pushed commit into "not pushed".
             const pushedNotes = {
@@ -699,6 +700,21 @@ jobs:
             } catch { /* no recorded push */ }
             if (String(process.env.TOKEN_SKIP || '').trim() === 'true' && push.pushed !== true) {
               push = { pushed: false, reason: 'token-skipped', sha: '' };
+            }
+            // The Claude action skips itself (a safety check) when this workflow file differs
+            // from the copy on the default branch, and does not expose that as an output.
+            // Compare the two copies so the report says why nothing happened.
+            if (push.pushed !== true && push.reason === 'no-push-result') {
+              const path = '.github/workflows/bugbot-claude-fix.yml';
+              const readFile = async (ref) => {
+                try {
+                  const { data } = await github.rest.repos.getContent({ owner, repo, path, ref });
+                  return typeof data.content === 'string' ? Buffer.from(data.content, 'base64').toString('utf8') : null;
+                } catch { return null; }
+              };
+              const defaultBranch = context.payload.repository?.default_branch || 'develop';
+              const [onDefault, onPr] = await Promise.all([readFile(defaultBranch), readFile(reviewed)]);
+              if (onDefault === null || onDefault !== onPr) push = { pushed: false, reason: 'workflow-changed', sha: '' };
             }
             const shaOk = typeof push.sha === 'string' && /^[0-9a-f]{40}$/.test(push.sha);
             const pushed = push.pushed === true && shaOk;
