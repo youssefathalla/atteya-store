@@ -27,6 +27,8 @@
 # A merge made with the workflow token does not start other workflows, so this
 # job deletes the merged branch itself (delete-merged-branches.yml will not run)
 # and CI does not run again on the push to develop (it already passed on the PR).
+# For the same reason it starts conflict-watch.yml (workflow_dispatch) after each merge,
+# so other open PRs that now conflict with develop get fixed.
 
 name: Auto-merge
 
@@ -60,6 +62,7 @@ jobs:
       pull-requests: write
       issues: write
       checks: read
+      actions: write
     steps:
       - name: Merge the pull request if it is clean
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
@@ -252,5 +255,13 @@ jobs:
                 await github.rest.git.deleteRef({ owner, repo, ref: `heads/${pr.head.ref}` });
               } catch (error) {
                 core.info(`Could not delete ${pr.head.ref}: ${error.message}`);
+              }
+
+              // This merge used the workflow token, so no push workflow starts on develop.
+              // Start Conflict Watch directly: other open PRs may conflict now.
+              try {
+                await github.rest.actions.createWorkflowDispatch({ owner, repo, workflow_id: 'conflict-watch.yml', ref: BASE });
+              } catch (error) {
+                core.info(`Could not start Conflict Watch: ${error.message}`);
               }
             }
