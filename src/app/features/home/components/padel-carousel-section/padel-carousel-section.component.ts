@@ -19,7 +19,8 @@ import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll'
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.component';
-import { rowScrollProgress, scrollRowByItem } from '../../utils/row-scroll';
+import { rowScrollProgress } from '../../utils/row-scroll';
+import { RowScrollLockDirective } from '../../directives/row-scroll-lock.directive';
 import {
   HOME_PADEL_ROW_KEY,
   putHomeRowSeed,
@@ -37,6 +38,7 @@ const PADEL_CAROUSEL_LIMIT = 16;
     AppImageFallbackDirective,
     PrefetchProductDirective,
     HorizontalScrollDirective,
+    RowScrollLockDirective,
     SkeletonComponent,
     RowScrollNavComponent,
   ],
@@ -111,15 +113,5 @@ export class PadelCarouselSectionComponent {
     if (!path) return null;
     const normalized = normalizeImageKitPath(path);
     return normalized || null;
-  }
-
-  prev(): void {
-    const el = this.scrollEl()?.nativeElement;
-    if (el) scrollRowByItem(el, -1);
-  }
-
-  next(): void {
-    const el = this.scrollEl()?.nativeElement;
-    if (el) scrollRowByItem(el, 1);
   }
 }

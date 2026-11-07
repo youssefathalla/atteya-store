@@ -26,7 +26,8 @@ import { productToCardData } from '@shared/components/product-card/product-card.
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { listingCardPrices } from '../../utils/listing-card-prices';
-import { rowScrollProgress, scrollRowByItem } from '../../utils/row-scroll';
+import { rowScrollProgress } from '../../utils/row-scroll';
+import { RowScrollLockDirective } from '../../directives/row-scroll-lock.directive';
 import {
   HOME_NEW_ARRIVALS_ROW_KEY,
   putHomeRowSeed,
@@ -40,6 +41,7 @@ import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.componen
   imports: [
     ProductCardComponent,
     HorizontalScrollDirective,
+    RowScrollLockDirective,
     SkeletonComponent,
     RowScrollNavComponent,
   ],
@@ -152,15 +154,5 @@ export class NewArrivalsSectionComponent {
         ro?.disconnect();
       });
     });
-  }
-
-  prev(): void {
-    const el = this.scrollEl()?.nativeElement;
-    if (el) scrollRowByItem(el, -1);
-  }
-
-  next(): void {
-    const el = this.scrollEl()?.nativeElement;
-    if (el) scrollRowByItem(el, 1);
   }
 }

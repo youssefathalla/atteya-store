@@ -17,6 +17,7 @@ import { isPlatformBrowser } from '@angular/common';
     '[class.select-none]': 'isDragging()',
     '(wheel)': 'onWheel($event)',
     '(mousedown)': 'onMouseDown($event)',
+    '(dragstart)': 'onDragStart($event)',
     '(window:mousemove)': 'onMouseMove($event)',
     '(window:mouseup)': 'onMouseUpOrLeave()',
   },
@@ -92,6 +93,11 @@ export class HorizontalScrollDirective {
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
 
     if (event.deltaY !== 0) {
+      // At the row's first or last item, hand the wheel back to the page.
+      const max = el.scrollWidth - el.clientWidth;
+      if (event.deltaY < 0 && el.scrollLeft <= 1) return;
+      if (event.deltaY > 0 && el.scrollLeft >= max - 1) return;
+
       event.preventDefault();
       if (this.snapToItems()) {
         this.#scrollToNextItem(event.deltaY > 0 ? 1 : -1);
@@ -148,6 +154,11 @@ export class HorizontalScrollDirective {
     this.#hasDragged = false;
     this.#startX = event.clientX;
     this.#startScrollLeft = this.#el.nativeElement.scrollLeft;
+  }
+
+  /** Links and photos would start a native drag and swallow the mouse moves. */
+  protected onDragStart(event: DragEvent): void {
+    if (this.#isBrowser && this.enableDrag()) event.preventDefault();
   }
 
   protected onMouseMove(event: MouseEvent): void {

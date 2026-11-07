@@ -16,6 +16,10 @@
         #scrollRow
         class="scroll-row [--scroll-peek:2.5rem] md:[--scroll-cols:3] md:[--scroll-peek:3rem] xl:[--scroll-cols:5] xl:[--scroll-peek:2.5rem]"
         appHorizontalScroll
+        appRowScrollLock
+        #lock="rowScrollLock"
+        [enableWheel]="false"
+        [snapToItems]="!lock.enabled()"
       >
         @for (product of products(); track product.id) {
           @let path = imagePath(product.images[0]?.path);
@@ -47,8 +51,8 @@
           [progress]="progress()"
           [canPrev]="canPrev()"
           [canNext]="canNext()"
-          (prev)="prev()"
-          (next)="next()"
+          (prev)="lock.step(-1)"
+          (next)="lock.step(1)"
         />
       }
     }
