@@ -21,7 +21,7 @@ import { isProductInStock } from '../../utils/product-stock.utils';
   selector: 'app-product-siblings',
   imports: [RouterLink, NgOptimizedImage, AppImageFallbackDirective, PrefetchProductDirective],
   templateUrl: './product-siblings.component.html',
-  // Collapses (no flex gap) when there is no other colour to show.
+  // Holds the placeholder height while loading; collapses (no flex gap) when there is no other colour to show.
   host: { class: 'block w-full empty:hidden' },
 })
 export class ProductSiblingsComponent {
