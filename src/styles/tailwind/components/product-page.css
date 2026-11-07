@@ -1,6 +1,6 @@
 @layer components {
   /**
-   * Product page (ATS-53).
+   * Product page.
    * Gallery: one photo per view below xl, two side by side from xl up.
    * Native scroll-snap row: swipe on touch, arrows on every screen, no wheel hijack.
    */
