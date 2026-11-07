@@ -1,0 +1,5 @@
+#!/bin/sh
+# Runs scripts/hooks/pre-push.mjs on every `git push` (git passes the refs on stdin).
+# Installed by `npm ci` / `npm install` (the `prepare` script sets core.hooksPath to this folder).
+# Emergency only: `git push --no-verify` skips it.
+exec node "$(git rev-parse --show-toplevel)/scripts/hooks/pre-push.mjs" "$@"
