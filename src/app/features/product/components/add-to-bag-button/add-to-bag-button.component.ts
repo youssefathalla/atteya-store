@@ -1,15 +1,25 @@
-import { Component, inject, input } from '@angular/core';
+import { Component, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { CartService } from '@core/services/cart/cart.service';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 
+/**
+ * Stays pressable while the product can be bought. With a choice still missing
+ * (usually the size) it adds nothing and tells the page, which asks the shopper to choose.
+ */
 @Component({
   selector: 'app-add-to-bag-button',
   imports: [MatButtonModule],
   template: `
-    <button matButton="filled" type="button" [disabled]="!line()" (click)="addToBag()">
+    <button
+      matButton="filled"
+      class="btn-block"
+      type="button"
+      [disabled]="unavailable()"
+      (click)="addToBag()"
+    >
       Add to Bag
     </button>
   `,
@@ -17,6 +27,10 @@ import type { CartLineDraft } from '@core/services/cart/cart.model';
 })
 export class AddToBagButtonComponent {
   readonly line = input<CartLineDraft | null>(null);
+  /** Out of stock or no longer sold. */
+  readonly unavailable = input<boolean>(false);
+
+  readonly choiceMissing = output<void>();
 
   readonly #cart = inject(CartService);
   readonly #drawer = inject(DrawerService);
@@ -24,7 +38,10 @@ export class AddToBagButtonComponent {
 
   addToBag(): void {
     const draft = this.line();
-    if (!draft) return;
+    if (!draft) {
+      this.choiceMissing.emit();
+      return;
+    }
     this.#cart.add(draft);
     this.#snackbar.success('Added to your bag');
     this.#drawer.open('cart');

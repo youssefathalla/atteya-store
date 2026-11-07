@@ -1,53 +1,61 @@
+@let photos = displayImages();
 <div class="w-full elements-start-col gap-3">
-  <div class="relative aspect-square w-full overflow-hidden border-shape bg-surface-container elements-center">
-    @if (currentImage(); as img) {
-      @if (active() === 0) {
-        <img
-          [ngSrc]="path(img.path)"
-          [appImageFallback]="img.path"
-          [alt]="imageAlt(img)"
-          fill
-          priority
-          sizes="(max-width: 768px) 70vw, 40vw"
-          class="object-contain"
-        />
-      } @else {
-        <img
-          [ngSrc]="path(img.path)"
-          [appImageFallback]="img.path"
-          [alt]="imageAlt(img)"
-          fill
-          sizes="(max-width: 768px) 70vw, 40vw"
-          class="object-contain"
-        />
-      }
-    } @else {
-      <mat-icon name="image" size="4xl" />
-    }
-  </div>
-
-  @if (displayImages().length > 1) {
-    <div class="flex flex-wrap gap-2 w-full">
-      @for (thumb of displayImages(); track thumb.path; let i = $index) {
-        <button
-          type="button"
-          class="relative size-18 overflow-hidden border-shape border bg-surface-container cursor-pointer transition-colors"
-          [class.border-primary]="i === active()"
-          [class.border-outline-variant]="i !== active()"
-          [attr.aria-label]="'Show photo ' + (i + 1)"
-          [attr.aria-current]="i === active() ? 'true' : null"
-          (click)="select(i)"
-        >
+  <section
+    #track
+    class="pdp-gallery-track"
+    [class.pdp-gallery-track--single]="photos.length <= 1"
+    tabindex="0"
+    [attr.aria-label]="name() + ' photos'"
+    (scroll)="onScroll()"
+  >
+    @for (img of photos; track img.path; let i = $index) {
+      <div class="pdp-gallery-slide">
+        @if (i === 0) {
           <img
-            [ngSrc]="path(thumb.path)"
-            [appImageFallback]="thumb.path"
-            alt=""
-            width="72"
-            height="72"
-            class="size-full object-cover border-shape"
+            [ngSrc]="path(img.path)"
+            [appImageFallback]="img.path"
+            [alt]="imageAlt(img, i)"
+            fill
+            priority
+            [sizes]="sizes"
+            class="object-contain"
           />
-        </button>
-      }
+        } @else {
+          <img
+            [ngSrc]="path(img.path)"
+            [appImageFallback]="img.path"
+            [alt]="imageAlt(img, i)"
+            fill
+            [sizes]="sizes"
+            class="object-contain"
+          />
+        }
+      </div>
+    } @empty {
+      <div class="pdp-gallery-slide elements-center">
+        <mat-icon name="image" size="4xl" />
+      </div>
+    }
+  </section>
+
+  @if (photos.length > 1) {
+    <div class="elements-center gap-4 w-full">
+      <button
+        matIconButton
+        type="button"
+        aria-label="Previous photo"
+        [disabled]="active() === 0"
+        (click)="step(-1)"
+      >
+        <mat-icon name="arrow_back" />
+      </button>
+      <p class="pdp-kicker min-w-12 text-center" aria-live="polite">
+        <span class="sr-only">Photo </span>{{ active() + 1 }}<span aria-hidden="true">/</span
+        ><span class="sr-only"> of </span>{{ photos.length }}
+      </p>
+      <button matIconButton type="button" aria-label="Next photo" [disabled]="atEnd()" (click)="step(1)">
+        <mat-icon name="arrow_forward" />
+      </button>
     </div>
   }
 </div>

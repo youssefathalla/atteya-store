@@ -29,6 +29,17 @@
   padding-inline-start: 0.5rem !important;
 }
 
+//- Full-width main action (product page Add to Bag)
+.btn-block {
+  width: 100%;
+  @include mat.button-overrides(
+    (
+      filled-container-height: 48px,
+      outlined-container-height: 48px,
+    )
+  );
+}
+
 //-Table buttons
 .table-btn {
   @include mat.button-overrides(

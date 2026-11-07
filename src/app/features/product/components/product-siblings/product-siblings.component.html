@@ -1,39 +1,43 @@
-@if (hasSiblings()) {
-  <section aria-labelledby="pdp-other-colours" class="w-full elements-start-col gap-3">
-    <h2 id="pdp-other-colours" class="font-title-md font-bold!">Other colours</h2>
-    <div
-      appHorizontalScroll
-      [snapToItems]="false"
-      class="flex gap-4 w-full overflow-x-auto pb-2"
-    >
+@if (list().length > 0) {
+  <div class="w-full elements-start-col gap-2">
+    <p class="font-label-lg">{{ label() }}</p>
+    <ul class="flex flex-wrap gap-2 list-none m-0 p-0">
+      <li>
+        <span class="pdp-colour-thumb" aria-current="true">
+          <span class="sr-only">{{ currentName() }}, shown now</span>
+          @if (currentImage(); as img) {
+            <img
+              [ngSrc]="imagePath(img.path)"
+              [appImageFallback]="img.path"
+              alt=""
+              width="64"
+              height="64"
+              class="size-full object-contain"
+            />
+          }
+        </span>
+      </li>
       @for (s of list(); track s.id) {
-        <a
-          [routerLink]="['/product', s.slug]"
-          [appPrefetchProduct]="s.slug"
-          class="surface-card p-3 elements-start-col gap-3 border-shape no-underline shrink-0 w-44 sm:w-52"
-        >
-          <div class="relative aspect-square w-full overflow-hidden border-shape bg-surface-container">
+        <li>
+          <a
+            class="pdp-colour-thumb"
+            [routerLink]="['/product', s.slug]"
+            [appPrefetchProduct]="s.slug"
+            [attr.aria-label]="s.name"
+          >
             @if (s.images[0]; as img) {
               <img
                 [ngSrc]="imagePath(img.path)"
                 [appImageFallback]="img.path"
-                [alt]="siblingAlt(s)"
-                fill
-                sizes="(max-width: 640px) 176px, 208px"
-                class="object-cover"
+                alt=""
+                width="64"
+                height="64"
+                class="size-full object-contain"
               />
             }
-          </div>
-
-          <div class="w-full elements-start-col gap-1">
-            <span class="font-label-sm uppercase tracking-wider text-on-surface-variant">
-              {{ brandName(s.brandId) }}
-            </span>
-            <h3 class="font-title-sm font-bold! line-clamp-2" dir="auto">{{ s.name }}</h3>
-            <app-product-price class="pt-1" [price]="s.price" [listPrice]="s.compareAtPrice" />
-          </div>
-        </a>
+          </a>
+        </li>
       }
-    </div>
-  </section>
+    </ul>
+  </div>
 }

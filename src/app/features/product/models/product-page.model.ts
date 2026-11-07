@@ -44,6 +44,13 @@ export type ProductPageResult =
 /** option key -> selected value id */
 export type OptionSelection = Readonly<Record<string, string>>;
 
+/** The choice a shopper still has to make after pressing Add to Bag. `attempt` re-triggers focus on every press. */
+export interface ChoicePrompt {
+  readonly key: string;
+  readonly message: string;
+  readonly attempt: number;
+}
+
 export function toProductView(product: Product): ProductView {
   return {
     id: product.id,

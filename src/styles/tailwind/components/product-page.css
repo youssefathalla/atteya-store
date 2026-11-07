@@ -1,0 +1,135 @@
+@layer components {
+  /**
+   * Product page (ATS-53).
+   * Gallery: one photo per view below xl, two side by side from xl up.
+   * Native scroll-snap row: swipe on touch, arrows on every screen, no wheel hijack.
+   */
+  .pdp-gallery-track {
+    @apply flex w-full gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .pdp-gallery-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pdp-gallery-track:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  .pdp-gallery-slide {
+    @apply relative w-full shrink-0 snap-start overflow-hidden aspect-4/5 bg-surface-container;
+  }
+
+  @media (min-width: 80rem) {
+    .pdp-gallery-slide {
+      width: calc(50% - 0.25rem);
+    }
+
+    /* A lone photo fills the column (wider, shorter frame) instead of leaving half of it empty. */
+    .pdp-gallery-track--single .pdp-gallery-slide {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pdp-gallery-track {
+      scroll-behavior: auto;
+    }
+  }
+
+  /** Small mono caps line: breadcrumb and merchandising badge. */
+  .pdp-kicker {
+    @apply font-label-sm font-mono uppercase tracking-wider;
+  }
+
+  /** Option boxes (size, gift, choice). Selected = aria-pressed. */
+  .pdp-choice {
+    @apply min-h-12 px-3 py-2 elements-center text-center border border-outline-variant border-shape bg-surface font-label-lg cursor-pointer transition-colors;
+  }
+
+  .pdp-choice:enabled:hover {
+    @apply border-primary;
+  }
+
+  .pdp-choice[aria-pressed='true'] {
+    @apply bg-primary text-on-primary border-primary;
+  }
+
+  .pdp-choice:disabled {
+    @apply cursor-not-allowed;
+  }
+
+  .pdp-choice--sold-out {
+    @apply line-through opacity-40;
+  }
+
+  /** "Select a Size" opener. */
+  .pdp-size-toggle {
+    @apply w-full min-h-12 px-4 elements-between gap-2 border border-outline border-shape bg-surface font-label-lg cursor-pointer transition-colors;
+  }
+
+  .pdp-size-toggle:enabled:hover {
+    @apply border-primary;
+  }
+
+  .pdp-size-toggle:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  .pdp-size-toggle[aria-invalid='true'] {
+    @apply border-error;
+  }
+
+  /** Other colours of the same model: small photo links, current one underlined. */
+  .pdp-colour-thumb {
+    @apply relative block size-16 overflow-hidden bg-surface-container border-b-2 border-transparent transition-colors;
+  }
+
+  a.pdp-colour-thumb:hover {
+    @apply border-outline;
+  }
+
+  .pdp-colour-thumb[aria-current='true'] {
+    @apply border-primary;
+  }
+
+  /** Open/close rows under the product (Details, Shipping). Native <details>. */
+  .pdp-section {
+    @apply w-full border-b border-outline;
+  }
+
+  .pdp-section > summary {
+    @apply elements-between gap-4 py-5 cursor-pointer list-none font-label-lg font-mono uppercase tracking-wider;
+  }
+
+  .pdp-section > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .pdp-section > summary:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  /* Icon ligatures need the original lower-case name, so undo the summary's caps. */
+  .pdp-section__icon-open,
+  .pdp-section__icon-close {
+    @apply normal-case;
+  }
+
+  .pdp-section__icon-close,
+  .pdp-section[open] .pdp-section__icon-open {
+    display: none;
+  }
+
+  .pdp-section[open] .pdp-section__icon-close {
+    display: inline-flex;
+  }
+
+  .pdp-section__body {
+    @apply pb-6 font-body-md max-w-prose;
+  }
+}
