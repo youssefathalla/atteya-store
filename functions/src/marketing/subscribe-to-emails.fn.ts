@@ -6,7 +6,10 @@ import {
   emailSignupDocId,
   hashCallerIp,
   nextDailySignupCount,
+  nextStoreSignupCount,
   parseEmailSignupRequest,
+  rateLimitExpireAt,
+  storeSignupRateLimitId,
 } from './email-signup.js';
 
 export interface SubscribeToEmailsResponse {
@@ -18,7 +21,8 @@ export interface SubscribeToEmailsResponse {
  * Open to anyone: no sign-in needed. Writes `emailSignups/{sha256(email)}` once per address
  * (`email`, `source`, `page`, `uid`, `createdAt`); a repeat returns `already-subscribed` and
  * changes nothing. Each caller IP (hashed, never stored) gets
- * `MAX_EMAIL_SIGNUPS_PER_IP_PER_UTC_DAY` attempts per UTC day in `emailSignupRateLimits`.
+ * `MAX_EMAIL_SIGNUPS_PER_IP_PER_UTC_DAY` attempts per UTC day, and the whole store
+ * `MAX_EMAIL_SIGNUPS_PER_UTC_DAY` (`all_{day}`), both in `emailSignupRateLimits`.
  * Nothing sends emails to this list yet.
  */
 export const subscribeToEmails = onCall(
@@ -28,19 +32,29 @@ export const subscribeToEmails = onCall(
     const input = parseEmailSignupRequest(request.data);
     // Express `req.ip` (the runtime trusts the Google front end's X-Forwarded-For). A caller can
     // add fake entries to that header, so this slows casual repeats rather than stopping a
-    // determined bot; App Check enforcement is the stronger guard once it is switched on.
+    // determined bot. The store-wide daily cap below bounds that case; App Check enforcement
+    // is the stronger guard once it is switched on.
     const ip = request.rawRequest?.ip || 'unknown';
 
     const db = getFirestore();
     const day = utcDayKey();
-    const rateLimitRef = db.collection('emailSignupRateLimits').doc(`${hashCallerIp(ip)}_${day}`);
+    const limits = db.collection('emailSignupRateLimits');
+    const storeLimitRef = limits.doc(storeSignupRateLimitId(day));
+    const rateLimitRef = limits.doc(`${hashCallerIp(ip)}_${day}`);
     const signupRef = db.collection('emailSignups').doc(emailSignupDocId(input.email));
 
     return db.runTransaction(async (tx) => {
-      const [rateSnap, signupSnap] = await Promise.all([tx.get(rateLimitRef), tx.get(signupRef)]);
+      const [storeSnap, rateSnap, signupSnap] = await Promise.all([
+        tx.get(storeLimitRef),
+        tx.get(rateLimitRef),
+        tx.get(signupRef),
+      ]);
+      const storeCount = nextStoreSignupCount(storeSnap.data()?.['count']);
       const count = nextDailySignupCount(rateSnap.data()?.['count']);
       const now = FieldValue.serverTimestamp();
-      tx.set(rateLimitRef, { day, count, updatedAt: now }, { merge: true });
+      const expireAt = rateLimitExpireAt();
+      tx.set(storeLimitRef, { day, count: storeCount, updatedAt: now, expireAt }, { merge: true });
+      tx.set(rateLimitRef, { day, count, updatedAt: now, expireAt }, { merge: true });
 
       if (signupSnap.exists) return { status: 'already-subscribed' as const };
 
