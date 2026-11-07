@@ -30,7 +30,7 @@ on:
   check_run:
     types: [completed]
   workflow_run:
-    workflows: [CI, PR title]
+    workflows: [CI, PR title, Claude review]
     types: [completed]
 
 permissions: {}

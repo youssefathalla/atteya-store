@@ -623,7 +623,7 @@ jobs:
             --setting-sources user
             --allowedTools Read,Edit,Write,Grep,Glob
             --disallowedTools Bash,PowerShell,Skill,Task,Agent,WebFetch,WebSearch,NotebookEdit
-            --json-schema {"type":"object","additionalProperties":false,"required":["items","tests_run"],"properties":{"tests_run":{"type":"boolean"},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["bug_id","status","path","reason"],"properties":{"bug_id":{"type":"string"},"status":{"type":"string","enum":["fixed","unfixed"]},"path":{"type":"string"},"reason":{"type":"string"}}}}}}
+            --json-schema '{"type":"object","additionalProperties":false,"required":["items","tests_run"],"properties":{"tests_run":{"type":"boolean"},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["bug_id","status","path","reason"],"properties":{"bug_id":{"type":"string"},"status":{"type":"string","enum":["fixed","unfixed"]},"path":{"type":"string"},"reason":{"type":"string"}}}}}}'
 
       - name: Post the result
         if: always()
