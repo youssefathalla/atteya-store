@@ -30,7 +30,7 @@ on:
   check_run:
     types: [completed]
   workflow_run:
-    workflows: [CI, PR title, Claude review]
+    workflows: [CI, PR title]
     types: [completed]
 
 permissions: {}
@@ -66,6 +66,8 @@ jobs:
             const BUGBOT = 'Cursor Bugbot';
             const REQUIRED = ['checks', 'linear-id'];
             const OWN_JOB = 'Merge when clean';
+            // Checks that never hold up a merge: the Claude review trial only posts findings.
+            const IGNORED = new Set([OWN_JOB, 'Claude review (trial)']);
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
             const sha = context.payload.check_run?.head_sha || context.payload.workflow_run?.head_sha || '';
@@ -115,7 +117,7 @@ jobs:
               });
               const byName = new Map();
               for (const run of runs) {
-                if (run.name === OWN_JOB) continue;
+                if (IGNORED.has(run.name)) continue;
                 const seen = byName.get(run.name);
                 if (!seen || new Date(run.started_at) > new Date(seen.started_at)) byName.set(run.name, run);
               }
