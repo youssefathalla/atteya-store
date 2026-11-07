@@ -109,28 +109,28 @@ export class RowScrollLockDirective {
     spacer.setAttribute('aria-hidden', 'true');
     host.insertBefore(spacer, section.nextSibling);
 
-    // The page sets the row position frame by frame: no snapping or smoothing on top.
-    row.style.scrollSnapType = 'none';
-    row.style.scrollBehavior = 'auto';
-
     let lastSet = -1;
     /** Page position last set from the row (drag, swipe): that update must not move the row back. */
     let rowDrivenY = -1;
+    /** The shopper moved the row (arrows, drag, swipe) while the page was outside the lock. */
+    let movedOutside = false;
+    let wasActive = false;
 
     const measure = (): void => {
       const max = row.scrollWidth - row.clientWidth;
       const height = section.offsetHeight;
       const fits = height <= window.innerHeight - STICKY_BAR_PX;
       this.#travel = fits && max > MIN_TRAVEL_PX ? max : 0;
+      const locks = this.#travel > 0;
       spacer.style.height = `${this.#travel}px`;
-      if (this.#travel > 0) {
-        // Stays put from the moment its bottom edge reaches the bottom of the window.
-        section.style.position = 'sticky';
-        section.style.top = `${window.innerHeight - height}px`;
-      } else {
-        section.style.position = '';
-        section.style.top = '';
-      }
+      // Stays put from the moment its bottom edge reaches the bottom of the window.
+      section.style.position = locks ? 'sticky' : '';
+      section.style.top = locks ? `${window.innerHeight - height}px` : '';
+      // While it locks, the page sets the row position frame by frame: no snapping or
+      // smoothing on top. A row that doesn't lock keeps its normal card snapping.
+      row.style.scrollSnapType = locks ? 'none' : '';
+      row.style.scrollBehavior = locks ? 'auto' : '';
+      this.#enabled.set(locks);
     };
     measure();
 
@@ -141,6 +141,16 @@ export class RowScrollLockDirective {
       onRefreshInit: measure,
       onUpdate: (self) => {
         if (this.#travel <= 0) return;
+        const entering = self.isActive && !wasActive;
+        wasActive = self.isActive;
+        if (entering && movedOutside) {
+          // Keep the cards where the shopper left them: move the page to match instead.
+          movedOutside = false;
+          rowDrivenY = Math.round(self.start + row.scrollLeft);
+          lastSet = row.scrollLeft;
+          window.scrollTo({ top: rowDrivenY, behavior: 'instant' });
+          return;
+        }
         if (Math.abs(self.scroll() - rowDrivenY) < 1) return;
         const target = self.progress * this.#travel;
         const edge = self.progress === 0 || self.progress === 1;
@@ -154,8 +164,12 @@ export class RowScrollLockDirective {
 
     // Drag or a sideways trackpad swipe while locked: move the page to match the row.
     const onRowScroll = (): void => {
-      if (this.#travel <= 0 || !this.#inRange(trigger)) return;
+      if (this.#travel <= 0) return;
       if (Math.abs(row.scrollLeft - lastSet) <= 1) return;
+      if (!this.#inRange(trigger)) {
+        movedOutside = true;
+        return;
+      }
       lastSet = row.scrollLeft;
       rowDrivenY = Math.round(trigger.start + row.scrollLeft);
       window.scrollTo({ top: rowDrivenY, behavior: 'instant' });
@@ -173,8 +187,6 @@ export class RowScrollLockDirective {
     resizeObserver.observe(section);
     const mutationObserver = new MutationObserver(scheduleRefresh);
     mutationObserver.observe(row, { childList: true });
-
-    this.#enabled.set(true);
 
     return () => {
       if (timer) clearTimeout(timer);
