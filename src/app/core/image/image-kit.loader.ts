@@ -36,7 +36,7 @@ export function atteyaImageKitLoader(config: ImageLoaderConfig): string {
  * The first photo is `priority`, so on the server `NgOptimizedImage` adds its own
  * `<link rel="preload" as="image">` with the same `imagesrcset` and these sizes.
  */
-export const PDP_GALLERY_SIZES = '(max-width: 767px) 100vw, (max-width: 1279px) 60vw, 30vw';
+export const PDP_GALLERY_SIZES = '(max-width: 1023px) 100vw, (max-width: 1279px) 60vw, 30vw';
 
 export function provideAtteyaImageKitLoader(): Provider[] {
   return [{ provide: IMAGE_LOADER, useValue: atteyaImageKitLoader }];

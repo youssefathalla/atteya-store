@@ -92,19 +92,20 @@ export class ProductService {
     }
   }
 
-  async listModelGroup(modelGroup: string, excludeId: string, max = 8): Promise<readonly Product[]> {
+  /**
+   * Every published colour of one model, the open product included. No `orderBy`, so Firestore
+   * returns them by document id: the same order on every product page of the group.
+   */
+  async listModelGroup(modelGroup: string, max = 9): Promise<readonly Product[]> {
     const snap = await getDocs(
       query(
         this.#products,
         where('published', '==', true),
         where('modelGroup', '==', modelGroup),
-        limit(max + 1),
+        limit(max),
       ),
     );
-    return snap.docs
-      .map((item) => item.data())
-      .filter((product) => product.id !== excludeId)
-      .slice(0, max);
+    return snap.docs.map((item) => item.data());
   }
 
   /**

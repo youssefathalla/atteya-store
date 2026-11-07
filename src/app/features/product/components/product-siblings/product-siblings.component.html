@@ -1,31 +1,19 @@
-@if (list().length > 0) {
+@if (items().length > 0) {
   <div class="w-full elements-start-col gap-2">
     <p class="font-label-lg">{{ label() }}</p>
     <ul class="flex flex-wrap gap-2 list-none m-0 p-0">
-      <li>
-        <span class="pdp-colour-thumb" aria-current="true">
-          <span class="sr-only">{{ currentName() }}, shown now</span>
-          @if (currentImage(); as img) {
-            <img
-              [ngSrc]="imagePath(img.path)"
-              [appImageFallback]="img.path"
-              alt=""
-              width="64"
-              height="64"
-              class="size-full object-contain"
-            />
-          }
-        </span>
-      </li>
-      @for (s of list(); track s.id) {
+      @for (s of items(); track s.id) {
+        <!-- Same element for every colour, so switching only moves the underline (no photo reload). -->
         <li>
           <a
             class="pdp-colour-thumb"
-            [routerLink]="['/product', s.slug]"
+            [href]="'/product/' + s.slug"
             [appPrefetchProduct]="s.slug"
-            [attr.aria-label]="s.name"
+            [attr.aria-current]="s.current ? 'page' : null"
+            [attr.aria-label]="s.current ? s.name + ', shown now' : s.name"
+            (click)="open($event, s)"
           >
-            @if (s.images[0]; as img) {
+            @if (s.image; as img) {
               <img
                 [ngSrc]="imagePath(img.path)"
                 [appImageFallback]="img.path"
@@ -40,7 +28,7 @@
       }
     </ul>
   </div>
-} @else if (siblings.isLoading()) {
+} @else if (group.isLoading()) {
   <!-- Keeps the space the defer placeholder reserved until the query settles. -->
   <div class="w-full min-h-23" aria-hidden="true"></div>
 }
