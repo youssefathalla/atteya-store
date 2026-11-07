@@ -47,7 +47,7 @@ In that case comment exactly what is missing as a short list of questions or ite
 
 ## 5. Open the pull request
 - Base `develop`. Title starts with the issue id: `<id> <plain summary>`.
-- Body: first line `Linear: <id>`. Then what changed and why, how to check it on the dev site, and any deploy step it needs (for example `fb:rules:dev` or `fb:fn:dev`) for the person who deploys. Never write closing words like "Fixes <id>" or "Closes <id>".
+- Body: first line `Linear: [<id>](https://linear.app/<workspace>/issue/<id>)`, a clickable link to the issue (`workspace` from `linear.config.json`). Then what changed and why, how to check it on the dev site, and any deploy step it needs (for example `fb:rules:dev` or `fb:fn:dev`) for the person who deploys. Never write closing words like "Fixes <id>" or "Closes <id>".
 - If every check in step 4.4 passed, open it as a normal (ready) PR. Bugbot, the security review and the Claude fix workflow review it, and it merges into `develop` by itself when clean.
 - If a check still fails and you could not fix it, open it as a **draft** and say in the body exactly what fails and why. Drafts are never merged automatically.
 - Use `gh pr create` if it is available. Otherwise use whatever GitHub tool this session has.
