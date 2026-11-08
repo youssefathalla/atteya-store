@@ -31,17 +31,9 @@ Use the Linear tools for the team and project in `linear.config.json`.
    If there is no such tool, start nothing: build the first chosen ticket yourself in this run (go to step 2 with it) and list the others in the final message as ready but not started.
    If some starts succeeded and others failed, never build a ticket whose start succeeded (its own run claims it). Take the first ticket whose start failed, get it again and check it is still **Todo** without the label `agent`; if so, build it yourself (go to step 2 with it), otherwise build nothing. The final message lists the started ids, the one you built, and the other failed ids separately.
 
-## Name this session
-
-So the routine's run history shows what each run did, rename this session as soon as you know, when you have a tool for it (for example `get_session` with no id to find this session, then `set_session_title`). If you have no such tool or it fails, carry on.
-
-- A build run, right after claiming its ticket (step 2): `<id> <issue title>`, for example `ATS-66 One unpublished product breaks the whole shopping bag`.
-- A run that stops without building (refused, waiting, nothing ready): `<id> waiting on <ids>`, or `No ready tickets`.
-- A conflict-fix run: `Conflict fix: #<PR numbers>`, or `Conflict fix: none`.
-
 ## 2. Claim it
 
-- Move it to **In Progress**. Remove the label `agent-ready` and add the label `agent` (keep its other labels). Then name this session (see "Name this session").
+- Move it to **In Progress**. Remove the label `agent-ready` and add the label `agent` (keep its other labels).
 - Comment: "Picked up by the Claude ticket routine (scheduled run)." or, when started on demand, "Picked up by the Claude ticket routine (started on demand)."
 
 ## 3. Is it clear enough to build alone?
