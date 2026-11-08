@@ -4,11 +4,40 @@ export interface CartLineDraft {
   readonly variantId: string | null;
   readonly selection: Readonly<Record<string, string>>;
   readonly quantity: number;
+  /**
+   * Free gifts the shopper chose on the product page (one set per piece). Missing or empty = no
+   * gifts. Checkout re-checks them on the server and adds them as price-0 order lines.
+   */
+  readonly gifts?: readonly CartLineGift[];
 }
 
-/** Stable identity of a bag line: the same product with the same options is one line. */
+/** One free gift picked for a bag line: the offer and gift, the product chosen, and its size. */
+export interface CartLineGift {
+  readonly offerId: string;
+  readonly giftId: string;
+  readonly productId: string;
+  /** Size value id when the gift product has sizes, else null. */
+  readonly sizeId: string | null;
+}
+
+/** Most gift picks on one bag line. Matches `carts/{uid}` rules and the order callables. */
+export const MAX_LINE_GIFTS = 5;
+
+/**
+ * Stable identity of a bag line: the same product with the same options and the same gifts is
+ * one line. Different gift choices stay separate lines.
+ */
 export function cartLineKey(line: CartLineDraft): string {
-  return `${line.productId}:${line.variantId ?? ''}:${stableSelection(line.selection)}`;
+  const base = `${line.productId}:${line.variantId ?? ''}:${stableSelection(line.selection)}`;
+  const gifts = line.gifts ?? [];
+  return gifts.length === 0 ? base : `${base}:${stableGifts(gifts)}`;
+}
+
+function stableGifts(gifts: readonly CartLineGift[]): string {
+  return gifts
+    .map((gift) => `${gift.offerId}/${gift.giftId}=${gift.productId}/${gift.sizeId ?? ''}`)
+    .sort()
+    .join('|');
 }
 
 function stableSelection(selection: Readonly<Record<string, string>>): string {

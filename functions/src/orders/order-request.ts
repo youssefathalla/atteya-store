@@ -10,6 +10,8 @@ const MAX_CITY = 80;
 const MAX_POSTAL = 20;
 const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
+/** Most gift picks on one bag line; matches `MAX_OFFER_GIFTS` in the offer engine. */
+const MAX_LINE_GIFTS = 5;
 export type StorePaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
 
 export interface OrderLineInput {
@@ -17,6 +19,17 @@ export interface OrderLineInput {
   readonly variantId: string | null;
   readonly quantity: number;
   readonly selection: Readonly<Record<string, string>>;
+  /** Free gifts the shopper picked for this line (one set per piece). Re-checked on the server. */
+  readonly gifts: readonly OrderGiftPickInput[];
+}
+
+/** One free gift picked on a bag line: which offer and gift, which product, and its size. */
+export interface OrderGiftPickInput {
+  readonly offerId: string;
+  readonly giftId: string;
+  readonly productId: string;
+  /** Size value id when the gift product has sizes, else null. */
+  readonly sizeId: string | null;
 }
 
 export interface OrderShippingInput {
@@ -87,9 +100,44 @@ function parseLines(raw: unknown): OrderLineInput[] {
     const variantId = readOptionalId(entry['variantId']);
     const quantity = readQuantity(entry['quantity']);
     const selection = parseSelection(entry['selection']);
-    lines.push({ productId, variantId, quantity, selection });
+    const gifts = parseGiftPicks(entry['gifts']);
+    lines.push({ productId, variantId, quantity, selection, gifts });
   }
   return lines;
+}
+
+/** Gift picks of one line. Every pick on a line must name the same offer. */
+export function parseGiftPicks(raw: unknown): OrderGiftPickInput[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.length > MAX_LINE_GIFTS) {
+    throw new HttpsError('invalid-argument', 'The free gifts in your bag could not be read. Choose them again.');
+  }
+  const picks: OrderGiftPickInput[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) {
+      throw new HttpsError('invalid-argument', 'The free gifts in your bag could not be read. Choose them again.');
+    }
+    picks.push({
+      offerId: readGiftId(entry['offerId']),
+      giftId: readGiftId(entry['giftId']),
+      productId: readGiftId(entry['productId']),
+      sizeId:
+        entry['sizeId'] === null || entry['sizeId'] === undefined || entry['sizeId'] === ''
+          ? null
+          : readGiftId(entry['sizeId']),
+    });
+  }
+  if (picks.some((pick) => pick.offerId !== picks[0]?.offerId)) {
+    throw new HttpsError('invalid-argument', 'The free gifts in your bag could not be read. Choose them again.');
+  }
+  return picks;
+}
+
+function readGiftId(raw: unknown): string {
+  if (typeof raw !== 'string' || raw.length < 1 || raw.length > 128) {
+    throw new HttpsError('invalid-argument', 'The free gifts in your bag could not be read. Choose them again.');
+  }
+  return raw;
 }
 
 function parseSelection(raw: unknown): Readonly<Record<string, string>> {

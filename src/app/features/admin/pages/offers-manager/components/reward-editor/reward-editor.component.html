@@ -144,29 +144,80 @@
       }
     </div>
   } @else if (selectedPickerKind() === 'freeGift' && r.kind === 'freeGift') {
-    <div class="elements-center flex-wrap gap-3 w-full">
-      <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
-        Gift product
-        <select
-          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-          [value]="r.giftProductId"
-          (change)="onGiftProductChange($event)"
-        >
-          @for (p of products(); track p.id) {
-            <option [value]="p.id">{{ p.name }}</option>
+    <p class="font-body-sm text-on-surface-variant">
+      Shoppers get one of each gift for every matching item they buy, and choose which product
+      (and size) they want. Gifts are free, ship with the order and come out of stock.
+    </p>
+    <div class="w-full elements-start-col gap-3">
+      @for (gift of r.gifts; track gift.id) {
+        <fieldset class="w-full border-shape border border-outline-variant p-4 elements-start-col gap-3">
+          <legend class="px-1 font-label-md">Gift {{ $index + 1 }}</legend>
+          <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+            Gift name shoppers see
+            <input
+              type="text"
+              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+              placeholder="Free shirt"
+              [attr.maxlength]="maxGiftName"
+              [value]="gift.name"
+              (input)="onGiftNameChange(gift.id, $event)"
+            />
+          </label>
+
+          <div class="w-full elements-start-col gap-2">
+            <span class="font-label-md">Products shoppers can choose from</span>
+            @if (gift.productIds.length === 0) {
+              <p class="font-body-sm text-on-surface-variant">No products yet. Add at least one.</p>
+            } @else {
+              <ul class="w-full elements-start-col gap-1">
+                @for (productId of gift.productIds; track productId) {
+                  <li class="w-full elements-between gap-2 border-shape bg-surface-container px-3 py-1">
+                    <span class="font-body-sm">
+                      {{ productNames().get(productId) ?? 'Product not found' }}
+                    </span>
+                    <button
+                      matIconButton
+                      type="button"
+                      [attr.aria-label]="'Remove ' + (productNames().get(productId) ?? 'product') + ' from this gift'"
+                      (click)="removeGiftChoice(gift.id, productId)"
+                    >
+                      <mat-icon name="close" />
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+            @if (gift.productIds.length < maxGiftChoices) {
+              <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+                Add a product
+                <select
+                  class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                  (change)="onGiftChoiceAdd(gift.id, $event)"
+                >
+                  <option value="">Choose a product…</option>
+                  @for (p of products(); track p.id) {
+                    @if (!gift.productIds.includes(p.id)) {
+                      <option [value]="p.id">{{ p.name }}</option>
+                    }
+                  }
+                </select>
+              </label>
+            }
+          </div>
+
+          @if (r.gifts.length > 1) {
+            <button matButton="text" type="button" (click)="removeGift(gift.id)">
+              <span>Remove Gift</span>
+            </button>
           }
-        </select>
-      </label>
-      <label class="elements-start-col gap-1 font-label-md">
-        Minimum order subtotal (EGP)
-        <input
-          type="number"
-          min="0"
-          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
-          [value]="minimum()?.subtotal ?? 0"
-          (input)="onMinSubtotalChange($event)"
-        />
-      </label>
+        </fieldset>
+      }
+      @if (r.gifts.length < maxGifts) {
+        <button matButton="outlined" type="button" (click)="addGift()">
+          <mat-icon name="add" />
+          <span>Add Gift</span>
+        </button>
+      }
     </div>
   } @else if (selectedPickerKind() === 'freeShipping') {
     <label class="elements-start-col gap-1 font-label-md">

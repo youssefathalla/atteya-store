@@ -183,6 +183,28 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     orderStatusName(this.stage(), this.order()?.status ?? '—'),
   );
 
+  /**
+   * What was ordered, from the saved order lines. Free gifts follow the item they came with and
+   * show "Free" instead of a price.
+   */
+  readonly items = computed(() => {
+    const pricing = this.order()?.pricing;
+    if (!pricing) return [];
+    const decimals = displayDecimals(pricing.currency);
+    return pricing.lines.map((line, index) => ({
+      key: `${index}:${line.productId}`,
+      name: line.name || 'Item',
+      details: [
+        ...(line.optionLabels ?? []).map((opt) =>
+          opt.label.trim().toLowerCase() === 'size' ? `Size ${opt.value}` : opt.value,
+        ),
+        `Qty ${line.quantity}`,
+      ].join(' · '),
+      giftName: line.gift ? line.gift.giftName || 'Free gift' : null,
+      price: line.gift ? 'Free' : formatMoney(line.lineDisplay, pricing.currency, decimals),
+    }));
+  });
+
   readonly displayTotal = computed(() => {
     const pricing = this.order()?.pricing;
     if (!pricing) return '—';

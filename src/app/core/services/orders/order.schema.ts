@@ -38,6 +38,15 @@ export const OrderLinePriceSchema = v.object({
   name: v.optional(v.string()),
   optionLabels: v.optional(v.array(v.object({ label: v.string(), value: v.string() }))),
   imagePath: v.optional(v.nullable(v.string())),
+  /** Free gift line (price 0), listed after the line it came with (`forLine`). */
+  gift: v.optional(
+    v.object({
+      offerId: v.string(),
+      giftId: v.string(),
+      giftName: v.string(),
+      forLine: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    }),
+  ),
 });
 
 export const OrderShippingLineSchema = v.object({

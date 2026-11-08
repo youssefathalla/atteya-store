@@ -1,6 +1,6 @@
 import { Service } from '@angular/core';
 import { callableFrom, injectFunctionsAsync } from '@core/firebase';
-import type { CartLineDraft } from '@core/services/cart/cart.model';
+import type { CartLineDraft, CartLineGift } from '@core/services/cart/cart.model';
 import type { OrderPricingSnapshot } from '@core/services/orders/order-pricing.model';
 
 export type CheckoutPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
@@ -17,6 +17,31 @@ export interface CheckoutShippingInput {
   readonly country: string;
   readonly phone: string;
   readonly governorateId: string | null;
+}
+
+/** One bag line as the order callables read it. Prices are never sent. */
+interface CheckoutLineInput {
+  readonly productId: string;
+  readonly variantId: string | null;
+  readonly quantity: number;
+  readonly selection: Readonly<Record<string, string>>;
+  /** Picked free gifts; the server re-checks the offer, the choice and the stock. */
+  readonly gifts: readonly CartLineGift[];
+}
+
+function toCheckoutLine(line: CartLineDraft): CheckoutLineInput {
+  return {
+    productId: line.productId,
+    variantId: line.variantId,
+    quantity: line.quantity,
+    selection: line.selection,
+    gifts: (line.gifts ?? []).map((gift) => ({
+      offerId: gift.offerId,
+      giftId: gift.giftId,
+      productId: gift.productId,
+      sizeId: gift.sizeId,
+    })),
+  };
 }
 
 export interface CreatePaymobOrderResult {
@@ -46,24 +71,14 @@ export class CheckoutOrderService {
   }): Promise<CreatePaymobOrderResult> {
     const call = await callableFrom<
       {
-        lines: readonly {
-          productId: string;
-          variantId: string | null;
-          quantity: number;
-          selection: Readonly<Record<string, string>>;
-        }[];
+        lines: readonly CheckoutLineInput[];
         shipping: CheckoutShippingInput;
         paymentMethod: 'paymob';
       },
       CreatePaymobOrderResult
     >(this.#functions(), 'createPaymobOrder');
     const response = await call({
-      lines: args.lines.map((line) => ({
-        productId: line.productId,
-        variantId: line.variantId,
-        quantity: line.quantity,
-        selection: line.selection,
-      })),
+      lines: args.lines.map(toCheckoutLine),
       shipping: args.shipping,
       paymentMethod: 'paymob',
     });
@@ -78,24 +93,14 @@ export class CheckoutOrderService {
   }): Promise<CreateManualOrderResult<M>> {
     const call = await callableFrom<
       {
-        lines: readonly {
-          productId: string;
-          variantId: string | null;
-          quantity: number;
-          selection: Readonly<Record<string, string>>;
-        }[];
+        lines: readonly CheckoutLineInput[];
         shipping: CheckoutShippingInput;
         paymentMethod: M;
       },
       CreateManualOrderResult<M>
     >(this.#functions(), args.method === 'instapay' ? 'createInstapayOrder' : 'createCodOrder');
     const response = await call({
-      lines: args.lines.map((line) => ({
-        productId: line.productId,
-        variantId: line.variantId,
-        quantity: line.quantity,
-        selection: line.selection,
-      })),
+      lines: args.lines.map(toCheckoutLine),
       shipping: args.shipping,
       paymentMethod: args.method,
     });

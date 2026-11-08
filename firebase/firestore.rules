@@ -159,7 +159,7 @@ service cloud.firestore {
     }
 
     // Per-shopper bag. Only that signed-in person can read or save it; admins get no access.
-    // carts/{uid}: lines (product id, variant id, choices and quantity per line; never prices)
+    // carts/{uid}: lines (product id, variant id, choices, quantity and picked gifts per line; never prices)
     // and updatedAt. Guests keep their bag in the browser instead.
     match /carts/{uid} {
       allow read: if isOwner(uid);
@@ -201,9 +201,11 @@ service cloud.firestore {
     }
 
     // Quantity 1-20 per line. Choices are option id -> value id, at most 10 options.
+    // Optional gifts: the free gifts picked for the line (at most 5); checkout re-checks each one.
     function validCartLine(line) {
       return line is map
-        && line.keys().hasOnly(['productId', 'variantId', 'selection', 'quantity'])
+        && line.keys().hasOnly(['productId', 'variantId', 'selection', 'quantity', 'gifts'])
+        && (!('gifts' in line) || (line.gifts is list && line.gifts.size() <= 5))
         && line.productId is string
         && line.productId.size() > 0
         && line.productId.size() <= 128

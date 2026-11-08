@@ -18,6 +18,8 @@ export interface OrderEmailLine {
   readonly imagePath: string | null;
   readonly quantity: number;
   readonly lineEgp: number;
+  /** Free gift line (price 0, listed after its item): the gift's name, e.g. "Free shirt". */
+  readonly giftName: string | null;
 }
 
 export interface OrderEmailAddress {
@@ -55,6 +57,12 @@ export interface OrderEmailOrder {
   readonly deliveryFeeAgreed: boolean;
   /** When staff last saved the delivery fee (`deliveryFeeSetAt`, epoch ms), or null. */
   readonly deliveryFeeSetAtMs: number | null;
+}
+
+/** The gift name of a free gift line, or null for a bought line. */
+function readGiftName(raw: unknown): string | null {
+  if (!isRecord(raw)) return null;
+  return text(raw['giftName']) || 'Free gift';
 }
 
 /** `#` + first 6 characters of the order id in capitals. Keep in step with the Angular copy. */
@@ -103,6 +111,7 @@ export function readOrderForEmail(
       imagePath: text(raw['imagePath']) || null,
       quantity,
       lineEgp: unitEgp * quantity,
+      giftName: readGiftName(raw['gift']),
     });
   }
   if (lines.length === 0) return null;

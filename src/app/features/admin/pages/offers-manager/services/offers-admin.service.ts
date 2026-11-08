@@ -1,6 +1,7 @@
 import { inject, Service } from '@angular/core';
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -80,6 +81,7 @@ export class OffersAdminService {
     const visibility = requiresCode ? 'code' : 'public';
     const normalizedCode = draft.code?.trim().toUpperCase() ?? '';
 
+    const isGift = draft.reward.kind === 'freeGift';
     const payload: Record<string, unknown> = {
       id: offerId,
       name: draft.name.trim(),
@@ -98,11 +100,20 @@ export class OffersAdminService {
       priority: Math.max(-100, Math.min(100, Math.round(draft.priority))),
       stacking: draft.stacking,
       saleItems: draft.saleItems,
-      scope: draft.scope,
+      // A Free gift offer gives one set of gifts per qualifying item, so it is never a cart offer.
+      scope: isGift ? 'item' : draft.scope,
       conditions: draft.conditions,
       exclude: draft.exclude,
-      minimum: draft.minimum,
-      reward: draft.reward,
+      minimum: isGift ? null : draft.minimum,
+      // The merge would keep an old one-product gift's fields next to `gifts`; drop them.
+      reward: isGift
+        ? {
+            ...draft.reward,
+            giftProductId: deleteField(),
+            giftVariantId: deleteField(),
+            quantity: deleteField(),
+          }
+        : draft.reward,
       limits: draft.limits,
       requiresCode,
       updatedAt: serverTimestamp(),
