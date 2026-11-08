@@ -30,15 +30,20 @@ on:
 
 permissions: {}
 
-# One round at a time per PR. A group keeps only one waiting run, and a newer waiting run cancels
-# the older one, so events that can never claim a round (a review by a person, a failed Claude
-# Review run) go to a group of their own instead of pushing out a real one.
+# One round at a time per PR and per review source. A group keeps only one waiting run, and a
+# newer waiting run cancels the older one, so each source (Bugbot findings, security review, Claude
+# Review) has its own group, and events that can never claim a round (a review by a person, a clean
+# Bugbot review, a failed Claude Review run) get a group of their own. Two sources can then run at
+# once on one branch: the second push finds the branch moved, and that round is voided.
 concurrency:
   group: >-
-    ${{ ((github.event_name == 'pull_request_review' && github.event.review.user.login == 'cursor[bot]') ||
-         (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
-      && format('bugbot-claude-pr-{0}', github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha)
-      || format('bugbot-claude-noop-{0}', github.run_id) }}
+    ${{ (github.event_name == 'pull_request_review' && github.event.review.user.login == 'cursor[bot]' && contains(github.event.review.body, 'CURSOR_AUTOMATION_ID'))
+      && format('bugbot-claude-pr-{0}-security', github.event.pull_request.number)
+      || ((github.event_name == 'pull_request_review' && github.event.review.user.login == 'cursor[bot]' && contains(github.event.review.body, 'potential issue'))
+      && format('bugbot-claude-pr-{0}-bugbot', github.event.pull_request.number)
+      || ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+      && format('bugbot-claude-pr-{0}-claude', github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha)
+      || format('bugbot-claude-noop-{0}', github.run_id))) }}
   cancel-in-progress: false
 
 jobs:
@@ -173,27 +178,6 @@ jobs:
               core.info(`Workflow file is not confirmed on ${defaultBranch} (${error.status || 'error'}). Not claiming a pass.`);
               return;
             }
-            // The Claude action refuses to run when this PR changes this workflow file, so don't
-            // claim a round for nothing. Say so once per commit instead.
-            const fileAt = async (gitRef) => {
-              try {
-                const { data } = await github.rest.repos.getContent({ owner, repo, path: '.github/workflows/bugbot-claude-fix.yml', ref: gitRef });
-                return typeof data.content === 'string' ? Buffer.from(data.content, 'base64').toString('utf8') : null;
-              } catch { return null; }
-            };
-            const [onDefault, onHead] = await Promise.all([fileAt(defaultBranch), fileAt(sha)]);
-            if (onDefault !== null && onHead !== null && onDefault !== onHead) {
-              const changedMarker = `<!-- bugbot-claude-workflow-changed ${sha} -->`;
-              if (!allComments.some((c) => typeof c.body === 'string' && c.body.includes(changedMarker))) {
-                await github.rest.issues.createComment({
-                  owner, repo, issue_number: prNumber,
-                  body: `${changedMarker}\n**✋ Claude Fix** · needs you\n\nThis pull request changes \`.github/workflows/bugbot-claude-fix.yml\`, and the Claude action only runs when that file matches the copy on the default branch (a safety check). Claude Fix can't work on the findings on \`${sha.slice(0, 7)}\`, so fix them by hand. No round was used.\n`,
-                });
-              }
-              core.info('This PR changes bugbot-claude-fix.yml. Not claiming a pass.');
-              return;
-            }
-
             const bugPattern = /<!--\s*BUGBOT_BUG_ID:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*-->/;
             const findingId = (comment) => {
               const raw = typeof comment.body === 'string' ? comment.body : '';
@@ -266,6 +250,28 @@ jobs:
               return;
             }
 
+            // The Claude action refuses to run when the copy of this workflow file this run uses
+            // differs from the default branch's (a review runs the PR merge commit's copy, a Claude
+            // Review run the default branch's). Don't claim a round for nothing; say so once per commit.
+            const fileAt = async (gitRef) => {
+              try {
+                const { data } = await github.rest.repos.getContent({ owner, repo, path: '.github/workflows/bugbot-claude-fix.yml', ref: gitRef });
+                return typeof data.content === 'string' ? Buffer.from(data.content, 'base64').toString('utf8') : null;
+              } catch { return null; }
+            };
+            const [onDefault, onRun] = await Promise.all([fileAt(defaultBranch), fileAt(context.sha)]);
+            if (onDefault !== null && onRun !== null && onDefault !== onRun) {
+              const changedMarker = `<!-- bugbot-claude-workflow-changed ${sha} -->`;
+              if (!allComments.some((c) => typeof c.body === 'string' && c.body.includes(changedMarker))) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: prNumber,
+                  body: `${changedMarker}\n**✋ Claude Fix** · needs you\n\nThis pull request changes \`.github/workflows/bugbot-claude-fix.yml\`, and the Claude action only runs when that file matches the copy on the default branch (a safety check). Claude Fix can't work on the findings on \`${sha.slice(0, 7)}\`, so fix them by hand. No round was used.\n`,
+                });
+              }
+              core.info('This PR changes bugbot-claude-fix.yml. Not claiming a pass.');
+              return;
+            }
+
             // The round cap only applies when this review really has findings, so a clean
             // re-review (Bugbot or security) never posts the "stopped" comment.
             if (passes >= MAX_PASSES) {
@@ -275,7 +281,7 @@ jobs:
                   owner,
                   repo,
                   issue_number: prNumber,
-                  body: `${limitMarker}\n**🛑 Claude Fix** · stopped, needs you\n\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and the reviewers (Bugbot or the security review) still find issues, so it stops here. This one needs a person. It will not be merged automatically while issues are open.\n`,
+                  body: `${limitMarker}\n**🛑 Claude Fix** · stopped, needs you · commit \`${sha.slice(0, 7)}\`\n\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and the reviewers (Bugbot or the security review) still find issues, so it stops here. This one needs a person. It will not be merged automatically while issues are open.\n`,
                 });
               }
               core.info(`Reached ${MAX_PASSES} fix rounds. Not starting.`);
@@ -332,7 +338,7 @@ jobs:
     needs: gate
     if: needs.gate.result == 'success' && needs.gate.outputs.proceed == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     permissions:
       contents: read
       issues: write
@@ -740,6 +746,8 @@ jobs:
 
       - name: Ask Claude to edit the reviewed commit
         id: claude
+        # Leaves time for the push hook and the report inside the job's 45 minutes.
+        timeout-minutes: 35
         if: steps.pre.outputs.go == 'true' && steps.findings.outputs.go == 'true' && steps.guard.outcome == 'success'
         continue-on-error: true
         uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1 / v1.0.269 on 2026-11-06
@@ -852,6 +860,7 @@ jobs:
               'no-findings': 'The review comments were not available. Nothing was changed.',
               'token-skipped': 'Claude did not run because a GitHub App token was refused.',
               'commit-failed': 'The commit was not created. Nothing was pushed.',
+              'claude-timed-out': 'Claude ran out of time before it finished, so its edits were not pushed.',
               'claude-failed': 'Claude stopped with an error before it finished (for example an expired sign-in token or a usage limit). Nothing was pushed. The workflow run has the details.',
               'workflow-changed': 'Claude did not run: this pull request changes .github/workflows/bugbot-claude-fix.yml, and the Claude action only runs when that file matches the copy on the default branch (a safety check). Fix this one by hand.',
             };
@@ -889,6 +898,7 @@ jobs:
               const [onDefault, onRun] = await Promise.all([readFile(defaultBranch), readFile(context.sha)]);
               if (onDefault === null || onDefault !== onRun) push = { pushed: false, reason: 'workflow-changed', sha: '' };
               else if (claudeOutcome === 'failure') push = { pushed: false, reason: 'claude-failed', sha: '' };
+              else if (claudeOutcome === 'cancelled') push = { pushed: false, reason: 'claude-timed-out', sha: '' };
             }
             const shaOk = typeof push.sha === 'string' && /^[0-9a-f]{40}$/.test(push.sha);
             const pushed = push.pushed === true && shaOk;
@@ -954,14 +964,15 @@ jobs:
             // 3-round cap: rewrite its marker so the claim step's count skips it.
             let voided = false;
             const markerId = Number(process.env.MARKER_ID);
-            if (!pushed && claudeOutcome !== 'success' && Number.isInteger(markerId) && markerId > 0) {
+            const notRun = ['remote-moved', 'fetch-failed', 'sha-mismatch', 'bad-ref', 'no-findings', 'token-skipped', 'workflow-changed', 'claude-failed'];
+            if (!pushed && (claudeOutcome === 'skipped' || notRun.includes(push.reason)) && Number.isInteger(markerId) && markerId > 0) {
               try {
                 const { data: markerComment } = await github.rest.issues.getComment({ owner, repo, comment_id: markerId });
                 const text = typeof markerComment.body === 'string' ? markerComment.body : '';
                 if (markerComment.user?.login === 'github-actions[bot]' && text.startsWith('<!-- bugbot-claude-pass ')) {
                   await github.rest.issues.updateComment({
                     owner, repo, comment_id: markerId,
-                    body: `${text.replace('<!-- bugbot-claude-pass ', '<!-- bugbot-claude-void ')}\n_Claude did not run in this round, so it does not count toward the limit of 3._\n`,
+                    body: `${text.replace('<!-- bugbot-claude-pass ', '<!-- bugbot-claude-void ')}\n_Claude did not get to work in this round, so it does not count toward the limit of 3._\n`,
                   });
                   voided = true;
                 }
@@ -979,11 +990,14 @@ jobs:
               } catch { stillHere = false; }
             }
             const fromClaudeReview = bugIds.length > 0 && bugIds.every((id) => id.startsWith('cr-'));
+            const fromSecurity = bugIds.length > 0 && bugIds.every((id) => id.startsWith('sec-'));
             const needsYou = stillHere ? [
               '',
               `**Needs you:** nothing was pushed, so these findings are still open on \`${reviewed.slice(0, 7)}\` and auto-merge will wait. ` +
                 (fromClaudeReview
                   ? 'Push a fix, or if the findings are fine, run Actions → Auto-merge → Run workflow with this PR number and tick "skip_claude_findings".'
+                  : fromSecurity
+                  ? 'Push a fix, or if a finding is fine, resolve its thread, then run Actions → Auto-merge → Run workflow with this PR number.'
                   : 'Push a fix (it gets reviewed again), comment `bugbot run` if they are already handled, or merge by hand if the findings are wrong.'),
             ] : [];
             const body = [
@@ -1009,7 +1023,7 @@ jobs:
               '',
               `Pushed commit: ${pushed ? push.sha : 'none'}`,
               ...(pushNote ? [pushNote] : []),
-              ...(voided ? ['This round did not count toward the limit of 3, because Claude did not run.'] : []),
+              ...(voided ? ['This round did not count toward the limit of 3, because Claude did not get to work.'] : []),
               'Tests were not run.',
               'Branch protection is unknown. It was not readable when this workflow was added, and this pass does not guess.',
               ...needsYou,

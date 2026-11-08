@@ -126,8 +126,8 @@ jobs:
             for (const { number, head } of prs) {
               if (!Number.isInteger(number) || !/^[0-9a-f]{40}$/.test(String(head))) continue;
               // A routine that can't be started fails again on every push to develop. Say so once
-              // per PR head, not on every push.
-              const notStarted = `<!-- conflict-fix-not-started ${head} -->`;
+              // per PR head and reason, not on every push.
+              const notStarted = `<!-- conflict-fix-not-started ${head} ${status.replace(/[^a-z0-9-]/gi, '') || 'unknown'} -->`;
               if (status !== 'started') {
                 const existing = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
                 if (existing.some((c) => c.user?.login === 'github-actions[bot]' && (c.body || '').includes(notStarted))) continue;
