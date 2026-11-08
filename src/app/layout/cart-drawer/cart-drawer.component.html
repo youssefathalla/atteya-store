@@ -2,13 +2,12 @@
   <header
     class="shrink-0 elements-between px-5 pt-safe-top lg:pt-4 pb-4 border-b border-outline-variant bg-surface-container-lowest"
   >
-    <div class="flex items-center gap-2">
-      <mat-icon name="shopping_bag" size="xl" />
-      <h2 class="font-title-md font-bold! tracking-tight">Shopping Bag</h2>
+    <h2 class="font-title-md font-bold! tracking-tight">
+      Your Bag
       @if (count() > 0) {
-        <span class="font-label-sm opacity-70">({{ count() }})</span>
+        <span class="font-label-lg opacity-70">({{ countLabel() }})</span>
       }
-    </div>
+    </h2>
 
     <button
       matIconButton
@@ -20,38 +19,27 @@
     </button>
   </header>
 
-  <!-- Only the items scroll; overscroll-contain keeps the end of the list from scrolling the page. -->
-  <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6">
+  <!-- Only this part scrolls; overscroll-contain keeps the end of the list from scrolling the page. -->
+  <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
     @if (isEmpty()) {
-      <div class="elements-center flex-col text-center h-full">
-        <div
-          class="size-20 rounded-full bg-surface-container-high elements-center mb-4 opacity-70"
-        >
-          <mat-icon name="shopping_cart" size="4xl" />
-        </div>
-
-        <h3 class="font-title-md font-bold! mb-1">Your bag is empty</h3>
+      <div class="elements-center-col text-center h-full p-6">
+        <mat-icon name="shopping_bag" size="4xl" />
+        <h3 class="font-title-md font-bold! mt-4 mb-1">Your bag is empty</h3>
         <p class="font-body-md opacity-80 max-w-60 mb-6">
-          Explore our premium padel rackets, apparel, and gear to get started.
+          Find something you like and it will wait for you here.
         </p>
-
-        <button
-          matButton="filled"
-          type="button"
-          routerLink="/category/rackets"
-          (click)="drawerService.close()"
-        >
-          Explore Rackets
-        </button>
+        <a matButton="filled" routerLink="/shop" (click)="drawerService.close()">
+          Start Shopping
+        </a>
       </div>
     } @else {
-      <ul class="space-y-4">
+      <ul class="px-5">
         @for (line of lines(); track lineKey(line)) {
           @let info = productInfo(line.productId);
-          <li class="elements-start gap-3 border-b border-outline-variant pb-4">
+          <li class="bag-line">
             @if (info; as product) {
               <a
-                class="relative size-20 shrink-0 overflow-hidden bg-surface-container-high no-underline"
+                class="bag-line__photo no-underline"
                 [routerLink]="['/product', product.slug]"
                 (click)="drawerService.close()"
                 [attr.aria-label]="product.name"
@@ -61,52 +49,89 @@
                     [ngSrc]="imagePath(path)"
                     [appImageFallback]="path"
                     [alt]="product.imageAlt || product.name"
-                    width="80"
-                    height="80"
+                    width="96"
+                    height="96"
                     class="size-full object-contain p-1.5"
                   />
                 }
               </a>
 
-              <div class="min-w-0 flex-1 elements-start-col gap-0.5">
+              <div class="min-w-0 flex-1 elements-start-col gap-1">
+                <!-- The name has the whole row, so it is never cut short by the price or buttons. -->
                 <a
-                  class="font-title-sm font-bold! no-underline line-clamp-2"
+                  class="w-full font-title-sm font-bold! no-underline line-clamp-2"
                   [routerLink]="['/product', product.slug]"
                   (click)="drawerService.close()"
                 >
                   {{ product.name }}
                 </a>
-                @if (selectionLabel(line.productId, line.selection); as selection) {
-                  <p class="font-label-sm text-on-surface-variant">{{ selection }}</p>
-                }
-                <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
-                <div class="elements-center flex-wrap gap-1.5 pt-0.5">
-                  <span [class]="linePriceClass(line.productId)">
-                    {{ lineTotalLabel(line.productId, line.quantity) }}
-                  </span>
-                  @if (lineListLabel(line.productId, line.quantity); as listLabel) {
-                    <span class="font-body-sm text-on-surface-variant line-through">
-                      {{ listLabel }}
+                <div class="w-full elements-between items-start! gap-3">
+                  <div class="min-w-0 elements-start-col gap-0.5 font-label-md text-on-surface-variant">
+                    @if (product.genderLabel; as gender) {
+                      <p>{{ gender }}</p>
+                    }
+                    @if (selectionLabel(line.productId, line.selection); as selection) {
+                      <p>{{ selection }}</p>
+                    }
+                  </div>
+                  <div class="shrink-0 elements-end-col text-end">
+                    <span [class]="linePriceClass(line.productId)">
+                      {{ lineTotalLabel(line.productId, line.quantity) }}
                     </span>
-                  }
+                    @if (lineListLabel(line.productId, line.quantity); as listLabel) {
+                      <span class="font-body-sm text-on-surface-variant line-through">
+                        {{ listLabel }}
+                      </span>
+                    }
+                  </div>
+                </div>
+
+                <div class="w-full elements-between pt-1">
+                  <div class="bag-line__stepper">
+                    <button
+                      matIconButton
+                      type="button"
+                      (click)="decreaseQuantity($index)"
+                      [disabled]="line.quantity <= 1"
+                      [attr.aria-label]="'Decrease quantity of ' + product.name"
+                    >
+                      <mat-icon name="remove" />
+                    </button>
+                    <span class="min-w-6 text-center font-label-lg" aria-live="polite">
+                      {{ line.quantity }}
+                    </span>
+                    <button
+                      matIconButton
+                      type="button"
+                      (click)="increaseQuantity($index)"
+                      [disabled]="line.quantity >= 20"
+                      [attr.aria-label]="'Increase quantity of ' + product.name"
+                    >
+                      <mat-icon name="add" />
+                    </button>
+                  </div>
+                  <button
+                    matIconButton
+                    type="button"
+                    (click)="removeLine($index)"
+                    [attr.aria-label]="'Remove ' + product.name"
+                  >
+                    <mat-icon name="delete" />
+                  </button>
                 </div>
               </div>
-            } @else if (isUnavailable(line.productId)) {
-              <div class="relative size-20 shrink-0 bg-surface-container-high" aria-hidden="true"></div>
-              <div class="min-w-0 flex-1 elements-start-col gap-0.5">
-                <p class="font-title-sm font-bold!">No longer available</p>
-                <p class="font-label-sm opacity-70">Please remove it from your bag.</p>
-              </div>
             } @else {
-              <div class="relative size-20 shrink-0 bg-surface-container-high" aria-hidden="true"></div>
-              <div class="min-w-0 flex-1 elements-start-col gap-0.5">
-                <p class="font-title-sm font-bold!">Item</p>
-                <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
-              </div>
-            }
-
-            @if (isUnavailable(line.productId)) {
-              <div class="elements-end shrink-0 self-start">
+              <div class="bag-line__photo" aria-hidden="true"></div>
+              <div class="min-w-0 flex-1 elements-between items-start! gap-3">
+                <div class="min-w-0 elements-start-col gap-0.5">
+                  @if (isUnavailable(line.productId)) {
+                    <p class="font-title-sm font-bold!">No longer available</p>
+                    <p class="font-label-md opacity-70">Please remove it from your bag.</p>
+                  } @else {
+                    <p class="font-title-sm font-bold!">Item</p>
+                    <p class="font-label-md opacity-70">Qty {{ line.quantity }}</p>
+                  }
+                </div>
                 <button
                   matIconButton
                   type="button"
@@ -116,57 +141,68 @@
                   <mat-icon name="delete" />
                 </button>
               </div>
-            } @else {
-              <div class="elements-end gap-1 shrink-0 self-start">
-                <button
-                  matIconButton
-                  type="button"
-                  (click)="decreaseQuantity($index)"
-                  [attr.aria-label]="line.quantity === 1 ? 'Remove item' : 'Decrease quantity'"
-                >
-                  <mat-icon [name]="line.quantity === 1 ? 'delete' : 'remove'" />
-                </button>
-                <button
-                  matIconButton
-                  type="button"
-                  (click)="increaseQuantity($index)"
-                  [disabled]="line.quantity >= 20"
-                  aria-label="Increase quantity"
-                >
-                  <mat-icon name="add" />
-                </button>
-              </div>
             }
           </li>
         }
       </ul>
+
+      <section class="px-5 py-5 space-y-3 border-b border-outline-variant" aria-labelledby="bag-payment-title">
+        <h3 id="bag-payment-title" class="font-title-sm font-bold!">Payment Methods</h3>
+        <ul class="elements-start flex-wrap gap-2">
+          @for (method of paymentMethods(); track method.name) {
+            <li class="bag-pay-method" [class.opacity-60]="method.comingSoon">
+              <span>{{ method.name }}</span>
+              @if (method.comingSoon) {
+                <span class="font-label-sm opacity-80">Coming soon</span>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+
+      @if (recommendations().length > 0) {
+        <section class="py-5 space-y-3" aria-labelledby="bag-recommended-title">
+          <h3 id="bag-recommended-title" class="px-5 font-title-sm font-bold!">
+            Recommended for You
+          </h3>
+          <div
+            class="scroll-row px-5 scroll-px-5 [--scroll-cols:2] [--scroll-peek:2.5rem] [--scroll-gap:0.75rem]"
+            appHorizontalScroll
+            [enableWheel]="false"
+          >
+            @for (card of recommendations(); track card.id) {
+              <div class="scroll-row-item">
+                <app-product-card [product]="card" sizes="(max-width: 1023px) 45vw, 20vw"
+                  (productOpen)="drawerService.close()"
+                />
+              </div>
+            }
+          </div>
+        </section>
+      }
     }
   </div>
 
-  <footer
-    class="shrink-0 p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] lg:pb-5 border-t border-outline-variant bg-surface-container-lowest space-y-3"
-  >
-    <div class="elements-between font-label-lg opacity-80">
-      <span>Subtotal</span>
-      <span class="font-title-sm font-bold!">{{ subtotal() }}</span>
-    </div>
+  @if (!isEmpty()) {
+    <footer
+      class="shrink-0 p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] lg:pb-5 border-t border-outline-variant bg-surface-container-lowest space-y-3"
+    >
+      <div class="elements-between">
+        <span class="font-title-sm font-bold!">Subtotal</span>
+        <span class="font-title-sm font-bold!">{{ subtotal() }}</span>
+      </div>
 
-    <p class="font-label-sm opacity-70 text-center">
-      Shipping and your total in your currency are calculated at checkout.
-    </p>
+      <p class="font-label-md opacity-70">Shipping is worked out at checkout.</p>
 
-    <div class="w-full [&>button]:w-full [&>a]:w-full">
-      @if (showCheckout()) {
-        <a
-          matButton="filled"
-          routerLink="/checkout"
-          (click)="drawerService.close()"
-        >
-          Checkout
-        </a>
-      } @else {
-        <button matButton="filled" type="button" disabled>Checkout</button>
-      }
-    </div>
-  </footer>
+      <div class="w-full [&>button]:w-full [&>a]:w-full">
+        @if (showCheckout()) {
+          <a matButton="filled" routerLink="/checkout" (click)="drawerService.close()">
+            Checkout
+          </a>
+        } @else {
+          <button matButton="filled" type="button" disabled>Checkout</button>
+        }
+      </div>
+    </footer>
+  }
 </div>

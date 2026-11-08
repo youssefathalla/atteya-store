@@ -1,5 +1,5 @@
 import { NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
@@ -33,6 +33,8 @@ export class ProductCardComponent {
   readonly product = input.required<ProductCardData>();
   readonly priority = input(false);
   readonly sizes = input('(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw');
+  /** Fires when the card opens a product page (photo, name or colour link). */
+  readonly productOpen = output<void>();
 
   readonly #auth = inject(AuthService);
   readonly #favorites = inject(FavoritesService);
@@ -141,7 +143,14 @@ export class ProductCardComponent {
         return;
       }
     }
+    this.productOpen.emit();
     void this.#router.navigate(['/product', colorway.slug]);
+  }
+
+  /** Plain clicks on the photo or name open the product here; new-tab clicks leave this page in place. */
+  onProductLinkClick(event: MouseEvent): void {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    this.productOpen.emit();
   }
 
   onFavoriteClick(event: Event): void {
