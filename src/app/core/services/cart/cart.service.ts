@@ -69,6 +69,9 @@ export class CartService {
   #queued: CartMutation[] = [];
   /** The account bag's listener failed: changes stay on screen and are never saved over the real bag. */
   #loadFailed = false;
+  /** True while queued changes are replayed on the first snapshot; an add dropped then sets `#replayDropped`. */
+  #replaying = false;
+  #replayDropped = false;
   #readyWaiters: (() => void)[] = [];
 
   readonly lines = this.#lines.asReadonly();
@@ -114,6 +117,7 @@ export class CartService {
     void this.#mutate((lines) => {
       const next = addCartLine(lines, line);
       added = next !== lines;
+      if (!added && this.#replaying) this.#replayDropped = true;
       return next;
     });
     return added;
@@ -260,10 +264,18 @@ export class CartService {
         }
         const queued = this.#queued;
         this.#queued = [];
+        this.#replaying = true;
+        this.#replayDropped = false;
         const next = queued.reduce<readonly CartLineDraft[]>((lines, change) => change(lines), saved);
+        this.#replaying = false;
         this.#lines.set(next);
         this.#setReady(true);
         if (queued.length > 0) void this.#save(uid, next);
+        // An item added while the bag loaded showed "Added", but the saved bag had no room for it.
+        if (this.#replayDropped) {
+          this.#replayDropped = false;
+          this.#snackbar.error("Your bag is full, so an item you just added wasn't added.");
+        }
       },
       () => {
         if (generation !== this.#generation) return;
