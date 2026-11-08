@@ -12,7 +12,16 @@
 #   - GitHub says the PR can merge (no conflicts).
 # When Bugbot could not run on the commit (Cursor usage limit: its check ends with the title
 # "Error"), a "clean" verdict from the Claude review of that commit (claude-review.yml) counts
-# instead of Bugbot's success, so this also runs when Claude Review finishes.
+# instead of Bugbot's success, so this also runs when Claude Review finishes. When Bugbot did run,
+# the Claude review of the commit still has to finish, and a high or medium finding from it holds
+# the merge (bugbot-claude-fix.yml fixes those in the same rounds).
+# Whenever only a review step is left (Claude findings, an open security thread), it posts
+# "✋ Auto-merge" once per commit saying why. Resolving a review thread starts no workflow, so
+# Actions → Auto-merge → Run workflow (PR number) checks one PR again by hand; ticking
+# "skip_claude_findings" there also skips the Claude-findings hold (the owner decided those
+# findings are fine), but nothing else. A hand-started run only counts when the repo owner
+# starts it from the default branch: a dispatch runs the workflow copy on the chosen branch,
+# so a run from any other branch is skipped here.
 # Then it squash-merges into develop and deletes the branch.
 #
 # Never merges into main. Skips draft PRs, PRs with the "no-auto-merge" label,
@@ -40,11 +49,22 @@ on:
     # "Claude Review": its verdict is the gate when Bugbot could not run on a commit.
     workflows: [CI, PR Title, PR title, Claude Review]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to check and merge when clean
+        required: true
+        type: number
+      skip_claude_findings:
+        description: Merge even though the Claude review still has high or medium findings (you checked them)
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
 concurrency:
-  group: auto-merge-${{ github.event.check_run.head_sha || github.event.workflow_run.head_sha }}
+  group: auto-merge-${{ github.event.check_run.head_sha || github.event.workflow_run.head_sha || format('pr-{0}', inputs.pr) }}
   cancel-in-progress: false
 
 jobs:
@@ -53,7 +73,11 @@ jobs:
     if: >-
       vars.AUTO_MERGE == 'enabled' && (
         (github.event_name == 'check_run' && github.event.check_run.app.slug == 'cursor') ||
-        (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
+        (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request') ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.ref_name == github.event.repository.default_branch &&
+         github.actor == github.repository_owner &&
+         github.triggering_actor == github.repository_owner)
       )
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -88,27 +112,49 @@ jobs:
             const IGNORED = new Set([OWN_JOB, 'Merge when clean', 'Claude Review (Trial)', 'Claude review (trial)', 'Claim a Fix Round']);
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-            const sha = context.payload.check_run?.head_sha || context.payload.workflow_run?.head_sha || '';
+            let sha = context.payload.check_run?.head_sha || context.payload.workflow_run?.head_sha || '';
+            if (context.eventName === 'workflow_dispatch') {
+              // Started by hand for one PR (for example after resolving a review thread).
+              const number = Number(context.payload.inputs?.pr);
+              if (!Number.isInteger(number) || number <= 0) {
+                core.info('No pull request number given.');
+                return;
+              }
+              sha = (await github.rest.pulls.get({ owner, repo, pull_number: number })).data.head?.sha || '';
+            }
             if (!/^[0-9a-f]{40}$/.test(sha)) {
               core.info('No commit on this event.');
               return;
             }
 
-            // The Claude review's verdict for a commit (claude-review.yml): clean, issues or none.
-            // Only comments posted by this repository's workflow bot count.
-            const claudeVerdict = async (prNumber, commit) => {
+            // The Claude review's verdict for a commit (claude-review.yml): clean, issues or none,
+            // plus how many of its findings are high or medium. `posted` is false when the review
+            // has not commented on this commit yet. Only this repository's workflow bot counts.
+            const claudeReview = async (prNumber, commit) => {
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner, repo, issue_number: prNumber, per_page: 100,
               });
               const pattern = new RegExp(`<!-- claude-review-verdict ${commit} (clean|issues|none) -->`);
               let verdict = 'none';
+              let posted = false;
+              let serious = 0;
               for (const c of comments) {
                 if (c.user?.login !== 'github-actions[bot]') continue;
                 const match = typeof c.body === 'string' ? c.body.match(pattern) : null;
-                if (match) verdict = match[1];
+                if (!match) continue;
+                posted = true;
+                verdict = match[1];
+                serious = 0;
+                const encoded = c.body.match(/<!-- claude-review-findings ([A-Za-z0-9+/=]+) -->/);
+                let data = [];
+                try { data = encoded ? JSON.parse(Buffer.from(encoded[1], 'base64').toString('utf8')) : []; } catch { data = []; }
+                if (Array.isArray(data)) {
+                  serious = data.filter((f) => /^(high|medium)$/i.test(String(f?.severity || '').trim())).length;
+                }
               }
-              return verdict;
+              return { verdict, posted, serious };
             };
+            const claudeVerdict = async (prNumber, commit) => (await claudeReview(prNumber, commit)).verdict;
 
             const commentOnce = async (prNumber, marker, text) => {
               const comments = await github.paginate(github.rest.issues.listComments, {
@@ -149,6 +195,9 @@ jobs:
               const runs = await github.paginate(github.rest.checks.listForRef, {
                 owner, repo, ref: sha, filter: 'latest', per_page: 100,
               });
+              const claudeRun = runs
+                .filter((run) => ['Claude Review (Trial)', 'Claude review (trial)'].includes(run.name))
+                .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))[0];
               const byName = new Map();
               for (const run of runs) {
                 if (IGNORED.has(run.name)) continue;
@@ -162,6 +211,7 @@ jobs:
               const bugbotOut = bugbot.conclusion !== 'success' &&
                 (bugbot.output?.title === 'Error' || /failed to run/i.test(String(bugbot.output?.summary || '')));
               let usedClaude = false;
+              let claudeSerious = 0;
               if (bugbot.conclusion !== 'success' && !bugbotOut) { stop(`Bugbot ended with "${bugbot.conclusion}" (issues found or an error).`); continue; }
               if (bugbotOut) {
                 const verdict = await claudeVerdict(n, sha);
@@ -172,6 +222,31 @@ jobs:
                   continue;
                 }
                 usedClaude = true;
+              } else {
+                // Bugbot ran and is clean. The Claude review of this commit still has to finish
+                // (its check is in IGNORED, so the running-check wait below does not see it). When its
+                // check is not listed yet, look for a Claude Review run on this commit instead; no run
+                // at all means the review is off or skipped for this PR.
+                let claudePending = claudeRun ? claudeRun.status !== 'completed' : false;
+                if (!claudeRun) {
+                  const { data: wf } = await github.rest.actions.listWorkflowRuns({
+                    owner, repo, workflow_id: 'claude-review.yml', head_sha: sha, per_page: 20,
+                  });
+                  claudePending = (wf.workflow_runs || []).some((run) => run.status !== 'completed');
+                }
+                if (claudePending) { stop('The Claude review of this commit is still running.'); continue; }
+                const review = await claudeReview(n, sha);
+                // Only a run started by hand with "skip_claude_findings" ticked is the owner deciding
+                // these findings are fine; a plain hand-started run (e.g. after resolving a security
+                // thread) still holds. The hold itself is applied after every other gate, so its
+                // comment is only posted when it is really the last thing left.
+                const skipClaude = context.eventName === 'workflow_dispatch' &&
+                  String(context.payload.inputs?.skip_claude_findings) === 'true';
+                if (review.verdict === 'issues' && review.serious > 0 && skipClaude) {
+                  core.info(`#${n}: the Claude review has ${review.serious} high or medium issue(s); merging anyway because the run was started by hand with skip_claude_findings.`);
+                } else if (review.verdict === 'issues' && review.serious > 0) {
+                  claudeSerious = review.serious;
+                }
               }
               const required = REQUIRED.map((names) => ({ label: names[0], run: names.map((name) => byName.get(name)).find(Boolean) }));
               const missing = required.filter((r) => r.run?.status !== 'completed').map((r) => r.label);
@@ -215,7 +290,6 @@ jobs:
                 return body.includes('Agentic Security Review') || body.includes('CURSOR_AUTOMATION_ID');
               };
               const openSecurity = open.filter(isSecurity);
-              if (openSecurity.length) { stop(`${openSecurity.length} security finding(s) are still open.`); continue; }
               const openHumanThreads = open.filter((thread) => {
                 const login = thread.comments.nodes[0]?.author?.login || '';
                 return !/^(cursor|claude)(\[bot\])?$/.test(login);
@@ -232,6 +306,24 @@ jobs:
               }
 
               if (pr.mergeable !== true) { stop(`GitHub cannot merge it yet (mergeable: ${pr.mergeable}, state: ${pr.mergeable_state}).`); continue; }
+
+              // Review steps that are the last thing left. Checked after every other gate, so the
+              // ✋ comments are only posted when nothing else is holding the merge.
+              if (claudeSerious > 0) {
+                await commentOnce(n, `<!-- auto-merge-claude-findings ${sha} -->`,
+                  `**✋ Auto-merge** · waiting\n\nBugbot found no issues, but the Claude review found ${claudeSerious} high or medium issue${claudeSerious === 1 ? '' : 's'} on \`${sha.slice(0, 7)}\`. Claude Fix works on them (up to 3 rounds), and this merges by itself once the next review is clean. If Claude Fix has stopped and you decide the findings are fine, run Actions → Auto-merge → Run workflow with PR number ${n} and tick "skip_claude_findings": it then merges if everything else is clean.`);
+              }
+              if (openSecurity.length) {
+                await commentOnce(n, `<!-- auto-merge-security-open ${sha} -->`,
+                  `**✋ Auto-merge** · waiting for you\n\n${openSecurity.length} security finding${openSecurity.length === 1 ? ' from the Cursor Security Agent is' : 's from the Cursor Security Agent are'} still open on \`${sha.slice(0, 7)}\`. Check Claude's fix for each one and resolve the thread. Resolving starts nothing by itself, so then run Actions → Auto-merge → Run workflow with PR number ${n}.`);
+              }
+              if (claudeSerious > 0 || openSecurity.length) {
+                stop([
+                  claudeSerious > 0 ? `The Claude review found ${claudeSerious} high or medium issue(s).` : '',
+                  openSecurity.length ? `${openSecurity.length} security finding(s) are still open.` : '',
+                ].filter(Boolean).join(' '));
+                continue;
+              }
 
               try {
                 await github.rest.pulls.merge({
