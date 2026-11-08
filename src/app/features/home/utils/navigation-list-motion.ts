@@ -5,6 +5,7 @@ type GsapApi = typeof GsapNamespace;
 const OUT_DURATION = 0.35;
 const IN_DURATION = 0.5;
 
+/** `data-nav-index` on a photo or an arrow. */
 function photoIndex(photo: HTMLElement): number {
   const raw = photo.dataset['navIndex'];
   const index = raw ? Number(raw) : Number.NaN;
@@ -90,6 +91,60 @@ export function playNavListSwap(
       opacity: 0,
       duration: OUT_DURATION,
       ease: 'power1.out',
+      overwrite: 'auto',
+    });
+  }
+}
+
+const ARROW_IN_DURATION = 0.35;
+const ARROW_OUT_DURATION = 0.25;
+/** How far left a hidden arrow waits, as a share of its own width. */
+const ARROW_HIDDEN_X_PERCENT = -40;
+
+/**
+ * Shows the arrow after the active category and hides the others, with no
+ * tween. `x: 0` clears the pixel offset GSAP reads from the CSS transform,
+ * so only `xPercent` moves the arrow from here on.
+ */
+export function settleNavListArrows(
+  gsap: GsapApi,
+  arrows: readonly HTMLElement[],
+  activeIndex: number,
+): void {
+  for (const arrow of arrows) {
+    const active = photoIndex(arrow) === activeIndex;
+    gsap.set(arrow, {
+      opacity: active ? 1 : 0,
+      x: 0,
+      xPercent: active ? 0 : ARROW_HIDDEN_X_PERCENT,
+      overwrite: 'auto',
+    });
+  }
+}
+
+/**
+ * Slides the active arrow in from the left while it fades in, and the
+ * previous one back out. Tweens start from wherever each arrow is, so fast
+ * hovering reverses smoothly. Reduced motion shows the arrow at once.
+ */
+export function playNavListArrows(
+  gsap: GsapApi,
+  arrows: readonly HTMLElement[],
+  activeIndex: number,
+  reduceMotion: boolean,
+): void {
+  if (reduceMotion) {
+    settleNavListArrows(gsap, arrows, activeIndex);
+    return;
+  }
+  for (const arrow of arrows) {
+    const active = photoIndex(arrow) === activeIndex;
+    gsap.to(arrow, {
+      opacity: active ? 1 : 0,
+      x: 0,
+      xPercent: active ? 0 : ARROW_HIDDEN_X_PERCENT,
+      duration: active ? ARROW_IN_DURATION : ARROW_OUT_DURATION,
+      ease: active ? 'power3.out' : 'power2.in',
       overwrite: 'auto',
     });
   }
