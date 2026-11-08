@@ -6,7 +6,9 @@
     [opened]="isDesktop() && drawerService.activeDrawer() === 'cart'"
     (closed)="drawerService.close()"
   >
-    <app-cart-drawer placement="side" />
+    <!-- The server has no saved bag, so its HTML is always the empty bag. The browser fills the bag
+         before hydration, so skip hydration here: the server copy is replaced, not reused. -->
+    <app-cart-drawer placement="side" ngSkipHydration />
   </mat-drawer>
 
   <!-- 2. MAIN PAGE CONTENT -->
