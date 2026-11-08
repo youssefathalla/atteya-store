@@ -1,0 +1,33 @@
+import type { CheckoutPaymentMethod } from '@core/services/orders/checkout-order.service';
+
+/** A payment method the store offers (the `paymentMethod` value saved on an order). */
+export type PaymentMethodId = CheckoutPaymentMethod;
+
+/** How a method is shown: its brand logo, or one or two icons from our icon font. */
+export type PaymentMark =
+  | { readonly kind: 'logo' }
+  | { readonly kind: 'icons'; readonly icons: readonly string[] };
+
+export interface PaymentMethodInfo {
+  /** The method's name, written as a name: "InstaPay", "Card or Wallet", "Cash on Delivery". */
+  readonly name: string;
+  readonly mark: PaymentMark;
+}
+
+/**
+ * Name and mark for each payment method: the one place to add a method. A `logo` mark also
+ * needs its file in `public/img/payments/` and a `@case` in `PaymentMarkComponent`.
+ */
+export const PAYMENT_METHODS: Readonly<Record<PaymentMethodId, PaymentMethodInfo>> = {
+  instapay: { name: 'InstaPay', mark: { kind: 'logo' } },
+  paymob: {
+    name: 'Card or Wallet',
+    mark: { kind: 'icons', icons: ['credit_card', 'account_balance_wallet'] },
+  },
+  'cash-on-delivery': { name: 'Cash on Delivery', mark: { kind: 'icons', icons: ['payments'] } },
+};
+
+/** True for a method in `PAYMENT_METHODS` (older orders can hold a method that is gone). */
+export function isPaymentMethodId(value: string | null | undefined): value is PaymentMethodId {
+  return typeof value === 'string' && Object.hasOwn(PAYMENT_METHODS, value);
+}
