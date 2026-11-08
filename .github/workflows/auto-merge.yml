@@ -17,7 +17,8 @@
 # the merge (bugbot-claude-fix.yml fixes those in the same rounds).
 # Whenever only a review step is left (Claude findings, an open security thread), it posts
 # "✋ Auto-merge" once per commit saying why. Resolving a review thread starts no workflow, so
-# Actions → Auto-merge → Run workflow (PR number) checks one PR again by hand.
+# Actions → Auto-merge → Run workflow (PR number) checks one PR again by hand; such a run also
+# skips the Claude-findings hold (the owner decided they are fine), but nothing else.
 # Then it squash-merges into develop and deletes the branch.
 #
 # Never merges into main. Skips draft PRs, PRs with the "no-auto-merge" label,
@@ -214,9 +215,13 @@ jobs:
                 // a high or medium finding from it holds the merge (Claude Fix works on those).
                 if (claudeRun.status !== 'completed') { stop('The Claude review of this commit is still running.'); continue; }
                 const review = await claudeReview(n, sha);
-                if (review.verdict === 'issues' && review.serious > 0) {
+                // A run started by hand (Actions → Run workflow) is the owner deciding the findings
+                // are fine, so it skips this hold. Nothing else does.
+                if (review.verdict === 'issues' && review.serious > 0 && context.eventName === 'workflow_dispatch') {
+                  core.info(`#${n}: the Claude review has ${review.serious} high or medium issue(s); merging anyway because this run was started by hand.`);
+                } else if (review.verdict === 'issues' && review.serious > 0) {
                   await commentOnce(n, `<!-- auto-merge-claude-findings ${sha} -->`,
-                    `**✋ Auto-merge** · waiting\n\nBugbot found no issues, but the Claude review found ${review.serious} high or medium issue${review.serious === 1 ? '' : 's'} on \`${sha.slice(0, 7)}\`. Claude Fix works on them (up to 3 rounds), and this merges by itself once the next review is clean. If Claude Fix has stopped, fix them or decide they are fine, then run Actions → Auto-merge → Run workflow with PR number ${n}.`);
+                    `**✋ Auto-merge** · waiting\n\nBugbot found no issues, but the Claude review found ${review.serious} high or medium issue${review.serious === 1 ? '' : 's'} on \`${sha.slice(0, 7)}\`. Claude Fix works on them (up to 3 rounds), and this merges by itself once the next review is clean. If Claude Fix has stopped and you decide the findings are fine, run Actions → Auto-merge → Run workflow with PR number ${n}: a run you start by hand skips this hold and merges if everything else is clean.`);
                   stop(`The Claude review found ${review.serious} high or medium issue(s).`);
                   continue;
                 }
