@@ -147,6 +147,12 @@ export class ProductCardComponent {
     void this.#router.navigate(['/product', colorway.slug]);
   }
 
+  /** Plain clicks on the photo or name open the product here; new-tab clicks leave this page in place. */
+  onProductLinkClick(event: MouseEvent): void {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    this.productOpen.emit();
+  }
+
   onFavoriteClick(event: Event): void {
     event.preventDefault();
     event.stopPropagation();

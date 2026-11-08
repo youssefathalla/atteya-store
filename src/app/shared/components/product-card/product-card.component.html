@@ -3,7 +3,7 @@
     class="product-card__main"
     [routerLink]="['/product', photoSlug()]"
     [appPrefetchProduct]="photoSlug()"
-    (click)="productOpen.emit()"
+    (click)="onProductLinkClick($event)"
   >
     <div class="product-card__media">
       @if (displayImagePath(); as path) {
@@ -86,7 +86,7 @@
   class="product-card__info"
   [routerLink]="['/product', product().slug]"
   [appPrefetchProduct]="product().slug"
-  (click)="productOpen.emit()"
+  (click)="onProductLinkClick($event)"
 >
   @if (product().marketingBadge; as badge) {
     <span
