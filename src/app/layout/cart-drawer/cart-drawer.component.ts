@@ -1,5 +1,5 @@
 import { NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject, resource } from '@angular/core';
+import { Component, computed, inject, linkedSignal, resource, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { doc, getDoc } from 'firebase/firestore';
@@ -8,7 +8,7 @@ import {
   cartSubtotalDisplay,
   lineDisplayAmount,
 } from '@core/services/cart/cart-pricing';
-import type { CartLineDraft } from '@core/services/cart/cart.model';
+import { cartLineKey, type CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
@@ -42,6 +42,15 @@ interface CartProductInfo {
   readonly options: readonly CartProductOption[];
 }
 
+/** Product details by id; `null` means the product was read and no longer exists. */
+type CartProducts = ReadonlyMap<string, CartProductInfo | null>;
+
+const NO_PRODUCTS: CartProducts = new Map();
+
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
 @Component({
   selector: 'app-cart-drawer',
   imports: [
@@ -68,6 +77,8 @@ export class CartDrawerComponent {
   readonly isEmpty = this.#cart.isEmpty;
   readonly count = this.#cart.count;
   readonly showCheckout = computed(() => canCheckout(!this.isEmpty()));
+  /** Rows are tracked by product + chosen options, so removing one row leaves the others in place. */
+  readonly lineKey = cartLineKey;
 
   removeLine(index: number): void {
     this.#cart.removeAt(index);
@@ -89,38 +100,66 @@ export class CartDrawerComponent {
     this.#cart.setQuantity(index, line.quantity + 1);
   }
 
+  /**
+   * Distinct product ids in the bag, sorted. Changes only when a product is added or
+   * removed, so + / − on a line never re-reads the products.
+   */
+  readonly #productIds = computed(
+    () => [...new Set(this.lines().map((line) => line.productId))].sort(),
+    { equal: sameIds },
+  );
+
+  /** Reads only products that are not loaded yet; products already read are reused. */
   readonly productsResource = resource({
-    params: () => this.lines(),
-    loader: async ({ params: lines }) => {
-      if (lines.length === 0) return new Map<string, CartProductInfo>();
-      const converter = createValibotConverter(ProductSchema);
-      const products = new Map<string, CartProductInfo>();
-      for (const line of lines) {
-        if (products.has(line.productId)) continue;
-        const snap = await getDoc(
-          doc(this.#firestore, 'products', line.productId).withConverter(converter),
-        );
-        if (snap.exists()) {
-          const data = snap.data();
-          const primary = data.images[0];
-          products.set(line.productId, {
-            name: data.name,
-            slug: data.slug,
-            price: data.price,
-            compareAtPrice: data.compareAtPrice,
-            imagePath: primary?.path ?? null,
-            imageAlt: primary?.alt || data.name,
-            options: data.options.map((option) => ({
-              key: option.key,
-              label: option.label,
-              values: option.values.map((value) => ({ id: value.id, label: value.label })),
-            })),
-          });
-        }
+    params: () => this.#productIds(),
+    loader: async ({ params: ids }): Promise<CartProducts> => {
+      if (ids.length === 0) return NO_PRODUCTS;
+      const known = untracked(this.#products);
+      const products = new Map<string, CartProductInfo | null>();
+      const missing: string[] = [];
+      for (const id of ids) {
+        const info = known.get(id);
+        if (info === undefined) missing.push(id);
+        else products.set(id, info);
       }
+      const loaded = await Promise.all(missing.map((id) => this.#readProduct(id)));
+      missing.forEach((id, index) => products.set(id, loaded[index] ?? null));
       return products;
     },
   });
+
+  /**
+   * The products shown in the bag. While a newly added product loads (the resource has
+   * no value), the products already loaded stay on screen; only the new row waits.
+   */
+  readonly #products = linkedSignal<CartProducts | undefined, CartProducts>({
+    source: () =>
+      this.productsResource.hasValue() ? this.productsResource.value() : undefined,
+    computation: (next, previous) => next ?? previous?.value ?? NO_PRODUCTS,
+  });
+
+  async #readProduct(productId: string): Promise<CartProductInfo | null> {
+    const converter = createValibotConverter(ProductSchema);
+    const snap = await getDoc(
+      doc(this.#firestore, 'products', productId).withConverter(converter),
+    );
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    const primary = data.images[0];
+    return {
+      name: data.name,
+      slug: data.slug,
+      price: data.price,
+      compareAtPrice: data.compareAtPrice,
+      imagePath: primary?.path ?? null,
+      imageAlt: primary?.alt || data.name,
+      options: data.options.map((option) => ({
+        key: option.key,
+        label: option.label,
+        values: option.values.map((value) => ({ id: value.id, label: value.label })),
+      })),
+    };
+  }
 
   /**
    * Catalog unit prices converted into the visitor's display currency.
@@ -129,8 +168,8 @@ export class CartDrawerComponent {
   readonly #unitDisplayByProductId = computed(() => {
     const entry = this.#currency.entry();
     const map = new Map<string, number>();
-    for (const [id, info] of this.productsResource.value() ?? []) {
-      map.set(id, toDisplayAmount(info.price, entry));
+    for (const [id, info] of this.#products()) {
+      if (info) map.set(id, toDisplayAmount(info.price, entry));
     }
     return map;
   });
@@ -138,7 +177,8 @@ export class CartDrawerComponent {
   readonly #listUnitDisplayByProductId = computed(() => {
     const entry = this.#currency.entry();
     const map = new Map<string, number>();
-    for (const [id, info] of this.productsResource.value() ?? []) {
+    for (const [id, info] of this.#products()) {
+      if (!info) continue;
       const list = info.compareAtPrice;
       if (list === null || list <= info.price) continue;
       const sale = toDisplayAmount(info.price, entry);
@@ -155,7 +195,7 @@ export class CartDrawerComponent {
   });
 
   productInfo(productId: string): CartProductInfo | undefined {
-    return this.productsResource.value()?.get(productId);
+    return this.#products().get(productId) ?? undefined;
   }
 
   imagePath(rawPath: string): string {
