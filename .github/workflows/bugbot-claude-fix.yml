@@ -698,7 +698,10 @@ jobs:
         uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1 / v1.0.269 on 2026-11-06
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          allowed_bots: cursor
+          # cursor: Bugbot and Security Agent reviews. claude: a Claude Review of a commit that
+          # Claude Fix pushed (the workflow_run actor is then claude[bot]); without it the
+          # second round on those commits stops before Claude starts.
+          allowed_bots: cursor,claude
           base_branch: develop
           display_report: "false"
           classify_inline_comments: "false"
