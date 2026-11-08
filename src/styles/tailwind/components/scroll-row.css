@@ -50,4 +50,18 @@
     flex: 0 0 100%;
     width: 100%;
   }
+
+  /* Arrows + thin progress line under a `.scroll-row` (`app-row-scroll-nav`: home rows, bag). */
+  .row-scroll-nav {
+    @apply elements-center gap-3 pt-3 sm:pt-4;
+  }
+
+  .row-scroll-nav__progress {
+    @apply relative h-px w-28 sm:w-40 bg-outline-variant overflow-hidden;
+  }
+
+  .row-scroll-nav__progress-fill {
+    @apply absolute inset-y-0 left-0 bg-primary;
+    width: calc(var(--row-scroll-progress, 0) * 100%);
+  }
 }

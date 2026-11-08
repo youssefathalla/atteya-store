@@ -172,17 +172,32 @@
           <h3 id="bag-recommended-title" class="px-5 font-title-sm font-bold!">
             Recommended for You
           </h3>
-          <div
-            class="scroll-row px-5 scroll-px-5 [--scroll-cols:2] [--scroll-peek:2.5rem] [--scroll-gap:0.75rem]"
-            appHorizontalScroll
-            [enableWheel]="false"
-          >
-            @for (card of recommendations(); track card.id) {
-              <div class="scroll-row-item">
-                <app-product-card [product]="card" sizes="(max-width: 1023px) 45vw, 20vw"
-                  (productOpen)="drawerService.close()"
-                />
-              </div>
+          <!-- The wheel stays on the bag's own scroll; drag, swipe and the arrows move the row. -->
+          <div>
+            <div
+              class="scroll-row px-5 scroll-px-5 [--scroll-cols:2] [--scroll-peek:2.5rem] [--scroll-gap:0.75rem]"
+              appHorizontalScroll
+              #recommendedRow="horizontalScroll"
+              [enableWheel]="false"
+              [trackScroll]="true"
+            >
+              @for (card of recommendations(); track card.id) {
+                <div class="scroll-row-item">
+                  <app-product-card [product]="card" sizes="(max-width: 1023px) 45vw, 20vw"
+                    (productOpen)="drawerService.close()"
+                  />
+                </div>
+              }
+            </div>
+
+            @if (recommendedRow.canPrev() || recommendedRow.canNext()) {
+              <app-row-scroll-nav
+                [progress]="recommendedRow.progress()"
+                [canPrev]="recommendedRow.canPrev()"
+                [canNext]="recommendedRow.canNext()"
+                (prev)="recommendedRow.step(-1)"
+                (next)="recommendedRow.step(1)"
+              />
             }
           </div>
         </section>

@@ -1,5 +1,5 @@
 /**
- * Homepage product rows (AS-73 / AS-83): padel floating tiles + shared scroll nav chrome.
+ * Homepage product rows (AS-73 / AS-83): padel floating tiles (arrows + progress live in `scroll-row.css`).
  * New Arrivals uses portrait media capped to the remaining viewport under top chrome.
  */
 @layer components {
@@ -56,19 +56,6 @@
   .padel-tile__name::after {
     content: '';
     @apply block mt-1 h-0.5 w-5 bg-primary;
-  }
-
-  .row-scroll-nav {
-    @apply elements-center gap-3 pt-3 sm:pt-4;
-  }
-
-  .row-scroll-nav__progress {
-    @apply relative h-px w-28 sm:w-40 bg-outline-variant overflow-hidden;
-  }
-
-  .row-scroll-nav__progress-fill {
-    @apply absolute inset-y-0 left-0 bg-primary;
-    width: calc(var(--row-scroll-progress, 0) * 100%);
   }
 
   /**

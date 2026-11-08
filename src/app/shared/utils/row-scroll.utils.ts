@@ -1,4 +1,15 @@
 /**
+ * The row's snap edge in viewport pixels: its left edge plus any `scroll-padding-left`
+ * (e.g. `scroll-px-5`), which is where CSS snapping lines a card's start up.
+ */
+export function rowSnapEdge(el: HTMLElement): number {
+  const left = el.getBoundingClientRect().left;
+  if (typeof getComputedStyle !== 'function') return left;
+  const padding = parseFloat(getComputedStyle(el).scrollPaddingLeft);
+  return left + (Number.isFinite(padding) ? padding : 0);
+}
+
+/**
  * Where the row should land after one arrow step: the next (or previous) card's
  * start, or the row's start/end when no card is left that way.
  */
@@ -6,7 +17,7 @@ export function rowItemTarget(el: HTMLElement, direction: 1 | -1): number {
   const max = Math.max(0, el.scrollWidth - el.clientWidth);
   const children = Array.from(el.children) as HTMLElement[];
   if (children.length === 0) return direction === 1 ? max : 0;
-  const containerLeft = el.getBoundingClientRect().left;
+  const containerLeft = rowSnapEdge(el);
   const offsets = children.map((child) => child.getBoundingClientRect().left - containerLeft);
 
   if (direction === 1) {

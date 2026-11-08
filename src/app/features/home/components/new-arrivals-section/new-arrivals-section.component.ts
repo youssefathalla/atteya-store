@@ -24,14 +24,14 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { newArrivalDaysLeft } from '@core/services/products/utils/new-arrival';
 import { listingCardPrices } from '../../utils/listing-card-prices';
-import { rowScrollProgress } from '../../utils/row-scroll';
+import { rowScrollProgress } from '@shared/utils/row-scroll.utils';
 import { RowScrollLockDirective } from '../../directives/row-scroll-lock.directive';
 import {
   HOME_NEW_ARRIVALS_ROW_KEY,
   putHomeRowSeed,
   takeHomeRowSeed,
 } from '../../utils/home-row-products.state';
-import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.component';
+import { RowScrollNavComponent } from '@shared/ui/row-scroll-nav';
 
 @Component({
   selector: 'app-new-arrivals-section',
