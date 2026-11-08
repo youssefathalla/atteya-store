@@ -24,6 +24,7 @@ import { AuthService } from '@core/services/auth/auth.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import {
   addCartLine,
+  cartLineKey,
   clampLineQuantity,
   MAX_CART_LINES,
   mergeCartLines,
@@ -114,22 +115,37 @@ export class CartService {
   }
 
   removeAt(index: number): void {
+    const key = this.#keyAt(index);
+    if (key === null) return;
     void this.#mutate((lines) => {
-      if (index < 0 || index >= lines.length) return lines;
+      const at = findLineIndex(lines, key, index);
+      if (at < 0) return lines;
       const next = [...lines];
-      next.splice(index, 1);
+      next.splice(at, 1);
       return next;
     });
   }
 
   setQuantity(index: number, quantity: number): void {
     if (!Number.isInteger(quantity) || quantity !== clampLineQuantity(quantity)) return;
+    const key = this.#keyAt(index);
+    if (key === null) return;
     void this.#mutate((lines) => {
-      if (index < 0 || index >= lines.length) return lines;
+      const at = findLineIndex(lines, key, index);
+      if (at < 0) return lines;
       const next = [...lines];
-      next[index] = { ...next[index], quantity };
+      next[at] = { ...next[at], quantity };
       return next;
     });
+  }
+
+  /**
+   * Key of the line the shopper sees at `index`. Changes are matched by key, not position,
+   * because a change queued during sign-in is replayed on the merged account bag.
+   */
+  #keyAt(index: number): string | null {
+    const line = this.#lines()[index];
+    return line === undefined ? null : cartLineKey(line);
   }
 
   /**
@@ -279,6 +295,13 @@ function cartDocument(lines: readonly CartLineDraft[]) {
     })),
     updatedAt: serverTimestamp(),
   };
+}
+
+/** Index of the line with `key`, preferring `hint` when it still holds that line. -1 if gone. */
+function findLineIndex(lines: readonly CartLineDraft[], key: string, hint: number): number {
+  const atHint = lines[hint];
+  if (atHint !== undefined && cartLineKey(atHint) === key) return hint;
+  return lines.findIndex((line) => cartLineKey(line) === key);
 }
 
 function linesFromDoc(data: unknown): readonly CartLineDraft[] {
