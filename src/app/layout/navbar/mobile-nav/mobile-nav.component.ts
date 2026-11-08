@@ -8,6 +8,7 @@ import { DrawerService } from '@core/services/drawer/drawer.service';
 import { MobileMenuComponent } from './components/mobile-menu/mobile-menu.component';
 import { CartDrawerComponent } from '../../cart-drawer/cart-drawer.component';
 import { AccountMenuComponent } from '../components/account-menu/account-menu.component';
+import { SearchPanelService } from '../../search-panel/services/search-panel.service';
 
 @Component({
   selector: 'app-mobile-nav',
@@ -25,14 +26,16 @@ import { AccountMenuComponent } from '../components/account-menu/account-menu.co
 export class MobileNavComponent {
   readonly #drawerService = inject(DrawerService);
   readonly #cart = inject(CartService);
+  readonly #searchPanel = inject(SearchPanelService);
 
   readonly cartCount = this.#cart.count;
 
   readonly isMenuOpen = computed(() => this.#drawerService.isOpen('menu'));
   readonly isCartOpen = computed(() => this.#drawerService.isOpen('cart'));
 
-  toggleSearch(): void {
-    console.log('Mobile nav: toggle search');
+  openSearch(event: Event): void {
+    const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    void this.#searchPanel.open(trigger);
   }
 
   toggleCart(): void {

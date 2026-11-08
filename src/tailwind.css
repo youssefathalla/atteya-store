@@ -14,4 +14,5 @@
 @import './styles/tailwind/components/product-page';
 @import './styles/tailwind/components/home-product-rows';
 @import './styles/tailwind/components/shop';
+@import './styles/tailwind/components/search-panel';
 @import './styles/tailwind/utils-base';

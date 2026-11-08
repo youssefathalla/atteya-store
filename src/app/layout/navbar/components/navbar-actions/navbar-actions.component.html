@@ -1,11 +1,12 @@
 <div class="flex items-center gap-1.5 sm:gap-2.5 icon-btn-lg">
-  <!-- Quick Search Trigger -->
+  <!-- Quick search: opens the side panel (SearchPanelService) -->
   <button
     matIconButton
     matTooltip="Search"
     type="button"
-    (click)="toggleSearch()"
-    aria-label="Open search dialog"
+    (click)="openSearch($event)"
+    aria-label="Search products"
+    aria-haspopup="dialog"
   >
     <mat-icon name="search" size="2xl" />
   </button>

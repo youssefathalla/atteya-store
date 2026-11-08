@@ -18,7 +18,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
-import { displayPrice, type PricedProduct } from '@core/services/offers/engine';
 import { OffersService } from '@core/services/offers/offers.service';
 import type { Product } from '@core/services/products/product.model';
 import { ProductCacheService, ProductService } from '@core/services/products';
@@ -30,6 +29,7 @@ import type {
   ProductCardSibling,
 } from '@shared/components/product-card/product-card.model';
 import {
+  searchHitCardPrice,
   searchHitToCardData,
   siblingGroupsMap,
   toSiblingGroupsRecord,
@@ -139,52 +139,7 @@ export class SearchComponent implements OnInit {
 
     const map = new Map<string, ProductCardPrice>();
     for (const hit of hits) {
-      if (liveMode) {
-        const priced: PricedProduct = {
-          productId: hit.objectID,
-          name: hit.name,
-          brandId: hit.brandId,
-          categoryIds: hit.categoryIds,
-          type: hit.type,
-          modelGroup: hit.modelGroup,
-          colors: hit.colors,
-          sizes: hit.sizes,
-          tags: hit.tags,
-          price: hit.price,
-          compareAtPrice: hit.compareAtPrice,
-        };
-        const d = displayPrice(priced, offers, ctx);
-        map.set(hit.objectID, {
-          price: d.partial ? hit.price : d.fromPrice,
-          fromPrice: d.partial ? d.fromPrice : null,
-          listPrice: d.listPrice,
-          partial: d.partial,
-          // Listing cards keep strike-through; skip boxed offer chips.
-          badges: [],
-        });
-      } else {
-        const shown = hit.displayPrice ?? hit.price;
-        // Records indexed before `pricePartial` existed keep the old behaviour until search is rebuilt.
-        const varies = hit.pricePartial ?? shown !== hit.price;
-        map.set(
-          hit.objectID,
-          varies
-            ? {
-                price: hit.price,
-                fromPrice: shown,
-                listPrice: hit.listPrice ?? hit.compareAtPrice,
-                partial: true,
-                badges: [],
-              }
-            : {
-                price: shown,
-                fromPrice: null,
-                listPrice: hit.listPrice ?? hit.compareAtPrice,
-                partial: false,
-                badges: [],
-              },
-        );
-      }
+      map.set(hit.objectID, searchHitCardPrice(hit, liveMode ? offers : null, ctx));
     }
     return map;
   });
