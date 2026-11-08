@@ -20,8 +20,6 @@ export const COLOR_SIBLINGS_MAX = 12;
 /** Products read per model when the list is rebuilt (published and unpublished). */
 const GROUP_READ_LIMIT = 50;
 
-const BATCH_LIMIT = 400;
-
 export function readModelGroup(data: DocumentData | null | undefined): string | null {
   const raw = data?.['modelGroup'];
   if (typeof raw !== 'string') return null;
@@ -110,23 +108,30 @@ export async function refreshColorSiblings(
   modelGroup: string,
   options: { readonly dryRun?: boolean } = {},
 ): Promise<number> {
-  const snap = await db
+  const query = db
     .collection('products')
     .where('modelGroup', '==', modelGroup)
-    .limit(GROUP_READ_LIMIT)
-    .get();
-  const list = buildColorSiblings(snap.docs.map((doc) => ({ id: doc.id, data: doc.data() })));
-  const stale = snap.docs.filter((doc) => !sameColorSiblings(doc.get('colorSiblings'), list));
-  if (options.dryRun || stale.length === 0) return stale.length;
+    .limit(GROUP_READ_LIMIT);
 
-  for (let start = 0; start < stale.length; start += BATCH_LIMIT) {
-    const batch = db.batch();
-    for (const doc of stale.slice(start, start + BATCH_LIMIT)) {
-      batch.update(doc.ref, { colorSiblings: list });
-    }
-    await batch.commit();
+  if (options.dryRun) {
+    const snap = await query.get();
+    const list = buildColorSiblings(snap.docs.map((doc) => ({ id: doc.id, data: doc.data() })));
+    return snap.docs.filter((doc) => !sameColorSiblings(doc.get('colorSiblings'), list)).length;
   }
-  return stale.length;
+
+  // Read the group and write the list in one transaction, so two concurrent rebuilds of the
+  // same model can't commit an older list over a newer one: if any product in the group
+  // changes between the read and the commit, the transaction retries with fresh data.
+  // The group is capped at GROUP_READ_LIMIT documents, well under the transaction write limit.
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(query);
+    const list = buildColorSiblings(snap.docs.map((doc) => ({ id: doc.id, data: doc.data() })));
+    const stale = snap.docs.filter((doc) => !sameColorSiblings(doc.get('colorSiblings'), list));
+    for (const doc of stale) {
+      tx.update(doc.ref, { colorSiblings: list });
+    }
+    return stale.length;
+  });
 }
 
 /** Removes a leftover list from a product that no longer belongs to a model. */
