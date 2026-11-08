@@ -323,6 +323,8 @@ export class CheckoutPageComponent implements OnInit {
     if (!products) return { state: 'loading' };
 
     const lines = this.lines();
+    // Empty bag: nothing to price, and no item is missing (the page sends the shopper home).
+    if (lines.length === 0) return { state: 'loading' };
     if (lines.some((line) => !products.has(line.productId))) return { state: 'missing-item' };
 
     const offers = this.#offers.all();
@@ -650,6 +652,10 @@ export class CheckoutPageComponent implements OnInit {
   /** Removes a bag line from the order summary (used for items no longer available). */
   removeLine(index: number): void {
     this.#cart.removeAt(index);
+    // Removing the last line leaves nothing to check out: send the shopper home.
+    if (this.isEmpty() && this.#router.url.split(/[?#]/)[0] === '/checkout') {
+      void this.#router.navigateByUrl('/');
+    }
   }
 
   toggleSummary(): void {
