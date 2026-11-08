@@ -172,7 +172,9 @@
           >
             @for (card of recommendations(); track card.id) {
               <div class="scroll-row-item">
-                <app-product-card [product]="card" sizes="(max-width: 1023px) 45vw, 20vw" />
+                <app-product-card [product]="card" sizes="(max-width: 1023px) 45vw, 20vw"
+                  (productOpen)="drawerService.close()"
+                />
               </div>
             }
           </div>
