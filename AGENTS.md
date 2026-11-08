@@ -58,7 +58,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### 🛡️ Data Validation (active) & Firebase (target state)
 
-- **Strict Validation — ACTIVE**: `valibot` is installed and in use (`src/app/shared/schemas/`, `src/app/shared/ui/status-badge/status.model.ts`). Pipe all external data through a schema (`v.parse()` / `v.safeParse()`) before use. Use `createValibotConverter()` for Firestore documents. See the **`typescript`** skill for the schema rules.
+- **Strict Validation — ACTIVE**: `valibot` is installed and in use (`src/app/shared/schemas/`, `src/app/shared/ui/status-badge/status.model.ts`). Pipe all external data through a schema (`v.parse()` / `v.safeParse()`) before use. Use `createValibotConverter()` for Firestore documents (it reads a pending `serverTimestamp()` as Firestore's local estimate, so a live listener never parses `null` for it). See the **`typescript`** skill for the schema rules.
 
 > [!IMPORTANT]
 > **Native Firebase JS SDK (`firebase`) is standard.** Do NOT install or use `@angular/fire`. Native Firebase SDK functions (`getDoc`, `signInWithEmailAndPassword`, `onSnapshot`) are framework-agnostic, take explicit instances, and do NOT require an Angular injection context or `runInContext()` wrappers. Storage and Functions are not registered at startup. `injectStorageAsync()` and `injectFunctionsAsync()` (`@core/firebase`, region `europe-west3`) return a loader. Call them from an injection context, store the function, and invoke it on each use. A successful SDK load is reused. A failed chunk load is dropped so the next call retries.

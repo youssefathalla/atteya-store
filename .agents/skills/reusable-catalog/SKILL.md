@@ -288,7 +288,7 @@ Located in `src/app/shared/schemas/` and `src/app/shared/utils/firebase/`:
   - `futureDateSchema`: Date validator ensuring selection is today or in the future.
   - `timestampToDate`: Transform pipeline converting Firestore `Timestamp` to JavaScript `Date`.
 - **Firestore Converters** (`src/app/shared/utils/firebase/firestore-converter.ts`):
-  - `createValibotConverter(schema)`: Creates a strongly typed `FirestoreDataConverter<T>` powered by Valibot `v.parse()`, injecting document `id`.
+  - `createValibotConverter(schema)`: Creates a strongly typed `FirestoreDataConverter<T>` powered by Valibot `v.parse()`, injecting document `id`. Reads with `serverTimestamps: 'estimate'` (unless the caller passes its own), so a `serverTimestamp()` written from this browser reaches `onSnapshot` as a local estimate instead of `null` and timestamp schemas never see `null` for it. Never write a date field as `null` to mean "not confirmed yet"; a schema allows `null` only when `null` is stored on purpose (`v.nullable(timestampSchema, null)`).
 - **Firestore Signals** (`src/app/shared/utils/firebase/firestore-signals.ts`):
   - `signalDoc(docRef)`: Binds a Firestore document snapshot directly to an Angular Signal (SSR-safe, auto-unsubscribing).
   - `signalCollection(queryRef)`: Binds a Firestore query/collection to an Angular Signal (SSR-safe, auto-unsubscribing).
