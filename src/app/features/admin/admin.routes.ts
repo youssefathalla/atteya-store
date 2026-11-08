@@ -113,6 +113,14 @@ export const ADMIN_ROUTES: Routes = [
             title: 'Shipping | Atteya Admin',
           },
           {
+            path: 'players',
+            loadComponent: () =>
+              import('./pages/settings/players/players-tab.component').then(
+                (m) => m.PlayersTabComponent,
+              ),
+            title: 'Players | Atteya Admin',
+          },
+          {
             path: 'international',
             loadComponent: () =>
               import('./pages/settings/international/international-tab.component').then(

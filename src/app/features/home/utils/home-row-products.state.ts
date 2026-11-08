@@ -97,6 +97,8 @@ export function fromHomeRowProductSeed(seed: HomeRowProductSeed): Product {
     })),
     colors: [...seed.colors],
     tags: [...seed.tags],
+    // Home cards never show players; the product page reads its own doc.
+    players: [],
     marketingBadge: seed.marketingBadge ? { ...seed.marketingBadge } : null,
     newArrivalUntil:
       seed.newArrivalUntilMs != null ? Timestamp.fromMillis(seed.newArrivalUntilMs) : null,

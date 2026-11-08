@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
+import { PlayerListService } from '@core/services/products/player-list.service';
 import { SeoService } from '@core/services/seo';
 import { SearchService, type SearchHit } from '@core/services/search';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -34,6 +35,7 @@ import {
   hasApparelSizes,
   newArrivalCutoffMs,
   parseShopFilterState,
+  playerOptionsFromFacets,
   resolveShopTab,
   shopFiltersToQueryParams,
   sizeOptionsFromFacets,
@@ -68,6 +70,7 @@ export class ShopPage {
   readonly sort = input<string>();
   readonly category = input<string>();
   readonly brand = input<string>();
+  readonly player = input<string>();
   readonly size = input<string>();
   readonly color = input<string>();
   readonly gender = input<string>();
@@ -79,6 +82,7 @@ export class ShopPage {
   readonly #router = inject(Router);
   readonly #search = inject(SearchService);
   readonly #seo = inject(SeoService);
+  readonly #playerList = inject(PlayerListService);
   readonly #destroyRef = inject(DestroyRef);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #document = inject(DOCUMENT);
@@ -104,8 +108,16 @@ export class ShopPage {
     return sub === 'bags' || cat === 'bags';
   });
 
+  /** The player's name when exactly one player is chosen in the Player filter. */
+  readonly #playerName = computed(() => {
+    const chosen = this.filterState().players;
+    return chosen.length === 1 ? this.#playerList.nameOf(chosen[0]!) : null;
+  });
+
   readonly pageTitle = computed(() => {
     const tab = this.activeTab();
+    const playerName = this.#playerName();
+    if (playerName) return playerName;
     if (this.forceBags()) return 'Bags';
     if (tab === 'all' && this.filterState().newArrivals) return 'New Arrivals';
     return SHOP_TABS.find((t) => t.id === tab)?.label === 'All'
@@ -118,6 +130,7 @@ export class ShopPage {
       sort: this.sort(),
       category: this.category(),
       brand: this.brand(),
+      player: this.player(),
       size: this.size(),
       color: this.color(),
       gender: this.gender(),
@@ -162,6 +175,13 @@ export class ShopPage {
 
   readonly brands = computed(() =>
     brandOptionsFromFacets(this.facets(), this.filterState().brands),
+  );
+  readonly players = computed(() =>
+    playerOptionsFromFacets(
+      this.facets(),
+      this.#playerList.players(),
+      this.filterState().players,
+    ),
   );
   readonly sizes = computed(() =>
     sizeOptionsFromFacets(this.facets(), this.filterState().sizes),
@@ -230,9 +250,12 @@ export class ShopPage {
 
     effect(() => {
       const title = this.pageTitle();
+      const playerName = this.#playerName();
       this.#seo.setPageMetadata({
         title: `${title} | Atteya Store`,
-        description: `Shop ${title.toLowerCase()} at Atteya Store — padel rackets, apparel, bags, and accessories.`,
+        description: playerName
+          ? `Shop ${playerName}'s padel gear at Atteya Store — rackets, apparel, bags, and accessories.`
+          : `Shop ${title.toLowerCase()} at Atteya Store — padel rackets, apparel, bags, and accessories.`,
       });
     });
 

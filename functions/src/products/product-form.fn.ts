@@ -18,6 +18,7 @@ import {
   type ProductFormInput,
   type SaveProductResponse,
 } from './product-form.js';
+import { PLAYERS_DOC_PATH, readPlayerList } from './players.js';
 import { buildSearchTokens } from './search-tokens.js';
 import { nextSlug, slugBase } from './slug.js';
 import { readSizeValueIds, stockFields } from './stock.js';
@@ -71,6 +72,7 @@ export const createProduct = onCall(
         options,
         colors: [...input.colors],
         tags: [...input.tags],
+        players: [...(input.players ?? [])],
         marketingBadge: input.marketingBadge,
         newArrivalUntil: input.newArrivalUntil
           ? Timestamp.fromDate(input.newArrivalUntil)
@@ -145,6 +147,7 @@ export const updateProduct = onCall(
         patch['descriptionHtml'] = descriptionToHtml(input.description);
       }
       if (input.details !== undefined) patch['details'] = [...input.details];
+      if (input.players !== undefined) patch['players'] = [...input.players];
       if (input.weightGrams !== undefined) {
         patch['weightGrams'] =
           input.weightGrams === null ? FieldValue.delete() : input.weightGrams;
@@ -199,10 +202,28 @@ async function readCatalogue(
   if (!brandSnap.exists) {
     throw new HttpsError('failed-precondition', 'That brand no longer exists. Reload the page.');
   }
+  await assertKnownPlayers(tx, db, input.players);
   return {
     categoryIds: categoryIdsFrom(categorySnap.data() ?? {}, input.categoryId),
     searchTokens: buildSearchTokens(input.name, input.modelGroup),
   };
+}
+
+/** Every chosen player must still be in `settings/players`, so the Player filter never splits. */
+async function assertKnownPlayers(
+  tx: Transaction,
+  db: Firestore,
+  players: readonly string[] | undefined,
+): Promise<void> {
+  if (!players || players.length === 0) return;
+  const snap = await tx.get(db.doc(PLAYERS_DOC_PATH));
+  const known = new Set(readPlayerList(snap.data()).map((player) => player.id));
+  if (players.some((id) => !known.has(id))) {
+    throw new HttpsError(
+      'failed-precondition',
+      'A player you chose is no longer in the list. Reload the page.',
+    );
+  }
 }
 
 function categoryIdsFrom(data: DocumentData, categoryId: string): string[] {

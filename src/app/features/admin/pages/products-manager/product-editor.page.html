@@ -198,10 +198,7 @@
             @for (color of colorPalette; track color.id) {
               <button
                 type="button"
-                class="border-shape border px-2.5 py-1 elements-center gap-1.5 font-label-sm cursor-pointer"
-                [class.border-primary]="hasColor(color.id)"
-                [class.bg-surface-container-highest]="hasColor(color.id)"
-                [class.border-outline-variant]="!hasColor(color.id)"
+                class="toggle-pill"
                 [attr.aria-pressed]="hasColor(color.id)"
                 (click)="toggleColor(color.id)"
               >
@@ -216,6 +213,37 @@
           </div>
           @if (colorError()) {
             <p class="font-body-sm" role="alert">{{ colorError() }}</p>
+          }
+        </div>
+
+        <div class="w-full elements-start-col gap-2">
+          <span class="font-label-md">Players</span>
+          <p class="font-body-sm text-on-surface-variant">
+            Pick the pro players this product belongs to. Shoppers can filter Shop by player.
+          </p>
+          @if (playersLoading() && playerOptions().length === 0) {
+            <app-skeleton class="h-8 w-full" />
+          } @else if (playerOptions().length === 0) {
+            <p class="font-body-sm">
+              No players yet. Add them in
+              <a routerLink="/admin/settings/players" class="underline">Settings → Players</a>.
+            </p>
+          } @else {
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Product players">
+              @for (player of playerOptions(); track player.id) {
+                <button
+                  type="button"
+                  class="toggle-pill"
+                  [attr.aria-pressed]="hasPlayer(player.id)"
+                  (click)="togglePlayer(player.id)"
+                >
+                  <span>{{ player.name }}</span>
+                </button>
+              }
+            </div>
+          }
+          @if (playerError()) {
+            <p class="font-body-sm" role="alert">{{ playerError() }}</p>
           }
         </div>
 

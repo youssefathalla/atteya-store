@@ -1,4 +1,5 @@
 import { COLOR_PALETTE, type ColorId } from '@core/services/products/catalog-taxonomy';
+import { isPlayerId, type Player } from '@core/services/products/player.schema';
 import type { CatalogBrowseOptions } from '@core/services/search';
 import {
   APPAREL_LETTER_SIZES,
@@ -10,6 +11,7 @@ import {
   type ShopColorOption,
   type ShopFilterState,
   type ShopGenderFilterId,
+  type ShopPlayerOption,
   type ShopSizeOption,
   type ShopTabId,
 } from '../models/shop.model';
@@ -42,6 +44,7 @@ export function parseShopFilterState(input: {
   readonly sort?: string | null;
   readonly category?: string | null;
   readonly brand?: string | null;
+  readonly player?: string | null;
   readonly size?: string | null;
   readonly color?: string | null;
   readonly gender?: string | null;
@@ -72,6 +75,7 @@ export function parseShopFilterState(input: {
     sort,
     categories,
     brands: parseList(input.brand),
+    players: unique(parseList(input.player).filter(isPlayerId)),
     sizes: parseList(input.size),
     colors,
     genders,
@@ -89,6 +93,7 @@ export function shopFiltersToQueryParams(
     sort: state.sort === 'featured' ? null : state.sort,
     category: state.categories.length > 0 ? state.categories.join(',') : null,
     brand: state.brands.length > 0 ? state.brands.join(',') : null,
+    player: state.players.length > 0 ? state.players.join(',') : null,
     size: state.sizes.length > 0 ? state.sizes.join(',') : null,
     color: state.colors.length > 0 ? state.colors.join(',') : null,
     gender: state.genders.length > 0 ? state.genders.join(',') : null,
@@ -147,6 +152,10 @@ export function buildCatalogBrowseOptions(input: {
     facetFilters.push(filters.brands.map((name) => `brandName:${name}`));
   }
 
+  if (filters.players.length > 0) {
+    facetFilters.push(filters.players.map((id) => `players:${id}`));
+  }
+
   if (filters.sizes.length > 0) {
     facetFilters.push(filters.sizes.map((size) => `sizes:${size}`));
   }
@@ -187,13 +196,14 @@ export function buildCatalogBrowseOptions(input: {
     facetFilters: facetFilters.length > 0 ? facetFilters : undefined,
     facets: [
       'brandName',
+      'players',
       'colors',
       'sizes',
       'onSale',
       'gender',
       'hierarchicalCategories.lvl0',
     ],
-    disjunctiveFacets: ['brandName', 'colors', 'sizes'],
+    disjunctiveFacets: ['brandName', 'players', 'colors', 'sizes'],
     maxValuesPerFacet: 50,
   };
 }
@@ -218,6 +228,23 @@ export function brandOptionsFromFacets(
   }
   return Object.entries(map)
     .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+/**
+ * Players for the Player filter: only list players that have published products
+ * (the index holds published products only), plus any already chosen.
+ * Ids without a name in the list are left out.
+ */
+export function playerOptionsFromFacets(
+  facets: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+  players: readonly Player[],
+  selected: readonly string[] = [],
+): readonly ShopPlayerOption[] {
+  const map = facets?.['players'] ?? {};
+  return players
+    .map((player) => ({ id: player.id, name: player.name, count: map[player.id] ?? 0 }))
+    .filter((option) => option.count > 0 || selected.includes(option.id))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
@@ -301,6 +328,10 @@ function parseList(raw: string | null | undefined): string[] {
     .split(',')
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
+}
+
+function unique(list: readonly string[]): string[] {
+  return Array.from(new Set(list));
 }
 
 function parseOptionalInt(raw: string | null | undefined): number | null {

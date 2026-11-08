@@ -26,6 +26,7 @@ import {
   CatalogService,
   COLOR_PALETTE,
   marketingBadgeLabel,
+  PlayerListService,
   type Product,
   productDetailsTitle,
   toVariantFacts,
@@ -73,6 +74,7 @@ export class ProductComponent {
 
   readonly #seo = inject(SeoService);
   readonly #catalog = inject(CatalogService);
+  readonly #playerList = inject(PlayerListService);
   readonly #offersReader = inject(PublicOffersReader);
   readonly #liveOffers = inject(OffersService);
   readonly #firestore = injectFirestore();
@@ -192,6 +194,14 @@ export class ProductComponent {
     const p = this.product();
     return p ? (this.#catalog.brandBySlug(p.brandId)?.name ?? p.brandId) : '';
   });
+
+  /** "More from <player>" links to Shop filtered by that player; players no longer in the list are skipped. */
+  readonly playerLinks = computed(() =>
+    (this.product()?.players ?? []).flatMap((id) => {
+      const name = this.#playerList.nameOf(id);
+      return name ? [{ id, name, query: { player: id } }] : [];
+    }),
+  );
 
   readonly breadcrumbs = computed(() => [
     { label: 'Shop', link: ['/shop'] as readonly string[] },

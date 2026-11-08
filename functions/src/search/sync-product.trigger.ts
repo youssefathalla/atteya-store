@@ -67,13 +67,15 @@ export async function executeProductSearchSync(
     afterData?.['published'] === true ? 'saveObject' : 'deleteObject';
 
   try {
-    const [{ categoriesById, brandsById }, offers] = await Promise.all([
+    const [{ categoriesById, brandsById, playerNamesById }, offers] = await Promise.all([
       deps.getCatalogLookup(db),
       deps.getActiveOffers(db, true),
     ]);
 
-    const before = toSearchRecord(productId, beforeData, categoriesById, brandsById, offers);
-    const after = toSearchRecord(productId, afterData, categoriesById, brandsById, offers);
+    const now = new Date();
+    const lookup = [categoriesById, brandsById, offers, now, playerNamesById] as const;
+    const before = toSearchRecord(productId, beforeData, ...lookup);
+    const after = toSearchRecord(productId, afterData, ...lookup);
 
     if (before === null && after === null) {
       return;

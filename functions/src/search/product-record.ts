@@ -17,6 +17,7 @@ import {
   PRODUCT_GENDER_IDS,
   type ProductGenderId,
 } from '../products/product-form.js';
+import { readProductPlayerIds } from '../products/players.js';
 import type { CachedBrandInfo, CachedCategoryInfo } from './catalog-cache.js';
 
 export interface SearchRecordImage {
@@ -60,6 +61,10 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly colors: readonly string[];
   readonly sizes: readonly string[];
   readonly tags: readonly string[];
+  /** Player ids (Shop's Player filter facet, `?player=`). */
+  readonly players: readonly string[];
+  /** Player names, searchable so "Galan" or "Tapia" finds their gear. */
+  readonly playerNames: readonly string[];
   readonly gender?: ProductGenderId;
   readonly marketingBadgeKind: MarketingBadgeKind | null;
   readonly marketingBadgeStyle: MarketingBadgeStyle | null;
@@ -88,6 +93,7 @@ export function toSearchRecord(
   brandsById: ReadonlyMap<string, CachedBrandInfo>,
   offers: readonly Offer[] = [],
   now: Date = new Date(),
+  playerNamesById: ReadonlyMap<string, string> = new Map(),
 ): ProductSearchRecord | null {
   if (!data || data['published'] !== true) {
     return null;
@@ -129,6 +135,9 @@ export function toSearchRecord(
   const colors = readStringArray(data['colors']);
   const sizes = extractSizes(data['options']);
   const tags = readStringArray(data['tags']);
+  // Only players still in the list: a removed player drops out of the filter on the next sync.
+  const players = readProductPlayerIds(data['players']).filter((id) => playerNamesById.has(id));
+  const playerNames = players.map((id) => playerNamesById.get(id) ?? id);
   const gender = readGender(data['gender']);
   const marketingBadge = readMarketingBadge(data['marketingBadge']);
   const summary = readNullableString(data['summary']);
@@ -182,6 +191,8 @@ export function toSearchRecord(
     colors,
     sizes,
     tags,
+    players,
+    playerNames,
     ...(gender ? { gender } : {}),
     marketingBadgeKind: marketingBadge?.kind ?? null,
     marketingBadgeStyle: marketingBadge?.style ?? null,

@@ -13,6 +13,7 @@ import {
   type ShopColorOption,
   type ShopFilterState,
   type ShopGenderFilterId,
+  type ShopPlayerOption,
   type ShopSizeOption,
   type ShopTabId,
 } from '../../models/shop.model';
@@ -28,6 +29,7 @@ export class ShopFiltersComponent {
   readonly filters = model.required<ShopFilterState>();
   readonly tab = input.required<ShopTabId>();
   readonly brands = input.required<readonly ShopBrandOption[]>();
+  readonly players = input<readonly ShopPlayerOption[]>([]);
   readonly sizes = input.required<readonly ShopSizeOption[]>();
   readonly colors = input.required<readonly ShopColorOption[]>();
   readonly showGender = input(false);
@@ -64,6 +66,14 @@ export class ShopFiltersComponent {
     this.#emit({
       ...this.filters(),
       brands: toggleListValue(this.filters().brands, name),
+      page: 0,
+    });
+  }
+
+  togglePlayer(id: string): void {
+    this.#emit({
+      ...this.filters(),
+      players: toggleListValue(this.filters().players, id),
       page: 0,
     });
   }

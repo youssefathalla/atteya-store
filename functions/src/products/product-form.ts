@@ -6,6 +6,7 @@ import {
   isMarketingBadgeStyle,
   type MarketingBadge,
 } from './marketing-badge.js';
+import { isPlayerId, MAX_PRODUCT_PLAYERS } from './players.js';
 import { nextSlug } from './slug.js';
 
 const CREATE_ID = /^[A-Za-z0-9]{20}$/;
@@ -65,6 +66,8 @@ export interface ProductFormInput {
   readonly gender: ProductGenderId | null;
   readonly colors: readonly ColorId[];
   readonly tags: readonly string[];
+  /** Player ids from `settings/players`. Missing = leave the saved list as it is. */
+  readonly players?: readonly string[];
   readonly marketingBadge: MarketingBadge | null;
   /** End of New Arrivals window, or null when not flagged. */
   readonly newArrivalUntil: Date | null;
@@ -207,7 +210,9 @@ function parseForm(raw: Record<string, unknown>): ProductFormInput {
   const stock = readStock(raw, sizes.length);
   const weightGrams = readWeightGrams(raw);
   const details = readDetails(raw);
-  const withDetails = details === undefined ? form : { ...form, details };
+  const players = readPlayers(raw);
+  const withPlayers = players === undefined ? form : { ...form, players };
+  const withDetails = details === undefined ? withPlayers : { ...withPlayers, details };
   const withStock = stock === undefined ? withDetails : { ...withDetails, stock };
   return weightGrams === undefined ? withStock : { ...withStock, weightGrams };
 }
@@ -435,6 +440,22 @@ function readTags(value: unknown): string[] {
     tags.push(tag);
   }
   return tags;
+}
+
+/** Player ids picked from the list. Missing key = undefined (the saved list stays); null = clear. */
+function readPlayers(raw: Record<string, unknown>): string[] | undefined {
+  if (!Object.hasOwn(raw, 'players')) return undefined;
+  const value = raw['players'];
+  if (value === null) return [];
+  if (!Array.isArray(value)) invalid('Choose players from the list.');
+  if (value.length > MAX_PRODUCT_PLAYERS) invalid('Choose up to 10 players.');
+  const players: string[] = [];
+  for (const entry of value) {
+    if (!isPlayerId(entry)) invalid('Choose players from the list.');
+    if (players.includes(entry)) invalid('Each player can only be chosen once.');
+    players.push(entry);
+  }
+  return players;
 }
 
 function readMarketingBadge(value: unknown): MarketingBadge | null {
