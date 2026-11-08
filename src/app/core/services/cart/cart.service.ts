@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { DestroyRef, inject, PLATFORM_ID, Service, computed, signal } from '@angular/core';
-import type { CartLineDraft } from './cart.model';
+import { cartLineKey, type CartLineDraft } from './cart.model';
 
 const STORAGE_KEY = 'atteya-cart-v1';
 
@@ -29,9 +29,9 @@ export class CartService {
   }
 
   add(line: CartLineDraft): void {
-    const key = lineKey(line);
+    const key = cartLineKey(line);
     const next = [...this.#lines()];
-    const index = next.findIndex((entry) => lineKey(entry) === key);
+    const index = next.findIndex((entry) => cartLineKey(entry) === key);
     if (index >= 0) {
       const merged = { ...next[index], quantity: Math.min(20, next[index].quantity + line.quantity) };
       next[index] = merged;
@@ -69,17 +69,6 @@ export class CartService {
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
   }
-}
-
-function lineKey(line: CartLineDraft): string {
-  return `${line.productId}:${line.variantId ?? ''}:${stableSelection(line.selection)}`;
-}
-
-function stableSelection(selection: Readonly<Record<string, string>>): string {
-  return Object.keys(selection)
-    .sort()
-    .map((key) => `${key}=${selection[key]}`)
-    .join('|');
 }
 
 function readStored(): readonly CartLineDraft[] {
