@@ -149,7 +149,10 @@ jobs:
             // A newer commit is already on the PR: its own run will comment.
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
             if (pr.head.sha !== sha) { core.info('A newer commit is on the PR; not commenting.'); return; }
-            let body = fs.readFileSync('summary/summary.md', 'utf8');
+            // summary.md comes from the PR's own code. Auto-merge and Claude Fix trust hidden
+            // markers in github-actions[bot] comments (claude-review-verdict, …), so disarm every
+            // HTML comment in it before adding our own marker, and cap its length.
+            let body = fs.readFileSync('summary/summary.md', 'utf8').slice(0, 60000).replace(/<!--/g, '&lt;!--');
             const artifact = process.env.ARTIFACT_URL;
             if (artifact) body += `\nDirect download: [browser-check screenshots](${artifact})\n`;
             const marker = `<!-- browser-check ${sha} -->`;
