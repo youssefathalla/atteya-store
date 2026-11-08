@@ -16,6 +16,7 @@ import { ProductService } from '@core/services/products';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { PrefetchProductDirective } from '@shared/directives/prefetch-product';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.component';
@@ -40,6 +41,7 @@ const PADEL_CAROUSEL_LIMIT = 8;
     PrefetchProductDirective,
     HorizontalScrollDirective,
     RowScrollLockDirective,
+    SharedIconModule,
     SkeletonComponent,
     RowScrollNavComponent,
   ],

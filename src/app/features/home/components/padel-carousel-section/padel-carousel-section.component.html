@@ -1,7 +1,12 @@
 @if (showSection()) {
   <section class="container-content select-none" aria-labelledby="padel-heading">
     <header class="pb-2 sm:pb-3">
-      <h2 id="padel-heading" class="home-section-title">Padel</h2>
+      <h2 id="padel-heading" class="home-section-title">
+        <a class="home-section-title-link" routerLink="/category/rackets">
+          <span>Padel</span>
+          <mat-icon name="arrow_forward" size="lg" />
+        </a>
+      </h2>
     </header>
 
     @if (isLoading()) {

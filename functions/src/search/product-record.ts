@@ -65,6 +65,8 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly inStock: boolean;
   readonly image: SearchRecordImage | null;
   readonly createdAtMs: number;
+  /** End of the New arrival period in ms; 0 when the product is not marked as one. */
+  readonly newArrivalUntilMs: number;
   readonly [key: string]: unknown;
 }
 
@@ -132,6 +134,7 @@ export function toSearchRecord(
       : data['inStock'] === true;
   const image = extractPrimaryImage(data['images'], name);
   const createdAtMs = extractTimestampMs(data['createdAt']);
+  const newArrivalUntilMs = extractTimestampMs(data['newArrivalUntil']);
 
   const offerFields = computeProductOfferFields(
     productId,
@@ -178,6 +181,7 @@ export function toSearchRecord(
     inStock,
     image,
     createdAtMs,
+    newArrivalUntilMs,
     ...offerFields,
   };
 }

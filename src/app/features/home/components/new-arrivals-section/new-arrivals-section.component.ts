@@ -13,6 +13,7 @@ import {
   TransferState,
   viewChild,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
 import { OffersService } from '@core/services/offers/offers.service';
 import {
@@ -24,6 +25,7 @@ import type { Product } from '@core/services/products/product.model';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
 import { productToCardData } from '@shared/components/product-card/product-card.utils';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { listingCardPrices } from '../../utils/listing-card-prices';
 import { rowScrollProgress } from '../../utils/row-scroll';
@@ -39,6 +41,8 @@ import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.componen
   selector: 'app-new-arrivals-section',
   host: { class: 'block w-full' },
   imports: [
+    RouterLink,
+    SharedIconModule,
     ProductCardComponent,
     HorizontalScrollDirective,
     RowScrollLockDirective,

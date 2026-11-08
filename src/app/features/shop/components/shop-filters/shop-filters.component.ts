@@ -92,6 +92,10 @@ export class ShopFiltersComponent {
     });
   }
 
+  setNewArrivals(checked: boolean): void {
+    this.#emit({ ...this.filters(), newArrivals: checked, page: 0 });
+  }
+
   setOnSale(checked: boolean): void {
     this.#emit({ ...this.filters(), onSale: checked, page: 0 });
   }
