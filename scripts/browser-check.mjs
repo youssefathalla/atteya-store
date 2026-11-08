@@ -14,6 +14,7 @@
  *     store has no error page: an unknown route redirects home),
  *   - the page throws (pageerror) or logs a console error that is not in ALLOWED_CONSOLE,
  *   - a request to our own server fails or answers 4xx/5xx,
+ *   - the browser app never starts on the server HTML (uses the development build's `ng` global),
  *   - the main area is empty, the store loader never goes away, or what the page is for is
  *     missing (no product cards on Shop, no bag line in the bag, no email field on Sign In).
  * Each failed page is tried once more before it counts.
@@ -310,8 +311,31 @@ async function check(context, size, def) {
   };
 }
 
-/** The first-load store loader ("Loading store") must go away. */
+/**
+ * The browser app must start on the server HTML before the loader check means anything: the
+ * server never renders the loader, so a missing loader on server HTML proves nothing. Uses the
+ * `ng` debug global that development builds publish when the root component is created.
+ */
+async function waitForBrowserApp(page, problems) {
+  try {
+    await page.waitForFunction(
+      () => {
+        const root = document.querySelector('app-root');
+        return Boolean(root && window.ng?.getComponent?.(root));
+      },
+      null,
+      { timeout: READY_TIMEOUT },
+    );
+    return true;
+  } catch {
+    problems.push('The app never started in the browser (the check needs a development build).');
+    return false;
+  }
+}
+
+/** The first-load store loader ("Loading store") must go away once the browser app runs. */
 async function waitForStoreLoader(page, problems) {
+  if (!(await waitForBrowserApp(page, problems))) return;
   const loader = page.locator('[role="status"][aria-label="Loading store"]');
   try {
     await loader.waitFor({ state: 'hidden', timeout: READY_TIMEOUT });
@@ -329,17 +353,32 @@ async function openBag(page, problems) {
     problems.push('The bag button could not be pressed.');
     return;
   }
+  // Both bags (phone sheet, desktop side drawer) stay in the page while closed, only moved off
+  // screen, and Playwright counts off-screen nodes as visible: only lines on screen count.
   try {
-    await page.locator('app-cart-drawer .bag-line:visible').first().waitFor({ state: 'visible', timeout: READY_TIMEOUT });
+    await page.waitForFunction(countBagLinesOnScreen, null, { timeout: READY_TIMEOUT });
   } catch {
-    problems.push('The bag opened without the item in it.');
+    problems.push('The bag did not open with the item in it.');
   }
   // Let the slide-in and the product reads settle, then look again: the line must still be
   // there and the empty-bag message must not show next to a count of 1.
   await page.waitForTimeout(2_500);
-  const lineStillThere = await page.locator('app-cart-drawer .bag-line:visible').count();
+  const lineStillThere = await page.evaluate(countBagLinesOnScreen);
   const emptyShown = await page.getByText('Your bag is empty').filter({ visible: true }).count();
   if (!lineStillThere || emptyShown) problems.push('The bag shows "Your bag is empty" although it has an item.');
+}
+
+/**
+ * Runs in the page: how many bag lines are actually on screen (inside the viewport, not
+ * hidden). A closed bag is translated off screen, so its lines do not count.
+ */
+function countBagLinesOnScreen() {
+  return [...document.querySelectorAll('app-cart-drawer .bag-line')].filter((el) => {
+    const box = el.getBoundingClientRect();
+    if (!box.width || !box.height) return false;
+    if (getComputedStyle(el).visibility === 'hidden') return false;
+    return box.bottom > 0 && box.right > 0 && box.top < window.innerHeight && box.left < window.innerWidth;
+  }).length;
 }
 
 /** The product the server rendered, from the TransferState seed (`product-page:<slug>`). */
