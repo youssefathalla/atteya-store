@@ -19,7 +19,9 @@
 # "✋ Auto-merge" once per commit saying why. Resolving a review thread starts no workflow, so
 # Actions → Auto-merge → Run workflow (PR number) checks one PR again by hand; ticking
 # "skip_claude_findings" there also skips the Claude-findings hold (the owner decided those
-# findings are fine), but nothing else.
+# findings are fine), but nothing else. A hand-started run only counts when the repo owner
+# starts it from the default branch: a dispatch runs the workflow copy on the chosen branch,
+# so a run from any other branch is skipped here.
 # Then it squash-merges into develop and deletes the branch.
 #
 # Never merges into main. Skips draft PRs, PRs with the "no-auto-merge" label,
@@ -72,7 +74,9 @@ jobs:
       vars.AUTO_MERGE == 'enabled' && (
         (github.event_name == 'check_run' && github.event.check_run.app.slug == 'cursor') ||
         (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request') ||
-        github.event_name == 'workflow_dispatch'
+        (github.event_name == 'workflow_dispatch' &&
+         github.ref_name == github.event.repository.default_branch &&
+         github.actor == github.repository_owner)
       )
     runs-on: ubuntu-latest
     timeout-minutes: 5
