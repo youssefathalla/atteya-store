@@ -167,12 +167,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // At most 50 lines. Rules have no loops, so each index is checked on its own;
+    // At most 20 lines, the order callables' limit. Rules have no loops, so each index is checked on its own;
     // indexes past the end stop at the size check.
     function validCart(data) {
       return data.keys().hasOnly(['lines', 'updatedAt'])
         && data.lines is list
-        && data.lines.size() <= 50
+        && data.lines.size() <= 20
         && data.updatedAt == request.time
         && cartLineAt(data.lines, 0)
         && cartLineAt(data.lines, 1)
@@ -193,37 +193,7 @@ service cloud.firestore {
         && cartLineAt(data.lines, 16)
         && cartLineAt(data.lines, 17)
         && cartLineAt(data.lines, 18)
-        && cartLineAt(data.lines, 19)
-        && cartLineAt(data.lines, 20)
-        && cartLineAt(data.lines, 21)
-        && cartLineAt(data.lines, 22)
-        && cartLineAt(data.lines, 23)
-        && cartLineAt(data.lines, 24)
-        && cartLineAt(data.lines, 25)
-        && cartLineAt(data.lines, 26)
-        && cartLineAt(data.lines, 27)
-        && cartLineAt(data.lines, 28)
-        && cartLineAt(data.lines, 29)
-        && cartLineAt(data.lines, 30)
-        && cartLineAt(data.lines, 31)
-        && cartLineAt(data.lines, 32)
-        && cartLineAt(data.lines, 33)
-        && cartLineAt(data.lines, 34)
-        && cartLineAt(data.lines, 35)
-        && cartLineAt(data.lines, 36)
-        && cartLineAt(data.lines, 37)
-        && cartLineAt(data.lines, 38)
-        && cartLineAt(data.lines, 39)
-        && cartLineAt(data.lines, 40)
-        && cartLineAt(data.lines, 41)
-        && cartLineAt(data.lines, 42)
-        && cartLineAt(data.lines, 43)
-        && cartLineAt(data.lines, 44)
-        && cartLineAt(data.lines, 45)
-        && cartLineAt(data.lines, 46)
-        && cartLineAt(data.lines, 47)
-        && cartLineAt(data.lines, 48)
-        && cartLineAt(data.lines, 49);
+        && cartLineAt(data.lines, 19);
     }
 
     function cartLineAt(lines, i) {

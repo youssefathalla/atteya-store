@@ -67,6 +67,8 @@ export class CartService {
   #unsubscribe: Unsubscribe | null = null;
   /** Changes made while the account bag was still loading; applied to the first snapshot. */
   #queued: CartMutation[] = [];
+  /** The account bag's listener failed: changes stay on screen and are never saved over the real bag. */
+  #loadFailed = false;
   #readyWaiters: (() => void)[] = [];
 
   readonly lines = this.#lines.asReadonly();
@@ -167,6 +169,10 @@ export class CartService {
       if (this.#isBrowser) writeStored(next);
       return Promise.resolve();
     }
+    if (this.#loadFailed) {
+      this.#lines.update(change);
+      return Promise.resolve();
+    }
     if (!this.#ready()) {
       // Show it now; the first snapshot re-applies it to the saved bag and saves the result.
       this.#queued.push(change);
@@ -256,6 +262,7 @@ export class CartService {
       () => {
         if (generation !== this.#generation) return;
         this.#queued = [];
+        this.#loadFailed = true;
         this.#lines.set([]);
         this.#setReady(true);
         this.#snackbar.error("We couldn't load your bag. Refresh the page to try again.");
@@ -277,6 +284,7 @@ export class CartService {
     this.#unsubscribe?.();
     this.#unsubscribe = null;
     this.#queued = [];
+    this.#loadFailed = false;
   }
 
   #setReady(ready: boolean): void {

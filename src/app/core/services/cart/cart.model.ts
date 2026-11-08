@@ -21,8 +21,8 @@ function stableSelection(selection: Readonly<Record<string, string>>): string {
 /** Most pieces of one line (same product, same choices). Matches `carts/{uid}` rules and the order callables. */
 export const MAX_LINE_QUANTITY = 20;
 
-/** Most lines in one bag. Matches `carts/{uid}` rules. */
-export const MAX_CART_LINES = 50;
+/** Most lines in one bag. Matches `carts/{uid}` rules and the order callables (`MAX_LINES` in `order-request.ts`). */
+export const MAX_CART_LINES = 20;
 
 /** Clamp to a whole number between 1 and `MAX_LINE_QUANTITY`. */
 export function clampLineQuantity(quantity: number): number {
