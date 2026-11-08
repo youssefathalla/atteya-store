@@ -54,7 +54,16 @@ All payment wording comes from `orderStage()` / `paymentDue()` in `functions/src
 - Website, admin and emails: English.
 - Pre-written WhatsApp messages (`shopperWhatsappText`, `staffWhatsappText`): Egyptian Arabic, English digits, greeting with the first name and the order ref.
 
-## 7. Before you finish
+## 7. Product names and descriptions
+
+Set by the catalogue copy cleanup (Nov 8, 2026); keep new products in the same style in the admin product form.
+
+- **Name**: brand + model only, title case, no year and no colour (the colour picker shows the colour): "Adidas Simple Polo", "Bullpadel Neuron 02 Edge". A player's own shirt or set carries the player: "Adidas Ale Galán T-Shirt", "Nox Agustín Tapia Set".
+- **Short description** (`summary`, "Short summary" in the form): 7 words at most, no full stop, for cards, the bag and search: "Ale Galán's adjustable power racket", "Keeps drinks hot or cold, 550 ml". Name the player here when the product has its own model name.
+- **Long description** (product page Details): one or two plain sentences, a blank line, then the facts as lines starting with "• ": materials with percentages, capacity, size, pockets; rackets list Shape, Balance, Weight, Core, Face, Level and Playing style. Only facts we know; no marketing claims or "like original".
+- Option labels and values use title case too ("Choose Your Pair", "Nox Black"); sizes stay as they are (M, 2XL, T2 (M)).
+
+## 8. Before you finish
 
 - Read every new string out loud next to what's around it: is anything said twice?
 - Check capitals against the table in section 1.

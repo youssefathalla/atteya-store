@@ -1,0 +1,983 @@
+[
+  {
+    "id": "eo-c0d7e6b0-7adc-4df3-9214-dc539790cb10",
+    "slug": "adidas-arrow",
+    "name": "Adidas Arrow Hit",
+    "summary": "Attacking racket with adjustable balance",
+    "description": "An attacking diamond racket with adjustable balance, for precise, powerful shots.\n\nMove the side weights with the included Allen key to set the balance you like. The longer grip adds power when you go for the finish.\n\n• Shape: Diamond\n• Balance: Head-heavy\n• Weight: 360–375 g\n• Core: Soft Performance EVA\n• Face: ASC, moulded texture\n• Level: Advanced\n• Playing style: Power",
+    "options": []
+  },
+  {
+    "id": "eo-8ee68962-fd78-4db9-a279-3ea10ceb30ee",
+    "slug": "adidas-cross-it",
+    "name": "Adidas Cross It Ctrl 3.4",
+    "summary": "Round control racket for precise players",
+    "description": "A round control racket for precise players, with holes that cut air resistance.\n\n• Shape: Round\n• Balance: Mid\n• Weight: 360–375 g\n• Core: High Memory EVA\n• Face: Carbon Aluminized 15K\n• Level: Advanced\n• Playing style: Control",
+    "options": []
+  },
+  {
+    "id": "eo-603010ed-79b3-4791-bd88-5dabd2413620",
+    "slug": "metalbon-galan2026",
+    "name": "Adidas Metalbone",
+    "summary": "Ale Galán's adjustable power racket",
+    "description": "Ale Galán's power racket, with weights you can add to tune weight and balance.\n\n• Shape: Diamond\n• Balance: Head-heavy\n• Weight: 345–360 g, plus up to 11.2 g of removable weights\n• Core: Soft Performance EVA\n• Face: Carbon Aluminized 16K, rough\n• Level: Advanced\n• Playing style: Power",
+    "options": []
+  },
+  {
+    "id": "eo-8067630d-f9f2-444f-9ca2-3024a7fbeca7",
+    "slug": "adidas-ctrl2026",
+    "name": "Adidas Metalbone Carbon Ctrl",
+    "summary": "Stable, comfortable control racket",
+    "description": "A round control racket that is stable and comfortable, for building every point.\n\n• Shape: Round\n• Balance: Even\n• Weight: 360–375 g\n• Core: Soft Performance EVA\n• Face: Carbon 6K, rough\n• Level: Advanced\n• Playing style: Control",
+    "options": []
+  },
+  {
+    "id": "eo-8b4ad4f0-7524-4e84-ad4f-1711e2ac5676",
+    "slug": "metalbon-hrd-galan2026",
+    "name": "Adidas Metalbone HRD+",
+    "summary": "Ale Galán's firmest power racket",
+    "description": "The firmer version of Ale Galán's Metalbone, for maximum power.\n\n• Shape: Diamond\n• Balance: High\n• Weight: 345–360 g, plus up to 12 g of removable weights\n• Core: High Memory EVA\n• Face: Carbon Aluminized 16K, rough\n• Level: Advanced\n• Playing style: Power",
+    "options": []
+  },
+  {
+    "id": "eo-6fdac040-d8e5-4e6e-99b3-ae688efba74b",
+    "slug": "rx2026",
+    "name": "Adidas RX Series",
+    "summary": "Comfortable racket that makes learning easy",
+    "description": "A comfortable round racket that makes learning easy, with a soft feel and good ball output.\n\n• Shape: Round\n• Balance: Mid\n• Weight: 360–375 g\n• Core: Soft Performance EVA\n• Face: Fibreglass, smooth\n• Level: Intermediate\n• Playing style: Control",
+    "options": []
+  },
+  {
+    "id": "eo-652c3516-cd1f-4616-b3d4-595d1e3c74a2",
+    "slug": "rx-light",
+    "name": "Adidas RX Series Light",
+    "summary": "Light, soft racket, easy to control",
+    "description": "A light, round racket with a soft feel, easy to control and quick to react.\n\n• Shape: Round\n• Balance: Even\n• Weight: 345–360 g\n• Core: Soft Performance EVA\n• Face: Fibreglass, smooth\n• Level: Intermediate\n• Playing style: Control",
+    "options": []
+  },
+  {
+    "id": "eo-0d48d712-64cd-4646-82e3-f87e55e03762",
+    "slug": "bullpadel-neuron02",
+    "name": "Bullpadel Neuron 02 Edge",
+    "summary": "Chingotto's stable, precise control racket",
+    "description": "Fede Chingotto's racket: very stable and precise, with extra power from the head shape.\n\n• Shape: Teardrop\n• Balance: High\n• Weight: 365–375 g\n• Core: HardEva\n• Face: X-Tend Carbon 3K, 3D grain\n• Level: Advanced\n• Playing style: Control",
+    "options": []
+  },
+  {
+    "id": "eo-ea99fa63-1111-4dcd-acc2-7d93ccafb617",
+    "slug": "vertx-o5-2026",
+    "name": "Bullpadel Vertex 05",
+    "summary": "Bullpadel's best-selling all-round racket",
+    "description": "Bullpadel's best-selling all-round racket: stable and solid in defence, attack and transitions.\n\n• Shape: Diamond\n• Balance: High\n• Weight: 365–375 g\n• Core: Multieva\n• Face: X-Tend Carbon 12K, rough\n• Level: Advanced\n• Playing style: Power",
+    "options": []
+  },
+  {
+    "id": "eo-71f57cae-0fa9-47ba-97fe-d935bfc92ef9",
+    "slug": "vertex-05-2027",
+    "name": "Bullpadel Vertex 05 Comfort",
+    "summary": "Comfortable power racket",
+    "description": "A comfortable version of the Vertex 05, built for powerful players.\n\n• Shape: Diamond\n• Balance: High\n• Weight: 360–370 g\n• Core: Multieva\n• Face: Fibrix, rough\n• Level: Advanced\n• Playing style: Power",
+    "options": []
+  },
+  {
+    "id": "eo-75ca3f5b-6bd2-401b-93f5-8da45d49c1b6",
+    "slug": "vertex05-hybrid",
+    "name": "Bullpadel Vertex 05 Hybrid",
+    "summary": "Teardrop racket for power and control",
+    "description": "A teardrop Vertex that mixes power and control.\n\n• Shape: Teardrop\n• Balance: High\n• Weight: 365–375 g\n• Core: Multieva\n• Face: X-Tend Carbon 12K, rough\n• Level: Intermediate\n• Playing style: Power and control",
+    "options": []
+  },
+  {
+    "id": "eo-280d086e-0782-46fb-af8b-6a250d3736e5",
+    "slug": "xplo2027",
+    "name": "Bullpadel XPLO",
+    "summary": "Diamond power racket, firm carbon face",
+    "description": "A diamond power racket with a firm carbon face.\n\n• Shape: Diamond\n• Balance: High\n• Weight: 365–375 g\n• Core: Multieva\n• Face: Carbon 12K, rough\n• Level: Advanced\n• Playing style: Power",
+    "options": []
+  },
+  {
+    "id": "eo-ade54272-babc-4cad-b62a-f6cd9a5d88a7",
+    "slug": "xpolo-2026",
+    "name": "Bullpadel XPLO",
+    "summary": "Diamond power racket, firm carbon face",
+    "description": "A diamond power racket with a firm carbon face.\n\n• Shape: Diamond\n• Balance: High\n• Weight: 365–375 g\n• Core: Multieva\n• Face: Carbon 12K, rough\n• Level: Advanced\n• Playing style: Power",
+    "options": []
+  },
+  {
+    "id": "eo-8481b4a5-3682-42e4-adfc-723cc4cb3103",
+    "slug": "ventus-attack",
+    "name": "Nox EA10 Ventus Attack 12K Xtrem",
+    "summary": "Edu Alonso's attacking power racket",
+    "description": "Edu Alonso's attacking racket, with a long grip and high balance for powerful shots.\n\n• Shape: Diamond\n• Balance: High\n• Weight: 360–375 g\n• Core: MLD Black EVA\n• Face: Carbon 12K Xtrem\n• Level: Advanced\n• Playing style: Power",
+    "options": []
+  },
+  {
+    "id": "eo-d48c8be2-96fd-42d8-af46-0fb3d8e1d260",
+    "slug": "adidas-control-bag",
+    "name": "Adidas Control Racket Bag",
+    "summary": "Compact everyday bag, 35 L",
+    "description": "A compact everyday bag for players who want something simple.\n\n• Large main compartment for clothes and accessories\n• Side pocket that keeps your racket separate\n• Capacity: 35 L\n• Size: 56 × 18 × 42 cm\n• Recycled polyester 600D with PU coating",
+    "options": []
+  },
+  {
+    "id": "eo-15c191e1-9acc-4746-b41f-726912842219",
+    "slug": "adidas-control-black",
+    "name": "Adidas Control Racket Bag",
+    "summary": "Compact everyday bag, 35 L",
+    "description": "A compact everyday bag for players who want something simple.\n\n• Large main compartment for clothes and accessories\n• Side pocket that keeps your racket separate\n• Capacity: 35 L\n• Size: 56 × 18 × 42 cm\n• Recycled polyester 600D with PU coating",
+    "options": []
+  },
+  {
+    "id": "eo-1d7ef5e2-8c33-4348-b77b-d5a7407a294d",
+    "slug": "backpack-adidas",
+    "name": "Adidas Multigame Backpack",
+    "summary": "Ale Galán's roll-top padel backpack",
+    "description": "A padel backpack from Ale Galán's line that grows with what you carry.\n\n• Semi-rigid, thermo-insulated racket compartment\n• Front zip pocket for essentials\n• Side mesh and zip pockets\n• Roll-top opening that expands when you need more room\n• Reinforced base",
+    "options": []
+  },
+  {
+    "id": "eo-e6622ea2-82e6-458e-ad06-87553caab750",
+    "slug": "adidas-bag-red",
+    "name": "Adidas Multigame Racket Bag",
+    "summary": "Ale Galán's tournament-ready racket bag",
+    "description": "A tournament-ready racket bag from Ale Galán's line, with room for everything you take to a match.\n\n• Two thermo-insulated racket compartments, one on each side\n• Shoe tunnel under the bag\n• Large main compartment for clothes, bottles and balls\n• Quick-access pockets for grips and small items\n• Lined pocket for valuables",
+    "options": []
+  },
+  {
+    "id": "eo-4e5200d1-4c7b-4bd6-b944-3d2194551f22",
+    "slug": "adidas-black",
+    "name": "Adidas Multigame Racket Bag",
+    "summary": "All-black thermal bag, water protected",
+    "description": "An all-black padel bag built to last through every training session and match.\n\n• Thermal racket compartments\n• Water protection",
+    "options": []
+  },
+  {
+    "id": "eo-1e19afe4-4c6d-4eda-95ec-c3d3f123fa38",
+    "slug": "adidas-ofwhite",
+    "name": "Adidas Multigame Racket Bag",
+    "summary": "Thermal racket bag with a flap opening",
+    "description": "An off-white padel bag with orange details, for players who train and compete often.\n\n• Thermal racket compartments\n• Flap opening that keeps your kit easy to reach",
+    "options": []
+  },
+  {
+    "id": "eo-c08ae8e0-1bf6-4871-a472-530d21a267ae",
+    "slug": "adidas-pro-tour",
+    "name": "Adidas Protour Backpack",
+    "summary": "Padel backpack with a thermal racket pocket",
+    "description": "A padel backpack for players who carry their gear every day.\n\n• Wide U-shaped opening for quick packing\n• Thermal-lined pocket for your racket\n• Ventilated lower compartment for shoes and damp kit\n• Padded back panel\n• Capacity: 40 L\n• Size: 32 × 50 × 23 cm",
+    "options": []
+  },
+  {
+    "id": "eo-3a2bf644-a1b5-4c2c-a4e5-515c72d9e65c",
+    "slug": "adidas-bag-blue",
+    "name": "Adidas Protour Racket Bag",
+    "summary": "Roomy thermal bag for a full kit",
+    "description": "A padel racket bag for players who carry a full kit, with room to keep everything organised.\n\n• Thermal compartments that protect your rackets\n• Plenty of pockets for your kit",
+    "options": []
+  },
+  {
+    "id": "eo-cd3acbbd-d14a-4f99-a07f-e5cca315d2c1",
+    "slug": "siux-edge-bag",
+    "name": "Siux Edge Racket Bag",
+    "summary": "Light bag for 2 rackets, 42 L",
+    "description": "A simple, light racket bag, ideal if you're new to padel.\n\n• Holds 2 rackets\n• Capacity: 42 L\n• Shoe compartment, side and front pockets\n• Durable polyester",
+    "options": []
+  },
+  {
+    "id": "eo-a1fc7e57-29c5-4198-9891-c19ba8f8159d",
+    "slug": "siux-electra-bag",
+    "name": "Siux Electra Stupa Racket Bag",
+    "summary": "Stupa's large bag for 4 rackets",
+    "description": "A large racket bag made with Franco Stupaczuk to match his Electra racket.\n\n• Holds up to 4 rackets\n• Capacity: 63 L\n• Thermal insulation\n• Side compartments and a hidden inner pocket\n• Padded back",
+    "options": []
+  },
+  {
+    "id": "eo-c82d1d27-af0e-4267-b5c1-f89096343482",
+    "slug": "siux-trail-bag",
+    "name": "Siux Trail Racket Bag",
+    "summary": "Lightest Elite bag for 2 rackets",
+    "description": "The lightest bag in the Siux Elite range, for players always on the move.\n\n• Holds 2 rackets\n• Capacity: 52 L\n• Thermal insulation\n• Shoe compartment, 4 side pockets and a front pocket\n• Polyester + SPU",
+    "options": []
+  },
+  {
+    "id": "eo-cdf4c203-9a0d-4fba-9288-8e74ba8713d2",
+    "slug": "adidas-rx-ball",
+    "name": "Adidas Speed RX Padel Balls",
+    "summary": "Can of 3 padel balls",
+    "description": "Adidas Speed RX padel balls.\n\n• 3 balls per can",
+    "options": []
+  },
+  {
+    "id": "eo-e16934b2-aa02-40d3-ab30-921c52846bd8",
+    "slug": "noxball",
+    "name": "Nox Pro Titanium Padel Balls",
+    "summary": "Can of 3 competition balls",
+    "description": "High-quality padel balls made for competition, with a lively bounce.\n\n• 3 balls per can\n• Pressurised",
+    "options": []
+  },
+  {
+    "id": "eo-a1fc907e-08b6-4fec-a98e-6d76ed7e7064",
+    "slug": "wilson-ball",
+    "name": "Wilson Padel Balls",
+    "summary": "Can of 3 durable padel balls",
+    "description": "Padel balls with a durable felt and core, best on slower, grittier courts.\n\n• 3 balls per can",
+    "options": []
+  },
+  {
+    "id": "eo-aa6d04ce-15da-4111-9732-fddc981a99c7",
+    "slug": "bullpadel-protector",
+    "name": "Bullpadel Frame Protector",
+    "summary": "Guards your frame from scratches",
+    "description": "Protective tape that keeps your racket frame safe from bumps and scratches.\n\n• Rough finish",
+    "options": []
+  },
+  {
+    "id": "eo-380961db-2955-4177-ae28-28c1b07a8d4d",
+    "slug": "cork-protector",
+    "name": "Cork Frame Protector",
+    "summary": "Guards your frame from hits",
+    "description": "Protective tape that keeps your racket frame safe from hits and scrapes.\n\n• Size: 37 × 370 mm",
+    "options": [
+      {
+        "key": "colour",
+        "label": "Colour",
+        "values": {
+          "a1ddc694-d1c4-4a5f-a538-67f0221d7569": "Black",
+          "1555ed27-9016-41d3-883b-ca362a9fe840": "Baby Blue",
+          "491079ec-be91-4e96-b922-e705f9de77ce": "Red"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-ab7103b6-7bf2-4fe0-913a-53abb89aebf5",
+    "slug": "head-protector",
+    "name": "Head Frame Protector",
+    "summary": "Adhesive tape that guards your frame",
+    "description": "Protective tape that keeps your racket head safe and helps it last longer.\n\n• 100% polyurethane adhesive tape",
+    "options": []
+  },
+  {
+    "id": "eo-1637c097-db82-4c67-ac82-cef7ee3e3417",
+    "slug": "nox-protector",
+    "name": "Nox WPT Frame Protector",
+    "summary": "Strong-hold frame protector",
+    "description": "Protective tape that keeps your racket frame safe from hits and scrapes.\n\n• Strong adhesion",
+    "options": [
+      {
+        "key": "colour",
+        "label": "Colour",
+        "values": {
+          "31d6da4b-542f-490e-ab62-498186d6ad0e": "Red",
+          "36fe4ad0-b3d5-43f0-aed5-4b4798481a06": "Black/White"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-97cbe472-899a-4e3c-91c7-53e89c2d377e",
+    "slug": "over-grip",
+    "name": "Wilson Pro Overgrip",
+    "summary": "The original Wilson Pro overgrip",
+    "description": "The original Wilson Pro overgrip, to wrap over your racket handle.\n\n• Genuine Wilson Pro",
+    "options": []
+  },
+  {
+    "id": "eo-14f5ae0f-fa87-4d4a-8046-23c6740c0b92",
+    "slug": "bottle-atteya",
+    "name": "Atteya Thermal Bottle",
+    "summary": "Keeps drinks hot or cold, 550 ml",
+    "description": "A thermal bottle for training and matches.\n\n• Capacity: 550 ml\n• Stainless steel\n• Keeps drinks hot or cold for up to 5 hours\n• Leak-proof, light and easy to carry",
+    "options": []
+  },
+  {
+    "id": "eo-f3b0743a-5dbe-4714-a2b4-cc7a45bce083",
+    "slug": "bottle-babolat",
+    "name": "Babolat Thermal Bottle",
+    "summary": "Keeps drinks hot or cold, 550 ml",
+    "description": "A thermal bottle for training and matches.\n\n• Capacity: 550 ml\n• Stainless steel\n• Keeps drinks hot or cold for up to 5 hours\n• Leak-proof, light and easy to carry",
+    "options": []
+  },
+  {
+    "id": "eo-5993673d-6ad6-4923-a3fb-c1b018d1665d",
+    "slug": "bottle-bullpadel",
+    "name": "Bullpadel Thermal Bottle",
+    "summary": "Keeps drinks hot or cold, 550 ml",
+    "description": "A thermal bottle for training and matches.\n\n• Capacity: 550 ml\n• Stainless steel\n• Keeps drinks hot or cold for up to 5 hours\n• Leak-proof, light and easy to carry",
+    "options": []
+  },
+  {
+    "id": "eo-7bbc7ec8-8e13-487c-b3d3-cc91279ba7ad",
+    "slug": "bottle-nox",
+    "name": "Nox Thermal Bottle",
+    "summary": "Keeps drinks hot or cold, 550 ml",
+    "description": "A thermal bottle for training and matches.\n\n• Capacity: 550 ml\n• Stainless steel\n• Keeps drinks hot or cold for up to 5 hours\n• Leak-proof, light and easy to carry",
+    "options": []
+  },
+  {
+    "id": "eo-e8baf073-8f38-48f5-b5ff-b37473e70e7c",
+    "slug": "nox-set",
+    "name": "Nox Agustín Tapia Set",
+    "summary": "Tapia's polo and shorts set",
+    "description": "Agustín Tapia's matching polo and shorts, smart and comfortable on and off court.\n\n• Polo and shorts\n• 70% polyester, 30% cotton",
+    "options": []
+  },
+  {
+    "id": "eo-a1789aa5-286e-453d-9fdf-9e9654cc52a4",
+    "slug": "adidas-navy-blue",
+    "name": "Adidas Ale Galán T-Shirt",
+    "summary": "Ale Galán's classic-fit T-shirt",
+    "description": "Ale Galán's padel T-shirt by Adidas, made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-5bdbcf3a-4d9a-4d8a-8d18-1f50ee540c08",
+    "slug": "adidas-orange",
+    "name": "Adidas Ale Galán T-Shirt",
+    "summary": "Ale Galán's classic-fit T-shirt",
+    "description": "Ale Galán's padel T-shirt by Adidas, made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-c22d8cdd-cc0a-4b73-a06d-940dd6f6f0f9",
+    "slug": "adidas-shirt-galan",
+    "name": "Adidas Ale Galán T-Shirt",
+    "summary": "Ale Galán's classic-fit T-shirt",
+    "description": "Ale Galán's padel T-shirt by Adidas, made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-da3c8d5a-8e43-4295-9b36-1e7dab4091d2",
+    "slug": "adidas-shirt-galan-2",
+    "name": "Adidas Ale Galán T-Shirt",
+    "summary": "Ale Galán's classic-fit T-shirt",
+    "description": "Ale Galán's padel T-shirt by Adidas, made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-fc62ec11-6cac-4516-9bf3-53ec9d989236",
+    "slug": "adidas-tshirt-galan",
+    "name": "Adidas Ale Galán T-Shirt",
+    "summary": "Ale Galán's classic-fit T-shirt",
+    "description": "Ale Galán's padel T-shirt by Adidas, made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-325839fb-5572-4cf5-9c63-ef42c445207d",
+    "slug": "adidas-polo-gray",
+    "name": "Adidas Simple Polo",
+    "summary": "Clean polo in sweat-wicking fabric",
+    "description": "A clean, simple polo with only a chest logo.\n\n• Sweat-wicking fabric\n• Anti-pilling",
+    "options": []
+  },
+  {
+    "id": "eo-5812cfbe-840e-42fa-8a40-007445107e8d",
+    "slug": "adidas-polo-white",
+    "name": "Adidas Simple Polo",
+    "summary": "Clean polo in sweat-wicking fabric",
+    "description": "A clean, simple polo with only a chest logo.\n\n• Sweat-wicking fabric\n• Anti-pilling",
+    "options": []
+  },
+  {
+    "id": "eo-3b753dfb-da9f-4c29-84ae-1121e76dff13",
+    "slug": "babolat-tshirt",
+    "name": "Babolat Lebrón T-Shirt",
+    "summary": "Lebrón's light El Lobo T-shirt",
+    "description": "A light T-shirt from Juan Lebrón's El Lobo line.\n\n• Wolf logo on the chest\n• 70% cotton, 30% polyester",
+    "options": []
+  },
+  {
+    "id": "eo-1e022941-f999-4e09-9ab4-45b8768426a0",
+    "slug": "babolat-tshirt-lobo",
+    "name": "Babolat Lebrón T-Shirt",
+    "summary": "Lebrón's light El Lobo T-shirt",
+    "description": "A light T-shirt from Juan Lebrón's El Lobo line.\n\n• Wolf logo on the chest\n• 70% cotton, 30% polyester",
+    "options": []
+  },
+  {
+    "id": "eo-016826d2-9748-4870-ac1c-cefbc03dff0c",
+    "slug": "babolta-lebron",
+    "name": "Babolat Lebrón T-Shirt",
+    "summary": "Lebrón's light El Lobo T-shirt",
+    "description": "A light T-shirt from Juan Lebrón's El Lobo line.\n\n• Wolf logo on the chest\n• 70% cotton, 30% polyester",
+    "options": []
+  },
+  {
+    "id": "eo-90096f7f-52be-406e-9391-af7d3fddeb7e",
+    "slug": "lebron-t-shirt2026",
+    "name": "Babolat Lebrón T-Shirt",
+    "summary": "Lebrón's light El Lobo T-shirt",
+    "description": "A light T-shirt from Juan Lebrón's El Lobo line.\n\n• Wolf logo on the chest\n• 70% cotton, 30% polyester",
+    "options": []
+  },
+  {
+    "id": "eo-df639bd5-555e-4a6f-94bd-43df14ab1af3",
+    "slug": "bullpadel-oragne",
+    "name": "Bullpadel Chingotto T-Shirt",
+    "summary": "Chingotto's dry-fit T-shirt",
+    "description": "Fede Chingotto's padel T-shirt by Bullpadel.\n\n• Dry-fit fabric",
+    "options": []
+  },
+  {
+    "id": "eo-7d2fcf57-8e4f-4039-9ef2-2ca4ed16db11",
+    "slug": "bullpadel-tshirt-navy",
+    "name": "Bullpadel Chingotto T-Shirt",
+    "summary": "Chingotto's dry-fit T-shirt",
+    "description": "Fede Chingotto's padel T-shirt by Bullpadel.\n\n• Dry-fit fabric",
+    "options": []
+  },
+  {
+    "id": "eo-d7bf5098-f0cc-40ef-bec2-c7d6c4f21eb3",
+    "slug": "bullpadel-white-shirt",
+    "name": "Bullpadel Chingotto T-Shirt",
+    "summary": "Chingotto's dry-fit T-shirt",
+    "description": "Fede Chingotto's padel T-shirt by Bullpadel.\n\n• Dry-fit fabric",
+    "options": []
+  },
+  {
+    "id": "eo-ee64b5b4-9949-4c08-8bea-2b443d543cb0",
+    "slug": "bullpadel-tshirt",
+    "name": "Bullpadel T-Shirt",
+    "summary": "Light, stretchy, breathable T-shirt",
+    "description": "A light padel T-shirt that moves with you.\n\n• 80% polyester: light, breathable and quick to dry\n• 20% elastane: stretches for free movement",
+    "options": []
+  },
+  {
+    "id": "eo-4873e431-c78e-4455-b259-48a6ca257eee",
+    "slug": "coello-tshirt",
+    "name": "Head Arturo Coello T-Shirt",
+    "summary": "Arturo Coello's official T-shirt",
+    "description": "Arturo Coello's official padel T-shirt by Head.\n\n• High-quality fabric",
+    "options": []
+  },
+  {
+    "id": "eo-e3c5eea7-1bf2-4ba5-ba0f-909bcf04910d",
+    "slug": "head-thsirt",
+    "name": "Head T-Shirt",
+    "summary": "High-quality padel T-shirt",
+    "description": "A Head padel T-shirt.\n\n• High-quality fabric",
+    "options": []
+  },
+  {
+    "id": "eo-46b061e5-b527-48eb-a2e4-b0c772b897f2",
+    "slug": "head-thsirt1",
+    "name": "Head T-Shirt",
+    "summary": "Classic-fit padel T-shirt",
+    "description": "A Head padel T-shirt made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-d55082b5-e14d-4fbc-b795-0ea2f31258ec",
+    "slug": "head-tshirt",
+    "name": "Head T-Shirt",
+    "summary": "Light, stretchy, breathable T-shirt",
+    "description": "A light padel T-shirt that moves with you.\n\n• 80% polyester: light, breathable and quick to dry\n• 20% elastane: stretches for free movement",
+    "options": []
+  },
+  {
+    "id": "eo-e7a1e668-9696-4adf-8731-765299306bf1",
+    "slug": "nox-red",
+    "name": "Nox Agustín Tapia T-Shirt",
+    "summary": "Tapia's classic-fit T-shirt",
+    "description": "Agustín Tapia's padel T-shirt by Nox, made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-1b4c3d65-8590-4d64-836d-e57645eae17b",
+    "slug": "nox-tshirttapia",
+    "name": "Nox Agustín Tapia T-Shirt",
+    "summary": "Tapia's classic-fit T-shirt",
+    "description": "Agustín Tapia's padel T-shirt by Nox, made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-5a2bb883-d634-4507-b11a-928873bd864d",
+    "slug": "t-shirt-nox-blacktapia",
+    "name": "Nox Agustín Tapia T-Shirt",
+    "summary": "Tapia's classic-fit T-shirt",
+    "description": "Agustín Tapia's padel T-shirt by Nox, made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-bc0f34ae-dfcd-4382-addc-1ccef41e7e8e",
+    "slug": "noxshirt-tapia",
+    "name": "Nox Polo",
+    "summary": "Simple polo with contrast details",
+    "description": "A simple Nox polo without busy prints.\n\n• Small print on the chest\n• Contrast colour on the sleeve and chest",
+    "options": []
+  },
+  {
+    "id": "eo-9d7c2158-5b63-4e5c-83a2-c6a0affdf29b",
+    "slug": "polo-nox",
+    "name": "Nox Sport Polo",
+    "summary": "Smart, comfortable sport polo",
+    "description": "A smart sport polo for on and off court.\n\n• 70% polyester, 30% cotton",
+    "options": []
+  },
+  {
+    "id": "eo-dc311972-e196-45af-a7c8-5b22336da4eb",
+    "slug": "on-polo",
+    "name": "On Cloud Polo",
+    "summary": "Smart, comfortable sport polo",
+    "description": "A smart sport polo for on and off court.\n\n• 70% polyester, 30% cotton",
+    "options": []
+  },
+  {
+    "id": "eo-ed5e57a8-bdf9-48de-8d26-d124ac539b43",
+    "slug": "on-cloud-red",
+    "name": "On Cloud T-Shirt",
+    "summary": "Light, quick-drying T-shirt",
+    "description": "A light T-shirt for training and matches.\n\n• On DryTec fabric: breathable, moisture-wicking and quick to dry",
+    "options": []
+  },
+  {
+    "id": "eo-d1888ec1-a5a7-4fd5-b2e2-044ac6153df0",
+    "slug": "on-cloud-tshirt",
+    "name": "On Cloud T-Shirt",
+    "summary": "Light, quick-drying T-shirt",
+    "description": "A light T-shirt for training and matches.\n\n• On DryTec fabric: breathable, moisture-wicking and quick to dry",
+    "options": []
+  },
+  {
+    "id": "eo-8117429a-263d-4f56-a2ff-0b24cf694a32",
+    "slug": "on-cloud2",
+    "name": "On Cloud T-Shirt",
+    "summary": "Light, quick-drying T-shirt",
+    "description": "A light T-shirt for training and matches.\n\n• On DryTec fabric: breathable, moisture-wicking and quick to dry",
+    "options": []
+  },
+  {
+    "id": "eo-bb587ce0-9b89-4529-90a7-4656827b1c48",
+    "slug": "augsburger-siux-tshirt",
+    "name": "Siux Augsburger T-Shirt",
+    "summary": "Augsburger's regular-fit T-shirt",
+    "description": "Leo Augsburger's padel T-shirt by Siux.\n\n• Regular fit\n• Siux logo on the left chest\n• Breathable fabric",
+    "options": []
+  },
+  {
+    "id": "eo-d05485c0-4506-4ccf-8e07-c46edd162740",
+    "slug": "siux-t-shirt",
+    "name": "Siux Augsburger T-Shirt",
+    "summary": "Augsburger's regular-fit T-shirt",
+    "description": "Leo Augsburger's padel T-shirt by Siux.\n\n• Regular fit\n• Siux logo on the left chest\n• Breathable fabric",
+    "options": []
+  },
+  {
+    "id": "eo-97d60b70-3cb4-44bf-b26f-c90177f7bb97",
+    "slug": "siux-tshirt",
+    "name": "Siux Augsburger T-Shirt",
+    "summary": "Augsburger's regular-fit T-shirt",
+    "description": "Leo Augsburger's padel T-shirt by Siux.\n\n• Regular fit\n• Siux logo on the left chest\n• Breathable fabric",
+    "options": []
+  },
+  {
+    "id": "eo-91f1d5e0-436d-40be-bd4f-723dbd029dc3",
+    "slug": "siux-tshirt1",
+    "name": "Siux Augsburger T-Shirt",
+    "summary": "Augsburger's regular-fit T-shirt",
+    "description": "Leo Augsburger's padel T-shirt by Siux.\n\n• Regular fit\n• Siux logo on the left chest\n• Breathable fabric",
+    "options": []
+  },
+  {
+    "id": "eo-ef259bfa-1bdd-4db9-acfb-067bc4a221d2",
+    "slug": "stupa-t-shirt-siux",
+    "name": "Siux Stupa T-Shirt",
+    "summary": "Stupa's light, stretchy T-shirt",
+    "description": "Franco Stupaczuk's padel T-shirt by Siux.\n\n• 80% polyester: light, breathable and quick to dry\n• 20% elastane: stretches for free movement",
+    "options": []
+  },
+  {
+    "id": "eo-2e32dbc9-a758-4c77-9219-94ae23fc0124",
+    "slug": "siux-red",
+    "name": "Siux T-Shirt",
+    "summary": "Classic-fit padel T-shirt",
+    "description": "A Siux padel T-shirt made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-ceab9916-83ef-41e4-948a-5ad62359be9b",
+    "slug": "siux-tshirt-2",
+    "name": "Siux T-Shirt",
+    "summary": "Classic-fit padel T-shirt",
+    "description": "A Siux padel T-shirt made for comfort and free movement on court.\n\n• Classic fit\n• Short sleeves, round neck",
+    "options": []
+  },
+  {
+    "id": "eo-b38f986f-7775-470f-8bc6-149fd6ec126f",
+    "slug": "adidas-short",
+    "name": "Adidas Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-b9e798a0-9b50-41aa-984a-7ba8c2b4e7c2",
+    "slug": "short-adidas-black",
+    "name": "Adidas Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-cb17e985-f87c-4b26-b036-1b1a3cc1d167",
+    "slug": "asics-short",
+    "name": "Asics Padel Shorts",
+    "summary": "Lined shorts with zip ball pockets",
+    "description": "Shorts in a soft, heavy fabric that moves with you.\n\n• Leggings lining inside\n• 3 zip pockets for balls\n• Print that won't peel",
+    "options": []
+  },
+  {
+    "id": "eo-2297cc66-87cc-4dd7-b8c6-4a46461ea526",
+    "slug": "short-babolat",
+    "name": "Babolat Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-79245475-a557-4990-82dd-d37d74158753",
+    "slug": "short-babolat-gray",
+    "name": "Babolat Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-a1d19783-cd55-4989-99b3-052da745f660",
+    "slug": "babolat-short",
+    "name": "Babolat Printed Padel Shorts",
+    "summary": "Printed padel shorts with side pockets",
+    "description": "Men's padel shorts with a bold print, made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-b9e0d3d9-7d0b-4fd4-b4e6-4a64add52bd1",
+    "slug": "short-babolat-green",
+    "name": "Babolat Printed Padel Shorts",
+    "summary": "Printed padel shorts with side pockets",
+    "description": "Men's padel shorts with a bold print, made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-ef8a05c4-a1b9-4c73-96cd-645f8960a082",
+    "slug": "bullpadle-short",
+    "name": "Bullpadel Lined Padel Shorts",
+    "summary": "Lined shorts with zip ball pockets",
+    "description": "Shorts in a soft, heavy fabric that moves with you.\n\n• Leggings lining inside\n• 3 zip pockets for balls\n• Print that won't peel",
+    "options": []
+  },
+  {
+    "id": "eo-959ae0ee-5b09-4aa2-9f4c-f59ed6fb163c",
+    "slug": "short-bullpadel",
+    "name": "Bullpadel Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-32d883f8-7dd3-414a-92f5-6a6ed35cefa1",
+    "slug": "short-bullpadel-white",
+    "name": "Bullpadel Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-c39e3dfd-4add-491c-8b8a-95ae558fa571",
+    "slug": "short-bullpadel1",
+    "name": "Bullpadel Printed Padel Shorts",
+    "summary": "Printed padel shorts with side pockets",
+    "description": "Men's padel shorts with a bold print, made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-da985588-a0d3-425b-837c-de256a50fd57",
+    "slug": "short-head",
+    "name": "Head Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-469fb614-b46e-4865-987e-0e51e25fc8de",
+    "slug": "short-head1",
+    "name": "Head Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-15777ae4-5e2f-467b-b758-6400b6463ede",
+    "slug": "short-nox-black",
+    "name": "Nox Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-d6e46934-b5d5-4907-9ad9-bd0ece440621",
+    "slug": "short-nox-white",
+    "name": "Nox Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-c9b5fa5e-8314-4fa4-9cb2-a19082ef2ccc",
+    "slug": "oncloud-short",
+    "name": "On Cloud Shorts",
+    "summary": "Training shorts with a key loop",
+    "description": "Shorts built for running and training.\n\n• Pockets for your things\n• Key loop\n• Reflective print",
+    "options": []
+  },
+  {
+    "id": "eo-e51cb954-12fd-4dd3-b8d2-0ae01343251a",
+    "slug": "oncloud-short-gray",
+    "name": "On Cloud Shorts",
+    "summary": "Training shorts with a key loop",
+    "description": "Shorts built for running and training.\n\n• Pockets for your things\n• Key loop\n• Reflective print",
+    "options": []
+  },
+  {
+    "id": "eo-d9b40db9-1e36-4938-87e8-11c6590dc668",
+    "slug": "oncloud-short-white",
+    "name": "On Cloud Shorts",
+    "summary": "Training shorts with a key loop",
+    "description": "Shorts built for running and training.\n\n• Pockets for your things\n• Key loop\n• Reflective print",
+    "options": []
+  },
+  {
+    "id": "eo-d76ce151-9c02-4fc5-8325-3ffa1fadc528",
+    "slug": "siux-short",
+    "name": "Siux Lined Padel Shorts",
+    "summary": "Lined shorts with zip ball pockets",
+    "description": "Shorts in a soft, heavy fabric that moves with you.\n\n• Leggings lining inside\n• 3 zip pockets for balls\n• Print that won't peel",
+    "options": []
+  },
+  {
+    "id": "eo-4678f0a0-bafb-4b53-9906-079a14f6ce1b",
+    "slug": "siux-short-black",
+    "name": "Siux Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-25a41bf6-de69-4255-96d3-82530126be1f",
+    "slug": "siux-short-white",
+    "name": "Siux Padel Shorts",
+    "summary": "Padel shorts with side pockets",
+    "description": "Men's padel shorts made for comfort on court.\n\n• Side pockets",
+    "options": []
+  },
+  {
+    "id": "eo-98eee1ee-1fe5-4100-afb4-68d42b3bd869",
+    "slug": "babolat-socks",
+    "name": "Babolat Socks",
+    "summary": "Soft sports socks, one size",
+    "description": "Soft, comfortable socks for padel and everyday training.\n\n• One size: EU 39–45\n• Cotton, polyamide and elastane blend",
+    "options": [
+      {
+        "key": "colour",
+        "label": "Choose Your Pair",
+        "values": {
+          "488ed7da-cfd8-4b50-ac42-f663a61e1399": "Babolat",
+          "ee6ff5d1-0a39-499d-a688-7ded076964fb": "Nox White",
+          "5e020a30-8269-4770-ab0e-cfe7ba99b70d": "Nox Black",
+          "e5ed7d25-ce04-41ae-8c47-7fcc665e6bbc": "Bullpadel White",
+          "a29fb24f-408f-47d8-b13e-435553499ba2": "Siux White",
+          "b0565ca0-83a5-4d93-92ef-cf4014bba47f": "Siux Black"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-7804d7ac-0526-4e17-9975-0ed422d3970c",
+    "slug": "socks",
+    "name": "Bullpadel Socks",
+    "summary": "Soft sports socks, one size",
+    "description": "Soft, comfortable socks for padel and everyday training.\n\n• One size: EU 39–45\n• Cotton, polyamide and elastane blend",
+    "options": [
+      {
+        "key": "choice",
+        "label": "Choose Your Pair",
+        "values": {
+          "51c5ee9b-ff1e-49ea-bd8f-3cbeab5eaed9": "Bullpadel White",
+          "b0449230-346e-4caa-9bfe-bf429553955b": "Nox Black",
+          "b800c828-ca21-4c6e-bf2a-edcaf862c39e": "Babolat White",
+          "dbb1ecd5-82c2-43f4-b493-c51a5d7de297": "Siux White",
+          "39130d4d-d9c9-4128-9433-41362225dd14": "Siux Black"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-2dc72650-7a71-425d-aac6-24f265aa3b9e",
+    "slug": "nox-socks",
+    "name": "Nox Socks",
+    "summary": "Soft sports socks, one size",
+    "description": "Soft, comfortable socks for padel and everyday training.\n\n• One size: EU 39–45\n• Cotton, polyamide and elastane blend",
+    "options": [
+      {
+        "key": "colour",
+        "label": "Colour",
+        "values": {
+          "26cdacb6-4157-467f-a891-f9ecc9c7c3de": "Black",
+          "865a7d2c-0049-4f1c-a381-93723c0cba53": "White"
+        }
+      },
+      {
+        "key": "choice",
+        "label": "Choose Your Pair",
+        "values": {
+          "afb632d3-7414-4744-8fb4-b7861a414166": "Bullpadel White",
+          "ea0c8c3a-c5e1-4900-b799-5cafa19c11c9": "Babolat White",
+          "242a812c-6be9-4b51-bfbb-09e15d27710c": "Siux White",
+          "397e8b49-3444-4b18-a77b-87c4a8359927": "Siux Black"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-64b8faea-c0e4-47ce-b52f-2f85fd53a50f",
+    "slug": "nox-socks-2",
+    "name": "Nox Socks",
+    "summary": "Soft sports socks, one size",
+    "description": "Soft, comfortable socks for padel and everyday training.\n\n• One size: EU 39–45\n• Cotton, polyamide and elastane blend",
+    "options": [
+      {
+        "key": "colour",
+        "label": "Choose Your Pair",
+        "values": {
+          "ecb2cbc6-bfdd-450c-a092-99b11295a82a": "Nox Black",
+          "3a60c82b-dd98-455d-a40b-bda21ad354ce": "Nox White",
+          "2aeea8b1-b100-4869-aee6-740c46aa0f14": "Babolat White",
+          "50b89452-22b9-4f16-bd0b-cee347b860c1": "Siux Black",
+          "e675f41a-02f2-4425-9128-16c93ed15149": "Siux White"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-e8bb355b-8089-4446-8f0a-5139becce1e0",
+    "slug": "on-socks-black",
+    "name": "On Cloud Socks",
+    "summary": "Comfortable cotton-blend sports socks",
+    "description": "Comfortable sports socks for padel and training.\n\n• 63% cotton, 33% polyamide, 4% elastane",
+    "options": [
+      {
+        "key": "choice",
+        "label": "Choose Your Pair",
+        "values": {
+          "4aebb21f-fea3-4feb-83aa-28d70a39a33a": "On Black",
+          "ac35af3d-5ad1-415d-a30c-f7b72ebce768": "On White",
+          "55008c0f-7083-4413-a89c-482b6eb5615d": "Nox Black",
+          "f90d21d6-3d99-4dbf-9736-a04154746ca9": "Nox White",
+          "071a6659-80d6-406c-8396-c7adbe3fd6c4": "Bullpadel",
+          "d4e82509-3906-4d0a-8e90-e40d29594f00": "Babolat",
+          "5cd413a2-7cd5-40da-b225-de905d6d880e": "Siux Black",
+          "4e2e2961-f7b6-41c2-aaf7-1d0ba78da86d": "Siux White"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-618666e6-0bdc-4564-b53a-ac06b827d424",
+    "slug": "on-white-socks",
+    "name": "On Cloud Socks",
+    "summary": "Comfortable cotton-blend sports socks",
+    "description": "Comfortable sports socks for padel and training.\n\n• 63% cotton, 33% polyamide, 4% elastane",
+    "options": [
+      {
+        "key": "choice",
+        "label": "Choose Your Pair",
+        "values": {
+          "7dd91080-63da-4270-b263-d59f30be64d4": "On Black",
+          "7d23c8cf-6da0-40c7-98de-e281117471cc": "On White",
+          "24aae756-ec80-4a49-b043-825a52fe3a0a": "Nox Black",
+          "b1789e12-9312-411b-81c0-cfd8fa952fcf": "Nox White",
+          "90f69f3f-63ae-45da-8bbb-fdb66de46809": "Bullpadel White",
+          "1276e72f-a806-48d5-bce3-a8460f18067b": "Babolat",
+          "b66dd592-b9ba-49ff-9c7d-2d03254c84ea": "Siux Black",
+          "5d003076-fcf2-45a0-acec-67a18d63c425": "Siux White"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-1b062b7d-9502-4858-bf7f-f8106fdc1e75",
+    "slug": "siuxsocks",
+    "name": "Siux Ball Edition Socks",
+    "summary": "Soft sports socks, one size",
+    "description": "Soft, comfortable socks for padel and everyday training.\n\n• One size: EU 39–45\n• Cotton, polyamide and elastane blend",
+    "options": [
+      {
+        "key": "choice",
+        "label": "Choose Your Pair",
+        "values": {
+          "1abafabd-8c3b-43ea-9886-21b25338cf82": "Siux White",
+          "11660c14-b900-4574-b2b0-4a2a9c699f96": "Siux Black",
+          "a81371ff-8485-4e01-9ee0-325d7a32af88": "Nox Black",
+          "2efc6cdf-fad2-4a63-976f-028feb21ac9e": "Nox White",
+          "d51fcb90-df27-4952-b3e8-81dd587ff67a": "Babolat",
+          "186ade67-a6de-4878-945d-23485a212d92": "Bullpadel White"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-6fb771ba-ae67-4a6d-8b51-832b619fa158",
+    "slug": "siuxsocksblack",
+    "name": "Siux Socks",
+    "summary": "Soft sports socks, one size",
+    "description": "Soft, comfortable socks for padel and everyday training.\n\n• One size: EU 39–45\n• Cotton, polyamide and elastane blend",
+    "options": [
+      {
+        "key": "choice",
+        "label": "Choose Your Pair",
+        "values": {
+          "c669dbf5-7f44-4c4a-8253-4f53e3f1bc84": "Siux Black",
+          "9548ab92-8f48-4120-a184-82c1ddd93a0f": "Siux White",
+          "da82e83e-8e07-47a1-b300-dceca12b3131": "Nox White",
+          "cc981a7d-2fe7-4baf-ac37-50c218405052": "Nox Black",
+          "74d5d7c2-f94f-43f5-8f88-ecd4f4993e90": "Babolat",
+          "692d3e02-bb18-45e4-8b73-01130a46ecaa": "Bullpadel"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-c85f0ff6-a4d2-497a-975d-7dd95661e9f5",
+    "slug": "floky",
+    "name": "Floky Empower Knee Support",
+    "summary": "Knee support that steadies the kneecap",
+    "description": "A knee support that steadies and protects the kneecap and the tendons around it.\n\n• Silicone applications on the outside\n• Vibration control to help prevent inflammation\n• 56% polyamide, 32% polyester, 12% elastane; silicone applications",
+    "options": [
+      {
+        "key": "colour",
+        "label": "Colour",
+        "values": {
+          "dd6d2507-0e28-43c1-b258-8a9e35ce6c0a": "Black",
+          "0108172e-14e5-4c33-b7fe-b89876d25ebf": "White"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eo-dbe9c3f2-77dc-466a-a2ee-60c5f72bab81",
+    "slug": "floky-arm",
+    "name": "Floky No Strain Arm Sleeve",
+    "summary": "Sleeve that cuts arm vibration",
+    "description": "The first biomechanical sleeve designed to cut the vibration that causes inflammation and injury in many sports.\n\n• Reduces arm vibration\n• Biomechanical design",
+    "options": [
+      {
+        "key": "colour",
+        "label": "Colour",
+        "values": {
+          "1c11f6e9-e529-4197-8a25-22af10d87432": "Black",
+          "c97223d7-72a9-4032-ae3d-ee7eb4bc206a": "White"
+        }
+      }
+    ]
+  }
+]
