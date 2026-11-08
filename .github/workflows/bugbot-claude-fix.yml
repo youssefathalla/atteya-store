@@ -744,6 +744,13 @@ jobs:
           sudo -n install -o root -g root -m 0755 "$stage/pre-tool.sh" "$stage/safe-push.sh" /opt/bugbot-guard/
           rm -rf "$stage"
 
+      # A step that hits its own timeout ends as "failure", the same as an error, so the report
+      # tells them apart by how long Claude ran.
+      - name: Note when Claude starts
+        id: claude_start
+        if: steps.pre.outputs.go == 'true' && steps.findings.outputs.go == 'true' && steps.guard.outcome == 'success'
+        run: echo "at=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Ask Claude to edit the reviewed commit
         id: claude
         # Leaves time for the push hook and the report inside the job's 45 minutes.
@@ -828,6 +835,7 @@ jobs:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
           TOKEN_SKIP: ${{ steps.claude.outputs.skipped_due_to_workflow_validation_mismatch }}
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          CLAUDE_STARTED_AT: ${{ steps.claude_start.outputs.at }}
           MARKER_ID: ${{ needs.gate.outputs.marker_id }}
           HEAD_BRANCH: ${{ env.HEAD_BRANCH }}
         with:
@@ -886,6 +894,8 @@ jobs:
             // Compare the copy this run used (context.sha: the PR merge commit for a review,
             // the default branch for a Claude Review run) so the report says why nothing happened.
             const claudeOutcome = String(process.env.CLAUDE_OUTCOME || '').trim();
+            const startedAt = Number(process.env.CLAUDE_STARTED_AT);
+            const ranMinutes = Number.isFinite(startedAt) && startedAt > 0 ? (Date.now() / 1000 - startedAt) / 60 : 0;
             if (push.pushed !== true && push.reason === 'no-push-result') {
               const path = '.github/workflows/bugbot-claude-fix.yml';
               const readFile = async (ref) => {
@@ -897,8 +907,8 @@ jobs:
               const defaultBranch = context.payload.repository?.default_branch || 'develop';
               const [onDefault, onRun] = await Promise.all([readFile(defaultBranch), readFile(context.sha)]);
               if (onDefault === null || onDefault !== onRun) push = { pushed: false, reason: 'workflow-changed', sha: '' };
+              else if (claudeOutcome === 'cancelled' || (claudeOutcome === 'failure' && ranMinutes >= 34)) push = { pushed: false, reason: 'claude-timed-out', sha: '' };
               else if (claudeOutcome === 'failure') push = { pushed: false, reason: 'claude-failed', sha: '' };
-              else if (claudeOutcome === 'cancelled') push = { pushed: false, reason: 'claude-timed-out', sha: '' };
             }
             const shaOk = typeof push.sha === 'string' && /^[0-9a-f]{40}$/.test(push.sha);
             const pushed = push.pushed === true && shaOk;
