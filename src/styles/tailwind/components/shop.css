@@ -46,20 +46,46 @@
    * before the leave animation runs. Sticky lives on the aside itself (viewport scroll).
    * Do not put overflow/transform on an ancestor of a sticky child — that pins to the
    * ancestor instead. The slide runs on the panel inside, the fade on the aside.
+   *
+   * Sticky placement: the panel pins `--shop-filters-gap` below the bar that stays on
+   * screen while scrolling (`--shop-filters-top-bar`: the 56px desktop nav from 1024px,
+   * nothing on 768–1023px where the nav is hidden). It is not `--storefront-top-chrome`:
+   * that also counts the shipping banner, which scrolls away before the panel sticks and
+   * would leave a large empty gap. The height stops the same gap above the bottom of the
+   * window, or above the fixed phone bottom bar on 768–1023px
+   * (`--shop-filters-bottom-bar`). Taller filter lists scroll inside the aside
+   * (`.shop-filters-scroll`, `overscroll-behavior: contain`), with `padding-block` so the
+   * first and last groups never sit against the clipped edge.
    */
   @media (min-width: 768px) {
     .shop-filters-aside {
+      --shop-filters-gap: 1.5rem;
+      --shop-filters-top-bar: 0px;
+      --shop-filters-bottom-bar: calc(4.5rem + env(safe-area-inset-bottom, 0px));
       display: block;
       width: 18rem;
       flex-shrink: 0;
       align-self: flex-start;
       position: sticky;
-      top: 1rem;
-      max-height: calc(100dvh - 6rem);
+      top: calc(var(--shop-filters-top-bar) + var(--shop-filters-gap));
+      max-height: calc(
+        100dvh - var(--shop-filters-top-bar) - var(--shop-filters-bottom-bar) - 2 * var(--shop-filters-gap)
+      );
       margin-inline-end: 2.5rem;
       padding-inline-end: 1rem;
+      padding-block: 0.25rem 1rem;
     }
+  }
 
+  /* Desktop: the sticky nav (`h-14`) sits above the panel and there is no bottom bar. */
+  @media (min-width: 1024px) {
+    .shop-filters-aside {
+      --shop-filters-top-bar: 3.5rem;
+      --shop-filters-bottom-bar: 0px;
+    }
+  }
+
+  @media (min-width: 768px) {
     .shop-filters-aside--enter {
       animation: shop-filters-fade-in 220ms ease-out;
     }
