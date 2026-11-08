@@ -17,8 +17,9 @@
 # the merge (bugbot-claude-fix.yml fixes those in the same rounds).
 # Whenever only a review step is left (Claude findings, an open security thread), it posts
 # "✋ Auto-merge" once per commit saying why. Resolving a review thread starts no workflow, so
-# Actions → Auto-merge → Run workflow (PR number) checks one PR again by hand; such a run also
-# skips the Claude-findings hold (the owner decided they are fine), but nothing else.
+# Actions → Auto-merge → Run workflow (PR number) checks one PR again by hand; ticking
+# "skip_claude_findings" there also skips the Claude-findings hold (the owner decided those
+# findings are fine), but nothing else.
 # Then it squash-merges into develop and deletes the branch.
 #
 # Never merges into main. Skips draft PRs, PRs with the "no-auto-merge" label,
@@ -52,6 +53,11 @@ on:
         description: Pull request number to check and merge when clean
         required: true
         type: number
+      skip_claude_findings:
+        description: Merge even though the Claude review still has high or medium findings (you checked them)
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -215,13 +221,16 @@ jobs:
                 // a high or medium finding from it holds the merge (Claude Fix works on those).
                 if (claudeRun.status !== 'completed') { stop('The Claude review of this commit is still running.'); continue; }
                 const review = await claudeReview(n, sha);
-                // A run started by hand (Actions → Run workflow) is the owner deciding the findings
-                // are fine, so it skips this hold. Nothing else does.
-                if (review.verdict === 'issues' && review.serious > 0 && context.eventName === 'workflow_dispatch') {
-                  core.info(`#${n}: the Claude review has ${review.serious} high or medium issue(s); merging anyway because this run was started by hand.`);
+                // Only a run started by hand with "skip_claude_findings" ticked is the owner deciding
+                // these findings are fine; a plain hand-started run (e.g. after resolving a security
+                // thread) still holds.
+                const skipClaude = context.eventName === 'workflow_dispatch' &&
+                  String(context.payload.inputs?.skip_claude_findings) === 'true';
+                if (review.verdict === 'issues' && review.serious > 0 && skipClaude) {
+                  core.info(`#${n}: the Claude review has ${review.serious} high or medium issue(s); merging anyway because the run was started by hand with skip_claude_findings.`);
                 } else if (review.verdict === 'issues' && review.serious > 0) {
                   await commentOnce(n, `<!-- auto-merge-claude-findings ${sha} -->`,
-                    `**✋ Auto-merge** · waiting\n\nBugbot found no issues, but the Claude review found ${review.serious} high or medium issue${review.serious === 1 ? '' : 's'} on \`${sha.slice(0, 7)}\`. Claude Fix works on them (up to 3 rounds), and this merges by itself once the next review is clean. If Claude Fix has stopped and you decide the findings are fine, run Actions → Auto-merge → Run workflow with PR number ${n}: a run you start by hand skips this hold and merges if everything else is clean.`);
+                    `**✋ Auto-merge** · waiting\n\nBugbot found no issues, but the Claude review found ${review.serious} high or medium issue${review.serious === 1 ? '' : 's'} on \`${sha.slice(0, 7)}\`. Claude Fix works on them (up to 3 rounds), and this merges by itself once the next review is clean. If Claude Fix has stopped and you decide the findings are fine, run Actions → Auto-merge → Run workflow with PR number ${n} and tick "skip_claude_findings": it then merges if everything else is clean.`);
                   stop(`The Claude review found ${review.serious} high or medium issue(s).`);
                   continue;
                 }
