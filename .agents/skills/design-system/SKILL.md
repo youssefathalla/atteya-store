@@ -214,7 +214,7 @@ Before writing any new UI elements, ALWAYS check and reuse existing components f
   - `iconColor`: `'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'info'`
   - `size`: `'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl'` (Default: `'2xl'`)
   - `type`: `'outline' | 'fill'` (Default: `'outline'`)
-  - `weight`: `'100' | '200' | '300' | '400' | '500' | '600' | '700'` (Default: `'500'`)
+  - `weight`: `'100' | '200' | '300' | '400' | '500' | '600' | '700'` (Default: `'600'`; the icon font serves `400`–`700`, so only `'700'` is heavier than the default)
 - **Rules**:
   - ❌ `<mat-icon>home</mat-icon>` (Content projection forbidden).
   - ❌ `<mat-icon color="primary" />` (Native color input forbidden).

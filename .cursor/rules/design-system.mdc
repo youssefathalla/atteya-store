@@ -109,7 +109,7 @@ Always use Material M3 typography tokens. Never use arbitrary Tailwind text sizi
 
 - **Import (REQUIRED)**: `imports: [SharedIconModule]` from `@shared/ui/mat-icon`.
 - **Usage**: `<mat-icon name="home" />` — content projection (`<mat-icon>home</mat-icon>`) is forbidden.
-- **Inputs**: `name` (required), `iconColor` (`primary | secondary | tertiary | success | warning | error | info`), `size` (`xs` … `7xl`), `type="fill"`, `weight` (`100`–`700`, default `500`).
+- **Inputs**: `name` (required), `iconColor` (`primary | secondary | tertiary | success | warning | error | info`), `size` (`xs` … `7xl`), `type="fill"`, `weight` (`100`–`700`, default `600`; the icon font serves `400`–`700`, so `700` is the heaviest and lighter values stop at `400`).
 - **Button Icons (Auto-Sized)**: Never write `size` on `<mat-icon>` inside buttons — `MatIconDirective` automatically detects button ancestors and applies `DEFAULT_BUTTON_ICON_SIZE` (`lg`). Standalone icons default to `2xl`.
 
 ---

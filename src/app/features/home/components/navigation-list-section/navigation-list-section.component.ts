@@ -25,7 +25,9 @@ import { NAV_LIST_MAX_ITEMS } from '../../data/home.data';
 import { HomeNavList, HomeNavListItem } from '../../models/home.model';
 import {
   pendingNavListImage,
+  playNavListArrows,
   playNavListSwap,
+  settleNavListArrows,
   settleNavListPhotos,
 } from '../../utils/navigation-list-motion';
 
@@ -100,6 +102,7 @@ export class NavigationListSectionComponent {
   #destroyed = false;
   #lastAnimated = -1;
   #animatedPhotoCount = 0;
+  #lastArrow = -1;
   #cancelPhotoWait: (() => void) | null = null;
 
   constructor() {
@@ -112,6 +115,17 @@ export class NavigationListSectionComponent {
       const mounted = this.#mounted();
       if (!ready || !photosEnabled || !mounted.has(index)) return;
       untracked(() => this.#syncPhotos(index));
+    });
+
+    // The arrow follows the active row straight away, even while the photo
+    // waits for its download.
+    afterRenderEffect(() => {
+      const index = this.activeIndex();
+      const ready = this.#motionReady();
+      const desktop = this.#desktopPhotos();
+      this.items();
+      if (!ready || !desktop) return;
+      untracked(() => this.#syncArrows(index));
     });
 
     inject(DestroyRef).onDestroy(() => this.#teardown());
@@ -198,6 +212,7 @@ export class NavigationListSectionComponent {
     this.#stopPhotoWait();
     this.#lastAnimated = -1;
     this.#animatedPhotoCount = 0;
+    this.#lastArrow = -1;
     this.#ctx?.revert();
     if (this.#gsap) {
       this.#ctx = this.#gsap.context(() => undefined, this.#host.nativeElement);
@@ -209,8 +224,36 @@ export class NavigationListSectionComponent {
     if (!event.matches) return;
     this.#lastAnimated = -1;
     this.#animatedPhotoCount = 0;
+    this.#lastArrow = -1;
     this.#syncPhotos(this.activeIndex());
+    this.#syncArrows(this.activeIndex());
   };
+
+  #syncArrows(index: number): void {
+    const gsap = this.#gsap;
+    const ctx = this.#ctx;
+    if (!gsap || !ctx || !this.#desktopPhotos()) return;
+
+    const arrows = [
+      ...this.#host.nativeElement.querySelectorAll<HTMLElement>('[data-nav-arrow]'),
+    ];
+    if (arrows.length === 0) return;
+
+    const first = this.#lastArrow < 0;
+    if (!first && this.#lastArrow === index) {
+      // Same row, but the list may have new rows (admin preview edits).
+      ctx.add(() => settleNavListArrows(gsap, arrows, index));
+      return;
+    }
+    this.#lastArrow = index;
+    ctx.add(() => {
+      if (first) {
+        settleNavListArrows(gsap, arrows, index);
+        return;
+      }
+      playNavListArrows(gsap, arrows, index, this.#reduceMotion);
+    });
+  }
 
   #syncPhotos(index: number, skipWait = false): void {
     const gsap = this.#gsap;
