@@ -9,7 +9,12 @@ export interface FirebaseError {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isFirebaseError = (err: unknown): err is FirebaseError => {
-  return typeof err === 'object' && err !== null && 'code' in err;
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    typeof (err as { code?: unknown }).code === 'string'
+  );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
