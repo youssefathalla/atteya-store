@@ -231,8 +231,13 @@ export class CartService {
 
     this.#unsubscribe = onSnapshot(
       ref,
+      // Metadata changes too, so a cache-only "no bag" snapshot is followed by the server's answer.
+      { includeMetadataChanges: true },
       (snap) => {
         if (generation !== this.#generation) return;
+        // Offline before the server answered: a missing doc here is not the saved bag. Wait,
+        // so queued changes are not saved over the real bag when the connection comes back.
+        if (!this.#ready() && snap.metadata.fromCache && !snap.exists()) return;
         const saved = linesFromDoc(snap.data());
         if (this.#ready()) {
           this.#lines.set(saved);
