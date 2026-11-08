@@ -31,6 +31,26 @@
       </div>
     </section>
 
+    @if (items().length > 0) {
+      <section class="surface-card p-5 space-y-3" aria-labelledby="items-heading">
+        <h2 id="items-heading" class="font-title-md font-bold!">Items</h2>
+        <ul class="space-y-3">
+          @for (item of items(); track item.key) {
+            <li class="elements-between gap-4" [class.ps-6]="item.giftName">
+              <div class="elements-start-col gap-0.5 min-w-0">
+                @if (item.giftName) {
+                  <span class="font-label-md opacity-80">{{ item.giftName }}</span>
+                }
+                <span class="font-body-md font-bold! break-words">{{ item.name }}</span>
+                <span class="font-body-sm opacity-80">{{ item.details }}</span>
+              </div>
+              <span class="font-body-md font-bold! whitespace-nowrap">{{ item.price }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
     @if (payBox(); as box) {
       <section class="surface-card p-5 space-y-4" aria-labelledby="pay-heading">
         <h2 id="pay-heading" class="font-title-md font-bold!">

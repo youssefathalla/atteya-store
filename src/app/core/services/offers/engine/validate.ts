@@ -1,10 +1,12 @@
 // GENERATED — edit functions/src/offers/engine
+import { MAX_GIFT_CHOICES, MAX_GIFT_NAME, MAX_OFFER_GIFTS } from './gifts';
 import { liveOffers } from './item-price';
 import { matchProduct } from './match';
 import type {
   Offer,
   OfferConditions,
   OfferDraft,
+  OfferGift,
   OfferIssue,
   OfferValidationResult,
   PricedProduct,
@@ -265,23 +267,68 @@ function validateRewardErrors(
       }
       break;
     case 'freeGift':
-      if (!r.giftProductId.trim()) {
-        errors.push({
-          code: 'reward.giftProduct',
-          message: 'Choose a gift product.',
-        });
-      } else if (
-        products.length > 0 &&
-        !products.some((product) => product.productId === r.giftProductId)
-      ) {
-        errors.push({
-          code: 'reward.giftMissing',
-          message: 'The selected gift product could not be found in the catalogue.',
-        });
-      }
+      validateGifts(r.gifts, products, errors);
       break;
     case 'freeShipping':
       break;
+  }
+}
+
+function validateGifts(
+  gifts: readonly OfferGift[],
+  products: readonly PricedProduct[],
+  errors: OfferIssue[],
+): void {
+  if (gifts.length === 0) {
+    errors.push({ code: 'reward.gifts', message: 'Add at least one gift.' });
+    return;
+  }
+  if (gifts.length > MAX_OFFER_GIFTS) {
+    errors.push({ code: 'reward.giftsCount', message: `Add up to ${MAX_OFFER_GIFTS} gifts.` });
+  }
+  const ids = new Set<string>();
+  for (const gift of gifts) {
+    if (!gift.id.trim() || ids.has(gift.id)) {
+      errors.push({ code: 'reward.giftId', message: 'Each gift needs its own id. Remove the gift and add it again.' });
+      break;
+    }
+    ids.add(gift.id);
+  }
+  for (const gift of gifts) {
+    const name = gift.name.trim();
+    if (!name || name.length > MAX_GIFT_NAME) {
+      errors.push({
+        code: 'reward.giftName',
+        message: `Give each gift a short name between 1 and ${MAX_GIFT_NAME} characters, e.g. "Free shirt".`,
+      });
+      break;
+    }
+  }
+  for (const gift of gifts) {
+    if (gift.productIds.length === 0) {
+      errors.push({
+        code: 'reward.giftChoices',
+        message: `Choose at least one product shoppers can pick for "${gift.name.trim() || 'this gift'}".`,
+      });
+      break;
+    }
+    if (gift.productIds.length > MAX_GIFT_CHOICES) {
+      errors.push({
+        code: 'reward.giftChoicesCount',
+        message: `Each gift can offer up to ${MAX_GIFT_CHOICES} products to choose from.`,
+      });
+      break;
+    }
+  }
+  if (products.length > 0) {
+    const known = new Set(products.map((product) => product.productId));
+    const missing = gifts.some((gift) => gift.productIds.some((id) => !known.has(id)));
+    if (missing) {
+      errors.push({
+        code: 'reward.giftMissing',
+        message: 'One of the gift products could not be found in the catalogue.',
+      });
+    }
   }
 }
 
@@ -349,5 +396,5 @@ function maxOfferPercent(draft: OfferDraft): number | null {
 function isCartOrDeferredReward(draft: OfferDraft): boolean {
   if (draft.scope === 'cart') return true;
   const kind = draft.reward.kind;
-  return kind === 'buyXGetY' || kind === 'freeGift' || kind === 'freeShipping';
+  return kind === 'buyXGetY' || kind === 'freeShipping';
 }

@@ -27,6 +27,7 @@ import {
   cartLineKey,
   clampLineQuantity,
   MAX_CART_LINES,
+  MAX_LINE_GIFTS,
   mergeCartLines,
   type CartLineDraft,
 } from './cart.model';
@@ -326,6 +327,17 @@ function cartDocument(lines: readonly CartLineDraft[]) {
       variantId: line.variantId,
       selection: { ...line.selection },
       quantity: clampLineQuantity(line.quantity),
+      // Only lines with gifts carry the field, so older bags keep their exact shape.
+      ...(line.gifts && line.gifts.length > 0
+        ? {
+            gifts: line.gifts.slice(0, MAX_LINE_GIFTS).map((gift) => ({
+              offerId: gift.offerId,
+              giftId: gift.giftId,
+              productId: gift.productId,
+              sizeId: gift.sizeId,
+            })),
+          }
+        : {}),
     })),
     updatedAt: serverTimestamp(),
   };

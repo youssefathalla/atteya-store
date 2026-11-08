@@ -31,6 +31,8 @@ export interface OrderLineAdminRow {
   readonly paymentLabel: string;
   readonly productId: string;
   readonly productName: string;
+  /** Free gift line (price 0, listed after its item): the gift's name, e.g. "Free shirt". */
+  readonly giftName: string | null;
   readonly selectionLabel: string;
   readonly quantity: number;
   readonly currentStock: number | null;

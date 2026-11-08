@@ -597,7 +597,11 @@ function totalsRows(order: OrderEmailOrder, totalLabel: string): [string, string
 
 function itemsText(lines: readonly OrderEmailLine[]): string {
   return lines
-    .map((line) => `- ${lineTitle(line)} (${lineDetails(line)}): ${formatEgp(line.lineEgp)}`)
+    .map((line) =>
+      line.giftName !== null
+        ? `  + ${line.giftName}: ${lineTitle(line)} (${lineDetails(line)}): Free`
+        : `- ${lineTitle(line)} (${lineDetails(line)}): ${formatEgp(line.lineEgp)}`,
+    )
     .join('\n');
 }
 
@@ -684,13 +688,16 @@ function itemsTable(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): s
       const photoCell = src
         ? `<td width="84" valign="top" style="padding:12px 0 12px 12px;"><img src="${escapeHtml(src)}" width="72" alt="" style="display:block;width:72px;height:auto;border:0;border-radius:2px;"></td>\n`
         : '';
-      const tags = lineTags(line)
+      const gift = line.giftName !== null;
+      const tags = [...(gift ? [line.giftName!] : []), ...lineTags(line)]
         .map(
           (tag) =>
             `<span style="display:inline-block;margin:6px 6px 0 0;padding:1px 8px;border:1px solid #d4d4d4;font-size:12px;color:#444444;">${escapeHtml(tag)}</span>`,
         )
         .join('');
-      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;border:1px solid ${LINE};border-radius:2px;${FONT}font-size:14px;color:${INK};">
+      // A gift sits indented under the item it came with, priced "Free".
+      const indent = gift ? 'margin-left:24px;width:auto;' : '';
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;${indent}border:1px solid ${LINE};border-radius:2px;${FONT}font-size:14px;color:${INK};">
 <tr>
 ${photoCell}<td valign="top" style="padding:12px;">
 <div style="font-weight:600;">${escapeHtml(lineTitle(line))}</div>${tags ? `\n<div>${tags}</div>` : ''}
@@ -699,7 +706,7 @@ ${photoCell}<td valign="top" style="padding:12px;">
 <tr><td${src ? ' colspan="2"' : ''} style="padding:8px 12px;border-top:1px solid ${LINE};background:#fafafa;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${FONT}font-size:14px;color:${INK};"><tr>
 <td style="color:${MUTED};">Qty ${line.quantity}</td>
-<td align="right" style="font-weight:700;white-space:nowrap;">${escapeHtml(formatEgp(line.lineEgp))}</td>
+<td align="right" style="font-weight:700;white-space:nowrap;">${escapeHtml(gift ? 'Free' : formatEgp(line.lineEgp))}</td>
 </tr></table>
 </td></tr>
 </table>`;

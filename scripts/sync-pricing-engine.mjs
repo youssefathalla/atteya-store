@@ -41,7 +41,7 @@ function transformContent(raw, header) {
 function listTs(dir) {
   return fs
     .readdirSync(dir)
-    .filter((file) => file.endsWith('.ts') && !file.endsWith('.spec.ts'))
+    .filter((file) => file.endsWith('.ts') && !file.endsWith('.spec.ts') && !file.endsWith('.test.ts'))
     .sort();
 }
 

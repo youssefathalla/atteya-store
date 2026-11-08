@@ -39,6 +39,17 @@ export interface OrderLinePrice {
   readonly name?: string;
   readonly optionLabels?: readonly { readonly label: string; readonly value: string }[];
   readonly imagePath?: string | null;
+  /** Set on a free gift line (price 0). Gift lines follow the line they came with. */
+  readonly gift?: OrderLineGift;
+}
+
+/** Marks an order line as a free gift of an offer, given with the line at index `forLine`. */
+export interface OrderLineGift {
+  readonly offerId: string;
+  readonly giftId: string;
+  /** The gift's name as shoppers saw it, e.g. "Free shirt". */
+  readonly giftName: string;
+  readonly forLine: number;
 }
 
 export interface OrderShippingLine {

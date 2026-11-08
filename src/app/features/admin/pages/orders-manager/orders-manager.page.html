@@ -70,9 +70,15 @@
 </ng-template>
 
 <ng-template #productCell [templateType]="sampleRow" let-row>
-  <a matButton="text" [routerLink]="['/admin/products', row.productId]">
-    <span class="font-body-md">{{ row.productName }}</span>
-  </a>
+  <div class="elements-start-col">
+    <a matButton="text" [routerLink]="['/admin/products', row.productId]">
+      <span class="font-body-md">{{ row.productName }}</span>
+    </a>
+    @if (row.giftName) {
+      <!-- A free gift line sits under the item it came with. -->
+      <span class="px-3 font-label-md text-on-surface-variant">{{ row.giftName }} · Free</span>
+    }
+  </div>
 </ng-template>
 
 <ng-template #stockCell [templateType]="sampleRow" let-row>

@@ -1,11 +1,15 @@
 import { Component, computed, input, model } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import type {
-  OfferMinimum,
-  OfferReward,
-  OfferScope,
-  OfferTier,
+import {
+  MAX_GIFT_CHOICES,
+  MAX_GIFT_NAME,
+  MAX_OFFER_GIFTS,
+  type OfferGift,
+  type OfferMinimum,
+  type OfferReward,
+  type OfferScope,
+  type OfferTier,
 } from '@core/services/offers/engine';
 import type { Product } from '@core/services/products/product.model';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -37,7 +41,6 @@ export class RewardEditorComponent {
     const kind = this.selectedPickerKind();
     return (
       kind === 'buyXGetY' ||
-      kind === 'freeGift' ||
       kind === 'freeShipping' ||
       kind === 'cartThreshold'
     );
@@ -90,13 +93,12 @@ export class RewardEditorComponent {
         });
         break;
       case 'freeGift':
-        this.scope.set('cart');
-        this.minimum.set({ subtotal: 3000 });
+        // One set of gifts per qualifying item bought, so it is an item offer with no minimum.
+        this.scope.set('item');
+        this.minimum.set(null);
         this.reward.set({
           kind: 'freeGift',
-          giftProductId: this.products()[0]?.id ?? '',
-          giftVariantId: null,
-          quantity: 1,
+          gifts: [{ id: 'gift-1', name: 'Free gift', productIds: [] }],
         });
         break;
       case 'freeShipping':
@@ -194,12 +196,61 @@ export class RewardEditorComponent {
     this.reward.set({ ...r, tiers: r.tiers.filter((_, idx) => idx !== index) });
   }
 
-  onGiftProductChange(event: Event): void {
-    const r = this.reward();
-    if (r.kind !== 'freeGift') return;
+  readonly maxGifts = MAX_OFFER_GIFTS;
+  readonly maxGiftChoices = MAX_GIFT_CHOICES;
+  readonly maxGiftName = MAX_GIFT_NAME;
+
+  readonly productNames = computed(
+    () => new Map(this.products().map((product) => [product.id, product.name])),
+  );
+
+  addGift(): void {
+    this.#updateGifts((gifts) => {
+      if (gifts.length >= MAX_OFFER_GIFTS) return gifts;
+      const used = new Set(gifts.map((gift) => gift.id));
+      let index = gifts.length + 1;
+      while (used.has(`gift-${index}`)) index++;
+      return [...gifts, { id: `gift-${index}`, name: '', productIds: [] }];
+    });
+  }
+
+  removeGift(giftId: string): void {
+    this.#updateGifts((gifts) => gifts.filter((gift) => gift.id !== giftId));
+  }
+
+  onGiftNameChange(giftId: string, event: Event): void {
+    const value = (event.target as HTMLInputElement).value.slice(0, MAX_GIFT_NAME);
+    this.#updateGift(giftId, (gift) => ({ ...gift, name: value }));
+  }
+
+  onGiftChoiceAdd(giftId: string, event: Event): void {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
-    this.reward.set({ ...r, giftProductId: target.value });
+    const productId = target.value;
+    target.value = '';
+    if (!productId) return;
+    this.#updateGift(giftId, (gift) =>
+      gift.productIds.includes(productId) || gift.productIds.length >= MAX_GIFT_CHOICES
+        ? gift
+        : { ...gift, productIds: [...gift.productIds, productId] },
+    );
+  }
+
+  removeGiftChoice(giftId: string, productId: string): void {
+    this.#updateGift(giftId, (gift) => ({
+      ...gift,
+      productIds: gift.productIds.filter((id) => id !== productId),
+    }));
+  }
+
+  #updateGift(giftId: string, change: (gift: OfferGift) => OfferGift): void {
+    this.#updateGifts((gifts) => gifts.map((gift) => (gift.id === giftId ? change(gift) : gift)));
+  }
+
+  #updateGifts(change: (gifts: readonly OfferGift[]) => readonly OfferGift[]): void {
+    const r = this.reward();
+    if (r.kind !== 'freeGift') return;
+    this.reward.set({ ...r, gifts: change(r.gifts) });
   }
 
   #readInt(event: Event, fallback: number): number {

@@ -16,6 +16,7 @@ import {
 } from '../paymob/paymob-client.js';
 import { paymobSecrets, requireConfiguredPaymob } from '../paymob/paymob-config.js';
 import { isCardOrWalletLive } from '../store/store-info.js';
+import { readGiftOfferUses, releaseGiftOfferUses, type UsedGiftOffer } from './offer-usage.js';
 import { parseCreateStoreOrderRequest } from './order-request.js';
 import { priceStoreOrder, type OrderPricingSnapshot } from './order-pricing.server.js';
 import { nextDailyOrderCount, utcDayKey } from './order-rate-limit.js';
@@ -65,7 +66,8 @@ export const createPaymobOrder = onCall(
 
     // Reserve the daily slot in a transaction BEFORE minting a Paymob Intention,
     // so concurrent callers cannot each create gateway sessions then lose the race.
-    await reserveDailyOrderSlot(db, rateLimitRef, caller.uid, day);
+    // Free gift offer uses are claimed in the same transaction and given back if Paymob fails.
+    await reserveDailyOrderSlot(db, rateLimitRef, caller.uid, day, priced.giftOffers);
 
     const orderRef = db.collection('orders').doc();
     const orderId = orderRef.id;
@@ -114,6 +116,11 @@ export const createPaymobOrder = onCall(
       } catch (releaseError: unknown) {
         console.error('Failed to release order rate-limit slot after Paymob error', releaseError);
       }
+      try {
+        await releaseGiftOfferUses(db, caller.uid, priced.giftOffers);
+      } catch (releaseError: unknown) {
+        console.error('Failed to give back free gift offer uses', releaseError);
+      }
       throw new HttpsError(
         'unavailable',
         'We could not start online payment. Wait a moment and try again.',
@@ -161,6 +168,11 @@ export const createPaymobOrder = onCall(
       } catch (releaseError: unknown) {
         console.error('Failed to release order rate-limit slot after write error', releaseError);
       }
+      try {
+        await releaseGiftOfferUses(db, caller.uid, priced.giftOffers);
+      } catch (releaseError: unknown) {
+        console.error('Failed to give back free gift offer uses', releaseError);
+      }
       throw new HttpsError(
         'unavailable',
         'We could not start online payment. Wait a moment and try again.',
@@ -182,10 +194,13 @@ async function reserveDailyOrderSlot(
   rateLimitRef: DocumentReference,
   uid: string,
   day: string,
+  giftOffers: readonly UsedGiftOffer[],
 ): Promise<void> {
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(rateLimitRef);
     const nextRateCount = nextDailyOrderCount(snap.data()?.['count']);
+    const addGiftOfferUses = await readGiftOfferUses(tx, db, uid, giftOffers);
+    addGiftOfferUses();
     tx.set(
       rateLimitRef,
       {

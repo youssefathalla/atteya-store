@@ -1,5 +1,7 @@
+import { MAX_GIFT_CHOICES, MAX_OFFER_GIFTS } from './engine/index.js';
 import type {
   Offer,
+  OfferGift,
   OfferAudience,
   OfferConditionAtom,
   OfferConditionField,
@@ -258,20 +260,48 @@ function parseReward(raw: unknown): OfferReward | null {
         maxApplications: readNumber(obj['maxApplications']),
       };
     }
-    case 'freeGift': {
-      const giftProductId = readString(obj['giftProductId']);
-      return {
-        kind: 'freeGift',
-        giftProductId,
-        giftVariantId: readNullableString(obj['giftVariantId']),
-        quantity: readNumber(obj['quantity']) ?? 1,
-      };
-    }
+    case 'freeGift':
+      return { kind: 'freeGift', gifts: parseGifts(obj) };
     case 'freeShipping':
       return { kind: 'freeShipping' };
     default:
       return null;
   }
+}
+
+/**
+ * Gifts of a Free gift offer. An old offer holding one fixed `giftProductId` becomes one gift
+ * ("Free gift") with that one choice. Bad entries are skipped; the list is capped.
+ */
+export function parseGifts(obj: Record<string, unknown>): OfferGift[] {
+  const raw = obj['gifts'];
+  if (Array.isArray(raw)) {
+    const gifts: OfferGift[] = [];
+    const ids = new Set<string>();
+    for (const entry of raw) {
+      if (gifts.length >= MAX_OFFER_GIFTS) break;
+      if (typeof entry !== 'object' || entry === null) continue;
+      const rec = entry as Record<string, unknown>;
+      const id = readString(rec['id']);
+      if (!id || ids.has(id)) continue;
+      const productIds = Array.isArray(rec['productIds'])
+        ? Array.from(
+            new Set(
+              rec['productIds'].filter(
+                (val): val is string => typeof val === 'string' && val.trim().length > 0,
+              ),
+            ),
+          ).slice(0, MAX_GIFT_CHOICES)
+        : [];
+      ids.add(id);
+      gifts.push({ id, name: readString(rec['name']) || 'Free gift', productIds });
+    }
+    return gifts;
+  }
+  const legacyProductId = readString(obj['giftProductId']);
+  return legacyProductId
+    ? [{ id: 'gift-1', name: 'Free gift', productIds: [legacyProductId] }]
+    : [];
 }
 
 function readString(raw: unknown): string {

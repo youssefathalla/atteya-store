@@ -20,6 +20,13 @@ import {
   parseCheckoutShippingConfig,
   SHIPPING_DOC_PATH,
 } from '../shipping/shipping-settings.js';
+import type { UsedGiftOffer } from './offer-usage.js';
+import {
+  giftProductIds,
+  resolveLineGifts,
+  stockDemandKey,
+  type ResolvedGift,
+} from './order-gifts.js';
 import type {
   CreateStoreOrderRequest,
   OrderLineInput,
@@ -57,6 +64,18 @@ export interface OrderLinePrice {
   readonly optionLabels: readonly OrderLineOptionLabel[];
   /** Storage path of the main photo (`products/…`), or null when the product has none. */
   readonly imagePath: string | null;
+  /** Set on a free gift line (price 0): which offer and gift, and the line it came with. */
+  readonly gift?: OrderLineGift;
+}
+
+/** Marks an order line as a free gift. Gift lines follow the line they belong to. */
+export interface OrderLineGift {
+  readonly offerId: string;
+  readonly giftId: string;
+  /** The gift's name as shoppers saw it, e.g. "Free shirt". */
+  readonly giftName: string;
+  /** Index in `pricing.lines` of the bought line this gift came with. */
+  readonly forLine: number;
 }
 
 export interface OrderShippingLine {
@@ -93,6 +112,8 @@ export interface OrderPricingSnapshot {
 
 export interface PricedStoreOrder {
   readonly pricing: OrderPricingSnapshot;
+  /** Free gift offers this order gives gifts from (each counts once towards its limits). */
+  readonly giftOffers: readonly UsedGiftOffer[];
 }
 
 /**
@@ -104,9 +125,10 @@ export async function priceStoreOrder(
   input: CreateStoreOrderRequest,
   signedIn: boolean,
 ): Promise<PricedStoreOrder> {
-  const [shippingSnap, offers] = await Promise.all([
+  const [shippingSnap, offers, giftDocs] = await Promise.all([
     db.doc(SHIPPING_DOC_PATH).get(),
     getActiveOffers(db),
+    readGiftDocs(db, giftProductIds(input.lines)),
   ]);
   const shippingConfig = parseCheckoutShippingConfig(shippingSnap.data());
   const ctx: PricingContext = { now: new Date(), signedIn, codes: [] };
@@ -119,12 +141,47 @@ export async function priceStoreOrder(
   const region = isInternational ? 'international' : 'egypt';
   const regionBoxes = boxesForRegion(shippingConfig.settings, region);
 
+  const giftOffers = new Map<string, UsedGiftOffer>();
+  // Pieces the order takes from stock, by product and size: every paid line first, then gifts as
+  // they're added, so a gift's stock covers the paid pieces and all gifts of the order together.
+  const giftDemand = new Map<string, number>();
+
+  const lineResults: Awaited<ReturnType<typeof priceLine>>[] = [];
   for (const line of input.lines) {
-    const { priced, product, weightGrams } = await priceLine(db, line, offers, ctx);
+    const result = await priceLine(db, line, offers, ctx);
+    lineResults.push(result);
+    const key = stockDemandKey(line.productId, result.data, line.selection);
+    giftDemand.set(key, (giftDemand.get(key) ?? 0) + line.quantity);
+  }
+
+  for (const [index, line] of input.lines.entries()) {
+    const { priced, product, variant, weightGrams } = lineResults[index]!;
+    const forLine = pricedLines.length;
     pricedLines.push(priced);
     cartProducts.push(product);
     subtotalEgp += priced.unitEgp * line.quantity;
     parcelLines.push({ weightGrams, quantity: line.quantity });
+
+    // Free gifts: one set per piece, price 0, listed right after their line. They ship (weight)
+    // and are taken from stock on confirm like any line, but never add to the subtotal.
+    const gifts = resolveLineGifts({
+      picks: line.gifts,
+      quantity: line.quantity,
+      product,
+      variant,
+      offers,
+      ctx,
+      giftDocs,
+      giftDemand,
+    });
+    for (const gift of gifts) {
+      pricedLines.push(giftOrderLine(gift, line.quantity, forLine));
+      parcelLines.push({ weightGrams: readWeightGrams(gift.data['weightGrams']), quantity: line.quantity });
+      const offer = offers.find((entry) => entry.id === gift.offerId);
+      if (offer && !giftOffers.has(offer.id)) {
+        giftOffers.set(offer.id, { offerId: offer.id, limits: offer.limits });
+      }
+    }
   }
 
   // Client payloads cannot choose a box. A sent boxId is not on this input.
@@ -159,7 +216,36 @@ export async function priceStoreOrder(
     fulfilment,
   };
 
-  return { pricing };
+  return { pricing, giftOffers: Array.from(giftOffers.values()) };
+}
+
+/** Live gift product docs by id; a missing doc maps to `undefined`. */
+async function readGiftDocs(
+  db: Firestore,
+  ids: readonly string[],
+): Promise<ReadonlyMap<string, DocumentData | undefined>> {
+  const map = new Map<string, DocumentData | undefined>();
+  if (ids.length === 0) return map;
+  const snaps = await db.getAll(...ids.map((id) => db.collection('products').doc(id)));
+  snaps.forEach((snap, index) => map.set(ids[index]!, snap.exists ? snap.data() : undefined));
+  return map;
+}
+
+function giftOrderLine(gift: ResolvedGift, quantity: number, forLine: number): OrderLinePrice {
+  const name = typeof gift.data['name'] === 'string' ? gift.data['name'].trim() : '';
+  return {
+    productId: gift.productId,
+    variantId: null,
+    selection: { ...gift.selection },
+    quantity,
+    unitEgp: 0,
+    unitDisplay: 0,
+    lineDisplay: 0,
+    name: name || gift.gift.name,
+    optionLabels: selectionLabels(gift.data, gift.selection),
+    imagePath: mainImagePath(gift.data),
+    gift: { offerId: gift.offerId, giftId: gift.gift.id, giftName: gift.gift.name, forLine },
+  };
 }
 
 function resolveFulfilment(
@@ -244,7 +330,13 @@ async function priceLine(
   line: OrderLineInput,
   offers: readonly Offer[],
   ctx: PricingContext,
-): Promise<{ priced: OrderLinePrice; product: PricedProduct; weightGrams: number | null }> {
+): Promise<{
+  priced: OrderLinePrice;
+  product: PricedProduct;
+  variant: VariantFacts | null;
+  weightGrams: number | null;
+  data: DocumentData;
+}> {
   const snap = await db.collection('products').doc(line.productId).get();
   if (!snap.exists) {
     throw new HttpsError('not-found', 'One item in your bag is no longer available.');
@@ -262,7 +354,9 @@ async function priceLine(
   const weightGrams = readWeightGrams(data['weightGrams']);
   return {
     product,
+    variant,
     weightGrams,
+    data,
     priced: {
       productId: line.productId,
       variantId: variant?.id ?? null,

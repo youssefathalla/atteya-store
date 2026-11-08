@@ -72,7 +72,7 @@ export function describeOfferReward(offer: OfferDraft): string {
         ? `Buy ${r.buy.quantity}, get ${r.get.quantity} free`
         : `Buy ${r.buy.quantity}, get ${r.get.quantity} at ${r.get.percent}% off`;
     case 'freeGift':
-      return `Free gift (${r.quantity})`;
+      return r.gifts.map((gift) => gift.name).join(' + ') || 'Free gift';
     case 'freeShipping':
       return 'Free shipping';
   }

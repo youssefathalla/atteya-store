@@ -95,6 +95,7 @@ export class OrdersManagerPageComponent implements OnInit {
     paymentLabel: '',
     productId: '',
     productName: '',
+    giftName: null,
     selectionLabel: '',
     quantity: 0,
     currentStock: null,

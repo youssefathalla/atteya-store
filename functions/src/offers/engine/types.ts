@@ -77,13 +77,26 @@ export type OfferReward =
     }
   | {
       readonly kind: 'freeGift';
-      readonly giftProductId: string;
-      readonly giftVariantId?: string | null;
-      readonly quantity: number;
+      /**
+       * One set of these gifts per qualifying item bought. The shopper picks one product from
+       * each gift's `productIds` (and its size when it has sizes). An old offer that held one
+       * fixed `giftProductId` is read as one gift with one choice.
+       */
+      readonly gifts: readonly OfferGift[];
     }
   | {
       readonly kind: 'freeShipping';
     };
+
+/** One free gift of a Free gift offer, e.g. "Free shirt" with 4 shirts to choose from. */
+export interface OfferGift {
+  /** Stable id inside the offer (`gift-1`, …); bag lines and orders point at it. */
+  readonly id: string;
+  /** Short name shoppers see, e.g. "Free shirt". */
+  readonly name: string;
+  /** Products the shopper can choose from. */
+  readonly productIds: readonly string[];
+}
 
 export interface OfferSchedule {
   readonly startsAt: Date | null;
