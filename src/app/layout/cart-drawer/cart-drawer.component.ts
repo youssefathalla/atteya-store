@@ -8,6 +8,7 @@ import {
   cartSubtotalDisplay,
   lineDisplayAmount,
 } from '@core/services/cart/cart-pricing';
+import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { cartLineKey, type CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
@@ -42,7 +43,10 @@ interface CartProductInfo {
   readonly options: readonly CartProductOption[];
 }
 
-/** Product details by id; `null` means the product was read and no longer exists. */
+/**
+ * Product details by id. `null` means the product is no longer available (deleted or
+ * unpublished). An id with no entry has not loaded yet, or could not be read this time.
+ */
 type CartProducts = ReadonlyMap<string, CartProductInfo | null>;
 
 const NO_PRODUCTS: CartProducts = new Map();
@@ -123,7 +127,11 @@ export class CartDrawerComponent {
         else products.set(id, info);
       }
       const loaded = await Promise.all(missing.map((id) => this.#readProduct(id)));
-      missing.forEach((id, index) => products.set(id, loaded[index] ?? null));
+      missing.forEach((id, index) => {
+        const info = loaded[index];
+        // undefined = this read failed; leave it out so the next load tries again.
+        if (info !== undefined) products.set(id, info);
+      });
       return products;
     },
   });
@@ -138,27 +146,38 @@ export class CartDrawerComponent {
     computation: (next, previous) => next ?? previous?.value ?? NO_PRODUCTS,
   });
 
-  async #readProduct(productId: string): Promise<CartProductInfo | null> {
+  /**
+   * Reads one product and never throws, so one bad line never breaks the whole bag.
+   * `null` = no longer available: deleted, or unpublished (shoppers get permission-denied,
+   * admins see `published: false`). `undefined` = could not be read right now (offline,
+   * or the doc fails `ProductSchema`).
+   */
+  async #readProduct(productId: string): Promise<CartProductInfo | null | undefined> {
     const converter = createValibotConverter(ProductSchema);
-    const snap = await getDoc(
-      doc(this.#firestore, 'products', productId).withConverter(converter),
-    );
-    if (!snap.exists()) return null;
-    const data = snap.data();
-    const primary = data.images[0];
-    return {
-      name: data.name,
-      slug: data.slug,
-      price: data.price,
-      compareAtPrice: data.compareAtPrice,
-      imagePath: primary?.path ?? null,
-      imageAlt: primary?.alt || data.name,
-      options: data.options.map((option) => ({
-        key: option.key,
-        label: option.label,
-        values: option.values.map((value) => ({ id: value.id, label: value.label })),
-      })),
-    };
+    try {
+      const snap = await getDoc(
+        doc(this.#firestore, 'products', productId).withConverter(converter),
+      );
+      if (!snap.exists()) return null;
+      const data = snap.data();
+      if (!data.published) return null;
+      const primary = data.images[0];
+      return {
+        name: data.name,
+        slug: data.slug,
+        price: data.price,
+        compareAtPrice: data.compareAtPrice,
+        imagePath: primary?.path ?? null,
+        imageAlt: primary?.alt || data.name,
+        options: data.options.map((option) => ({
+          key: option.key,
+          label: option.label,
+          values: option.values.map((value) => ({ id: value.id, label: value.label })),
+        })),
+      };
+    } catch (error) {
+      return isPermissionDenied(error) ? null : undefined;
+    }
   }
 
   /**
@@ -196,6 +215,11 @@ export class CartDrawerComponent {
 
   productInfo(productId: string): CartProductInfo | undefined {
     return this.#products().get(productId) ?? undefined;
+  }
+
+  /** True when the product was read and is deleted or unpublished. */
+  isUnavailable(productId: string): boolean {
+    return this.#products().get(productId) === null;
   }
 
   imagePath(rawPath: string): string {

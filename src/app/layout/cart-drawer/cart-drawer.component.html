@@ -90,6 +90,12 @@
                   }
                 </div>
               </div>
+            } @else if (isUnavailable(line.productId)) {
+              <div class="relative size-20 shrink-0 bg-surface-container-high" aria-hidden="true"></div>
+              <div class="min-w-0 flex-1 elements-start-col gap-0.5">
+                <p class="font-title-sm font-bold!">No longer available</p>
+                <p class="font-label-sm opacity-70">Please remove it from your bag.</p>
+              </div>
             } @else {
               <div class="relative size-20 shrink-0 bg-surface-container-high" aria-hidden="true"></div>
               <div class="min-w-0 flex-1 elements-start-col gap-0.5">
@@ -98,25 +104,38 @@
               </div>
             }
 
-            <div class="elements-end gap-1 shrink-0 self-start">
-              <button
-                matIconButton
-                type="button"
-                (click)="decreaseQuantity($index)"
-                [attr.aria-label]="line.quantity === 1 ? 'Remove item' : 'Decrease quantity'"
-              >
-                <mat-icon [name]="line.quantity === 1 ? 'delete' : 'remove'" />
-              </button>
-              <button
-                matIconButton
-                type="button"
-                (click)="increaseQuantity($index)"
-                [disabled]="line.quantity >= 20"
-                aria-label="Increase quantity"
-              >
-                <mat-icon name="add" />
-              </button>
-            </div>
+            @if (isUnavailable(line.productId)) {
+              <div class="elements-end shrink-0 self-start">
+                <button
+                  matIconButton
+                  type="button"
+                  (click)="removeLine($index)"
+                  aria-label="Remove item"
+                >
+                  <mat-icon name="delete" />
+                </button>
+              </div>
+            } @else {
+              <div class="elements-end gap-1 shrink-0 self-start">
+                <button
+                  matIconButton
+                  type="button"
+                  (click)="decreaseQuantity($index)"
+                  [attr.aria-label]="line.quantity === 1 ? 'Remove item' : 'Decrease quantity'"
+                >
+                  <mat-icon [name]="line.quantity === 1 ? 'delete' : 'remove'" />
+                </button>
+                <button
+                  matIconButton
+                  type="button"
+                  (click)="increaseQuantity($index)"
+                  [disabled]="line.quantity >= 20"
+                  aria-label="Increase quantity"
+                >
+                  <mat-icon name="add" />
+                </button>
+              </div>
+            }
           </li>
         }
       </ul>
