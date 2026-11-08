@@ -54,6 +54,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      # checks: read lets the claim step see whether Bugbot could run on the commit
+      # (checks.listForRef); without it every Claude Review-triggered round fails with a 403.
+      checks: read
       contents: read
       issues: write
       pull-requests: write
