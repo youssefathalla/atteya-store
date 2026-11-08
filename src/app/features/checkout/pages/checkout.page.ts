@@ -52,6 +52,7 @@ import { SeoService } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
+import { callableMessage } from '@shared/utils/firebase/firebase-errors';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
@@ -661,11 +662,7 @@ export class CheckoutPageComponent implements OnInit {
         state: { checkoutResult: result },
       });
     } catch (error: unknown) {
-      const message =
-        error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
-          ? error.message
-          : 'We could not place your order. Try again in a moment.';
-      this.#snackbar.error(message);
+      this.#snackbar.error(callableMessage(error) ?? 'We could not place your order. Try again in a moment.');
     } finally {
       this.isSubmitting.set(false);
     }

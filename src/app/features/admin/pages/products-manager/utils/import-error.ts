@@ -1,22 +1,14 @@
-import { firebaseErrors } from '@shared/utils/firebase/firebase-errors';
-
-function isSdkStatusMessage(message: string, bareCode: string): boolean {
-  const normalized = message.trim().toLowerCase();
-  const code = bareCode.toLowerCase();
-  return normalized === code || normalized.startsWith(`${code} (`) || normalized.startsWith(`${code}:`);
-}
+import { callableMessage, firebaseErrors, isFirebaseError } from '@shared/utils/firebase/firebase-errors';
 
 export function importActionError(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'message' in error && 'code' in error) {
-    const message = (error as { message?: unknown }).message;
-    const code = (error as { code?: unknown }).code;
-    if (typeof message === 'string' && typeof code === 'string' && code.startsWith('functions/')) {
-      const bareCode = code.slice('functions/'.length);
-      if (message.length > 0 && !isSdkStatusMessage(message, bareCode)) return message;
-      if (bareCode === 'internal' || bareCode === 'unknown' || bareCode === 'unavailable') {
-        return 'That did not work. Please try again.';
-      }
+  const message = callableMessage(error);
+  if (message) return message;
+  if (isFirebaseError(error) && error.code.startsWith('functions/')) {
+    const code = error.code;
+    if (code === 'functions/internal' || code === 'functions/unknown' || code === 'functions/unavailable') {
+      return 'That did not work. Please try again.';
     }
+    return firebaseErrors(error);
   }
   if (error instanceof Error && error.message.trim().length > 0) return error.message;
   return firebaseErrors(error);
