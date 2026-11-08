@@ -51,7 +51,7 @@ The first page preloads two subset fonts instead of the full Google Sans Flex fi
 
 Add a new icon to that list, regenerate the symbols file, and preflight will remind you when the code uses a name that is not on the list.
 
-Material Symbols, from the sorted list (`icon_names` must be alphabetical). The CSS response contains one `fonts.gstatic.com` woff2 URL. Save that file under a new name in `public/fonts/` (the current file is `material-symbols-outlined-subset-2.woff2`) and point `_fonts.scss` and `index.html` at it. Fonts are cached for a year, so a changed subset must not reuse the previous file name.
+Material Symbols, from the sorted list (`icon_names` must be alphabetical). The CSS response contains one `fonts.gstatic.com` woff2 URL. Save that file under a new name in `public/fonts/` (the current file is `material-symbols-outlined-subset-4.woff2`) and point `_fonts.scss` at it. The file Google returns covers weights 100–700 whatever range you ask for; `_fonts.scss` declares `font-weight: 400 700`, and `MatIconDirective` defaults to `600`, so only an icon with `weight="700"` uses the heaviest stroke. Fonts are cached for a year, so a changed subset must not reuse the previous file name.
 
 ```bash
 names=$(paste -sd, scripts/fonts/material-symbols.icons.txt)

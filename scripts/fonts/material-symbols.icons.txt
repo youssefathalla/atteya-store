@@ -5,6 +5,7 @@ animation
 arrow_back
 arrow_downward
 arrow_forward
+arrow_right_alt
 arrow_upward
 auto_fix_high
 block
@@ -13,8 +14,8 @@ bookmark
 border_style
 build
 calendar_today
-cancel
 call
+cancel
 category
 chat_bubble
 check
