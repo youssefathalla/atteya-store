@@ -1,0 +1,65 @@
+@let current = box();
+<section class="pdp-gift-box" [attr.aria-labelledby]="'pdp-gift-heading-' + current.offerId">
+  <header class="pdp-gift-box__header">
+    <h2 [id]="'pdp-gift-heading-' + current.offerId" class="font-title-sm font-bold!">{{ current.heading }}</h2>
+  </header>
+
+  <div class="elements-start-col gap-5 p-4">
+    <p class="font-body-md">Pick them below. They ship in the same parcel.</p>
+
+    @for (step of steps(); track step.key) {
+      @let promptHere = prompt()?.key === step.key;
+      @let messageId = 'pdp-gift-msg-' + step.key;
+      <fieldset
+        class="pdp-gift-step"
+        [class.pdp-gift-step--prompt]="promptHere"
+        [attr.data-gift-step]="step.key"
+        [attr.aria-describedby]="promptHere ? messageId : null"
+      >
+        <legend class="sr-only">{{ step.number }}. {{ step.title }}</legend>
+        <div class="elements-between w-full gap-3 pb-2" aria-hidden="true">
+          <span class="font-label-lg">{{ step.number }}. {{ step.title }}</span>
+          @if (step.chosen) {
+            <span class="font-label-lg text-end">{{ step.chosen }} ✓</span>
+          }
+        </div>
+
+        @if (step.kind === 'gift') {
+          <div class="grid w-full grid-cols-2 gap-2">
+            @for (choice of step.gift.choices; track choice.productId) {
+              <button
+                type="button"
+                data-choice
+                class="pdp-choice"
+                [disabled]="disabled()"
+                [attr.aria-pressed]="isProductPicked(step.gift.id, choice.productId)"
+                (click)="productPicked.emit({ giftId: step.gift.id, productId: choice.productId })"
+              >
+                {{ choice.label }}
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="grid w-full grid-cols-3 gap-2">
+            @for (size of step.sizes; track size.id) {
+              <button
+                type="button"
+                data-choice
+                class="pdp-choice"
+                [disabled]="disabled()"
+                [attr.aria-pressed]="isSizePicked(step.gift.id, size.id)"
+                (click)="sizePicked.emit({ giftId: step.gift.id, sizeId: size.id })"
+              >
+                {{ size.label }}
+              </button>
+            }
+          </div>
+        }
+
+        @if (promptHere) {
+          <p [id]="messageId" class="font-body-sm text-error pt-2" role="alert">{{ prompt()!.message }}</p>
+        }
+      </fieldset>
+    }
+  </div>
+</section>

@@ -17,7 +17,16 @@ import { AuthService } from '@core/services/auth/auth.service';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
-import { displayPrice, type Offer, priceItem } from '@core/services/offers/engine';
+import {
+  displayPrice,
+  giftChoiceIds,
+  giftOfferForProduct,
+  liveOffers,
+  matchProduct,
+  type Offer,
+  type OfferBadge,
+  priceItem,
+} from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { fromTransferOffer } from '@core/services/offers/offer-transfer';
 import { OffersService } from '@core/services/offers/offers.service';
@@ -29,15 +38,18 @@ import {
   PlayerListService,
   type Product,
   productDetailsTitle,
+  ProductService,
   toVariantFacts,
 } from '@core/services/products';
 import { SeoService } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { SkeletonComponent } from '@shared/ui/skeleton';
 import { formatMoney } from '@shared/utils/money';
 import { AddToBagButtonComponent } from './components/add-to-bag-button/add-to-bag-button.component';
 import { ProductGalleryComponent } from './components/product-gallery/product-gallery.component';
+import { ProductGiftBoxComponent } from './components/product-gift-box/product-gift-box.component';
 import { ProductOptionsComponent } from './components/product-options/product-options.component';
 import { ProductSiblingsComponent } from './components/product-siblings/product-siblings.component';
 import type {
@@ -46,6 +58,18 @@ import type {
   ProductPageResult,
   ProductView,
 } from './models/product-page.model';
+import {
+  buildGiftBox,
+  cartLineGifts,
+  effectiveGiftPicks,
+  giftChoiceFacts,
+  type GiftBoxView,
+  type GiftPicks,
+  giftSizeStepKey,
+  giftStepKey,
+  missingGiftPrompt,
+  toGiftChoice,
+} from './utils/product-gifts';
 import { watchProductDoc } from './utils/product-live';
 import {
   findVariant,
@@ -64,6 +88,8 @@ import {
     ProductGalleryComponent,
     ProductOptionsComponent,
     ProductSiblingsComponent,
+    ProductGiftBoxComponent,
+    SkeletonComponent,
     AddToBagButtonComponent,
   ],
   templateUrl: './product.component.html',
@@ -85,6 +111,7 @@ export class ProductComponent {
   readonly #destroyRef = inject(DestroyRef);
   readonly #shippingSettings = inject(ShippingSettingsService);
   readonly #currency = inject(CurrencyService);
+  readonly #products = inject(ProductService);
 
   /**
    * Shipping section lines. Null = visitor pays in another currency (worked out at checkout).
@@ -248,12 +275,17 @@ export class ProductComponent {
     computation: () => null,
   });
 
+  /** Offer clock and sign-in state shared by the price and the Gift Box. */
+  readonly #pricingCtx = computed(() => ({
+    now: new Date(this.#nowMs()),
+    signedIn: this.#hydrated() && Boolean(this.#auth.user()),
+  }));
+
   readonly price = computed(() => {
     const p = this.product();
     if (!p) return null;
     const priced = toPricedProduct(p);
-    const hydrated = this.#hydrated();
-    const ctx = { now: new Date(this.#nowMs()), signedIn: hydrated && Boolean(this.#auth.user()) };
+    const ctx = this.#pricingCtx();
     const offers = this.#offers();
     const v = this.variant();
     if (v) {
@@ -263,7 +295,7 @@ export class ProductComponent {
         fromPrice: null,
         listPrice: r.listPrice,
         partial: false,
-        badges: r.badges.map((badge) => badge.text),
+        ...this.#splitBadges(r.badges, offers),
       };
     }
     const d = displayPrice(priced, offers, ctx);
@@ -272,8 +304,103 @@ export class ProductComponent {
       fromPrice: d.partial ? d.fromPrice : null,
       listPrice: d.listPrice,
       partial: d.partial,
-      badges: d.badges.map((b) => b.text),
+      ...this.#splitBadges(d.badges, offers),
     };
+  });
+
+  /**
+   * One design per offer type. Price offers (percent off, amount off, fixed price) stay badges
+   * next to the price. Buy X get Y, tiered and free shipping become one short line with the
+   * offer's title. Free gift offers show as the Gift Box, never as a badge.
+   */
+  #splitBadges(
+    badges: readonly OfferBadge[],
+    offers: readonly Offer[],
+  ): { badges: string[]; offerLines: string[] } {
+    const shown: string[] = [];
+    const lines: string[] = [];
+    // An amount in EGP means nothing to a visitor paying in another currency.
+    const hideEgp = this.#currency.selected() !== 'EGP';
+    for (const badge of badges) {
+      const kind = badge.labelOnly ? offers.find((offer) => offer.id === badge.offerId)?.reward.kind : undefined;
+      if (kind === 'freeGift') continue;
+      if (kind === 'buyXGetY' || kind === 'tiered' || kind === 'freeShipping') {
+        const title = offers.find((offer) => offer.id === badge.offerId)?.title.trim() || badge.text;
+        if (!lines.includes(title) && !(hideEgp && /\bEGP\b/.test(title))) lines.push(title);
+        continue;
+      }
+      shown.push(badge.text);
+    }
+    return { badges: shown, offerLines: lines };
+  }
+
+  /**
+   * Products the Free gift offers on this product can give, sorted. Known on the server too
+   * (offers come with the page), so the Gift Box space is kept from the first paint.
+   */
+  readonly #giftChoiceIds = computed(
+    () => {
+      const p = this.product();
+      if (!p || !this.inStock()) return [];
+      const facts = toPricedProduct(p);
+      const candidates = liveOffers(this.#offers(), this.#pricingCtx()).filter(
+        (offer) =>
+          offer.reward.kind === 'freeGift' &&
+          offer.scope === 'item' &&
+          matchProduct(offer.conditions, offer.exclude, facts) !== 'none',
+      );
+      return giftChoiceIds(candidates).sort();
+    },
+    { equal: (a, b) => a.length === b.length && a.every((id, index) => id === b[index]) },
+  );
+
+  /** The gift products, read in the browser once the page is up. Unavailable ones come back null. */
+  readonly #giftChoices = resource({
+    params: () => {
+      const ids = this.#giftChoiceIds();
+      return this.#hydrated() && ids.length > 0 ? ids : undefined;
+    },
+    loader: async ({ params: ids }) => {
+      const products = await Promise.all(ids.map((id) => this.#products.getById(id)));
+      return products.flatMap((product) => {
+        const choice = product ? toGiftChoice(product) : null;
+        return choice ? [choice] : [];
+      });
+    },
+  });
+
+  /** Space for the Gift Box while its gift products load (server render included). */
+  readonly giftBoxLoading = computed(
+    () => this.#giftChoiceIds().length > 0 && !this.#giftChoices.hasValue() && !this.#giftChoices.error(),
+  );
+
+  /** The Gift Box for this product (and its chosen colour and size), or null. */
+  readonly giftBox = computed<GiftBoxView | null>(() => {
+    const p = this.product();
+    if (!p || !this.inStock() || this.#giftChoiceIds().length === 0) return null;
+    if (!this.#giftChoices.hasValue()) return null;
+    const choices = this.#giftChoices.value();
+    const v = this.variant();
+    const offer = giftOfferForProduct(
+      toPricedProduct(p),
+      v ? toVariantFacts(p, v) : null,
+      this.#offers(),
+      this.#pricingCtx(),
+      giftChoiceFacts(choices),
+    );
+    return offer ? buildGiftBox(offer, choices, p.type) : null;
+  });
+
+  /** What the shopper tapped in the Gift Box. Cleared for every new product. */
+  readonly #giftPicks = linkedSignal<string | undefined, GiftPicks>({
+    source: () => this.product()?.id,
+    computation: () => ({}),
+  });
+
+  /** The picks that still hold for the current Gift Box (plus gifts with only one choice). */
+  readonly giftPicks = computed<GiftPicks>(() => {
+    const box = this.giftBox();
+    return box ? effectiveGiftPicks(box, this.#giftPicks()) : {};
   });
 
   readonly isFavorite = computed(() => {
@@ -306,7 +433,12 @@ export class ProductComponent {
     ) {
       return null;
     }
-    return { productId: p.id, variantId: v?.id ?? null, selection: sel, quantity: 1 };
+    if (this.giftBoxLoading()) return null;
+    const box = this.giftBox();
+    if (!box) return { productId: p.id, variantId: v?.id ?? null, selection: sel, quantity: 1 };
+    const gifts = cartLineGifts(box, this.giftPicks());
+    if (!gifts) return null;
+    return { productId: p.id, variantId: v?.id ?? null, selection: sel, quantity: 1, gifts };
   });
 
   constructor() {
@@ -351,7 +483,22 @@ export class ProductComponent {
     if (this.choicePrompt()?.key === key) this.choicePrompt.set(null);
   }
 
-  /** Add to Bag pressed while a choice is missing, or the chosen size has just sold out. */
+  pickGift(giftId: string, productId: string): void {
+    this.#giftPicks.update((current) => ({
+      ...current,
+      [giftId]: { productId, sizeId: current[giftId]?.productId === productId ? current[giftId].sizeId : null },
+    }));
+    if (this.choicePrompt()?.key === giftStepKey(giftId)) this.choicePrompt.set(null);
+  }
+
+  pickGiftSize(giftId: string, sizeId: string): void {
+    const pick = this.giftPicks()[giftId];
+    if (!pick) return;
+    this.#giftPicks.update((current) => ({ ...current, [giftId]: { productId: pick.productId, sizeId } }));
+    if (this.choicePrompt()?.key === giftSizeStepKey(giftId)) this.choicePrompt.set(null);
+  }
+
+  /** Add to Bag pressed while a choice or a gift is missing, or the chosen size has just sold out. */
   onChoiceMissing(): void {
     const p = this.product();
     if (!p || !this.inStock()) return;
@@ -370,7 +517,11 @@ export class ProductComponent {
         message: 'That size has just sold out. Choose another size.',
         attempt,
       });
+      return;
     }
+    const box = this.giftBox();
+    const giftPrompt = box ? missingGiftPrompt(box, this.giftPicks(), attempt) : null;
+    if (giftPrompt) this.choicePrompt.set(giftPrompt);
   }
 
   onFavoriteClick(): void {

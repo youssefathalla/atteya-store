@@ -72,6 +72,9 @@
               [partial]="pr.partial"
               [badges]="pr.badges"
             />
+            @for (line of pr.offerLines; track line) {
+              <p class="font-label-lg">{{ line }}</p>
+            }
           }
 
           @if (!inStock()) {
@@ -106,6 +109,18 @@
             [prompt]="choicePrompt()"
             (picked)="select($event.key, $event.valueId)"
           />
+          @if (giftBox(); as box) {
+            <app-product-gift-box
+              [box]="box"
+              [picks]="giftPicks()"
+              [disabled]="!inStock()"
+              [prompt]="choicePrompt()"
+              (productPicked)="pickGift($event.giftId, $event.productId)"
+              (sizePicked)="pickGiftSize($event.giftId, $event.sizeId)"
+            />
+          } @else if (giftBoxLoading()) {
+            <app-skeleton class="w-full h-48 border-shape" />
+          }
           <app-add-to-bag-button
             [line]="cartLine()"
             [unavailable]="!inStock()"

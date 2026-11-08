@@ -11,6 +11,7 @@ import {
 import { isCardOrWalletLive } from '@core/config/store-info';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
+import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
 import { cartLineKey, type CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
@@ -62,10 +63,18 @@ interface CartProductInfo {
   readonly imagePath: string | null;
   readonly imageAlt: string;
   readonly options: readonly CartProductOption[];
+  /** Palette colour ids, so a free gift can be named with its colour. */
+  readonly colors: readonly string[];
   /** "Men", "Women", "Kids" or "Unisex"; null when the product has no gender set. */
   readonly genderLabel: string | null;
   /** Main (leaf) category, used to pick the "Recommended for You" products. */
   readonly categoryId: string;
+}
+
+/** One free gift under its item: "Free shirt: Adidas Simple Polo White, L". */
+interface CartGiftRow {
+  readonly key: string;
+  readonly label: string;
 }
 
 /**
@@ -170,11 +179,19 @@ export class CartDrawerComponent {
   }
 
   /**
-   * Distinct product ids in the bag, sorted. Changes only when a product is added or
-   * removed, so + / − on a line never re-reads the products.
+   * Distinct product ids in the bag (free gifts included), sorted. Changes only when a product
+   * is added or removed, so + / − on a line never re-reads the products.
    */
   readonly #productIds = computed(
-    () => [...new Set(this.lines().map((line) => line.productId))].sort(),
+    () =>
+      [
+        ...new Set(
+          this.lines().flatMap((line) => [
+            line.productId,
+            ...(line.gifts ?? []).map((gift) => gift.productId),
+          ]),
+        ),
+      ].sort(),
     { equal: sameIds },
   );
 
@@ -236,6 +253,7 @@ export class CartDrawerComponent {
         compareAtPrice: data.compareAtPrice,
         imagePath: primary?.path ?? null,
         imageAlt: primary?.alt || data.name,
+        colors: data.colors,
         options: data.options.map((option) => ({
           key: option.key,
           label: option.label,
@@ -337,6 +355,24 @@ export class CartDrawerComponent {
     return parts.join(' · ');
   }
 
+  /** The free gifts picked for one line, each as "Free shirt: Adidas Simple Polo White, L". */
+  giftRows(line: CartLineDraft): readonly CartGiftRow[] {
+    const gifts = line.gifts ?? [];
+    if (gifts.length === 0) return [];
+    const offers = this.#offers.all();
+    return gifts.map((gift) => {
+      const name = giftNameFor(offers, gift.offerId, gift.giftId);
+      const info = this.productInfo(gift.productId);
+      const size = info?.options
+        .find((option) => option.key === 'size')
+        ?.values.find((value) => value.id === gift.sizeId)?.label;
+      return {
+        key: `${gift.offerId}/${gift.giftId}`,
+        label: info ? giftLineLabel(name, giftProductLabel(info), size ?? null) : name,
+      };
+    });
+  }
+
   /** True once this copy of the bag has been on screen; recommendations load from then on. */
   readonly #shown = linkedSignal<boolean, boolean>({
     source: () =>
@@ -345,11 +381,16 @@ export class CartDrawerComponent {
     computation: (now, previous) => now || (previous?.value ?? false),
   });
 
-  /** The bag's main categories, sorted. Changes only when a product is added or removed. */
+  /**
+   * The bag's main categories (bought items only, not free gifts), sorted. Changes only when a
+   * product is added or removed.
+   */
   readonly #bagCategoryIds = computed(
     () => {
+      const products = this.#products();
       const ids = new Set<string>();
-      for (const info of this.#products().values()) {
+      for (const line of this.lines()) {
+        const info = products.get(line.productId);
         if (info) ids.add(info.categoryId);
       }
       return [...ids].sort();
