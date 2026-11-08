@@ -49,3 +49,13 @@
     )
   );
 }
+
+//- Row arrows (`app-row-scroll-nav`: home rows, bag): a clear ring when reached with Tab
+.row-scroll-nav {
+  @include mat.strong-focus-indicators(
+    (
+      border-color: var(--mat-sys-primary),
+      border-width: 2px,
+    )
+  );
+}

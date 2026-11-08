@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import type { gsap as GsapNamespace } from 'gsap';
 import type { ScrollTrigger as ScrollTriggerClass } from 'gsap/ScrollTrigger';
-import { rowItemTarget, scrollRowByItem } from '../utils/row-scroll';
+import { rowItemTarget, scrollRowByItem } from '@shared/utils/row-scroll.utils';
 
 type GsapApi = typeof GsapNamespace;
 type GsapMatchMedia = ReturnType<GsapApi['matchMedia']>;

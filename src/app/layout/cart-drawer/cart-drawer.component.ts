@@ -31,6 +31,7 @@ import {
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { RowScrollNavComponent } from '@shared/ui/row-scroll-nav';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
@@ -100,6 +101,7 @@ interface BagRecommendationHits {
     AppImageFallbackDirective,
     ProductCardComponent,
     HorizontalScrollDirective,
+    RowScrollNavComponent,
   ],
   templateUrl: './cart-drawer.component.html',
   host: {
