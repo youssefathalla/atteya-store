@@ -52,9 +52,14 @@ function fail(lines) {
   process.exit(1);
 }
 
-/** Commits being pushed for one ref: new ones only. */
+/**
+ * Commits being pushed for one ref: new ones only. Commits already on any origin branch are left
+ * out, so merging `develop` into a working branch never checks `develop`'s own commits again.
+ */
 function newCommits(localSha, remoteSha) {
-  const range = ZERO.test(remoteSha) ? [localSha, '--not', '--remotes=origin'] : [`${remoteSha}..${localSha}`];
+  const range = ZERO.test(remoteSha)
+    ? [localSha, '--not', '--remotes=origin']
+    : [localSha, `^${remoteSha}`, '--not', '--remotes=origin'];
   const out = tryGit('log', '--no-merges', '--format=%h%x09%s', ...range);
   return out ? out.split('\n').map((line) => {
     const [hash, ...subject] = line.split('\t');
