@@ -50,36 +50,54 @@
           } @else {
             <ul class="space-y-4">
               @for (item of summaryItems(); track $index) {
-                <li class="elements-start gap-4">
-                  <div class="relative shrink-0">
-                    <div class="size-16 overflow-hidden bg-surface border border-outline-variant border-shape">
-                      @if (item.imagePath; as path) {
-                        <img
-                          [ngSrc]="item.imageSrc"
-                          [appImageFallback]="path"
-                          [alt]="item.imageAlt"
-                          width="64"
-                          height="64"
-                          class="size-full object-contain p-1"
-                        />
-                      }
-                    </div>
-                    <span
-                      class="absolute -top-2 -right-2 size-5 elements-center rounded-full bg-primary text-on-primary font-label-sm"
+                @if (item.unavailable) {
+                  <li class="elements-start gap-4">
+                    <div
+                      class="size-16 shrink-0 bg-surface-container-high border border-outline-variant border-shape"
                       aria-hidden="true"
-                    >
-                      {{ item.quantity }}
-                    </span>
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <p class="font-title-sm font-bold! line-clamp-2">{{ item.name }}</p>
-                    @if (item.options) {
-                      <p class="font-label-md text-on-surface-variant">{{ item.options }}</p>
-                    }
-                    <p class="sr-only">Quantity {{ item.quantity }}</p>
-                  </div>
-                  <p class="font-body-md shrink-0">{{ item.price }}</p>
-                </li>
+                    ></div>
+                    <div class="min-w-0 flex-1">
+                      <p class="font-title-sm font-bold!">{{ item.name }}</p>
+                      <p class="font-label-md text-on-surface-variant">Please remove it from your bag.</p>
+                    </div>
+                    <div class="elements-end shrink-0 self-start">
+                      <button matIconButton type="button" (click)="removeLine($index)" aria-label="Remove item">
+                        <mat-icon name="delete" />
+                      </button>
+                    </div>
+                  </li>
+                } @else {
+                  <li class="elements-start gap-4">
+                    <div class="relative shrink-0">
+                      <div class="size-16 overflow-hidden bg-surface border border-outline-variant border-shape">
+                        @if (item.imagePath; as path) {
+                          <img
+                            [ngSrc]="item.imageSrc"
+                            [appImageFallback]="path"
+                            [alt]="item.imageAlt"
+                            width="64"
+                            height="64"
+                            class="size-full object-contain p-1"
+                          />
+                        }
+                      </div>
+                      <span
+                        class="absolute -top-2 -right-2 size-5 elements-center rounded-full bg-primary text-on-primary font-label-sm"
+                        aria-hidden="true"
+                      >
+                        {{ item.quantity }}
+                      </span>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="font-title-sm font-bold! line-clamp-2">{{ item.name }}</p>
+                      @if (item.options) {
+                        <p class="font-label-md text-on-surface-variant">{{ item.options }}</p>
+                      }
+                      <p class="sr-only">Quantity {{ item.quantity }}</p>
+                    </div>
+                    <p class="font-body-md shrink-0">{{ item.price }}</p>
+                  </li>
+                }
               }
             </ul>
           }
@@ -355,7 +373,9 @@
         }
       </fieldset>
 
-      @if (orderSummary(); as summary) {
+      @if (unavailableMessage(); as message) {
+        <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+      } @else if (orderSummary(); as summary) {
         @if (summary.state === 'too-heavy') {
           <p class="font-body-sm text-error" role="alert">
             This order is too heavy to send abroad. Remove an item or message us.

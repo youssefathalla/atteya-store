@@ -19,6 +19,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatRadioModule } from '@angular/material/radio';
 import { doc, getDoc } from 'firebase/firestore';
 import { AuthService } from '@core/services/auth/auth.service';
+import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { lineDisplayAmount } from '@core/services/cart/cart-pricing';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
@@ -74,6 +75,12 @@ const ABROAD_COMING_SOON_MESSAGE =
 const DELIVERY_UNAVAILABLE_MESSAGE =
   'We could not work out delivery for this order. Please try again later.';
 
+/**
+ * Product details by id. `null` = no longer available (deleted, or unpublished: shoppers get
+ * permission-denied, admins see `published: false`).
+ */
+type CheckoutProducts = ReadonlyMap<string, CheckoutProductInfo | null>;
+
 interface CheckoutProductInfo {
   readonly name: string;
   /** Main photo for the order summary (null when the product has none). */
@@ -94,8 +101,8 @@ type PricedBag =
       readonly state: 'ready';
       readonly offers: ReturnType<OffersService['all']>;
       readonly ctx: PricingContext;
-      /** Line totals in the visitor's currency, in bag order. */
-      readonly lineDisplay: readonly number[];
+      /** Line totals in the visitor's currency, in bag order; null for a line no longer available. */
+      readonly lineDisplay: readonly (number | null)[];
       readonly pricedLines: readonly PricedProduct[];
       readonly parcelLines: readonly ParcelLine[];
       readonly subtotalEgp: number;
@@ -104,6 +111,8 @@ type PricedBag =
 
 /** One row of the order summary list. */
 interface CheckoutSummaryItem {
+  /** The product was deleted or unpublished: the row asks the shopper to remove it. */
+  readonly unavailable: boolean;
   readonly name: string;
   /** Storage path of the main photo (the fallback source), or null. */
   readonly imagePath: string | null;
@@ -248,35 +257,59 @@ export class CheckoutPageComponent implements OnInit {
 
   readonly productsResource = resource({
     params: () => this.lines(),
-    loader: async ({ params: lines }) => {
+    loader: async ({ params: lines }): Promise<CheckoutProducts> => {
       if (!isPlatformBrowser(this.#platformId) || lines.length === 0) {
-        return new Map<string, CheckoutProductInfo>();
+        return new Map<string, CheckoutProductInfo | null>();
       }
-      const converter = createValibotConverter(ProductSchema);
-      const products = new Map<string, CheckoutProductInfo>();
-      const seen = new Set<string>();
-      for (const line of lines) {
-        if (seen.has(line.productId)) continue;
-        seen.add(line.productId);
-        const snap = await getDoc(
-          doc(this.#firestore, 'products', line.productId).withConverter(converter),
-        );
-        if (snap.exists()) {
-          const data = snap.data();
-          const photo = data.images[0];
-          products.set(line.productId, {
-            name: data.name,
-            imagePath: photo?.path ?? null,
-            imageAlt: photo?.alt || data.name,
-            weightGrams: typeof data.weightGrams === 'number' ? data.weightGrams : null,
-            priced: toPricedProduct(data),
-            options: data.options,
-            variants: data.variants,
-          });
-        }
-      }
-      return products;
+      const ids = [...new Set(lines.map((line) => line.productId))];
+      const loaded = await Promise.all(ids.map((id) => this.#readProduct(id)));
+      return new Map(ids.map((id, index) => [id, loaded[index]]));
     },
+  });
+
+  /**
+   * Reads one product. A deleted or unpublished product comes back as `null`, so one gone
+   * item never hides the rest of the order summary. Any other failure (offline, a doc that
+   * fails `ProductSchema`) still throws, because the bag can't be priced without it.
+   */
+  async #readProduct(productId: string): Promise<CheckoutProductInfo | null> {
+    const converter = createValibotConverter(ProductSchema);
+    let snap;
+    try {
+      snap = await getDoc(doc(this.#firestore, 'products', productId).withConverter(converter));
+    } catch (error) {
+      if (isPermissionDenied(error)) return null;
+      throw error;
+    }
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    if (!data.published) return null;
+    const photo = data.images[0];
+    return {
+      name: data.name,
+      imagePath: photo?.path ?? null,
+      imageAlt: photo?.alt || data.name,
+      weightGrams: typeof data.weightGrams === 'number' ? data.weightGrams : null,
+      priced: toPricedProduct(data),
+      options: data.options,
+      variants: data.variants,
+    };
+  }
+
+  /** How many bag lines are for products that are no longer available. */
+  readonly unavailableLineCount = computed(() => {
+    const products = this.productsResource.hasValue() ? this.productsResource.value() : undefined;
+    if (!products) return 0;
+    return this.lines().filter((line) => products.get(line.productId) === null).length;
+  });
+
+  /** Shown next to Place Order (and as the snackbar) while the bag holds a gone item. */
+  readonly unavailableMessage = computed((): string | null => {
+    const count = this.unavailableLineCount();
+    if (count === 0) return null;
+    return count === 1
+      ? 'One item in your bag is no longer available. Remove it to place your order.'
+      : 'Some items in your bag are no longer available. Remove them to place your order.';
   });
 
   /**
@@ -290,12 +323,14 @@ export class CheckoutPageComponent implements OnInit {
     if (!products) return { state: 'loading' };
 
     const lines = this.lines();
+    // Empty bag: nothing to price, and no item is missing (the page sends the shopper home).
+    if (lines.length === 0) return { state: 'loading' };
     if (lines.some((line) => !products.has(line.productId))) return { state: 'missing-item' };
 
     const offers = this.#offers.all();
     const ctx: PricingContext = { now: new Date(), signedIn: true, codes: [] };
     const entry = this.#currency.entry();
-    const lineDisplay: number[] = [];
+    const lineDisplay: (number | null)[] = [];
     const pricedLines: PricedProduct[] = [];
     const parcelLines: ParcelLine[] = [];
     let subtotalEgp = 0;
@@ -303,7 +338,12 @@ export class CheckoutPageComponent implements OnInit {
 
     for (const line of lines) {
       const info = products.get(line.productId);
-      if (!info) return { state: 'missing-item' };
+      if (info === undefined) return { state: 'missing-item' };
+      // No longer available: shown with a remove button and left out of the totals.
+      if (info === null) {
+        lineDisplay.push(null);
+        continue;
+      }
       parcelLines.push({ weightGrams: info.weightGrams, quantity: line.quantity });
       const unitEgp = priceItem(info.priced, variantFor(info, line), offers, ctx).effectivePrice;
       const display = lineDisplayAmount(toDisplayAmount(unitEgp, entry), line.quantity);
@@ -312,6 +352,8 @@ export class CheckoutPageComponent implements OnInit {
       lineDisplay.push(display);
       pricedLines.push(info.priced);
     }
+    // Every item is gone: nothing left to price.
+    if (pricedLines.length === 0) return { state: 'missing-item' };
 
     return {
       state: 'ready',
@@ -327,21 +369,34 @@ export class CheckoutPageComponent implements OnInit {
 
   /** Order summary rows: photo, name, options, quantity and line price. */
   readonly summaryItems = computed((): readonly CheckoutSummaryItem[] => {
-    const products = this.productsResource.value();
+    const products = this.productsResource.hasValue() ? this.productsResource.value() : undefined;
     const bag = this.#pricedBag();
     const entry = this.#currency.entry();
     const decimals = displayDecimals(entry.code);
     return this.lines().map((line, index) => {
       const info = products?.get(line.productId);
-      const display = bag.state === 'ready' ? bag.lineDisplay[index] : undefined;
+      if (info === null) {
+        return {
+          unavailable: true,
+          name: 'No longer available',
+          imagePath: null,
+          imageSrc: '',
+          imageAlt: '',
+          options: '',
+          quantity: line.quantity,
+          price: '',
+        };
+      }
+      const display = bag.state === 'ready' ? bag.lineDisplay[index] : null;
       return {
+        unavailable: false,
         name: info?.name ?? 'Item',
         imagePath: info?.imagePath ?? null,
         imageSrc: info?.imagePath ? normalizeImageKitPath(info.imagePath) : '',
         imageAlt: info?.imageAlt ?? '',
         options: info ? selectionLabel(info.options, line.selection) : '',
         quantity: line.quantity,
-        price: display === undefined ? '' : formatMoney(display, entry.code, decimals),
+        price: display == null ? '' : formatMoney(display, entry.code, decimals),
       };
     });
   });
@@ -594,6 +649,15 @@ export class CheckoutPageComponent implements OnInit {
     this.#chosenMethod.set(method);
   }
 
+  /** Removes a bag line from the order summary (used for items no longer available). */
+  removeLine(index: number): void {
+    this.#cart.removeAt(index);
+    // Removing the last line leaves nothing to check out: send the shopper home.
+    if (this.isEmpty() && this.#router.url.split(/[?#]/)[0] === '/checkout') {
+      void this.#router.navigateByUrl('/');
+    }
+  }
+
   toggleSummary(): void {
     this.summaryOpen.update((open) => !open);
   }
@@ -624,6 +688,11 @@ export class CheckoutPageComponent implements OnInit {
     // We reach Egypt shoppers on WhatsApp (InstaPay screenshot, cash-on-delivery fee).
     if (draft.country === 'EG' && !isEgyptMobile(draft.phone)) {
       this.#snackbar.error('Enter an Egyptian mobile number, e.g. 010 1234 5678.');
+      return;
+    }
+    const unavailable = this.unavailableMessage();
+    if (unavailable) {
+      this.#snackbar.error(unavailable);
       return;
     }
     const summary = this.orderSummary();
