@@ -1,6 +1,6 @@
 /**
  * Starts the ticket-pickup routine right away, once per Linear ticket, so several Claude cloud
- * sessions build tickets at the same time (instead of waiting for the 2-hour schedule).
+ * sessions build tickets at the same time (instead of waiting for the hourly schedule).
  *
  *   npm run agent:build -- <KEY>-51 <KEY>-52
  *   npm run agent:build -- --dry-run <KEY>-51      (shows what it would do, sends nothing)
