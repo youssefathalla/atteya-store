@@ -102,16 +102,19 @@ export class CartService {
     await new Promise<void>((resolve) => this.#readyWaiters.push(resolve));
   }
 
-  add(line: CartLineDraft): void {
-    let full = false;
+  /**
+   * Adds the line, or adds to the quantity of the same product and choices. Returns false
+   * when the bag already holds `MAX_CART_LINES` lines and nothing was added; the caller
+   * tells the shopper, so its own "added" message never hides that.
+   */
+  add(line: CartLineDraft): boolean {
+    let added = true;
     void this.#mutate((lines) => {
       const next = addCartLine(lines, line);
-      full = next === lines;
+      added = next !== lines;
       return next;
     });
-    if (full) {
-      this.#snackbar.error('Your bag is full. Remove an item to add this one.');
-    }
+    return added;
   }
 
   removeAt(index: number): void {
