@@ -65,6 +65,18 @@ const ALLOWED_CONSOLE = [
   /AbortError: Transition was skipped/i,
 ];
 
+/**
+ * Angular's dev-mode performance hints are logged as console errors but do not break the page.
+ * They show as notes in the comment so they are still seen.
+ */
+const PERFORMANCE_HINTS = [
+  {
+    // NgOptimizedImage: the largest image on screen (LCP) has no `priority`.
+    pattern: /NG02955/,
+    note: 'the largest photo on screen loads late (NgOptimizedImage NG02955: add `priority` to it).',
+  },
+];
+
 /** Phrases that mean the page itself says it could not load. */
 const BROKEN_PAGE_TEXT = /something went wrong|couldn['’]t load|could not load|page not found/i;
 
@@ -212,6 +224,11 @@ async function check(context, size, def) {
       return;
     }
     if (ALLOWED_CONSOLE.some((pattern) => pattern.test(text))) return;
+    const hint = PERFORMANCE_HINTS.find((h) => h.pattern.test(text));
+    if (hint) {
+      notes.push(`${def.label}, ${size.label.toLowerCase()}: ${hint.note}`);
+      return;
+    }
     problems.push(`Console error: ${text}`);
   });
   page.on('requestfailed', (request) => {
