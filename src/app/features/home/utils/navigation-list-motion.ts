@@ -158,7 +158,9 @@ export function playNavListArrows(
         opacity: 0,
         duration: ARROW_OUT_DURATION,
         ease: 'power1.out',
-        overwrite: 'auto',
+        // `true`, not 'auto': also cancels a show tween still waiting out its delay
+        // (a row passed over in under ARROW_IN_DELAY), which 'auto' leaves alone.
+        overwrite: true,
         onComplete: () => {
           gsap.set(arrow, { x: 0, xPercent: ARROW_HIDDEN_X_PERCENT });
         },
