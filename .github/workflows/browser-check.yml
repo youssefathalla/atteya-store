@@ -32,11 +32,16 @@ jobs:
       github.event.pull_request.user.login == github.repository_owner
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # This job runs the PR's own code (npm ci, the build, the script, the server), so it gets a
+    # read-only token that checkout does not keep on disk. The "comment" job below posts.
     permissions:
       contents: read
-      pull-requests: write
+    outputs:
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -97,12 +102,44 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Comment on the PR
+      - name: Keep the summary for the comment job
         if: always() && hashFiles('browser-check/summary.md') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-check-summary
+          path: browser-check/summary.md
+          retention-days: 3
+
+      - name: Fail when a page is broken
+        if: steps.check.outcome != 'success'
+        run: |
+          echo "::error::Browser Check failed. The PR comment lists what went wrong; screenshots are under Artifacts."
+          exit 1
+
+  comment:
+    name: Post the Result
+    needs: pages
+    # Runs no PR code: it only reads the summary the pages job wrote and posts it.
+    if: always() && needs.pages.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Get the summary
+        id: summary
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: browser-check-summary
+          path: summary
+
+      - name: Comment on the PR
+        if: steps.summary.outcome == 'success'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          ARTIFACT_URL: ${{ needs.pages.outputs.artifact-url }}
         with:
           script: |
             const fs = require('fs');
@@ -112,7 +149,7 @@ jobs:
             // A newer commit is already on the PR: its own run will comment.
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
             if (pr.head.sha !== sha) { core.info('A newer commit is on the PR; not commenting.'); return; }
-            let body = fs.readFileSync('browser-check/summary.md', 'utf8');
+            let body = fs.readFileSync('summary/summary.md', 'utf8');
             const artifact = process.env.ARTIFACT_URL;
             if (artifact) body += `\nDirect download: [browser-check screenshots](${artifact})\n`;
             const marker = `<!-- browser-check ${sha} -->`;
@@ -121,9 +158,3 @@ jobs:
             const mine = comments.find((c) => c.user?.login === 'github-actions[bot]' && c.body?.includes(marker));
             if (mine) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
             else await github.rest.issues.createComment({ owner, repo, issue_number: number, body });
-
-      - name: Fail when a page is broken
-        if: steps.check.outcome != 'success'
-        run: |
-          echo "::error::Browser Check failed. The PR comment lists what went wrong; screenshots are under Artifacts."
-          exit 1
