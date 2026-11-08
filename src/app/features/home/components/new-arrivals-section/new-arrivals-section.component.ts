@@ -13,6 +13,7 @@ import {
   TransferState,
   viewChild,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
 import { OffersService } from '@core/services/offers/offers.service';
 import {
@@ -24,7 +25,9 @@ import type { Product } from '@core/services/products/product.model';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
 import { productToCardData } from '@shared/components/product-card/product-card.utils';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
+import { newArrivalDaysLeft } from '@core/services/products/utils/new-arrival';
 import { listingCardPrices } from '../../utils/listing-card-prices';
 import { rowScrollProgress } from '../../utils/row-scroll';
 import { RowScrollLockDirective } from '../../directives/row-scroll-lock.directive';
@@ -39,6 +42,8 @@ import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.componen
   selector: 'app-new-arrivals-section',
   host: { class: 'block w-full' },
   imports: [
+    RouterLink,
+    SharedIconModule,
     ProductCardComponent,
     HorizontalScrollDirective,
     RowScrollLockDirective,
@@ -105,6 +110,21 @@ export class NewArrivalsSectionComponent {
     if (this.#seeded() !== undefined) return false;
     if (this.#list.hasValue() || this.#list.error()) return false;
     return true;
+  });
+
+  /**
+   * Where the "New arrivals" title goes. The row puts products staff marked as new arrivals
+   * first and tops up with the newest products, while the Shop New arrivals filter only shows
+   * marked ones. So: any marked product in the row → that filter; only the top-up → Shop sorted
+   * newest, so the shopper never lands on an empty list.
+   */
+  readonly titleQueryParams = computed<Record<string, string>>(() => {
+    const now = this.#nowMs();
+    const anyMarked = this.products().some(
+      (product) => newArrivalDaysLeft(product.newArrivalUntil, now) !== null,
+    );
+    const params: Record<string, string> = anyMarked ? { newArrivals: '1' } : { sort: 'newest' };
+    return params;
   });
 
   /** Hide heading + padding when empty/failed after load. */

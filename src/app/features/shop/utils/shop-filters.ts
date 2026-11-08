@@ -45,6 +45,7 @@ export function parseShopFilterState(input: {
   readonly size?: string | null;
   readonly color?: string | null;
   readonly gender?: string | null;
+  readonly newArrivals?: string | null;
   readonly onSale?: string | null;
   readonly inStock?: string | null;
   readonly page?: string | null;
@@ -74,6 +75,7 @@ export function parseShopFilterState(input: {
     sizes: parseList(input.size),
     colors,
     genders,
+    newArrivals: isTruthyParam(input.newArrivals),
     onSale: isTruthyParam(input.onSale),
     inStock: isTruthyParam(input.inStock),
     page: Math.max(0, parseOptionalInt(input.page) ?? 0),
@@ -93,6 +95,7 @@ export function shopFiltersToQueryParams(
     // The price filter was removed; clear any price range left in old links.
     priceMin: null,
     priceMax: null,
+    newArrivals: state.newArrivals ? '1' : null,
     onSale: state.onSale ? '1' : null,
     inStock: state.inStock ? '1' : null,
     page: state.page > 0 ? String(state.page) : null,
@@ -109,6 +112,8 @@ export function buildCatalogBrowseOptions(input: {
   readonly hitsPerPage?: number;
   /** When bags is forced by the route (`/category/accessories/bags`). */
   readonly forceBags?: boolean;
+  /** Current time; only read when the New arrivals filter is on. */
+  readonly nowMs?: number;
 }): CatalogBrowseOptions {
   const { tab, filters, forceBags = false } = input;
   const filterParts: string[] = [];
@@ -159,6 +164,13 @@ export function buildCatalogBrowseOptions(input: {
     filterParts.push(`(${genderClause})`);
   }
 
+  if (filters.newArrivals) {
+    // Products staff marked as new arrivals (`newArrivalUntil` still ahead). Unlike the home
+    // row this has no newest-products top-up; the home title links here only when the row
+    // has marked products, and to Shop sorted by newest otherwise.
+    filterParts.push(`newArrivalUntilMs > ${newArrivalCutoffMs(input.nowMs ?? Date.now())}`);
+  }
+
   if (filters.onSale) {
     filterParts.push('onSale:true');
   }
@@ -184,6 +196,16 @@ export function buildCatalogBrowseOptions(input: {
     disjunctiveFacets: ['brandName', 'colors', 'sizes'],
     maxValuesPerFacet: 50,
   };
+}
+
+/**
+ * Start of the current hour. Staff save the New arrival end as 23:59:59.999 on the
+ * chosen day, so an hour cutoff drops a product as soon as that day ends, while the
+ * server render and the browser build the same Algolia request within the hour.
+ */
+export function newArrivalCutoffMs(nowMs: number): number {
+  const hour = 60 * 60 * 1000;
+  return Math.floor(nowMs / hour) * hour;
 }
 
 export function brandOptionsFromFacets(

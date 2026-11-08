@@ -50,6 +50,8 @@ export interface ShopFilterState {
   readonly sizes: readonly string[];
   readonly colors: readonly ColorId[];
   readonly genders: readonly ShopGenderFilterId[];
+  /** Only products still in their New arrival period (`?newArrivals=1`). */
+  readonly newArrivals: boolean;
   readonly onSale: boolean;
   readonly inStock: boolean;
   readonly page: number;
@@ -121,6 +123,7 @@ export const DEFAULT_SHOP_FILTERS: ShopFilterState = {
   sizes: [],
   colors: [],
   genders: [],
+  newArrivals: false,
   onSale: false,
   inStock: false,
   page: 0,

@@ -108,6 +108,9 @@
   <section class="shop-filters-section">
     <h2 class="shop-filters-heading">Availability</h2>
     <div class="elements-start-col gap-1">
+      <mat-checkbox [checked]="filters().newArrivals" (change)="setNewArrivals($event.checked)">
+        New arrivals
+      </mat-checkbox>
       <mat-checkbox [checked]="filters().onSale" (change)="setOnSale($event.checked)">
         On sale
       </mat-checkbox>

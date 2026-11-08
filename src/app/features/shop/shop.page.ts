@@ -32,6 +32,7 @@ import {
   filtersEqual,
   genderFacetHasData,
   hasApparelSizes,
+  newArrivalCutoffMs,
   parseShopFilterState,
   resolveShopTab,
   shopFiltersToQueryParams,
@@ -70,6 +71,7 @@ export class ShopPage {
   readonly size = input<string>();
   readonly color = input<string>();
   readonly gender = input<string>();
+  readonly newArrivals = input<string>();
   readonly onSale = input<string>();
   readonly inStock = input<string>();
   readonly page = input<string>();
@@ -83,6 +85,8 @@ export class ShopPage {
 
   readonly #hydrated = signal(false);
   readonly #nowMs = signal(Date.now());
+  /** Changes once an hour, so the New arrivals query is not rebuilt every minute. */
+  readonly #newArrivalCutoffMs = computed(() => newArrivalCutoffMs(this.#nowMs()));
   readonly filtersOpen = signal(false);
 
   /** Last successful browse result — kept while the resource reloads (anti-flicker). */
@@ -103,6 +107,7 @@ export class ShopPage {
   readonly pageTitle = computed(() => {
     const tab = this.activeTab();
     if (this.forceBags()) return 'Bags';
+    if (tab === 'all' && this.filterState().newArrivals) return 'New arrivals';
     return SHOP_TABS.find((t) => t.id === tab)?.label === 'All'
       ? 'Shop all'
       : (SHOP_TABS.find((t) => t.id === tab)?.label ?? 'Shop');
@@ -116,19 +121,23 @@ export class ShopPage {
       size: this.size(),
       color: this.color(),
       gender: this.gender(),
+      newArrivals: this.newArrivals(),
       onSale: this.onSale(),
       inStock: this.inStock(),
       page: this.page(),
     }),
   );
 
-  readonly browseParams = computed(() =>
-    buildCatalogBrowseOptions({
+  readonly browseParams = computed(() => {
+    const filters = this.filterState();
+    return buildCatalogBrowseOptions({
       tab: this.activeTab(),
-      filters: this.filterState(),
+      filters,
       forceBags: this.forceBags(),
-    }),
-  );
+      // Read the clock only when the filter is on, so other filters never reload on the hour.
+      nowMs: filters.newArrivals ? this.#newArrivalCutoffMs() : undefined,
+    });
+  });
 
   readonly resultsResource = resource({
     params: () => {
