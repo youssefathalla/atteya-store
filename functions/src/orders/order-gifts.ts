@@ -41,8 +41,14 @@ export function resolveLineGifts(args: {
   readonly ctx: PricingContext;
   /** Live gift product docs by id (`undefined` = missing). */
   readonly giftDocs: ReadonlyMap<string, DocumentData | undefined>;
+  /**
+   * Gift pieces already taken by earlier lines of the same order, by product and size. Updated
+   * with this line's gifts, so stock is checked against the order's total demand.
+   */
+  readonly giftDemand?: Map<string, number>;
 }): ResolvedGift[] {
   const { picks, quantity } = args;
+  const giftDemand = args.giftDemand ?? new Map<string, number>();
   if (picks.length === 0) return [];
   const offerId = picks[0]!.offerId;
 
@@ -74,7 +80,10 @@ export function resolveLineGifts(args: {
     const data = args.giftDocs.get(productId);
     if (!data) throw new HttpsError('failed-precondition', GIFT_GONE);
     const selection = giftSelection(data, pick.sizeId);
-    assertGiftStock(data, selection, quantity);
+    const demandKey = `${productId}\u0000${selection['size'] ?? ''}`;
+    const needed = (giftDemand.get(demandKey) ?? 0) + quantity;
+    assertGiftStock(data, selection, needed);
+    giftDemand.set(demandKey, needed);
     resolved.push({ offerId, gift, productId, selection, data });
   }
   return resolved;

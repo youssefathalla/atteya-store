@@ -137,6 +137,8 @@ export async function priceStoreOrder(
   const regionBoxes = boxesForRegion(shippingConfig.settings, region);
 
   const giftOffers = new Map<string, UsedGiftOffer>();
+  // Gift pieces the order asks for so far, by product and size, so stock covers all lines together.
+  const giftDemand = new Map<string, number>();
 
   for (const line of input.lines) {
     const { priced, product, variant, weightGrams } = await priceLine(db, line, offers, ctx);
@@ -156,6 +158,7 @@ export async function priceStoreOrder(
       offers,
       ctx,
       giftDocs,
+      giftDemand,
     });
     for (const gift of gifts) {
       pricedLines.push(giftOrderLine(gift, line.quantity, forLine));
