@@ -173,6 +173,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `open(name)`: Opens specified drawer.
   - `close()`: Closes any active drawer.
   - `toggle(name)`: Toggles drawer state.
+  - While the bag (`'cart'`) is open the page behind is locked with the CDK block scroll strategy (`createBlockScrollStrategy`, the same lock CDK Dialog gives the search and account panels); closing puts the page back where it was. The lock is set in the same call as the signal, so a panel opened right after (search closes the drawer first) never finds the page still locked. It calls `OverlayContainer.getContainerElement()` first because `.cdk-global-scrollblock` ships with the lazily loaded CDK overlay styles. The bag's item list (`app-cart-drawer`) is the only scrolling part, with `overscroll-contain`; the header and the Subtotal / Checkout footer stay in place. The menu drawer does not lock the page.
 - **`SnackbarService`** (`src/app/core/services/snack-bar/snack-bar.service.ts`):
   - `show(msg, theme)`: Triggers M3 status snackbar.
   - Helper methods: `success(msg)`, `error(msg)`, `warning(msg)`, `info(msg)`.

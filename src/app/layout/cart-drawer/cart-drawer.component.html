@@ -20,7 +20,8 @@
     </button>
   </header>
 
-  <div class="flex-1 min-h-0 overflow-y-auto p-6">
+  <!-- Only the items scroll; overscroll-contain keeps the end of the list from scrolling the page. -->
+  <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6">
     @if (isEmpty()) {
       <div class="elements-center flex-col text-center h-full">
         <div
