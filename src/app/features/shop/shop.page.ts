@@ -107,7 +107,7 @@ export class ShopPage {
   readonly pageTitle = computed(() => {
     const tab = this.activeTab();
     if (this.forceBags()) return 'Bags';
-    if (tab === 'all' && this.filterState().newArrivals) return 'New arrivals';
+    if (tab === 'all' && this.filterState().newArrivals) return 'New Arrivals';
     return SHOP_TABS.find((t) => t.id === tab)?.label === 'All'
       ? 'Shop all'
       : (SHOP_TABS.find((t) => t.id === tab)?.label ?? 'Shop');

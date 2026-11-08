@@ -10,8 +10,29 @@
 
   /* Title that opens the full list (New Arrivals → Shop filtered, Padel, Shop). */
   .home-section-title-link {
-    @apply w-fit elements-start gap-2 no-underline hover:underline underline-offset-4;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+    @apply w-fit elements-start gap-3 no-underline;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4;
+  }
+
+  /*
+   * Round outlined ↗ after the title. It appears on hover or keyboard focus; on screens
+   * without hover (phones, tablets) it always shows, so the title still looks tappable.
+   */
+  .home-section-title-arrow {
+    @apply size-10 shrink-0 elements-center rounded-full border-[1.5px] border-current;
+    @apply opacity-0 -translate-x-1 transition-[opacity,translate] duration-200 ease-out;
+    @apply motion-reduce:translate-x-0 motion-reduce:transition-opacity;
+  }
+
+  .home-section-title-link:hover .home-section-title-arrow,
+  .home-section-title-link:focus-visible .home-section-title-arrow {
+    @apply opacity-100 translate-x-0;
+  }
+
+  @media (hover: none) {
+    .home-section-title-arrow {
+      @apply opacity-100 translate-x-0;
+    }
   }
 
   .padel-tile {

@@ -5,6 +5,7 @@ animation
 arrow_back
 arrow_downward
 arrow_forward
+arrow_outward
 arrow_right_alt
 arrow_upward
 auto_fix_high
