@@ -27,6 +27,7 @@ import {
   COLOR_PALETTE,
   marketingBadgeLabel,
   type Product,
+  productDetailsTitle,
   toVariantFacts,
 } from '@core/services/products';
 import { SeoService } from '@core/services/seo';
@@ -199,6 +200,9 @@ export class ProductComponent {
       return category ? [{ label: category.name, link: ['/category', id] as readonly string[] }] : [];
     }),
   ]);
+
+  /** Section title for `details`: Materials for clothing, socks and supports, Specifications for gear. */
+  readonly detailsTitle = computed(() => productDetailsTitle(this.product()?.categoryIds ?? []));
 
   /** Description with real words in it (some imported products only have `<p></p>`). */
   readonly hasDescription = computed(() => {

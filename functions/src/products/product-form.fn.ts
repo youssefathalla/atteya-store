@@ -57,6 +57,7 @@ export const createProduct = onCall(
         name: input.name,
         summary: input.summary,
         descriptionHtml: descriptionToHtml(input.description ?? null),
+        details: [...(input.details ?? [])],
         detailImages: [],
         categoryId: input.categoryId,
         categoryIds: catalogue.categoryIds,
@@ -143,6 +144,7 @@ export const updateProduct = onCall(
       if (input.description !== undefined) {
         patch['descriptionHtml'] = descriptionToHtml(input.description);
       }
+      if (input.details !== undefined) patch['details'] = [...input.details];
       if (input.weightGrams !== undefined) {
         patch['weightGrams'] =
           input.weightGrams === null ? FieldValue.delete() : input.weightGrams;

@@ -14,6 +14,9 @@ const TAG_PATTERN = /^[a-z0-9-]{1,32}$/;
 const MAX_NAME = 200;
 const MAX_SUMMARY = 300;
 const MAX_DESCRIPTION = 5_000;
+/** Details list: one fact per line (materials, racket specs). */
+export const MAX_DETAIL_LINES = 20;
+export const MAX_DETAIL_LINE = 200;
 const MAX_SLUG = 80;
 const MIN_SLUG = 3;
 const MAX_ID = 80;
@@ -53,6 +56,8 @@ export interface ProductFormInput {
   readonly name: string;
   readonly summary: string | null;
   readonly description?: string | null;
+  /** One fact per line. Missing = leave the saved list as it is. */
+  readonly details?: readonly string[];
   readonly type: ProductTypeId;
   readonly categoryId: string;
   readonly brandId: string;
@@ -201,7 +206,9 @@ function parseForm(raw: Record<string, unknown>): ProductFormInput {
   };
   const stock = readStock(raw, sizes.length);
   const weightGrams = readWeightGrams(raw);
-  const withStock = stock === undefined ? form : { ...form, stock };
+  const details = readDetails(raw);
+  const withDetails = details === undefined ? form : { ...form, details };
+  const withStock = stock === undefined ? withDetails : { ...withDetails, stock };
   return weightGrams === undefined ? withStock : { ...withStock, weightGrams };
 }
 
@@ -316,6 +323,34 @@ function readDescription(raw: Record<string, unknown>): string | null | undefine
     invalid('The description must be 5,000 characters or fewer.');
   }
   return description.length === 0 ? null : description;
+}
+
+/**
+ * Details lines: trimmed, blanks dropped, a leading "•" removed (pasted bullet lists).
+ * Missing key = undefined (the saved list stays); null = clear.
+ */
+function readDetails(raw: Record<string, unknown>): string[] | undefined {
+  if (!Object.hasOwn(raw, 'details')) return undefined;
+  const value = raw['details'];
+  if (value === null) return [];
+  if (!Array.isArray(value)) invalid('Write the details as a list, one per line.');
+  const lines: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'string') invalid('Write the details as a list, one per line.');
+    const line = detailLine(entry);
+    if (line.length === 0) continue;
+    if (line.length > MAX_DETAIL_LINE) {
+      invalid('Keep each line of details to 200 characters or fewer.');
+    }
+    lines.push(line);
+  }
+  if (lines.length > MAX_DETAIL_LINES) invalid('Add up to 20 lines of details.');
+  return lines;
+}
+
+/** One details line without a leading bullet and with single spaces. */
+export function detailLine(value: string): string {
+  return collapseSpaces(value.trim().replace(/^•\s*/u, ''));
 }
 
 function readType(value: unknown): ProductTypeId {

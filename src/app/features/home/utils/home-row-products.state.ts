@@ -78,6 +78,7 @@ export function fromHomeRowProductSeed(seed: HomeRowProductSeed): Product {
     name: seed.name,
     summary: seed.summary,
     descriptionHtml: seed.descriptionHtml,
+    details: [],
     detailImages: [],
     categoryId: seed.categoryId,
     categoryIds: [...seed.categoryIds],

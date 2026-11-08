@@ -127,7 +127,31 @@
     @apply border-primary;
   }
 
-  /** Open/close rows under the product (Details, Shipping). Native <details>. */
+  /** Description under the price (plain paragraphs; older imported text may still hold lists or links). */
+  .pdp-description {
+    @apply w-full font-body-md max-w-prose;
+  }
+
+  .pdp-description :where(p, ul, ol) + :where(p, ul, ol) {
+    @apply mt-3;
+  }
+
+  .pdp-description :where(ul) {
+    @apply list-disc ps-5;
+  }
+
+  .pdp-description :where(ol) {
+    @apply list-decimal ps-5;
+  }
+
+  .pdp-description :where(a) {
+    @apply underline;
+  }
+
+  /**
+   * Open/close rows under the product (Materials / Specifications, Shipping). Native <details>.
+   * The + turns into a × (45°) as the row opens.
+   */
   .pdp-section {
     @apply w-full border-b border-outline;
   }
@@ -145,21 +169,56 @@
   }
 
   /* Icon ligatures need the original lower-case name, so undo the summary's caps. */
-  .pdp-section__icon-open,
-  .pdp-section__icon-close {
-    @apply normal-case;
+  .pdp-section__icon {
+    @apply inline-flex normal-case;
+    transition: transform 200ms ease-out;
   }
 
-  .pdp-section__icon-close,
-  .pdp-section[open] .pdp-section__icon-open {
-    display: none;
+  .pdp-section[open] .pdp-section__icon {
+    transform: rotate(45deg);
   }
 
-  .pdp-section[open] .pdp-section__icon-close {
-    display: inline-flex;
+  /*
+   * Smooth open and close: the content box grows from 0 to its natural height. Browsers without
+   * `::details-content` or `interpolate-size` skip this block and open at once.
+   */
+  @supports (interpolate-size: allow-keywords) and selector(::details-content) {
+    .pdp-section {
+      interpolate-size: allow-keywords;
+    }
+
+    .pdp-section::details-content {
+      block-size: 0;
+      overflow: clip;
+      transition:
+        block-size 200ms ease-out,
+        content-visibility 200ms ease-out allow-discrete;
+    }
+
+    .pdp-section[open]::details-content {
+      block-size: auto;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pdp-section::details-content {
+        transition: none;
+      }
+    }
+  }
+
+  /* Kept apart from the rule above: an unknown pseudo-element would void the whole selector list. */
+  @media (prefers-reduced-motion: reduce) {
+    .pdp-section__icon {
+      transition: none;
+    }
   }
 
   .pdp-section__body {
     @apply pb-6 font-body-md max-w-prose;
+  }
+
+  /** One line per fact (details, shipping notes). */
+  .pdp-section__list {
+    @apply elements-start-col gap-1 list-none m-0 p-0;
   }
 }

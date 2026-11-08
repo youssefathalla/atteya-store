@@ -48,6 +48,8 @@ export interface ProductFormPayload {
   readonly name: string;
   readonly summary: string | null;
   readonly description?: string | null;
+  /** One fact per line; always sent, so clearing the box clears the list. */
+  readonly details: readonly string[];
   readonly type: ProductTypeId;
   readonly categoryId: string;
   readonly brandId: string;

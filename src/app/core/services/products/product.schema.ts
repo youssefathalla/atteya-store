@@ -3,6 +3,7 @@ import { idSchema, slugSchema, timestampSchema } from '@shared/schemas';
 import { ImageAssetSchema } from '@shared/schemas/image.schema';
 import { COLOR_IDS } from './catalog-taxonomy';
 import { MARKETING_BADGE_KINDS, MARKETING_BADGE_STYLES } from './marketing-badge';
+import { MAX_DETAIL_LINE, MAX_DETAIL_LINES } from './utils/product-details';
 import {
   LOCKABLE_PRODUCT_FIELDS,
   PRODUCT_GENDER_IDS,
@@ -80,6 +81,17 @@ export const ProductSchema = v.pipe(
     name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
     summary: v.nullable(v.pipe(v.string(), v.maxLength(300))),
     descriptionHtml: v.nullable(v.string()),
+    /** Facts for the Materials / Specifications section, one per line. A bad list never drops the product. */
+    details: v.optional(
+      v.fallback(
+        v.pipe(
+          v.array(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(MAX_DETAIL_LINE))),
+          v.maxLength(MAX_DETAIL_LINES),
+        ),
+        [],
+      ),
+      [],
+    ),
     detailImages: v.pipe(v.array(ProductImageSchema), v.maxLength(8)),
     categoryId: slugSchema,
     categoryIds: v.pipe(v.array(slugSchema), v.minLength(1), v.maxLength(10)),
