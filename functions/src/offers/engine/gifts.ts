@@ -118,10 +118,21 @@ export function giftChoiceIds(offers: readonly Offer[]): string[] {
   return Array.from(ids);
 }
 
+/**
+ * A gift comes with each qualifying item, so only a per-item offer with no spend or quantity
+ * minimum gives gifts. Free gift offers saved before gifts worked were cart-wide with a minimum
+ * spend; they give nothing until staff re-save them in Offers, which makes them per-item.
+ */
 function offerGivesGiftsTo(offer: Offer, product: ProductFacts, variant: VariantFacts | null): boolean {
   if (offer.reward.kind !== 'freeGift') return false;
+  if (offer.scope !== 'item' || hasMinimum(offer)) return false;
   if (matchProduct(offer.conditions, offer.exclude, product) === 'none') return false;
   return variant === null || matchVariant(offer.conditions, offer.exclude, product, variant);
+}
+
+function hasMinimum(offer: Offer): boolean {
+  const minimum = offer.minimum;
+  return !!minimum && ((minimum.subtotal ?? 0) > 0 || (minimum.quantity ?? 0) > 0);
 }
 
 function availableGiftOffer(offer: Offer, choices: readonly GiftChoiceFacts[]): ProductGiftOffer | null {

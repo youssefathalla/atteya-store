@@ -87,6 +87,14 @@ describe('free gift offers', () => {
     assert.equal(giftOfferForProduct(BAG, null, [giftOffer({ active: false })], CTX, ALL_IN_STOCK), null);
   });
 
+  it('gives nothing from a cart-wide or minimum-spend gift offer saved before gifts worked', () => {
+    const cartWide = giftOffer({ scope: 'cart', minimum: { subtotal: 3000 } });
+    assert.equal(giftOfferForProduct(BAG, null, [cartWide], CTX, ALL_IN_STOCK), null);
+    assert.equal(giftOfferById('offer-bag', BAG, null, [cartWide], CTX, ALL_IN_STOCK), null);
+    const withMinimum = giftOffer({ minimum: { quantity: 2 } });
+    assert.equal(giftOfferForProduct(BAG, null, [withMinimum], CTX, ALL_IN_STOCK), null);
+  });
+
   it('reads an old one-product gift offer as one gift with one choice', () => {
     const old = parseOfferDoc('old', {
       name: 'Old gift',
