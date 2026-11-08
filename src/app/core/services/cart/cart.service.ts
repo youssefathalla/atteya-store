@@ -223,11 +223,17 @@ export class CartService {
     if (guest.length > 0) {
       removeStored();
       try {
-        await runTransaction(this.#firestore, async (transaction) => {
+        const full = await runTransaction(this.#firestore, async (transaction) => {
           const snap = await transaction.get(ref);
-          const saved = linesFromDoc(snap.data());
-          transaction.set(ref, cartDocument(mergeCartLines(saved, guest)));
+          const merged = mergeCartLines(linesFromDoc(snap.data()), guest);
+          transaction.set(ref, cartDocument(merged));
+          // A guest line with no match in the merged bag did not fit under MAX_CART_LINES.
+          const kept = new Set(merged.map(cartLineKey));
+          return guest.some((line) => !kept.has(cartLineKey(line)));
         });
+        if (full && generation === this.#generation) {
+          this.#snackbar.error("Your bag is full, so some items you added before signing in weren't added.");
+        }
       } catch {
         // Keep the items on this device so the next page load tries again.
         writeStored(mergeCartLines(readStored(), guest));
