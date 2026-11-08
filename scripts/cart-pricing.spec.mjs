@@ -5,6 +5,13 @@ import {
   cartSubtotalDisplay,
   lineDisplayAmount,
 } from '../src/app/core/services/cart/cart-pricing.ts';
+import {
+  addCartLine,
+  clampLineQuantity,
+  MAX_CART_LINES,
+  MAX_LINE_QUANTITY,
+  mergeCartLines,
+} from '../src/app/core/services/cart/cart.model.ts';
 
 describe('cart-pricing (AS-33)', () => {
   it('lineDisplayAmount multiplies converted unit price by quantity', () => {
@@ -40,5 +47,54 @@ describe('cart checkout CTA (AS-35)', () => {
   it('canCheckout is true only when the bag has items', () => {
     assert.equal(canCheckout(false), false);
     assert.equal(canCheckout(true), true);
+  });
+});
+
+describe('cart lines merge (ATS-70)', () => {
+  const line = (productId, quantity, selection = {}) => ({
+    productId,
+    variantId: null,
+    selection,
+    quantity,
+  });
+
+  it('addCartLine adds quantity to the same product with the same choices, capped at 20', () => {
+    const lines = [line('p1', 15, { size: 'm' })];
+    const next = addCartLine(lines, line('p1', 9, { size: 'm' }));
+    assert.equal(next.length, 1);
+    assert.equal(next[0].quantity, 20);
+  });
+
+  it('addCartLine keeps different choices on their own lines', () => {
+    const next = addCartLine([line('p1', 1, { size: 'm' })], line('p1', 2, { size: 'l' }));
+    assert.equal(next.length, 2);
+    assert.equal(next[1].quantity, 2);
+  });
+
+  it('addCartLine drops a new line past the line limit', () => {
+    const full = Array.from({ length: MAX_CART_LINES }, (_, i) => line(`p${i}`, 1));
+    assert.equal(addCartLine(full, line('extra', 1)), full);
+    assert.equal(addCartLine(full, line('p0', 1))[0].quantity, 2);
+  });
+
+  it('mergeCartLines adds the guest bag to the account bag without dropping either', () => {
+    const account = [line('a', 2), line('b', 1, { color: 'black' })];
+    const guest = [line('b', 3, { color: 'black' }), line('c', 1)];
+    const merged = mergeCartLines(account, guest);
+    assert.deepEqual(
+      merged.map((entry) => [entry.productId, entry.quantity]),
+      [
+        ['a', 2],
+        ['b', 4],
+        ['c', 1],
+      ],
+    );
+  });
+
+  it('clampLineQuantity keeps quantities between 1 and 20', () => {
+    assert.equal(clampLineQuantity(0), 1);
+    assert.equal(clampLineQuantity(25), MAX_LINE_QUANTITY);
+    assert.equal(clampLineQuantity(Number.NaN), 1);
+    assert.equal(clampLineQuantity(3.7), 3);
   });
 });

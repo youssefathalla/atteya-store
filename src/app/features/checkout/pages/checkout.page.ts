@@ -475,9 +475,12 @@ export class CheckoutPageComponent implements OnInit {
         : 'Pay by InstaPay or Cash on Delivery in Egypt.',
       noindex: true,
     });
-    if (this.isEmpty()) {
-      void this.#router.navigateByUrl('/');
-    }
+    // A signed-in shopper's bag loads from their account, so wait for it before leaving an empty checkout.
+    void this.#cart.waitUntilReady().then(() => {
+      if (this.isEmpty() && this.#router.url.split(/[?#]/)[0] === '/checkout') {
+        void this.#router.navigateByUrl('/');
+      }
+    });
   }
 
   patchShipping<K extends keyof CheckoutShippingInput>(key: K, value: CheckoutShippingInput[K]): void {
@@ -669,7 +672,8 @@ export class CheckoutPageComponent implements OnInit {
           lines: this.lines(),
           shipping,
         });
-        this.#cart.clear();
+        // Wait for the account bag to save before the full-page redirect to Paymob.
+        await this.#cart.clear();
         if (isPlatformBrowser(this.#platformId)) {
           window.location.assign(result.checkoutUrl);
           return;
@@ -683,7 +687,7 @@ export class CheckoutPageComponent implements OnInit {
         lines: this.lines(),
         shipping,
       });
-      this.#cart.clear();
+      void this.#cart.clear();
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {
         state: { checkoutResult: result },
       });

@@ -42,7 +42,10 @@ export class AddToBagButtonComponent {
       this.choiceMissing.emit();
       return;
     }
-    this.#cart.add(draft);
+    if (!this.#cart.add(draft)) {
+      this.#snackbar.error('Your bag is full. Remove an item to add this one.');
+      return;
+    }
     this.#snackbar.success('Added to your bag');
     this.#drawer.open('cart');
   }
