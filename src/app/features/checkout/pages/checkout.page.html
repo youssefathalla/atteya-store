@@ -94,6 +94,12 @@
                         <p class="font-label-md text-on-surface-variant">{{ item.options }}</p>
                       }
                       <p class="sr-only">Quantity {{ item.quantity }}</p>
+                      @for (gift of item.gifts; track gift.key) {
+                        <p class="elements-between items-start! gap-3 font-label-md text-on-surface-variant">
+                          <span class="min-w-0">{{ gift.label }}</span>
+                          <span class="shrink-0">Free</span>
+                        </p>
+                      }
                     </div>
                     <p class="font-body-md shrink-0">{{ item.price }}</p>
                   </li>

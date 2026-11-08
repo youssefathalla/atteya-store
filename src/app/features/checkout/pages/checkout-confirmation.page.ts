@@ -15,6 +15,7 @@ import {
   type OrderStage,
 } from '@core/config/order-messages';
 import { STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
+import { FALLBACK_GIFT_NAME, giftLineLabel } from '@core/services/cart/cart-gifts';
 import type { CreateManualOrderResult } from '@core/services/orders/checkout-order.service';
 import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
@@ -191,18 +192,30 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     const pricing = this.order()?.pricing;
     if (!pricing) return [];
     const decimals = displayDecimals(pricing.currency);
-    return pricing.lines.map((line, index) => ({
-      key: `${index}:${line.productId}`,
-      name: line.name || 'Item',
-      details: [
-        ...(line.optionLabels ?? []).map((opt) =>
-          opt.label.trim().toLowerCase() === 'size' ? `Size ${opt.value}` : opt.value,
-        ),
-        `Qty ${line.quantity}`,
-      ].join(' · '),
-      giftName: line.gift ? line.gift.giftName || 'Free gift' : null,
-      price: line.gift ? 'Free' : formatMoney(line.lineDisplay, pricing.currency, decimals),
-    }));
+    return pricing.lines.map((line, index) => {
+      const isSize = (label: string) => label.trim().toLowerCase() === 'size';
+      if (line.gift) {
+        // One line under its item, like the bag: "Free shirt: Adidas Simple Polo, L".
+        const size = (line.optionLabels ?? []).find((opt) => isSize(opt.label))?.value ?? null;
+        return {
+          key: `${index}:${line.productId}`,
+          gift: true,
+          name: giftLineLabel(line.gift.giftName || FALLBACK_GIFT_NAME, line.name || 'Item', size),
+          details: `Qty ${line.quantity}`,
+          price: 'Free',
+        };
+      }
+      return {
+        key: `${index}:${line.productId}`,
+        gift: false,
+        name: line.name || 'Item',
+        details: [
+          ...(line.optionLabels ?? []).map((opt) => (isSize(opt.label) ? `Size ${opt.value}` : opt.value)),
+          `Qty ${line.quantity}`,
+        ].join(' · '),
+        price: formatMoney(line.lineDisplay, pricing.currency, decimals),
+      };
+    });
   });
 
   readonly displayTotal = computed(() => {

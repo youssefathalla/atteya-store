@@ -21,6 +21,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { lineDisplayAmount } from '@core/services/cart/cart-pricing';
+import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
@@ -89,6 +90,8 @@ interface CheckoutProductInfo {
   readonly weightGrams: number | null;
   readonly priced: PricedProduct;
   readonly options: Product['options'];
+  /** Palette colour ids, so a free gift can be named with its colour. */
+  readonly colors: readonly string[];
   readonly variants: readonly ProductVariant[];
 }
 
@@ -124,6 +127,8 @@ interface CheckoutSummaryItem {
   readonly quantity: number;
   /** Line total in the visitor's currency; empty while prices load. */
   readonly price: string;
+  /** Free gifts picked with the item, each as "Free shirt: Adidas Simple Polo White, L". */
+  readonly gifts: readonly { readonly key: string; readonly label: string }[];
 }
 
 type CheckoutSummary =
@@ -262,8 +267,20 @@ export class CheckoutPageComponent implements OnInit {
         return new Map<string, CheckoutProductInfo | null>();
       }
       const ids = [...new Set(lines.map((line) => line.productId))];
-      const loaded = await Promise.all(ids.map((id) => this.#readProduct(id)));
-      return new Map(ids.map((id, index) => [id, loaded[index]]));
+      // Free gift products are only named and weighed here; one that can't be read never hides the summary.
+      const giftIds = [
+        ...new Set(lines.flatMap((line) => (line.gifts ?? []).map((gift) => gift.productId))),
+      ].filter((id) => !ids.includes(id));
+      const [loaded, gifts] = await Promise.all([
+        Promise.all(ids.map((id) => this.#readProduct(id))),
+        Promise.all(giftIds.map((id) => this.#readProduct(id).catch(() => undefined))),
+      ]);
+      const products = new Map<string, CheckoutProductInfo | null>(ids.map((id, index) => [id, loaded[index]]));
+      giftIds.forEach((id, index) => {
+        const info = gifts[index];
+        if (info !== undefined) products.set(id, info);
+      });
+      return products;
     },
   });
 
@@ -292,6 +309,7 @@ export class CheckoutPageComponent implements OnInit {
       weightGrams: typeof data.weightGrams === 'number' ? data.weightGrams : null,
       priced: toPricedProduct(data),
       options: data.options,
+      colors: data.colors,
       variants: data.variants,
     };
   }
@@ -345,6 +363,13 @@ export class CheckoutPageComponent implements OnInit {
         continue;
       }
       parcelLines.push({ weightGrams: info.weightGrams, quantity: line.quantity });
+      // Each free gift goes in the same parcel (one per piece), as the server weighs it.
+      for (const gift of line.gifts ?? []) {
+        parcelLines.push({
+          weightGrams: products.get(gift.productId)?.weightGrams ?? null,
+          quantity: line.quantity,
+        });
+      }
       const unitEgp = priceItem(info.priced, variantFor(info, line), offers, ctx).effectivePrice;
       const display = lineDisplayAmount(toDisplayAmount(unitEgp, entry), line.quantity);
       subtotalEgp += unitEgp * line.quantity;
@@ -373,6 +398,7 @@ export class CheckoutPageComponent implements OnInit {
     const bag = this.#pricedBag();
     const entry = this.#currency.entry();
     const decimals = displayDecimals(entry.code);
+    const offers = this.#offers.all();
     return this.lines().map((line, index) => {
       const info = products?.get(line.productId);
       if (info === null) {
@@ -385,6 +411,7 @@ export class CheckoutPageComponent implements OnInit {
           options: '',
           quantity: line.quantity,
           price: '',
+          gifts: [],
         };
       }
       const display = bag.state === 'ready' ? bag.lineDisplay[index] : null;
@@ -397,6 +424,17 @@ export class CheckoutPageComponent implements OnInit {
         options: info ? selectionLabel(info.options, line.selection) : '',
         quantity: line.quantity,
         price: display == null ? '' : formatMoney(display, entry.code, decimals),
+        gifts: (line.gifts ?? []).map((gift) => {
+          const name = giftNameFor(offers, gift.offerId, gift.giftId);
+          const giftInfo = products?.get(gift.productId);
+          const size = giftInfo?.options
+            .find((option) => option.key === 'size')
+            ?.values.find((value) => value.id === gift.sizeId)?.label;
+          return {
+            key: `${gift.offerId}/${gift.giftId}`,
+            label: giftInfo ? giftLineLabel(name, giftProductLabel(giftInfo), size ?? null) : name,
+          };
+        }),
       };
     });
   });
