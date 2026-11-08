@@ -6,6 +6,7 @@ import {
 import { cardShortDescription } from '../products/card-short-description.js';
 import { PRODUCT_TYPES, sizeRank, type ProductTypeId } from '../products/catalog-mapping.js';
 import { categoryIdsFor, DEFAULT_CATEGORY_FOR_TYPE } from '../products/catalog-taxonomy.js';
+import { type ColorSibling } from '../products/color-siblings.js';
 import {
   isMarketingBadgeKind,
   isMarketingBadgeStyle,
@@ -48,6 +49,8 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly type: string;
   readonly typeLabel: string;
   readonly modelGroup: string | null;
+  /** Main (leaf) category, for the card's "Men – T-shirts" line. */
+  readonly categoryId: string | null;
   readonly categoryIds: readonly string[];
   readonly hierarchicalCategories: SearchHierarchicalCategories;
   readonly price: number;
@@ -64,6 +67,8 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly shortDescription: string;
   readonly inStock: boolean;
   readonly image: SearchRecordImage | null;
+  /** Every colour of the model, copied from the product's `colorSiblings` (card colour row). */
+  readonly colorSiblings: readonly ColorSibling[];
   readonly createdAtMs: number;
   /** End of the New arrival period in ms; 0 when the product is not marked as one. */
   readonly newArrivalUntilMs: number;
@@ -104,6 +109,8 @@ export function toSearchRecord(
       : null;
 
   const categoryIds = resolveCategoryIds(data, type);
+  const mainCategory = readString(data['categoryId']);
+  const categoryId = mainCategory && categoryIds.includes(mainCategory) ? mainCategory : null;
   const hierarchicalCategories = buildHierarchicalCategories(categoryIds, categoriesById);
 
   const price = readWholeEgp(data['price']);
@@ -133,6 +140,7 @@ export function toSearchRecord(
       ? rawStock > 0
       : data['inStock'] === true;
   const image = extractPrimaryImage(data['images'], name);
+  const colorSiblings = readColorSiblings(data['colorSiblings']);
   const createdAtMs = extractTimestampMs(data['createdAt']);
   const newArrivalUntilMs = extractTimestampMs(data['newArrivalUntil']);
 
@@ -164,6 +172,7 @@ export function toSearchRecord(
     type,
     typeLabel,
     modelGroup,
+    categoryId,
     categoryIds,
     hierarchicalCategories,
     price,
@@ -180,6 +189,7 @@ export function toSearchRecord(
     shortDescription,
     inStock,
     image,
+    colorSiblings,
     createdAtMs,
     newArrivalUntilMs,
     ...offerFields,
@@ -374,6 +384,26 @@ function extractTimestampMs(raw: unknown): number {
     if (Number.isFinite(parsed)) return parsed;
   }
   return 0;
+}
+
+function readColorSiblings(raw: unknown): ColorSibling[] {
+  if (!Array.isArray(raw)) return [];
+  const list: ColorSibling[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'object' || item === null) continue;
+    const entry = item as Record<string, unknown>;
+    const id = readString(entry['id']);
+    const slug = readString(entry['slug']);
+    if (!id || !slug) continue;
+    list.push({
+      id,
+      slug,
+      imagePath: readString(entry['imagePath']),
+      imageAlt: readString(entry['imageAlt']),
+      inStock: entry['inStock'] === true,
+    });
+  }
+  return list;
 }
 
 function readGender(raw: unknown): ProductGenderId | null {

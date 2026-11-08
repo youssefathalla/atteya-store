@@ -29,6 +29,19 @@ export const ProductImageSchema = v.object({
   sourceUrl: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1))),
 });
 
+/**
+ * One colour of the same model, kept on every product of that model by the
+ * `onProductColorSiblingsChange` function (functions/src/products/color-siblings.ts).
+ * Product cards read it, so a grid needs no extra read to show the other colours.
+ */
+export const ColorSiblingSchema = v.object({
+  id: idSchema,
+  slug: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+  imagePath: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(512)), ''),
+  imageAlt: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ''),
+  inStock: v.optional(v.boolean(), false),
+});
+
 export const ProductOptionValueSchema = v.object({
   id: idSchema,
   label: v.pipe(v.string(), v.trim(), v.minLength(1)),
@@ -74,6 +87,11 @@ export const ProductSchema = v.pipe(
     brandId: slugSchema,
     modelGroup: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80))),
     gender: v.optional(v.picklist(PRODUCT_GENDER_IDS)),
+    /** Every colour of the model in a fixed order (this product included). A bad list never drops the product. */
+    colorSiblings: v.optional(
+      v.fallback(v.pipe(v.array(ColorSiblingSchema), v.maxLength(12)), []),
+      [],
+    ),
     currency: v.literal('EGP'),
     price: wholeNumber,
     compareAtPrice: v.nullable(wholeNumber),
