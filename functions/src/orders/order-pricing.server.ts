@@ -21,7 +21,12 @@ import {
   SHIPPING_DOC_PATH,
 } from '../shipping/shipping-settings.js';
 import type { UsedGiftOffer } from './offer-usage.js';
-import { giftProductIds, resolveLineGifts, type ResolvedGift } from './order-gifts.js';
+import {
+  giftProductIds,
+  resolveLineGifts,
+  stockDemandKey,
+  type ResolvedGift,
+} from './order-gifts.js';
 import type {
   CreateStoreOrderRequest,
   OrderLineInput,
@@ -137,11 +142,20 @@ export async function priceStoreOrder(
   const regionBoxes = boxesForRegion(shippingConfig.settings, region);
 
   const giftOffers = new Map<string, UsedGiftOffer>();
-  // Gift pieces the order asks for so far, by product and size, so stock covers all lines together.
+  // Pieces the order takes from stock, by product and size: every paid line first, then gifts as
+  // they're added, so a gift's stock covers the paid pieces and all gifts of the order together.
   const giftDemand = new Map<string, number>();
 
+  const lineResults: Awaited<ReturnType<typeof priceLine>>[] = [];
   for (const line of input.lines) {
-    const { priced, product, variant, weightGrams } = await priceLine(db, line, offers, ctx);
+    const result = await priceLine(db, line, offers, ctx);
+    lineResults.push(result);
+    const key = stockDemandKey(line.productId, result.data, line.selection);
+    giftDemand.set(key, (giftDemand.get(key) ?? 0) + line.quantity);
+  }
+
+  for (const [index, line] of input.lines.entries()) {
+    const { priced, product, variant, weightGrams } = lineResults[index]!;
     const forLine = pricedLines.length;
     pricedLines.push(priced);
     cartProducts.push(product);
@@ -321,6 +335,7 @@ async function priceLine(
   product: PricedProduct;
   variant: VariantFacts | null;
   weightGrams: number | null;
+  data: DocumentData;
 }> {
   const snap = await db.collection('products').doc(line.productId).get();
   if (!snap.exists) {
@@ -341,6 +356,7 @@ async function priceLine(
     product,
     variant,
     weightGrams,
+    data,
     priced: {
       productId: line.productId,
       variantId: variant?.id ?? null,

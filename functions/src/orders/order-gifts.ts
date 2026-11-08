@@ -42,8 +42,9 @@ export function resolveLineGifts(args: {
   /** Live gift product docs by id (`undefined` = missing). */
   readonly giftDocs: ReadonlyMap<string, DocumentData | undefined>;
   /**
-   * Gift pieces already taken by earlier lines of the same order, by product and size. Updated
-   * with this line's gifts, so stock is checked against the order's total demand.
+   * Pieces the order already takes from stock (every paid line, plus gifts of earlier lines), by
+   * `stockDemandKey`. Updated with this line's gifts, so stock is checked against the order's
+   * total demand.
    */
   readonly giftDemand?: Map<string, number>;
 }): ResolvedGift[] {
@@ -80,7 +81,7 @@ export function resolveLineGifts(args: {
     const data = args.giftDocs.get(productId);
     if (!data) throw new HttpsError('failed-precondition', GIFT_GONE);
     const selection = giftSelection(data, pick.sizeId);
-    const demandKey = `${productId}\u0000${selection['size'] ?? ''}`;
+    const demandKey = stockDemandKey(productId, data, selection);
     const needed = (giftDemand.get(demandKey) ?? 0) + quantity;
     assertGiftStock(data, selection, needed);
     giftDemand.set(demandKey, needed);
@@ -116,6 +117,22 @@ export function giftSelection(data: DocumentData, sizeId: string | null): Record
     }
   }
   return selection;
+}
+
+/**
+ * Which stock count a piece comes out of: the size's count when the product keeps stock by size,
+ * otherwise the product's single count.
+ */
+export function stockDemandKey(
+  productId: string,
+  data: DocumentData,
+  selection: Readonly<Record<string, string>>,
+): string {
+  const stockBySize = data['stockBySize'];
+  if (typeof stockBySize === 'object' && stockBySize !== null && !Array.isArray(stockBySize)) {
+    return `${productId}\u0000size\u0000${selection['size'] ?? ''}`;
+  }
+  return `${productId}\u0000all`;
 }
 
 function assertGiftStock(data: DocumentData, selection: Readonly<Record<string, string>>, quantity: number): void {
