@@ -23,7 +23,7 @@ Use the Linear tools for the team and project in `linear.config.json`.
 **Scheduled run** (no `<routine-fire-payload>` block): dispatch every ready ticket.
 
 0. Do step C below first (fix PRs that conflict with `develop`), then carry on here whatever it found.
-1. **In flight:** count the issues in the project with the label `agent` in status **In Progress** or **To Review**. Free slots = 4 minus that count. If there are no free slots, stop. Final message: "Waiting: <ids> still in flight."
+1. **In flight:** count the issues in the project with the label `agent` in status **In Progress** or **To Review**, but leave out any whose pull request is stuck waiting for a person: its latest commit has a "🛑 Claude Fix", "✋ Claude Fix", "✋ Auto-merge" or "🔀 Conflict Fix · needs a person" comment, or the PR is a draft. Those don't hold a slot; list them in the final message as "Stuck, needs a person: <ids>". Free slots = 4 minus the count. If there are no free slots, stop. Final message: "Waiting: <ids> still in flight."
 2. **Candidates:** list issues with status **Todo** and the label `agent-ready`. If there are none, stop. Final message: "No agent-ready tickets."
 3. **Ready:** keep only candidates whose every **blocked by** issue (Linear issue relations) is in **QA**, **Done** or **Canceled**. A ticket blocked by one still in Todo, In Progress, To Review, Blocked or Backlog waits for a later run; tickets that edit the same files are linked this way on purpose, so they never run at the same time. If none are ready, stop. Final message: "Nothing ready: <id> waits on <ids>, …".
 4. **Order:** highest priority first (Urgent, High, Medium, Low, then No priority), then the oldest. Take as many as there are free slots.
@@ -71,7 +71,7 @@ Do NOT build, and stop after this step, when any of these is true:
 
 ## 6. Update Linear
 
-- Move the issue to **To Review** (leave a draft PR's issue in **In Progress**).
+- Move the issue to **To Review**. For a draft PR, move it to **Blocked** instead and comment what fails, so it does not hold a slot.
 - Comment with the PR link, a one-line summary, and any deploy step it needs.
 - If you noticed a separate bug along the way, create a new issue with the label `Bug` in status **Bugs**. Don't fix it in this PR.
 

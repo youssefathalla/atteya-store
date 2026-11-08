@@ -125,6 +125,13 @@ jobs:
             try { prs = JSON.parse(process.env.PRS || '[]'); } catch { prs = []; }
             for (const { number, head } of prs) {
               if (!Number.isInteger(number) || !/^[0-9a-f]{40}$/.test(String(head))) continue;
+              // A routine that can't be started fails again on every push to develop. Say so once
+              // per PR head, not on every push.
+              const notStarted = `<!-- conflict-fix-not-started ${head} -->`;
+              if (status !== 'started') {
+                const existing = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
+                if (existing.some((c) => c.user?.login === 'github-actions[bot]' && (c.body || '').includes(notStarted))) continue;
+              }
               const body = status === 'started'
                 ? [
                     `<!-- conflict-fix-requested ${head} ${baseSha} -->`,
@@ -133,11 +140,12 @@ jobs:
                     'This branch conflicts with `develop`. A Claude session is merging `develop` in, resolving the conflicts and running the checks. It pushes the result here, or comments that a person is needed.',
                   ].join('\n')
                 : [
+                    notStarted,
                     `**🔀 Conflict Fix** · not started for \`${head.slice(0, 7)}\``,
                     '',
                     status === 'no-token'
                       ? 'The ATTEYA_ROUTINE_TOKEN repo secret is not set, so the Claude routine could not be started. Resolve the conflicts by hand, or add the secret.'
-                      : `The Claude routine could not be started (${status || 'unknown error'}). It may be over its hourly limit or the token may be wrong. The next scheduled routine run tries again.`,
+                      : `The Claude routine could not be started (${status || 'unknown error'}). It may be over its hourly limit or the token may be wrong (a new routine token revokes the old one, so update the ATTEYA_ROUTINE_TOKEN repo secret too). The next scheduled routine run tries again.`,
                   ].join('\n');
               await github.rest.issues.createComment({ owner, repo, issue_number: number, body });
             }
