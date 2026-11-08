@@ -27,7 +27,8 @@ import {
   takeHomeRowSeed,
 } from '../../utils/home-row-products.state';
 
-const PADEL_CAROUSEL_LIMIT = 16;
+/** Rackets shown in the home Padel row. */
+const PADEL_CAROUSEL_LIMIT = 8;
 
 @Component({
   selector: 'app-padel-carousel-section',
