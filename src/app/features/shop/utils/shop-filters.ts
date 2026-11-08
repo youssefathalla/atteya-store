@@ -165,7 +165,9 @@ export function buildCatalogBrowseOptions(input: {
   }
 
   if (filters.newArrivals) {
-    // Same rule as the home New Arrivals row: `newArrivalUntil` still ahead.
+    // Products staff marked as new arrivals (`newArrivalUntil` still ahead). Unlike the home
+    // row this has no newest-products top-up; the home title links here only when the row
+    // has marked products, and to Shop sorted by newest otherwise.
     filterParts.push(`newArrivalUntilMs > ${newArrivalCutoffMs(input.nowMs ?? Date.now())}`);
   }
 
