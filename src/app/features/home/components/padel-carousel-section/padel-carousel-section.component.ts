@@ -19,8 +19,8 @@ import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll'
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { normalizeImageKitPath } from '@shared/utils/image';
-import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.component';
-import { rowScrollProgress } from '../../utils/row-scroll';
+import { RowScrollNavComponent } from '@shared/ui/row-scroll-nav';
+import { rowScrollProgress } from '@shared/utils/row-scroll.utils';
 import { RowScrollLockDirective } from '../../directives/row-scroll-lock.directive';
 import {
   HOME_PADEL_ROW_KEY,
