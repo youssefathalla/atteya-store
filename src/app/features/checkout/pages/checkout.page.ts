@@ -69,6 +69,7 @@ import {
 } from '../utils/checkout-countries';
 import { selectionLabel } from '../utils/checkout-line';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { PaymentMarkComponent } from '@shared/ui/payment-mark';
 
 const TOO_HEAVY_MESSAGE = 'This order is too heavy to send abroad. Remove an item or message us.';
 const ABROAD_COMING_SOON_MESSAGE =
@@ -169,6 +170,7 @@ type CheckoutSummary =
     MatProgressSpinnerModule,
     MatRadioModule,
     SharedIconModule,
+    PaymentMarkComponent,
   ],
   templateUrl: './checkout.page.html',
 })

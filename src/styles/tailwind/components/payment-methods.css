@@ -1,0 +1,23 @@
+@layer components {
+  /*! checkout payment options: one bordered row per method, with the method's mark in a small box */
+
+  /* One payment method row (holds its mat-radio-button and the note under it). */
+  .pay-option {
+    @apply p-2 border border-outline-variant border-shape;
+  }
+
+  /* The chosen row: a 2px black border (1px border + 1px inset ring, so the row doesn't move). */
+  .pay-option--selected {
+    @apply border-primary ring-1 ring-inset ring-primary;
+  }
+
+  /* Not offered yet: dashed outline (the disabled radio already greys its label). */
+  .pay-option--soon {
+    @apply border-dashed;
+  }
+
+  /* About 56×40: the method's mark (app-payment-mark) before its name. */
+  .pay-option__mark {
+    @apply w-14 h-10 shrink-0 elements-center border border-outline-variant border-shape bg-surface-container-lowest;
+  }
+}
