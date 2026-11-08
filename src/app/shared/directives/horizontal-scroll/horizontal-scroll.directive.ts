@@ -9,7 +9,12 @@ import {
   DestroyRef,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { rowItemTarget, rowScrollProgress, scrollRowByItem } from '@shared/utils/row-scroll.utils';
+import {
+  rowItemTarget,
+  rowScrollProgress,
+  rowSnapEdge,
+  scrollRowByItem,
+} from '@shared/utils/row-scroll.utils';
 
 /** A release faster than this (px per ms) carries on to the next card in that direction. */
 const FLING_SPEED = 0.5;
@@ -174,7 +179,7 @@ export class HorizontalScrollDirective {
 
   #scrollToNextItem(direction: 1 | -1): void {
     const el = this.#el.nativeElement;
-    const containerRect = el.getBoundingClientRect();
+    const containerRect = { left: rowSnapEdge(el) };
     const children = Array.from(el.children) as HTMLElement[];
 
     if (children.length === 0) {
@@ -319,7 +324,7 @@ export class HorizontalScrollDirective {
   }
 
   #closestItemTarget(el: HTMLElement, max: number): number {
-    const containerLeft = el.getBoundingClientRect().left;
+    const containerLeft = rowSnapEdge(el);
     const children = Array.from(el.children) as HTMLElement[];
     let best = el.scrollLeft;
     let minDistance = Infinity;
