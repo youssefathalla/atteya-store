@@ -1,4 +1,5 @@
 import type { SearchHit } from '@core/services/search/search.model';
+import { PAYMENT_METHODS, type PaymentMethodId } from '@shared/ui/payment-mark';
 
 /** Most product cards in the bag's "Recommended for You" row. */
 export const BAG_RECOMMENDATION_LIMIT = 8;
@@ -9,28 +10,32 @@ export const BAG_RECOMMENDATION_LIMIT = 8;
  */
 export const BAG_RECOMMENDATION_FETCH = BAG_RECOMMENDATION_LIMIT + 20;
 
-/** One payment method name in the bag's "Payment Methods" row. */
+/** One tile in the bag's "Payment Methods" row. */
 export interface BagPaymentMethod {
+  readonly id: PaymentMethodId;
   readonly name: string;
   readonly comingSoon: boolean;
 }
 
+function bagMethod(id: PaymentMethodId, comingSoon = false): BagPaymentMethod {
+  return { id, name: PAYMENT_METHODS[id].name, comingSoon };
+}
+
 /**
  * The payment methods checkout offers, in checkout's order: InstaPay, Card or Wallet and
- * Cash on Delivery in Egypt; only Card or Wallet abroad. Card or Wallet is marked
- * "Coming soon" while the Paymob switch (`STORE_INFO.payments.cardOrWallet`) is off.
+ * Cash on Delivery in Egypt; only Card or Wallet abroad. While the Paymob switch
+ * (`STORE_INFO.payments.cardOrWallet`) is off, Card or Wallet is marked "Coming soon" and comes
+ * last, after the methods shoppers can use today (checkout does the same).
  */
 export function bagPaymentMethods(
   isEgypt: boolean,
   cardOrWalletLive: boolean,
 ): readonly BagPaymentMethod[] {
-  const cardOrWallet: BagPaymentMethod = { name: 'Card or Wallet', comingSoon: !cardOrWalletLive };
+  const cardOrWallet = bagMethod('paymob', !cardOrWalletLive);
   if (!isEgypt) return [cardOrWallet];
-  return [
-    { name: 'InstaPay', comingSoon: false },
-    cardOrWallet,
-    { name: 'Cash on Delivery', comingSoon: false },
-  ];
+  return cardOrWalletLive
+    ? [bagMethod('instapay'), cardOrWallet, bagMethod('cash-on-delivery')]
+    : [bagMethod('instapay'), bagMethod('cash-on-delivery'), cardOrWallet];
 }
 
 /**

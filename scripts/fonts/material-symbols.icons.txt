@@ -1,3 +1,4 @@
+account_balance_wallet
 add
 add_photo_alternate
 admin_panel_settings
@@ -29,6 +30,7 @@ cloud_download
 cloud_upload
 collections
 contrast
+credit_card
 crop_16_9
 dark_mode
 dashboard
@@ -75,6 +77,7 @@ notifications
 notifications_active
 open_in_new
 palette
+payments
 people
 person
 person_outline

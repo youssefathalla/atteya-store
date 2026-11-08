@@ -300,10 +300,15 @@
           (change)="setPaymentMethod($event.value)"
           aria-label="Payment method"
         >
-          <div class="border border-outline-variant border-shape divide-y divide-outline-variant">
+          <div class="space-y-2">
             @if (localMethodsAvailable()) {
-              <div class="p-2 space-y-1" [class.bg-surface-container-low]="paymentMethod() === 'instapay'">
-                <mat-radio-button value="instapay">InstaPay</mat-radio-button>
+              <div class="pay-option space-y-1" [class.pay-option--selected]="paymentMethod() === 'instapay'">
+                <mat-radio-button value="instapay">
+                  <span class="elements-start gap-3">
+                    <span class="pay-option__mark"><app-payment-mark method="instapay" /></span>
+                    <span>InstaPay</span>
+                  </span>
+                </mat-radio-button>
                 @if (paymentMethod() === 'instapay') {
                   @if (orderSummary(); as summary) {
                     @if (summary.state === 'ready') {
@@ -322,28 +327,27 @@
                 }
               </div>
             }
-            @if (!cardOrWalletLive) {
-              <div class="p-2">
-                <mat-radio-button value="paymob" disabled>
-                  <span class="elements-start gap-2">
+            @if (cardOrWalletLive && !feeToBeAgreed()) {
+              <div class="pay-option" [class.pay-option--selected]="paymentMethod() === 'paymob'">
+                <mat-radio-button value="paymob">
+                  <span class="elements-start gap-3">
+                    <span class="pay-option__mark"><app-payment-mark method="paymob" /></span>
                     <span>Card or Wallet</span>
-                    <span class="font-label-sm px-1.5 py-0.5 border border-outline-variant border-shape">
-                      Coming soon
-                    </span>
                   </span>
                 </mat-radio-button>
-              </div>
-            } @else if (!feeToBeAgreed()) {
-              <div class="p-2" [class.bg-surface-container-low]="paymentMethod() === 'paymob'">
-                <mat-radio-button value="paymob">Card or Wallet</mat-radio-button>
               </div>
             }
             @if (localMethodsAvailable()) {
               <div
-                class="p-2 space-y-1"
-                [class.bg-surface-container-low]="paymentMethod() === 'cash-on-delivery'"
+                class="pay-option space-y-1"
+                [class.pay-option--selected]="paymentMethod() === 'cash-on-delivery'"
               >
-                <mat-radio-button value="cash-on-delivery">Cash on Delivery</mat-radio-button>
+                <mat-radio-button value="cash-on-delivery">
+                  <span class="elements-start gap-3">
+                    <span class="pay-option__mark"><app-payment-mark method="cash-on-delivery" /></span>
+                    <span>Cash on Delivery</span>
+                  </span>
+                </mat-radio-button>
                 @if (paymentMethod() === 'cash-on-delivery') {
                   @if (orderSummary(); as summary) {
                     @if (summary.state === 'ready') {
@@ -362,6 +366,20 @@
                     }
                   }
                 }
+              </div>
+            }
+            <!-- Not offered yet: last, after the methods shoppers can use today. -->
+            @if (!cardOrWalletLive) {
+              <div class="pay-option pay-option--soon">
+                <mat-radio-button value="paymob" disabled>
+                  <span class="elements-start gap-3">
+                    <span class="pay-option__mark"><app-payment-mark method="paymob" /></span>
+                    <span>Card or Wallet</span>
+                    <span class="font-label-sm px-1.5 py-0.5 border border-outline-variant border-shape">
+                      Coming soon
+                    </span>
+                  </span>
+                </mat-radio-button>
               </div>
             }
           </div>
