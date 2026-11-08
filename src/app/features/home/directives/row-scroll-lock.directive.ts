@@ -5,6 +5,7 @@ import {
   Directive,
   ElementRef,
   inject,
+  input,
   PLATFORM_ID,
   signal,
 } from '@angular/core';
@@ -23,6 +24,10 @@ const LOCK_QUERY =
 const STICKY_BAR_PX = 56;
 /** Rows that can move less than this don't lock. */
 const MIN_TRAVEL_PX = 2;
+/** Photos are never shrunk below this to make a section fit; such a section doesn't lock. */
+const MIN_FIT_MEDIA_PX = 160;
+/** Set on the section: the photo height that makes the whole section fit while locked. */
+const FIT_MEDIA_VAR = '--row-lock-media-max';
 /** Skip a row write this close to the page-driven position (keeps native trackpad scrolling smooth). */
 const SYNC_TOLERANCE_PX = 3;
 const REFRESH_DELAY_MS = 200;
@@ -37,6 +42,12 @@ const REFRESH_DELAY_MS = 200;
  * distance. The lock is CSS `position: sticky`, not ScrollTrigger's fixed pin:
  * `<main>` is an `@container`, which makes it the containing block for fixed
  * elements, and a pin would also move Angular-owned nodes into a wrapper.
+ *
+ * A section taller than the window (New Arrivals on a laptop) can still lock:
+ * give `rowLockFit` the selector of its card photos. The directive measures
+ * everything else in the section and sets `--row-lock-media-max` (px) on the
+ * section; the section's CSS caps the photos' height with it, so the heading,
+ * cards and arrows all fit below the nav.
  */
 @Directive({
   selector: '[appRowScrollLock]',
@@ -46,6 +57,9 @@ export class RowScrollLockDirective {
   readonly #row = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   readonly #enabled = signal(false);
+
+  /** Selector of the photos that shrink so the section fits the window while locked. */
+  readonly rowLockFit = input<string | null>(null);
 
   /** True while the desktop lock is set up (the page scroll drives the row). */
   readonly enabled = this.#enabled.asReadonly();
@@ -116,10 +130,30 @@ export class RowScrollLockDirective {
     let movedOutside = false;
     let wasActive = false;
 
+    const available = (): number => window.innerHeight - STICKY_BAR_PX;
+
+    // Shrink the photos just enough that the whole section fits below the nav.
+    // Everything except the photo keeps its height (the card width doesn't change),
+    // so this settles in one pass.
+    const fitMedia = (scrolls: boolean): void => {
+      const selector = this.rowLockFit();
+      if (!selector) return;
+      const media = scrolls ? section.querySelector<HTMLElement>(selector) : null;
+      if (!media) {
+        section.style.removeProperty(FIT_MEDIA_VAR);
+        return;
+      }
+      const chrome = section.offsetHeight - media.offsetHeight;
+      const max = Math.floor(available() - chrome);
+      if (max >= MIN_FIT_MEDIA_PX) section.style.setProperty(FIT_MEDIA_VAR, `${max}px`);
+      else section.style.removeProperty(FIT_MEDIA_VAR);
+    };
+
     const measure = (): void => {
       const max = row.scrollWidth - row.clientWidth;
+      fitMedia(max > MIN_TRAVEL_PX);
       const height = section.offsetHeight;
-      const fits = height <= window.innerHeight - STICKY_BAR_PX;
+      const fits = height <= available();
       this.#travel = fits && max > MIN_TRAVEL_PX ? max : 0;
       const locks = this.#travel > 0;
       spacer.style.height = `${this.#travel}px`;
@@ -196,6 +230,7 @@ export class RowScrollLockDirective {
       spacer.remove();
       section.style.position = '';
       section.style.top = '';
+      section.style.removeProperty(FIT_MEDIA_VAR);
       row.style.scrollSnapType = '';
       row.style.scrollBehavior = '';
       this.#trigger = null;

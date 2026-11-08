@@ -4,7 +4,7 @@
     aria-labelledby="new-arrivals-heading"
   >
     <header class="pb-2 sm:pb-3">
-      <h2 id="new-arrivals-heading" class="font-headline-md sm:font-headline-lg font-bold!">
+      <h2 id="new-arrivals-heading" class="home-section-title">
         New arrivals
       </h2>
     </header>
@@ -31,6 +31,7 @@
         [style.--scroll-peek]="cards().length > 3 ? null : '0px'"
         appHorizontalScroll
         appRowScrollLock
+        rowLockFit=".product-card__media"
         #lock="rowScrollLock"
         [enableWheel]="false"
         [snapToItems]="!lock.enabled()"
