@@ -8,34 +8,14 @@
     <button
       matIconButton
       type="button"
-      [matMenuTriggerFor]="menu"
       [matTooltip]="tooltip()"
       [matTooltipDisabled]="!tooltip()"
-      aria-label="Account"
+      aria-label="Your account"
+      aria-haspopup="dialog"
+      (click)="openPanel($event)"
     >
       <mat-icon name="person_outline" size="2xl" />
     </button>
-
-    <mat-menu #menu="matMenu" [yPosition]="yPosition()" xPosition="before">
-      <button mat-menu-item type="button" disabled>
-        <mat-icon name="person" />
-        <span>{{ accountLabel() }}</span>
-      </button>
-      <a mat-menu-item routerLink="/favorites">
-        <mat-icon name="favorite" />
-        <span>Favorites</span>
-      </a>
-      @if (isAdmin()) {
-        <a mat-menu-item routerLink="/admin">
-          <mat-icon name="dashboard" />
-          <span>Admin Dashboard</span>
-        </a>
-      }
-      <button mat-menu-item type="button" (click)="signOut()">
-        <mat-icon name="logout" />
-        <span>Sign Out</span>
-      </button>
-    </mat-menu>
   }
   @case ('signed-out') {
     <button

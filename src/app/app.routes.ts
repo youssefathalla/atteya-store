@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from '@core/guards/admin/admin.guard';
 import { checkoutAuthGuard } from '@core/guards/checkout/checkout-auth.guard';
+import { accountAuthGuard } from '@core/guards/account/account-auth.guard';
 import { favoritesAuthGuard } from '@core/guards/favorites/favorites-auth.guard';
 import { serverCurrencyResolver } from '@core/services/currency/server-currency.resolver';
 import { catalogSettingsResolver } from '@core/services/products/catalog-settings.resolver';
@@ -136,6 +137,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/legal/privacy.page').then((m) => m.PrivacyPage),
         title: 'Privacy Policy | Atteya Store',
+      },
+      {
+        path: 'account',
+        canActivate: [accountAuthGuard],
+        loadComponent: () =>
+          import('./features/account/account.page').then((m) => m.AccountPageComponent),
+        title: 'Your Account | Atteya Store',
       },
       {
         path: 'favorites',

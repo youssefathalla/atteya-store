@@ -1,0 +1,63 @@
+<h2 class="account-section__title">
+  <mat-icon name="local_shipping" aria-hidden="true" />
+  <span>Delivery Address</span>
+</h2>
+
+@if (loading()) {
+  <app-skeleton class="h-14 w-full" />
+  <app-skeleton class="h-14 w-full" />
+  <app-skeleton class="h-14 w-full" />
+} @else {
+  <p class="font-body-md text-on-surface-variant">
+    @if (hasSaved()) {
+      We fill this in at checkout when you order to {{ savedCountry() }}.
+    } @else {
+      Save an address and we'll fill it in at checkout for you.
+    }
+  </p>
+
+  <form class="w-full elements-start-col gap-2" (submit)="save($event)" novalidate>
+    <app-select-input
+      [formField]="addressForm.country"
+      label="Country"
+      [options]="countries"
+      valueKey="code"
+      labelKey="label"
+    />
+    <app-text-input [formField]="addressForm.fullName" label="Full name" />
+
+    @if (isEgypt()) {
+      <app-text-input [formField]="addressForm.city" label="City" />
+      <app-text-input [formField]="addressForm.line1" label="Address" />
+    } @else {
+      <app-text-input [formField]="addressForm.line1" label="Address line 1" />
+      <app-text-input [formField]="addressForm.line2" label="Address line 2 (optional)" />
+      <div class="w-full grid gap-x-4 sm:grid-cols-2">
+        <app-text-input [formField]="addressForm.city" label="City" />
+        <app-text-input [formField]="addressForm.region" label="Region (optional)" />
+      </div>
+      <app-text-input [formField]="addressForm.postalCode" label="Postal code" />
+    }
+
+    <app-text-input
+      [formField]="addressForm.phone"
+      label="Phone"
+      type="tel"
+      inputMode="tel"
+      [placeholder]="isEgypt() ? '010 1234 5678' : '+971 50 123 4567'"
+    />
+
+    <button
+      matButton="filled"
+      type="submit"
+      [disabled]="isSaving()"
+      [attr.aria-label]="isSaving() ? 'Saving your address' : null"
+    >
+      @if (isSaving()) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" />
+      } @else {
+        <span>Save Address</span>
+      }
+    </button>
+  </form>
+}
