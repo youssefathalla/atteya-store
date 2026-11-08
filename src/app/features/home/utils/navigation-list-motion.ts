@@ -97,7 +97,10 @@ export function playNavListSwap(
 }
 
 const ARROW_IN_DURATION = 0.35;
-const ARROW_OUT_DURATION = 0.25;
+/** The old arrow only fades (no slide back into its word), and quickly. */
+const ARROW_OUT_DURATION = 0.12;
+/** The new arrow waits for the old one to be gone, so only one shows at a time. */
+const ARROW_IN_DELAY = 0.1;
 /** How far left a hidden arrow waits, as a share of its own width. */
 const ARROW_HIDDEN_X_PERCENT = -40;
 
@@ -123,9 +126,11 @@ export function settleNavListArrows(
 }
 
 /**
- * Slides the active arrow in from the left while it fades in, and the
- * previous one back out. Tweens start from wherever each arrow is, so fast
- * hovering reverses smoothly. Reduced motion shows the arrow at once.
+ * Fades the previous arrow out in place, then slides the active arrow in from
+ * the left while it fades in, so two arrows never show at once. A hidden
+ * arrow is moved back to its waiting spot only once it is invisible. Tweens
+ * start from wherever each arrow is, so fast hovering reverses smoothly.
+ * Reduced motion shows the arrow at once.
  */
 export function playNavListArrows(
   gsap: GsapApi,
@@ -138,14 +143,26 @@ export function playNavListArrows(
     return;
   }
   for (const arrow of arrows) {
-    const active = photoIndex(arrow) === activeIndex;
-    gsap.to(arrow, {
-      opacity: active ? 1 : 0,
-      x: 0,
-      xPercent: active ? 0 : ARROW_HIDDEN_X_PERCENT,
-      duration: active ? ARROW_IN_DURATION : ARROW_OUT_DURATION,
-      ease: active ? 'power3.out' : 'power2.in',
-      overwrite: 'auto',
-    });
+    if (photoIndex(arrow) === activeIndex) {
+      gsap.to(arrow, {
+        opacity: 1,
+        x: 0,
+        xPercent: 0,
+        duration: ARROW_IN_DURATION,
+        delay: ARROW_IN_DELAY,
+        ease: 'power3.out',
+        overwrite: 'auto',
+      });
+    } else {
+      gsap.to(arrow, {
+        opacity: 0,
+        duration: ARROW_OUT_DURATION,
+        ease: 'power1.out',
+        overwrite: 'auto',
+        onComplete: () => {
+          gsap.set(arrow, { x: 0, xPercent: ARROW_HIDDEN_X_PERCENT });
+        },
+      });
+    }
   }
 }
