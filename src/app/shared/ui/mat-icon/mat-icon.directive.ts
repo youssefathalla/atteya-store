@@ -35,9 +35,12 @@ export class MatIconDirective {
    */
   readonly size = input<IconSize>();
   /**
-   * @default 700
+   * Stroke weight. The icon font serves 400–700. The default 600 matches how
+   * icons looked before the font allowed 700, so only an icon that asks for
+   * `700` gets heavier.
+   * @default 600
    */
-  readonly weight = input<Weight>('700');
+  readonly weight = input<Weight>('600');
   /**
    * @default Google's default icon color
    */

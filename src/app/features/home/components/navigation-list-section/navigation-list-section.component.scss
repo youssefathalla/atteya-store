@@ -14,8 +14,23 @@
   }
 }
 
+// Desktop arrow after the category name. Every row keeps its arrow so the
+// list width never changes; only the active one is visible. GSAP takes over
+// these values once it loads.
+.nav-list-arrow {
+  opacity: 0;
+  transform: translateX(-40%);
+  will-change: opacity, transform;
+
+  &.is-active {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .nav-list-photo {
+  .nav-list-photo,
+  .nav-list-arrow {
     transform: none;
     will-change: auto;
   }

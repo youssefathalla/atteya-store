@@ -1,4 +1,4 @@
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import {
   Component,
   computed,
@@ -18,6 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatRadioModule } from '@angular/material/radio';
 import { doc, getDoc } from 'firebase/firestore';
+import { AuthService } from '@core/services/auth/auth.service';
 import { lineDisplayAmount } from '@core/services/cart/cart-pricing';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
@@ -50,7 +51,9 @@ import { toVariantFacts } from '@core/services/products/utils/priced-product.uti
 import { SeoService } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
+import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
+import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
 import {
   countryLabel,
@@ -60,7 +63,8 @@ import {
   matchCheckoutCountryExact,
   type CheckoutCountryCode,
 } from '../utils/checkout-countries';
-import { SharedIconModule } from "@shared/ui/mat-icon";
+import { selectionLabel } from '../utils/checkout-line';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 
 const TOO_HEAVY_MESSAGE = 'This order is too heavy to send abroad. Remove an item or message us.';
 const ABROAD_COMING_SOON_MESSAGE =
@@ -70,10 +74,45 @@ const DELIVERY_UNAVAILABLE_MESSAGE =
 
 interface CheckoutProductInfo {
   readonly name: string;
+  /** Main photo for the order summary (null when the product has none). */
+  readonly imagePath: string | null;
+  readonly imageAlt: string;
   readonly weightGrams: number | null;
   readonly priced: PricedProduct;
   readonly options: Product['options'];
   readonly variants: readonly ProductVariant[];
+}
+
+/** The bag priced in EGP and in the visitor's currency, before shipping. */
+type PricedBag =
+  | { readonly state: 'loading' }
+  | { readonly state: 'missing-item' }
+  | { readonly state: 'unavailable' }
+  | {
+      readonly state: 'ready';
+      readonly offers: ReturnType<OffersService['all']>;
+      readonly ctx: PricingContext;
+      /** Line totals in the visitor's currency, in bag order. */
+      readonly lineDisplay: readonly number[];
+      readonly pricedLines: readonly PricedProduct[];
+      readonly parcelLines: readonly ParcelLine[];
+      readonly subtotalEgp: number;
+      readonly subtotalDisplay: number;
+    };
+
+/** One row of the order summary list. */
+interface CheckoutSummaryItem {
+  readonly name: string;
+  /** Storage path of the main photo (the fallback source), or null. */
+  readonly imagePath: string | null;
+  /** The same photo as an ImageKit path for `ngSrc`. */
+  readonly imageSrc: string;
+  readonly imageAlt: string;
+  /** Chosen options, e.g. "M · Black"; empty when the product has none. */
+  readonly options: string;
+  readonly quantity: number;
+  /** Line total in the visitor's currency; empty while prices load. */
+  readonly price: string;
 }
 
 type CheckoutSummary =
@@ -105,6 +144,8 @@ type CheckoutSummary =
   host: { class: 'block w-full' },
   imports: [
     RouterLink,
+    NgOptimizedImage,
+    AppImageFallbackDirective,
     MatAutocompleteModule,
     MatButtonModule,
     MatFormFieldModule,
@@ -116,6 +157,7 @@ type CheckoutSummary =
   templateUrl: './checkout.page.html',
 })
 export class CheckoutPageComponent implements OnInit {
+  readonly #auth = inject(AuthService);
   readonly #cart = inject(CartService);
   readonly #checkout = inject(CheckoutOrderService);
   readonly #currency = inject(CurrencyService);
@@ -128,6 +170,10 @@ export class CheckoutPageComponent implements OnInit {
   readonly #platformId = inject(PLATFORM_ID);
 
   readonly isSubmitting = signal(false);
+  /** Phone only: the order summary folds into a bar above the form until tapped. */
+  readonly summaryOpen = signal(false);
+  /** The signed-in shopper's email (checkout is behind sign-in). */
+  readonly accountEmail = computed(() => this.#auth.user()?.email ?? '');
   /**
    * Card or Wallet can be picked (`STORE_INFO.payments.cardOrWallet`). While it is
    * `'coming-soon'` it is listed greyed out and visitors outside Egypt order on WhatsApp.
@@ -203,8 +249,11 @@ export class CheckoutPageComponent implements OnInit {
         );
         if (snap.exists()) {
           const data = snap.data();
+          const photo = data.images[0];
           products.set(line.productId, {
             name: data.name,
+            imagePath: photo?.path ?? null,
+            imageAlt: photo?.alt || data.name,
             weightGrams: typeof data.weightGrams === 'number' ? data.weightGrams : null,
             priced: toPricedProduct(data),
             options: data.options,
@@ -217,16 +266,14 @@ export class CheckoutPageComponent implements OnInit {
   });
 
   /**
-   * Display-only preview. Place-order ignores this and prices again on the server.
-   * Shipping is one converted amount; the parcel itself stays off this screen.
+   * Bag lines priced with live offers (EGP and the visitor's currency). Shipping is added in
+   * `orderSummary`. Display-only: place-order prices again on the server.
    */
-  readonly orderSummary = computed((): CheckoutSummary => {
-    if (!isCheckoutCountry(this.shipping().country)) return { state: 'need-country' };
+  readonly #pricedBag = computed((): PricedBag => {
     if (!this.#currency.ready() || !this.#offers.ready()) return { state: 'loading' };
     if (this.productsResource.error()) return { state: 'unavailable' };
     const products = this.productsResource.value();
-    const settings = this.#shippingSettings.settings();
-    if (!products || !settings) return { state: 'loading' };
+    if (!products) return { state: 'loading' };
 
     const lines = this.lines();
     if (lines.some((line) => !products.has(line.productId))) return { state: 'missing-item' };
@@ -234,6 +281,7 @@ export class CheckoutPageComponent implements OnInit {
     const offers = this.#offers.all();
     const ctx: PricingContext = { now: new Date(), signedIn: true, codes: [] };
     const entry = this.#currency.entry();
+    const lineDisplay: number[] = [];
     const pricedLines: PricedProduct[] = [];
     const parcelLines: ParcelLine[] = [];
     let subtotalEgp = 0;
@@ -244,10 +292,59 @@ export class CheckoutPageComponent implements OnInit {
       if (!info) return { state: 'missing-item' };
       parcelLines.push({ weightGrams: info.weightGrams, quantity: line.quantity });
       const unitEgp = priceItem(info.priced, variantFor(info, line), offers, ctx).effectivePrice;
+      const display = lineDisplayAmount(toDisplayAmount(unitEgp, entry), line.quantity);
       subtotalEgp += unitEgp * line.quantity;
-      subtotalDisplay += lineDisplayAmount(toDisplayAmount(unitEgp, entry), line.quantity);
+      subtotalDisplay += display;
+      lineDisplay.push(display);
       pricedLines.push(info.priced);
     }
+
+    return {
+      state: 'ready',
+      offers,
+      ctx,
+      lineDisplay,
+      pricedLines,
+      parcelLines,
+      subtotalEgp,
+      subtotalDisplay,
+    };
+  });
+
+  /** Order summary rows: photo, name, options, quantity and line price. */
+  readonly summaryItems = computed((): readonly CheckoutSummaryItem[] => {
+    const products = this.productsResource.value();
+    const bag = this.#pricedBag();
+    const entry = this.#currency.entry();
+    const decimals = displayDecimals(entry.code);
+    return this.lines().map((line, index) => {
+      const info = products?.get(line.productId);
+      const display = bag.state === 'ready' ? bag.lineDisplay[index] : undefined;
+      return {
+        name: info?.name ?? 'Item',
+        imagePath: info?.imagePath ?? null,
+        imageSrc: info?.imagePath ? normalizeImageKitPath(info.imagePath) : '',
+        imageAlt: info?.imageAlt ?? '',
+        options: info ? selectionLabel(info.options, line.selection) : '',
+        quantity: line.quantity,
+        price: display === undefined ? '' : formatMoney(display, entry.code, decimals),
+      };
+    });
+  });
+
+  /**
+   * Display-only preview. Place-order ignores this and prices again on the server.
+   * Shipping is one converted amount; the parcel itself stays off this screen.
+   */
+  readonly orderSummary = computed((): CheckoutSummary => {
+    if (!isCheckoutCountry(this.shipping().country)) return { state: 'need-country' };
+    const bag = this.#pricedBag();
+    if (bag.state !== 'ready') return { state: bag.state };
+    const settings = this.#shippingSettings.settings();
+    if (!settings) return { state: 'loading' };
+
+    const { offers, ctx, pricedLines, parcelLines, subtotalEgp, subtotalDisplay } = bag;
+    const entry = this.#currency.entry();
 
     const region = this.isEgypt() ? 'egypt' : 'international';
     const boxes = this.isEgypt() ? settings.egyptBoxes : settings.internationalBoxes;
@@ -300,6 +397,16 @@ export class CheckoutPageComponent implements OnInit {
       codShipping: formatMoney(feeEgp, 'EGP', 0),
       codCash: formatMoney(subtotalEgp, 'EGP', 0),
     };
+  });
+
+  /** What the phone summary bar shows: the total once shipping is known, else the subtotal. */
+  readonly summaryBarAmount = computed(() => {
+    const summary = this.orderSummary();
+    if (summary.state === 'ready') return summary.total;
+    const bag = this.#pricedBag();
+    if (bag.state !== 'ready') return '';
+    const entry = this.#currency.entry();
+    return formatMoney(bag.subtotalDisplay, entry.code, displayDecimals(entry.code));
   });
 
   /** Large Egypt order: the delivery fee is agreed on WhatsApp after the order is placed. */
@@ -457,8 +564,8 @@ export class CheckoutPageComponent implements OnInit {
     this.#chosenMethod.set(method);
   }
 
-  productName(productId: string): string {
-    return this.productsResource.value()?.get(productId)?.name ?? 'Item';
+  toggleSummary(): void {
+    this.summaryOpen.update((open) => !open);
   }
 
   async placeOrder(): Promise<void> {
