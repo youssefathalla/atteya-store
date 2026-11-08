@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { MARKETING_BADGE_KINDS, MARKETING_BADGE_STYLES } from '@core/services/products/marketing-badge';
+import { ColorSiblingSchema } from '@core/services/products/product.schema';
 
 export const SearchHitImageSchema = v.object({
   path: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(512)),
@@ -15,6 +16,8 @@ export const SearchHitSchema = v.object({
   type: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(64)),
   typeLabel: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
   modelGroup: v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(120)), null),
+  /** Main (leaf) category; missing on records indexed before the card redesign. */
+  categoryId: v.optional(v.nullable(v.string()), null),
   categoryIds: v.optional(v.array(v.string()), []),
   price: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000)),
   compareAtPrice: v.nullable(
@@ -56,5 +59,7 @@ export const SearchHitSchema = v.object({
   ),
   inStock: v.optional(v.boolean(), true),
   image: v.nullable(SearchHitImageSchema, null),
+  /** Every colour of the model (card colour row); empty until search is rebuilt. */
+  colorSiblings: v.optional(v.fallback(v.array(ColorSiblingSchema), []), []),
   createdAtMs: v.optional(v.number(), 0),
 });

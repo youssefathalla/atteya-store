@@ -3,10 +3,10 @@
    * On.com-style listing card chrome (AS-71).
    * No padded frame / radius / shadow on the card shell.
    * Soft gray media plane + contained floating product photo.
-   * Orange marketing badge is intentional merchandising chrome (not brand primary).
+   * Order: photo, the model's other colours, badge, name, second line, price.
+   * The marketing badge is black like the rest of the brand (no accent colour).
    */
   .product-card {
-    --product-card-marketing: #c45c26;
     --product-card-media-from: #f3f3f3;
     --product-card-media-to: #e8e8e8;
   }
@@ -73,13 +73,11 @@
   }
 
   .product-card__badge {
-    @apply font-label-sm font-mono uppercase tracking-wide;
-    color: var(--product-card-marketing);
+    @apply font-label-sm font-bold! uppercase tracking-wide text-primary;
   }
 
   .product-card__badge--boxed {
-    @apply inline-block px-1.5 py-0.5 border border-shape;
-    border-color: var(--product-card-marketing);
+    @apply inline-block px-1.5 py-0.5 border border-primary border-shape;
   }
 
   .product-card__name {

@@ -108,33 +108,6 @@ export class ProductService {
     return snap.docs.map((item) => item.data());
   }
 
-  /**
-   * Batch-load published colorways for many model groups (one query per unique group).
-   * Used by listing cards so each card does not fire its own sibling read.
-   */
-  async listPublishedByModelGroups(
-    groups: readonly string[],
-    maxPerGroup = 12,
-  ): Promise<ReadonlyMap<string, readonly Product[]>> {
-    const unique = [
-      ...new Set(groups.map((group) => group.trim()).filter((group) => group.length > 0)),
-    ];
-    const entries = await Promise.all(
-      unique.map(async (group) => {
-        const snap = await getDocs(
-          query(
-            this.#products,
-            where('published', '==', true),
-            where('modelGroup', '==', group),
-            limit(maxPerGroup),
-          ),
-        );
-        return [group, snap.docs.map((item) => item.data())] as const;
-      }),
-    );
-    return new Map(entries);
-  }
-
   async countPublished(countQuery: ProductCountQuery): Promise<number> {
     const snap = await getCountFromServer(query(this.#products, ...publishedFilters(countQuery)));
     return snap.data().count;

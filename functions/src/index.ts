@@ -8,6 +8,7 @@ export { setProductStock } from './products/set-product-stock.fn.js';
 export { productWeights } from './products/product-weights.fn.js';
 export { createProduct, updateProduct } from './products/product-form.fn.js';
 export { onProductCountsChange } from './products/product-counts.trigger.js';
+export { onProductColorSiblingsChange } from './products/color-siblings.trigger.js';
 export { onOfferWritten } from './offers/on-offer-written.trigger.js';
 export { refreshOfferPricing } from './offers/refresh-offer-pricing.schedule.js';
 export { listAdmins, setUserRole } from './roles/roles.fn.js';
