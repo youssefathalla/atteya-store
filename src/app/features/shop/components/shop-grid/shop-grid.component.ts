@@ -1,6 +1,5 @@
 import { Component, computed, effect, inject, input, resource, signal } from '@angular/core';
 import { AuthService } from '@core/services/auth/auth.service';
-import { displayPrice, type PricedProduct } from '@core/services/offers/engine';
 import { OffersService } from '@core/services/offers/offers.service';
 import type { Product } from '@core/services/products/product.model';
 import { ProductCacheService, ProductService } from '@core/services/products';
@@ -11,6 +10,7 @@ import type {
   ProductCardSibling,
 } from '@shared/components/product-card/product-card.model';
 import {
+  searchHitCardPrice,
   searchHitToCardData,
   siblingGroupsMap,
   toSiblingGroupsRecord,
@@ -69,50 +69,7 @@ export class ShopGridComponent {
 
     const map = new Map<string, ProductCardPrice>();
     for (const hit of hits) {
-      if (liveMode) {
-        const priced: PricedProduct = {
-          productId: hit.objectID,
-          name: hit.name,
-          brandId: hit.brandId,
-          categoryIds: hit.categoryIds,
-          type: hit.type,
-          modelGroup: hit.modelGroup,
-          colors: hit.colors,
-          sizes: hit.sizes,
-          tags: hit.tags,
-          price: hit.price,
-          compareAtPrice: hit.compareAtPrice,
-        };
-        const d = displayPrice(priced, offers, ctx);
-        map.set(hit.objectID, {
-          price: d.partial ? hit.price : d.fromPrice,
-          fromPrice: d.partial ? d.fromPrice : null,
-          listPrice: d.listPrice,
-          partial: d.partial,
-          badges: [],
-        });
-      } else {
-        const shown = hit.displayPrice ?? hit.price;
-        const varies = hit.pricePartial ?? shown !== hit.price;
-        map.set(
-          hit.objectID,
-          varies
-            ? {
-                price: hit.price,
-                fromPrice: shown,
-                listPrice: hit.listPrice ?? hit.compareAtPrice,
-                partial: true,
-                badges: [],
-              }
-            : {
-                price: shown,
-                fromPrice: null,
-                listPrice: hit.listPrice ?? hit.compareAtPrice,
-                partial: false,
-                badges: [],
-              },
-        );
-      }
+      map.set(hit.objectID, searchHitCardPrice(hit, liveMode ? offers : null, ctx));
     }
     return map;
   });

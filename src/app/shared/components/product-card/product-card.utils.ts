@@ -1,4 +1,10 @@
 import {
+  displayPrice,
+  type Offer,
+  type PricedProduct,
+  type PricingContext,
+} from '@core/services/offers/engine';
+import {
   marketingBadgeLabel,
   type MarketingBadge,
 } from '@core/services/products/marketing-badge';
@@ -142,6 +148,49 @@ export function productToCardData(
     colorways: colorwaysForProduct(product, siblingsByGroup),
     price,
   };
+}
+
+/**
+ * Listing price for one Algolia hit. With live `offers` (OffersService ready and not failed)
+ * it re-prices through the shared engine; with `null` it uses the display fields Algolia stored.
+ * Listing cards never show offer chips, so `badges` is always empty.
+ */
+export function searchHitCardPrice(
+  hit: SearchHit,
+  offers: readonly Offer[] | null,
+  ctx: PricingContext,
+): ProductCardPrice {
+  if (offers) {
+    const priced: PricedProduct = {
+      productId: hit.objectID,
+      name: hit.name,
+      brandId: hit.brandId,
+      categoryIds: hit.categoryIds,
+      type: hit.type,
+      modelGroup: hit.modelGroup,
+      colors: hit.colors,
+      sizes: hit.sizes,
+      tags: hit.tags,
+      price: hit.price,
+      compareAtPrice: hit.compareAtPrice,
+    };
+    const d = displayPrice(priced, offers, ctx);
+    return {
+      price: d.partial ? hit.price : d.fromPrice,
+      fromPrice: d.partial ? d.fromPrice : null,
+      listPrice: d.listPrice,
+      partial: d.partial,
+      badges: [],
+    };
+  }
+
+  const shown = hit.displayPrice ?? hit.price;
+  // Records indexed before `pricePartial` existed keep the old behaviour until search is rebuilt.
+  const varies = hit.pricePartial ?? shown !== hit.price;
+  const listPrice = hit.listPrice ?? hit.compareAtPrice;
+  return varies
+    ? { price: hit.price, fromPrice: shown, listPrice, partial: true, badges: [] }
+    : { price: shown, fromPrice: null, listPrice, partial: false, badges: [] };
 }
 
 export function searchHitToCardData(

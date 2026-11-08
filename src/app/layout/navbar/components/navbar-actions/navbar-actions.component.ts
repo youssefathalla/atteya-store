@@ -1,11 +1,11 @@
 import { Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CartService } from '@core/services/cart/cart.service';
 import { DrawerService } from '@core/services/drawer/drawer.service';
+import { SearchPanelService } from '../../../search-panel/services/search-panel.service';
 import { AccountMenuComponent } from '../account-menu/account-menu.component';
 
 @Component({
@@ -22,11 +22,12 @@ import { AccountMenuComponent } from '../account-menu/account-menu.component';
 export class NavbarActionsComponent {
   readonly #drawerService = inject(DrawerService);
   readonly #cart = inject(CartService);
-  readonly #router = inject(Router);
+  readonly #searchPanel = inject(SearchPanelService);
   readonly cartCount = this.#cart.count;
 
-  toggleSearch(): void {
-    void this.#router.navigate(['/search']);
+  openSearch(event: Event): void {
+    const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    void this.#searchPanel.open(trigger);
   }
 
   toggleCart(): void {
