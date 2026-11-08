@@ -60,7 +60,8 @@ Set by the catalogue copy cleanup (Nov 8, 2026); keep new products in the same s
 
 - **Name**: brand + model only, title case, no year and no colour (the colour picker shows the colour): "Adidas Simple Polo", "Bullpadel Neuron 02 Edge". A player's own shirt or set carries the player: "Adidas Ale Galán T-Shirt", "Nox Agustín Tapia Set".
 - **Short description** (`summary`, "Short summary" in the form): 7 words at most, no full stop, for cards, the bag and search: "Ale Galán's adjustable power racket", "Keeps drinks hot or cold, 550 ml". Name the player here when the product has its own model name.
-- **Long description** (product page Details): one or two plain sentences, a blank line, then the facts as lines starting with "• ": materials with percentages, capacity, size, pockets; rackets list Shape, Balance, Weight, Core, Face, Level and Playing style. Only facts we know; no marketing claims or "like original".
+- **Description** (`descriptionHtml`, "Description" in the form): one or two plain sentences about what the product is for, shown on the product page under the price. Prose only: no bullet lines, no specs.
+- **Details** (`details`, "Details" in the form, one fact per line, at most 20 lines of 200 characters): shown on the product page in its own section, titled **Materials** for clothing, socks and supports and **Specifications** for gear. Materials with percentages ("63% cotton, 33% polyamide, 4% elastane"), capacity, size, pockets; rackets list Shape, Balance, Weight, Core, Face, Level and Playing style as "Shape: Diamond". No "• " in front (the page lays out the list; a pasted bullet is removed). Only facts we know; no marketing claims or "like original".
 - Option labels and values use title case too ("Choose Your Pair", "Nox Black"); sizes stay as they are (M, 2XL, T2 (M)).
 
 ## 8. Before you finish

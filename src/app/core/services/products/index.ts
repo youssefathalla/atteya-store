@@ -12,3 +12,4 @@ export * from './utils/new-arrival';
 export * from './utils/product-price.utils';
 export * from './utils/priced-product.utils';
 export * from './utils/catalog-path';
+export * from './utils/product-details';

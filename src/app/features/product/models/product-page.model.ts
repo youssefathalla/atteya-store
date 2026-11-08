@@ -9,6 +9,7 @@ export type ProductView = Pick<
   | 'name'
   | 'summary'
   | 'descriptionHtml'
+  | 'details'
   | 'detailImages'
   | 'categoryId'
   | 'categoryIds'
@@ -58,6 +59,7 @@ export function toProductView(product: Product): ProductView {
     name: product.name,
     summary: product.summary,
     descriptionHtml: product.descriptionHtml,
+    details: product.details,
     detailImages: product.detailImages,
     categoryId: product.categoryId,
     categoryIds: product.categoryIds,

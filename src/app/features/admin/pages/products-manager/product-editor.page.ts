@@ -44,6 +44,11 @@ import {
   timestampToMs,
   toDateInputValue,
 } from '@core/services/products/utils/new-arrival';
+import {
+  detailLinesFromText,
+  MAX_DETAIL_LINE,
+  MAX_DETAIL_LINES,
+} from '@core/services/products/utils/product-details';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import type { ImageAsset } from '@shared/schemas';
@@ -83,6 +88,8 @@ interface EditorFields {
   slug: string;
   summary: string;
   description: string;
+  /** One fact per line (materials, racket specs). */
+  details: string;
   type: ProductTypeId;
   categoryId: string;
   brandId: string;
@@ -319,6 +326,16 @@ export class ProductEditorPageComponent implements OnInit {
     validate(path.description, ({ value }) => {
       if (asText(value()).trim().length > 5_000) {
         return { kind: 'description', message: 'The description must be 5,000 characters or fewer.' };
+      }
+      return undefined;
+    });
+    validate(path.details, ({ value }) => {
+      const lines = detailLinesFromText(asText(value()));
+      if (lines.length > MAX_DETAIL_LINES) {
+        return { kind: 'details', message: 'Add up to 20 lines of details.' };
+      }
+      if (lines.some((line) => line.length > MAX_DETAIL_LINE)) {
+        return { kind: 'details', message: 'Keep each line of details to 200 characters or fewer.' };
       }
       return undefined;
     });
@@ -731,6 +748,7 @@ export class ProductEditorPageComponent implements OnInit {
       slug: product.slug,
       summary: product.summary ?? '',
       description,
+      details: product.details.join('\n'),
       type: product.type,
       categoryId: product.categoryId,
       brandId: product.brandId,
@@ -942,6 +960,7 @@ export class ProductEditorPageComponent implements OnInit {
       ...(sendDescription
         ? { description: descriptionText.length === 0 ? null : descriptionText }
         : {}),
+      details: detailLinesFromText(asText(value.details)),
       type: value.type,
       categoryId: value.categoryId.trim(),
       brandId: value.brandId.trim(),
@@ -975,6 +994,7 @@ function emptyFields(): EditorFields {
     slug: '',
     summary: '',
     description: '',
+    details: '',
     type,
     categoryId: defaultCategoryForType(type),
     brandId: '',

@@ -71,8 +71,8 @@
             </p>
           }
 
-          @if (p.summary) {
-            <p class="font-body-md" dir="auto">{{ p.summary }}</p>
+          @if (hasDescription()) {
+            <div dir="auto" class="pdp-description" [innerHTML]="p.descriptionHtml"></div>
           }
 
           @if (p.modelGroup) {
@@ -105,37 +105,31 @@
         </div>
 
         <div class="w-full border-t border-outline lg:col-start-1 lg:row-start-2">
-          @if (hasDescription()) {
-            <details class="pdp-section" [open]="!p.summary">
+          @if (p.details.length > 0) {
+            <details class="pdp-section">
               <summary>
-                <span>Details</span>
-                <span class="pdp-section__icon-open" aria-hidden="true"
-                  ><mat-icon name="add" size="lg"
-                /></span>
-                <span class="pdp-section__icon-close" aria-hidden="true"
-                  ><mat-icon name="close" size="lg"
-                /></span>
+                <span>{{ detailsTitle() }}</span>
+                <span class="pdp-section__icon" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
               </summary>
-              <div
-                dir="auto"
-                class="pdp-section__body [&_p]:mb-3 [&_ul]:list-disc [&_ul]:ps-5 [&_ol]:list-decimal [&_ol]:ps-5 [&_a]:underline"
-                [innerHTML]="p.descriptionHtml"
-              ></div>
+              <div class="pdp-section__body">
+                <ul class="pdp-section__list" dir="auto">
+                  @for (line of p.details; track $index) {
+                    <li>{{ line }}</li>
+                  }
+                </ul>
+              </div>
             </details>
           }
 
           <details class="pdp-section">
             <summary>
               <span>Shipping</span>
-              <span class="pdp-section__icon-open" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
-              <span class="pdp-section__icon-close" aria-hidden="true"
-                ><mat-icon name="close" size="lg"
-              /></span>
+              <span class="pdp-section__icon" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
             </summary>
             <div class="pdp-section__body">
               @let notes = shippingNotes();
               @if (notes && notes.length > 0) {
-                <ul class="pdp-shipping-line elements-start-col gap-1 list-none m-0 p-0">
+                <ul class="pdp-section__list pdp-shipping-line">
                   @for (note of notes; track $index) {
                     <li>{{ note }}</li>
                   }
