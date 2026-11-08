@@ -1,4 +1,4 @@
-<header class="search-panel__header">
+<header class="side-panel__header">
   <div class="search-panel__field">
     <mat-icon name="search" size="xl" aria-hidden="true" />
     <input
@@ -25,7 +25,7 @@
   </button>
 </header>
 
-<div id="search-panel-results" class="search-panel__body" aria-live="polite">
+<div id="search-panel-results" class="side-panel__body" aria-live="polite">
   @if (!isConfigured) {
     <div class="search-panel__message">
       <p class="font-title-md font-bold!">Search isn't ready yet</p>
@@ -108,7 +108,7 @@
 </div>
 
 @if (isConfigured && hasMinQuery() && items().length > 0) {
-  <footer class="search-panel__footer">
+  <footer class="side-panel__footer">
     <button matButton="filled" type="button" (click)="seeAll()">See All Results</button>
     <a
       href="https://www.algolia.com"

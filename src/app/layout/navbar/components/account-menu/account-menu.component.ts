@@ -6,6 +6,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '@core/services/auth/auth.service';
 import { safeReturnUrl } from '@core/services/auth/auth.utils';
+import { AccountPanelService } from '@layout/account-panel/services/account-panel.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 
 @Component({
@@ -17,6 +18,7 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 export class AccountMenuComponent {
   readonly #auth = inject(AuthService);
   readonly #router = inject(Router);
+  readonly #panel = inject(AccountPanelService);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly tooltip = input<string>('');
@@ -24,7 +26,6 @@ export class AccountMenuComponent {
 
   readonly isAuthReady = this.#auth.isAuthReady;
   readonly isAuthenticated = this.#auth.isAuthenticated;
-  readonly isAdmin = this.#auth.isAdmin;
   /**
    * The server marks auth ready at once and would otherwise prerender Sign in.
    * The browser starts not-ready. Both must render the placeholder first so
@@ -34,18 +35,13 @@ export class AccountMenuComponent {
     if (!this.#isBrowser || !this.isAuthReady()) return 'pending' as const;
     return this.isAuthenticated() ? ('signed-in' as const) : ('signed-out' as const);
   });
-  readonly accountLabel = computed(() => {
-    const user = this.#auth.user();
-    const name = user?.displayName?.trim();
-    if (name) return name;
-    return user?.email ?? 'Your account';
-  });
 
   signInParams(): { returnUrl: string } {
     return { returnUrl: safeReturnUrl(this.#router.url) };
   }
 
-  signOut(): void {
-    void this.#auth.logout();
+  /** Signed in: the account panel (profile, orders, favorites, Sign Out). */
+  openPanel(event: MouseEvent): void {
+    void this.#panel.open(event.currentTarget as HTMLElement | null);
   }
 }

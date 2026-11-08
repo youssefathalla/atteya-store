@@ -27,7 +27,7 @@ const TYPING_PAUSE_MS = 250;
  */
 @Component({
   selector: 'app-search-panel',
-  host: { class: 'search-panel' },
+  host: { class: 'side-panel' },
   imports: [
     NgOptimizedImage,
     RouterLink,
