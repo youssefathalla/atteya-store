@@ -294,6 +294,7 @@ Located in `src/app/shared/schemas/` and `src/app/shared/utils/firebase/`:
   - `signalCollection(queryRef)`: Binds a Firestore query/collection to an Angular Signal (SSR-safe, auto-unsubscribing).
 - **Error Handling & Retry** (`src/app/shared/utils/firebase/`):
   - `firebaseErrors(error)` / `mapFirebaseError` / `handleFirebaseError`: Translates Firebase Auth, Firestore, Storage, and Functions errors into user-friendly status messages.
+  - `callableMessage(error)`: The plain message a callable's `HttpsError` carried, without the ` [400]`-style HTTP status the Functions SDK adds to every callable error. Returns null for non-callable errors and for the SDK's own status text (uncaught server error, network failure, timeout), so the caller shows its own fallback. Use it in every `catch` that shows a callable's message (checkout Place Order, `orderActionError`, `importActionError`); never show `error.message` from a callable directly.
   - `authRetryConfig` / `firestoreRetryConfig`: RxJS retry configurations for transient network failures.
   - `withRetry(operation, options)`: Retries idempotent async Promise operations with exponential backoff.
 
