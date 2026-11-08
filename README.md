@@ -8,7 +8,7 @@ This project was generated using [Angular CLI](https://github.com/angular/angula
 - Branch names are `<type>/<short-name>`, for example `fix/sign-in-errors`. PR titles and commit messages start with the Linear id.
 - `npm ci` turns on a pre-push check that blocks bad branch names and commits without the Linear id. It also runs preflight, tests and the build before anything reaches GitHub.
 - On a pull request, Cursor Bugbot and the Cursor security review check it, and Claude fixes what they find (up to 3 rounds). The PR merges into `develop` by itself when it's clean, but PRs that change `.github/` wait for a person.
-- `npm run agent:build -- <id> <id>` starts Claude on Linear tickets right away. Tickets labelled `agent-ready` are picked up every 2 hours.
+- `npm run agent:build -- <id> <id>` starts Claude on Linear tickets right away. Tickets labelled `agent-ready` are started every hour, several at once when they don't depend on each other (Linear "blocked by" links).
 - Merged work goes to QA in Linear. A person checks it on the dev site and moves it to Done.
 
 ## Development server
