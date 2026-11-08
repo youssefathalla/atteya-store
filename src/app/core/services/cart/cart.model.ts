@@ -17,3 +17,43 @@ function stableSelection(selection: Readonly<Record<string, string>>): string {
     .map((key) => `${key}=${selection[key]}`)
     .join('|');
 }
+
+/** Most pieces of one line (same product, same choices). Matches `carts/{uid}` rules and the order callables. */
+export const MAX_LINE_QUANTITY = 20;
+
+/** Most lines in one bag. Matches `carts/{uid}` rules. */
+export const MAX_CART_LINES = 50;
+
+/** Clamp to a whole number between 1 and `MAX_LINE_QUANTITY`. */
+export function clampLineQuantity(quantity: number): number {
+  if (!Number.isFinite(quantity)) return 1;
+  return Math.min(MAX_LINE_QUANTITY, Math.max(1, Math.trunc(quantity)));
+}
+
+/**
+ * Adds `line` to `lines`: the same product with the same choices adds to that line's
+ * quantity (capped at `MAX_LINE_QUANTITY`), anything else becomes a new line at the end.
+ * A new line past `MAX_CART_LINES` is dropped.
+ */
+export function addCartLine(lines: readonly CartLineDraft[], line: CartLineDraft): readonly CartLineDraft[] {
+  const key = cartLineKey(line);
+  const index = lines.findIndex((entry) => cartLineKey(entry) === key);
+  if (index >= 0) {
+    const next = [...lines];
+    next[index] = {
+      ...next[index],
+      quantity: clampLineQuantity(next[index].quantity + line.quantity),
+    };
+    return next;
+  }
+  if (lines.length >= MAX_CART_LINES) return lines;
+  return [...lines, { ...line, quantity: clampLineQuantity(line.quantity) }];
+}
+
+/** Adds every line of `extra` to `base` with `addCartLine` (guest bag into the account bag on sign-in). */
+export function mergeCartLines(
+  base: readonly CartLineDraft[],
+  extra: readonly CartLineDraft[],
+): readonly CartLineDraft[] {
+  return extra.reduce<readonly CartLineDraft[]>((lines, line) => addCartLine(lines, line), base);
+}

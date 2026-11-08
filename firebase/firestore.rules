@@ -158,6 +158,93 @@ service cloud.firestore {
       }
     }
 
+    // Per-shopper bag. Only that signed-in person can read or save it; admins get no access.
+    // carts/{uid}: lines (product id, variant id, choices and quantity per line; never prices)
+    // and updatedAt. Guests keep their bag in the browser instead.
+    match /carts/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validCart(request.resource.data);
+      allow delete: if false;
+    }
+
+    // At most 50 lines. Rules have no loops, so each index is checked on its own;
+    // indexes past the end stop at the size check.
+    function validCart(data) {
+      return data.keys().hasOnly(['lines', 'updatedAt'])
+        && data.lines is list
+        && data.lines.size() <= 50
+        && data.updatedAt == request.time
+        && cartLineAt(data.lines, 0)
+        && cartLineAt(data.lines, 1)
+        && cartLineAt(data.lines, 2)
+        && cartLineAt(data.lines, 3)
+        && cartLineAt(data.lines, 4)
+        && cartLineAt(data.lines, 5)
+        && cartLineAt(data.lines, 6)
+        && cartLineAt(data.lines, 7)
+        && cartLineAt(data.lines, 8)
+        && cartLineAt(data.lines, 9)
+        && cartLineAt(data.lines, 10)
+        && cartLineAt(data.lines, 11)
+        && cartLineAt(data.lines, 12)
+        && cartLineAt(data.lines, 13)
+        && cartLineAt(data.lines, 14)
+        && cartLineAt(data.lines, 15)
+        && cartLineAt(data.lines, 16)
+        && cartLineAt(data.lines, 17)
+        && cartLineAt(data.lines, 18)
+        && cartLineAt(data.lines, 19)
+        && cartLineAt(data.lines, 20)
+        && cartLineAt(data.lines, 21)
+        && cartLineAt(data.lines, 22)
+        && cartLineAt(data.lines, 23)
+        && cartLineAt(data.lines, 24)
+        && cartLineAt(data.lines, 25)
+        && cartLineAt(data.lines, 26)
+        && cartLineAt(data.lines, 27)
+        && cartLineAt(data.lines, 28)
+        && cartLineAt(data.lines, 29)
+        && cartLineAt(data.lines, 30)
+        && cartLineAt(data.lines, 31)
+        && cartLineAt(data.lines, 32)
+        && cartLineAt(data.lines, 33)
+        && cartLineAt(data.lines, 34)
+        && cartLineAt(data.lines, 35)
+        && cartLineAt(data.lines, 36)
+        && cartLineAt(data.lines, 37)
+        && cartLineAt(data.lines, 38)
+        && cartLineAt(data.lines, 39)
+        && cartLineAt(data.lines, 40)
+        && cartLineAt(data.lines, 41)
+        && cartLineAt(data.lines, 42)
+        && cartLineAt(data.lines, 43)
+        && cartLineAt(data.lines, 44)
+        && cartLineAt(data.lines, 45)
+        && cartLineAt(data.lines, 46)
+        && cartLineAt(data.lines, 47)
+        && cartLineAt(data.lines, 48)
+        && cartLineAt(data.lines, 49);
+    }
+
+    function cartLineAt(lines, i) {
+      return lines.size() <= i || validCartLine(lines[i]);
+    }
+
+    // Quantity 1-20 per line. Choices are option id -> value id, at most 10 options.
+    function validCartLine(line) {
+      return line is map
+        && line.keys().hasOnly(['productId', 'variantId', 'selection', 'quantity'])
+        && line.productId is string
+        && line.productId.size() > 0
+        && line.productId.size() <= 128
+        && (line.variantId == null || (line.variantId is string && line.variantId.size() <= 128))
+        && line.selection is map
+        && line.selection.size() <= 10
+        && line.quantity is int
+        && line.quantity >= 1
+        && line.quantity <= 20;
+    }
+
     // Shopper profile (signup consent). Owner creates once at account creation.
     // Fields: termsAcceptedAt, termsVersion, marketingOptIn, marketingOptInAt.
     match /users/{uid} {
@@ -187,7 +274,7 @@ service cloud.firestore {
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'users', 'emailSignups', 'emailSignupRateLimits']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits']);
     }
   }
 }
