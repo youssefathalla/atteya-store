@@ -185,7 +185,15 @@ function pages() {
       ready: null,
       action: openBag,
     },
-    { id: 'login', label: 'Sign In', path: '/login', ready: 'input[type="email"]', readyWhy: 'The email field never showed.' },
+    {
+      id: 'login',
+      label: 'Sign In',
+      path: '/login',
+      // Rendered only in the browser (RenderMode.Client): nothing to hydrate, the form is the proof.
+      clientOnly: true,
+      ready: 'input[type="email"]',
+      readyWhy: 'The email field never showed.',
+    },
   ];
 }
 
@@ -259,6 +267,16 @@ async function check(context, size, def) {
     );
   }
 
+  // Server-rendered pages are only done once the browser has taken them over. A dev build logs
+  // "Angular hydrated N component(s)" at that moment; without it the check would pass on the
+  // server HTML alone and miss a crash or a stuck loader in the browser.
+  const hydrated = def.clientOnly
+    ? Promise.resolve(true)
+    : page
+        .waitForEvent('console', { predicate: (m) => /Angular hydrated/i.test(m.text()), timeout: NAV_TIMEOUT })
+        .then(() => true)
+        .catch(() => false);
+
   const started = Date.now();
   try {
     const response = await page.goto(BASE + path, { waitUntil: 'load', timeout: NAV_TIMEOUT });
@@ -270,6 +288,7 @@ async function check(context, size, def) {
     const landed = new URL(page.url()).pathname;
     if (landed !== wanted) problems.push(`The page sent the visitor to ${landed} instead.`);
 
+    if (!(await hydrated)) problems.push('The page never finished loading in the browser (no hydration).');
     await page.waitForTimeout(SETTLE_MS);
     await waitForStoreLoader(page, problems);
 
@@ -310,7 +329,7 @@ async function check(context, size, def) {
   };
 }
 
-/** The first-load store loader ("Loading store") must go away. */
+/** The first-load store loader ("Loading store") must go away. Runs after hydration, when it can exist. */
 async function waitForStoreLoader(page, problems) {
   const loader = page.locator('[role="status"][aria-label="Loading store"]');
   try {
@@ -320,9 +339,14 @@ async function waitForStoreLoader(page, problems) {
   }
 }
 
-/** Taps the visible bag button and expects the bag to open with its one line. */
+/**
+ * Taps the visible bag button and expects the bag to slide onto the screen with its one line.
+ * The closed phone bag is only moved below the screen (translate-y-full), and Playwright counts
+ * that as visible, so "on screen" here means inside the window.
+ */
 async function openBag(page, problems) {
   const button = page.locator('button[aria-label="Shopping Cart"]:visible').first();
+  if (await bagLineOnScreen(page)) problems.push('The bag was already on screen before the bag button was pressed.');
   try {
     await button.click({ timeout: 10_000 });
   } catch {
@@ -330,16 +354,44 @@ async function openBag(page, problems) {
     return;
   }
   try {
-    await page.locator('app-cart-drawer .bag-line:visible').first().waitFor({ state: 'visible', timeout: READY_TIMEOUT });
+    await page.waitForFunction(onScreenBagLine, undefined, { timeout: READY_TIMEOUT });
   } catch {
-    problems.push('The bag opened without the item in it.');
+    problems.push('The bag did not open with the item in it.');
+    return;
   }
   // Let the slide-in and the product reads settle, then look again: the line must still be
   // there and the empty-bag message must not show next to a count of 1.
   await page.waitForTimeout(2_500);
-  const lineStillThere = await page.locator('app-cart-drawer .bag-line:visible').count();
-  const emptyShown = await page.getByText('Your bag is empty').filter({ visible: true }).count();
+  const lineStillThere = await bagLineOnScreen(page);
+  const emptyShown = await page.evaluate(() =>
+    [...document.querySelectorAll('app-cart-drawer h3')].some((h) => {
+      if (!/your bag is empty/i.test(h.textContent ?? '')) return false;
+      const r = h.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+    }),
+  );
   if (!lineStillThere || emptyShown) problems.push('The bag shows "Your bag is empty" although it has an item.');
+}
+
+/** True when a bag line is inside the window (runs in the page). */
+function onScreenBagLine() {
+  return [...document.querySelectorAll('app-cart-drawer .bag-line')].some((el) => {
+    const r = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return (
+      style.visibility !== 'hidden' &&
+      r.width > 0 &&
+      r.height > 0 &&
+      r.bottom > 0 &&
+      r.right > 0 &&
+      r.top < innerHeight &&
+      r.left < innerWidth
+    );
+  });
+}
+
+function bagLineOnScreen(page) {
+  return page.evaluate(onScreenBagLine).catch(() => false);
 }
 
 /** The product the server rendered, from the TransferState seed (`product-page:<slug>`). */
