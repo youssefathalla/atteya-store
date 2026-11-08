@@ -49,6 +49,15 @@
             >
               {{ brandName() }}
             </a>
+            @for (player of playerLinks(); track player.id) {
+              <a
+                routerLink="/shop"
+                [queryParams]="player.query"
+                class="font-body-md text-on-surface-variant no-underline hover:underline"
+              >
+                More from {{ player.name }}
+              </a>
+            }
           </div>
 
           @if (badgeLabel(); as badge) {

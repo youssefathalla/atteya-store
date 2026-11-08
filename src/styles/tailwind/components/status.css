@@ -7,6 +7,15 @@
     @apply elements-start border-shape border border-outline-variant/50 p-3;
   }
 
+  /* Pick-many button (product colours and players, offer conditions). Selected = aria-pressed. */
+  .toggle-pill {
+    @apply border-shape border border-outline-variant px-2.5 py-1 elements-center gap-1.5 font-label-sm cursor-pointer;
+
+    &[aria-pressed='true'] {
+      @apply border-primary bg-surface-container-highest;
+    }
+  }
+
   .chip {
     @apply border-shape max-[325px]:px-1.5 px-3 py-1 border border-outline-variant font-label-lg h-8 justify-center
       transition-all inline-flex items-center duration-200 ease-in-out cursor-pointer hover:bg-secondary-container;

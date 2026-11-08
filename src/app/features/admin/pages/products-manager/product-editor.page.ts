@@ -15,7 +15,7 @@ import { FormField, form, submit, validate } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { StorageAssetTracker, StorageUploadService } from '@core/services/storage';
 import {
   COLOR_PALETTE,
@@ -36,6 +36,8 @@ import {
   SIZE_ORDER,
 } from '@core/services/products/product.constants';
 import type { Product, ProductGenderId, ProductTypeId } from '@core/services/products/product.model';
+import { PlayerListService } from '@core/services/products/player-list.service';
+import { MAX_PRODUCT_PLAYERS } from '@core/services/products/player.schema';
 import {
   defaultNewArrivalUntil,
   isActiveNewArrival,
@@ -113,6 +115,7 @@ const GENDER_OPTIONS: readonly { readonly id: '' | ProductGenderId; readonly lab
     MatButtonModule,
     MatCheckboxModule,
     MatProgressSpinnerModule,
+    RouterLink,
     SelectInputComponent,
     TextInputComponent,
     TextFieldInputComponent,
@@ -132,6 +135,7 @@ export class ProductEditorPageComponent implements OnInit {
   readonly #snackbar = inject(SnackbarService);
   readonly #router = inject(Router);
   readonly #platformId = inject(PLATFORM_ID);
+  readonly #playerList = inject(PlayerListService);
   readonly #tracker = new StorageAssetTracker();
 
   readonly types = PRODUCT_TYPES;
@@ -145,6 +149,11 @@ export class ProductEditorPageComponent implements OnInit {
   readonly images = signal<ImageAsset[]>([]);
   readonly selectedColors = signal<readonly ColorId[]>([]);
   readonly tags = signal<readonly string[]>([]);
+  /** Player ids picked from Settings → Players. */
+  readonly selectedPlayers = signal<readonly string[]>([]);
+  readonly playerError = signal('');
+  readonly playerOptions = this.#playerList.players;
+  readonly playersLoading = this.#playerList.isLoading;
   readonly tagInput = signal('');
   readonly tagError = signal('');
   readonly marketingBadgeKind = signal<MarketingBadgeKind | ''>('');
@@ -481,6 +490,25 @@ export class ProductEditorPageComponent implements OnInit {
     this.colorError.set('');
   }
 
+  hasPlayer(id: string): boolean {
+    return this.selectedPlayers().includes(id);
+  }
+
+  togglePlayer(id: string): void {
+    const current = this.selectedPlayers();
+    if (current.includes(id)) {
+      this.selectedPlayers.set(current.filter((item) => item !== id));
+      this.playerError.set('');
+      return;
+    }
+    if (current.length >= MAX_PRODUCT_PLAYERS) {
+      this.playerError.set('Choose up to 10 players.');
+      return;
+    }
+    this.selectedPlayers.set([...current, id]);
+    this.playerError.set('');
+  }
+
   onTagInput(event: Event): void {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
@@ -706,6 +734,8 @@ export class ProductEditorPageComponent implements OnInit {
       this.images.set([]);
       this.selectedColors.set([]);
       this.tags.set([]);
+      this.selectedPlayers.set([]);
+      this.playerError.set('');
       this.tagInput.set('');
       this.tagError.set('');
       this.marketingBadgeKind.set('');
@@ -761,6 +791,8 @@ export class ProductEditorPageComponent implements OnInit {
     this.images.set(product.images.map((image) => toImageAsset(image)));
     this.selectedColors.set(sortColors(product.colors ?? []));
     this.tags.set([...(product.tags ?? [])]);
+    this.selectedPlayers.set([...product.players]);
+    this.playerError.set('');
     this.tagInput.set('');
     this.tagError.set('');
     this.marketingBadgeKind.set(product.marketingBadge?.kind ?? '');
@@ -968,6 +1000,11 @@ export class ProductEditorPageComponent implements OnInit {
       gender: value.gender === '' ? null : value.gender,
       colors: this.selectedColors(),
       tags: this.tags(),
+      // Only players still in the list; a removed player drops off this product on save.
+      // While the list hasn't loaded, leave the key out so the saved players stay.
+      ...(this.#playerList.hasValue()
+        ? { players: this.selectedPlayers().filter((id) => this.#playerList.nameOf(id) !== null) }
+        : {}),
       marketingBadge: this.#marketingBadgePayload(),
       newArrivalUntil: this.#newArrivalUntilPayload(),
       price,

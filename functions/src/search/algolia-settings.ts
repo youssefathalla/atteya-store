@@ -4,6 +4,7 @@ import { replicaNames } from './algolia-config.js';
 export const SEARCHABLE_ATTRIBUTES: readonly string[] = [
   'name',
   'brandName',
+  'unordered(playerNames)',
   'unordered(typeLabel)',
   'unordered(hierarchicalCategories.lvl1)',
   'unordered(hierarchicalCategories.lvl0)',
@@ -23,6 +24,8 @@ export const ATTRIBUTES_FOR_FACETING: readonly string[] = [
   'filterOnly(brandId)',
   'filterOnly(type)',
   'filterOnly(modelGroup)',
+  // Shop's Player filter (`?player=<id>`) lists the ids that have published products, with counts.
+  'players',
   // Shop needs facet counts to show/hide the Gender filter (AS-74); filterOnly omits values.
   'gender',
   'filterOnly(marketingBadgeKind)',

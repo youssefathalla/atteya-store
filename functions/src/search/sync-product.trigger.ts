@@ -10,6 +10,7 @@ import { getActiveOffers } from '../offers/offer-cache.js';
 import { getSearchClient, safeErrorMessage, withRetry } from './algolia-client.js';
 import { ALGOLIA_WRITE_KEY, productsIndexName } from './algolia-config.js';
 import { getCatalogLookup } from './catalog-cache.js';
+import { readProductPlayerIds } from '../products/players.js';
 import { searchRecordsEqual, toSearchRecord } from './product-record.js';
 
 export type ProductSearchSyncDeps = {
@@ -67,13 +68,26 @@ export async function executeProductSearchSync(
     afterData?.['published'] === true ? 'saveObject' : 'deleteObject';
 
   try {
-    const [{ categoriesById, brandsById }, offers] = await Promise.all([
+    let [catalog, offers] = await Promise.all([
       deps.getCatalogLookup(db),
       deps.getActiveOffers(db, true),
     ]);
+    // The catalogue lookup is cached for a few minutes. A player added since then would be
+    // dropped from both records, the save would look unchanged and nothing would reach the
+    // index, so read the player list again when this product names a player it doesn't know.
+    const productPlayers = [
+      ...readProductPlayerIds(beforeData?.['players']),
+      ...readProductPlayerIds(afterData?.['players']),
+    ];
+    if (productPlayers.some((id) => !catalog.playerNamesById.has(id))) {
+      catalog = await deps.getCatalogLookup(db, true);
+    }
+    const { categoriesById, brandsById, playerNamesById } = catalog;
 
-    const before = toSearchRecord(productId, beforeData, categoriesById, brandsById, offers);
-    const after = toSearchRecord(productId, afterData, categoriesById, brandsById, offers);
+    const now = new Date();
+    const lookup = [categoriesById, brandsById, offers, now, playerNamesById] as const;
+    const before = toSearchRecord(productId, beforeData, ...lookup);
+    const after = toSearchRecord(productId, afterData, ...lookup);
 
     if (before === null && after === null) {
       return;

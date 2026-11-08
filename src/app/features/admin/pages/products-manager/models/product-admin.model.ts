@@ -57,6 +57,8 @@ export interface ProductFormPayload {
   readonly gender: ProductGenderId | null;
   readonly colors: readonly ColorId[];
   readonly tags: readonly string[];
+  /** Player ids; left out while the player list hasn't loaded, so the saved list stays. */
+  readonly players?: readonly string[];
   readonly marketingBadge: MarketingBadge | null;
   /** ISO timestamp or null when not flagged for New Arrivals. */
   readonly newArrivalUntil: string | null;

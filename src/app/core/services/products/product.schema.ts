@@ -3,6 +3,7 @@ import { idSchema, slugSchema, timestampSchema } from '@shared/schemas';
 import { ImageAssetSchema } from '@shared/schemas/image.schema';
 import { COLOR_IDS } from './catalog-taxonomy';
 import { MARKETING_BADGE_KINDS, MARKETING_BADGE_STYLES } from './marketing-badge';
+import { MAX_PRODUCT_PLAYERS, PlayerIdSchema } from './player.schema';
 import { MAX_DETAIL_LINE, MAX_DETAIL_LINES } from './utils/product-details';
 import {
   LOCKABLE_PRODUCT_FIELDS,
@@ -111,6 +112,11 @@ export const ProductSchema = v.pipe(
     options: v.pipe(v.array(ProductOptionSchema), v.maxLength(8)),
     colors: v.optional(v.pipe(v.array(v.picklist(COLOR_IDS)), v.maxLength(12)), []),
     tags: v.optional(v.pipe(v.array(tagSlugSchema), v.maxLength(20)), []),
+    /** Player ids from `settings/players` (Shop's Player filter). A bad list never drops the product. */
+    players: v.optional(
+      v.fallback(v.pipe(v.array(PlayerIdSchema), v.maxLength(MAX_PRODUCT_PLAYERS)), []),
+      [],
+    ),
     /** Merchandising badge (NEW / BESTSELLER / LIMITED EDITION). Distinct from freeform `tags`. */
     marketingBadge: v.optional(v.nullable(MarketingBadgeSchema), null),
     /**

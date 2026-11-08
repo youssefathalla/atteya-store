@@ -91,10 +91,7 @@
               @for (choice of choicesForField(atom.field); track choice.id) {
                 <button
                   type="button"
-                  class="border-shape border px-2.5 py-1 elements-center gap-1.5 font-label-sm cursor-pointer"
-                  [class.border-primary]="hasValue(atom, choice.id)"
-                  [class.bg-surface-container-highest]="hasValue(atom, choice.id)"
-                  [class.border-outline-variant]="!hasValue(atom, choice.id)"
+                  class="toggle-pill"
                   [attr.aria-pressed]="hasValue(atom, choice.id)"
                   (click)="toggleValue(gIdx, aIdx, atom, choice.id)"
                 >

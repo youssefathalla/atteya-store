@@ -37,6 +37,13 @@ export interface ShopBrandOption {
   readonly count: number;
 }
 
+export interface ShopPlayerOption {
+  /** Link name from `settings/players` (`?player=ale-galan`). */
+  readonly id: string;
+  readonly name: string;
+  readonly count: number;
+}
+
 export interface ShopSizeOption {
   readonly label: string;
   readonly count: number;
@@ -47,6 +54,8 @@ export interface ShopFilterState {
   readonly sort: CatalogSort;
   readonly categories: readonly ShopCategoryFilterId[];
   readonly brands: readonly string[];
+  /** Player ids (`?player=ale-galan,agustin-tapia`). */
+  readonly players: readonly string[];
   readonly sizes: readonly string[];
   readonly colors: readonly ColorId[];
   readonly genders: readonly ShopGenderFilterId[];
@@ -120,6 +129,7 @@ export const DEFAULT_SHOP_FILTERS: ShopFilterState = {
   sort: 'featured',
   categories: [],
   brands: [],
+  players: [],
   sizes: [],
   colors: [],
   genders: [],

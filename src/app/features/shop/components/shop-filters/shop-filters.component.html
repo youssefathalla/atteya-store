@@ -61,6 +61,22 @@
     </section>
   }
 
+  @if (players().length > 0) {
+    <section class="shop-filters-section">
+      <h2 class="shop-filters-heading">Player</h2>
+      <div class="elements-start-col gap-1">
+        @for (player of players(); track player.id) {
+          <mat-checkbox
+            [checked]="filters().players.includes(player.id)"
+            (change)="togglePlayer(player.id)"
+          >
+            {{ player.name }}
+          </mat-checkbox>
+        }
+      </div>
+    </section>
+  }
+
   @if (showSizes() && sizes().length > 0) {
     <section class="shop-filters-section">
       <h2 class="shop-filters-heading">Size</h2>
