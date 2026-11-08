@@ -211,6 +211,7 @@ jobs:
               const bugbotOut = bugbot.conclusion !== 'success' &&
                 (bugbot.output?.title === 'Error' || /failed to run/i.test(String(bugbot.output?.summary || '')));
               let usedClaude = false;
+              let claudeSerious = 0;
               if (bugbot.conclusion !== 'success' && !bugbotOut) { stop(`Bugbot ended with "${bugbot.conclusion}" (issues found or an error).`); continue; }
               if (bugbotOut) {
                 const verdict = await claudeVerdict(n, sha);
@@ -221,23 +222,30 @@ jobs:
                   continue;
                 }
                 usedClaude = true;
-              } else if (claudeRun) {
-                // Bugbot ran and is clean. The Claude review of this commit still has to finish, and
-                // a high or medium finding from it holds the merge (Claude Fix works on those).
-                if (claudeRun.status !== 'completed') { stop('The Claude review of this commit is still running.'); continue; }
+              } else {
+                // Bugbot ran and is clean. The Claude review of this commit still has to finish
+                // (its check is in IGNORED, so the running-check wait below does not see it). When its
+                // check is not listed yet, look for a Claude Review run on this commit instead; no run
+                // at all means the review is off or skipped for this PR.
+                let claudePending = claudeRun ? claudeRun.status !== 'completed' : false;
+                if (!claudeRun) {
+                  const { data: wf } = await github.rest.actions.listWorkflowRuns({
+                    owner, repo, workflow_id: 'claude-review.yml', head_sha: sha, per_page: 20,
+                  });
+                  claudePending = (wf.workflow_runs || []).some((run) => run.status !== 'completed');
+                }
+                if (claudePending) { stop('The Claude review of this commit is still running.'); continue; }
                 const review = await claudeReview(n, sha);
                 // Only a run started by hand with "skip_claude_findings" ticked is the owner deciding
                 // these findings are fine; a plain hand-started run (e.g. after resolving a security
-                // thread) still holds.
+                // thread) still holds. The hold itself is applied after every other gate, so its
+                // comment is only posted when it is really the last thing left.
                 const skipClaude = context.eventName === 'workflow_dispatch' &&
                   String(context.payload.inputs?.skip_claude_findings) === 'true';
                 if (review.verdict === 'issues' && review.serious > 0 && skipClaude) {
                   core.info(`#${n}: the Claude review has ${review.serious} high or medium issue(s); merging anyway because the run was started by hand with skip_claude_findings.`);
                 } else if (review.verdict === 'issues' && review.serious > 0) {
-                  await commentOnce(n, `<!-- auto-merge-claude-findings ${sha} -->`,
-                    `**✋ Auto-merge** · waiting\n\nBugbot found no issues, but the Claude review found ${review.serious} high or medium issue${review.serious === 1 ? '' : 's'} on \`${sha.slice(0, 7)}\`. Claude Fix works on them (up to 3 rounds), and this merges by itself once the next review is clean. If Claude Fix has stopped and you decide the findings are fine, run Actions → Auto-merge → Run workflow with PR number ${n} and tick "skip_claude_findings": it then merges if everything else is clean.`);
-                  stop(`The Claude review found ${review.serious} high or medium issue(s).`);
-                  continue;
+                  claudeSerious = review.serious;
                 }
               }
               const required = REQUIRED.map((names) => ({ label: names[0], run: names.map((name) => byName.get(name)).find(Boolean) }));
@@ -282,12 +290,6 @@ jobs:
                 return body.includes('Agentic Security Review') || body.includes('CURSOR_AUTOMATION_ID');
               };
               const openSecurity = open.filter(isSecurity);
-              if (openSecurity.length) {
-                await commentOnce(n, `<!-- auto-merge-security-open ${sha} -->`,
-                  `**✋ Auto-merge** · waiting for you\n\nEverything else on \`${sha.slice(0, 7)}\` is clean, but ${openSecurity.length} security finding${openSecurity.length === 1 ? ' from the Cursor Security Agent is' : 's from the Cursor Security Agent are'} still open. Check Claude's fix for each one and resolve the thread. Resolving starts nothing by itself, so then run Actions → Auto-merge → Run workflow with PR number ${n}.`);
-                stop(`${openSecurity.length} security finding(s) are still open.`);
-                continue;
-              }
               const openHumanThreads = open.filter((thread) => {
                 const login = thread.comments.nodes[0]?.author?.login || '';
                 return !/^(cursor|claude)(\[bot\])?$/.test(login);
@@ -304,6 +306,24 @@ jobs:
               }
 
               if (pr.mergeable !== true) { stop(`GitHub cannot merge it yet (mergeable: ${pr.mergeable}, state: ${pr.mergeable_state}).`); continue; }
+
+              // Review steps that are the last thing left. Checked after every other gate, so the
+              // ✋ comments are only posted when nothing else is holding the merge.
+              if (claudeSerious > 0) {
+                await commentOnce(n, `<!-- auto-merge-claude-findings ${sha} -->`,
+                  `**✋ Auto-merge** · waiting\n\nBugbot found no issues, but the Claude review found ${claudeSerious} high or medium issue${claudeSerious === 1 ? '' : 's'} on \`${sha.slice(0, 7)}\`. Claude Fix works on them (up to 3 rounds), and this merges by itself once the next review is clean. If Claude Fix has stopped and you decide the findings are fine, run Actions → Auto-merge → Run workflow with PR number ${n} and tick "skip_claude_findings": it then merges if everything else is clean.`);
+              }
+              if (openSecurity.length) {
+                await commentOnce(n, `<!-- auto-merge-security-open ${sha} -->`,
+                  `**✋ Auto-merge** · waiting for you\n\n${openSecurity.length} security finding${openSecurity.length === 1 ? ' from the Cursor Security Agent is' : 's from the Cursor Security Agent are'} still open on \`${sha.slice(0, 7)}\`. Check Claude's fix for each one and resolve the thread. Resolving starts nothing by itself, so then run Actions → Auto-merge → Run workflow with PR number ${n}.`);
+              }
+              if (claudeSerious > 0 || openSecurity.length) {
+                stop([
+                  claudeSerious > 0 ? `The Claude review found ${claudeSerious} high or medium issue(s).` : '',
+                  openSecurity.length ? `${openSecurity.length} security finding(s) are still open.` : '',
+                ].filter(Boolean).join(' '));
+                continue;
+              }
 
               try {
                 await github.rest.pulls.merge({
