@@ -1,0 +1,22 @@
+@layer components {
+  /*! shopping bag (app-cart-drawer): item rows and the Payment Methods row */
+
+  /* One item: photo on the left, name + price, details and controls on the right. */
+  .bag-line {
+    @apply elements-start items-start! gap-3 py-4 border-b border-outline-variant;
+  }
+
+  .bag-line__photo {
+    @apply relative size-24 shrink-0 overflow-hidden bg-surface-container-high;
+  }
+
+  /* Round − / + buttons with the quantity between them. */
+  .bag-line__stepper {
+    @apply elements-start gap-1 border border-outline-variant rounded-full;
+  }
+
+  /* One payment method name; "Coming soon" sits inside when it isn't offered yet. */
+  .bag-pay-method {
+    @apply elements-start gap-2 px-3 py-1.5 border border-outline-variant border-shape font-label-lg;
+  }
+}

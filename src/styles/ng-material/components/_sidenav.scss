@@ -23,6 +23,12 @@ $handset-landscape: '(max-width: 959.98px) and (orientation: landscape)';
 
 // Storefront: Allow sticky positioning by letting the window handle the scroll
 app-main-layout {
+  // The bag drawer is 28rem wide, like the search and account panels (the 18rem default
+  // above cut product names and squeezed the Recommended for You cards).
+  @include mat.sidenav-overrides((
+    container-width: 28rem,
+  ));
+
   mat-drawer-container,
   .mat-drawer-container {
     overflow: clip !important;

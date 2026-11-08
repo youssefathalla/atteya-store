@@ -17,4 +17,5 @@
 @import './styles/tailwind/components/side-panel';
 @import './styles/tailwind/components/search-panel';
 @import './styles/tailwind/components/account-panel';
+@import './styles/tailwind/components/cart-drawer';
 @import './styles/tailwind/utils-base';

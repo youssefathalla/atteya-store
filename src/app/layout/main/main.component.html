@@ -6,7 +6,7 @@
     [opened]="isDesktop() && drawerService.activeDrawer() === 'cart'"
     (closed)="drawerService.close()"
   >
-    <app-cart-drawer />
+    <app-cart-drawer placement="side" />
   </mat-drawer>
 
   <!-- 2. MAIN PAGE CONTENT -->

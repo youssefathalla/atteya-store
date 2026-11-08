@@ -1,5 +1,5 @@
 import { NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject, linkedSignal, resource, untracked } from '@angular/core';
+import { Component, computed, inject, input, linkedSignal, resource, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { doc, getDoc } from 'firebase/firestore';
@@ -8,19 +8,39 @@ import {
   cartSubtotalDisplay,
   lineDisplayAmount,
 } from '@core/services/cart/cart-pricing';
+import { isCardOrWalletLive } from '@core/config/store-info';
+import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { cartLineKey, type CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
 import { displayDecimals, toDisplayAmount } from '@core/services/offers/engine';
+import { OffersService } from '@core/services/offers/offers.service';
+import { PRODUCT_GENDERS } from '@core/services/products/product.constants';
+import type { ProductGenderId } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
 import { DrawerService } from '@core/services/drawer/drawer.service';
+import { SearchService, type SearchHit } from '@core/services/search';
+import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
+import type { ProductCardData } from '@shared/components/product-card/product-card.model';
+import {
+  searchHitCardPrice,
+  searchHitToCardData,
+} from '@shared/components/product-card/product-card.utils';
+import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
+import { useBreakpoint } from '@shared/utils/breakpoint.utils';
+import {
+  BAG_RECOMMENDATION_FETCH,
+  bagPaymentMethods,
+  bagRecommendationFilter,
+  pickBagRecommendations,
+} from './utils/bag-extras';
 
 interface CartProductOptionValue {
   readonly id: string;
@@ -41,6 +61,10 @@ interface CartProductInfo {
   readonly imagePath: string | null;
   readonly imageAlt: string;
   readonly options: readonly CartProductOption[];
+  /** "Men", "Women", "Kids" or "Unisex"; null when the product has no gender set. */
+  readonly genderLabel: string | null;
+  /** Main (leaf) category, used to pick the "Recommended for You" products. */
+  readonly categoryId: string;
 }
 
 /**
@@ -55,6 +79,17 @@ function sameIds(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((id, index) => id === b[index]);
 }
 
+function genderLabel(gender: ProductGenderId | undefined): string | null {
+  if (!gender) return null;
+  return PRODUCT_GENDERS.find((entry) => entry.id === gender)?.label ?? null;
+}
+
+/** Search hits for the "Recommended for You" row, with the time they were read (for offer pricing). */
+interface BagRecommendationHits {
+  readonly hits: readonly SearchHit[];
+  readonly readAtMs: number;
+}
+
 @Component({
   selector: 'app-cart-drawer',
   imports: [
@@ -63,6 +98,8 @@ function sameIds(a: readonly string[], b: readonly string[]): boolean {
     MatButtonModule,
     SharedIconModule,
     AppImageFallbackDirective,
+    ProductCardComponent,
+    HorizontalScrollDirective,
   ],
   templateUrl: './cart-drawer.component.html',
   host: {
@@ -72,15 +109,41 @@ function sameIds(a: readonly string[], b: readonly string[]): boolean {
   },
 })
 export class CartDrawerComponent {
+  /**
+   * Where this copy of the bag is mounted: `side` = the desktop drawer, `sheet` = the phone
+   * slide-up panel. Both copies stay mounted; only the one on screen loads recommendations.
+   */
+  readonly placement = input.required<'side' | 'sheet'>();
+
   readonly drawerService = inject(DrawerService);
   readonly #cart = inject(CartService);
   readonly #currency = inject(CurrencyService);
+  readonly #search = inject(SearchService);
+  readonly #offers = inject(OffersService);
+  readonly #auth = inject(AuthService);
   readonly #firestore = injectFirestore();
+  readonly #isDesktop = useBreakpoint(1024);
 
   readonly lines = this.#cart.lines;
   readonly isEmpty = this.#cart.isEmpty;
   readonly count = this.#cart.count;
   readonly showCheckout = computed(() => canCheckout(!this.isEmpty()));
+  /** "1 item" / "4 items": the number of pieces in the bag, for the heading. */
+  readonly countLabel = computed(() => {
+    const count = this.count();
+    return `${count} ${count === 1 ? 'item' : 'items'}`;
+  });
+
+  /**
+   * Payment methods checkout offers for the visitor's country (Egypt when the country is not
+   * known yet, the same fallback checkout uses).
+   */
+  readonly paymentMethods = computed(() =>
+    bagPaymentMethods(
+      (this.#currency.visitorCountry() ?? 'EG') === 'EG',
+      isCardOrWalletLive(),
+    ),
+  );
   /** Rows are tracked by product + chosen options, so removing one row leaves the others in place. */
   readonly lineKey = cartLineKey;
 
@@ -163,6 +226,8 @@ export class CartDrawerComponent {
       if (!data.published) return null;
       const primary = data.images[0];
       return {
+        genderLabel: genderLabel(data.gender),
+        categoryId: data.categoryId,
         name: data.name,
         slug: data.slug,
         price: data.price,
@@ -269,6 +334,70 @@ export class CartDrawerComponent {
     }
     return parts.join(' · ');
   }
+
+  /** True once this copy of the bag has been on screen; recommendations load from then on. */
+  readonly #shown = linkedSignal<boolean, boolean>({
+    source: () =>
+      this.drawerService.isOpen('cart') &&
+      (this.placement() === 'side') === this.#isDesktop(),
+    computation: (now, previous) => now || (previous?.value ?? false),
+  });
+
+  /** The bag's main categories, sorted. Changes only when a product is added or removed. */
+  readonly #bagCategoryIds = computed(
+    () => {
+      const ids = new Set<string>();
+      for (const info of this.#products().values()) {
+        if (info) ids.add(info.categoryId);
+      }
+      return [...ids].sort();
+    },
+    { equal: sameIds },
+  );
+
+  readonly #recommendationsResource = resource({
+    params: () => {
+      if (!this.#shown()) return undefined;
+      return bagRecommendationFilter(this.#bagCategoryIds()) ?? undefined;
+    },
+    loader: async ({ params: filters }): Promise<BagRecommendationHits> => {
+      const result = await this.#search.browseCatalog({
+        filters,
+        hitsPerPage: BAG_RECOMMENDATION_FETCH,
+      });
+      return { hits: result.hits, readAtMs: Date.now() };
+    },
+  });
+
+  /**
+   * The last hits read. While the next read loads (a product was added or removed), the row
+   * keeps the cards it has instead of disappearing; it empties when the bag is empty.
+   */
+  readonly #recommendationHits = linkedSignal<
+    BagRecommendationHits | null | undefined,
+    BagRecommendationHits | null
+  >({
+    source: () => {
+      if (this.isEmpty()) return null;
+      return this.#recommendationsResource.hasValue()
+        ? this.#recommendationsResource.value()
+        : undefined;
+    },
+    computation: (next, previous) =>
+      next === undefined ? (previous?.value ?? null) : next,
+  });
+
+  /** Up to 8 in-stock products from the bag's categories that are not in the bag yet. */
+  readonly recommendations = computed<readonly ProductCardData[]>(() => {
+    const loaded = this.#recommendationHits();
+    if (!loaded) return [];
+    const inBag = new Set(this.lines().map((line) => line.productId));
+    const hits = pickBagRecommendations(loaded.hits, inBag);
+    const liveMode = this.#offers.ready() && !this.#offers.failed();
+    const offers = liveMode ? this.#offers.all() : null;
+    const ctx = { now: new Date(loaded.readAtMs), signedIn: Boolean(this.#auth.user()) };
+    return hits.map((hit) => searchHitToCardData(hit, searchHitCardPrice(hit, offers, ctx)));
+  });
 
   onEscape(): void {
     if (this.drawerService.isOpen('cart')) {
