@@ -3,6 +3,11 @@
  * New Arrivals uses portrait media capped to the remaining viewport under top chrome.
  */
 @layer components {
+  /* Home section headings (Shop tiles, Padel, New Arrivals). */
+  .home-section-title {
+    @apply font-headline-md sm:font-headline-lg font-bold!;
+  }
+
   .padel-tile {
     @apply relative block w-full no-underline overflow-hidden aspect-4/5;
     background: linear-gradient(180deg, #f3f3f3 0%, #e6e6e6 100%);
@@ -53,10 +58,12 @@
     }
   }
 
+  /* `--row-lock-media-max` is set by `RowScrollLockDirective` on desktop so the locked section fits exactly. */
   .home-new-arrivals .product-card__media {
     aspect-ratio: 4 / 5;
-    max-height: calc(
-      100dvh - var(--storefront-top-chrome, 56px) - var(--home-new-arrivals-chrome, 7.75rem)
+    max-height: var(
+      --row-lock-media-max,
+      calc(100dvh - var(--storefront-top-chrome, 56px) - var(--home-new-arrivals-chrome, 7.75rem))
     );
   }
 
