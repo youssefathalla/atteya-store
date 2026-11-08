@@ -51,7 +51,11 @@ export class AccountPanelComponent {
   readonly isAdmin = this.#auth.isAdmin;
   readonly email = computed(() => this.#auth.user()?.email ?? '');
   readonly name = computed(() =>
-    accountDisplayName(this.profile.value()?.name, this.#auth.user()?.displayName, this.email()),
+    accountDisplayName(
+      this.profile.hasValue() ? this.profile.value()?.name : null,
+      this.#auth.user()?.displayName,
+      this.email(),
+    ),
   );
   readonly initial = computed(() => accountInitial(this.name()));
   /** Only once the profile has loaded, so the prompt doesn't flash for a complete profile. */

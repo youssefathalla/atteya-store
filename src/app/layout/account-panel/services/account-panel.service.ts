@@ -3,7 +3,7 @@ import { DestroyRef, inject, Injector, PLATFORM_ID, Service } from '@angular/cor
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Dialog, type DialogRef } from '@angular/cdk/dialog';
 import { createGlobalPositionStrategy } from '@angular/cdk/overlay';
-import { NavigationStart, Router } from '@angular/router';
+import { NavigationSkipped, NavigationStart, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 // Type only: the component itself is imported on first open.
@@ -30,7 +30,8 @@ export class AccountPanelService {
   constructor() {
     this.#router.events
       .pipe(
-        filter((event) => event instanceof NavigationStart),
+        // NavigationSkipped: a panel link to the URL already shown must still close the panel.
+        filter((event) => event instanceof NavigationStart || event instanceof NavigationSkipped),
         takeUntilDestroyed(inject(DestroyRef)),
       )
       .subscribe(() => this.close());
