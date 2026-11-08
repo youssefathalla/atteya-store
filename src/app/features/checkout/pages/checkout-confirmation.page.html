@@ -23,7 +23,12 @@
       </div>
       <div class="elements-between gap-4">
         <span class="font-label-lg opacity-80">Payment</span>
-        <span class="font-title-sm font-bold!">{{ paymentLabel() }}</span>
+        <span class="elements-end gap-2 font-title-sm font-bold!">
+          @if (paymentMethod(); as method) {
+            <app-payment-mark [method]="method" />
+          }
+          <span>{{ paymentLabel() }}</span>
+        </span>
       </div>
       <div class="elements-between gap-4">
         <span class="font-label-lg opacity-80">Status</span>

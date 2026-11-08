@@ -15,8 +15,13 @@
     @apply elements-start gap-1 border border-outline-variant rounded-full;
   }
 
-  /* One payment method name; "Coming soon" sits inside when it isn't offered yet. */
-  .bag-pay-method {
-    @apply elements-start gap-2 px-3 py-1.5 border border-outline-variant border-shape font-label-lg;
+  /* One of three equal payment tiles: the method's mark with its name under it (InstaPay: the logo only). */
+  .bag-pay-tile {
+    @apply min-h-22 elements-center-col gap-1.5 p-2 text-center border border-outline-variant border-shape font-label-md;
+  }
+
+  /* A method that isn't offered yet: dashed outline, grey text, "Coming soon" under the name. */
+  .bag-pay-tile--soon {
+    @apply border-dashed text-on-surface-variant;
   }
 }

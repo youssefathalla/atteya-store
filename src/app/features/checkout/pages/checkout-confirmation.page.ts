@@ -25,6 +25,7 @@ import { displayDecimals } from '@core/services/offers/engine';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { isPaymentMethodId, PAYMENT_METHODS, PaymentMarkComponent } from '@shared/ui/payment-mark';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { formatMoney } from '@shared/utils/money';
 
@@ -39,7 +40,7 @@ import { formatMoney } from '@shared/utils/money';
 @Component({
   selector: 'app-checkout-confirmation-page',
   host: { class: 'block w-full' },
-  imports: [RouterLink, MatButtonModule, SharedIconModule],
+  imports: [RouterLink, MatButtonModule, SharedIconModule, PaymentMarkComponent],
   templateUrl: './checkout-confirmation.page.html',
 })
 export class CheckoutConfirmationPageComponent implements OnInit {
@@ -165,19 +166,16 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     }
   });
 
+  /** The order's payment method when it is one we still offer (its mark shows next to the name). */
+  readonly paymentMethod = computed(() => {
+    const method = this.order()?.paymentMethod;
+    return isPaymentMethodId(method) ? method : null;
+  });
+
   readonly paymentLabel = computed(() => {
-    switch (this.order()?.paymentMethod) {
-      case 'instapay':
-        return 'InstaPay';
-      case 'cash-on-delivery':
-        return 'Cash on Delivery';
-      case 'paymob':
-        return 'Card or Wallet';
-      case 'international-bank-transfer':
-        return 'Bank Transfer';
-      default:
-        return '—';
-    }
+    const method = this.paymentMethod();
+    if (method) return PAYMENT_METHODS[method].name;
+    return this.order()?.paymentMethod === 'international-bank-transfer' ? 'Bank Transfer' : '—';
   });
 
   readonly statusLabel = computed(() =>
