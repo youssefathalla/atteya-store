@@ -51,6 +51,11 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Prerender,
   },
   {
+    path: 'account',
+    renderMode: RenderMode.Client,
+    headers: { 'Cache-Control': 'private, no-store' },
+  },
+  {
     path: 'favorites',
     renderMode: RenderMode.Client,
     headers: { 'Cache-Control': 'private, no-store' },

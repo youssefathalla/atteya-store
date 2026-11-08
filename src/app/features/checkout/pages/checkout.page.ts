@@ -51,7 +51,9 @@ import { toVariantFacts } from '@core/services/products/utils/priced-product.uti
 import { SeoService } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
+import { UserProfileService, type SavedAddress } from '@core/services/user-profile';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
+import { callableMessage } from '@shared/utils/firebase/firebase-errors';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
@@ -167,6 +169,7 @@ export class CheckoutPageComponent implements OnInit {
   readonly #seo = inject(SeoService);
   readonly #shippingSettings = inject(ShippingSettingsService);
   readonly #snackbar = inject(SnackbarService);
+  readonly #profiles = inject(UserProfileService);
   readonly #platformId = inject(PLATFORM_ID);
 
   readonly isSubmitting = signal(false);
@@ -220,6 +223,17 @@ export class CheckoutPageComponent implements OnInit {
   });
 
   readonly filteredCountries = computed(() => filterCheckoutCountries(this.countryQuery()));
+
+  /**
+   * The shopper's saved address (Account → Delivery Address). Read once; checkout fills the
+   * form with it when its country matches and never saves over it. A failed read just leaves
+   * the form empty.
+   */
+  readonly #savedAddress = resource({
+    params: () => this.#auth.user()?.uid || undefined,
+    loader: async ({ params: uid }) => (await this.#profiles.get(uid))?.address ?? null,
+  });
+  #savedAddressFilled = false;
 
   readonly lines = this.#cart.lines;
   readonly isEmpty = this.#cart.isEmpty;
@@ -436,6 +450,19 @@ export class CheckoutPageComponent implements OnInit {
         if (this.countryQuery() !== label) {
           this.countryQuery.set(label);
         }
+      });
+    });
+    // Fill in the saved address once, when it is for the delivery country and the shopper
+    // hasn't started typing an address.
+    effect(() => {
+      if (this.#savedAddressFilled || !this.#savedAddress.hasValue()) return;
+      const saved = this.#savedAddress.value();
+      const country = this.shipping().country;
+      if (!saved || saved.country !== country) return;
+      untracked(() => {
+        this.#savedAddressFilled = true;
+        if (hasTypedAddress(this.shipping())) return;
+        this.shipping.update((current) => fillFromSavedAddress(current, saved));
       });
     });
   }
@@ -665,11 +692,7 @@ export class CheckoutPageComponent implements OnInit {
         state: { checkoutResult: result },
       });
     } catch (error: unknown) {
-      const message =
-        error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
-          ? error.message
-          : 'We could not place your order. Try again in a moment.';
-      this.#snackbar.error(message);
+      this.#snackbar.error(callableMessage(error) ?? 'We could not place your order. Try again in a moment.');
     } finally {
       this.isSubmitting.set(false);
     }
@@ -715,4 +738,24 @@ function optionValue(
 ): Product['options'][number]['values'][number] | undefined {
   if (!valueId) return undefined;
   return info.options.find((option) => option.key === key)?.values.find((val) => val.id === valueId);
+}
+
+function hasTypedAddress(shipping: CheckoutShippingInput): boolean {
+  return [shipping.fullName, shipping.line1, shipping.line2 ?? '', shipping.city, shipping.region ?? '', shipping.postalCode, shipping.phone]
+    .some((value) => value.trim().length > 0);
+}
+
+/** Saved address → checkout form (same country). Egypt keeps only its four fields. */
+function fillFromSavedAddress(current: CheckoutShippingInput, saved: SavedAddress): CheckoutShippingInput {
+  const isEgypt = saved.country === 'EG';
+  return {
+    ...current,
+    fullName: saved.fullName,
+    line1: saved.line1,
+    line2: isEgypt ? null : (saved.line2 ?? null),
+    city: saved.city,
+    region: isEgypt ? null : (saved.region ?? null),
+    postalCode: isEgypt ? '' : saved.postalCode,
+    phone: saved.phone,
+  };
 }

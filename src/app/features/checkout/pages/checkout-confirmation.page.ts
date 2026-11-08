@@ -18,6 +18,7 @@ import { STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
 import type { CreateManualOrderResult } from '@core/services/orders/checkout-order.service';
 import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
+import { orderStatusName } from '@core/services/orders/order-status-name';
 import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
 import { displayDecimals } from '@core/services/offers/engine';
 import { SeoService } from '@core/services/seo';
@@ -178,29 +179,9 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     }
   });
 
-  readonly statusLabel = computed(() => {
-    switch (this.stage()) {
-      case 'fee-to-be-agreed':
-        return 'Waiting for Delivery Fee';
-      case 'instapay-total-due':
-      case 'instapay-fee-due':
-        return 'Waiting for Payment';
-      case 'cod-free-pending':
-        return 'Waiting for Confirmation';
-      case 'cod-confirmed':
-      case 'paid':
-      case 'paid-needs-review':
-        return 'Confirmed';
-      case 'paymob-pending':
-        return 'Confirming Payment';
-      case 'failed':
-        return 'Payment Failed';
-      case 'cancelled':
-        return 'Cancelled';
-      default:
-        return this.order()?.status ?? '—';
-    }
-  });
+  readonly statusLabel = computed(() =>
+    orderStatusName(this.stage(), this.order()?.status ?? '—'),
+  );
 
   readonly displayTotal = computed(() => {
     const pricing = this.order()?.pricing;

@@ -68,24 +68,10 @@ export class FavoritesPageComponent implements OnInit {
     },
   });
 
-  readonly #siblingsResource = resource({
-    params: () => {
-      if (!this.productsResource.hasValue()) return undefined;
-      const groups = this.productsResource
-        .value()
-        .map((product) => product.modelGroup?.trim() ?? '')
-        .filter((group) => group.length > 0);
-      return groups.length > 0 ? groups : undefined;
-    },
-    loader: ({ params }) => this.#products.listPublishedByModelGroups(params, 12),
-  });
 
   readonly cards = computed(() => {
     if (!this.productsResource.hasValue()) return [];
     const products = this.productsResource.value();
-    const siblings = this.#siblingsResource.hasValue()
-      ? this.#siblingsResource.value()
-      : new Map<string, readonly Product[]>();
     const liveMode = this.#offers.ready() && !this.#offers.failed();
     const offers = liveMode ? this.#offers.all() : [];
     const ctx = {
@@ -95,7 +81,7 @@ export class FavoritesPageComponent implements OnInit {
 
     return products.map((product) => {
       const price = priceFor(product, liveMode, offers, ctx);
-      return productToCardData(product, price, siblings);
+      return productToCardData(product, price);
     });
   });
 

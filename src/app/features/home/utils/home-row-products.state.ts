@@ -2,7 +2,7 @@ import { makeStateKey, type TransferState } from '@angular/core';
 import { Timestamp } from 'firebase/firestore';
 import type { MarketingBadge } from '@core/services/products/marketing-badge';
 import type { Product, ProductImage } from '@core/services/products/product.model';
-import type { ProductTypeId } from '@core/services/products/product.model';
+import type { ProductGenderId, ProductTypeId } from '@core/services/products/product.model';
 import type { ColorId } from '@core/services/products/catalog-taxonomy';
 import { timestampToMs } from '@core/services/products/utils/new-arrival';
 
@@ -18,6 +18,8 @@ export interface HomeRowProductSeed {
   readonly type: ProductTypeId;
   readonly brandId: string;
   readonly modelGroup: string | null;
+  readonly gender: ProductGenderId | null;
+  readonly colorSiblings: Product['colorSiblings'];
   readonly price: number;
   readonly compareAtPrice: number | null;
   readonly images: readonly ProductImage[];
@@ -50,6 +52,8 @@ export function toHomeRowProductSeed(product: Product): HomeRowProductSeed {
     type: product.type,
     brandId: product.brandId,
     modelGroup: product.modelGroup,
+    gender: product.gender ?? null,
+    colorSiblings: product.colorSiblings.map((sibling) => ({ ...sibling })),
     price: product.price,
     compareAtPrice: product.compareAtPrice,
     images: product.images.map((image) => ({ ...image })),
@@ -80,6 +84,8 @@ export function fromHomeRowProductSeed(seed: HomeRowProductSeed): Product {
     type: seed.type,
     brandId: seed.brandId,
     modelGroup: seed.modelGroup,
+    ...(seed.gender ? { gender: seed.gender } : {}),
+    colorSiblings: (seed.colorSiblings ?? []).map((sibling) => ({ ...sibling })),
     currency: 'EGP',
     price: seed.price,
     compareAtPrice: seed.compareAtPrice,

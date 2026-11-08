@@ -1,0 +1,37 @@
+<h2 class="account-section__title">
+  <mat-icon name="person" aria-hidden="true" />
+  <span>Profile</span>
+</h2>
+
+@if (loading()) {
+  <app-skeleton class="h-14 w-full" />
+  <app-skeleton class="h-14 w-full" />
+} @else {
+  <form class="w-full elements-start-col gap-2" (submit)="save($event)" novalidate>
+    <app-text-input [formField]="profileForm.name" label="Name" />
+    <app-text-input
+      [formField]="profileForm.phone"
+      label="Phone"
+      type="tel"
+      inputMode="tel"
+      placeholder="010 1234 5678"
+      subscriptSizing="dynamic"
+    />
+    <div class="w-full elements-start-col gap-1 pb-4">
+      <span class="font-label-md text-on-surface-variant">Email</span>
+      <span class="font-body-lg break-all">{{ email() }}</span>
+    </div>
+    <button
+      matButton="filled"
+      type="submit"
+      [disabled]="isSaving()"
+      [attr.aria-label]="isSaving() ? 'Saving your details' : null"
+    >
+      @if (isSaving()) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" />
+      } @else {
+        <span>Save Changes</span>
+      }
+    </button>
+  </form>
+}

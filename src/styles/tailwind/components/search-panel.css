@@ -1,15 +1,5 @@
 @layer components {
-  /*! search panel (app-search-panel, opened by SearchPanelService) */
-
-  /* Full screen on phone; a 28rem side panel from the right from lg (1024px), like the bag. */
-  .search-panel {
-    @apply flex flex-col h-dvh w-screen bg-surface overflow-hidden;
-    animation: search-panel-rise 200ms ease-out;
-  }
-
-  .search-panel__header {
-    @apply shrink-0 elements-start gap-2 px-4 pt-safe-top pb-3 border-b border-outline-variant bg-surface-container-lowest;
-  }
+  /*! search panel (app-search-panel, opened by SearchPanelService; shell is .side-panel) */
 
   .search-panel__field {
     @apply flex-1 min-w-0 elements-start gap-2 h-12 pl-3 pr-1 border border-outline-variant border-shape bg-surface;
@@ -26,10 +16,6 @@
   /* Hide the browser's own clear cross: the panel has a Clear button. */
   .search-panel__input::-webkit-search-cancel-button {
     appearance: none;
-  }
-
-  .search-panel__body {
-    @apply flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4;
   }
 
   .search-panel__message {
@@ -60,46 +46,5 @@
 
   .search-panel__thumb {
     @apply size-16 shrink-0 overflow-hidden border-shape bg-surface-container-high;
-  }
-
-  .search-panel__footer {
-    @apply shrink-0 elements-between gap-3 px-4 pt-3 pb-safe-bottom border-t border-outline-variant bg-surface-container-lowest;
-  }
-
-  @media (min-width: 1024px) {
-    .search-panel {
-      @apply w-[28rem] border-l border-outline-variant shadow-mat-3;
-      animation-name: search-panel-slide-in;
-    }
-
-    .search-panel__header {
-      @apply pt-4;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .search-panel {
-      animation: none;
-    }
-  }
-
-  @keyframes search-panel-slide-in {
-    from {
-      transform: translateX(100%);
-    }
-    to {
-      transform: none;
-    }
-  }
-
-  @keyframes search-panel-rise {
-    from {
-      opacity: 0;
-      transform: translateY(1rem);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
   }
 }

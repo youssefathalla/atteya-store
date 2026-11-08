@@ -1,0 +1,46 @@
+<section class="container-content max-w-4xl mx-auto elements-start-col gap-8">
+  <header class="w-full elements-between flex-wrap gap-4 border-b border-outline-variant pb-6">
+    <div class="elements-start gap-4 min-w-0">
+      <span class="account-avatar" aria-hidden="true">{{ initial() }}</span>
+      <div class="min-w-0">
+        <h1 class="font-headline-sm font-bold! truncate">{{ name() }}</h1>
+        @if (email() && email() !== name()) {
+          <p class="font-body-md text-on-surface-variant truncate">{{ email() }}</p>
+        }
+      </div>
+    </div>
+    <button matButton="outlined" type="button" (click)="signOut()">
+      <mat-icon name="logout" />
+      <span>Sign Out</span>
+    </button>
+  </header>
+
+  <nav class="w-full" aria-label="Account sections">
+    <ul class="account-page__tabs">
+      @for (section of sections; track section.id) {
+        <li>
+          <a class="account-page__tab" routerLink="/account" [fragment]="section.id">{{ section.label }}</a>
+        </li>
+      }
+    </ul>
+  </nav>
+
+  @if (profileResource.error()) {
+    <div class="surface-card p-6 w-full elements-center-col gap-3 text-center" role="alert">
+      <p class="font-title-md font-bold!">We couldn't load your details right now.</p>
+      <p class="font-body-md text-on-surface-variant">Please try again in a moment.</p>
+      <button matButton="outlined" type="button" (click)="profileResource.reload()">Try Again</button>
+    </div>
+  }
+
+  <app-profile-section
+    id="profile"
+    [uid]="uid()"
+    [email]="email()"
+    [profile]="profile()"
+    [loading]="profileLoading()"
+  />
+  <app-address-section id="address" [uid]="uid()" [profile]="profile()" [loading]="profileLoading()" />
+  <app-emails-section id="emails" [uid]="uid()" [profile]="profile()" [loading]="profileLoading()" />
+  <app-orders-section id="orders" [uid]="uid()" />
+</section>

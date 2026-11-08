@@ -8,6 +8,12 @@
     @apply font-headline-md sm:font-headline-lg font-bold!;
   }
 
+  /* Title that opens the full list (New Arrivals → Shop filtered, Padel, Shop). */
+  .home-section-title-link {
+    @apply w-fit elements-start gap-2 no-underline hover:underline underline-offset-4;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+
   .padel-tile {
     @apply relative block w-full no-underline overflow-hidden aspect-4/5;
     background: linear-gradient(180deg, #f3f3f3 0%, #e6e6e6 100%);

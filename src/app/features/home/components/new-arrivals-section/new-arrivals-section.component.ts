@@ -13,18 +13,16 @@ import {
   TransferState,
   viewChild,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
 import { OffersService } from '@core/services/offers/offers.service';
-import {
-  NEW_ARRIVALS_LIMIT,
-  ProductCacheService,
-  ProductService,
-} from '@core/services/products';
-import type { Product } from '@core/services/products/product.model';
+import { NEW_ARRIVALS_LIMIT, ProductService } from '@core/services/products';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
 import { productToCardData } from '@shared/components/product-card/product-card.utils';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
+import { newArrivalDaysLeft } from '@core/services/products/utils/new-arrival';
 import { listingCardPrices } from '../../utils/listing-card-prices';
 import { rowScrollProgress } from '../../utils/row-scroll';
 import { RowScrollLockDirective } from '../../directives/row-scroll-lock.directive';
@@ -39,6 +37,8 @@ import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.componen
   selector: 'app-new-arrivals-section',
   host: { class: 'block w-full' },
   imports: [
+    RouterLink,
+    SharedIconModule,
     ProductCardComponent,
     HorizontalScrollDirective,
     RowScrollLockDirective,
@@ -49,7 +49,6 @@ import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.componen
 })
 export class NewArrivalsSectionComponent {
   readonly #products = inject(ProductService);
-  readonly #cache = inject(ProductCacheService);
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);
   readonly #transfer = inject(TransferState);
@@ -79,22 +78,6 @@ export class NewArrivalsSectionComponent {
     },
   });
 
-  readonly #siblings = resource({
-    params: () => {
-      const products = this.products();
-      const groups = products
-        .map((product) => product.modelGroup?.trim() ?? '')
-        .filter((group) => group.length > 0);
-      return groups.length > 0 ? groups : undefined;
-    },
-    loader: async ({ params }) => {
-      const map = await this.#products.listPublishedByModelGroups(params, 12);
-      const all: Product[] = [];
-      for (const list of map.values()) all.push(...list);
-      this.#cache.seed(all);
-      return map;
-    },
-  });
 
   readonly products = computed(() => {
     if (this.#list.hasValue()) return this.#list.value() ?? [];
@@ -105,6 +88,21 @@ export class NewArrivalsSectionComponent {
     if (this.#seeded() !== undefined) return false;
     if (this.#list.hasValue() || this.#list.error()) return false;
     return true;
+  });
+
+  /**
+   * Where the "New arrivals" title goes. The row puts products staff marked as new arrivals
+   * first and tops up with the newest products, while the Shop New arrivals filter only shows
+   * marked ones. So: any marked product in the row → that filter; only the top-up → Shop sorted
+   * newest, so the shopper never lands on an empty list.
+   */
+  readonly titleQueryParams = computed<Record<string, string>>(() => {
+    const now = this.#nowMs();
+    const anyMarked = this.products().some(
+      (product) => newArrivalDaysLeft(product.newArrivalUntil, now) !== null,
+    );
+    const params: Record<string, string> = anyMarked ? { newArrivals: '1' } : { sort: 'newest' };
+    return params;
   });
 
   /** Hide heading + padding when empty/failed after load. */
@@ -118,11 +116,10 @@ export class NewArrivalsSectionComponent {
       now: new Date(this.#nowMs()),
       signedIn: this.#hydrated() && Boolean(this.#auth.user()),
     });
-    const siblings = this.#siblings.hasValue() ? this.#siblings.value() : new Map();
     return products.flatMap((product) => {
       const price = prices.get(product.id);
       if (!price) return [];
-      return [productToCardData(product, price, siblings)];
+      return [productToCardData(product, price)];
     });
   });
 

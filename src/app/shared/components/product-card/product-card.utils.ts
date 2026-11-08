@@ -8,7 +8,8 @@ import {
   marketingBadgeLabel,
   type MarketingBadge,
 } from '@core/services/products/marketing-badge';
-import type { Product } from '@core/services/products/product.model';
+import { PRODUCT_GENDERS } from '@core/services/products/product.constants';
+import type { Product, ProductGenderId } from '@core/services/products/product.model';
 import { cardShortDescription } from '@core/services/products/utils/card-short-description';
 import type { SearchHit } from '@core/services/search/search.model';
 import {
@@ -17,9 +18,9 @@ import {
   type ProductCardData,
   type ProductCardMarketingBadge,
   type ProductCardPrice,
-  type ProductCardSibling,
-  type ProductCardSiblingGroups,
 } from './product-card.model';
+
+type ColorSibling = Product['colorSiblings'][number];
 
 export function toMarketingBadgeView(
   badge: MarketingBadge | null | undefined,
@@ -41,111 +42,70 @@ export function marketingBadgeFromSearchHit(
   return { kind, style, label: marketingBadgeLabel(kind) };
 }
 
-/** Strip full Product docs down to TransferState-safe sibling thumbs. */
-export function toSiblingGroupsRecord(
-  map: ReadonlyMap<string, readonly Product[]>,
-): ProductCardSiblingGroups {
-  const record: Record<string, ProductCardSibling[]> = {};
-  for (const [group, list] of map) {
-    record[group] = list.map((product) => ({
-      id: product.id,
-      slug: product.slug,
-      name: product.name,
-      images: product.images.slice(0, 1).map((image) => ({
-        path: image.path,
-        alt: image.alt,
-      })),
-    }));
-  }
-  return record;
-}
-
-export function siblingGroupsMap(
-  record: ProductCardSiblingGroups | undefined | null,
-): ReadonlyMap<string, readonly ProductCardSibling[]> {
-  if (!record) return new Map();
-  return new Map(Object.entries(record));
-}
-
-/** Stable sorted unique model-group keys for resource params / TransferState. */
-export function uniqueModelGroups(
-  values: readonly (string | null | undefined)[],
-): readonly string[] | undefined {
-  const groups = [
-    ...new Set(
-      values
-        .map((value) => (typeof value === 'string' ? value.trim() : ''))
-        .filter((value) => value.length > 0),
-    ),
-  ].sort();
-  return groups.length > 0 ? groups : undefined;
-}
-
-export function colorwaysForProduct(
-  product: Pick<Product, 'id' | 'slug' | 'name' | 'images' | 'modelGroup'>,
-  siblingsByGroup: ReadonlyMap<string, readonly ProductCardSibling[]>,
+/**
+ * The card's colour row from the model's stored `colorSiblings` list (no extra read).
+ * Same rules as the product page's colour row: the list's fixed order, the card's own colour
+ * in its place (underlined), other colours only while in stock, and nothing at all when there
+ * is no other colour to show.
+ */
+export function colorwaysFromSiblings(
+  self: ProductCardColorway,
+  siblings: readonly ColorSibling[],
 ): readonly ProductCardColorway[] {
-  const self = toColorway(product);
-  const groupKey = product.modelGroup?.trim() ?? '';
-  if (!groupKey) return [self];
-
-  const group = siblingsByGroup.get(groupKey) ?? [];
-  const others = group
-    .filter((item) => item.id !== product.id)
-    .map((item) => toColorway(item));
-
-  // Current colour first so the selected underline matches the card product.
-  return [self, ...others];
+  const shown = siblings.filter((item) => item.id === self.productId || item.inStock);
+  if (!shown.some((item) => item.id !== self.productId)) return [];
+  const row = shown.map((item) => (item.id === self.productId ? self : toColorway(item)));
+  return row.some((item) => item.productId === self.productId) ? row : [self, ...row];
 }
 
-export function colorwaysForSearchHit(
-  hit: Pick<SearchHit, 'objectID' | 'slug' | 'name' | 'image' | 'modelGroup'>,
-  siblingsByGroup: ReadonlyMap<string, readonly ProductCardSibling[]>,
-): readonly ProductCardColorway[] {
-  const self: ProductCardColorway = {
-    productId: hit.objectID,
-    slug: hit.slug,
-    imagePath: hit.image?.path ?? '',
-    imageAlt: hit.image?.alt || hit.name,
-  };
-  const groupKey = hit.modelGroup?.trim() ?? '';
-  if (!groupKey) return [self];
-
-  const group = siblingsByGroup.get(groupKey) ?? [];
-  const others = group
-    .filter((item) => item.id !== hit.objectID)
-    .map((item) => toColorway(item));
-  return [self, ...others];
-}
-
-export function visibleColorways(colorways: readonly ProductCardColorway[]): {
+/** First `PRODUCT_CARD_COLORWAY_CAP` colours (always keeping the card's own) plus the hidden count. */
+export function visibleColorways(
+  colorways: readonly ProductCardColorway[],
+  currentId: string,
+): {
   readonly shown: readonly ProductCardColorway[];
   readonly overflow: number;
 } {
   if (colorways.length <= PRODUCT_CARD_COLORWAY_CAP) {
     return { shown: colorways, overflow: 0 };
   }
-  return {
-    shown: colorways.slice(0, PRODUCT_CARD_COLORWAY_CAP),
-    overflow: colorways.length - PRODUCT_CARD_COLORWAY_CAP,
-  };
+  let shown = colorways.slice(0, PRODUCT_CARD_COLORWAY_CAP);
+  const current = colorways.find((item) => item.productId === currentId);
+  if (current && !shown.includes(current)) {
+    shown = [...shown.slice(0, PRODUCT_CARD_COLORWAY_CAP - 1), current];
+  }
+  return { shown, overflow: colorways.length - PRODUCT_CARD_COLORWAY_CAP };
 }
 
-export function productToCardData(
-  product: Product,
-  price: ProductCardPrice,
-  siblingsByGroup: ReadonlyMap<string, readonly ProductCardSibling[]>,
-): ProductCardData {
+/** "Men – T-shirts & polos"; just "Men" without a category; null when gender is not set. */
+export function genderCategoryLine(
+  gender: ProductGenderId | null,
+  categoryName: string | null,
+): string | null {
+  if (!gender) return null;
+  const label = PRODUCT_GENDERS.find((entry) => entry.id === gender)?.label ?? null;
+  if (!label) return null;
+  return categoryName ? `${label} – ${categoryName}` : label;
+}
+
+export function productToCardData(product: Product, price: ProductCardPrice): ProductCardData {
   const primary = product.images[0];
+  const imagePath = primary?.path ?? null;
+  const imageAlt = primary?.alt || product.name;
   return {
     id: product.id,
     slug: product.slug,
     name: product.name,
     shortDescription: cardShortDescription(product.summary, product.descriptionHtml),
-    imagePath: primary?.path ?? null,
-    imageAlt: primary?.alt || product.name,
+    gender: product.gender ?? null,
+    categoryId: product.categoryId,
+    imagePath,
+    imageAlt,
     marketingBadge: toMarketingBadgeView(product.marketingBadge),
-    colorways: colorwaysForProduct(product, siblingsByGroup),
+    colorways: colorwaysFromSiblings(
+      { productId: product.id, slug: product.slug, imagePath: imagePath ?? '', imageAlt },
+      product.colorSiblings,
+    ),
     price,
   };
 }
@@ -193,11 +153,9 @@ export function searchHitCardPrice(
     : { price: shown, fromPrice: null, listPrice, partial: false, badges: [] };
 }
 
-export function searchHitToCardData(
-  hit: SearchHit,
-  price: ProductCardPrice,
-  siblingsByGroup: ReadonlyMap<string, readonly ProductCardSibling[]>,
-): ProductCardData {
+export function searchHitToCardData(hit: SearchHit, price: ProductCardPrice): ProductCardData {
+  const imagePath = hit.image?.path ?? null;
+  const imageAlt = hit.image?.alt || hit.name;
   return {
     id: hit.objectID,
     slug: hit.slug,
@@ -205,22 +163,25 @@ export function searchHitToCardData(
     shortDescription:
       hit.shortDescription?.trim() ||
       cardShortDescription(hit.summary, null),
-    imagePath: hit.image?.path ?? null,
-    imageAlt: hit.image?.alt || hit.name,
+    gender: hit.gender ?? null,
+    // Records indexed before `categoryId` existed: the last id is the leaf (root first).
+    categoryId: hit.categoryId ?? hit.categoryIds.at(-1) ?? null,
+    imagePath,
+    imageAlt,
     marketingBadge: marketingBadgeFromSearchHit(hit),
-    colorways: colorwaysForSearchHit(hit, siblingsByGroup),
+    colorways: colorwaysFromSiblings(
+      { productId: hit.objectID, slug: hit.slug, imagePath: imagePath ?? '', imageAlt },
+      hit.colorSiblings,
+    ),
     price,
   };
 }
 
-function toColorway(
-  product: Pick<ProductCardSibling, 'id' | 'slug' | 'name' | 'images'>,
-): ProductCardColorway {
-  const image = product.images[0];
+function toColorway(sibling: ColorSibling): ProductCardColorway {
   return {
-    productId: product.id,
-    slug: product.slug,
-    imagePath: image?.path ?? '',
-    imageAlt: image?.alt || product.name,
+    productId: sibling.id,
+    slug: sibling.slug,
+    imagePath: sibling.imagePath,
+    imageAlt: sibling.imageAlt || 'Other colour',
   };
 }

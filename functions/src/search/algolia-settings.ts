@@ -28,6 +28,8 @@ export const ATTRIBUTES_FOR_FACETING: readonly string[] = [
   'filterOnly(marketingBadgeKind)',
   'filterOnly(inStock)',
   'filterOnly(offerIds)',
+  // Shop's New arrivals filter: `newArrivalUntilMs > <now>` (0 = not a new arrival).
+  'filterOnly(newArrivalUntilMs)',
   'price',
   'displayPrice',
 ];

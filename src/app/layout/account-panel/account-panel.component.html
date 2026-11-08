@@ -1,0 +1,114 @@
+<header class="side-panel__header">
+  <span class="account-avatar" aria-hidden="true">{{ initial() }}</span>
+  <div class="flex-1 min-w-0">
+    <h2 class="font-title-md font-bold! truncate">{{ name() }}</h2>
+    @if (email() && email() !== name()) {
+      <p class="font-body-sm text-on-surface-variant truncate">{{ email() }}</p>
+    }
+  </div>
+  <button matIconButton type="button" aria-label="Close your account" (click)="close()">
+    <mat-icon name="close" />
+  </button>
+</header>
+
+<div class="side-panel__body space-y-6">
+  @if (showCompleteProfile()) {
+    <a class="account-panel__prompt" routerLink="/account" fragment="profile">
+      <mat-icon name="person" size="xl" aria-hidden="true" />
+      <span class="flex-1 font-label-lg">Complete Your Profile</span>
+      <mat-icon name="chevron_right" size="xl" aria-hidden="true" />
+    </a>
+  }
+
+  <nav class="w-full" aria-label="Account">
+    <ul class="account-panel__links">
+      <li>
+        <a class="account-panel__link" routerLink="/account">
+          <mat-icon name="person_outline" size="xl" aria-hidden="true" />
+          <span>Account</span>
+        </a>
+      </li>
+      <li>
+        <a class="account-panel__link" routerLink="/account" fragment="orders">
+          <mat-icon name="receipt_long" size="xl" aria-hidden="true" />
+          <span>Orders</span>
+        </a>
+      </li>
+      <li>
+        <a class="account-panel__link" routerLink="/account" fragment="profile">
+          <mat-icon name="person" size="xl" aria-hidden="true" />
+          <span>Profile</span>
+        </a>
+      </li>
+      <li>
+        <a class="account-panel__link" routerLink="/favorites">
+          <mat-icon name="favorite" size="xl" aria-hidden="true" />
+          <span>Favorites</span>
+        </a>
+      </li>
+      @if (isAdmin()) {
+        <li>
+          <a class="account-panel__link" routerLink="/admin">
+            <mat-icon name="dashboard" size="xl" aria-hidden="true" />
+            <span>Admin Dashboard</span>
+          </a>
+        </li>
+      }
+    </ul>
+  </nav>
+
+  <section class="account-panel__card" aria-labelledby="account-panel-latest-order">
+    <h3 id="account-panel-latest-order" class="font-label-lg font-bold! uppercase">Latest Order</h3>
+    @if (latestLoading()) {
+      <app-skeleton class="h-5 w-2/3" />
+      <app-skeleton class="h-4 w-1/2" />
+    } @else if (latestOrder.error()) {
+      <p class="font-body-md text-on-surface-variant">We couldn't load your orders right now.</p>
+    } @else if (latest(); as order) {
+      <a class="account-panel__order" [routerLink]="['/checkout', 'confirmation', order.id]">
+        <span class="elements-between gap-3 w-full">
+          <span class="font-title-sm font-bold!">Order {{ order.ref }}</span>
+          <span class="font-title-sm">{{ order.total }}</span>
+        </span>
+        <span class="elements-between gap-3 w-full font-body-sm text-on-surface-variant">
+          <span>{{ order.placedOn }}</span>
+          <span>{{ order.statusName }}</span>
+        </span>
+      </a>
+    } @else {
+      <p class="font-body-md text-on-surface-variant">No orders yet.</p>
+      <a matButton="outlined" routerLink="/shop">Start Shopping</a>
+    }
+  </section>
+
+  <section class="account-panel__card" aria-labelledby="account-panel-favorites">
+    <h3 id="account-panel-favorites" class="font-label-lg font-bold! uppercase">Favorites</h3>
+    @if (!favoritesReady()) {
+      <app-skeleton class="h-5 w-1/2" />
+    } @else if (favoritesCount() > 0) {
+      <p class="font-body-md">
+        {{ favoritesCount() === 1 ? '1 item saved.' : favoritesCount() + ' items saved.' }}
+      </p>
+      <a matButton="outlined" routerLink="/favorites">View Favorites</a>
+    } @else {
+      <p class="font-body-md text-on-surface-variant">Tap the heart on a product to save it here.</p>
+      <a matButton="outlined" routerLink="/shop">Start Shopping</a>
+    }
+  </section>
+
+  @if (whatsappUrl) {
+    <p class="font-body-md">
+      Need help?
+      <a class="underline font-bold!" [href]="whatsappUrl" target="_blank" rel="noopener">
+        Message Us on WhatsApp
+      </a>
+    </p>
+  }
+</div>
+
+<footer class="side-panel__footer">
+  <button matButton="outlined" type="button" (click)="signOut()">
+    <mat-icon name="logout" />
+    <span>Sign Out</span>
+  </button>
+</footer>

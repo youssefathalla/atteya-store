@@ -5,7 +5,14 @@
   >
     <header class="pb-2 sm:pb-3">
       <h2 id="new-arrivals-heading" class="home-section-title">
-        New arrivals
+        <a
+          class="home-section-title-link"
+          routerLink="/shop"
+          [queryParams]="titleQueryParams()"
+        >
+          <span>New arrivals</span>
+          <mat-icon name="arrow_forward" size="lg" />
+        </a>
       </h2>
     </header>
 

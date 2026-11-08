@@ -19,21 +19,13 @@ import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
 import { OffersService } from '@core/services/offers/offers.service';
-import type { Product } from '@core/services/products/product.model';
-import { ProductCacheService, ProductService } from '@core/services/products';
 import { SearchService, type SearchSort } from '@core/services/search';
 import { SeoService } from '@core/services/seo';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
-import type {
-  ProductCardPrice,
-  ProductCardSibling,
-} from '@shared/components/product-card/product-card.model';
+import type { ProductCardPrice } from '@shared/components/product-card/product-card.model';
 import {
   searchHitCardPrice,
   searchHitToCardData,
-  siblingGroupsMap,
-  toSiblingGroupsRecord,
-  uniqueModelGroups,
 } from '@shared/components/product-card/product-card.utils';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
@@ -65,8 +57,6 @@ export class SearchComponent implements OnInit {
 
   readonly #router = inject(Router);
   readonly #searchService = inject(SearchService);
-  readonly #products = inject(ProductService);
-  readonly #cache = inject(ProductCacheService);
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);
   readonly #seo = inject(SeoService);
@@ -144,36 +134,12 @@ export class SearchComponent implements OnInit {
     return map;
   });
 
-  /**
-   * Stable `id` + JSON-safe lean sibling record so SSR TransferState matches
-   * the first client paint (no flash of missing colour thumbs).
-   */
-  readonly #siblingsResource = resource({
-    params: () => uniqueModelGroups(this.hits().map((hit) => hit.modelGroup)),
-    loader: async ({ params }) => {
-      const map = await this.#products.listPublishedByModelGroups(params, 12);
-      const all: Product[] = [];
-      for (const list of map.values()) all.push(...list);
-      this.#cache.seed(all);
-      return toSiblingGroupsRecord(map);
-    },
-    id: 'search-product-siblings',
-  });
-
-  readonly siblingsByGroup = computed(
-    (): ReadonlyMap<string, readonly ProductCardSibling[]> => {
-      if (!this.#siblingsResource.hasValue()) return new Map();
-      return siblingGroupsMap(this.#siblingsResource.value());
-    },
-  );
-
   readonly cards = computed(() => {
     const prices = this.cardPrices();
-    const siblings = this.siblingsByGroup();
     return this.hits().flatMap((hit) => {
       const price = prices.get(hit.objectID);
       if (!price) return [];
-      return [searchHitToCardData(hit, price, siblings)];
+      return [searchHitToCardData(hit, price)];
     });
   });
 

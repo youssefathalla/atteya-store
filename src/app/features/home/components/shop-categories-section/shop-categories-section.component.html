@@ -4,7 +4,14 @@
   @if (sectionTitle) {
     <header class="pb-4 sm:pb-6">
       <h2 class="home-section-title">
-        {{ sectionTitle }}
+        @if (previewMode()) {
+          {{ sectionTitle }}
+        } @else {
+          <a class="home-section-title-link" routerLink="/shop">
+            <span>{{ sectionTitle }}</span>
+            <mat-icon name="arrow_forward" size="lg" />
+          </a>
+        }
       </h2>
     </header>
   }

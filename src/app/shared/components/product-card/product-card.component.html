@@ -1,8 +1,8 @@
 <div class="product-card__media-wrap">
   <a
     class="product-card__main"
-    [routerLink]="['/product', product().slug]"
-    [appPrefetchProduct]="product().slug"
+    [routerLink]="['/product', photoSlug()]"
+    [appPrefetchProduct]="photoSlug()"
   >
     <div class="product-card__media">
       @if (displayImagePath(); as path) {
@@ -36,46 +36,50 @@
   </div>
 </div>
 
-<div class="product-card__swatches" aria-label="Available colours">
-  <div
-    class="product-card__swatch-row"
-    appHorizontalScroll
-    [snapToItems]="false"
-    [enableDrag]="true"
-  >
-    @for (colorway of colorwayRow().shown; track colorway.productId) {
-      <a
-        class="product-card__swatch"
-        [class.product-card__swatch--selected]="isSelected(colorway)"
-        [routerLink]="['/product', colorway.slug]"
-        [appPrefetchProduct]="colorway.slug"
-        [attr.aria-label]="colorway.imageAlt"
-        [attr.aria-current]="isSelected(colorway) ? 'page' : null"
-        (mouseenter)="onColorEnter(colorway)"
-        (mouseleave)="onColorLeave()"
-        (focus)="onColorEnter(colorway)"
-        (blur)="onColorLeave()"
-      >
-        @if (colorway.imagePath) {
-          <img
-            [ngSrc]="imagePath(colorway.imagePath)"
-            [appImageFallback]="colorway.imagePath"
-            [alt]=""
-            width="40"
-            height="40"
-            class="product-card__swatch-img"
-          />
-        }
-      </a>
-    }
-    @if (colorwayRow().overflow > 0) {
-      <span class="product-card__swatch-more" aria-hidden="true">
-        +{{ colorwayRow().overflow }}
-      </span>
-    }
+@if (colorwayRow().shown.length > 0) {
+  <div class="product-card__swatches" role="group" aria-label="Other colours">
+    <div
+      class="product-card__swatch-row"
+      appHorizontalScroll
+      [snapToItems]="false"
+      [enableDrag]="true"
+    >
+      @for (colorway of colorwayRow().shown; track colorway.productId) {
+        <a
+          class="product-card__swatch"
+          [class.product-card__swatch--selected]="isSelected(colorway)"
+          [href]="'/product/' + colorway.slug"
+          [appPrefetchProduct]="colorway.slug"
+          [attr.aria-label]="colorway.imageAlt"
+          [attr.aria-current]="isSelected(colorway) ? 'true' : null"
+          (pointerdown)="onColorPointerDown($event)"
+          (mouseenter)="onColorEnter(colorway)"
+          (mouseleave)="onColorLeave()"
+          (focus)="onColorEnter(colorway)"
+          (blur)="onColorLeave()"
+          (click)="onColorClick($event, colorway)"
+        >
+          @if (colorway.imagePath) {
+            <img
+              [ngSrc]="imagePath(colorway.imagePath)"
+              [appImageFallback]="colorway.imagePath"
+              alt=""
+              width="40"
+              height="40"
+              class="product-card__swatch-img"
+            />
+          }
+        </a>
+      }
+      @if (colorwayRow().overflow > 0) {
+        <span class="product-card__swatch-more" aria-hidden="true">
+          +{{ colorwayRow().overflow }}
+        </span>
+      }
+    </div>
+    <div class="product-card__swatch-track" aria-hidden="true"></div>
   </div>
-  <div class="product-card__swatch-track" aria-hidden="true"></div>
-</div>
+}
 
 <a
   class="product-card__info"
@@ -91,8 +95,8 @@
     </span>
   }
   <h2 class="product-card__name">{{ product().name }}</h2>
-  @if (product().shortDescription) {
-    <p class="product-card__desc">{{ product().shortDescription }}</p>
+  @if (secondLine(); as line) {
+    <p class="product-card__desc">{{ line }}</p>
   }
   <app-product-price
     class="product-card__price"

@@ -5,7 +5,7 @@ import { AuthService } from '@core/services/auth/auth.service';
 import { safeReturnUrl } from '@core/services/auth/auth.utils';
 
 /**
- * Shared body of the shopper-account guards (Checkout, Favorites). Call from a guard.
+ * Shared body of the shopper-account guards (Account, Checkout, Favorites). Call from a guard.
  * A visitor goes to sign in. A signed-in person who has not agreed to the current terms
  * (a new Google account that left the "Almost done" step) goes back to `/login`, which
  * shows that step and then returns them to `url`.
