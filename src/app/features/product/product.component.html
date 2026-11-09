@@ -121,10 +121,16 @@
           } @else if (giftBoxLoading()) {
             <div class="pdp-gift-box" aria-hidden="true">
               <app-skeleton class="h-12 w-full" />
-              <div class="grid grid-cols-3 gap-2 p-4 lg:grid-cols-4">
-                @for (n of [1, 2, 3, 4]; track n) {
-                  <app-skeleton class="aspect-square w-full" />
-                }
+              <div class="elements-start-col gap-2 p-4">
+                <app-skeleton class="h-5 w-40" />
+                <div class="scroll-row pdp-gift-row" aria-hidden="true">
+                  @for (n of [1, 2, 3]; track n) {
+                    <div class="pdp-gift-card">
+                      <app-skeleton class="pdp-gift-card__photo" />
+                      <app-skeleton class="pdp-gift-card__label" />
+                    </div>
+                  }
+                </div>
               </div>
             </div>
           }

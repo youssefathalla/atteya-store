@@ -17,41 +17,75 @@
         [attr.aria-describedby]="promptHere ? messageId : null"
       >
         <legend class="sr-only">{{ step.number }}. {{ step.title }}</legend>
-        <div class="elements-between w-full gap-3 pb-2" aria-hidden="true">
-          <span class="font-label-lg">{{ step.number }}. {{ step.title }}</span>
-          @if (step.chosen) {
-            <span class="font-label-lg text-end">{{ step.chosen }} ✓</span>
-          }
-        </div>
-
         @if (step.kind === 'gift') {
-          <div class="grid w-full grid-cols-3 gap-2 lg:grid-cols-4">
-            @for (choice of step.gift.choices; track choice.productId) {
-              <button
-                type="button"
-                data-choice
-                class="pdp-gift-tile"
-                [disabled]="disabled()"
-                [attr.aria-pressed]="isProductPicked(step.gift.id, choice.productId)"
-                (click)="productPicked.emit({ giftId: step.gift.id, productId: choice.productId })"
+          <div class="elements-between w-full gap-3 pb-2">
+            <span class="font-label-lg" aria-hidden="true">{{ step.number }}. {{ step.title }}</span>
+            @if (giftRow.canPrev() || giftRow.canNext()) {
+              <app-row-scroll-nav
+                class="pdp-gift-nav"
+                [showProgress]="false"
+                [canPrev]="giftRow.canPrev()"
+                [canNext]="giftRow.canNext()"
+                (prev)="giftRow.step(-1)"
+                (next)="giftRow.step(1)"
+              />
+            }
+          </div>
+          <div class="w-full">
+            <div
+              class="scroll-row pdp-gift-row"
+              appHorizontalScroll
+              #giftRow="horizontalScroll"
+              [enableWheel]="false"
+              [trackScroll]="true"
+            >
+              @for (choice of step.gift.choices; track choice.productId) {
+                <button
+                  type="button"
+                  data-choice
+                  class="pdp-gift-card"
+                  [disabled]="disabled()"
+                  [attr.aria-label]="choice.label"
+                  [attr.aria-pressed]="isProductPicked(step.gift.id, choice.productId)"
+                  (click)="productPicked.emit({ giftId: step.gift.id, productId: choice.productId })"
+                >
+                  <span class="pdp-gift-card__photo">
+                    @if (choice.imagePath) {
+                      <img
+                        [ngSrc]="path(choice.imagePath)"
+                        [appImageFallback]="choice.imagePath"
+                        alt=""
+                        fill
+                        sizes="156px"
+                        class="object-cover"
+                      />
+                    }
+                  </span>
+                  <span class="pdp-gift-card__label" aria-hidden="true">{{ choice.cardLabel }}</span>
+                </button>
+              }
+            </div>
+            @if (giftRow.canPrev() || giftRow.canNext()) {
+              <div
+                class="pdp-gift-progress"
+                role="progressbar"
+                aria-label="Position in the list"
+                [attr.aria-valuemin]="0"
+                [attr.aria-valuemax]="100"
+                [attr.aria-valuenow]="Math.round(giftRow.progress() * 100)"
+                [style.--row-scroll-progress]="giftRow.progress()"
               >
-                <span class="pdp-gift-tile__photo">
-                  @if (choice.imagePath) {
-                    <img
-                      [ngSrc]="path(choice.imagePath)"
-                      [appImageFallback]="choice.imagePath"
-                      alt=""
-                      fill
-                      sizes="(max-width: 1023px) 30vw, 10vw"
-                      class="object-contain"
-                    />
-                  }
-                </span>
-                <span class="pdp-gift-tile__name">{{ choice.label }}</span>
-              </button>
+                <div class="row-scroll-nav__progress-fill" aria-hidden="true"></div>
+              </div>
             }
           </div>
         } @else {
+          <div class="elements-between w-full gap-3 pb-2" aria-hidden="true">
+            <span class="font-label-lg">{{ step.number }}. {{ step.title }}</span>
+            @if (step.chosen) {
+              <span class="font-label-lg text-end">{{ step.chosen }} ✓</span>
+            }
+          </div>
           <div class="grid w-full grid-cols-3 gap-2">
             @for (size of step.sizes; track size.id) {
               <button

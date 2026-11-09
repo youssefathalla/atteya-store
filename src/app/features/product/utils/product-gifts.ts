@@ -3,6 +3,7 @@ import type { CartLineGift } from '@core/services/cart/cart.model';
 import type { GiftChoiceFacts, ProductGiftOffer } from '@core/services/offers/engine';
 import type { Product, ProductTypeId } from '@core/services/products';
 import type { ChoicePrompt } from '../models/product-page.model';
+import { giftCardLabels } from './gift-card-label';
 
 /** One size of a gift product. Only sizes with stock are listed. */
 export interface GiftSizeView {
@@ -13,7 +14,13 @@ export interface GiftSizeView {
 /** One product the shopper can take as a gift. `sizes` is null when it has no sizes. */
 export interface GiftChoiceView {
   readonly productId: string;
+  /** Full name plus colour. Used for the card's `aria-label` and the chosen name. */
   readonly label: string;
+  /** The product's own name and colours, the input of the short card line. */
+  readonly name: string;
+  readonly colors: readonly string[];
+  /** The one short line under the card's photo. Set per gift by `buildGiftBox`. */
+  readonly cardLabel: string;
   /** Main photo path (empty when the product has none yet). Shown on the choice's tile. */
   readonly imagePath: string;
   readonly sizes: readonly GiftSizeView[] | null;
@@ -106,6 +113,9 @@ export function toGiftChoice(product: Product): GiftChoiceView | null {
   return {
     productId: product.id,
     label: giftProductLabel(product),
+    name: product.name,
+    colors: product.colors,
+    cardLabel: product.name,
     imagePath: product.images[0]?.path ?? '',
     sizes,
   };
@@ -142,7 +152,13 @@ export function buildGiftBox(
       return choice ? [choice] : [];
     });
     if (giftChoices.length === 0) continue;
-    gifts.push({ id: gift.id, name: gift.name.trim(), noun: giftNoun(gift.name), choices: giftChoices });
+    const cardLabels = giftCardLabels(giftChoices);
+    gifts.push({
+      id: gift.id,
+      name: gift.name.trim(),
+      noun: giftNoun(gift.name),
+      choices: giftChoices.map((choice) => ({ ...choice, cardLabel: cardLabels.get(choice.productId) ?? choice.name })),
+    });
   }
   if (gifts.length === 0) return null;
   const nouns = gifts.map((gift) => gift.noun);
