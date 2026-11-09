@@ -104,6 +104,142 @@
         />
       </label>
     </div>
+
+    @let free = freeItem();
+    @if (free) {
+      <fieldset class="w-full elements-start-col gap-2">
+        <legend class="font-label-md">Which item is free?</legend>
+        <p class="font-body-sm text-on-surface-variant">
+          Shoppers don't pick: the bag makes the cheapest matching item free.
+        </p>
+        <div class="elements-start-col gap-1" role="radiogroup" aria-label="Which item is free?">
+          @for (opt of freeItemOptions; track opt.id) {
+            <label class="elements-start gap-2 font-body-md">
+              <input
+                type="radio"
+                name="free-item-mode"
+                [value]="opt.id"
+                [checked]="free.mode === opt.id"
+                (change)="onFreeItemModeChange(opt.id)"
+              />
+              {{ opt.label }}
+            </label>
+          }
+        </div>
+
+        @if (free.mode === 'products') {
+          @if (free.selection.productIds.length === 0) {
+            <p class="font-body-sm text-on-surface-variant">No products yet. Add at least one.</p>
+          } @else {
+            <ul class="w-full elements-start-col gap-1 sm:max-w-md">
+              @for (productId of free.selection.productIds; track productId) {
+                <li class="w-full elements-between gap-2 border-shape bg-surface-container px-3 py-1">
+                  <span class="font-body-sm">
+                    {{ productNames().get(productId) ?? 'Product not found' }}
+                  </span>
+                  <button
+                    matIconButton
+                    type="button"
+                    [attr.aria-label]="'Remove ' + (productNames().get(productId) ?? 'product') + ' from the free items'"
+                    (click)="removeFreeItemValue('productIds', productId)"
+                  >
+                    <mat-icon name="close" />
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+          <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+            Add a product
+            <select
+              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+              (change)="addFreeItemValue('productIds', $event)"
+            >
+              <option value="">Choose a product…</option>
+              @for (p of products(); track p.id) {
+                @if (!free.selection.productIds.includes(p.id)) {
+                  <option [value]="p.id">{{ p.name }}</option>
+                }
+              }
+            </select>
+          </label>
+        } @else if (free.mode === 'categoryBrand') {
+          <p class="font-body-sm text-on-surface-variant">Pick at least one category or brand.</p>
+
+          @if (free.selection.categoryIds.length > 0) {
+            <ul class="w-full elements-start-col gap-1 sm:max-w-md">
+              @for (categoryId of free.selection.categoryIds; track categoryId) {
+                <li class="w-full elements-between gap-2 border-shape bg-surface-container px-3 py-1">
+                  <span class="font-body-sm">
+                    Category: {{ categoryNames().get(categoryId) ?? 'Category not found' }}
+                  </span>
+                  <button
+                    matIconButton
+                    type="button"
+                    [attr.aria-label]="'Remove ' + (categoryNames().get(categoryId) ?? 'category') + ' from the free items'"
+                    (click)="removeFreeItemValue('categoryIds', categoryId)"
+                  >
+                    <mat-icon name="close" />
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+          <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+            Add a category
+            <select
+              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+              (change)="addFreeItemValue('categoryIds', $event)"
+            >
+              <option value="">Choose a category…</option>
+              @for (c of categories(); track c.id) {
+                @if (!free.selection.categoryIds.includes(c.id)) {
+                  <option [value]="c.id">{{ c.depth === 1 ? '— ' + c.name : c.name }}</option>
+                }
+              }
+            </select>
+          </label>
+
+          @if (free.selection.brandIds.length > 0) {
+            <ul class="w-full elements-start-col gap-1 sm:max-w-md">
+              @for (brandId of free.selection.brandIds; track brandId) {
+                <li class="w-full elements-between gap-2 border-shape bg-surface-container px-3 py-1">
+                  <span class="font-body-sm">
+                    Brand: {{ brandNames().get(brandId) ?? 'Brand not found' }}
+                  </span>
+                  <button
+                    matIconButton
+                    type="button"
+                    [attr.aria-label]="'Remove ' + (brandNames().get(brandId) ?? 'brand') + ' from the free items'"
+                    (click)="removeFreeItemValue('brandIds', brandId)"
+                  >
+                    <mat-icon name="close" />
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+          <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+            Add a brand
+            <select
+              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+              (change)="addFreeItemValue('brandIds', $event)"
+            >
+              <option value="">Choose a brand…</option>
+              @for (b of brands(); track b.id) {
+                @if (!free.selection.brandIds.includes(b.id)) {
+                  <option [value]="b.id">{{ b.name }}</option>
+                }
+              }
+            </select>
+          </label>
+        }
+      </fieldset>
+    }
+
+    <mat-checkbox [checked]="r.repeat" (change)="onRepeatChange($event.checked)">
+      Apply again for every extra group
+    </mat-checkbox>
   } @else if (selectedPickerKind() === 'tiered' && r.kind === 'tiered') {
     <div class="w-full elements-start-col gap-2">
       @for (tier of r.tiers; track $index; let tIdx = $index) {
