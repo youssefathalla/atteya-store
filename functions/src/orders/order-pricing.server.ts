@@ -468,6 +468,24 @@ async function priceWithOffers(
     })),
   );
   if (missedBase !== null) return missedBase;
+  // A base price rise can also take pieces out of a group the page showed (the group now loses to
+  // their per-item offers), so they pay their offer price instead: compare the whole bag with the
+  // bag priced on the base prices checkout showed.
+  const roseLine = baseRiseCostsMore(
+    dealFacts,
+    input.lines.map((line) => line.shownBaseEgp),
+    dealOffers,
+    ctx,
+  );
+  if (roseLine !== null) {
+    return {
+      missedPriceProductId: input.lines[roseLine]!.productId,
+      shownOfferId: null,
+      live: false,
+      sameOffer: false,
+      baseRose: true,
+    };
+  }
 
   for (const [index, line] of input.lines.entries()) {
     const { product, variant, weightGrams } = lineResults[index]!;
@@ -542,6 +560,29 @@ async function priceWithOffers(
   };
 
   return { pricing, usedOffers: Array.from(usedOffers.values()) };
+}
+
+/**
+ * The index of the first line whose price before per-item offers is higher than checkout showed
+ * (`shownBaseEgp`), when the bag's Buy X Get Y pricing costs more than it would on the base prices
+ * checkout showed; null otherwise. Lines without `shownBaseEgp` keep the server's base price.
+ */
+export function baseRiseCostsMore(
+  facts: readonly BagLineFacts[],
+  shownBaseEgp: readonly (number | null)[],
+  offers: readonly Offer[],
+  ctx: PricingContext,
+): number | null {
+  const shownFacts = facts.map((line, index) => {
+    const shown = shownBaseEgp[index];
+    if (shown === null || shown === undefined || line.basePrice <= shown) return line;
+    return { ...line, basePrice: shown };
+  });
+  const rose = shownFacts.findIndex((line, index) => line !== facts[index]);
+  if (rose < 0) return null;
+  const total = (lines: readonly BagLineFacts[]): number =>
+    priceBagDeals(lines, offers, ctx).lines.reduce((sum, line) => sum + line.total, 0);
+  return total(facts) > total(shownFacts) ? rose : null;
 }
 
 /**
