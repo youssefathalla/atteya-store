@@ -23,7 +23,7 @@ import {
   parseCheckoutShippingConfig,
   SHIPPING_DOC_PATH,
 } from '../shipping/shipping-settings.js';
-import type { UsedOffer } from './offer-usage.js';
+import { fullOfferIds, type UsedOffer } from './offer-usage.js';
 import {
   giftProductIds,
   resolveLineGifts,
@@ -148,6 +148,7 @@ export async function priceStoreOrder(
   db: Firestore,
   input: CreateStoreOrderRequest,
   signedIn: boolean,
+  uid: string,
 ): Promise<PricedStoreOrder> {
   const [shippingSnap, offers, giftDocs] = await Promise.all([
     db.doc(SHIPPING_DOC_PATH).get(),
@@ -180,6 +181,10 @@ export async function priceStoreOrder(
 
   // Buy X Get Y: worked out over the whole bag with the shared engine, so the order charges what
   // the bag showed. A piece it discounts gets no free gifts; the better deal for the shopper wins.
+  // A Buy X Get Y offer with no use left (total or for this shopper) is left out, so the order is
+  // priced without it instead of being refused for every bag it would apply to.
+  const dealOffers = offers.filter((offer) => offer.reward.kind === 'buyXGetY');
+  const fullDeals = await fullOfferIds(db, uid, dealOffers);
   const deals = priceBagDeals(
     input.lines.map((line, index): BagLineFacts => {
       const { product, variant, priced } = lineResults[index]!;
@@ -192,7 +197,7 @@ export async function priceStoreOrder(
         giftWorth: giftWorth(line, giftDocs),
       };
     }),
-    offers,
+    fullDeals.size === 0 ? offers : offers.filter((offer) => !fullDeals.has(offer.id)),
     ctx,
   );
   for (const offerId of deals.offerIds) {

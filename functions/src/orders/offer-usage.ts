@@ -68,6 +68,34 @@ export async function readOfferUses(
   };
 }
 
+/**
+ * Ids of the given offers that have no use left for `uid` (outside a transaction). Used before
+ * pricing so a Buy X Get Y offer at its limit is left out instead of blocking every qualifying
+ * bag; `readOfferUses` still catches the race when the last use goes between the two reads.
+ */
+export async function fullOfferIds(
+  db: Firestore,
+  uid: string,
+  offers: readonly { readonly id: string; readonly limits: OfferLimits }[],
+): Promise<Set<string>> {
+  const limited = offers.filter(
+    (offer) => offer.limits.totalUses !== null || offer.limits.perCustomer !== null,
+  );
+  const full = new Set<string>();
+  if (limited.length === 0) return full;
+  const refs = limited.flatMap((offer) => [
+    db.collection('offerUsage').doc(offer.id),
+    db.collection('offerUsage').doc(`${offer.id}_${uid}`),
+  ]);
+  const snaps = await db.getAll(...refs);
+  limited.forEach((offer, index) => {
+    const totalCount = readCount(snaps[index * 2]?.data()?.['count']);
+    const customerCount = readCount(snaps[index * 2 + 1]?.data()?.['count']);
+    if (!offerUseFits(offer.limits, totalCount, customerCount)) full.add(offer.id);
+  });
+  return full;
+}
+
 /** Best-effort undo of `readOfferUses` when the order could not be saved (Paymob start failed). */
 export async function releaseOfferUses(
   db: Firestore,
