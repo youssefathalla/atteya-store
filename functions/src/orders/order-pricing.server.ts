@@ -186,6 +186,11 @@ export interface MissedPrice {
    * gone, paused, archived, or its time is up.
    */
   readonly live: boolean;
+  /**
+   * The server still prices the line with `shownOfferId`: the offer applies, so the product price
+   * itself (or the offer's amount) changed, and checkout should read the products again.
+   */
+  readonly sameOffer: boolean;
 }
 
 /** Something the page showed that this pricing doesn't give. */
@@ -198,6 +203,12 @@ export interface ShownLinePrice {
   readonly shownOfferId: string | null;
 }
 
+/** The server's price of one piece of a line, and the per-item offer behind it (or null). */
+export interface ServerLinePrice {
+  readonly unitEgp: number;
+  readonly appliedOfferId: string | null;
+}
+
 /**
  * The first line the server prices higher per piece than checkout showed, or null. A line without
  * `shownUnitEgp` (an older page) is not compared. A lower or equal server price is never a miss:
@@ -205,16 +216,17 @@ export interface ShownLinePrice {
  */
 export function missedLinePrice(
   shown: readonly ShownLinePrice[],
-  serverUnitEgp: readonly number[],
+  server: readonly ServerLinePrice[],
   liveOfferIds: ReadonlySet<string>,
 ): MissedPrice | null {
   for (const [index, line] of shown.entries()) {
-    const server = serverUnitEgp[index];
-    if (line.shownUnitEgp === null || server === undefined || server <= line.shownUnitEgp) continue;
+    const priced = server[index];
+    if (line.shownUnitEgp === null || priced === undefined || priced.unitEgp <= line.shownUnitEgp) continue;
     return {
       missedPriceProductId: line.productId,
       shownOfferId: line.shownOfferId,
       live: line.shownOfferId !== null && liveOfferIds.has(line.shownOfferId),
+      sameOffer: line.shownOfferId !== null && priced.appliedOfferId === line.shownOfferId,
     };
   }
   return null;
@@ -225,16 +237,21 @@ export function missedLinePrice(
  * Always "Prices in your bag changed…"; the details tell checkout what to do next:
  * `endedOfferId` when the offer it showed is no longer live on the server (checkout leaves it out
  * at once), `changedOfferId` when it is live but no longer gives that price (checkout leaves it
- * out only when the same one comes back twice in a row), and `priceChanged` when checkout showed
- * no offer (the product price went up; checkout reads the products again).
+ * out only when the same one comes back twice in a row), and `priceChanged` when the product price
+ * itself went up (no offer shown, or the shown offer still applies; checkout reads the products
+ * again). A live offer that still applies sends both `priceChanged` and `changedOfferId`, so a
+ * reload fixes it and checkout still can't be refused forever.
  */
 export function priceChangedError(missed: MissedPrice): HttpsError {
+  const productChanged = { priceChanged: true, productId: missed.missedPriceProductId };
   const details =
     missed.shownOfferId === null
-      ? { priceChanged: true, productId: missed.missedPriceProductId }
-      : missed.live
-        ? { changedOfferId: missed.shownOfferId }
-        : { endedOfferId: missed.shownOfferId };
+      ? productChanged
+      : !missed.live
+        ? { endedOfferId: missed.shownOfferId }
+        : missed.sameOffer
+          ? { ...productChanged, changedOfferId: missed.shownOfferId }
+          : { changedOfferId: missed.shownOfferId };
   return new HttpsError(
     'failed-precondition',
     'Prices in your bag changed. Check your bag and place your order again.',
@@ -338,7 +355,7 @@ async function priceWithOffers(
   // `priceWithFreshOffersOnMiss` reads the offers again and refuses only if it still misses.
   const missedPrice = missedLinePrice(
     input.lines,
-    lineResults.map((result) => result.priced.unitEgp),
+    lineResults.map((result) => ({ unitEgp: result.priced.unitEgp, appliedOfferId: result.appliedOfferId })),
     new Set(liveOffers(offers, ctx).map((offer) => offer.id)),
   );
   if (missedPrice !== null) return missedPrice;
@@ -624,6 +641,8 @@ async function priceLine(
   variant: VariantFacts | null;
   weightGrams: number | null;
   data: DocumentData;
+  /** The per-item offer behind `priced.unitEgp`, or null. */
+  appliedOfferId: string | null;
 }> {
   const snap = await db.collection('products').doc(line.productId).get();
   if (!snap.exists) {
@@ -646,6 +665,7 @@ async function priceLine(
     variant,
     weightGrams,
     data,
+    appliedOfferId: unit.appliedOfferId,
     priced: {
       productId: line.productId,
       variantId: variant?.id ?? null,

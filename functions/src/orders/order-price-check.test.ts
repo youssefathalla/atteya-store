@@ -39,9 +39,10 @@ function percentOffer(id: string, percent: number, active = true) {
   return offer;
 }
 
-/** The server side of one line: the unit price the engine gives with these offers. */
-function serverUnit(offers: readonly unknown[]): number {
-  return priceItem(TEE, null, offers as never, CTX).effectivePrice;
+/** The server side of one line: the unit price and offer the engine gives with these offers. */
+function serverLine(offers: readonly unknown[], product = TEE) {
+  const item = priceItem(product, null, offers as never, CTX);
+  return { unitEgp: item.effectivePrice, appliedOfferId: item.appliedOfferId };
 }
 
 function liveIds(offers: readonly unknown[]): Set<string> {
@@ -73,36 +74,64 @@ describe('comparing each line with what checkout showed', () => {
   it('lets the order through when the server price is lower or equal', () => {
     // Shown at the full price, but a 20% offer started meanwhile: the shopper pays less.
     const shown = [{ productId: 'tee-1', shownUnitEgp: 500, shownOfferId: null }];
-    assert.equal(missedLinePrice(shown, [serverUnit([OFF_20])], liveIds([OFF_20])), null);
+    assert.equal(missedLinePrice(shown, [serverLine([OFF_20])], liveIds([OFF_20])), null);
     // Same price as shown.
     const same = [{ productId: 'tee-1', shownUnitEgp: 400, shownOfferId: 'off-20' }];
-    assert.equal(missedLinePrice(same, [serverUnit([OFF_20])], liveIds([OFF_20])), null);
+    assert.equal(missedLinePrice(same, [serverLine([OFF_20])], liveIds([OFF_20])), null);
   });
 
   it('skips a line without a shown price (older pages)', () => {
     const shown = [{ productId: 'tee-1', shownUnitEgp: null, shownOfferId: null }];
-    assert.equal(missedLinePrice(shown, [500], new Set()), null);
+    assert.equal(missedLinePrice(shown, [{ unitEgp: 500, appliedOfferId: null }], new Set()), null);
   });
 
   it('finds a line that costs more because its offer was paused', () => {
     const paused = percentOffer('off-20', 20, false);
     const shown = [{ productId: 'tee-1', shownUnitEgp: 400, shownOfferId: 'off-20' }];
-    assert.equal(serverUnit([paused]), 500);
-    assert.deepEqual(missedLinePrice(shown, [serverUnit([paused])], liveIds([paused])), {
+    assert.equal(serverLine([paused]).unitEgp, 500);
+    assert.deepEqual(missedLinePrice(shown, [serverLine([paused])], liveIds([paused])), {
       missedPriceProductId: 'tee-1',
       shownOfferId: 'off-20',
       live: false,
+      sameOffer: false,
     });
   });
 
   it('finds a line whose live offer now gives less', () => {
     const lowered = percentOffer('off-20', 10);
     const shown = [{ productId: 'tee-1', shownUnitEgp: 400, shownOfferId: 'off-20' }];
-    assert.deepEqual(missedLinePrice(shown, [serverUnit([lowered])], liveIds([lowered])), {
+    assert.deepEqual(missedLinePrice(shown, [serverLine([lowered])], liveIds([lowered])), {
       missedPriceProductId: 'tee-1',
       shownOfferId: 'off-20',
       live: true,
+      sameOffer: true,
     });
+  });
+
+  it('finds a line whose product price went up while its offer still applies', () => {
+    // Shown at 400 (500 less 20%); staff raised the price to 600, so the server says 480.
+    const shown = [{ productId: 'tee-1', shownUnitEgp: 400, shownOfferId: 'off-20' }];
+    const server = serverLine([OFF_20], { ...TEE, price: 600 });
+    assert.equal(server.unitEgp, 480);
+    const missed = missedLinePrice(shown, [server], liveIds([OFF_20]));
+    assert.deepEqual(missed, {
+      missedPriceProductId: 'tee-1',
+      shownOfferId: 'off-20',
+      live: true,
+      sameOffer: true,
+    });
+    // Checkout reads the products again, and still leaves the offer out if refused twice in a row.
+    assert.deepEqual(priceChangedError(missed!).details, {
+      priceChanged: true,
+      productId: 'tee-1',
+      changedOfferId: 'off-20',
+    });
+  });
+
+  it('never compares a line the server prices lower, even with another offer', () => {
+    const OFF_30 = percentOffer('off-30', 30);
+    const shown = [{ productId: 'tee-1', shownUnitEgp: 400, shownOfferId: 'off-20' }];
+    assert.equal(missedLinePrice(shown, [serverLine([OFF_20, OFF_30])], liveIds([OFF_20, OFF_30])), null);
   });
 });
 
@@ -113,7 +142,7 @@ describe('a line that costs more than checkout showed', () => {
   const price = async (offers: readonly { id: string }[]) =>
     offers.some((offer) => offer.id === 'off-20')
       ? { total: 400 }
-      : { missedPriceProductId: 'tee-1', shownOfferId: 'off-20', live: true };
+      : { missedPriceProductId: 'tee-1', shownOfferId: 'off-20', live: true, sameOffer: false };
 
   it('reads the offers again without the cache and prices with them', async () => {
     const loads: boolean[] = [];
@@ -139,13 +168,23 @@ describe('a line that costs more than checkout showed', () => {
   });
 
   it('tells checkout to leave out an offer that is no longer live', () => {
-    const err = priceChangedError({ missedPriceProductId: 'tee-1', shownOfferId: 'off-20', live: false });
+    const err = priceChangedError({
+      missedPriceProductId: 'tee-1',
+      shownOfferId: 'off-20',
+      live: false,
+      sameOffer: false,
+    });
     assert.equal(err.message, CHANGED);
     assert.deepEqual(err.details, { endedOfferId: 'off-20' });
   });
 
   it('tells checkout to read the products again when it showed no offer', () => {
-    const err = priceChangedError({ missedPriceProductId: 'tee-1', shownOfferId: null, live: false });
+    const err = priceChangedError({
+      missedPriceProductId: 'tee-1',
+      shownOfferId: null,
+      live: false,
+      sameOffer: false,
+    });
     assert.equal(err.message, CHANGED);
     assert.deepEqual(err.details, { priceChanged: true, productId: 'tee-1' });
   });
