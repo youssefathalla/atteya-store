@@ -481,7 +481,7 @@ async function openBag(page, problems) {
 
 /** True when a bag line is inside the window (runs in the page). */
 function onScreenBagLine() {
-  return [...document.querySelectorAll('app-cart-drawer .bag-line')].some((el) => {
+  return [...document.querySelectorAll('app-cart-drawer .bag-card')].some((el) => {
     const r = el.getBoundingClientRect();
     const style = getComputedStyle(el);
     return (
