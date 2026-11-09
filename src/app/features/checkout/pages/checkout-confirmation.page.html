@@ -45,8 +45,16 @@
               <div class="elements-start-col gap-0.5 min-w-0">
                 <span [class]="item.gift ? 'font-body-md break-words' : 'font-body-md font-bold! break-words'">{{ item.name }}</span>
                 <span class="font-body-sm opacity-80">{{ item.details }}</span>
+                @if (item.deal) {
+                  <span class="deal-tag">{{ item.deal }}</span>
+                }
               </div>
-              <span class="font-body-md font-bold! whitespace-nowrap">{{ item.price }}</span>
+              <div class="shrink-0 elements-end-col text-end">
+                <span class="font-body-md font-bold! whitespace-nowrap">{{ item.price }}</span>
+                @if (item.was) {
+                  <span class="font-body-sm text-on-surface-variant line-through whitespace-nowrap">{{ item.was }}</span>
+                }
+              </div>
             </li>
           }
         </ul>

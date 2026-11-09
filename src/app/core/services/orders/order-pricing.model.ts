@@ -41,6 +41,18 @@ export interface OrderLinePrice {
   readonly imagePath?: string | null;
   /** Set on a free gift line (price 0). Gift lines follow the line they came with. */
   readonly gift?: OrderLineGift;
+  /** Whole EGP a Buy X Get Y offer took off the line (`lineDisplay` is already after it). */
+  readonly discountEgp?: number;
+  /** The Buy X Get Y offers behind `discountEgp`. */
+  readonly deals?: readonly OrderLineDeal[];
+}
+
+/** One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100). */
+export interface OrderLineDeal {
+  readonly offerId: string;
+  readonly units: number;
+  readonly percent: number;
+  readonly discountEgp: number;
 }
 
 /** Marks an order line as a free gift of an offer, given with the line at index `forLine`. */

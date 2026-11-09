@@ -94,6 +94,9 @@
                         <p class="font-label-md text-on-surface-variant">{{ item.options }}</p>
                       }
                       <p class="sr-only">Quantity {{ item.quantity }}</p>
+                      @if (item.deal) {
+                        <span class="deal-tag">{{ item.deal }}</span>
+                      }
                       @for (gift of item.gifts; track gift.key) {
                         <p class="elements-between items-start! gap-3 font-label-md text-on-surface-variant">
                           <span class="min-w-0">{{ gift.label }}</span>
@@ -101,7 +104,12 @@
                         </p>
                       }
                     </div>
-                    <p class="font-body-md shrink-0">{{ item.price }}</p>
+                    <div class="shrink-0 elements-end-col text-end">
+                      <p class="font-body-md">{{ item.price }}</p>
+                      @if (item.was) {
+                        <p class="font-body-sm text-on-surface-variant line-through">{{ item.was }}</p>
+                      }
+                    </div>
                   </li>
                 }
               }

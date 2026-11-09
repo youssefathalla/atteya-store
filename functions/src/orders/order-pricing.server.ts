@@ -5,7 +5,10 @@ import {
   boxesForRegion,
   parcelWeight,
   planDelivery,
+  priceBagDeals,
   priceItem,
+  type BagLineFacts,
+  type BagLineDeals,
   shippingQuote,
   type DeliveryPlan,
   type Offer,
@@ -20,7 +23,7 @@ import {
   parseCheckoutShippingConfig,
   SHIPPING_DOC_PATH,
 } from '../shipping/shipping-settings.js';
-import type { UsedGiftOffer } from './offer-usage.js';
+import type { UsedOffer } from './offer-usage.js';
 import {
   giftProductIds,
   resolveLineGifts,
@@ -67,6 +70,23 @@ export interface OrderLinePrice {
   readonly imagePath: string | null;
   /** Set on a free gift line (price 0): which offer and gift, and the line it came with. */
   readonly gift?: OrderLineGift;
+  /**
+   * Whole EGP a Buy X Get Y offer took off this line (`lineDisplay` is already after it).
+   * Missing on lines without one, and on older orders.
+   */
+  readonly discountEgp?: number;
+  /** The Buy X Get Y offers behind `discountEgp`: which pieces got which discount. */
+  readonly deals?: readonly OrderLineDeal[];
+}
+
+/** One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100). */
+export interface OrderLineDeal {
+  readonly offerId: string;
+  /** Pieces of the line discounted. */
+  readonly units: number;
+  /** 100 = free, 50 = half price. */
+  readonly percent: number;
+  readonly discountEgp: number;
 }
 
 /** Marks an order line as a free gift. Gift lines follow the line they belong to. */
@@ -113,8 +133,11 @@ export interface OrderPricingSnapshot {
 
 export interface PricedStoreOrder {
   readonly pricing: OrderPricingSnapshot;
-  /** Free gift offers this order gives gifts from (each counts once towards its limits). */
-  readonly giftOffers: readonly UsedGiftOffer[];
+  /**
+   * Offers this order uses: Free gift offers it gives gifts from and Buy X Get Y offers that
+   * discount it (each counts once towards its limits).
+   */
+  readonly usedOffers: readonly UsedOffer[];
 }
 
 /**
@@ -142,7 +165,7 @@ export async function priceStoreOrder(
   const region = isInternational ? 'international' : 'egypt';
   const regionBoxes = boxesForRegion(shippingConfig.settings, region);
 
-  const giftOffers = new Map<string, UsedGiftOffer>();
+  const usedOffers = new Map<string, UsedOffer>();
   // Pieces the order takes from stock, by product and size: every paid line first, then gifts as
   // they're added, so a gift's stock covers the paid pieces and all gifts of the order together.
   const giftDemand = new Map<string, number>();
@@ -155,19 +178,46 @@ export async function priceStoreOrder(
     giftDemand.set(key, (giftDemand.get(key) ?? 0) + line.quantity);
   }
 
+  // Buy X Get Y: worked out over the whole bag with the shared engine, so the order charges what
+  // the bag showed. A piece it discounts gets no free gifts; the better deal for the shopper wins.
+  const deals = priceBagDeals(
+    input.lines.map((line, index): BagLineFacts => {
+      const { product, variant, priced } = lineResults[index]!;
+      return {
+        product,
+        variant,
+        quantity: line.quantity,
+        unitPrice: priced.unitEgp,
+        onSale: product.compareAtPrice !== null && product.compareAtPrice > product.price,
+        giftWorth: giftWorth(line, giftDocs),
+      };
+    }),
+    offers,
+    ctx,
+  );
+  for (const offerId of deals.offerIds) {
+    const offer = offers.find((entry) => entry.id === offerId);
+    if (offer) usedOffers.set(offer.id, { offerId: offer.id, limits: offer.limits, kind: 'deal' });
+  }
+
   for (const [index, line] of input.lines.entries()) {
-    const { priced, product, variant, weightGrams } = lineResults[index]!;
+    const { product, variant, weightGrams } = lineResults[index]!;
+    const lineDeals = deals.lines[index]!;
+    const priced = withDeals(lineResults[index]!.priced, lineDeals);
     const forLine = pricedLines.length;
     pricedLines.push(priced);
     cartProducts.push(product);
-    subtotalEgp += priced.unitEgp * line.quantity;
+    subtotalEgp += priced.lineDisplay;
     parcelLines.push({ weightGrams, quantity: line.quantity });
 
-    // Free gifts: one set per piece, price 0, listed right after their line. They ship (weight)
-    // and are taken from stock on confirm like any line, but never add to the subtotal.
+    // Free gifts: one set per piece that has no Buy X Get Y discount, price 0, listed right after
+    // their line. They ship (weight) and are taken from stock on confirm like any line, but never
+    // add to the subtotal.
+    const giftQuantity = lineDeals.giftUnits;
+    if (giftQuantity === 0) continue;
     const gifts = resolveLineGifts({
       picks: line.gifts,
-      quantity: line.quantity,
+      quantity: giftQuantity,
       product,
       variant,
       offers,
@@ -176,11 +226,11 @@ export async function priceStoreOrder(
       giftDemand,
     });
     for (const gift of gifts) {
-      pricedLines.push(giftOrderLine(gift, line.quantity, forLine));
-      parcelLines.push({ weightGrams: readWeightGrams(gift.data['weightGrams']), quantity: line.quantity });
+      pricedLines.push(giftOrderLine(gift, giftQuantity, forLine));
+      parcelLines.push({ weightGrams: readWeightGrams(gift.data['weightGrams']), quantity: giftQuantity });
       const offer = offers.find((entry) => entry.id === gift.offerId);
-      if (offer && !giftOffers.has(offer.id)) {
-        giftOffers.set(offer.id, { offerId: offer.id, limits: offer.limits });
+      if (offer && !usedOffers.has(offer.id)) {
+        usedOffers.set(offer.id, { offerId: offer.id, limits: offer.limits, kind: 'gift' });
       }
     }
   }
@@ -217,7 +267,40 @@ export async function priceStoreOrder(
     fulfilment,
   };
 
-  return { pricing, giftOffers: Array.from(giftOffers.values()) };
+  return { pricing, usedOffers: Array.from(usedOffers.values()) };
+}
+
+/**
+ * What the free gifts one piece of a bag line asks for are worth: the gift products' prices.
+ * Only used to choose between a gift and a Buy X Get Y discount; the picks are checked later.
+ */
+function giftWorth(
+  line: OrderLineInput,
+  giftDocs: ReadonlyMap<string, DocumentData | undefined>,
+): number {
+  let worth = 0;
+  for (const pick of line.gifts) {
+    const price = Number(giftDocs.get(pick.productId)?.['price'] ?? 0);
+    if (Number.isFinite(price) && price > 0) worth += Math.round(price);
+  }
+  return worth;
+}
+
+/** The line with its Buy X Get Y discount taken off (unchanged when it has none). */
+function withDeals(priced: OrderLinePrice, lineDeals: BagLineDeals): OrderLinePrice {
+  if (lineDeals.discount <= 0) return priced;
+  const lineDisplay = Math.max(0, priced.unitEgp * priced.quantity - lineDeals.discount);
+  return {
+    ...priced,
+    lineDisplay,
+    discountEgp: lineDeals.discount,
+    deals: lineDeals.deals.map((deal) => ({
+      offerId: deal.offerId,
+      units: deal.units,
+      percent: deal.percent,
+      discountEgp: deal.discount,
+    })),
+  };
 }
 
 /** Live gift product docs by id; a missing doc maps to `undefined`. */

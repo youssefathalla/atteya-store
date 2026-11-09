@@ -2,11 +2,20 @@ import { FieldValue, type Firestore, type Transaction } from 'firebase-admin/fir
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { OfferLimits } from '../offers/engine/index.js';
 
-/** A Free gift offer an order gives gifts from, with its limits. */
-export interface UsedGiftOffer {
+/**
+ * An offer an order uses, with its limits: a Free gift offer it gives gifts from (`gift`), or a
+ * Buy X Get Y offer that discounts it (`deal`).
+ */
+export interface UsedOffer {
   readonly offerId: string;
   readonly limits: OfferLimits;
+  readonly kind: 'gift' | 'deal';
 }
+
+const GIFT_OFFER_FULL =
+  'A free gift offer in your bag has run out. Remove the item and add it again to order it without the gift.';
+const DEAL_OFFER_FULL =
+  "An offer in your bag has just run out, so we can't give its discount. Message us on WhatsApp and we'll help you order.";
 
 /**
  * True when one more use fits. `totalUses` and `perCustomer` count orders, so an order with
@@ -19,15 +28,15 @@ export function offerUseFits(limits: OfferLimits, totalCount: number, customerCo
 }
 
 /**
- * Reads the use counts of each gift offer inside `tx` and refuses the order when one is full.
+ * Reads the use counts of each offer inside `tx` and refuses the order when one is full.
  * Returns a function that adds this order's use (call it after every other read in `tx`).
  * Counts live in `offerUsage/{offerId}` and `offerUsage/{offerId}_{uid}` (Admin SDK only).
  */
-export async function readGiftOfferUses(
+export async function readOfferUses(
   tx: Transaction,
   db: Firestore,
   uid: string,
-  offers: readonly UsedGiftOffer[],
+  offers: readonly UsedOffer[],
 ): Promise<() => void> {
   const refs = offers.map((offer) => ({
     offer,
@@ -43,10 +52,7 @@ export async function readGiftOfferUses(
   );
   for (const entry of snaps) {
     if (!offerUseFits(entry.offer.limits, entry.totalCount, entry.customerCount)) {
-      throw new HttpsError(
-        'failed-precondition',
-        'A free gift offer in your bag has run out. Remove the item and add it again to order it without the gift.',
-      );
+      throw new HttpsError('failed-precondition', entry.offer.kind === 'deal' ? DEAL_OFFER_FULL : GIFT_OFFER_FULL);
     }
   }
   return () => {
@@ -62,11 +68,11 @@ export async function readGiftOfferUses(
   };
 }
 
-/** Best-effort undo of `readGiftOfferUses` when the order could not be saved (Paymob start failed). */
-export async function releaseGiftOfferUses(
+/** Best-effort undo of `readOfferUses` when the order could not be saved (Paymob start failed). */
+export async function releaseOfferUses(
   db: Firestore,
   uid: string,
-  offers: readonly UsedGiftOffer[],
+  offers: readonly UsedOffer[],
 ): Promise<void> {
   if (offers.length === 0) return;
   await db.runTransaction(async (tx) => {

@@ -6,6 +6,7 @@
  * `pricing.subtotalEgp`, `pricing.shipping.priceEgp`, `pricing.totalEgp`.
  * Orders never store the shopper's display currency, so emails show EGP only.
  */
+import { dealTag } from '../offers/engine/buy-x-get-y.js';
 import { isDeliveryFeeToBeAgreed } from '../store/order-messages.js';
 
 export type OrderEmailPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
@@ -20,6 +21,8 @@ export interface OrderEmailLine {
   readonly lineEgp: number;
   /** Free gift line (price 0, listed after its item): the gift's name, e.g. "Free shirt". */
   readonly giftName: string | null;
+  /** Buy X Get Y discount on the line ("Free", "1 free", "−50%"); `lineEgp` is after it. */
+  readonly dealTag: string | null;
 }
 
 export interface OrderEmailAddress {
@@ -65,6 +68,16 @@ function readGiftName(raw: unknown): string | null {
   return text(raw['giftName']) || 'Free gift';
 }
 
+/** The Buy X Get Y tag of a line ("Free", "1 free", "−50%"), or null when it has none. */
+function readDealTag(raw: unknown, quantity: number): string | null {
+  if (!Array.isArray(raw)) return null;
+  const deals = raw
+    .filter(isRecord)
+    .map((deal) => ({ units: wholeNumber(deal['units']), percent: wholeNumber(deal['percent']) }))
+    .filter((deal) => deal.units > 0 && deal.percent > 0);
+  return dealTag(deals, quantity) || null;
+}
+
 /** `#` + first 6 characters of the order id in capitals. Keep in step with the Angular copy. */
 export function shortOrderRef(orderId: string): string {
   return `#${orderId.slice(0, 6).toUpperCase()}`;
@@ -104,14 +117,16 @@ export function readOrderForEmail(
     const quantity = wholeNumber(raw['quantity']);
     if (!productId || quantity < 1) continue;
     const unitEgp = wholeNumber(raw['unitEgp']);
+    const discountEgp = wholeNumber(raw['discountEgp']);
     lines.push({
       productId,
       name: text(raw['name']),
       optionLabels: readOptionLabels(raw['optionLabels']),
       imagePath: text(raw['imagePath']) || null,
       quantity,
-      lineEgp: unitEgp * quantity,
+      lineEgp: Math.max(0, unitEgp * quantity - discountEgp),
       giftName: readGiftName(raw['gift']),
+      dealTag: readDealTag(raw['deals'], quantity),
     });
   }
   if (lines.length === 0) return null;

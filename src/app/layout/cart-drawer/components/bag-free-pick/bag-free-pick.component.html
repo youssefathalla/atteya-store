@@ -1,0 +1,54 @@
+@if (loading()) {
+  <div class="bag-deal-pick" aria-hidden="true">
+    <app-skeleton class="h-5 w-3/4" />
+    <div class="grid grid-cols-3 gap-2">
+      @for (n of [1, 2, 3]; track n) {
+        <app-skeleton class="aspect-square w-full" />
+      }
+    </div>
+  </div>
+} @else if (choices().length > 0) {
+  <section class="bag-deal-pick" [attr.aria-label]="title()">
+    <div>
+      <p class="font-title-sm font-bold!">{{ title() }}</p>
+      <p class="font-label-md text-on-surface-variant">Tap one to add it to your bag.</p>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2">
+      @for (choice of choices(); track choice.productId) {
+        <button
+          type="button"
+          class="pdp-gift-tile"
+          [attr.aria-pressed]="openChoice() === choice.productId"
+          [attr.aria-label]="tileLabel(choice)"
+          (click)="pick(choice)"
+        >
+          <span class="pdp-gift-tile__photo">
+            @if (choice.imagePath) {
+              <img
+                [ngSrc]="path(choice.imagePath)"
+                [appImageFallback]="choice.imagePath"
+                alt=""
+                fill
+                sizes="(max-width: 1023px) 30vw, 10vw"
+                class="object-contain"
+              />
+            }
+          </span>
+          <span class="pdp-gift-tile__name">{{ choice.label }}</span>
+        </button>
+      }
+    </div>
+
+    @if (sizes(); as sizeList) {
+      <div class="space-y-2">
+        <p class="font-label-lg">Choose a size</p>
+        <div class="grid grid-cols-3 gap-2">
+          @for (size of sizeList; track size.id) {
+            <button type="button" class="pdp-choice" (click)="pickSize(size.id)">{{ size.label }}</button>
+          }
+        </div>
+      </div>
+    }
+  </section>
+}

@@ -1,0 +1,6 @@
+@layer components {
+  /*! Buy X Get Y: the small "Free" / "−50%" tag on a discounted item (bag, checkout, order page) */
+  .deal-tag {
+    @apply inline-block px-1.5 border border-primary border-shape font-label-sm whitespace-nowrap;
+  }
+}

@@ -21,7 +21,7 @@ import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
 import { orderStatusName } from '@core/services/orders/order-status-name';
 import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
-import { displayDecimals } from '@core/services/offers/engine';
+import { dealTag, displayDecimals } from '@core/services/offers/engine';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -184,7 +184,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
 
   /**
    * What was ordered, from the saved order lines. Free gifts follow the item they came with and
-   * show "Free" instead of a price.
+   * show "Free" instead of a price; a Buy X Get Y discount shows its tag and the old price.
    */
   readonly items = computed(() => {
     const pricing = this.order()?.pricing;
@@ -201,6 +201,8 @@ export class CheckoutConfirmationPageComponent implements OnInit {
           name: giftLineLabel(line.gift.giftName || FALLBACK_GIFT_NAME, line.name || 'Item', size),
           details: `Qty ${line.quantity}`,
           price: 'Free',
+          deal: '',
+          was: '',
         };
       }
       return {
@@ -212,6 +214,12 @@ export class CheckoutConfirmationPageComponent implements OnInit {
           `Qty ${line.quantity}`,
         ].join(' · '),
         price: formatMoney(line.lineDisplay, pricing.currency, decimals),
+        // Buy X Get Y: "Free" / "−50%" and the price before it.
+        deal: line.deals?.length ? dealTag(line.deals, line.quantity) : '',
+        was:
+          (line.discountEgp ?? 0) > 0
+            ? formatMoney(line.unitDisplay * line.quantity, pricing.currency, decimals)
+            : '',
       };
     });
   });

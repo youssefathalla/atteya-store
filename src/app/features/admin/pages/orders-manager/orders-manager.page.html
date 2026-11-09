@@ -78,6 +78,10 @@
       <!-- A free gift line sits under the item it came with. -->
       <span class="px-3 font-label-md text-on-surface-variant">{{ row.giftName }} · Free</span>
     }
+    @if (row.dealLabel) {
+      <!-- Buy X Get Y: some or all pieces of this line were discounted. -->
+      <span class="px-3 font-label-md text-on-surface-variant">Offer · {{ row.dealLabel }}</span>
+    }
   </div>
 </ng-template>
 

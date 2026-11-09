@@ -3,11 +3,8 @@ import { Component, computed, inject, input, linkedSignal, resource, untracked }
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { doc, getDoc } from 'firebase/firestore';
-import {
-  canCheckout,
-  cartSubtotalDisplay,
-  lineDisplayAmount,
-} from '@core/services/cart/cart-pricing';
+import { canCheckout, lineDisplayAmount } from '@core/services/cart/cart-pricing';
+import { dealHintText, priceBag, type BagPricingProduct } from '@core/services/cart/cart-deals';
 import { isCardOrWalletLive } from '@core/config/store-info';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
@@ -16,10 +13,16 @@ import { cartLineKey, type CartLineDraft } from '@core/services/cart/cart.model'
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
-import { displayDecimals, toDisplayAmount } from '@core/services/offers/engine';
+import {
+  dealTag,
+  displayDecimals,
+  toDisplayAmount,
+  type BagDealHint,
+} from '@core/services/offers/engine';
+import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import { PRODUCT_GENDERS } from '@core/services/products/product.constants';
-import type { ProductGenderId } from '@core/services/products/product.model';
+import type { Product, ProductGenderId } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 import { SearchService, type SearchHit } from '@core/services/search';
@@ -44,32 +47,34 @@ import {
   bagRecommendationFilter,
   pickBagRecommendations,
 } from './utils/bag-extras';
+import { BagFreePickComponent } from './components/bag-free-pick/bag-free-pick.component';
 
-interface CartProductOptionValue {
-  readonly id: string;
-  readonly label: string;
-}
-
-interface CartProductOption {
-  readonly key: string;
-  readonly label: string;
-  readonly values: readonly CartProductOptionValue[];
-}
-
-interface CartProductInfo {
+interface CartProductInfo extends BagPricingProduct {
   readonly name: string;
   readonly slug: string;
   readonly price: number;
   readonly compareAtPrice: number | null;
   readonly imagePath: string | null;
   readonly imageAlt: string;
-  readonly options: readonly CartProductOption[];
+  readonly options: Product['options'];
   /** Palette colour ids, so a free gift can be named with its colour. */
   readonly colors: readonly string[];
   /** "Men", "Women", "Kids" or "Unisex"; null when the product has no gender set. */
   readonly genderLabel: string | null;
   /** Main (leaf) category, used to pick the "Recommended for You" products. */
   readonly categoryId: string;
+}
+
+/** One bag line's price in the visitor's currency, after offers. */
+interface CartLinePrice {
+  /** What the line costs now. */
+  readonly total: string;
+  /** The line before offers and sale prices, struck through; empty when nothing came off. */
+  readonly was: string;
+  /** Buy X Get Y tag ("Free", "1 free", "−50%"); empty when none. */
+  readonly deal: string;
+  /** Pieces that still come with the line's free gifts. */
+  readonly giftUnits: number;
 }
 
 /** One free gift under its item: "Free shirt: Adidas Simple Polo White, L". */
@@ -113,6 +118,7 @@ interface BagRecommendationHits {
     HorizontalScrollDirective,
     RowScrollNavComponent,
     PaymentMarkComponent,
+    BagFreePickComponent,
   ],
   templateUrl: './cart-drawer.component.html',
   host: {
@@ -256,11 +262,9 @@ export class CartDrawerComponent {
         imagePath: primary?.path ?? null,
         imageAlt: primary?.alt || data.name,
         colors: data.colors,
-        options: data.options.map((option) => ({
-          key: option.key,
-          label: option.label,
-          values: option.values.map((value) => ({ id: value.id, label: value.label })),
-        })),
+        options: data.options,
+        variants: data.variants,
+        priced: toPricedProduct(data),
       };
     } catch (error) {
       return isPermissionDenied(error) ? null : undefined;
@@ -268,37 +272,71 @@ export class CartDrawerComponent {
   }
 
   /**
-   * Catalog unit prices converted into the visitor's display currency.
-   * Line totals and the bag subtotal both multiply these (convert, then × qty).
+   * The bag priced like checkout and the order: per-item offers on each piece, then Buy X Get Y
+   * over the whole bag (catalog prices until live offers load). Display only.
    */
-  readonly #unitDisplayByProductId = computed(() => {
-    const entry = this.#currency.entry();
-    const map = new Map<string, number>();
-    for (const [id, info] of this.#products()) {
-      if (info) map.set(id, toDisplayAmount(info.price, entry));
-    }
-    return map;
+  readonly #pricedBag = computed(() => {
+    const liveMode = this.#offers.ready() && !this.#offers.failed();
+    const offers = liveMode ? this.#offers.all() : [];
+    const ctx = { now: new Date(), signedIn: Boolean(this.#auth.user()), codes: [] };
+    return priceBag(this.lines(), this.#products(), offers, ctx);
   });
 
-  readonly #listUnitDisplayByProductId = computed(() => {
+  /** Each line's price in the visitor's currency, in bag order; null while it loads or is gone. */
+  readonly linePrices = computed((): readonly (CartLinePrice | null)[] => {
     const entry = this.#currency.entry();
-    const map = new Map<string, number>();
-    for (const [id, info] of this.#products()) {
-      if (!info) continue;
-      const list = info.compareAtPrice;
-      if (list === null || list <= info.price) continue;
-      const sale = toDisplayAmount(info.price, entry);
-      const was = toDisplayAmount(list, entry);
-      if (was > sale) map.set(id, was);
-    }
-    return map;
+    const decimals = displayDecimals(entry.code);
+    const products = this.#products();
+    const bag = this.#pricedBag();
+    return this.lines().map((line, index) => {
+      const priced = bag.lines[index];
+      const info = products.get(line.productId);
+      if (!priced || !info) return null;
+      const total = this.#lineDisplay(priced.unitEgp, priced.lineEgp, priced.deals.discount, line.quantity);
+      const listUnit = Math.max(info.price, info.compareAtPrice ?? 0);
+      const wasAmount = lineDisplayAmount(toDisplayAmount(listUnit, entry), line.quantity);
+      return {
+        total: formatMoney(total, entry.code, decimals),
+        was: wasAmount > total ? formatMoney(wasAmount, entry.code, decimals) : '',
+        deal: dealTag(priced.deals.deals, line.quantity),
+        giftUnits: priced.deals.giftUnits,
+      };
+    });
   });
 
   readonly subtotal = computed(() => {
     const entry = this.#currency.entry();
-    const amount = cartSubtotalDisplay(this.lines(), this.#unitDisplayByProductId());
+    const bag = this.#pricedBag();
+    let amount = 0;
+    this.lines().forEach((line, index) => {
+      const priced = bag.lines[index];
+      if (priced) amount += this.#lineDisplay(priced.unitEgp, priced.lineEgp, priced.deals.discount, line.quantity);
+    });
     return formatMoney(amount, entry.code, displayDecimals(entry.code));
   });
+
+  /** Buy X Get Y nudges under each line ("Add 1 more to get 1 free", "You've earned a free grip"). */
+  readonly #hintsByLine = computed(() => {
+    const map = new Map<number, BagDealHint[]>();
+    for (const hint of this.#pricedBag().hints) {
+      map.set(hint.lineIndex, [...(map.get(hint.lineIndex) ?? []), hint]);
+    }
+    return map;
+  });
+
+  dealHints(index: number): readonly BagDealHint[] {
+    return this.#hintsByLine().get(index) ?? [];
+  }
+
+  readonly dealHintText = dealHintText;
+
+  /** Convert, then × quantity (as before); a line with a Buy X Get Y discount converts its total. */
+  #lineDisplay(unitEgp: number, lineEgp: number, discount: number, quantity: number): number {
+    const entry = this.#currency.entry();
+    return discount > 0
+      ? toDisplayAmount(lineEgp, entry)
+      : lineDisplayAmount(toDisplayAmount(unitEgp, entry), quantity);
+  }
 
   productInfo(productId: string): CartProductInfo | undefined {
     return this.#products().get(productId) ?? undefined;
@@ -311,32 +349,6 @@ export class CartDrawerComponent {
 
   imagePath(rawPath: string): string {
     return normalizeImageKitPath(rawPath);
-  }
-
-  /** Line total label — same convert-then-multiply path as the bag subtotal. */
-  lineTotalLabel(productId: string, quantity: number): string {
-    const unit = this.#unitDisplayByProductId().get(productId);
-    if (typeof unit !== 'number') return '';
-    const entry = this.#currency.entry();
-    return formatMoney(lineDisplayAmount(unit, quantity), entry.code, displayDecimals(entry.code));
-  }
-
-  /** Struck compare-at line total when the converted list unit is higher than sale. */
-  lineListLabel(productId: string, quantity: number): string {
-    const listUnit = this.#listUnitDisplayByProductId().get(productId);
-    if (typeof listUnit !== 'number') return '';
-    const entry = this.#currency.entry();
-    return formatMoney(
-      lineDisplayAmount(listUnit, quantity),
-      entry.code,
-      displayDecimals(entry.code),
-    );
-  }
-
-  linePriceClass(productId: string): string {
-    return this.#listUnitDisplayByProductId().has(productId)
-      ? 'font-body-md font-bold!'
-      : 'font-body-md';
   }
 
   selectionLabel(
@@ -358,9 +370,10 @@ export class CartDrawerComponent {
   }
 
   /** The free gifts picked for one line, each as "Free shirt: Adidas Simple Polo White, L". */
-  giftRows(line: CartLineDraft): readonly CartGiftRow[] {
+  giftRows(line: CartLineDraft, index: number): readonly CartGiftRow[] {
     const gifts = line.gifts ?? [];
-    if (gifts.length === 0) return [];
+    // Every piece has a Buy X Get Y discount instead, so none comes with gifts.
+    if (gifts.length === 0 || this.linePrices()[index]?.giftUnits === 0) return [];
     const offers = this.#offers.all();
     return gifts.map((gift) => {
       const name = giftNameFor(offers, gift.offerId, gift.giftId);

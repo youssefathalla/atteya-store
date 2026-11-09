@@ -1,23 +1,10 @@
-import { giftProductLabel } from '@core/services/cart/cart-gifts';
+import type { GiftChoiceView, GiftSizeView } from '@core/services/cart/cart-gifts';
 import type { CartLineGift } from '@core/services/cart/cart.model';
 import type { GiftChoiceFacts, ProductGiftOffer } from '@core/services/offers/engine';
-import type { Product, ProductTypeId } from '@core/services/products';
+import type { ProductTypeId } from '@core/services/products';
 import type { ChoicePrompt } from '../models/product-page.model';
 
-/** One size of a gift product. Only sizes with stock are listed. */
-export interface GiftSizeView {
-  readonly id: string;
-  readonly label: string;
-}
-
-/** One product the shopper can take as a gift. `sizes` is null when it has no sizes. */
-export interface GiftChoiceView {
-  readonly productId: string;
-  readonly label: string;
-  /** Main photo path (empty when the product has none yet). Shown on the choice's tile. */
-  readonly imagePath: string;
-  readonly sizes: readonly GiftSizeView[] | null;
-}
+export { toGiftChoice, type GiftChoiceView, type GiftSizeView } from '@core/services/cart/cart-gifts';
 
 /** One gift of the offer ("Free shirt") with what it can be. */
 export interface GiftView {
@@ -83,33 +70,6 @@ const PRODUCT_NOUN_PHRASE: Readonly<Record<ProductTypeId, string>> = {
   bottles: 'this bottle',
   supports: 'this support',
 };
-
-/**
- * A gift product as the Gift Box needs it, or null when it can't be given now: out of stock,
- * every size sold out, or a choice besides size with more than one value (checkout refuses those).
- */
-export function toGiftChoice(product: Product): GiftChoiceView | null {
-  if (!product.published) return null;
-  if (typeof product.stock === 'number' ? product.stock <= 0 : !product.inStock) return null;
-  let sizes: GiftSizeView[] | null = null;
-  for (const option of product.options) {
-    if (option.values.length === 0) continue;
-    if (option.key === 'size') {
-      sizes = option.values
-        .filter((value) => !product.stockBySize || (product.stockBySize[value.id] ?? 0) > 0)
-        .map((value) => ({ id: value.id, label: value.label }));
-      if (sizes.length === 0) return null;
-    } else if (option.values.length > 1) {
-      return null;
-    }
-  }
-  return {
-    productId: product.id,
-    label: giftProductLabel(product),
-    imagePath: product.images[0]?.path ?? '',
-    sizes,
-  };
-}
 
 /** Facts the engine needs to pick the live gift offer: every listed choice can be given. */
 export function giftChoiceFacts(choices: readonly GiftChoiceView[]): GiftChoiceFacts[] {

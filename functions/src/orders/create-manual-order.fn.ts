@@ -5,7 +5,7 @@ import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
 import { requireRole } from '../auth/require-role.js';
 import { parseCreateStoreOrderRequest } from './order-request.js';
 import { priceStoreOrder, type OrderPricingSnapshot } from './order-pricing.server.js';
-import { readGiftOfferUses } from './offer-usage.js';
+import { readOfferUses } from './offer-usage.js';
 import { nextDailyOrderCount, utcDayKey } from './order-rate-limit.js';
 
 /** Egypt-only orders paid outside Paymob and confirmed by staff (`confirmCodOrder`). */
@@ -68,10 +68,10 @@ async function createManualOrder<M extends ManualPaymentMethod>(
     const rateLimitRef = db.collection('orderRateLimits').doc(`${caller.uid}_${day}`);
     const rateLimitSnap = await tx.get(rateLimitRef);
     const nextRateCount = nextDailyOrderCount(rateLimitSnap.data()?.['count']);
-    // Free gift offer limits: an order counts once per offer, however many gifts it has.
-    const addGiftOfferUses = await readGiftOfferUses(tx, db, caller.uid, priced.giftOffers);
+    // Offer limits (free gifts, Buy X Get Y): an order counts once per offer, however many items it has.
+    const addOfferUses = await readOfferUses(tx, db, caller.uid, priced.usedOffers);
     const now = FieldValue.serverTimestamp();
-    addGiftOfferUses();
+    addOfferUses();
 
     tx.set(
       rateLimitRef,

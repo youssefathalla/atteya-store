@@ -25,3 +25,17 @@
     @apply border-dashed text-on-surface-variant;
   }
 }
+
+@layer components {
+  /*! shopping bag: Buy X Get Y nudges under an item */
+
+  /* "Add 1 more to get 1 free": a muted line with a small offer icon. */
+  .bag-deal-hint {
+    @apply w-full elements-start gap-1.5 font-label-md text-on-surface-variant;
+  }
+
+  /* "You've earned a free grip": bordered box with the free choices as photo tiles (.pdp-gift-tile). */
+  .bag-deal-pick {
+    @apply w-full mt-1 p-3 space-y-3 border border-primary border-shape;
+  }
+}
