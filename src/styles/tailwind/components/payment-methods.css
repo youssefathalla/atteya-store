@@ -1,5 +1,5 @@
 @layer components {
-  /*! checkout payment options: one bordered row per method, with the method's mark in a small box */
+  /*! checkout payment options: one bordered row per method, with the method's mark in a small box and numbered steps under the chosen one */
 
   /* One payment method row (holds its mat-radio-button and the note under it). */
   .pay-option {
@@ -19,5 +19,22 @@
   /* About 56×40: the method's mark (app-payment-mark) before its name. */
   .pay-option__mark {
     @apply w-14 h-10 shrink-0 elements-center border border-outline-variant border-shape bg-surface-container-lowest;
+  }
+
+  /* Short numbered steps under the chosen method (an <ol>; the numbers come from a CSS counter). */
+  .pay-steps {
+    @apply elements-start-col items-stretch! gap-2.5 ps-10 pe-3 pb-2 font-body-md list-none;
+    counter-reset: pay-step;
+  }
+
+  .pay-steps > li {
+    @apply elements-start items-start! gap-2.5;
+    counter-increment: pay-step;
+  }
+
+  /* The step number in a small black circle. */
+  .pay-steps > li::before {
+    @apply size-5 shrink-0 elements-center rounded-full bg-primary text-on-primary font-label-sm font-bold!;
+    content: counter(pay-step);
   }
 }

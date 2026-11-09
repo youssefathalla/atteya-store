@@ -524,6 +524,12 @@ export class CheckoutPageComponent implements OnInit {
     return summary.state === 'ready' && summary.feeToBeAgreed;
   });
 
+  /** The priced summary once it is ready (amounts for the payment steps), otherwise null. */
+  readonly readySummary = computed(() => {
+    const summary = this.orderSummary();
+    return summary.state === 'ready' ? summary : null;
+  });
+
   constructor() {
     // Prefill from AS-21 visitor geo when the code is on the checkout list.
     // Localhost has no CDN headers and a private IP, so /api/visitor-location

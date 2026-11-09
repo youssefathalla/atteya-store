@@ -301,29 +301,31 @@
           aria-label="Payment method"
         >
           <div class="space-y-2">
+            @let ready = readySummary();
             @if (localMethodsAvailable()) {
-              <div class="pay-option space-y-1" [class.pay-option--selected]="paymentMethod() === 'instapay'">
-                <mat-radio-button value="instapay">
-                  <span class="elements-start gap-3">
-                    <span class="pay-option__mark"><app-payment-mark method="instapay" /></span>
-                    <span>InstaPay</span>
-                  </span>
-                </mat-radio-button>
-                @if (paymentMethod() === 'instapay') {
-                  @if (orderSummary(); as summary) {
-                    @if (summary.state === 'ready') {
-                      <p class="font-body-sm opacity-80 ps-10 pe-3 pb-2" aria-live="polite">
-                        @if (summary.feeToBeAgreed) {
-                          Once we agree the delivery fee on WhatsApp, transfer the total by InstaPay
-                          and send us a screenshot. We'll confirm your payment and send your order.
-                        } @else {
-                          After you place your order, transfer {{ summary.instapayTotal }} by
-                          InstaPay and send us a screenshot on WhatsApp. We'll confirm your payment
-                          and send your order.
-                        }
-                      </p>
-                    }
+              <div class="pay-option space-y-2" [class.pay-option--selected]="paymentMethod() === 'instapay'">
+                <div class="elements-between gap-3 pe-3">
+                  <mat-radio-button value="instapay">
+                    <span class="elements-start gap-3">
+                      <span class="pay-option__mark"><app-payment-mark method="instapay" /></span>
+                      <span>InstaPay</span>
+                    </span>
+                  </mat-radio-button>
+                  @if (paymentMethod() === 'instapay' && ready && !ready.feeToBeAgreed) {
+                    <span class="font-body-lg font-bold!">{{ ready.instapayTotal }}</span>
                   }
+                </div>
+                @if (paymentMethod() === 'instapay' && ready) {
+                  <ol class="pay-steps" aria-label="How to pay by InstaPay" aria-live="polite">
+                    <li>Place your order</li>
+                    @if (ready.feeToBeAgreed) {
+                      <li>We'll contact you about the delivery fee</li>
+                      <li>Send the total by InstaPay</li>
+                    } @else {
+                      <li><span>Send <strong>{{ ready.instapayTotal }}</strong> by InstaPay</span></li>
+                    }
+                    <li>Send the screenshot on WhatsApp</li>
+                  </ol>
                 }
               </div>
             }
@@ -339,7 +341,7 @@
             }
             @if (localMethodsAvailable()) {
               <div
-                class="pay-option space-y-1"
+                class="pay-option space-y-2"
                 [class.pay-option--selected]="paymentMethod() === 'cash-on-delivery'"
               >
                 <mat-radio-button value="cash-on-delivery">
@@ -348,38 +350,30 @@
                     <span>Cash on Delivery</span>
                   </span>
                 </mat-radio-button>
-                @if (paymentMethod() === 'cash-on-delivery') {
-                  @if (orderSummary(); as summary) {
-                    @if (summary.state === 'ready') {
-                      <p class="font-body-sm opacity-80 ps-10 pe-3 pb-2" aria-live="polite">
-                        @if (summary.feeToBeAgreed) {
-                          Once we agree the delivery fee on WhatsApp, pay it by InstaPay. You'll pay
-                          {{ summary.codCash }} for your items in cash when they arrive.
-                        } @else if (summary.codShippingEgp > 0) {
-                          Pay the {{ summary.codShipping }} shipping fee by InstaPay first. You'll
-                          pay the rest, {{ summary.codCash }}, in cash when it arrives.
-                        } @else {
-                          Shipping is free, so there's nothing to pay before delivery. You'll pay
-                          {{ summary.codCash }} in cash when it arrives.
-                        }
-                      </p>
+                @if (paymentMethod() === 'cash-on-delivery' && ready) {
+                  <ol class="pay-steps" aria-label="How to pay with Cash on Delivery" aria-live="polite">
+                    <li>Place your order</li>
+                    @if (ready.feeToBeAgreed) {
+                      <li>We'll contact you about the delivery fee</li>
+                      <li>Send the fee by InstaPay</li>
+                    } @else if (ready.codShippingEgp > 0) {
+                      <li><span>Send the <strong>{{ ready.codShipping }}</strong> delivery fee by InstaPay</span></li>
                     }
-                  }
+                    <li><span>Pay <strong>{{ ready.codCash }}</strong> in cash at your door</span></li>
+                  </ol>
                 }
               </div>
             }
             <!-- Not offered yet: last, after the methods shoppers can use today. -->
             @if (!cardOrWalletLive) {
-              <div class="pay-option pay-option--soon">
+              <div class="pay-option pay-option--soon elements-between gap-3 pe-3">
                 <mat-radio-button value="paymob" disabled>
                   <span class="elements-start gap-3">
                     <span class="pay-option__mark"><app-payment-mark method="paymob" /></span>
                     <span>Card or Wallet</span>
-                    <span class="font-label-sm px-1.5 py-0.5 border border-outline-variant border-shape">
-                      Coming soon
-                    </span>
                   </span>
                 </mat-radio-button>
+                <span class="font-body-sm text-on-surface-variant">Coming soon</span>
               </div>
             }
           </div>
