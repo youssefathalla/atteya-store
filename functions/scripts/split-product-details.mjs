@@ -24,7 +24,7 @@
  * Each write is checked against the document's last update time, so a product edited while the
  * script runs is skipped instead of overwritten; run it again to pick it up. Re-running is safe.
  * Writing `descriptionHtml` re-syncs the search record on its own (no Rebuild search needed).
- * Agents never run --apply.
+ * On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety).
  */
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';

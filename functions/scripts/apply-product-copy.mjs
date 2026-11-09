@@ -25,7 +25,7 @@
  *
  * After applying: Catalogue Tools -> Rebuild search, then Check catalogue
  * structure (Preview -> Apply) so admin search matches the new names.
- * Agents never run --apply.
+ * On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety).
  */
 import { readFileSync } from 'node:fs';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
