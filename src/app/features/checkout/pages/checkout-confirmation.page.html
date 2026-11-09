@@ -1,161 +1,298 @@
-<section class="container-content max-w-3xl mx-auto space-y-8 py-8">
-  <header class="space-y-2">
-    <h1 class="font-headline-md font-bold!">{{ headline() }}</h1>
-    @if (bodyCopy()) {
-      <p class="font-body-md opacity-80" aria-live="polite">{{ bodyCopy() }}</p>
-    }
-  </header>
+<section class="order-band" aria-labelledby="order-heading">
+  <div class="container-content max-w-6xl mx-auto elements-between items-end! flex-wrap gap-x-12 gap-y-6">
+    <div class="elements-start-col gap-2">
+      @if (order()) {
+        <p class="elements-start gap-2 font-body-md opacity-85">
+          <span
+            class="size-6 elements-center rounded-full bg-surface-container-lowest text-primary"
+            aria-hidden="true"
+          >
+            <mat-icon name="check" size="sm" weight="700" />
+          </span>
+          <span>
+            Order <span class="font-bold! tracking-wide">{{ orderRef() }}</span>
+            @if (placedOn()) {
+              · {{ placedOn() }}
+            }
+          </span>
+        </p>
+      }
+      <h1 id="order-heading" class="font-headline-lg font-bold!">{{ headline() }}</h1>
+      @if (bandLine()) {
+        <p class="font-body-lg opacity-85" aria-live="polite">{{ bandLine() }}</p>
+      }
+    </div>
 
-  @if (order() === undefined) {
+    @if (moneyBoxes().length > 0) {
+      <dl class="order-money w-full sm:w-auto">
+        @for (box of moneyBoxes(); track box.label) {
+          <div class="order-money__box" [class.order-money__box--now]="box.now">
+            <dt class="font-label-md opacity-80">{{ box.label }}</dt>
+            <dd class="font-title-md font-bold! whitespace-nowrap">{{ box.value }}</dd>
+          </div>
+        }
+      </dl>
+    }
+  </div>
+</section>
+
+@if (order() === undefined) {
+  <div class="container-content max-w-6xl mx-auto">
     <p class="font-body-md opacity-70">Loading your order…</p>
-  } @else if (order() === null) {
+  </div>
+} @else if (order() === null) {
+  <div class="container-content max-w-6xl mx-auto elements-start-col gap-4">
     <p class="font-body-md opacity-80">We could not find this order.</p>
     <a matButton="filled" routerLink="/">Back to the Store</a>
-  } @else {
-    <section class="surface-card p-5 space-y-4" aria-label="Order details">
-      <div class="elements-between gap-4">
-        <span class="font-label-lg opacity-80">Order</span>
-        <span class="font-title-sm font-bold! tracking-wide break-all">{{ orderRef() }}</span>
-      </div>
-      <div class="elements-between gap-4">
-        <span class="font-label-lg opacity-80">Total</span>
-        <span class="font-title-sm font-bold!">{{ displayTotal() }}</span>
-      </div>
-      <div class="elements-between gap-4">
-        <span class="font-label-lg opacity-80">Payment</span>
-        <span class="elements-end gap-2 font-title-sm font-bold!">
+  </div>
+} @else {
+  <div
+    class="container-content max-w-6xl mx-auto grid gap-10 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] @4xl:grid-rows-[auto_1fr] items-start"
+  >
+    <section class="elements-start-col items-stretch! gap-5 min-w-0" aria-labelledby="next-heading">
+      @if (steps().length > 0) {
+        <h2 id="next-heading" class="font-title-lg font-bold!">What happens next</h2>
+        <ol>
+          @for (step of steps(); track step.key; let last = $last) {
+            <li class="order-step" [attr.aria-current]="step.state === 'current' ? 'step' : null">
+              <div class="order-step__rail" aria-hidden="true">
+                <span
+                  class="order-step__dot"
+                  [class.order-step__dot--done]="step.state === 'done'"
+                  [class.order-step__dot--current]="step.state === 'current'"
+                  [class.order-step__dot--stopped]="step.state === 'stopped'"
+                >
+                  @if (step.state === 'done') {
+                    <mat-icon name="check" size="sm" weight="700" />
+                  } @else if (step.state === 'stopped') {
+                    <mat-icon name="close" size="sm" weight="700" />
+                  }
+                </span>
+                @if (!last) {
+                  <span
+                    class="order-step__line"
+                    [class.order-step__line--done]="step.state === 'done'"
+                  ></span>
+                }
+              </div>
+              <div class="order-step__body" [class.pb-0!]="last">
+                <p class="font-title-sm font-bold!" [class.text-on-surface-variant]="step.state === 'next'">
+                  {{ step.title }}
+                </p>
+                @if (step.note) {
+                  <p class="font-body-md text-on-surface-variant">{{ step.note }}</p>
+                }
+
+                @if (step.pay) {
+                  @if (payBox(); as box) {
+                    <div class="order-pay-card">
+                      @if (box.hasDetails) {
+                        @let both = !!box.number && !!box.address;
+                        @let way = both ? instapayWay() : box.number ? 'number' : 'address';
+                        <p class="font-body-md">
+                          @if (both) {
+                            Transfer to your phone number <span class="font-bold!">or</span> InstaPay address:
+                          } @else if (way === 'number') {
+                            Transfer to this phone number:
+                          } @else {
+                            Transfer to this InstaPay address:
+                          }
+                        </p>
+                        @if (both) {
+                          <mat-button-toggle-group
+                            class="instapay-switch"
+                            aria-label="How to transfer"
+                            hideSingleSelectionIndicator
+                            [value]="way"
+                            (change)="instapayWay.set($event.value)"
+                          >
+                            <mat-button-toggle value="number">Phone Number</mat-button-toggle>
+                            <mat-button-toggle value="address">InstaPay Address</mat-button-toggle>
+                          </mat-button-toggle-group>
+                        }
+                        <div class="elements-between gap-3">
+                          @if (way === 'number') {
+                            <span class="font-title-md font-bold! min-w-0">{{ box.number }}</span>
+                            <button
+                              matButton="outlined"
+                              type="button"
+                              aria-label="Copy InstaPay number"
+                              (click)="copy(box.number, 'InstaPay number')"
+                            >
+                              Copy
+                            </button>
+                          } @else {
+                            <span class="font-title-md font-bold! break-all min-w-0">{{ box.address }}</span>
+                            <button
+                              matButton="outlined"
+                              type="button"
+                              aria-label="Copy InstaPay address"
+                              (click)="copy(box.address, 'InstaPay address')"
+                            >
+                              Copy
+                            </button>
+                          }
+                        </div>
+                      } @else {
+                        <p class="font-body-md">We'll send you the InstaPay details on WhatsApp.</p>
+                      }
+
+                      @if (box.whatsappUrl) {
+                        <div class="elements-start">
+                          <a
+                            matButton="filled"
+                            theme="success"
+                            [href]="box.whatsappUrl"
+                            target="_blank"
+                            rel="noopener"
+                          >
+                            <mat-icon name="chat_bubble" />
+                            <span>{{ box.hasDetails ? 'Send on WhatsApp' : 'Message Us on WhatsApp' }}</span>
+                          </a>
+                        </div>
+                      }
+                    </div>
+                  }
+                }
+              </div>
+            </li>
+          }
+        </ol>
+      }
+    </section>
+
+    <div
+      class="elements-start-col items-stretch! gap-5 min-w-0 @4xl:col-start-2 @4xl:row-start-1 @4xl:row-span-2"
+    >
+      @if (items().length > 0) {
+        <section
+          class="panel-border bg-surface-container-lowest p-5 elements-start-col items-stretch! gap-4"
+          aria-labelledby="items-heading"
+        >
+          <div class="elements-between items-baseline! gap-3">
+            <h2 id="items-heading" class="font-title-md font-bold!">Your order</h2>
+            <span class="font-body-md text-on-surface-variant">{{ pieces() }}</span>
+          </div>
+          <ul class="elements-start-col items-stretch! gap-4">
+            @for (item of items(); track item.key) {
+              <li class="elements-start gap-3">
+                <div class="order-thumb">
+                  <div
+                    class="size-full overflow-hidden bg-surface border border-outline-variant border-shape"
+                  >
+                    @if (item.imagePath; as path) {
+                      <img
+                        [ngSrc]="item.imageSrc"
+                        [appImageFallback]="path"
+                        [alt]="item.name"
+                        width="56"
+                        height="56"
+                        class="size-full object-contain p-1"
+                      />
+                    }
+                  </div>
+                  <span class="order-thumb__qty" aria-hidden="true">{{ item.quantity }}</span>
+                </div>
+                <div class="min-w-0 flex-1 elements-start-col gap-0.5">
+                  <p class="font-title-sm font-bold! break-words">{{ item.name }}</p>
+                  @if (item.details) {
+                    <p class="font-body-sm text-on-surface-variant">{{ item.details }}</p>
+                  }
+                  <p class="sr-only">Quantity {{ item.quantity }}</p>
+                  @if (item.deal) {
+                    <span class="deal-tag">{{ item.deal }}</span>
+                  }
+                  @for (gift of item.gifts; track gift.key) {
+                    <p
+                      class="w-full elements-between items-start! gap-3 font-body-sm text-on-surface-variant"
+                    >
+                      <span class="min-w-0">{{ gift.label }}</span>
+                      <span class="shrink-0">Free</span>
+                    </p>
+                  }
+                </div>
+                <div class="shrink-0 elements-end-col text-end">
+                  <span class="font-body-md font-bold! whitespace-nowrap">{{ item.price }}</span>
+                  @if (item.was) {
+                    <span class="font-body-sm text-on-surface-variant line-through whitespace-nowrap">{{
+                      item.was
+                    }}</span>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+          <dl class="elements-start-col items-stretch! gap-2 border-t border-outline-variant pt-4">
+            <div class="elements-between gap-4">
+              <dt class="font-body-md text-on-surface-variant">Subtotal</dt>
+              <dd class="font-body-md">{{ subtotal() }}</dd>
+            </div>
+            <div class="elements-between gap-4">
+              <dt class="font-body-md text-on-surface-variant">Shipping</dt>
+              <dd class="font-body-md">{{ shippingLabel() }}</dd>
+            </div>
+            <div class="elements-between items-baseline! gap-4 pt-1">
+              <dt class="font-title-md font-bold!">Total</dt>
+              <dd class="font-title-lg font-bold!">{{ displayTotal() }}</dd>
+            </div>
+          </dl>
+        </section>
+      }
+
+      <section
+        class="bg-surface-container-low border-shape p-5 elements-start-col items-stretch! gap-3"
+        aria-labelledby="delivery-heading"
+      >
+        <h2 id="delivery-heading" class="font-title-md font-bold!">Delivery</h2>
+        @if (delivery(); as address) {
+          <address class="not-italic font-body-md">
+            <span class="font-bold!">{{ address.name }}</span>
+            @for (line of address.lines; track $index) {
+              <br />{{ line }}
+            }
+            <br />{{ address.phone }}
+          </address>
+        }
+        <p class="elements-start flex-wrap gap-x-2 gap-y-1 font-body-md">
           @if (paymentMethod(); as method) {
             <app-payment-mark [method]="method" />
           }
-          <span>{{ paymentLabel() }}</span>
-        </span>
-      </div>
-      <div class="elements-between gap-4">
-        <span class="font-label-lg opacity-80">Status</span>
-        <span class="font-title-sm font-bold!">{{ statusLabel() }}</span>
-      </div>
-    </section>
-
-    @if (items().length > 0) {
-      <section class="surface-card p-5 space-y-3" aria-labelledby="items-heading">
-        <h2 id="items-heading" class="font-title-md font-bold!">Items</h2>
-        <ul class="space-y-3">
-          @for (item of items(); track item.key) {
-            <li class="elements-between gap-4" [class.ps-6]="item.gift">
-              <div class="elements-start-col gap-0.5 min-w-0">
-                <span
-                  [class]="item.gift ? 'font-body-md break-words' : 'font-body-md font-bold! break-words'"
-                  >{{ item.name }}</span
-                >
-                <span class="font-body-sm opacity-80">{{ item.details }}</span>
-                @if (item.deal) {
-                  <span class="deal-tag">{{ item.deal }}</span>
-                }
-              </div>
-              <div class="shrink-0 elements-end-col text-end">
-                <span class="font-body-md font-bold! whitespace-nowrap">{{ item.price }}</span>
-                @if (item.was) {
-                  <span class="font-body-sm text-on-surface-variant line-through whitespace-nowrap">{{
-                    item.was
-                  }}</span>
-                }
-              </div>
-            </li>
-          }
-        </ul>
+          <span class="font-bold!">{{ paymentLabel() }}</span>
+          <span class="text-on-surface-variant">· {{ statusLabel() }}</span>
+        </p>
       </section>
-    }
+    </div>
 
-    @if (payBox(); as box) {
-      <section class="surface-card p-5 space-y-4" aria-labelledby="pay-heading">
-        <h2 id="pay-heading" class="font-title-md font-bold!">
-          @if (box.reason === 'shipping-fee') {
-            Pay the {{ box.amount ? box.amount + ' ' : '' }}shipping fee by InstaPay
-          } @else {
-            Pay {{ box.amount ? box.amount + ' ' : '' }}by InstaPay
-          }
-        </h2>
-
-        @if (box.hasDetails) {
-          <ol class="list-decimal ps-5 space-y-3 font-body-md">
-            <li class="space-y-4">
-              @let both = !!box.number && !!box.address;
-              @let way = both ? instapayWay() : box.number ? 'number' : 'address';
-              <p>
-                @if (both) {
-                  Transfer to your phone number <span class="font-bold!">or</span> InstaPay address:
-                } @else if (way === 'number') {
-                  Transfer to this phone number:
-                } @else {
-                  Transfer to this InstaPay address:
-                }
-              </p>
-              @if (both) {
-                <mat-button-toggle-group
-                  class="instapay-switch"
-                  aria-label="How to transfer"
-                  [value]="way"
-                  (change)="instapayWay.set($event.value)"
-                >
-                  <mat-button-toggle value="number">Phone Number</mat-button-toggle>
-                  <mat-button-toggle value="address">InstaPay Address</mat-button-toggle>
-                </mat-button-toggle-group>
-              }
-              <div class="elements-between gap-3 flex-wrap">
-                @if (way === 'number') {
-                  <span class="font-title-sm font-bold!">{{ box.number }}</span>
-                  <button
-                    matButton="outlined"
-                    type="button"
-                    aria-label="Copy InstaPay number"
-                    (click)="copy(box.number, 'InstaPay number')"
-                  >
-                    Copy
-                  </button>
-                } @else {
-                  <span class="font-title-sm font-bold! break-all">{{ box.address }}</span>
-                  <button
-                    matButton="outlined"
-                    type="button"
-                    aria-label="Copy InstaPay address"
-                    (click)="copy(box.address, 'InstaPay address')"
-                  >
-                    Copy
-                  </button>
-                }
-              </div>
-            </li>
-            <li>Send us a screenshot of the transfer.</li>
-          </ol>
-        } @else {
-          <p class="font-body-md">We'll send you the InstaPay details on WhatsApp.</p>
-        }
-
-        @if (box.whatsappUrl) {
-          <a matButton="filled" theme="success" [href]="box.whatsappUrl" target="_blank" rel="noopener">
-            <mat-icon name="chat_bubble" />
-            <span>{{ box.hasDetails ? 'Send on WhatsApp' : 'Message Us on WhatsApp' }}</span>
-          </a>
-        }
-      </section>
-    }
-
-    @if (helpUrl(); as url) {
-      <p class="font-body-sm opacity-80">
-        Questions?
-        <a class="underline font-bold!" [href]="url" target="_blank" rel="noopener">
-          Message us on WhatsApp
-        </a>
-      </p>
-    }
-
-    <div class="elements-start gap-3 flex-wrap">
+    <!-- Under the steps on desktop; last on a phone, full width (grid stretches the buttons). -->
+    <div class="grid gap-3 @xl:flex @xl:flex-wrap @xl:items-center @4xl:col-start-1 @4xl:row-start-2">
       @if (stage() === 'failed') {
         <!-- The bag is emptied before Paymob opens, so send shoppers to the shop, not checkout. -->
         <a matButton="filled" routerLink="/shop">Shop Again</a>
       } @else {
-        <a matButton="outlined" routerLink="/">Continue Shopping</a>
+        <a matButton="filled" routerLink="/">Continue Shopping</a>
+      }
+      @if (helpUrl(); as url) {
+        <a
+          matButton="outlined"
+          [href]="url"
+          target="_blank"
+          rel="noopener"
+          aria-label="Questions? Message us on WhatsApp"
+        >
+          <span class="elements-center gap-2">
+            <span><span class="text-on-surface-variant">Questions?</span> Message us</span>
+            <svg
+              class="order-whatsapp-mark"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path [attr.d]="whatsappIconPath" />
+            </svg>
+          </span>
+        </a>
       }
     </div>
-  }
-</section>
+  </div>
+}

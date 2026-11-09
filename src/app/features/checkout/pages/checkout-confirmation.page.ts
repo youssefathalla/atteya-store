@@ -1,4 +1,4 @@
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -21,14 +21,19 @@ import type { CreateManualOrderResult } from '@core/services/orders/checkout-ord
 import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
 import { orderStatusName } from '@core/services/orders/order-status-name';
+import { orderDate } from '@core/services/orders/shopper-orders.service';
 import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
 import { dealTag, displayDecimals } from '@core/services/offers/engine';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { isPaymentMethodId, PAYMENT_METHODS, PaymentMarkComponent } from '@shared/ui/payment-mark';
+import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
+import { WHATSAPP_ICON_PATH } from '@shared/utils/brand-icons';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
+import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
+import { confirmationSteps } from '../utils/confirmation-steps';
 
 /**
  * Order status after checkout. The order is read live, so the page changes by itself when
@@ -41,7 +46,15 @@ import { formatMoney } from '@shared/utils/money';
 @Component({
   selector: 'app-checkout-confirmation-page',
   host: { class: 'block w-full' },
-  imports: [RouterLink, MatButtonModule, MatButtonToggleModule, SharedIconModule, PaymentMarkComponent],
+  imports: [
+    RouterLink,
+    NgOptimizedImage,
+    AppImageFallbackDirective,
+    MatButtonModule,
+    MatButtonToggleModule,
+    SharedIconModule,
+    PaymentMarkComponent,
+  ],
   templateUrl: './checkout-confirmation.page.html',
 })
 export class CheckoutConfirmationPageComponent implements OnInit {
@@ -99,14 +112,21 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     };
   });
 
-  /** Quiet "Questions?" link for every other stage, except while a card payment is settling. */
+  /**
+   * "Questions? Message us" button. While InstaPay is due the Send on WhatsApp button already
+   * carries the payment message, so this one opens a plain chat. Hidden while a card payment is
+   * settling (no ready-made message for that stage).
+   */
   readonly helpUrl = computed(() => {
     const input = this.#input();
     const stage = this.stage();
-    if (!input || !stage || this.payBox()) return null;
+    if (!input || !stage) return null;
+    if (this.payBox()) return whatsappChatUrl(STORE_INFO.contact.whatsapp);
     const text = shopperWhatsappText(stage, input);
     return text ? whatsappChatUrl(STORE_INFO.contact.whatsapp, text) : null;
   });
+
+  readonly whatsappIconPath = WHATSAPP_ICON_PATH;
 
   readonly #cash = computed(() => {
     const input = this.#input();
@@ -120,51 +140,112 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       case 'instapay-total-due':
       case 'instapay-fee-due':
       case 'cod-free-pending':
-        return 'Order placed';
+        return 'Order Placed';
       case 'cod-confirmed':
-        return 'Order confirmed';
+        return 'Order Confirmed';
       case 'paid':
       case 'paid-needs-review':
-        return 'Payment received';
+        return 'Payment Received';
       case 'paymob-pending':
-        return 'Confirming your payment';
+        return 'Confirming Your Payment';
       case 'failed':
-        return "Your payment didn't go through";
+        return "Your Payment Didn't Go Through";
       case 'cancelled':
-        return 'Order cancelled';
+        return 'Order Cancelled';
       default:
-        return this.seed() ? 'Order placed' : 'Your order';
+        return this.seed() ? 'Order Placed' : 'Your Order';
     }
   });
 
-  readonly bodyCopy = computed(() => {
-    const cash = this.#cash();
+  /** One short line under the heading; the steps below say the rest. */
+  readonly bandLine = computed(() => {
     switch (this.stage()) {
       case 'fee-to-be-agreed':
-        return "It's a large order, so we'll message you on WhatsApp to agree the delivery fee. Once it's agreed, this page shows what to pay.";
+        return "We'll message you on WhatsApp to agree the delivery fee.";
       case 'instapay-total-due':
-        return "We'll confirm your order as soon as we receive your payment.";
+        return 'One step left: send your payment.';
       case 'instapay-fee-due':
-        return cash
-          ? `We'll send your order once we receive the shipping fee. You'll pay the rest, ${cash}, in cash when it arrives.`
-          : "We'll send your order once we receive the shipping fee.";
+        return 'One step left: send the shipping fee.';
       case 'cod-free-pending':
-        return `Shipping is free, so there's nothing to pay now. We'll message you to confirm your order, and you'll pay ${cash ?? 'the total'} in cash when it arrives.`;
+        return "Nothing to pay now. We'll message you to confirm your order.";
       case 'cod-confirmed':
-        return `Your order is confirmed and we're getting it ready. Please have ${cash ?? 'the rest'} in cash ready when it arrives.`;
+        return "We're getting your order ready.";
       case 'paid':
         return "Thanks, your payment is confirmed and we're getting your order ready.";
       case 'paid-needs-review':
         return "Thanks, your payment is confirmed. We'll be in touch about your order shortly.";
       case 'paymob-pending':
-        return 'If you just finished paying, this page updates as soon as the payment is confirmed.';
+        return 'This page updates as soon as the payment is confirmed.';
       case 'failed':
-        return "You haven't been charged. If you'd still like these items, please place the order again.";
+        return "You haven't been charged.";
       case 'cancelled':
         return 'This order was cancelled.';
       default:
         return '';
     }
+  });
+
+  /** "Order #A1B2C3 · 9 Nov 2026" in the band. */
+  readonly #placed = computed(() => orderDate(this.order()?.createdAt));
+
+  readonly placedOn = computed(() => {
+    const date = this.#placed();
+    return date ? DAY_FORMAT.format(date) : '';
+  });
+
+  /**
+   * The money boxes in the band: what the order costs, what to pay now (white, so it stands out)
+   * and what's left for the door. Only the ones that apply to this stage.
+   */
+  readonly moneyBoxes = computed(() => {
+    const pricing = this.order()?.pricing;
+    const stage = this.stage();
+    if (!pricing || !stage) return [];
+    const total = this.displayTotal();
+    const box = (label: string, value: string, now = false) => ({ label, value, now });
+    const payNow = this.payBox()?.amount ?? null;
+    const cash = this.#cash();
+    switch (stage) {
+      case 'instapay-fee-due':
+        return [
+          box('Order total', total),
+          ...(payNow ? [box('Pay now', payNow, true)] : []),
+          ...(cash ? [box('At your door', cash)] : []),
+        ];
+      // The whole total is due now, so one box says it.
+      case 'instapay-total-due':
+        return [payNow ? box('Pay now', payNow, true) : box('Order total', total)];
+      case 'cod-free-pending':
+      case 'cod-confirmed':
+        // With free shipping the cash at the door is the total: one box.
+        return cash && cash !== total
+          ? [box('Order total', total), box('At your door', cash)]
+          : [box('At your door', cash ?? total)];
+      case 'fee-to-be-agreed':
+        return [
+          box(
+            'Items',
+            formatMoney(pricing.subtotalDisplay, pricing.currency, displayDecimals(pricing.currency)),
+          ),
+          box('Delivery fee', 'To be agreed'),
+        ];
+      case 'paid':
+      case 'paid-needs-review':
+        return [box('Paid', total)];
+      default:
+        return [box('Order total', total)];
+    }
+  });
+
+  readonly steps = computed(() => {
+    const date = this.#placed();
+    return confirmationSteps(this.stage(), {
+      placedAt: date ? `${TIME_FORMAT.format(date).toLowerCase()}, ${DAY_FORMAT.format(date)}` : '',
+      payNow: this.payBox()?.amount ?? null,
+      cash: this.#cash(),
+      paymentMethod: this.paymentLabel(),
+      cashOnDelivery: this.order()?.paymentMethod === 'cash-on-delivery',
+    });
   });
 
   /** The order's payment method when it is one we still offer (its mark shows next to the name). */
@@ -185,33 +266,36 @@ export class CheckoutConfirmationPageComponent implements OnInit {
    * What was ordered, from the saved order lines. Free gifts follow the item they came with and
    * show "Free" instead of a price; a Buy X Get Y discount shows its tag and the old price.
    */
-  readonly items = computed(() => {
+  readonly items = computed<ConfirmationItem[]>(() => {
     const pricing = this.order()?.pricing;
     if (!pricing) return [];
     const decimals = displayDecimals(pricing.currency);
-    return pricing.lines.map((line, index) => {
-      const isSize = (label: string) => label.trim().toLowerCase() === 'size';
+    const isSize = (label: string) => label.trim().toLowerCase() === 'size';
+    const items: ConfirmationItem[] = [];
+    const byLine = new Map<number, ConfirmationItem>();
+    pricing.lines.forEach((line, index) => {
       if (line.gift) {
         // One line under its item, like the bag: "Free shirt: Adidas Simple Polo, L".
         const size = (line.optionLabels ?? []).find((opt) => isSize(opt.label))?.value ?? null;
-        return {
+        const gift = {
           key: `${index}:${line.productId}`,
-          gift: true,
-          name: giftLineLabel(line.gift.giftName || FALLBACK_GIFT_NAME, line.name || 'Item', size),
-          details: `Qty ${line.quantity}`,
-          price: 'Free',
-          deal: '',
-          was: '',
+          label: giftLineLabel(line.gift.giftName || FALLBACK_GIFT_NAME, line.name || 'Item', size),
+          quantity: line.quantity,
         };
+        const owner = byLine.get(line.gift.forLine) ?? items.at(-1);
+        owner?.gifts.push(gift);
+        return;
       }
-      return {
+      const imagePath = line.imagePath?.trim() || null;
+      const item: ConfirmationItem = {
         key: `${index}:${line.productId}`,
-        gift: false,
         name: line.name || 'Item',
-        details: [
-          ...(line.optionLabels ?? []).map((opt) => (isSize(opt.label) ? `Size ${opt.value}` : opt.value)),
-          `Qty ${line.quantity}`,
-        ].join(' · '),
+        details: (line.optionLabels ?? [])
+          .map((opt) => (isSize(opt.label) ? `Size ${opt.value}` : opt.value))
+          .join(' · '),
+        quantity: line.quantity,
+        imagePath,
+        imageSrc: imagePath ? normalizeImageKitPath(imagePath) : '',
         price: formatMoney(line.lineDisplay, pricing.currency, decimals),
         // Buy X Get Y: "Free" / "−50%" and the price before it.
         deal: line.deals?.length ? dealTag(line.deals, line.quantity) : '',
@@ -219,8 +303,50 @@ export class CheckoutConfirmationPageComponent implements OnInit {
           (line.discountEgp ?? 0) > 0
             ? formatMoney(line.unitDisplay * line.quantity, pricing.currency, decimals)
             : '',
+        gifts: [],
       };
+      items.push(item);
+      byLine.set(index, item);
     });
+    return items;
+  });
+
+  /** "6 items": pieces, like the bag. */
+  readonly pieces = computed(() => {
+    const count = (this.order()?.pricing.lines ?? [])
+      .filter((line) => !line.gift)
+      .reduce((sum, line) => sum + line.quantity, 0);
+    return `${count} ${count === 1 ? 'item' : 'items'}`;
+  });
+
+  readonly subtotal = computed(() => {
+    const pricing = this.order()?.pricing;
+    return pricing
+      ? formatMoney(pricing.subtotalDisplay, pricing.currency, displayDecimals(pricing.currency))
+      : '—';
+  });
+
+  readonly shippingLabel = computed(() => {
+    const pricing = this.order()?.pricing;
+    if (!pricing?.shipping) return '—';
+    if (this.stage() === 'fee-to-be-agreed') return 'To be agreed';
+    if (pricing.shipping.priceDisplay === 0) return 'Free';
+    return formatMoney(pricing.shipping.priceDisplay, pricing.currency, displayDecimals(pricing.currency));
+  });
+
+  /** Name, address lines and phone as saved on the order. */
+  readonly delivery = computed(() => {
+    const shipping = this.order()?.shipping;
+    if (!shipping) return null;
+    const cityLine = [shipping.city, shipping.region, shipping.postalCode]
+      .filter((part) => !!part?.trim())
+      .join(', ');
+    const country = shipping.country === 'EG' ? '' : countryName(shipping.country);
+    return {
+      name: shipping.fullName,
+      lines: [shipping.line1, shipping.line2 ?? '', cityLine, country].filter((part) => part.trim() !== ''),
+      phone: shipping.phone,
+    };
   });
 
   readonly displayTotal = computed(() => {
@@ -260,6 +386,32 @@ export class CheckoutConfirmationPageComponent implements OnInit {
         () => subscriber.next(null),
       ),
     );
+  }
+}
+
+interface ConfirmationItem {
+  readonly key: string;
+  readonly name: string;
+  /** Chosen options, e.g. "Black · Size M"; empty when the product has none. */
+  readonly details: string;
+  readonly quantity: number;
+  readonly imagePath: string | null;
+  readonly imageSrc: string;
+  readonly price: string;
+  readonly deal: string;
+  readonly was: string;
+  /** Free gifts that came with this item ("Free shirt: Adidas Simple Polo, L"). */
+  readonly gifts: { readonly key: string; readonly label: string; readonly quantity: number }[];
+}
+
+const DAY_FORMAT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+function countryName(code: string): string {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code;
+  } catch {
+    return code;
   }
 }
 

@@ -1,0 +1,83 @@
+@layer components {
+  /*! order confirmation page: black status band, "What happens next" steps, order and delivery column */
+
+  .order-band {
+    @apply bg-primary text-on-primary;
+  }
+
+  /* Order total / Pay now / At your door, side by side in one bordered strip. */
+  .order-money {
+    @apply grid grid-flow-col auto-cols-fr border border-on-primary/25 border-shape;
+  }
+
+  .order-money__box {
+    @apply elements-start-col gap-1 px-3 py-2.5 border-e border-on-primary/25 last:border-e-0 min-w-0;
+  }
+
+  /* What to pay now: white, so it is the one the eye lands on. */
+  .order-money__box--now {
+    @apply bg-surface-container-lowest text-primary;
+  }
+
+  /* One step: the dot and the line down to the next step on the left, the text on the right. */
+  .order-step {
+    @apply grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-4;
+  }
+
+  .order-step__rail {
+    @apply elements-start-col items-center!;
+  }
+
+  .order-step__dot {
+    @apply size-7 shrink-0 elements-center rounded-full border-2 border-outline-variant bg-surface-container-lowest;
+  }
+
+  .order-step__dot--done {
+    @apply border-primary bg-primary text-on-primary;
+  }
+
+  .order-step__dot--current {
+    @apply border-primary;
+  }
+
+  .order-step__dot--current::after {
+    @apply size-2.5 rounded-full bg-primary;
+    content: '';
+  }
+
+  .order-step__dot--stopped {
+    @apply border-primary bg-primary text-on-primary;
+  }
+
+  .order-step__line {
+    @apply w-0.5 flex-1 min-h-5 bg-outline-variant;
+  }
+
+  .order-step__line--done {
+    @apply bg-primary;
+  }
+
+  .order-step__body {
+    @apply elements-start-col items-stretch! gap-0.5 pt-0.5 pb-6 min-w-0;
+  }
+
+  /* The InstaPay box inside the current step. On a narrow page it reaches back under the step dots (2.75rem =
+     dot column + gap) and covers the line there, so the phone number / InstaPay address switch has room. */
+  .order-pay-card {
+    @apply relative elements-start-col items-stretch! gap-4 mt-3 p-4 border-2 border-primary border-shape bg-surface-container-lowest @max-xl:-ms-11 @max-xl:p-3;
+  }
+
+  /* Green WhatsApp mark after "Questions? Message us" (inline SVG, so it sits after the label). */
+  .order-whatsapp-mark {
+    @apply size-5 shrink-0 text-success;
+  }
+
+  /* Product photo with the quantity in a small black circle on its corner. */
+  .order-thumb {
+    @apply relative size-14 shrink-0;
+  }
+
+  .order-thumb__qty {
+    @apply absolute -top-2 -end-2 min-w-5 h-5 px-1 elements-center rounded-full bg-primary text-on-primary font-label-sm font-bold!;
+  }
+}
