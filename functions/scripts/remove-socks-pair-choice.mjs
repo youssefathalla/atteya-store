@@ -44,7 +44,7 @@
  * Old orders keep their saved `optionLabels`, so they still show the pair ordered.
  *
  * Each write updates search by itself (`syncProductSearch`); run Catalogue Tools -> Rebuild search
- * after applying anyway. Agents never run --apply.
+ * after applying anyway. On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety).
  */
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';

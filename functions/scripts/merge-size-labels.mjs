@@ -23,7 +23,7 @@
  * offers in the admin after applying.
  *
  * After applying, run "Rebuild search" in Catalogue Tools so Algolia picks up the
- * new size names. Agents never run --apply.
+ * new size names. On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety).
  */
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldPath, FieldValue } from 'firebase-admin/firestore';

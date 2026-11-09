@@ -6,27 +6,30 @@ name: Browser Check
 # client config only, no secrets), runs scripts/browser-check.mjs, uploads the screenshots
 # and posts one "🖥 Browser Check" comment per commit with a pass/fail table.
 # A failed check holds auto-merge (auto-merge.yml waits for it like CI).
-# Pull requests that only change docs or scripts (the same list ci.yml uses to skip its app
-# build) never start it: the `paths` filter below runs it only when at least one file in the
-# pull request is something else. auto-merge.yml only requires it on a commit where it ran, so
-# those pull requests still merge. GitHub reads at most the first 300 changed files for this
-# filter; a pull request whose first 300 files are all docs or scripts is treated as docs-only.
+# It runs only when the pull request changes something the website build uses: the `paths`
+# allow-list below (app code, public files, build config, App Hosting config, this check's
+# own script and workflow). A pull request that only changes functions/ code, Firebase rules
+# or indexes, docs or scripts never starts it: the check tests the website against the live
+# dev Cloud Functions, so it has nothing to say about those. Pricing-engine and store-info
+# changes still start it, because `npm run sync:engine` copies them into src/.
+# auto-merge.yml only requires it on a commit where it ran, so the other pull requests still
+# merge. GitHub reads at most the first 300 changed files for this filter.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [develop]
-    # Later patterns win: everything, minus docs and scripts, plus the check's own script.
     paths:
-      - '**'
-      - '!**.md'
-      - '!.agents/**'
-      - '!.claude/**'
-      - '!.cursor/**'
-      - '!docs/**'
-      - '!functions/scripts/**'
-      - '!scripts/**'
+      - 'src/**'
+      - 'public/**'
+      - 'angular.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.postcssrc.json'
+      - '.nvmrc'
       - 'scripts/browser-check.mjs'
-      - '!linear.config.json'
+      - '.github/workflows/browser-check.yml'
+      - 'apphosting*.yaml'
 
 concurrency:
   group: browser-check-pr-${{ github.event.pull_request.number }}
