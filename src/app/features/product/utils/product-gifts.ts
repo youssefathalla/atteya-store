@@ -3,6 +3,7 @@ import type { CartLineGift } from '@core/services/cart/cart.model';
 import type { GiftChoiceFacts, ProductGiftOffer } from '@core/services/offers/engine';
 import type { ProductTypeId } from '@core/services/products';
 import type { ChoicePrompt } from '../models/product-page.model';
+import { giftCardLabels } from './gift-card-label';
 
 export { toGiftChoice, type GiftChoiceView, type GiftSizeView } from '@core/services/cart/cart-gifts';
 
@@ -102,7 +103,13 @@ export function buildGiftBox(
       return choice ? [choice] : [];
     });
     if (giftChoices.length === 0) continue;
-    gifts.push({ id: gift.id, name: gift.name.trim(), noun: giftNoun(gift.name), choices: giftChoices });
+    const cardLabels = giftCardLabels(giftChoices);
+    gifts.push({
+      id: gift.id,
+      name: gift.name.trim(),
+      noun: giftNoun(gift.name),
+      choices: giftChoices.map((choice) => ({ ...choice, cardLabel: cardLabels.get(choice.productId) ?? choice.name })),
+    });
   }
   if (gifts.length === 0) return null;
   const nouns = gifts.map((gift) => gift.noun);

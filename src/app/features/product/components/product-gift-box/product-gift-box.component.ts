@@ -12,17 +12,19 @@ import {
   untracked,
 } from '@angular/core';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
+import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll/horizontal-scroll.directive';
+import { RowScrollNavComponent } from '@shared/ui/row-scroll-nav';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import type { ChoicePrompt } from '../../models/product-page.model';
 import { type GiftBoxView, type GiftPicks, giftSteps } from '../../utils/product-gifts';
 
 /**
  * Gift Box: the Free gift offer on the product page. A black header names the gifts, then one
- * numbered step per gift (and per gift size). Gift choices are photo tiles, sizes are boxes; every choice is a button with `aria-pressed`.
+ * numbered step per gift (and per gift size). Each gift is one row of big photo cards that scrolls sideways (drag, swipe, arrows); sizes are boxes; every choice is a button with `aria-pressed`.
  */
 @Component({
   selector: 'app-product-gift-box',
-  imports: [NgOptimizedImage, AppImageFallbackDirective],
+  imports: [NgOptimizedImage, AppImageFallbackDirective, HorizontalScrollDirective, RowScrollNavComponent],
   templateUrl: './product-gift-box.component.html',
   host: { class: 'block w-full' },
 })
@@ -40,6 +42,7 @@ export class ProductGiftBoxComponent {
   readonly #injector = inject(Injector);
 
   readonly path = normalizeImageKitPath;
+  protected readonly Math = Math;
 
   readonly steps = computed(() => giftSteps(this.box(), this.picks()));
 

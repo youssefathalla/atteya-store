@@ -41,7 +41,13 @@ export interface GiftSizeView {
 /** One product the shopper can take as a gift. `sizes` is null when it has no sizes. */
 export interface GiftChoiceView {
   readonly productId: string;
+  /** Full name plus colour. Used for the card's `aria-label` and the chosen name. */
   readonly label: string;
+  /** The product's own name and colours, the input of the short card line. */
+  readonly name: string;
+  readonly colors: readonly string[];
+  /** The one short line under the card's photo. Set per gift by `buildGiftBox`. */
+  readonly cardLabel: string;
   /** Main photo path (empty when the product has none yet). Shown on the choice's tile. */
   readonly imagePath: string;
   readonly sizes: readonly GiftSizeView[] | null;
@@ -70,6 +76,9 @@ export function toGiftChoice(product: Product): GiftChoiceView | null {
   return {
     productId: product.id,
     label: giftProductLabel(product),
+    name: product.name,
+    colors: product.colors,
+    cardLabel: product.name,
     imagePath: product.images[0]?.path ?? '',
     sizes,
   };
