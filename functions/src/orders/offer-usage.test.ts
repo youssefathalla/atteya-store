@@ -5,12 +5,14 @@ import { parseOfferDoc } from '../../lib/offers/offer-schema.js';
 import { priceBagDeals } from '../../lib/offers/engine/index.js';
 import {
   OFFER_LIMIT_ACTOR,
+  confirmedEndedOfferIds,
   isLastOfferUse,
   offerFullReason,
   readOfferUses,
   releaseOfferUses,
 } from '../../lib/orders/offer-usage.js';
-import { parseEndedOfferIds } from '../../lib/orders/order-request.js';
+import { giftWorth, missedDealOfferId } from '../../lib/orders/order-pricing.server.js';
+import { parseOfferIds } from '../../lib/orders/order-request.js';
 
 /** In-memory stand-in for the few Firestore calls `readOfferUses` / `releaseOfferUses` make. */
 function fakeDb(docs: Record<string, Record<string, unknown>>) {
@@ -32,6 +34,7 @@ function fakeDb(docs: Record<string, Record<string, unknown>>) {
   };
   const db = {
     collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
+    getAll: async (...refs: { path: string }[]) => refs.map((r) => snap(r.path)),
     runTransaction: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -173,18 +176,93 @@ describe('ended offers from checkout', () => {
   const line = { product: TEE, variant: null, quantity: 3, unitPrice: 500, onSale: false, giftWorth: 0 };
 
   it('reads only usable ids, without repeats', () => {
-    assert.deepEqual(parseEndedOfferIds(['deal-1', 'deal-1', 7, '', 'x'.repeat(200), 'deal-2']), ['deal-1', 'deal-2']);
-    assert.deepEqual(parseEndedOfferIds('deal-1'), []);
-    assert.deepEqual(parseEndedOfferIds(undefined), []);
+    assert.deepEqual(parseOfferIds(['deal-1', 'deal-1', 7, '', 'x'.repeat(200), 'deal-2']), ['deal-1', 'deal-2']);
+    assert.deepEqual(parseOfferIds('deal-1'), []);
+    assert.deepEqual(parseOfferIds(undefined), []);
   });
 
-  it('prices an offer with room left normally, and leaves out one checkout says has ended', () => {
+  it('prices an offer with room left normally, and leaves out one that has really ended', async () => {
     assert.ok(OFFER);
     const priced = priceBagDeals([line], [OFFER], CTX);
     assert.equal(priced.lines[0]?.discount, 500);
     assert.deepEqual(priced.offerIds, ['deal-1']);
-    const ended = new Set(['deal-1']);
+    // This shopper already used their one use, so the server confirms the id checkout sent.
+    const { db } = fakeDb({ 'offerUsage/deal-1_shopper-1': { count: 1 } });
+    const ended = await confirmedEndedOfferIds(db, 'shopper-1', [OFFER], ['deal-1']);
+    assert.deepEqual([...ended], ['deal-1']);
     const withoutEnded = priceBagDeals([line], [OFFER].filter((offer) => !ended.has(offer.id)), CTX);
     assert.equal(withoutEnded.lines[0]?.discount, 0);
+  });
+
+  it('ignores an "ended" id the usage counts do not confirm, so it never lowers the total', async () => {
+    // Two offers on the same tees: the higher-priority one takes 50% off, the other makes it free.
+    // Dropping the first on the browser's word would let the bigger discount win.
+    const half = parseOfferDoc('deal-half', {
+      name: 'Tees half',
+      title: 'Buy 2, get 1 at 50% off',
+      active: true,
+      scope: 'item',
+      priority: 10,
+      conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['t-shirts'] }] }] },
+      reward: {
+        kind: 'buyXGetY',
+        buy: { quantity: 2 },
+        get: { quantity: 1, percent: 50 },
+        getConditions: null,
+        cheapestFree: true,
+        repeat: true,
+        maxApplications: null,
+      },
+      limits: { totalUses: 100, perCustomer: 5 },
+    });
+    const free = parseOfferDoc('deal-free', {
+      name: 'Tees free',
+      title: 'Buy 2, get 1 free',
+      active: true,
+      scope: 'item',
+      priority: 1,
+      conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['t-shirts'] }] }] },
+      reward: {
+        kind: 'buyXGetY',
+        buy: { quantity: 2 },
+        get: { quantity: 1, percent: 100 },
+        getConditions: null,
+        cheapestFree: true,
+        repeat: true,
+        maxApplications: null,
+      },
+    });
+    assert.ok(half && free);
+    const offers = [half, free];
+    const honest = priceBagDeals([line], offers, CTX);
+    assert.equal(honest.lines[0]?.discount, 250);
+    assert.deepEqual(honest.offerIds, ['deal-half']);
+
+    const { db } = fakeDb({ 'offerUsage/deal-half': { count: 3 }, 'offerUsage/deal-half_shopper-1': { count: 1 } });
+    const ended = await confirmedEndedOfferIds(db, 'shopper-1', offers, ['deal-half', 'not-an-offer']);
+    assert.equal(ended.size, 0);
+    const priced = priceBagDeals([line], offers.filter((offer) => !ended.has(offer.id)), CTX);
+    assert.equal(priced.lines[0]?.discount, honest.lines[0]?.discount);
+
+    // Had the server trusted the browser, the order would have cost less than the store allows.
+    const trusted = priceBagDeals([line], [free], CTX);
+    assert.equal(trusted.lines[0]?.discount, 500);
+  });
+
+  it('finds a deal the bag showed that the order does not get', () => {
+    assert.equal(missedDealOfferId(['deal-1'], ['deal-1']), null);
+    assert.equal(missedDealOfferId([], ['deal-1']), null);
+    assert.equal(missedDealOfferId(['deal-1', 'deal-2'], ['deal-1']), 'deal-2');
+  });
+});
+
+describe('gift worth', () => {
+  const picks = { gifts: [{ productId: 'tee-1' }, { productId: 'socks-1' }, { productId: 'gone' }] };
+  it('counts only published gift products, as the bag does', () => {
+    const docs = new Map([
+      ['tee-1', { published: true, price: 400 }],
+      ['socks-1', { published: false, price: 150 }],
+    ]);
+    assert.equal(giftWorth(picks, docs), 400);
   });
 });

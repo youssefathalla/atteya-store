@@ -56,7 +56,7 @@ export const createPaymobOrder = onCall(
     }
 
     const db = getFirestore();
-    const priced = await priceStoreOrder(db, input, true);
+    const priced = await priceStoreOrder(db, input, true, caller.uid);
     if (priced.pricing.totalEgp < 1) {
       throw new HttpsError('failed-precondition', 'Your order total is too low to pay online.');
     }

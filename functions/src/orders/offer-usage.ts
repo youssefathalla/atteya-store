@@ -74,6 +74,39 @@ export function offerFullError(offer: UsedOffer, reason: OfferFullReason): Https
 }
 
 /**
+ * The ids from checkout's `endedOfferIds` that really have no use left for `uid` (read outside a
+ * transaction). Only those may be left out of the order's pricing: with two Buy X Get Y offers on
+ * the same items, dropping one that still has uses could let a bigger, lower-priority discount win,
+ * so an id the server can't confirm is ignored. Ids that aren't among `offers` change nothing.
+ */
+export async function confirmedEndedOfferIds(
+  db: Firestore,
+  uid: string,
+  offers: readonly { readonly id: string; readonly limits: OfferLimits }[],
+  requested: readonly string[],
+): Promise<Set<string>> {
+  const wanted = new Set(requested);
+  const limited = offers.filter(
+    (offer) =>
+      wanted.has(offer.id) && (offer.limits.totalUses !== null || offer.limits.perCustomer !== null),
+  );
+  const confirmed = new Set<string>();
+  if (limited.length === 0) return confirmed;
+  const snaps = await db.getAll(
+    ...limited.flatMap((offer) => [
+      db.collection('offerUsage').doc(offer.id),
+      db.collection('offerUsage').doc(`${offer.id}_${uid}`),
+    ]),
+  );
+  limited.forEach((offer, index) => {
+    const totalCount = readCount(snaps[index * 2]?.data()?.['count']);
+    const customerCount = readCount(snaps[index * 2 + 1]?.data()?.['count']);
+    if (offerFullReason(offer.limits, totalCount, customerCount) !== null) confirmed.add(offer.id);
+  });
+  return confirmed;
+}
+
+/**
  * Reads the use counts of each offer inside `tx` and refuses the order when one is full
  * (`offerFullError`). Returns a function that adds this order's use (call it after every other
  * read in `tx`); when that use is the last one `totalUses` allows, it also switches the offer off

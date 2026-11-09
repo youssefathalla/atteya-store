@@ -23,7 +23,7 @@ import {
   parseCheckoutShippingConfig,
   SHIPPING_DOC_PATH,
 } from '../shipping/shipping-settings.js';
-import type { UsedOffer } from './offer-usage.js';
+import { confirmedEndedOfferIds, offerFullError, type UsedOffer } from './offer-usage.js';
 import {
   giftProductIds,
   resolveLineGifts,
@@ -148,6 +148,7 @@ export async function priceStoreOrder(
   db: Firestore,
   input: CreateStoreOrderRequest,
   signedIn: boolean,
+  uid: string,
 ): Promise<PricedStoreOrder> {
   const [shippingSnap, offers, giftDocs] = await Promise.all([
     db.doc(SHIPPING_DOC_PATH).get(),
@@ -180,15 +181,17 @@ export async function priceStoreOrder(
 
   // Buy X Get Y: worked out over the whole bag with the shared engine, so the order charges what
   // the bag showed. A piece it discounts gets no free gifts; the better deal for the shopper wins.
-  // Every live offer counts, as in the bag, except the ones checkout already told the shopper
-  // have ended (`endedOfferIds`; leaving a discount out can only raise the total). An offer with
-  // no use left is refused in the order transaction (`readOfferUses`) with its id, never dropped
-  // silently, so the order is never charged more than the shopper saw.
-  const ended = new Set(input.endedOfferIds);
-  const dealOffers =
-    ended.size === 0
-      ? offers
-      : offers.filter((offer) => offer.reward.kind !== 'buyXGetY' || !ended.has(offer.id));
+  // Every live offer counts, as in the bag. Checkout's `endedOfferIds` (offers an earlier refusal
+  // said have ended) are left out only when the usage counts confirm they have no use left for this
+  // shopper: with two Buy X Get Y offers on the same items, dropping one that still has uses could
+  // let a bigger, lower-priority discount win. An offer with no use left is refused in the order
+  // transaction (`readOfferUses`) with its id, never dropped silently.
+  const liveDeals = offers.filter((offer) => offer.reward.kind === 'buyXGetY');
+  const ended =
+    input.endedOfferIds.length === 0
+      ? new Set<string>()
+      : await confirmedEndedOfferIds(db, uid, liveDeals, input.endedOfferIds);
+  const dealOffers = ended.size === 0 ? offers : offers.filter((offer) => !ended.has(offer.id));
   const deals = priceBagDeals(
     input.lines.map((line, index): BagLineFacts => {
       const { product, variant, priced } = lineResults[index]!;
@@ -207,6 +210,22 @@ export async function priceStoreOrder(
   for (const offerId of deals.offerIds) {
     const offer = offers.find((entry) => entry.id === offerId);
     if (offer) usedOffers.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind: 'deal' });
+  }
+  // A Buy X Get Y offer the bag showed (`dealOfferIds`) that this order doesn't get (it ended, was
+  // switched off, or the bag's clock was behind) would make the order cost more than the shopper
+  // saw: refuse with its id so checkout leaves it out and shows the new total.
+  const missedDeal = missedDealOfferId(input.dealOfferIds, deals.offerIds);
+  if (missedDeal !== null) {
+    const offer = offers.find((entry) => entry.id === missedDeal);
+    throw offerFullError(
+      {
+        offerId: missedDeal,
+        title: offer?.title ?? '',
+        limits: offer?.limits ?? { totalUses: null, perCustomer: null },
+        kind: 'deal',
+      },
+      'ended',
+    );
   }
 
   for (const [index, line] of input.lines.entries()) {
@@ -280,16 +299,29 @@ export async function priceStoreOrder(
 }
 
 /**
- * What the free gifts one piece of a bag line asks for are worth: the gift products' prices.
- * Only used to choose between a gift and a Buy X Get Y discount; the picks are checked later.
+ * The first Buy X Get Y offer the bag showed that the order's pricing didn't apply, or null.
+ * Only ever refuses an order; it never adds a discount.
  */
-function giftWorth(
-  line: OrderLineInput,
+export function missedDealOfferId(shown: readonly string[], applied: readonly string[]): string | null {
+  const got = new Set(applied);
+  return shown.find((id) => !got.has(id)) ?? null;
+}
+
+/**
+ * What the free gifts one piece of a bag line asks for are worth: the prices of the gift products
+ * shoppers can see (published), as the bag and checkout count them; a gift product that is gone or
+ * unpublished is worth 0, since it can't be given. Only used to choose between a gift and a
+ * Buy X Get Y discount; the picks are checked later.
+ */
+export function giftWorth(
+  line: Pick<OrderLineInput, 'gifts'>,
   giftDocs: ReadonlyMap<string, DocumentData | undefined>,
 ): number {
   let worth = 0;
   for (const pick of line.gifts) {
-    const price = Number(giftDocs.get(pick.productId)?.['price'] ?? 0);
+    const data = giftDocs.get(pick.productId);
+    if (data?.['published'] !== true) continue;
+    const price = Number(data['price'] ?? 0);
     if (Number.isFinite(price) && price > 0) worth += Math.round(price);
   }
   return worth;

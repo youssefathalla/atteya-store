@@ -21,7 +21,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { lineDisplayAmount } from '@core/services/cart/cart-pricing';
-import { priceBag, type PricedBagLine } from '@core/services/cart/cart-deals';
+import { dealOfferIdsOf, priceBag, type PricedBagLine } from '@core/services/cart/cart-deals';
 import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
@@ -273,20 +273,15 @@ export class CheckoutPageComponent implements OnInit {
         return new Map<string, CheckoutProductInfo | null>();
       }
       const ids = [...new Set(lines.map((line) => line.productId))];
-      // Free gift products are only named and weighed here; one that can't be read never hides the summary.
+      // Free gift products are read like the items: what a gift is worth decides between it and a
+      // Buy X Get Y discount, so one that can't be read stops the summary instead of guessing.
+      // A gone or unpublished gift reads as `null` (worth 0, as the server counts it).
       const giftIds = [
         ...new Set(lines.flatMap((line) => (line.gifts ?? []).map((gift) => gift.productId))),
       ].filter((id) => !ids.includes(id));
-      const [loaded, gifts] = await Promise.all([
-        Promise.all(ids.map((id) => this.#readProduct(id))),
-        Promise.all(giftIds.map((id) => this.#readProduct(id).catch(() => undefined))),
-      ]);
-      const products = new Map<string, CheckoutProductInfo | null>(ids.map((id, index) => [id, loaded[index]]));
-      giftIds.forEach((id, index) => {
-        const info = gifts[index];
-        if (info !== undefined) products.set(id, info);
-      });
-      return products;
+      const allIds = [...ids, ...giftIds];
+      const loaded = await Promise.all(allIds.map((id) => this.#readProduct(id)));
+      return new Map<string, CheckoutProductInfo | null>(allIds.map((id, index) => [id, loaded[index]!]));
     },
   });
 
@@ -352,7 +347,8 @@ export class CheckoutPageComponent implements OnInit {
     if (lines.some((line) => !products.has(line.productId))) return { state: 'missing-item' };
 
     const offers = this.#offers.all();
-    const ctx: PricingContext = { now: new Date(), signedIn: true, codes: [] };
+    // The offer clock moves every minute, so an offer whose time is up stops discounting here too.
+    const ctx: PricingContext = { now: this.#offers.now(), signedIn: true, codes: [] };
     const entry = this.#currency.entry();
     // Per-item offers on each piece, then Buy X Get Y over the whole bag, like the server.
     const bag = priceBag(lines, products, offers, ctx);
@@ -789,6 +785,11 @@ export class CheckoutPageComponent implements OnInit {
       return;
     }
 
+    // The Buy X Get Y offers this summary shows: the server refuses (with the offer's id) rather
+    // than charge more because one of them no longer applies.
+    const priced = this.#pricedBag();
+    const dealOfferIds = priced.state === 'ready' ? dealOfferIdsOf(priced.lines) : [];
+
     this.isSubmitting.set(true);
     try {
       const shipping: CheckoutShippingInput = {
@@ -808,6 +809,7 @@ export class CheckoutPageComponent implements OnInit {
           lines: this.lines(),
           shipping,
           endedOfferIds: this.#offers.endedIds(),
+          dealOfferIds,
         });
         // Wait for the account bag to save before the full-page redirect to Paymob.
         await this.#cart.clear();
@@ -824,6 +826,7 @@ export class CheckoutPageComponent implements OnInit {
         lines: this.lines(),
         shipping,
         endedOfferIds: this.#offers.endedIds(),
+        dealOfferIds,
       });
       void this.#cart.clear();
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {

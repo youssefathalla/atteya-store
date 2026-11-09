@@ -66,10 +66,7 @@ export function priceBag(
       quantity: line.quantity,
       unitPrice: unitEgp,
       onSale: compareAt !== null && compareAt > product.priced.price,
-      giftWorth: (line.gifts ?? []).reduce(
-        (sum, gift) => sum + (products.get(gift.productId)?.priced.price ?? 0),
-        0,
-      ),
+      giftWorth: lineGiftWorth(line, products),
     });
     bagIndex.push(index);
     units.push(unitEgp);
@@ -91,6 +88,32 @@ export function priceBag(
     lines: priced,
     hints: deals.hints.map((hint) => ({ ...hint, lineIndex: bagIndex[hint.lineIndex] ?? hint.lineIndex })),
   };
+}
+
+/**
+ * What one piece's free gifts are worth, as the server counts it: the prices of the gift products
+ * that can be seen (a gone or unpublished one, `null`, is worth 0). While a gift product is not
+ * loaded (`undefined`, or its read failed) its worth is unknown, so the piece keeps its gifts and
+ * no Buy X Get Y discount is shown on it: the bag never shows a discount the order may not give.
+ */
+function lineGiftWorth(
+  line: CartLineDraft,
+  products: ReadonlyMap<string, BagPricingProduct | null | undefined>,
+): number {
+  let worth = 0;
+  for (const gift of line.gifts ?? []) {
+    const product = products.get(gift.productId);
+    if (product === undefined) return Number.POSITIVE_INFINITY;
+    worth += product?.priced.price ?? 0;
+  }
+  return worth;
+}
+
+/** The Buy X Get Y offers a priced bag uses, sent with the order so the server can check them. */
+export function dealOfferIdsOf(lines: readonly (PricedBagLine | null)[]): string[] {
+  const ids = new Set<string>();
+  for (const line of lines) for (const deal of line?.deals.deals ?? []) ids.add(deal.offerId);
+  return Array.from(ids);
 }
 
 /**

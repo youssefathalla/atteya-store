@@ -278,7 +278,7 @@ export class CartDrawerComponent {
   readonly #pricedBag = computed(() => {
     const liveMode = this.#offers.ready() && !this.#offers.failed();
     const offers = liveMode ? this.#offers.all() : [];
-    const ctx = { now: new Date(), signedIn: Boolean(this.#auth.user()), codes: [] };
+    const ctx = { now: this.#offers.now(), signedIn: Boolean(this.#auth.user()), codes: [] };
     return priceBag(this.lines(), this.#products(), offers, ctx);
   });
 

@@ -12,7 +12,7 @@ const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
 /** Most gift picks on one bag line; matches `MAX_OFFER_GIFTS` in the offer engine. */
 const MAX_LINE_GIFTS = 5;
-/** Most offer ids checkout may say have ended (it adds one per refused order). */
+/** Most offer ids in one of checkout's offer id lists. */
 const MAX_ENDED_OFFERS = 20;
 export type StorePaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
 
@@ -53,9 +53,15 @@ export interface CreateStoreOrderRequest {
   readonly paymentMethod: StorePaymentMethod;
   /**
    * Buy X Get Y offers checkout already told the shopper have ended (from an earlier refusal) and
-   * left out of the total it shows. The server leaves them out too; that can only raise the total.
+   * left out of the total it shows. The server leaves one out only when its usage counts confirm it has
+   * no use left for this shopper (`confirmedEndedOfferIds`); any other id is ignored.
    */
   readonly endedOfferIds: readonly string[];
+  /**
+   * Buy X Get Y offers the bag priced this order with. One the server doesn't apply refuses the
+   * order (with its id) instead of charging more than the shopper saw. Never adds a discount.
+   */
+  readonly dealOfferIds: readonly string[];
 }
 
 export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderRequest {
@@ -72,12 +78,16 @@ export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderReq
       'Enter an Egyptian mobile number, e.g. 010 1234 5678.',
     );
   }
-  const endedOfferIds = parseEndedOfferIds(data['endedOfferIds']);
-  return { lines, shipping, paymentMethod, endedOfferIds };
+  const endedOfferIds = parseOfferIds(data['endedOfferIds']);
+  const dealOfferIds = parseOfferIds(data['dealOfferIds']);
+  return { lines, shipping, paymentMethod, endedOfferIds, dealOfferIds };
 }
 
-/** Offer ids checkout says have ended; anything unreadable is left out (it only skips discounts). */
-export function parseEndedOfferIds(raw: unknown): string[] {
+/**
+ * A list of offer ids from checkout (`endedOfferIds`, `dealOfferIds`); anything unreadable is left
+ * out. The server checks each id itself before it changes anything.
+ */
+export function parseOfferIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const ids = new Set<string>();
   for (const entry of raw) {

@@ -39,6 +39,11 @@ export class OffersService {
   );
 
   readonly ready = computed(() => this.#offerDocs() !== undefined);
+  /**
+   * The offer clock (moves every minute in the browser). Bag and checkout pricing read it, so an
+   * offer whose time is up stops discounting without waiting for the bag to change.
+   */
+  readonly now = this.#now.asReadonly();
   readonly failed = this.#failed.asReadonly();
 
   readonly all = computed<readonly Offer[]>(() => {
