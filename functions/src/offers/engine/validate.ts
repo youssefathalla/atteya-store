@@ -123,7 +123,7 @@ export function validateOffer(
     }
   }
 
-  if (draft.scope === 'cart') {
+  if (draft.scope === 'cart' && draft.reward.kind !== 'freeShipping') {
     warnings.push({
       code: 'reward.labelOnly',
       message: 'This offer shows as a label now. It will be applied in the cart once checkout is live.',
