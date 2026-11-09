@@ -84,7 +84,8 @@ const DEPLOY_WORD = /(?:^|[\s"'`(;&|=])deploy(?::[\w,:-]+)?(?=$|[\s"'`);&|])/im;
  * A heredoc whose body is only a message: the line starts with `git` or `gh` (after `cd …;` or `&&`), and nothing
  * after the heredoc tag on that line sends it anywhere else (no pipe, redirect or further command).
  */
-const MESSAGE_HEREDOC_COMMAND = /(?:^|[;&]\s*)(?:git|gh)\s[^;&|]*$/;
+// No `$(`, backtick or parenthesis either: a heredoc inside a substitution is read by whatever runs in there.
+const MESSAGE_HEREDOC_COMMAND = /(?:^|[;&]\s*)(?:git|gh)\s[^;&|$`()]*$/;
 const PLAIN_REST = /^[^|<>;&`$()]*$/;
 
 /**
