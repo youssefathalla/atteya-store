@@ -1,6 +1,6 @@
 import { liveOffers } from './item-price.js';
 import { matchProduct, matchVariant } from './match.js';
-import type { Offer, OfferGift, PricingContext, ProductFacts, VariantFacts } from './types.js';
+import type { Offer, OfferGift, PricedProduct, PricingContext, VariantFacts } from './types.js';
 
 /** Most gifts in one Free gift offer (e.g. a shirt and socks). */
 export const MAX_OFFER_GIFTS = 5;
@@ -40,9 +40,11 @@ export type GiftPickCheck =
  * The Free gift offer a product (or one of its variants) gets now, or null.
  * When several match, the highest priority wins, then the newest edit, then the id.
  * An offer whose gifts are all sold out is skipped, so the next one can apply.
+ * A product already on sale (old price above its price) gets nothing from an offer set to
+ * "Skip products already on sale" (`saleItems: 'exclude'`).
  */
 export function giftOfferForProduct(
-  product: ProductFacts,
+  product: PricedProduct,
   variant: VariantFacts | null,
   offers: readonly Offer[],
   ctx: PricingContext,
@@ -60,12 +62,12 @@ export function giftOfferForProduct(
 
 /**
  * The given offer as a gift offer for this product, or null when it is not live, not a Free gift
- * offer, the product doesn't qualify, or none of its gifts can be given now.
- * Checkout uses this to re-check the offer a bag line names.
+ * offer, the product doesn't qualify (on sale while the offer skips sale items included), or none
+ * of its gifts can be given now. Checkout uses this to re-check the offer a bag line names.
  */
 export function giftOfferById(
   offerId: string,
-  product: ProductFacts,
+  product: PricedProduct,
   variant: VariantFacts | null,
   offers: readonly Offer[],
   ctx: PricingContext,
@@ -116,12 +118,21 @@ export function giftChoiceIds(offers: readonly Offer[]): string[] {
  * A gift comes with each qualifying item, so only a per-item offer with no spend or quantity
  * minimum gives gifts. Free gift offers saved before gifts worked were cart-wide with a minimum
  * spend; they give nothing until staff re-save them in Offers, which makes them per-item.
+ * "Skip products already on sale" leaves out a product with an old price above its price, as Buy X
+ * Get Y does; "Best discount wins" and "Apply on top" still give gifts.
  */
-function offerGivesGiftsTo(offer: Offer, product: ProductFacts, variant: VariantFacts | null): boolean {
+function offerGivesGiftsTo(offer: Offer, product: PricedProduct, variant: VariantFacts | null): boolean {
   if (offer.reward.kind !== 'freeGift') return false;
   if (offer.scope !== 'item' || hasMinimum(offer)) return false;
+  if (offer.saleItems === 'exclude' && isOnSale(product)) return false;
   if (matchProduct(offer.conditions, offer.exclude, product) === 'none') return false;
   return variant === null || matchVariant(offer.conditions, offer.exclude, product, variant);
+}
+
+/** Same test as the bag and the order callables use for Buy X Get Y (`onSale`). */
+function isOnSale(product: PricedProduct): boolean {
+  const compareAt = product.compareAtPrice ?? null;
+  return compareAt !== null && compareAt > product.price;
 }
 
 function hasMinimum(offer: Offer): boolean {
