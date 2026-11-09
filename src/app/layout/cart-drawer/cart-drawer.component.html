@@ -133,24 +133,39 @@
                 </div>
               }
 
-              @for (hint of dealHints($index); track hint.offerId) {
-                @if (hint.kind === 'add-more') {
+              @for (nudge of dealHints($index); track nudge.hint.offerId) {
+                @if (nudge.hint.kind === 'add-more') {
                   <div class="bag-card__strip bag-card__strip--hint">
-                    <span>{{ dealHintText(hint) }}</span>
-                    @if (hint.samePool) {
-                      <button
-                        matButton="outlined"
-                        type="button"
-                        (click)="addMore($index, hint.missing)"
-                        [attr.aria-label]="'Add ' + hint.missing + ' more ' + product.name"
-                      >
-                        Add {{ hint.missing }}
-                      </button>
+                    <span>{{ nudge.text }}</span>
+                    @if (nudge.hint.samePool) {
+                      @if (nudge.action === 'shop') {
+                        <a
+                          matButton="outlined"
+                          routerLink="/shop"
+                          [queryParams]="nudge.shopQuery"
+                          (click)="drawerService.close()"
+                        >
+                          Shop the Offer
+                        </a>
+                      } @else if (nudge.action === 'browse') {
+                        <a matButton="outlined" routerLink="/shop" (click)="drawerService.close()">
+                          Keep Shopping
+                        </a>
+                      } @else {
+                        <button
+                          matButton="outlined"
+                          type="button"
+                          (click)="addMore($index, nudge.hint.missing)"
+                          [attr.aria-label]="'Add ' + nudge.hint.missing + ' more ' + product.name"
+                        >
+                          Add {{ nudge.hint.missing }}
+                        </button>
+                      }
                     }
                   </div>
                 } @else {
                   <div class="bag-card__pick">
-                    <app-bag-free-pick [hint]="hint" />
+                    <app-bag-free-pick [hint]="nudge.hint" />
                   </div>
                 }
               }

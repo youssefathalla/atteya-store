@@ -13,6 +13,12 @@ import {
   mergeCartLines,
 } from '../src/app/core/services/cart/cart.model.ts';
 import { endedOfferIdFrom, offerToLeaveOut } from '../src/app/core/services/orders/order-refusal.ts';
+import {
+  canShopOffer,
+  dealHintAction,
+  dealHintText,
+  offerShopSubtitle,
+} from '../src/app/core/services/offers/offer-shop.ts';
 
 describe('cart-pricing (AS-33)', () => {
   it('lineDisplayAmount multiplies converted unit price by quantity', () => {
@@ -137,5 +143,88 @@ describe('order refusals (ATS-108)', () => {
       leaveOut: null,
       lastChangedOfferId: null,
     });
+  });
+});
+
+describe('bag Buy X Get Y nudge (ATS-130)', () => {
+  const atom = (field, ids) => ({ anyOf: [{ allOf: [{ field, in: ids }] }] });
+  const offer = (conditions, extra = {}) => ({
+    id: 'b2g1',
+    title: 'Buy 2, get 1 free',
+    visibility: 'public',
+    audience: 'everyone',
+    requiresCode: false,
+    conditions,
+    reward: {
+      kind: 'buyXGetY',
+      buy: { quantity: 2 },
+      get: { quantity: 1, percent: 100 },
+      getConditions: null,
+    },
+    ...extra,
+  });
+  const hint = (missing, extra = {}) => ({
+    kind: 'add-more',
+    offerId: 'b2g1',
+    title: 'Buy 2, get 1 free',
+    lineIndex: 0,
+    missing,
+    free: 1,
+    percent: 100,
+    samePool: true,
+    productIds: [],
+    ...extra,
+  });
+  const names = (id) => (id === 't-shirts' ? 'T-shirts & polos' : null);
+
+  it('one product: Add 2 more of the same item', () => {
+    const one = offer(atom('productId', ['polo-1']));
+    assert.equal(dealHintAction(one), 'add-same');
+    assert.equal(dealHintText(hint(2), one, names), 'Add 2 more to get 1 free');
+  });
+
+  it('one category: names it and links to the offer', () => {
+    const tees = offer(atom('categoryIds', ['t-shirts']));
+    assert.equal(dealHintAction(tees), 'shop');
+    assert.equal(dealHintText(hint(2), tees, names), 'Add 2 more from T-shirts & polos to get 1 free');
+    assert.equal(dealHintText(hint(2), tees), 'Add 2 more items to get 1 free');
+  });
+
+  it('whole store, brand or a list: items, with the right singular', () => {
+    assert.equal(dealHintText(hint(2), offer({ anyOf: [] })), 'Add any 2 more items to get 1 free');
+    const brand = offer(atom('brandId', ['adidas']));
+    assert.equal(dealHintAction(brand), 'shop');
+    assert.equal(dealHintText(hint(1), brand), 'Add 1 more item to get 1 free');
+    assert.equal(dealHintAction(offer(atom('productId', ['a', 'b']))), 'shop');
+  });
+
+  it('an offer Shop cannot list (signed-in only or with a code) opens Shop instead', () => {
+    const signedIn = offer({ anyOf: [] }, { audience: 'signedIn' });
+    assert.equal(canShopOffer(signedIn), false);
+    assert.equal(dealHintAction(signedIn), 'browse');
+    assert.equal(dealHintText(hint(2), signedIn), 'Add any 2 more items to get 1 free');
+    assert.equal(dealHintAction(offer({ anyOf: [] }, { requiresCode: true })), 'browse');
+    const onePolo = offer(atom('productId', ['polo-1']), { audience: 'signedIn' });
+    assert.equal(dealHintAction(onePolo), 'add-same');
+    assert.equal(dealHintAction(undefined), 'add-same');
+  });
+
+  it('half price and a free item from another product keep their wording', () => {
+    const tees = offer(atom('categoryIds', ['t-shirts']));
+    assert.equal(dealHintText(hint(1, { percent: 50 }), tees), 'Add 1 more item to get 1 at 50% off');
+    assert.equal(
+      dealHintText(hint(1, { samePool: false }), tees),
+      'Buy 2, get 1 free: add the free item to your bag.',
+    );
+  });
+
+  it('offer Shop page subtitle says which piece is free', () => {
+    const base = offer({ anyOf: [] });
+    assert.equal(offerShopSubtitle(base), 'The cheapest one is free.');
+    const half = { ...base, reward: { ...base.reward, get: { quantity: 2, percent: 50 } } };
+    assert.equal(offerShopSubtitle(half), 'The cheapest ones are 50% off.');
+    const grip = { ...base, reward: { ...base.reward, getConditions: atom('productId', ['grip']) } };
+    assert.equal(offerShopSubtitle(grip), null);
+    assert.equal(offerShopSubtitle({ ...base, reward: { kind: 'freeShipping' } }), null);
   });
 });

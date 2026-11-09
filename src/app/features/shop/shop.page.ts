@@ -13,6 +13,9 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
+import type { Offer } from '@core/services/offers/engine';
+import { offerShopSubtitle } from '@core/services/offers/offer-shop';
+import { OffersService } from '@core/services/offers/offers.service';
 import { PlayerListService } from '@core/services/products/player-list.service';
 import { SeoService } from '@core/services/seo';
 import { SearchService, type SearchHit } from '@core/services/search';
@@ -30,6 +33,7 @@ import {
   genderFacetHasData,
   hasApparelSizes,
   newArrivalCutoffMs,
+  parseOfferParam,
   parseShopFilterState,
   playerOptionsFromFacets,
   resolveShopTab,
@@ -74,14 +78,18 @@ export class ShopPage {
   readonly onSale = input<string>();
   readonly inStock = input<string>();
   readonly page = input<string>();
+  /** `?offer=<id>`: only the products in that offer (the bag's Shop the Offer link). */
+  readonly offer = input<string>();
 
   readonly #router = inject(Router);
   readonly #search = inject(SearchService);
   readonly #seo = inject(SeoService);
   readonly #playerList = inject(PlayerListService);
+  readonly #offers = inject(OffersService);
   readonly #destroyRef = inject(DestroyRef);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #document = inject(DOCUMENT);
+  readonly #isBrowser = isPlatformBrowser(this.#platformId);
 
   readonly #hydrated = signal(false);
   readonly #nowMs = signal(Date.now());
@@ -108,7 +116,34 @@ export class ShopPage {
     return chosen.length === 1 ? this.#playerList.nameOf(chosen[0]!) : null;
   });
 
+  readonly #offerId = computed(() => parseOfferParam(this.offer()));
+
+  /**
+   * The offer the page is filtered to. `undefined` while offers are still loading (always on the
+   * server, which has no offers listener), `null` once they are loaded and the offer is not live.
+   */
+  readonly #offer = computed((): Offer | null | undefined => {
+    const id = this.#offerId();
+    if (!id) return null;
+    // The server has no offers listener (its list is always empty), so it renders "loading".
+    if (!this.#isBrowser || !this.#offers.ready()) return undefined;
+    return this.#offers.live().find((offer) => offer.id === id) ?? null;
+  });
+
+  /** The offer has ended (or never existed): the page lists the whole store instead. */
+  readonly offerEnded = computed(() => this.#offerId() !== null && this.#offer() === null);
+
+  readonly pageSubtitle = computed(() => {
+    const offer = this.#offer();
+    if (offer) return offerShopSubtitle(offer);
+    return this.offerEnded() ? 'This offer has ended. Here is everything else in the store.' : null;
+  });
+
   readonly pageTitle = computed(() => {
+    const offer = this.#offer();
+    if (offer) return offer.title;
+    // Offers still loading: the header shows a placeholder instead of a title that would change.
+    if (offer === undefined) return '';
     const tab = this.activeTab();
     const playerName = this.#playerName();
     if (playerName) return playerName;
@@ -143,6 +178,8 @@ export class ShopPage {
       forceBags: this.forceBags(),
       // Read the clock only when the filter is on, so other filters never reload on the hour.
       nowMs: filters.newArrivals ? this.#newArrivalCutoffMs() : undefined,
+      // Kept while offers load, so the server render and the first browser render ask the same.
+      offerId: this.offerEnded() ? null : this.#offerId(),
     });
   });
 
@@ -229,7 +266,7 @@ export class ShopPage {
     });
 
     effect(() => {
-      const title = this.pageTitle();
+      const title = this.pageTitle() || 'Offer';
       const playerName = this.#playerName();
       this.#seo.setPageMetadata({
         title: `${title} | Atteya Store`,

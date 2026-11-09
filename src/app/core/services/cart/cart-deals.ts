@@ -150,13 +150,6 @@ export function bagLineVariant(
   };
 }
 
-/** The bag's nudge text: "Add 1 more to get 1 free" or "Add 1 more to get 1 at 50% off". */
-export function dealHintText(hint: BagDealHint): string {
-  if (!hint.samePool) return `${hint.title}: add the free item to your bag.`;
-  const reward = hint.percent >= 100 ? `${hint.free} free` : `${hint.free} at ${hint.percent}% off`;
-  return `Add ${hint.missing} more to get ${reward}`;
-}
-
 /** Heading of the bag's "choose your free item" box. */
 export function dealPickTitle(hint: BagDealHint, onlyName: string | null): string {
   if (hint.percent < 100) {

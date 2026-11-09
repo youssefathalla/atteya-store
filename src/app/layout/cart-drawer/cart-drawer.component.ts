@@ -4,7 +4,9 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { doc, getDoc } from 'firebase/firestore';
 import { canCheckout, lineDisplayAmount } from '@core/services/cart/cart-pricing';
-import { dealHintText, priceBag, type BagPricingProduct } from '@core/services/cart/cart-deals';
+import { priceBag, type BagPricingProduct } from '@core/services/cart/cart-deals';
+import { dealHintAction, dealHintText, offerShopQuery } from '@core/services/offers/offer-shop';
+import { CatalogService } from '@core/services/products/catalog.service';
 import { isCardOrWalletLive } from '@core/config/store-info';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
@@ -88,6 +90,18 @@ interface CartLineStrip {
   readonly end: string;
 }
 
+/** One Buy X Get Y nudge under an item, with its wording and what its button does. */
+interface CartDealNudge {
+  readonly hint: BagDealHint;
+  readonly text: string;
+  /**
+   * `add-same`: Add 2 adds more of this item. `shop`: Shop the Offer opens Shop filtered to it.
+   * `browse`: Keep Shopping opens Shop (an offer Shop can't filter on).
+   */
+  readonly action: 'add-same' | 'shop' | 'browse';
+  readonly shopQuery: { readonly offer: string };
+}
+
 /**
  * Product details by id. `null` means the product is no longer available (deleted or
  * unpublished). An id with no entry has not loaded yet, or could not be read this time.
@@ -144,6 +158,8 @@ export class CartDrawerComponent {
   readonly #currency = inject(CurrencyService);
   readonly #search = inject(SearchService);
   readonly #offers = inject(OffersService);
+  /** Category names for the nudge ("Add 2 more from T-shirts & polos"); NavService keeps it loaded. */
+  readonly #catalog = inject(CatalogService);
   readonly #auth = inject(AuthService);
   readonly #firestore = injectFirestore();
   readonly #isDesktop = useBreakpoint(1024);
@@ -315,20 +331,32 @@ export class CartDrawerComponent {
     return formatMoney(amount, entry.code, displayDecimals(entry.code));
   });
 
-  /** Buy X Get Y nudges under each line ("Add 1 more to get 1 free", "You've earned a free grip"). */
+  /**
+   * Buy X Get Y nudges under each line ("Add 2 more to get 1 free", "You've earned a free grip"),
+   * with their wording and action: Add 2 for an offer on one product, Shop the Offer otherwise.
+   */
   readonly #hintsByLine = computed(() => {
-    const map = new Map<number, BagDealHint[]>();
+    const offers = new Map(this.#offers.all().map((offer) => [offer.id, offer]));
+    const categories = this.#catalog.categories() ?? [];
+    const categoryName = (id: string): string | null =>
+      categories.find((category) => category.id === id)?.name ?? null;
+    const map = new Map<number, CartDealNudge[]>();
     for (const hint of this.#pricedBag().hints) {
-      map.set(hint.lineIndex, [...(map.get(hint.lineIndex) ?? []), hint]);
+      const offer = offers.get(hint.offerId);
+      const nudge: CartDealNudge = {
+        hint,
+        text: dealHintText(hint, offer, categoryName),
+        action: dealHintAction(offer),
+        shopQuery: offerShopQuery(hint.offerId),
+      };
+      map.set(hint.lineIndex, [...(map.get(hint.lineIndex) ?? []), nudge]);
     }
     return map;
   });
 
-  dealHints(index: number): readonly BagDealHint[] {
+  dealHints(index: number): readonly CartDealNudge[] {
     return this.#hintsByLine().get(index) ?? [];
   }
-
-  readonly dealHintText = dealHintText;
 
   /** "Add 1" on a nudge: adds the missing pieces to the line (at most 20 per line, like the + button). */
   addMore(index: number, missing: number): void {

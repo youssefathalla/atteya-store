@@ -2,16 +2,20 @@ import { Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { SkeletonComponent } from '@shared/ui/skeleton';
 import { SHOP_TABS, type ShopTabId } from '../../models/shop.model';
 
 @Component({
   selector: 'app-shop-header',
   host: { class: 'block w-full' },
-  imports: [RouterLink, MatButtonModule, SharedIconModule],
+  imports: [RouterLink, MatButtonModule, SharedIconModule, SkeletonComponent],
   templateUrl: './shop-header.component.html',
 })
 export class ShopHeaderComponent {
+  /** Empty while the title is still loading (an offer's name): a placeholder shows instead. */
   readonly title = input.required<string>();
+  /** One line under the title, e.g. "The cheapest one is free." on an offer's page. */
+  readonly subtitle = input<string | null>(null);
   readonly activeTab = input.required<ShopTabId>();
   readonly filtersOpen = input(false);
   readonly resultCount = input<number | null>(null);
