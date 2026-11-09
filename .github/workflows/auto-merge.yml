@@ -30,6 +30,17 @@
 # anything under .github/ (those wait for a person; the workflow token cannot
 # merge workflow changes anyway).
 #
+# Each started job bills at least a minute, and a job skipped by its `if:` is free, so the job
+# only starts on events that can be the last gate a clean PR waits for:
+#   - a Cursor check finishing: Bugbot, except when it reports issues (no merge is possible then;
+#     Claude Fix takes over), and any other Cursor check, such as the Security Agent's, unless it
+#     failed (a check still running holds the merge, so its end must start a check);
+#   - CI, PR Title or Browser Check finishing with success (any other ending holds the merge);
+#   - Claude Review finishing in any way but skipped (when Bugbot ran, a review with no result
+#     does not hold the merge, so even a failed review can be the last gate);
+#   - a hand-started run (below).
+# Events from forks and from pushes (not pull requests) never start it.
+#
 # check_run and workflow_run only run the copy of this file on the repository's
 # default branch, so it is live only once this file is on the default branch.
 # Stays inactive until the repository variable AUTO_MERGE is exactly "enabled".
@@ -65,22 +76,45 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: auto-merge-${{ github.event.check_run.head_sha || github.event.workflow_run.head_sha || format('pr-{0}', inputs.pr) }}
-  cancel-in-progress: false
-
 jobs:
   merge:
     name: Merge When Clean
+    # Starts only on events that can be the last gate a clean PR waits for (see the top of this
+    # file). Bugbot's check is left out only when the script below would stop without a word: it
+    # did not succeed, did not "fail to run" (title "Error", or "failed to run" in the summary:
+    # then the Claude review is the gate) and its text mentions issues (otherwise the script posts
+    # the "ended without reporting issues" note). Expression comparisons ignore case, so this lets
+    # through at least everything the script's own case-sensitive checks let through.
     if: >-
       vars.AUTO_MERGE == 'enabled' && (
-        (github.event_name == 'check_run' && github.event.check_run.app.slug == 'cursor') ||
-        (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request') ||
+        (github.event_name == 'check_run' &&
+         github.event.check_run.app.slug == 'cursor' &&
+         github.event.check_run.status == 'completed' &&
+         ((github.event.check_run.name == 'Cursor Bugbot' && !(
+             github.event.check_run.conclusion != 'success' &&
+             github.event.check_run.output.title != 'Error' &&
+             !contains(github.event.check_run.output.summary, 'failed to run') &&
+             (contains(github.event.check_run.output.title, 'issue') || contains(github.event.check_run.output.summary, 'issue')))) ||
+          (github.event.check_run.name != 'Cursor Bugbot' &&
+           !contains(fromJSON('["failure","cancelled","timed_out","action_required","stale","startup_failure"]'), github.event.check_run.conclusion)))) ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.event == 'pull_request' &&
+         github.event.workflow_run.head_repository.full_name == github.repository &&
+         (github.event.workflow_run.conclusion == 'success' ||
+          (github.event.workflow_run.name == 'Claude Review' && github.event.workflow_run.conclusion != 'skipped'))) ||
         (github.event_name == 'workflow_dispatch' &&
          github.ref_name == github.event.repository.default_branch &&
          github.actor == github.repository_owner &&
          github.triggering_actor == github.repository_owner)
       )
+    # Job-level, not workflow-level: only events that pass the `if:` above join the queue, so an
+    # event that is skipped can never replace a waiting check that would have merged. One check
+    # runs at a time per commit; a newer event for the same commit replaces one still waiting (so
+    # piled-up duplicates never start), and a running check is never cancelled (it may be halfway
+    # through a merge).
+    concurrency:
+      group: auto-merge-${{ github.event.check_run.head_sha || github.event.workflow_run.head_sha || format('pr-{0}', inputs.pr) }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -105,8 +139,11 @@ jobs:
               ['Build and Test', 'checks'],
               ['Linear ID in Title', 'linear-id'],
             ];
+            const TITLE_CHECKS = new Set(REQUIRED[1]);
             // Browser Check (browser-check.yml) is required when it runs on the commit. Commits
             // pushed before it existed have no run, and waiting for one would hold them forever.
+            // Docs-only and script-only PRs never start it (its `paths` filter), so they have no
+            // run and are not held either.
             const BROWSER_CHECK = 'Phone and Desktop Pages';
             const OWN_JOB = 'Merge When Clean';
             // Checks that never hold up a merge: this job, and the Claude review trial, which
@@ -197,9 +234,10 @@ jobs:
               if ((pr.labels || []).some((l) => l.name === OPT_OUT_LABEL)) { stop(`It has the ${OPT_OUT_LABEL} label.`); continue; }
               if (['develop', 'main'].includes(pr.head?.ref)) { stop('Its branch is develop or main.'); continue; }
 
-              // Checks on the latest commit.
+              // Checks on the latest commit. Every run is listed ("all", so a newer skipped PR Title
+              // run cannot hide an earlier result); the newest of each name is picked below.
               const runs = await github.paginate(github.rest.checks.listForRef, {
-                owner, repo, ref: sha, filter: 'latest', per_page: 100,
+                owner, repo, ref: sha, filter: 'all', per_page: 100,
               });
               const claudeRun = runs
                 .filter((run) => ['Claude Review (Trial)', 'Claude review (trial)'].includes(run.name))
@@ -208,6 +246,13 @@ jobs:
               for (const run of runs) {
                 if (IGNORED.has(run.name)) continue;
                 const seen = byName.get(run.name);
+                // PR Title skips its job when an edit leaves the title as it was (pr-title.yml), which
+                // adds a newer "skipped" title check on the same commit. The title it checked has not
+                // changed, so a skipped title check never replaces a real one (finished or running).
+                if (seen && TITLE_CHECKS.has(run.name) && (seen.conclusion === 'skipped') !== (run.conclusion === 'skipped')) {
+                  if (seen.conclusion === 'skipped') byName.set(run.name, run);
+                  continue;
+                }
                 if (!seen || new Date(run.started_at) > new Date(seen.started_at)) byName.set(run.name, run);
               }
               // The Claude review of this commit. Its check is in IGNORED, so the running-check wait
