@@ -43,7 +43,7 @@
  *
  * Each write updates search (`syncProductSearch`) and the colour siblings
  * (`onProductColorSiblingsChange`, so More Colours and the card swatches link to the new addresses) by
- * itself; run Catalogue Tools -> Rebuild search after applying anyway. Agents never run --apply.
+ * itself; run Catalogue Tools -> Rebuild search after applying anyway. On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety).
  */
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
