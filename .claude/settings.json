@@ -8,27 +8,22 @@
     }
   },
   "permissions": {
-    "allow": [
-      "Bash", // every shell command
-      "PowerShell",
-      "mcp__claude_ai_Linear", // Linear connector, local naming
-      "mcp__Linear" // in case the cloud session names it this way
-    ],
-    "ask": ["mcp__claude_ai_Linear__delete_comment", "mcp__claude_ai_Linear__merge_diff"],
-    "hooks": {
-      "PreToolUse": [
-        {
-          "matcher": "Bash|PowerShell",
-          "hooks": [
-            {
-              "type": "command",
-              "command": "node",
-              "args": ["${CLAUDE_PROJECT_DIR}/scripts/hooks/check-branch-name.mjs"],
-              "timeout": 10
-            }
-          ]
-        }
-      ]
-    }
+    "allow": ["Bash", "PowerShell", "mcp__claude_ai_Linear", "mcp__Linear"],
+    "ask": ["mcp__claude_ai_Linear__delete_comment", "mcp__claude_ai_Linear__merge_diff"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/scripts/hooks/check-branch-name.mjs"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
