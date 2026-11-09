@@ -382,12 +382,14 @@ export class CartDrawerComponent {
 
       const gifts = this.giftRows(line, index);
       const giftOfferId = line.gifts?.[0]?.offerId;
+      const giftCount = gifts.length * priced.deals.giftUnits;
       if (gifts.length > 0 && giftOfferId) {
         strips.push({
           key: `gift-${giftOfferId}`,
           title: titleOf(giftOfferId),
           tag: '',
-          end: gifts.length === 1 ? '1 free gift' : `${gifts.length} free gifts`,
+          // The order adds each gift once per piece that keeps its gifts, so count them all.
+          end: giftCount === 1 ? '1 free gift' : `${giftCount} free gifts`,
         });
       }
       return strips;
