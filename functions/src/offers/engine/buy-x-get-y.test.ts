@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import {
   canBeFreeItem,
   dealTag,
+  displayPrice,
   freeItemProductIds,
   priceBagDeals,
 } from '../../../lib/offers/engine/index.js';
@@ -282,5 +283,25 @@ describe('free choices the bag may offer', () => {
     // Same rule as pricing: a sale grip in the bag gets no discount.
     const priced = priceBagDeals([line(RACKET), line(GRIP_1, 1, { onSale: true })], [noSale], CTX);
     assert.equal(priced.lines[1].discount, 0);
+  });
+});
+
+describe('offer ids on a product (search index, Shop the Offer)', () => {
+  const NOW = { now: new Date('2026-11-09T12:00:00Z'), signedIn: false };
+  const tee = { ...TEE_A, name: 'Tee', compareAtPrice: null };
+
+  it('lists every offer the product is in, even when its badge does not fit on the card', () => {
+    // Four label offers with the same badge text: only one badge shows, all four are listed.
+    const offers = ['b2g1', 'b2g1-again', 'b2g1-third', 'b2g1-fourth'].map((id) => bxgy(id, {}));
+    const result = displayPrice(tee, offers, NOW);
+    assert.equal(result.badges.length, 1);
+    assert.deepEqual([...result.offerIds].sort(), ['b2g1', 'b2g1-again', 'b2g1-fourth', 'b2g1-third']);
+  });
+
+  it('leaves out offers the product is not in, and sale items an offer excludes', () => {
+    const offers = [bxgy('b2g1', {}), RACKET_GRIP, bxgy('no-sale', {}, { saleItems: 'exclude' })];
+    assert.deepEqual([...displayPrice(tee, offers, NOW).offerIds].sort(), ['b2g1', 'no-sale']);
+    const onSale = { ...tee, compareAtPrice: 700 };
+    assert.deepEqual(displayPrice(onSale, offers, NOW).offerIds, ['b2g1']);
   });
 });

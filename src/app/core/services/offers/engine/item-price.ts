@@ -136,12 +136,15 @@ export function displayPrice(
   // `partial` means "effective prices differ across the tested variants" (set above). An offer that
   // matches only some variants but leaves every price equal (free shipping, gifts, buy X get Y,
   // tiered, cart offers, or one beaten everywhere by another offer) must not add a "From".
+  // Every live offer the product is in (its conditions match, and it is not a sale item the offer
+  // leaves out), whether or not its badge made the card: the 3-badge cap and the duplicate-text
+  // check only decide what is shown. Shop's `?offer=` page filters on this list.
+  const onSale = productLevel.listPrice > productLevel.basePrice;
   const matchingOfferIds: string[] = [];
   for (const offer of active) {
     if (matchProduct(offer.conditions, offer.exclude, product) === 'none') continue;
-    if (productLevel.appliedOfferId === offer.id || productLevel.badges.some((b) => b.offerId === offer.id)) {
-      matchingOfferIds.push(offer.id);
-    }
+    if (onSale && offer.saleItems === 'exclude') continue;
+    matchingOfferIds.push(offer.id);
   }
 
   const listPrice = productLevel.listPrice;
