@@ -3,6 +3,7 @@ import { Component, computed, inject, input, OnInit, PLATFORM_ID, signal } from 
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, of } from 'rxjs';
 import { injectFirestore } from '@core/firebase';
@@ -40,7 +41,7 @@ import { formatMoney } from '@shared/utils/money';
 @Component({
   selector: 'app-checkout-confirmation-page',
   host: { class: 'block w-full' },
-  imports: [RouterLink, MatButtonModule, SharedIconModule, PaymentMarkComponent],
+  imports: [RouterLink, MatButtonModule, MatButtonToggleModule, SharedIconModule, PaymentMarkComponent],
   templateUrl: './checkout-confirmation.page.html',
 })
 export class CheckoutConfirmationPageComponent implements OnInit {
@@ -74,6 +75,9 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     const input = this.#input();
     return input ? orderStage(input) : null;
   });
+
+  /** Which InstaPay value the box shows when both are set: the phone number first. Not remembered. */
+  readonly instapayWay = signal<'number' | 'address'>('number');
 
   readonly orderRef = computed(() => shortOrderRef(this.orderId()));
 
