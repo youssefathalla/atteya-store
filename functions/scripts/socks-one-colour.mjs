@@ -41,7 +41,7 @@
  *
  * Each write updates search (`syncProductSearch`) and the colour siblings
  * (`onProductColorSiblingsChange`, which picks up the new main photo) by itself; run Catalogue Tools
- * -> Rebuild search after applying anyway. Agents never run --apply.
+ * -> Rebuild search after applying anyway. On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety).
  */
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
