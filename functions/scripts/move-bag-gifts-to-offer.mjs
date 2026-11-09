@@ -26,6 +26,12 @@
  * bag edited while the script runs is skipped instead of overwritten; run it again to pick it
  * up. Re-running is safe: a bag with no `gift` option and no Arabic text is left alone.
  *
+ * Shoppers' bags are never edited. A bag line saved before this runs still holds the old shirt,
+ * socks or size choice; the order callables refuse it ("One item in your bag has changed since you
+ * added it. Remove it and add it again.", `order-selection.ts`), so it can't be bought without the
+ * free gifts or mixed with a new line for the same bag. The dry run counts the saved account bags
+ * that hold one (guest bags stay in the browser and can't be counted).
+ *
  * Old orders keep their saved `optionLabels`, so they still show the shirt and socks ordered.
  * After applying, run "Rebuild search" in Catalogue Tools (the bags leave the Shop size
  * filter). Agents never run --apply and never create the offer.
@@ -287,6 +293,43 @@ for (const slug of BAG_SLUGS) {
   }
   changed += 1;
 }
+
+// Saved account bags (`carts/{uid}`) that still hold one of these bags with the old choices. They
+// are only counted: once the options are gone, checkout refuses such a line ("One item in your bag
+// has changed since you added it. Remove it and add it again."), so the shopper adds it again from
+// the product page and picks the free gifts there. Guest bags live in browsers and can't be counted.
+const bagIdSet = new Set(bagDocs.map((snap) => snap.id));
+let savedBags = 0;
+let savedLines = 0;
+let cursor = null;
+for (;;) {
+  let page = db.collection('carts').orderBy('__name__').limit(300);
+  if (cursor) page = page.startAfter(cursor);
+  const snap = await page.get();
+  for (const cart of snap.docs) {
+    const stale = asList(cart.data().lines).filter((line) => {
+      const selection = line?.selection;
+      return (
+        bagIdSet.has(line?.productId) &&
+        selection !== null &&
+        typeof selection === 'object' &&
+        ('gift' in selection || 'size' in selection)
+      );
+    });
+    if (stale.length > 0) {
+      savedBags += 1;
+      savedLines += stale.length;
+    }
+  }
+  if (snap.size < 300) break;
+  cursor = snap.docs[snap.docs.length - 1];
+}
+console.log(
+  savedBags > 0
+    ? `\nSaved account bags with one of these bags and its old choices: ${savedBags} (${savedLines} lines). ` +
+        'After --apply, checkout asks those shoppers to remove it and add it again, so they pick the free gifts.'
+    : '\nNo saved account bag holds one of these bags with its old choices.',
+);
 
 console.log('\nGift products the offer gives:');
 const giftIds = new Map();
