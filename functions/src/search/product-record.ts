@@ -1,4 +1,4 @@
-import { displayPrice, type Offer, type PricedProduct } from '../offers/engine/index.js';
+import { displayPrice, type Offer, type OfferReward, type PricedProduct } from '../offers/engine/index.js';
 import { cardShortDescription } from '../products/card-short-description.js';
 import { PRODUCT_TYPES, sizeRank, type ProductTypeId } from '../products/catalog-mapping.js';
 import { categoryIdsFor, DEFAULT_CATEGORY_FOR_TYPE } from '../products/catalog-taxonomy.js';
@@ -31,6 +31,12 @@ export interface SearchOfferFields {
   readonly offerBadges: readonly string[];
   readonly maxDiscountPercent: number;
   readonly pricePartial: boolean;
+  /**
+   * Shop's Sale filter (`?onSale=1`): an old (compare-at) price above the price, or a card price
+   * lowered by a live public price offer for everyone (Percent off, Amount off, Set price).
+   * Buy X Get Y, Free gift, Free shipping and tiered offers never put a product in Sale.
+   */
+  readonly onSale: boolean;
   readonly [key: string]: unknown;
 }
 
@@ -49,8 +55,8 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly hierarchicalCategories: SearchHierarchicalCategories;
   readonly price: number;
   readonly compareAtPrice: number | null;
+  /** Percent off the old (compare-at) price; 0 without one. Offers don't change it. */
   readonly discountPercent: number;
-  readonly onSale: boolean;
   readonly colors: readonly string[];
   readonly sizes: readonly string[];
   readonly tags: readonly string[];
@@ -115,9 +121,11 @@ export function toSearchRecord(
       ? Math.round(rawCompare)
       : null;
 
-  const onSale = compareAtPrice !== null && compareAtPrice > price && price > 0;
+  const compareAtSale = hasCompareAtSale(price, compareAtPrice);
   const discountPercent =
-    onSale && compareAtPrice !== null ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100) : 0;
+    compareAtSale && compareAtPrice !== null
+      ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
+      : 0;
 
   const colors = readStringArray(data['colors']);
   const sizes = extractSizes(data['options']);
@@ -166,7 +174,6 @@ export function toSearchRecord(
     price,
     compareAtPrice,
     discountPercent,
-    onSale,
     colors,
     sizes,
     tags,
@@ -252,6 +259,9 @@ export function computeProductOfferFields(
 
   const offerBadges = result.badges.map((badge) => badge.text).slice(0, 3);
   const hasOffer = result.offerIds.length > 0;
+  const onSale =
+    hasCompareAtSale(price, compareAtPrice) ||
+    (result.fromPrice < price && priceOfferLowersPrice(pricedProduct, publicEveryoneOffers, now));
 
   return {
     listPrice: result.listPrice,
@@ -261,7 +271,26 @@ export function computeProductOfferFields(
     offerBadges,
     maxDiscountPercent: result.maxDiscountPercent,
     pricePartial: result.partial,
+    onSale,
   };
+}
+
+/** Offer kinds that can put a product in Sale: they lower the card price itself. */
+const SALE_OFFER_KINDS: ReadonlySet<OfferReward['kind']> = new Set(['percentOff', 'amountOff', 'fixedPrice']);
+
+function hasCompareAtSale(price: number, compareAtPrice: number | null): boolean {
+  return compareAtPrice !== null && compareAtPrice > price && price > 0;
+}
+
+/**
+ * True when the live price offers alone (Percent off, Amount off, Set price) bring the card's
+ * price below the product's price. Called only when every offer together already does, so a
+ * product with no lower card price never prices twice.
+ */
+function priceOfferLowersPrice(product: PricedProduct, offers: readonly Offer[], now: Date): boolean {
+  const priceOffers = offers.filter((offer) => SALE_OFFER_KINDS.has(offer.reward.kind));
+  if (priceOffers.length === 0) return false;
+  return displayPrice(product, priceOffers, { now, signedIn: false }).fromPrice < product.price;
 }
 
 export function searchRecordsEqual(

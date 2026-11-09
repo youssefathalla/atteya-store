@@ -17,7 +17,12 @@ const BAG = {
   sizes: [],
   tags: [],
   price: 3000,
+  name: 'Bullpadel bag',
+  compareAtPrice: null,
 };
+
+/** The same bag with an old price above its price (already on sale). */
+const BAG_ON_SALE = { ...BAG, compareAtPrice: 3500 };
 
 function giftOffer(overrides = {}) {
   return parseOfferDoc('offer-bag', {
@@ -92,6 +97,46 @@ describe('free gift offers', () => {
     assert.equal(giftOfferById('offer-bag', BAG, null, [cartWide], CTX, ALL_IN_STOCK), null);
     const withMinimum = giftOffer({ minimum: { quantity: 2 } });
     assert.equal(giftOfferForProduct(BAG, null, [withMinimum], CTX, ALL_IN_STOCK), null);
+  });
+
+  it('gives nothing to a product already on sale when the offer skips sale items', () => {
+    const skip = giftOffer({ saleItems: 'exclude' });
+    assert.equal(giftOfferForProduct(BAG_ON_SALE, null, [skip], CTX, ALL_IN_STOCK), null);
+    assert.equal(giftOfferById('offer-bag', BAG_ON_SALE, null, [skip], CTX, ALL_IN_STOCK), null);
+    // A variant of the on-sale product is skipped too.
+    const variant = { id: 'v-1', size: null, color: 'black' };
+    assert.equal(giftOfferForProduct(BAG_ON_SALE, variant, [skip], CTX, ALL_IN_STOCK), null);
+    // The same offer still gives gifts to a product that is not on sale.
+    assert.equal(giftOfferForProduct(BAG, null, [skip], CTX, ALL_IN_STOCK)?.offerId, 'offer-bag');
+    assert.equal(giftOfferById('offer-bag', BAG, null, [skip], CTX, ALL_IN_STOCK)?.offerId, 'offer-bag');
+  });
+
+  it('lets the next gift offer apply when the first skips an on-sale product', () => {
+    const skip = giftOffer({ saleItems: 'exclude', priority: 10 });
+    const other = parseOfferDoc('offer-other', {
+      name: 'Other gifts',
+      title: 'Free socks',
+      active: true,
+      priority: 1,
+      conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['bags'] }] }] },
+      reward: { kind: 'freeGift', gifts: [{ id: 'socks', name: 'Free socks', productIds: ['socks-1'] }] },
+    });
+    assert.equal(
+      giftOfferForProduct(BAG_ON_SALE, null, [skip, other], CTX, ALL_IN_STOCK)?.offerId,
+      'offer-other',
+    );
+  });
+
+  it('keeps giving gifts to an on-sale product with "Best discount wins" and "Apply on top"', () => {
+    for (const saleItems of ['bestOf', 'stack']) {
+      const offer = giftOffer({ saleItems });
+      assert.equal(offer?.saleItems, saleItems);
+      assert.equal(giftOfferForProduct(BAG_ON_SALE, null, [offer], CTX, ALL_IN_STOCK)?.offerId, 'offer-bag');
+      assert.equal(
+        giftOfferById('offer-bag', BAG_ON_SALE, null, [offer], CTX, ALL_IN_STOCK)?.offerId,
+        'offer-bag',
+      );
+    }
   });
 
   it('reads an old one-product gift offer as one gift with one choice', () => {

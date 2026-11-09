@@ -61,7 +61,7 @@ function resolve(picks, opts = {}) {
     quantity: opts.quantity ?? 1,
     product: opts.product ?? BAG,
     variant: null,
-    offers: [OFFER],
+    offers: opts.offers ?? [OFFER],
     ctx: CTX,
     giftDocs: opts.giftDocs ?? docs(),
   });
@@ -95,6 +95,26 @@ describe('checkout gift checks', () => {
       () => resolve([SHIRT_M], { product: { ...BAG, categoryIds: ['t-shirts'] } }),
       'failed-precondition',
     );
+  });
+
+  it('refuses gifts for an on-sale product when the offer skips sale items', () => {
+    const skip = parseOfferDoc('offer-bag', {
+      name: 'Bag gifts',
+      title: 'Free shirt and socks',
+      active: true,
+      saleItems: 'exclude',
+      conditions: OFFER.conditions,
+      reward: OFFER.reward,
+    });
+    const onSale = { ...BAG, name: 'Bag', compareAtPrice: 3500 };
+    refused(() => resolve([SOCKS_PICK], { product: onSale, offers: [skip] }), 'failed-precondition');
+    // Not on sale: the same offer gives the gift.
+    assert.equal(
+      resolve([SOCKS_PICK], { product: { ...onSale, compareAtPrice: null }, offers: [skip] }).length,
+      1,
+    );
+    // "Best discount wins" (the default) still gives gifts to the on-sale product.
+    assert.equal(resolve([SOCKS_PICK], { product: onSale }).length, 1);
   });
 
   it('refuses a sold-out size, a missing size and too few pieces', () => {
