@@ -50,6 +50,8 @@
       [scope]="draft().scope"
       [minimum]="draft().minimum"
       [products]="products()"
+      [categories]="categories()"
+      [brands]="brands()"
       (rewardChange)="updateReward($event)"
       (scopeChange)="updateScope($event)"
       (minimumChange)="updateMinimum($event)"

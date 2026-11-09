@@ -265,12 +265,47 @@ function validateRewardErrors(
           message: 'The "Get" discount percentage must be between 1 and 100.',
         });
       }
+      validateFreeItem(r.getConditions, errors);
       break;
     case 'freeGift':
       validateGifts(r.gifts, products, errors);
       break;
     case 'freeShipping':
       break;
+  }
+}
+
+/**
+ * "Which item is free?" of a Buy X get Y offer. No conditions = the cheapest item of the group.
+ * Otherwise the choice must name at least one product, or at least one category or brand.
+ */
+function validateFreeItem(getConditions: OfferConditions | null, errors: OfferIssue[]): void {
+  if (!getConditions) return;
+  let products = 0;
+  let categoriesOrBrands = 0;
+  let wantsProducts = false;
+  for (const group of getConditions.anyOf) {
+    for (const atom of group.allOf) {
+      if (atom.field === 'price') continue;
+      const count = atom.in?.length ?? 0;
+      if (atom.field === 'productId') {
+        wantsProducts = true;
+        products += count;
+      } else if (atom.field === 'categoryIds' || atom.field === 'brandId') {
+        categoriesOrBrands += count;
+      }
+    }
+  }
+  if (wantsProducts && products === 0) {
+    errors.push({
+      code: 'reward.freeItemProducts',
+      message: 'Pick at least one product that can be the free item.',
+    });
+  } else if (!wantsProducts && categoriesOrBrands === 0) {
+    errors.push({
+      code: 'reward.freeItemGroup',
+      message: 'Pick at least one category or brand for the free item.',
+    });
   }
 }
 
