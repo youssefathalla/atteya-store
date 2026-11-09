@@ -1,12 +1,12 @@
 import type { SearchHit } from '@core/services/search/search.model';
 import { PAYMENT_METHODS, type PaymentMethodId } from '@shared/ui/payment-mark';
 
-/** Most product cards in the bag's "Recommended for You" row. */
-export const BAG_RECOMMENDATION_LIMIT = 8;
+/** Most product cards in the phone bag's "Recommended for You" row. */
+export const BAG_RECOMMENDATION_LIMIT = 4;
 
 /**
  * Hits asked from search for that row: the limit plus room for every product already in the
- * bag (at most 20 lines), so leaving those out still leaves up to 8 cards.
+ * bag (at most 20 lines), so leaving those out still leaves up to 4 cards.
  */
 export const BAG_RECOMMENDATION_FETCH = BAG_RECOMMENDATION_LIMIT + 20;
 

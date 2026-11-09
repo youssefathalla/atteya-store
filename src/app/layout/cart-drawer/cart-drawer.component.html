@@ -165,7 +165,7 @@
                 <app-payment-mark [method]="method.id" size="lg" />
                 <span>{{ method.name }}</span>
                 @if (method.comingSoon) {
-                  <span class="font-label-sm font-bold!">Coming soon</span>
+                  <span class="font-label-sm text-on-surface-variant">Coming soon</span>
                 }
               }
             </li>
@@ -173,7 +173,7 @@
         </ul>
       </section>
 
-      @if (recommendations().length > 0) {
+      @if (placement() === 'sheet' && recommendations().length > 0) {
         <section class="py-5 space-y-3" aria-labelledby="bag-recommended-title">
           <h3 id="bag-recommended-title" class="px-5 font-title-sm font-bold!">
             Recommended for You
