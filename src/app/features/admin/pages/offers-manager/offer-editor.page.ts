@@ -39,6 +39,7 @@ import {
   isUnavailableDeal,
   UNAVAILABLE_DEAL_MESSAGE,
   withoutEmptyFreeItemRules,
+  withoutStackSaleItems,
 } from './models/offer-admin.model';
 import { OffersAdminService } from './services/offers-admin.service';
 
@@ -125,7 +126,7 @@ export class OfferEditorPageComponent implements OnInit {
 
       untracked(() => {
         if (value.offer) {
-          this.draft.set({ ...value.offer });
+          this.draft.set(withoutStackSaleItems({ ...value.offer }));
         } else {
           this.draft.set(createEmptyOfferDraft());
         }

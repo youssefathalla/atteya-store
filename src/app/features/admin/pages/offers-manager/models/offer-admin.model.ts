@@ -185,6 +185,16 @@ export function withoutEmptyFreeItemRules(draft: OfferDraft): OfferDraft {
   return { ...draft, reward: { ...r, getConditions: { anyOf } } };
 }
 
+/**
+ * The form only offers "Best discount wins" and "Skip products already on sale". An old offer saved
+ * with "Apply on top of sale price" (`stack`) is read and saved as `bestOf`.
+ */
+export function withoutStackSaleItems<T extends { readonly saleItems: OfferDraft['saleItems'] }>(
+  draft: T,
+): T {
+  return draft.saleItems === 'stack' ? { ...draft, saleItems: 'bestOf' } : draft;
+}
+
 export function createEmptyOfferDraft(): OfferDraft {
   return {
     name: '',
