@@ -101,9 +101,8 @@ export function withoutQuotedText(command, shell = 'Bash') {
   const bash = shell !== 'PowerShell';
   const text = command
     .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?:\n|$)/g, '\n')
-    .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '')
-    // A line continuation (Bash `\` or PowerShell backtick at the end of a line) keeps one command going.
-    .replace(bash ? /\\\r?\n/g : /`\r?\n/g, ' ');
+    .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '');
+  const escapeChar = bash ? '\\' : '`';
   let out = '';
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
@@ -112,9 +111,17 @@ export function withoutQuotedText(command, shell = 'Bash') {
       while (i + 1 < text.length && text[i + 1] !== '\n') i++;
       continue;
     }
-    // Bash `\'` / `\"` outside quotes is a literal character, not the start of a quote.
-    if (bash && ch === '\\' && i + 1 < text.length) {
-      out += ch + text[++i];
+    // The escape character outside quotes (Bash `\`, PowerShell backtick). At the end of a line it continues the
+    // command; before anything else (`\'`, `\\`) it makes that character literal, not a quote. Comments are
+    // skipped above first, so a trailing `\` inside a comment does not join the next line.
+    if (ch === escapeChar && i + 1 < text.length) {
+      const lineEnd = text[i + 1] === '\n' ? 1 : text[i + 1] === '\r' && text[i + 2] === '\n' ? 2 : 0;
+      if (lineEnd) {
+        out += ' ';
+        i += lineEnd;
+      } else {
+        out += ch + text[++i];
+      }
       continue;
     }
     if (ch !== '"' && ch !== "'") {
