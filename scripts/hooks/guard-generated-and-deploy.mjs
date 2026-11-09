@@ -91,12 +91,6 @@ export function sourceFor(relative, root = ROOT) {
   return null;
 }
 
-/**
- * The command with heredoc bodies, PowerShell here-strings and quoted text removed, so a commit message or
- * PR body that only mentions `firebase deploy` is not mistaken for running it. One scanner handles both
- * quote kinds, across newlines. Quoted text handed to a shell (`bash -c "…"`, `pwsh -Command '…'`,
- * `cmd /c "…"`) is kept as its own command, because that text does run.
- */
 /** Index of the backtick closing the Bash command substitution opened at `open`, or -1. */
 function closingBacktick(text, open) {
   let j = open + 1;
@@ -192,6 +186,12 @@ function substitutionsIn(inner, shell) {
   return found;
 }
 
+/**
+ * The command with heredoc bodies, PowerShell here-strings and quoted text removed, so a commit message or
+ * PR body that only mentions `firebase deploy` is not mistaken for running it. One scanner handles both
+ * quote kinds, across newlines. Quoted text handed to a shell (`bash -c "…"`, `pwsh -Command '…'`,
+ * `cmd /c "…"`) is kept as its own command, because that text does run.
+ */
 export function withoutQuotedText(command, shell = 'Bash') {
   const bash = shell !== 'PowerShell';
   const text = command
