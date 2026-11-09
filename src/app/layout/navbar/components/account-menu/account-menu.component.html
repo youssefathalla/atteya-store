@@ -22,7 +22,7 @@
       matIconButton
       type="button"
       [matMenuTriggerFor]="menu"
-      [matTooltip]="tooltip()"
+      [matTooltip]="tooltip() ? 'Sign in' : ''"
       [matTooltipDisabled]="!tooltip()"
       aria-label="Sign in"
     >
