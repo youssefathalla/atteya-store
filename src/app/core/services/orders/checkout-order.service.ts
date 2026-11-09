@@ -68,12 +68,14 @@ export class CheckoutOrderService {
   async placePaymobOrder(args: {
     readonly lines: readonly CartLineDraft[];
     readonly shipping: CheckoutShippingInput;
+    readonly endedOfferIds: readonly string[];
   }): Promise<CreatePaymobOrderResult> {
     const call = await callableFrom<
       {
         lines: readonly CheckoutLineInput[];
         shipping: CheckoutShippingInput;
         paymentMethod: 'paymob';
+        endedOfferIds: readonly string[];
       },
       CreatePaymobOrderResult
     >(this.#functions(), 'createPaymobOrder');
@@ -81,6 +83,7 @@ export class CheckoutOrderService {
       lines: args.lines.map(toCheckoutLine),
       shipping: args.shipping,
       paymentMethod: 'paymob',
+      endedOfferIds: args.endedOfferIds,
     });
     return response.data;
   }
@@ -90,12 +93,14 @@ export class CheckoutOrderService {
     readonly method: M;
     readonly lines: readonly CartLineDraft[];
     readonly shipping: CheckoutShippingInput;
+    readonly endedOfferIds: readonly string[];
   }): Promise<CreateManualOrderResult<M>> {
     const call = await callableFrom<
       {
         lines: readonly CheckoutLineInput[];
         shipping: CheckoutShippingInput;
         paymentMethod: M;
+        endedOfferIds: readonly string[];
       },
       CreateManualOrderResult<M>
     >(this.#functions(), args.method === 'instapay' ? 'createInstapayOrder' : 'createCodOrder');
@@ -103,7 +108,20 @@ export class CheckoutOrderService {
       lines: args.lines.map(toCheckoutLine),
       shipping: args.shipping,
       paymentMethod: args.method,
+      endedOfferIds: args.endedOfferIds,
     });
     return response.data;
   }
+}
+
+/**
+ * The offer an order callable refused because it has ended for this shopper
+ * (`failed-precondition` with `details.endedOfferId`), or null for any other error.
+ */
+export function endedOfferIdFrom(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null || !('details' in error)) return null;
+  const details = (error as { details?: unknown }).details;
+  if (typeof details !== 'object' || details === null) return null;
+  const id = (details as { endedOfferId?: unknown }).endedOfferId;
+  return typeof id === 'string' && id.length > 0 ? id : null;
 }

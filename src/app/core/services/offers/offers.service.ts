@@ -18,6 +18,11 @@ export class OffersService {
 
   readonly #now = signal<Date>(new Date());
   readonly #failed = signal(false);
+  /**
+   * Offers the order callables said have ended for this shopper (`details.endedOfferId`): left out
+   * of every price on this visit, so the bag and checkout show the total the server will charge.
+   */
+  readonly #ended = signal<ReadonlySet<string>>(new Set());
 
   readonly #offersCollection = collection(this.#firestore, OFFERS_COLLECTION).withConverter(
     createValibotConverter(OfferDocSchema),
@@ -36,11 +41,15 @@ export class OffersService {
   readonly ready = computed(() => this.#offerDocs() !== undefined);
   readonly failed = this.#failed.asReadonly();
 
-  readonly all = computed<readonly Offer[]>(() =>
-    (this.#offerDocs() ?? [])
+  readonly all = computed<readonly Offer[]>(() => {
+    const ended = this.#ended();
+    return (this.#offerDocs() ?? [])
       .map((doc) => toEngineOffer(doc))
-      .filter((offer) => !offer.archived),
-  );
+      .filter((offer) => !offer.archived && !ended.has(offer.id));
+  });
+
+  /** Ids of the offers left out with `markEnded`, sent with each order so the server agrees. */
+  readonly endedIds = computed<readonly string[]>(() => Array.from(this.#ended()));
 
   readonly live = computed<readonly Offer[]>(() =>
     liveOffers(this.all(), {
@@ -48,6 +57,12 @@ export class OffersService {
       signedIn: Boolean(this.#auth.user()),
     }),
   );
+
+  /** Leaves an offer out of every price for the rest of this visit (it has ended for this shopper). */
+  markEnded(offerId: string): void {
+    if (this.#ended().has(offerId)) return;
+    this.#ended.update((ended) => new Set([...ended, offerId]));
+  }
 
   constructor() {
     if (isPlatformBrowser(this.#platformId)) {

@@ -12,6 +12,8 @@ const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
 /** Most gift picks on one bag line; matches `MAX_OFFER_GIFTS` in the offer engine. */
 const MAX_LINE_GIFTS = 5;
+/** Most offer ids checkout may say have ended (it adds one per refused order). */
+const MAX_ENDED_OFFERS = 20;
 export type StorePaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
 
 export interface OrderLineInput {
@@ -49,6 +51,11 @@ export interface CreateStoreOrderRequest {
   readonly lines: readonly OrderLineInput[];
   readonly shipping: OrderShippingInput;
   readonly paymentMethod: StorePaymentMethod;
+  /**
+   * Buy X Get Y offers checkout already told the shopper have ended (from an earlier refusal) and
+   * left out of the total it shows. The server leaves them out too; that can only raise the total.
+   */
+  readonly endedOfferIds: readonly string[];
 }
 
 export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderRequest {
@@ -65,7 +72,19 @@ export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderReq
       'Enter an Egyptian mobile number, e.g. 010 1234 5678.',
     );
   }
-  return { lines, shipping, paymentMethod };
+  const endedOfferIds = parseEndedOfferIds(data['endedOfferIds']);
+  return { lines, shipping, paymentMethod, endedOfferIds };
+}
+
+/** Offer ids checkout says have ended; anything unreadable is left out (it only skips discounts). */
+export function parseEndedOfferIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = new Set<string>();
+  for (const entry of raw) {
+    if (ids.size >= MAX_ENDED_OFFERS) break;
+    if (typeof entry === 'string' && entry.length >= 1 && entry.length <= 128) ids.add(entry);
+  }
+  return Array.from(ids);
 }
 
 function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {

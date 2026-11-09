@@ -56,7 +56,7 @@ export const createPaymobOrder = onCall(
     }
 
     const db = getFirestore();
-    const priced = await priceStoreOrder(db, input, true, caller.uid);
+    const priced = await priceStoreOrder(db, input, true);
     if (priced.pricing.totalEgp < 1) {
       throw new HttpsError('failed-precondition', 'Your order total is too low to pay online.');
     }
@@ -66,8 +66,9 @@ export const createPaymobOrder = onCall(
 
     // Reserve the daily slot in a transaction BEFORE minting a Paymob Intention,
     // so concurrent callers cannot each create gateway sessions then lose the race.
-    // Offer uses (free gifts, Buy X Get Y) are claimed in the same transaction and given back if Paymob fails.
-    await reserveDailyOrderSlot(db, rateLimitRef, caller.uid, day, priced.usedOffers);
+    // Offer uses (free gifts, Buy X Get Y) are claimed in the same transaction and given back if
+    // Paymob fails, with any offer this order switched off at its last use switched back on.
+    const endedOfferIds = await reserveDailyOrderSlot(db, rateLimitRef, caller.uid, day, priced.usedOffers);
 
     const orderRef = db.collection('orders').doc();
     const orderId = orderRef.id;
@@ -117,7 +118,7 @@ export const createPaymobOrder = onCall(
         console.error('Failed to release order rate-limit slot after Paymob error', releaseError);
       }
       try {
-        await releaseOfferUses(db, caller.uid, priced.usedOffers);
+        await releaseOfferUses(db, caller.uid, priced.usedOffers, endedOfferIds);
       } catch (releaseError: unknown) {
         console.error('Failed to give back offer uses', releaseError);
       }
@@ -169,7 +170,7 @@ export const createPaymobOrder = onCall(
         console.error('Failed to release order rate-limit slot after write error', releaseError);
       }
       try {
-        await releaseOfferUses(db, caller.uid, priced.usedOffers);
+        await releaseOfferUses(db, caller.uid, priced.usedOffers, endedOfferIds);
       } catch (releaseError: unknown) {
         console.error('Failed to give back offer uses', releaseError);
       }
@@ -195,12 +196,12 @@ async function reserveDailyOrderSlot(
   uid: string,
   day: string,
   usedOffers: readonly UsedOffer[],
-): Promise<void> {
-  await db.runTransaction(async (tx) => {
+): Promise<readonly string[]> {
+  return db.runTransaction(async (tx) => {
     const snap = await tx.get(rateLimitRef);
     const nextRateCount = nextDailyOrderCount(snap.data()?.['count']);
     const addOfferUses = await readOfferUses(tx, db, uid, usedOffers);
-    addOfferUses();
+    const endedOfferIds = addOfferUses();
     tx.set(
       rateLimitRef,
       {
@@ -211,6 +212,7 @@ async function reserveDailyOrderSlot(
       },
       { merge: true },
     );
+    return endedOfferIds;
   });
 }
 

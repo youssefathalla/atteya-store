@@ -60,7 +60,7 @@ async function createManualOrder<M extends ManualPaymentMethod>(
   }
 
   const db = getFirestore();
-  const priced = await priceStoreOrder(db, input, true, caller.uid);
+  const priced = await priceStoreOrder(db, input, true);
   const orderRef = db.collection('orders').doc();
 
   await db.runTransaction(async (tx) => {

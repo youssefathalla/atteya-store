@@ -43,6 +43,7 @@ import {
 } from '@core/services/offers/engine';
 import {
   CheckoutOrderService,
+  endedOfferIdFrom,
   type CheckoutPaymentMethod,
   type CheckoutShippingInput,
 } from '@core/services/orders/checkout-order.service';
@@ -806,6 +807,7 @@ export class CheckoutPageComponent implements OnInit {
         const result = await this.#checkout.placePaymobOrder({
           lines: this.lines(),
           shipping,
+          endedOfferIds: this.#offers.endedIds(),
         });
         // Wait for the account bag to save before the full-page redirect to Paymob.
         await this.#cart.clear();
@@ -821,12 +823,17 @@ export class CheckoutPageComponent implements OnInit {
         method,
         lines: this.lines(),
         shipping,
+        endedOfferIds: this.#offers.endedIds(),
       });
       void this.#cart.clear();
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {
         state: { checkoutResult: result },
       });
     } catch (error: unknown) {
+      // An offer in the bag has ended for this shopper: leave it out of the bag and the summary
+      // for the rest of the visit, so they see the new total and place the order again at it.
+      const endedOfferId = endedOfferIdFrom(error);
+      if (endedOfferId) this.#offers.markEnded(endedOfferId);
       this.#snackbar.error(callableMessage(error) ?? 'We could not place your order. Try again in a moment.');
     } finally {
       this.isSubmitting.set(false);
@@ -834,10 +841,6 @@ export class CheckoutPageComponent implements OnInit {
   }
 }
 
-/**
- * Preview twin of the server's selection match. `variantId` is accepted only
- * when it is the row the bag selection resolves to.
- */
 function hasTypedAddress(shipping: CheckoutShippingInput): boolean {
   return [shipping.fullName, shipping.line1, shipping.line2 ?? '', shipping.city, shipping.region ?? '', shipping.postalCode, shipping.phone]
     .some((value) => value.trim().length > 0);
