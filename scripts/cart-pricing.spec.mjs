@@ -12,7 +12,11 @@ import {
   MAX_LINE_QUANTITY,
   mergeCartLines,
 } from '../src/app/core/services/cart/cart.model.ts';
-import { endedOfferIdFrom, offerToLeaveOut } from '../src/app/core/services/orders/order-refusal.ts';
+import {
+  endedOfferIdFrom,
+  offerToLeaveOut,
+  priceChangedFrom,
+} from '../src/app/core/services/orders/order-refusal.ts';
 import {
   canShopOffer,
   dealHintAction,
@@ -143,6 +147,30 @@ describe('order refusals (ATS-108)', () => {
       leaveOut: null,
       lastChangedOfferId: null,
     });
+  });
+});
+
+describe('price offer refusals (ATS-139)', () => {
+  it('reads the products again only when the line had no offer (priceChanged)', () => {
+    assert.equal(priceChangedFrom({ details: { priceChanged: true, productId: 'tee-1' } }), true);
+    assert.equal(priceChangedFrom({ details: { changedOfferId: 'off-20' } }), false);
+    assert.equal(priceChangedFrom(new Error('offline')), false);
+    assert.equal(priceChangedFrom(null), false);
+  });
+
+  it('leaves out a price offer the same way as a Buy X Get Y offer', () => {
+    // Paused or ended on the server: left out at once.
+    assert.deepEqual(offerToLeaveOut({ details: { endedOfferId: 'off-20' } }, null), {
+      leaveOut: 'off-20',
+      lastChangedOfferId: null,
+    });
+    // Still live but no longer gives that price: only after the second refusal in a row.
+    const first = offerToLeaveOut({ details: { changedOfferId: 'off-20' } }, null);
+    assert.equal(first.leaveOut, null);
+    assert.equal(
+      offerToLeaveOut({ details: { changedOfferId: 'off-20' } }, first.lastChangedOfferId).leaveOut,
+      'off-20',
+    );
   });
 });
 

@@ -1,5 +1,6 @@
 import { Service } from '@angular/core';
 import { callableFrom, injectFunctionsAsync } from '@core/firebase';
+import type { ShownLinePrice } from '@core/services/cart/cart-deals';
 import type { CartLineDraft, CartLineGift } from '@core/services/cart/cart.model';
 import type { OrderPricingSnapshot } from '@core/services/orders/order-pricing.model';
 
@@ -19,7 +20,10 @@ export interface CheckoutShippingInput {
   readonly governorateId: string | null;
 }
 
-/** One bag line as the order callables read it. Prices are never sent. */
+/**
+ * One bag line as the order callables read it. The price checkout showed is sent only so the
+ * server can refuse rather than charge more; the server always prices the order itself.
+ */
 interface CheckoutLineInput {
   readonly productId: string;
   readonly variantId: string | null;
@@ -27,9 +31,13 @@ interface CheckoutLineInput {
   readonly selection: Readonly<Record<string, string>>;
   /** Picked free gifts; the server re-checks the offer, the choice and the stock. */
   readonly gifts: readonly CartLineGift[];
+  /** The per-piece price checkout showed; the server refuses rather than charge more. */
+  readonly shownUnitEgp: number | null;
+  /** The per-item offer behind that price, or null. */
+  readonly shownOfferId: string | null;
 }
 
-function toCheckoutLine(line: CartLineDraft): CheckoutLineInput {
+function toCheckoutLine(line: CartLineDraft, shown: ShownLinePrice | undefined): CheckoutLineInput {
   return {
     productId: line.productId,
     variantId: line.variantId,
@@ -41,7 +49,16 @@ function toCheckoutLine(line: CartLineDraft): CheckoutLineInput {
       productId: gift.productId,
       sizeId: gift.sizeId,
     })),
+    shownUnitEgp: shown?.shownUnitEgp ?? null,
+    shownOfferId: shown?.shownOfferId ?? null,
   };
+}
+
+function toCheckoutLines(
+  lines: readonly CartLineDraft[],
+  shown: readonly ShownLinePrice[],
+): CheckoutLineInput[] {
+  return lines.map((line, index) => toCheckoutLine(line, shown[index]));
 }
 
 export interface CreatePaymobOrderResult {
@@ -71,6 +88,8 @@ export class CheckoutOrderService {
     readonly endedOfferIds: readonly string[];
     /** Buy X Get Y offers the summary priced with; the server refuses rather than drop one. */
     readonly dealOfferIds: readonly string[];
+    /** What the summary showed per line (same order as `lines`). */
+    readonly shownPrices: readonly ShownLinePrice[];
   }): Promise<CreatePaymobOrderResult> {
     const call = await callableFrom<
       {
@@ -83,7 +102,7 @@ export class CheckoutOrderService {
       CreatePaymobOrderResult
     >(this.#functions(), 'createPaymobOrder');
     const response = await call({
-      lines: args.lines.map(toCheckoutLine),
+      lines: toCheckoutLines(args.lines, args.shownPrices),
       shipping: args.shipping,
       paymentMethod: 'paymob',
       endedOfferIds: args.endedOfferIds,
@@ -100,6 +119,8 @@ export class CheckoutOrderService {
     readonly endedOfferIds: readonly string[];
     /** Buy X Get Y offers the summary priced with; the server refuses rather than drop one. */
     readonly dealOfferIds: readonly string[];
+    /** What the summary showed per line (same order as `lines`). */
+    readonly shownPrices: readonly ShownLinePrice[];
   }): Promise<CreateManualOrderResult<M>> {
     const call = await callableFrom<
       {
@@ -112,7 +133,7 @@ export class CheckoutOrderService {
       CreateManualOrderResult<M>
     >(this.#functions(), args.method === 'instapay' ? 'createInstapayOrder' : 'createCodOrder');
     const response = await call({
-      lines: args.lines.map(toCheckoutLine),
+      lines: toCheckoutLines(args.lines, args.shownPrices),
       shipping: args.shipping,
       paymentMethod: args.method,
       endedOfferIds: args.endedOfferIds,

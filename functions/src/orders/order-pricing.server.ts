@@ -173,21 +173,109 @@ export function dealChangedError(offerId: string): HttpsError {
 }
 
 /**
- * Prices with the cached live offers (`getActiveOffers`, 60 seconds per server). When a Buy X
- * Get Y offer the bag showed isn't applied, the cache may simply be behind (staff just created or
- * widened the offer), so the offers are read again without the cache and the order priced again.
- * Only when the offer is still not applied is the order refused (`dealChangedError`), so the
- * order never costs more than the shopper saw.
+ * A bag line checkout showed cheaper per piece (`shownUnitEgp`) than the server prices it: a
+ * Percent off, Amount off or Set price offer was paused, ended, lowered or narrowed, or the product
+ * price went up, after the page priced the bag.
+ */
+export interface MissedPrice {
+  readonly missedPriceProductId: string;
+  /** The per-item offer checkout priced the line with, or null for none. */
+  readonly shownOfferId: string | null;
+  /**
+   * `shownOfferId` is live by the server's clock and rules (`liveOffers`). False when it is null,
+   * gone, paused, archived, or its time is up.
+   */
+  readonly live: boolean;
+  /**
+   * The server still prices the line with `shownOfferId`: the offer applies, so the product price
+   * itself (or the offer's amount) changed, and checkout should read the products again.
+   */
+  readonly sameOffer: boolean;
+}
+
+/** Something the page showed that this pricing doesn't give. */
+export type PricingMiss = MissedDeal | MissedPrice;
+
+/** Every line's shown unit price and offer, as `priceWithOffers` compares them. */
+export interface ShownLinePrice {
+  readonly productId: string;
+  readonly shownUnitEgp: number | null;
+  readonly shownOfferId: string | null;
+}
+
+/** The server's price of one piece of a line, and the per-item offer behind it (or null). */
+export interface ServerLinePrice {
+  readonly unitEgp: number;
+  readonly appliedOfferId: string | null;
+}
+
+/**
+ * The first line the server prices higher per piece than checkout showed, or null. A line without
+ * `shownUnitEgp` (an older page) is not compared. A lower or equal server price is never a miss:
+ * the order goes through at the server's price.
+ */
+export function missedLinePrice(
+  shown: readonly ShownLinePrice[],
+  server: readonly ServerLinePrice[],
+  liveOfferIds: ReadonlySet<string>,
+): MissedPrice | null {
+  for (const [index, line] of shown.entries()) {
+    const priced = server[index];
+    if (line.shownUnitEgp === null || priced === undefined || priced.unitEgp <= line.shownUnitEgp) continue;
+    return {
+      missedPriceProductId: line.productId,
+      shownOfferId: line.shownOfferId,
+      live: line.shownOfferId !== null && liveOfferIds.has(line.shownOfferId),
+      sameOffer: line.shownOfferId !== null && priced.appliedOfferId === line.shownOfferId,
+    };
+  }
+  return null;
+}
+
+/**
+ * The refusal when a line still costs more than checkout showed after the offers were read again.
+ * Always "Prices in your bag changed…"; the details tell checkout what to do next:
+ * `endedOfferId` when the offer it showed is no longer live on the server (checkout leaves it out
+ * at once), `changedOfferId` when it is live but no longer gives that price (checkout leaves it
+ * out only when the same one comes back twice in a row), and `priceChanged` when the product price
+ * itself went up (no offer shown, or the shown offer still applies; checkout reads the products
+ * again). A live offer that still applies sends both `priceChanged` and `changedOfferId`, so a
+ * reload fixes it and checkout still can't be refused forever.
+ */
+export function priceChangedError(missed: MissedPrice): HttpsError {
+  const productChanged = { priceChanged: true, productId: missed.missedPriceProductId };
+  const details =
+    missed.shownOfferId === null
+      ? productChanged
+      : !missed.live
+        ? { endedOfferId: missed.shownOfferId }
+        : missed.sameOffer
+          ? { ...productChanged, changedOfferId: missed.shownOfferId }
+          : { changedOfferId: missed.shownOfferId };
+  return new HttpsError(
+    'failed-precondition',
+    'Prices in your bag changed. Check your bag and place your order again.',
+    details,
+  );
+}
+
+/**
+ * Prices with the cached live offers (`getActiveOffers`, 60 seconds per server). When the page
+ * showed something this pricing doesn't give (a Buy X Get Y offer that isn't applied, or a line
+ * that costs more per piece than checkout showed), the cache may simply be behind (staff just
+ * created, widened or raised the offer), so the offers are read again without the cache and the
+ * order priced again. Only when it still misses is the order refused, so the order never costs
+ * more than the shopper saw.
  */
 export async function priceWithFreshOffersOnMiss<T>(
   loadOffers: (fresh: boolean) => Promise<readonly Offer[]>,
-  price: (offers: readonly Offer[]) => Promise<T | MissedDeal>,
+  price: (offers: readonly Offer[]) => Promise<T | PricingMiss>,
 ): Promise<T> {
   const first = await price(await loadOffers(false));
-  if (!isMissedDeal(first)) return first;
+  if (!isPricingMiss(first)) return first;
   const second = await price(await loadOffers(true));
-  if (!isMissedDeal(second)) return second;
-  throw missedDealError(second);
+  if (!isPricingMiss(second)) return second;
+  throw isMissedPrice(second) ? priceChangedError(second) : missedDealError(second);
 }
 
 /**
@@ -209,11 +297,23 @@ export function missedDealError(missed: MissedDeal): HttpsError {
   );
 }
 
+function isPricingMiss(value: unknown): value is PricingMiss {
+  return isMissedPrice(value) || isMissedDeal(value);
+}
+
 function isMissedDeal(value: unknown): value is MissedDeal {
   return (
     typeof value === 'object' &&
     value !== null &&
     typeof (value as { missedDealOfferId?: unknown }).missedDealOfferId === 'string'
+  );
+}
+
+function isMissedPrice(value: unknown): value is MissedPrice {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { missedPriceProductId?: unknown }).missedPriceProductId === 'string'
   );
 }
 
@@ -225,7 +325,7 @@ async function priceWithOffers(
   offers: readonly Offer[],
   shippingConfig: ReturnType<typeof parseCheckoutShippingConfig>,
   giftDocs: ReadonlyMap<string, DocumentData | undefined>,
-): Promise<PricedStoreOrder | MissedDeal> {
+): Promise<PricedStoreOrder | PricingMiss> {
   const ctx: PricingContext = { now: new Date(), signedIn, codes: [] };
   const pricedLines: OrderLinePrice[] = [];
   const cartProducts: PricedProduct[] = [];
@@ -248,6 +348,17 @@ async function priceWithOffers(
     const key = stockDemandKey(line.productId, result.data, line.selection);
     giftDemand.set(key, (giftDemand.get(key) ?? 0) + line.quantity);
   }
+
+  // Percent off, Amount off and Set price offers: a line that costs more per piece than checkout
+  // showed (the offer was paused, ended or lowered after the page priced the bag, or this server's
+  // offer cache is behind) would make the order cost more than the shopper saw:
+  // `priceWithFreshOffersOnMiss` reads the offers again and refuses only if it still misses.
+  const missedPrice = missedLinePrice(
+    input.lines,
+    lineResults.map((result) => ({ unitEgp: result.priced.unitEgp, appliedOfferId: result.appliedOfferId })),
+    new Set(liveOffers(offers, ctx).map((offer) => offer.id)),
+  );
+  if (missedPrice !== null) return missedPrice;
 
   // Buy X Get Y: worked out over the whole bag with the shared engine, so the order charges what
   // the bag showed. A piece it discounts gets no free gifts; the better deal for the shopper wins.
@@ -530,6 +641,8 @@ async function priceLine(
   variant: VariantFacts | null;
   weightGrams: number | null;
   data: DocumentData;
+  /** The per-item offer behind `priced.unitEgp`, or null. */
+  appliedOfferId: string | null;
 }> {
   const snap = await db.collection('products').doc(line.productId).get();
   if (!snap.exists) {
@@ -552,6 +665,7 @@ async function priceLine(
     variant,
     weightGrams,
     data,
+    appliedOfferId: unit.appliedOfferId,
     priced: {
       productId: line.productId,
       variantId: variant?.id ?? null,
