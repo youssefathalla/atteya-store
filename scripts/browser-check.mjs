@@ -189,8 +189,7 @@ function pages() {
       id: 'login',
       label: 'Sign In',
       path: '/login',
-      // Rendered only in the browser (RenderMode.Client): nothing to hydrate, the form is the proof.
-      clientOnly: true,
+      // Rendered only in the browser (RenderMode.Client); the email field shows it rendered.
       ready: 'input[type="email"]',
       readyWhy: 'The email field never showed.',
     },
@@ -267,16 +266,6 @@ async function check(context, size, def) {
     );
   }
 
-  // Server-rendered pages are only done once the browser has taken them over. A dev build logs
-  // "Angular hydrated N component(s)" at that moment; without it the check would pass on the
-  // server HTML alone and miss a crash or a stuck loader in the browser.
-  const hydrated = def.clientOnly
-    ? Promise.resolve(true)
-    : page
-        .waitForEvent('console', { predicate: (m) => /Angular hydrated/i.test(m.text()), timeout: NAV_TIMEOUT })
-        .then(() => true)
-        .catch(() => false);
-
   const started = Date.now();
   try {
     const response = await page.goto(BASE + path, { waitUntil: 'load', timeout: NAV_TIMEOUT });
@@ -288,7 +277,7 @@ async function check(context, size, def) {
     const landed = new URL(page.url()).pathname;
     if (landed !== wanted) problems.push(`The page sent the visitor to ${landed} instead.`);
 
-    if (!(await hydrated)) problems.push('The page never finished loading in the browser (no hydration).');
+    await waitForBrowserApp(page, problems);
     await page.waitForTimeout(SETTLE_MS);
     await waitForStoreLoader(page, problems);
 
@@ -329,7 +318,28 @@ async function check(context, size, def) {
   };
 }
 
-/** The first-load store loader ("Loading store") must go away. Runs after hydration, when it can exist. */
+/**
+ * The browser app must start on the server HTML: otherwise the page could pass on server HTML
+ * alone and a crash or a stuck loader in the browser would be missed (the server never draws
+ * the loader). Development builds publish the `ng` debug global, and `ng.getComponent` returns
+ * the root component as soon as the app has started; the timer starts after the page loaded.
+ */
+async function waitForBrowserApp(page, problems) {
+  try {
+    await page.waitForFunction(
+      () => {
+        const root = document.querySelector('app-root');
+        return Boolean(root && window.ng?.getComponent?.(root));
+      },
+      undefined,
+      { timeout: READY_TIMEOUT },
+    );
+  } catch {
+    problems.push('The app never started in the browser (this check needs a development build).');
+  }
+}
+
+/** The first-load store loader ("Loading store") must go away. Runs once the browser app runs. */
 async function waitForStoreLoader(page, problems) {
   const loader = page.locator('[role="status"][aria-label="Loading store"]');
   try {
