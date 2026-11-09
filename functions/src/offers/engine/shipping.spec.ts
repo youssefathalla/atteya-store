@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { parcelWeight, planDelivery, type ParcelLine, type ShippingBox } from './shipping.js';
+import {
+  parcelWeight,
+  planDelivery,
+  shippingQuote,
+  type ParcelLine,
+  type ShippingBox,
+  type ShippingSettings,
+} from './shipping.js';
+import type { Offer, PricedProduct, PricingContext } from './types.js';
 
 /** Client's Egypt rates (Nov 2026): up to 1 kg = 115, up to 3 kg = 135, heavier = agreed. */
 const EGYPT: readonly ShippingBox[] = [
@@ -105,5 +113,123 @@ describe('client shipping examples (Egypt)', () => {
 
   it('with no boxes delivery is unavailable', () => {
     assert.equal(planDelivery([], 'egypt', parcelWeight([])).kind, 'unavailable');
+  });
+});
+
+/** International boxes (placeholder rates): one box, far dearer than Egypt. */
+const ABROAD: readonly ShippingBox[] = [
+  {
+    id: 'box1',
+    name: 'Box 1',
+    maxWeightGrams: 2_000,
+    maxLengthCm: 40,
+    maxWidthCm: 30,
+    maxHeightCm: 15,
+    feeEgp: 1_800,
+  },
+];
+
+const SETTINGS: ShippingSettings = {
+  currency: 'EGP',
+  egyptBoxes: EGYPT,
+  internationalBoxes: ABROAD,
+  freeOver: { active: false, threshold: null },
+  promo: { active: false, fee: 0, startsAt: null, endsAt: null, minSubtotal: null, banner: null },
+  note: '',
+};
+
+const CTX: PricingContext = { now: new Date('2026-11-10T12:00:00Z'), signedIn: true, codes: [] };
+
+const TEE_LINE: PricedProduct = {
+  productId: 'tee-1',
+  brandId: 'adidas',
+  categoryIds: ['apparel', 't-shirts'],
+  type: '',
+  modelGroup: null,
+  colors: [],
+  sizes: [],
+  tags: [],
+  price: 1_000,
+  name: 'Tee',
+  compareAtPrice: null,
+};
+
+function freeShippingOffer(overrides: Partial<Offer> = {}): Offer {
+  return {
+    id: 'free-ship',
+    name: 'Free shipping this month',
+    title: 'Free shipping',
+    badge: null,
+    description: null,
+    active: true,
+    archived: false,
+    visibility: 'public',
+    audience: 'everyone',
+    schedule: { startsAt: null, endsAt: null, timezone: 'Africa/Cairo' },
+    priority: 0,
+    stacking: 'stackable',
+    saleItems: 'bestOf',
+    scope: 'cart',
+    conditions: { anyOf: [] },
+    exclude: { anyOf: [] },
+    minimum: null,
+    reward: { kind: 'freeShipping' },
+    limits: { totalUses: null, perCustomer: null },
+    requiresCode: false,
+    ...overrides,
+  };
+}
+
+function quote(
+  region: 'egypt' | 'international',
+  goodsSubtotal: number,
+  offers: readonly Offer[],
+  settings: ShippingSettings = SETTINGS,
+) {
+  return shippingQuote(
+    settings,
+    { region, totalWeightGrams: 250, goodsSubtotal, lines: [TEE_LINE] },
+    offers,
+    CTX,
+  );
+}
+
+describe('free shipping offers are for Egypt orders only', () => {
+  it('Egypt: a live Free shipping offer makes shipping free', () => {
+    const result = quote('egypt', 1_000, [freeShippingOffer()]);
+    assert.equal(result.fee, 0);
+    assert.equal(result.reason, 'offer');
+    assert.equal(result.offerId, 'free-ship');
+  });
+
+  it('Egypt: below the offer minimum the box fee is paid', () => {
+    const offer = freeShippingOffer({ minimum: { subtotal: 2_000 } });
+    assert.equal(quote('egypt', 1_999, [offer]).fee, 115);
+    assert.equal(quote('egypt', 2_000, [offer]).fee, 0);
+  });
+
+  it('Egypt: an offer limited to other products does not apply', () => {
+    const offer = freeShippingOffer({
+      conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['rackets'] }] }] },
+    });
+    assert.equal(quote('egypt', 1_000, [offer]).fee, 115);
+  });
+
+  it('abroad: the same offer never changes shipping', () => {
+    const result = quote('international', 1_000, [freeShippingOffer()]);
+    assert.equal(result.fee, 1_800);
+    assert.equal(result.reason, 'box');
+    assert.equal(result.offerId, undefined);
+  });
+
+  it('abroad: an offer with its minimum met still pays the box fee', () => {
+    const offer = freeShippingOffer({ minimum: { subtotal: 500 } });
+    assert.equal(quote('international', 5_000, [offer]).fee, 1_800);
+  });
+
+  it('both regions: Settings → Shipping free over still applies (unchanged)', () => {
+    const settings: ShippingSettings = { ...SETTINGS, freeOver: { active: true, threshold: 3_000 } };
+    assert.equal(quote('egypt', 3_000, [], settings).reason, 'freeOver');
+    assert.equal(quote('international', 3_000, [freeShippingOffer()], settings).reason, 'freeOver');
   });
 });
