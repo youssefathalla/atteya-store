@@ -78,23 +78,31 @@
 
         @if (box.hasDetails) {
           <ol class="list-decimal ps-5 space-y-3 font-body-md">
-            <li class="space-y-2">
-              <p>Transfer to:</p>
-              @if (box.address) {
-                <div class="elements-between gap-3 flex-wrap">
-                  <span class="font-title-sm font-bold! break-all">{{ box.address }}</span>
-                  <button
-                    matButton="outlined"
-                    type="button"
-                    aria-label="Copy InstaPay address"
-                    (click)="copy(box.address, 'InstaPay address')"
-                  >
-                    Copy
-                  </button>
-                </div>
+            <li class="space-y-4">
+              @let both = !!box.number && !!box.address;
+              @let way = both ? instapayWay() : box.number ? 'number' : 'address';
+              <p>
+                @if (both) {
+                  Transfer to your phone number <span class="font-bold!">or</span> InstaPay address:
+                } @else if (way === 'number') {
+                  Transfer to this phone number:
+                } @else {
+                  Transfer to this InstaPay address:
+                }
+              </p>
+              @if (both) {
+                <mat-button-toggle-group
+                  class="instapay-switch"
+                  aria-label="How to transfer"
+                  [value]="way"
+                  (change)="instapayWay.set($event.value)"
+                >
+                  <mat-button-toggle value="number">Phone Number</mat-button-toggle>
+                  <mat-button-toggle value="address">InstaPay Address</mat-button-toggle>
+                </mat-button-toggle-group>
               }
-              @if (box.number) {
-                <div class="elements-between gap-3 flex-wrap">
+              <div class="elements-between gap-3 flex-wrap">
+                @if (way === 'number') {
                   <span class="font-title-sm font-bold!">{{ box.number }}</span>
                   <button
                     matButton="outlined"
@@ -104,8 +112,18 @@
                   >
                     Copy
                   </button>
-                </div>
-              }
+                } @else {
+                  <span class="font-title-sm font-bold! break-all">{{ box.address }}</span>
+                  <button
+                    matButton="outlined"
+                    type="button"
+                    aria-label="Copy InstaPay address"
+                    (click)="copy(box.address, 'InstaPay address')"
+                  >
+                    Copy
+                  </button>
+                }
+              </div>
             </li>
             <li>Send us a screenshot of the transfer.</li>
           </ol>
