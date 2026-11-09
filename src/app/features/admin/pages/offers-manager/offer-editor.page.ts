@@ -34,7 +34,12 @@ import { OfferPreviewComponent } from './components/offer-preview/offer-preview.
 import { OfferSettingsComponent } from './components/offer-settings/offer-settings.component';
 import { RewardEditorComponent } from './components/reward-editor/reward-editor.component';
 import { ScheduleEditorComponent } from './components/schedule-editor/schedule-editor.component';
-import { createEmptyOfferDraft, withoutEmptyFreeItemRules } from './models/offer-admin.model';
+import {
+  createEmptyOfferDraft,
+  isUnavailableDeal,
+  UNAVAILABLE_DEAL_MESSAGE,
+  withoutEmptyFreeItemRules,
+} from './models/offer-admin.model';
 import { OffersAdminService } from './services/offers-admin.service';
 
 @Component({
@@ -105,6 +110,9 @@ export class OfferEditorPageComponent implements OnInit {
     }),
   );
 
+  /** True for an old offer of a deal type hidden for launch: it opens but Save Offer stays off. */
+  readonly isUnavailableDeal = computed(() => isUnavailableDeal(this.draft().reward, this.draft().scope));
+
   readonly pageHeading = computed(() => (this.offerId() ? 'Edit offer' : 'Create offer'));
 
   constructor() {
@@ -159,6 +167,10 @@ export class OfferEditorPageComponent implements OnInit {
 
   async save(): Promise<void> {
     if (this.isSaving()) return;
+    if (this.isUnavailableDeal()) {
+      this.#snackbar.error(UNAVAILABLE_DEAL_MESSAGE);
+      return;
+    }
     if (this.validation().errors.length > 0) {
       this.#snackbar.error(this.validation().errors[0].message);
       return;

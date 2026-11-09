@@ -9,6 +9,7 @@ import {
   type OfferConditions,
   type OfferDraft,
   type OfferReward,
+  type OfferScope,
   type PricedProduct,
 } from '@core/services/offers/engine';
 
@@ -66,11 +67,31 @@ export const REWARD_PICKER_OPTIONS: readonly RewardPickerOption[] = [
   { id: 'amountOff', label: 'Amount off' },
   { id: 'fixedPrice', label: 'Set price' },
   { id: 'buyXGetY', label: 'Buy X get Y' },
-  { id: 'tiered', label: 'Buy more, save more' },
   { id: 'freeGift', label: 'Free gift' },
   { id: 'freeShipping', label: 'Free shipping' },
-  { id: 'cartThreshold', label: 'Spend X, get…' },
 ];
+
+/**
+ * Deal types kept in the engine but hidden from the Deal type list for launch ("Buy more, save
+ * more" and "Spend X, get…" don't take the promised money off yet, ATS-135). An old offer of one of
+ * these still opens, but it can't be saved.
+ */
+const HIDDEN_REWARD_KINDS: readonly RewardPickerKind[] = ['tiered', 'cartThreshold'];
+
+export const UNAVAILABLE_DEAL_MESSAGE = "This deal type isn't available yet. Pause or archive this offer.";
+
+/** The Deal type the form shows for a reward (a cart-wide percent or amount off is "Spend X, get…"). */
+export function rewardPickerKind(reward: OfferReward, scope: OfferScope): RewardPickerKind {
+  if (scope === 'cart' && (reward.kind === 'percentOff' || reward.kind === 'amountOff')) {
+    return 'cartThreshold';
+  }
+  return reward.kind;
+}
+
+/** True when the offer's deal type is hidden for launch, so the form must not save it. */
+export function isUnavailableDeal(reward: OfferReward, scope: OfferScope): boolean {
+  return HIDDEN_REWARD_KINDS.includes(rewardPickerKind(reward, scope));
+}
 
 /** Which item becomes free in a Buy X get Y offer. */
 export type FreeItemMode = 'cheapest' | 'products' | 'categoryBrand';
