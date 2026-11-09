@@ -124,7 +124,7 @@ interface BagRecommendationHits {
 export class CartDrawerComponent {
   /**
    * Where this copy of the bag is mounted: `side` = the desktop drawer, `sheet` = the phone
-   * slide-up panel. Both copies stay mounted; only the one on screen loads recommendations.
+   * slide-up panel. Both copies stay mounted; only the phone copy shows (and loads) recommendations.
    */
   readonly placement = input.required<'side' | 'sheet'>();
 
@@ -402,7 +402,8 @@ export class CartDrawerComponent {
 
   readonly #recommendationsResource = resource({
     params: () => {
-      if (!this.#shown()) return undefined;
+      // The desktop side bag has no Recommended row, so it never reads any products.
+      if (this.placement() !== 'sheet' || !this.#shown()) return undefined;
       return bagRecommendationFilter(this.#bagCategoryIds()) ?? undefined;
     },
     loader: async ({ params: filters }): Promise<BagRecommendationHits> => {
@@ -432,7 +433,7 @@ export class CartDrawerComponent {
       next === undefined ? (previous?.value ?? null) : next,
   });
 
-  /** Up to 8 in-stock products from the bag's categories that are not in the bag yet. */
+  /** Up to 4 in-stock products from the bag's categories that are not in the bag yet. */
   readonly recommendations = computed<readonly ProductCardData[]>(() => {
     const loaded = this.#recommendationHits();
     if (!loaded) return [];
