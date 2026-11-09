@@ -9,7 +9,7 @@
  *
  * The products come from `scripts/data/product-players.json` (`{ id, slug, name, players }`),
  * a list proposed from product names and summaries that Youssef approves (or corrects)
- * before `--apply`. `matchedOn` is only a review note. Agents never run `--apply`.
+ * before `--apply`. `matchedOn` is only a review note. On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety).
  * - Players missing from `settings/players` are added with the names below; a player
  *   already in the list keeps the name staff gave it. Nothing is removed or renamed.
  * - A product that already has players is left alone, so re-running is safe and anything
