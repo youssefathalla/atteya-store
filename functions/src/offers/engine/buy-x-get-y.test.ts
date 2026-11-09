@@ -149,10 +149,14 @@ describe('buy x get y in the bag', () => {
     ]);
   });
 
-  it('not enough items: no discount, and a nudge when only the free piece is missing', () => {
+  it('not enough items: no discount, and a nudge that counts every missing piece', () => {
     const one = priceBagDeals([line(TEE_A)], [bxgy('b2g1', {})], CTX);
     assert.equal(one.discount, 0);
-    assert.deepEqual(one.hints, []);
+    assert.equal(one.hints.length, 1);
+    assert.equal(one.hints[0].kind, 'add-more');
+    assert.equal(one.hints[0].missing, 2);
+    assert.equal(one.hints[0].lineIndex, 0);
+    assert.equal(one.hints[0].samePool, true);
 
     const two = priceBagDeals([line(TEE_A), line(TEE_B)], [bxgy('b2g1', {})], CTX);
     assert.equal(two.discount, 0);
@@ -161,6 +165,26 @@ describe('buy x get y in the bag', () => {
     assert.equal(two.hints[0].missing, 1);
     assert.equal(two.hints[0].lineIndex, 1);
     assert.equal(two.hints[0].samePool, true);
+  });
+
+  it('after a full group with repeat on, the leftover piece gets a nudge for the next group', () => {
+    const four = priceBagDeals([line(TEE_A, 4)], [bxgy('b2g1', {})], CTX);
+    assert.equal(four.discount, 500);
+    assert.equal(four.hints.length, 1);
+    assert.equal(four.hints[0].missing, 2);
+  });
+
+  it('free item from another product: no nudge until the bought part is complete', () => {
+    const buy2 = bxgy(
+      'two-rackets-grip',
+      {
+        buy: { quantity: 2 },
+        getConditions: { anyOf: [{ allOf: [{ field: 'productId', in: ['grip-1'] }] }] },
+      },
+      { conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['rackets'] }] }] } },
+    );
+    assert.deepEqual(priceBagDeals([line(RACKET)], [buy2], CTX).hints, []);
+    assert.equal(priceBagDeals([line(RACKET, 2)], [buy2], CTX).hints[0].kind, 'choose-free');
   });
 
   it('mixed bag: only qualifying items count, two offers never share a piece', () => {
