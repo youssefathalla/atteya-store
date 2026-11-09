@@ -97,12 +97,18 @@ export function isRawDeploy(command) {
   if (typeof command !== 'string') return false;
   // Bash `\`, PowerShell backtick, cmd.exe `^`: each is removed with the line break after it and in front of a
   // plain character, one shell at a time and all together, and every version is checked next to the original.
-  const fold = (text, escape) =>
-    text
-      .replace(new RegExp(`\\${escape}\\r?\\n`, 'g'), '')
-      .replace(new RegExp(`\\${escape}(?=[^\\s])`, 'g'), '');
-  const versions = [command, ...['\\', '`', '^'].map((escape) => fold(command, escape))];
-  versions.push(['\\', '`', '^'].reduce(fold, command));
+  // The join-only versions (line breaks removed, other escapes kept) are checked too: a quoted Windows path split
+  // by a backslash-newline (`"C:\tools\fire\⏎base.cmd"`) only matches once joined, with its path backslashes left.
+  const ESCAPES = ['\\', '`', '^'];
+  const join = (text, escape) => text.replace(new RegExp(`\\${escape}\\r?\\n`, 'g'), '');
+  const fold = (text, escape) => join(text, escape).replace(new RegExp(`\\${escape}(?=[^\\s])`, 'g'), '');
+  const versions = [
+    command,
+    ...ESCAPES.map((escape) => join(command, escape)),
+    ...ESCAPES.map((escape) => fold(command, escape)),
+    ESCAPES.reduce(join, command),
+    ESCAPES.reduce(fold, command),
+  ];
   return versions.some((text) => FIREBASE_CLI.test(text) && DEPLOY_WORD.test(text));
 }
 
