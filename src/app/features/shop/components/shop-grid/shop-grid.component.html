@@ -13,7 +13,7 @@
 } @else {
   <div class="shop-product-grid">
     @for (card of cards(); track card.id; let i = $index) {
-      <app-product-card [product]="card" [priority]="i < 2" />
+      <app-product-card [product]="card" [priority]="i < firstRow" />
     }
   </div>
 }
