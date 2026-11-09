@@ -49,6 +49,12 @@ concurrency:
 jobs:
   gate:
     name: Claim a Fix Round
+    # Each started job bills at least a minute (a skipped one is free), so everything the claim
+    # script would turn down from the event alone is checked here: a Bugbot review only when it
+    # reports issues (the script needs "found <n> potential issue(s)"; a clean Bugbot review never
+    # claims a round), a security review, or a successful Claude Review run of a pull request.
+    # The Claude review's verdict lives in its PR comment, not in the event, so a clean Claude
+    # review still starts this job and the script stops it.
     if: >-
       vars.BUGBOT_CLAUDE_FIX == 'enabled' && ((
         github.event_name == 'pull_request_review' &&
@@ -59,13 +65,15 @@ jobs:
         github.event.pull_request.base.ref == 'develop' &&
         github.event.pull_request.user.login == 'youssefathalla' &&
         github.event.pull_request.head.repo.full_name == github.repository &&
-        (contains(github.event.review.body, '<!-- BUGBOT_REVIEW -->') ||
+        ((contains(github.event.review.body, '<!-- BUGBOT_REVIEW -->') &&
+          contains(github.event.review.body, 'potential issue')) ||
          contains(github.event.review.body, 'CURSOR_AUTOMATION_ID'))
       ) || (
         github.event_name == 'workflow_run' &&
         github.event.workflow_run.event == 'pull_request' &&
         github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_repository.full_name == github.repository
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.pull_requests[0].number
       ))
     runs-on: ubuntu-latest
     timeout-minutes: 5

@@ -15,7 +15,12 @@ permissions:
 jobs:
   linear-id:
     name: Linear ID in Title
-    if: github.head_ref != 'develop' && github.head_ref != 'main'
+    # An edit that leaves the title (and the base branch) as it was, such as a description edit,
+    # does not start the job: the result from the last check still stands. auto-merge.yml never
+    # lets the "skipped" check this leaves on the commit replace that result.
+    if: >-
+      github.head_ref != 'develop' && github.head_ref != 'main' &&
+      (github.event.action != 'edited' || github.event.changes.title || github.event.changes.base)
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
