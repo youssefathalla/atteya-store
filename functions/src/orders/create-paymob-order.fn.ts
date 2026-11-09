@@ -16,7 +16,7 @@ import {
 } from '../paymob/paymob-client.js';
 import { paymobSecrets, requireConfiguredPaymob } from '../paymob/paymob-config.js';
 import { isCardOrWalletLive } from '../store/store-info.js';
-import { readGiftOfferUses, releaseGiftOfferUses, type UsedGiftOffer } from './offer-usage.js';
+import { readOfferUses, releaseOfferUses, type UsedOffer } from './offer-usage.js';
 import { parseCreateStoreOrderRequest } from './order-request.js';
 import { priceStoreOrder, type OrderPricingSnapshot } from './order-pricing.server.js';
 import { nextDailyOrderCount, utcDayKey } from './order-rate-limit.js';
@@ -56,7 +56,7 @@ export const createPaymobOrder = onCall(
     }
 
     const db = getFirestore();
-    const priced = await priceStoreOrder(db, input, true);
+    const priced = await priceStoreOrder(db, input, true, caller.uid);
     if (priced.pricing.totalEgp < 1) {
       throw new HttpsError('failed-precondition', 'Your order total is too low to pay online.');
     }
@@ -66,8 +66,9 @@ export const createPaymobOrder = onCall(
 
     // Reserve the daily slot in a transaction BEFORE minting a Paymob Intention,
     // so concurrent callers cannot each create gateway sessions then lose the race.
-    // Free gift offer uses are claimed in the same transaction and given back if Paymob fails.
-    await reserveDailyOrderSlot(db, rateLimitRef, caller.uid, day, priced.giftOffers);
+    // Offer uses (free gifts, Buy X Get Y) are claimed in the same transaction and given back if
+    // Paymob fails, with any offer this order switched off at its last use switched back on.
+    const endedOfferIds = await reserveDailyOrderSlot(db, rateLimitRef, caller.uid, day, priced.usedOffers);
 
     const orderRef = db.collection('orders').doc();
     const orderId = orderRef.id;
@@ -117,9 +118,9 @@ export const createPaymobOrder = onCall(
         console.error('Failed to release order rate-limit slot after Paymob error', releaseError);
       }
       try {
-        await releaseGiftOfferUses(db, caller.uid, priced.giftOffers);
+        await releaseOfferUses(db, caller.uid, priced.usedOffers, endedOfferIds);
       } catch (releaseError: unknown) {
-        console.error('Failed to give back free gift offer uses', releaseError);
+        console.error('Failed to give back offer uses', releaseError);
       }
       throw new HttpsError(
         'unavailable',
@@ -169,9 +170,9 @@ export const createPaymobOrder = onCall(
         console.error('Failed to release order rate-limit slot after write error', releaseError);
       }
       try {
-        await releaseGiftOfferUses(db, caller.uid, priced.giftOffers);
+        await releaseOfferUses(db, caller.uid, priced.usedOffers, endedOfferIds);
       } catch (releaseError: unknown) {
-        console.error('Failed to give back free gift offer uses', releaseError);
+        console.error('Failed to give back offer uses', releaseError);
       }
       throw new HttpsError(
         'unavailable',
@@ -194,13 +195,13 @@ async function reserveDailyOrderSlot(
   rateLimitRef: DocumentReference,
   uid: string,
   day: string,
-  giftOffers: readonly UsedGiftOffer[],
-): Promise<void> {
-  await db.runTransaction(async (tx) => {
+  usedOffers: readonly UsedOffer[],
+): Promise<readonly string[]> {
+  return db.runTransaction(async (tx) => {
     const snap = await tx.get(rateLimitRef);
     const nextRateCount = nextDailyOrderCount(snap.data()?.['count']);
-    const addGiftOfferUses = await readGiftOfferUses(tx, db, uid, giftOffers);
-    addGiftOfferUses();
+    const addOfferUses = await readOfferUses(tx, db, uid, usedOffers);
+    const endedOfferIds = addOfferUses();
     tx.set(
       rateLimitRef,
       {
@@ -211,6 +212,7 @@ async function reserveDailyOrderSlot(
       },
       { merge: true },
     );
+    return endedOfferIds;
   });
 }
 

@@ -68,12 +68,17 @@ export class CheckoutOrderService {
   async placePaymobOrder(args: {
     readonly lines: readonly CartLineDraft[];
     readonly shipping: CheckoutShippingInput;
+    readonly endedOfferIds: readonly string[];
+    /** Buy X Get Y offers the summary priced with; the server refuses rather than drop one. */
+    readonly dealOfferIds: readonly string[];
   }): Promise<CreatePaymobOrderResult> {
     const call = await callableFrom<
       {
         lines: readonly CheckoutLineInput[];
         shipping: CheckoutShippingInput;
         paymentMethod: 'paymob';
+        endedOfferIds: readonly string[];
+        dealOfferIds: readonly string[];
       },
       CreatePaymobOrderResult
     >(this.#functions(), 'createPaymobOrder');
@@ -81,6 +86,8 @@ export class CheckoutOrderService {
       lines: args.lines.map(toCheckoutLine),
       shipping: args.shipping,
       paymentMethod: 'paymob',
+      endedOfferIds: args.endedOfferIds,
+      dealOfferIds: args.dealOfferIds,
     });
     return response.data;
   }
@@ -90,12 +97,17 @@ export class CheckoutOrderService {
     readonly method: M;
     readonly lines: readonly CartLineDraft[];
     readonly shipping: CheckoutShippingInput;
+    readonly endedOfferIds: readonly string[];
+    /** Buy X Get Y offers the summary priced with; the server refuses rather than drop one. */
+    readonly dealOfferIds: readonly string[];
   }): Promise<CreateManualOrderResult<M>> {
     const call = await callableFrom<
       {
         lines: readonly CheckoutLineInput[];
         shipping: CheckoutShippingInput;
         paymentMethod: M;
+        endedOfferIds: readonly string[];
+        dealOfferIds: readonly string[];
       },
       CreateManualOrderResult<M>
     >(this.#functions(), args.method === 'instapay' ? 'createInstapayOrder' : 'createCodOrder');
@@ -103,6 +115,8 @@ export class CheckoutOrderService {
       lines: args.lines.map(toCheckoutLine),
       shipping: args.shipping,
       paymentMethod: args.method,
+      endedOfferIds: args.endedOfferIds,
+      dealOfferIds: args.dealOfferIds,
     });
     return response.data;
   }

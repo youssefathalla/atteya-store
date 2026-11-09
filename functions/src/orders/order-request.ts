@@ -12,6 +12,8 @@ const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
 /** Most gift picks on one bag line; matches `MAX_OFFER_GIFTS` in the offer engine. */
 const MAX_LINE_GIFTS = 5;
+/** Most offer ids in one of checkout's offer id lists. */
+const MAX_ENDED_OFFERS = 20;
 export type StorePaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
 
 export interface OrderLineInput {
@@ -49,6 +51,18 @@ export interface CreateStoreOrderRequest {
   readonly lines: readonly OrderLineInput[];
   readonly shipping: OrderShippingInput;
   readonly paymentMethod: StorePaymentMethod;
+  /**
+   * Buy X Get Y offers checkout already told the shopper have ended (from an earlier refusal) and
+   * left out of the total it shows. The server leaves one out only when its usage counts confirm it has
+   * no use left for this shopper (`confirmedEndedOfferIds`); any other id is ignored.
+   */
+  readonly endedOfferIds: readonly string[];
+  /**
+   * Buy X Get Y offers the bag priced this order with. One the server doesn't apply (after reading
+   * the offers again without the cache) refuses the order (`details.changedOfferId`) instead of
+   * charging more than the shopper saw. Never adds a discount.
+   */
+  readonly dealOfferIds: readonly string[];
 }
 
 export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderRequest {
@@ -65,7 +79,23 @@ export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderReq
       'Enter an Egyptian mobile number, e.g. 010 1234 5678.',
     );
   }
-  return { lines, shipping, paymentMethod };
+  const endedOfferIds = parseOfferIds(data['endedOfferIds']);
+  const dealOfferIds = parseOfferIds(data['dealOfferIds']);
+  return { lines, shipping, paymentMethod, endedOfferIds, dealOfferIds };
+}
+
+/**
+ * A list of offer ids from checkout (`endedOfferIds`, `dealOfferIds`); anything unreadable is left
+ * out. The server checks each id itself before it changes anything.
+ */
+export function parseOfferIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = new Set<string>();
+  for (const entry of raw) {
+    if (ids.size >= MAX_ENDED_OFFERS) break;
+    if (typeof entry === 'string' && entry.length >= 1 && entry.length <= 128) ids.add(entry);
+  }
+  return Array.from(ids);
 }
 
 function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {

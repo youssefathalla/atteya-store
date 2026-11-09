@@ -96,6 +96,7 @@ export class OrdersManagerPageComponent implements OnInit {
     productId: '',
     productName: '',
     giftName: null,
+    dealLabel: null,
     selectionLabel: '',
     quantity: 0,
     currentStock: null,

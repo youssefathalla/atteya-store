@@ -3,9 +3,13 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { getActiveOffers } from '../offers/offer-cache.js';
 import {
   boxesForRegion,
+  liveOffers,
   parcelWeight,
   planDelivery,
+  priceBagDeals,
   priceItem,
+  type BagLineFacts,
+  type BagLineDeals,
   shippingQuote,
   type DeliveryPlan,
   type Offer,
@@ -20,7 +24,7 @@ import {
   parseCheckoutShippingConfig,
   SHIPPING_DOC_PATH,
 } from '../shipping/shipping-settings.js';
-import type { UsedGiftOffer } from './offer-usage.js';
+import { confirmedEndedOfferIds, offerFullError, type UsedOffer } from './offer-usage.js';
 import {
   giftProductIds,
   resolveLineGifts,
@@ -67,6 +71,23 @@ export interface OrderLinePrice {
   readonly imagePath: string | null;
   /** Set on a free gift line (price 0): which offer and gift, and the line it came with. */
   readonly gift?: OrderLineGift;
+  /**
+   * Whole EGP a Buy X Get Y offer took off this line (`lineDisplay` is already after it).
+   * Missing on lines without one, and on older orders.
+   */
+  readonly discountEgp?: number;
+  /** The Buy X Get Y offers behind `discountEgp`: which pieces got which discount. */
+  readonly deals?: readonly OrderLineDeal[];
+}
+
+/** One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100). */
+export interface OrderLineDeal {
+  readonly offerId: string;
+  /** Pieces of the line discounted. */
+  readonly units: number;
+  /** 100 = free, 50 = half price. */
+  readonly percent: number;
+  readonly discountEgp: number;
 }
 
 /** Marks an order line as a free gift. Gift lines follow the line they belong to. */
@@ -113,8 +134,11 @@ export interface OrderPricingSnapshot {
 
 export interface PricedStoreOrder {
   readonly pricing: OrderPricingSnapshot;
-  /** Free gift offers this order gives gifts from (each counts once towards its limits). */
-  readonly giftOffers: readonly UsedGiftOffer[];
+  /**
+   * Offers this order uses: Free gift offers it gives gifts from and Buy X Get Y offers that
+   * discount it (each counts once towards its limits).
+   */
+  readonly usedOffers: readonly UsedOffer[];
 }
 
 /**
@@ -125,13 +149,98 @@ export async function priceStoreOrder(
   db: Firestore,
   input: CreateStoreOrderRequest,
   signedIn: boolean,
+  uid: string,
 ): Promise<PricedStoreOrder> {
-  const [shippingSnap, offers, giftDocs] = await Promise.all([
+  const [shippingSnap, giftDocs] = await Promise.all([
     db.doc(SHIPPING_DOC_PATH).get(),
-    getActiveOffers(db),
     readGiftDocs(db, giftProductIds(input.lines)),
   ]);
   const shippingConfig = parseCheckoutShippingConfig(shippingSnap.data());
+  return priceWithFreshOffersOnMiss(
+    (fresh) => getActiveOffers(db, fresh),
+    (offers) => priceWithOffers(db, input, signedIn, uid, offers, shippingConfig, giftDocs),
+  );
+}
+
+/** A Buy X Get Y offer the bag showed (`dealOfferIds`) that this pricing didn't apply. */
+export interface MissedDeal {
+  readonly missedDealOfferId: string;
+  /** The offer's title, '' when the server doesn't have it. */
+  readonly title: string;
+  /**
+   * The offer is live by the server's clock and rules (`liveOffers`: active, not archived, inside
+   * its schedule, audience and code match). False when it is gone, paused, or its time is up.
+   */
+  readonly live: boolean;
+}
+
+/**
+ * The refusal when a Buy X Get Y offer the bag showed still doesn't apply after the offers were
+ * read again: the offer may still be live (only this order doesn't get it), so checkout shows the
+ * message and does not leave the offer out (`details.changedOfferId`, not `endedOfferId`).
+ */
+export function dealChangedError(offerId: string): HttpsError {
+  return new HttpsError(
+    'failed-precondition',
+    'Prices in your bag changed. Check your bag and place your order again.',
+    { changedOfferId: offerId },
+  );
+}
+
+/**
+ * Prices with the cached live offers (`getActiveOffers`, 60 seconds per server). When a Buy X
+ * Get Y offer the bag showed isn't applied, the cache may simply be behind (staff just created or
+ * widened the offer), so the offers are read again without the cache and the order priced again.
+ * Only when the offer is still not applied is the order refused (`dealChangedError`), so the
+ * order never costs more than the shopper saw.
+ */
+export async function priceWithFreshOffersOnMiss<T>(
+  loadOffers: (fresh: boolean) => Promise<readonly Offer[]>,
+  price: (offers: readonly Offer[]) => Promise<T | MissedDeal>,
+): Promise<T> {
+  const first = await price(await loadOffers(false));
+  if (!isMissedDeal(first)) return first;
+  const second = await price(await loadOffers(true));
+  if (!isMissedDeal(second)) return second;
+  throw missedDealError(second);
+}
+
+/**
+ * The refusal for a deal that still misses after the fresh read. An offer that is no longer live
+ * on the server (its time is up while the shopper's clock is behind, paused, archived, gone) is
+ * refused as ended (`details.endedOfferId`), so checkout leaves it out and the shopper can order.
+ * Only an offer that is live but still not applied gets `changedOfferId`.
+ */
+export function missedDealError(missed: MissedDeal): HttpsError {
+  if (missed.live) return dealChangedError(missed.missedDealOfferId);
+  return offerFullError(
+    {
+      offerId: missed.missedDealOfferId,
+      title: missed.title,
+      limits: { totalUses: null, perCustomer: null },
+      kind: 'deal',
+    },
+    'ended',
+  );
+}
+
+function isMissedDeal(value: unknown): value is MissedDeal {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { missedDealOfferId?: unknown }).missedDealOfferId === 'string'
+  );
+}
+
+async function priceWithOffers(
+  db: Firestore,
+  input: CreateStoreOrderRequest,
+  signedIn: boolean,
+  uid: string,
+  offers: readonly Offer[],
+  shippingConfig: ReturnType<typeof parseCheckoutShippingConfig>,
+  giftDocs: ReadonlyMap<string, DocumentData | undefined>,
+): Promise<PricedStoreOrder | MissedDeal> {
   const ctx: PricingContext = { now: new Date(), signedIn, codes: [] };
   const pricedLines: OrderLinePrice[] = [];
   const cartProducts: PricedProduct[] = [];
@@ -142,7 +251,7 @@ export async function priceStoreOrder(
   const region = isInternational ? 'international' : 'egypt';
   const regionBoxes = boxesForRegion(shippingConfig.settings, region);
 
-  const giftOffers = new Map<string, UsedGiftOffer>();
+  const usedOffers = new Map<string, UsedOffer>();
   // Pieces the order takes from stock, by product and size: every paid line first, then gifts as
   // they're added, so a gift's stock covers the paid pieces and all gifts of the order together.
   const giftDemand = new Map<string, number>();
@@ -155,19 +264,69 @@ export async function priceStoreOrder(
     giftDemand.set(key, (giftDemand.get(key) ?? 0) + line.quantity);
   }
 
+  // Buy X Get Y: worked out over the whole bag with the shared engine, so the order charges what
+  // the bag showed. A piece it discounts gets no free gifts; the better deal for the shopper wins.
+  // Every live offer counts, as in the bag. Checkout's `endedOfferIds` (offers an earlier refusal
+  // said have ended) are left out only when the usage counts confirm they have no use left for this
+  // shopper: with two Buy X Get Y offers on the same items, dropping one that still has uses could
+  // let a bigger, lower-priority discount win. An offer with no use left is refused in the order
+  // transaction (`readOfferUses`) with its id, never dropped silently.
+  const liveDeals = offers.filter((offer) => offer.reward.kind === 'buyXGetY');
+  const ended =
+    input.endedOfferIds.length === 0
+      ? new Set<string>()
+      : await confirmedEndedOfferIds(db, uid, liveDeals, input.endedOfferIds);
+  const dealOffers = ended.size === 0 ? offers : offers.filter((offer) => !ended.has(offer.id));
+  const deals = priceBagDeals(
+    input.lines.map((line, index): BagLineFacts => {
+      const { product, variant, priced } = lineResults[index]!;
+      return {
+        product,
+        variant,
+        quantity: line.quantity,
+        unitPrice: priced.unitEgp,
+        onSale: product.compareAtPrice !== null && product.compareAtPrice > product.price,
+        giftWorth: giftWorth(line, giftDocs),
+      };
+    }),
+    dealOffers,
+    ctx,
+  );
+  for (const offerId of deals.offerIds) {
+    const offer = offers.find((entry) => entry.id === offerId);
+    if (offer) usedOffers.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind: 'deal' });
+  }
+  // A Buy X Get Y offer the bag showed (`dealOfferIds`) that this order doesn't get (it ended, was
+  // switched off, the bag's clock was behind, or this server's offer cache is) would make the order
+  // cost more than the shopper saw: `priceWithFreshOffersOnMiss` reads the offers again and refuses
+  // only if it still misses.
+  const missedDeal = missedDealOfferId(input.dealOfferIds, deals.offerIds);
+  if (missedDeal !== null) {
+    return {
+      missedDealOfferId: missedDeal,
+      title: offers.find((offer) => offer.id === missedDeal)?.title ?? '',
+      live: liveOffers(offers, ctx).some((offer) => offer.id === missedDeal),
+    };
+  }
+
   for (const [index, line] of input.lines.entries()) {
-    const { priced, product, variant, weightGrams } = lineResults[index]!;
+    const { product, variant, weightGrams } = lineResults[index]!;
+    const lineDeals = deals.lines[index]!;
+    const priced = withDeals(lineResults[index]!.priced, lineDeals);
     const forLine = pricedLines.length;
     pricedLines.push(priced);
     cartProducts.push(product);
-    subtotalEgp += priced.unitEgp * line.quantity;
+    subtotalEgp += priced.lineDisplay;
     parcelLines.push({ weightGrams, quantity: line.quantity });
 
-    // Free gifts: one set per piece, price 0, listed right after their line. They ship (weight)
-    // and are taken from stock on confirm like any line, but never add to the subtotal.
+    // Free gifts: one set per piece that has no Buy X Get Y discount, price 0, listed right after
+    // their line. They ship (weight) and are taken from stock on confirm like any line, but never
+    // add to the subtotal.
+    const giftQuantity = lineDeals.giftUnits;
+    if (giftQuantity === 0) continue;
     const gifts = resolveLineGifts({
       picks: line.gifts,
-      quantity: line.quantity,
+      quantity: giftQuantity,
       product,
       variant,
       offers,
@@ -176,11 +335,11 @@ export async function priceStoreOrder(
       giftDemand,
     });
     for (const gift of gifts) {
-      pricedLines.push(giftOrderLine(gift, line.quantity, forLine));
-      parcelLines.push({ weightGrams: readWeightGrams(gift.data['weightGrams']), quantity: line.quantity });
+      pricedLines.push(giftOrderLine(gift, giftQuantity, forLine));
+      parcelLines.push({ weightGrams: readWeightGrams(gift.data['weightGrams']), quantity: giftQuantity });
       const offer = offers.find((entry) => entry.id === gift.offerId);
-      if (offer && !giftOffers.has(offer.id)) {
-        giftOffers.set(offer.id, { offerId: offer.id, limits: offer.limits });
+      if (offer && !usedOffers.has(offer.id)) {
+        usedOffers.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind: 'gift' });
       }
     }
   }
@@ -217,7 +376,53 @@ export async function priceStoreOrder(
     fulfilment,
   };
 
-  return { pricing, giftOffers: Array.from(giftOffers.values()) };
+  return { pricing, usedOffers: Array.from(usedOffers.values()) };
+}
+
+/**
+ * The first Buy X Get Y offer the bag showed that the order's pricing didn't apply, or null.
+ * Only ever refuses an order; it never adds a discount.
+ */
+export function missedDealOfferId(shown: readonly string[], applied: readonly string[]): string | null {
+  const got = new Set(applied);
+  return shown.find((id) => !got.has(id)) ?? null;
+}
+
+/**
+ * What the free gifts one piece of a bag line asks for are worth: the prices of the gift products
+ * shoppers can see (published), as the bag and checkout count them; a gift product that is gone or
+ * unpublished is worth 0, since it can't be given. Only used to choose between a gift and a
+ * Buy X Get Y discount; the picks are checked later.
+ */
+export function giftWorth(
+  line: Pick<OrderLineInput, 'gifts'>,
+  giftDocs: ReadonlyMap<string, DocumentData | undefined>,
+): number {
+  let worth = 0;
+  for (const pick of line.gifts) {
+    const data = giftDocs.get(pick.productId);
+    if (data?.['published'] !== true) continue;
+    const price = Number(data['price'] ?? 0);
+    if (Number.isFinite(price) && price > 0) worth += Math.round(price);
+  }
+  return worth;
+}
+
+/** The line with its Buy X Get Y discount taken off (unchanged when it has none). */
+function withDeals(priced: OrderLinePrice, lineDeals: BagLineDeals): OrderLinePrice {
+  if (lineDeals.discount <= 0) return priced;
+  const lineDisplay = Math.max(0, priced.unitEgp * priced.quantity - lineDeals.discount);
+  return {
+    ...priced,
+    lineDisplay,
+    discountEgp: lineDeals.discount,
+    deals: lineDeals.deals.map((deal) => ({
+      offerId: deal.offerId,
+      units: deal.units,
+      percent: deal.percent,
+      discountEgp: deal.discount,
+    })),
+  };
 }
 
 /** Live gift product docs by id; a missing doc maps to `undefined`. */

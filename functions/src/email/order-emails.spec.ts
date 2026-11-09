@@ -317,6 +317,21 @@ describe('order email photos', () => {
   });
 });
 
+describe('order email Buy X Get Y', () => {
+  it('shows the discounted line price with a Free tag', () => {
+    const doc = orderDoc({ subtotalEgp: 2000 });
+    const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
+    pricing.lines[0]!['discountEgp'] = 1000;
+    pricing.lines[0]!['deals'] = [{ offerId: 'b2g1', units: 1, percent: 100, discountEgp: 1000 }];
+    const order = read(doc);
+    assert.equal(order.lines[0]!.lineEgp, 1000);
+    assert.equal(order.lines[0]!.dealTag, '1 free');
+    const email = renderOrderEmail('cod-placed', order, ctx);
+    assert.ok(email.html.includes('>1 free<'));
+    assert.ok(email.text.includes(`${formatEgp(1000)} (1 free)`));
+  });
+});
+
 describe('order email help line', () => {
   it('shows the business WhatsApp number with a chat link when set', () => {
     const email = renderOrderEmail('cod-placed', read(orderDoc({})), { ...ctx, whatsappNumber: '+20 120 565 8954' });

@@ -600,7 +600,7 @@ function itemsText(lines: readonly OrderEmailLine[]): string {
     .map((line) =>
       line.giftName !== null
         ? `  + ${line.giftName}: ${lineTitle(line)} (${lineDetails(line)}): Free`
-        : `- ${lineTitle(line)} (${lineDetails(line)}): ${formatEgp(line.lineEgp)}`,
+        : `- ${lineTitle(line)} (${lineDetails(line)}): ${formatEgp(line.lineEgp)}${line.dealTag ? ` (${line.dealTag})` : ''}`,
     )
     .join('\n');
 }
@@ -689,7 +689,11 @@ function itemsTable(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): s
         ? `<td width="84" valign="top" style="padding:12px 0 12px 12px;"><img src="${escapeHtml(src)}" width="72" alt="" style="display:block;width:72px;height:auto;border:0;border-radius:2px;"></td>\n`
         : '';
       const gift = line.giftName !== null;
-      const tags = [...(gift ? [line.giftName!] : []), ...lineTags(line)]
+      const tags = [
+        ...(gift ? [line.giftName!] : []),
+        ...(line.dealTag ? [line.dealTag] : []),
+        ...lineTags(line),
+      ]
         .map(
           (tag) =>
             `<span style="display:inline-block;margin:6px 6px 0 0;padding:1px 8px;border:1px solid #d4d4d4;font-size:12px;color:#444444;">${escapeHtml(tag)}</span>`,

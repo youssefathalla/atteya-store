@@ -21,8 +21,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { lineDisplayAmount } from '@core/services/cart/cart-pricing';
+import { dealOfferIdsOf, priceBag, type PricedBagLine } from '@core/services/cart/cart-deals';
 import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
-import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
@@ -31,17 +31,17 @@ import { isCardOrWalletLive, STORE_INFO, whatsappChatUrl } from '@core/config/st
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import {
+  dealTag,
   displayDecimals,
   parcelWeight,
   planDelivery,
-  priceItem,
   shippingQuote,
   type ParcelLine,
   toDisplayAmount,
   type PricedProduct,
   type PricingContext,
-  type VariantFacts,
 } from '@core/services/offers/engine';
+import { offerToLeaveOut } from '@core/services/orders/order-refusal';
 import {
   CheckoutOrderService,
   type CheckoutPaymentMethod,
@@ -49,7 +49,6 @@ import {
 } from '@core/services/orders/checkout-order.service';
 import type { Product, ProductVariant } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
-import { toVariantFacts } from '@core/services/products/utils/priced-product.utils';
 import { SeoService } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
@@ -107,6 +106,8 @@ type PricedBag =
       readonly ctx: PricingContext;
       /** Line totals in the visitor's currency, in bag order; null for a line no longer available. */
       readonly lineDisplay: readonly (number | null)[];
+      /** Each line priced in EGP with its Buy X Get Y discount, in bag order (null = gone). */
+      readonly lines: readonly (PricedBagLine | null)[];
       readonly pricedLines: readonly PricedProduct[];
       readonly parcelLines: readonly ParcelLine[];
       readonly subtotalEgp: number;
@@ -128,6 +129,9 @@ interface CheckoutSummaryItem {
   readonly quantity: number;
   /** Line total in the visitor's currency; empty while prices load. */
   readonly price: string;
+  /** Buy X Get Y: the line before the discount (struck through) and its tag ("Free", "−50%"). */
+  readonly was: string;
+  readonly deal: string;
   /** Free gifts picked with the item, each as "Free shirt: Adidas Simple Polo White, L". */
   readonly gifts: readonly { readonly key: string; readonly label: string }[];
 }
@@ -269,20 +273,15 @@ export class CheckoutPageComponent implements OnInit {
         return new Map<string, CheckoutProductInfo | null>();
       }
       const ids = [...new Set(lines.map((line) => line.productId))];
-      // Free gift products are only named and weighed here; one that can't be read never hides the summary.
+      // Free gift products are read like the items: what a gift is worth decides between it and a
+      // Buy X Get Y discount, so one that can't be read stops the summary instead of guessing.
+      // A gone or unpublished gift reads as `null` (worth 0, as the server counts it).
       const giftIds = [
         ...new Set(lines.flatMap((line) => (line.gifts ?? []).map((gift) => gift.productId))),
       ].filter((id) => !ids.includes(id));
-      const [loaded, gifts] = await Promise.all([
-        Promise.all(ids.map((id) => this.#readProduct(id))),
-        Promise.all(giftIds.map((id) => this.#readProduct(id).catch(() => undefined))),
-      ]);
-      const products = new Map<string, CheckoutProductInfo | null>(ids.map((id, index) => [id, loaded[index]]));
-      giftIds.forEach((id, index) => {
-        const info = gifts[index];
-        if (info !== undefined) products.set(id, info);
-      });
-      return products;
+      const allIds = [...ids, ...giftIds];
+      const loaded = await Promise.all(allIds.map((id) => this.#readProduct(id)));
+      return new Map<string, CheckoutProductInfo | null>(allIds.map((id, index) => [id, loaded[index]!]));
     },
   });
 
@@ -348,33 +347,40 @@ export class CheckoutPageComponent implements OnInit {
     if (lines.some((line) => !products.has(line.productId))) return { state: 'missing-item' };
 
     const offers = this.#offers.all();
-    const ctx: PricingContext = { now: new Date(), signedIn: true, codes: [] };
+    // The offer clock moves every minute, so an offer whose time is up stops discounting here too.
+    const ctx: PricingContext = { now: this.#offers.now(), signedIn: true, codes: [] };
     const entry = this.#currency.entry();
+    // Per-item offers on each piece, then Buy X Get Y over the whole bag, like the server.
+    const bag = priceBag(lines, products, offers, ctx);
     const lineDisplay: (number | null)[] = [];
     const pricedLines: PricedProduct[] = [];
     const parcelLines: ParcelLine[] = [];
     let subtotalEgp = 0;
     let subtotalDisplay = 0;
 
-    for (const line of lines) {
+    for (const [index, line] of lines.entries()) {
       const info = products.get(line.productId);
       if (info === undefined) return { state: 'missing-item' };
+      const priced = bag.lines[index];
       // No longer available: shown with a remove button and left out of the totals.
-      if (info === null) {
+      if (info === null || !priced) {
         lineDisplay.push(null);
         continue;
       }
       parcelLines.push({ weightGrams: info.weightGrams, quantity: line.quantity });
-      // Each free gift goes in the same parcel (one per piece), as the server weighs it.
+      // Each free gift goes in the same parcel (one per piece without a Buy X Get Y discount),
+      // as the server weighs it.
       for (const gift of line.gifts ?? []) {
         parcelLines.push({
           weightGrams: products.get(gift.productId)?.weightGrams ?? null,
-          quantity: line.quantity,
+          quantity: priced.deals.giftUnits,
         });
       }
-      const unitEgp = priceItem(info.priced, variantFor(info, line), offers, ctx).effectivePrice;
-      const display = lineDisplayAmount(toDisplayAmount(unitEgp, entry), line.quantity);
-      subtotalEgp += unitEgp * line.quantity;
+      const display =
+        priced.deals.discount > 0
+          ? toDisplayAmount(priced.lineEgp, entry)
+          : lineDisplayAmount(toDisplayAmount(priced.unitEgp, entry), line.quantity);
+      subtotalEgp += priced.lineEgp;
       subtotalDisplay += display;
       lineDisplay.push(display);
       pricedLines.push(info.priced);
@@ -387,6 +393,7 @@ export class CheckoutPageComponent implements OnInit {
       offers,
       ctx,
       lineDisplay,
+      lines: bag.lines,
       pricedLines,
       parcelLines,
       subtotalEgp,
@@ -413,10 +420,16 @@ export class CheckoutPageComponent implements OnInit {
           options: '',
           quantity: line.quantity,
           price: '',
+          was: '',
+          deal: '',
           gifts: [],
         };
       }
       const display = bag.state === 'ready' ? bag.lineDisplay[index] : null;
+      const priced = bag.state === 'ready' ? bag.lines[index] : null;
+      const deal = priced && priced.deals.discount > 0 ? priced : null;
+      // A piece with a Buy X Get Y discount comes without its free gifts.
+      const giftUnits = priced ? priced.deals.giftUnits : line.quantity;
       return {
         unavailable: false,
         name: info?.name ?? 'Item',
@@ -426,7 +439,11 @@ export class CheckoutPageComponent implements OnInit {
         options: info ? selectionLabel(info.options, line.selection) : '',
         quantity: line.quantity,
         price: display == null ? '' : formatMoney(display, entry.code, decimals),
-        gifts: (line.gifts ?? []).map((gift) => {
+        was: deal
+          ? formatMoney(lineDisplayAmount(toDisplayAmount(deal.unitEgp, entry), line.quantity), entry.code, decimals)
+          : '',
+        deal: deal ? dealTag(deal.deals.deals, line.quantity) : '',
+        gifts: (giftUnits > 0 ? (line.gifts ?? []) : []).map((gift) => {
           const name = giftNameFor(offers, gift.offerId, gift.giftId);
           const giftInfo = products?.get(gift.productId);
           const size = giftInfo?.options
@@ -708,6 +725,9 @@ export class CheckoutPageComponent implements OnInit {
     this.summaryOpen.update((open) => !open);
   }
 
+  /** The offer of the last "Prices in your bag changed" refusal on this visit (see `placeOrder`). */
+  #lastChangedOfferId: string | null = null;
+
   async placeOrder(): Promise<void> {
     if (this.isSubmitting() || this.isEmpty()) return;
     if (this.abroadOrderingClosed()) {
@@ -768,6 +788,11 @@ export class CheckoutPageComponent implements OnInit {
       return;
     }
 
+    // The Buy X Get Y offers this summary shows: the server refuses (with the offer's id) rather
+    // than charge more because one of them no longer applies.
+    const priced = this.#pricedBag();
+    const dealOfferIds = priced.state === 'ready' ? dealOfferIdsOf(priced.lines) : [];
+
     this.isSubmitting.set(true);
     try {
       const shipping: CheckoutShippingInput = {
@@ -786,6 +811,8 @@ export class CheckoutPageComponent implements OnInit {
         const result = await this.#checkout.placePaymobOrder({
           lines: this.lines(),
           shipping,
+          endedOfferIds: this.#offers.endedIds(),
+          dealOfferIds,
         });
         // Wait for the account bag to save before the full-page redirect to Paymob.
         await this.#cart.clear();
@@ -801,58 +828,27 @@ export class CheckoutPageComponent implements OnInit {
         method,
         lines: this.lines(),
         shipping,
+        endedOfferIds: this.#offers.endedIds(),
+        dealOfferIds,
       });
       void this.#cart.clear();
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {
         state: { checkoutResult: result },
       });
     } catch (error: unknown) {
+      // An offer in the bag has ended for this shopper (`endedOfferId`): leave it out of the bag and
+      // the summary for the rest of the visit, so they see the new total and place the order again
+      // at it. "Prices in your bag changed" (`changedOfferId`) only shows the message the first
+      // time (the live offers listener brings the bag up to date); the same offer refused twice in
+      // a row is left out too, so Place Order never fails forever.
+      const next = offerToLeaveOut(error, this.#lastChangedOfferId);
+      this.#lastChangedOfferId = next.lastChangedOfferId;
+      if (next.leaveOut) this.#offers.markEnded(next.leaveOut);
       this.#snackbar.error(callableMessage(error) ?? 'We could not place your order. Try again in a moment.');
     } finally {
       this.isSubmitting.set(false);
     }
   }
-}
-
-/**
- * Preview twin of the server's selection match. `variantId` is accepted only
- * when it is the row the bag selection resolves to.
- */
-function variantFor(info: CheckoutProductInfo, line: CartLineDraft): VariantFacts | null {
-  if (info.variants.length > 0) {
-    const matched = info.variants.find((item) =>
-      Object.entries(item.values).every(([key, val]) => line.selection[key] === val),
-    );
-    if (!matched) return null;
-    if (line.variantId != null && line.variantId !== matched.id) return null;
-    return toVariantFacts(info, matched);
-  }
-  return variantFromSelection(info, line.selection);
-}
-
-function variantFromSelection(
-  info: CheckoutProductInfo,
-  selection: Readonly<Record<string, string>>,
-): VariantFacts | null {
-  const sizeId = selection['size'];
-  const colourId = selection['colour'];
-  if (!sizeId && !colourId) return null;
-  const size = optionValue(info, 'size', sizeId);
-  const colour = optionValue(info, 'colour', colourId);
-  return {
-    id: `${sizeId ?? 'any'}-${colourId ?? 'any'}`,
-    size: size?.label ?? null,
-    color: colour?.color ?? null,
-  };
-}
-
-function optionValue(
-  info: CheckoutProductInfo,
-  key: 'size' | 'colour',
-  valueId: string | undefined,
-): Product['options'][number]['values'][number] | undefined {
-  if (!valueId) return undefined;
-  return info.options.find((option) => option.key === key)?.values.find((val) => val.id === valueId);
 }
 
 function hasTypedAddress(shipping: CheckoutShippingInput): boolean {

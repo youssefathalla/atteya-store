@@ -74,19 +74,32 @@
                       <p>{{ selection }}</p>
                     }
                   </div>
-                  <div class="shrink-0 elements-end-col text-end">
-                    <span [class]="linePriceClass(line.productId)">
-                      {{ lineTotalLabel(line.productId, line.quantity) }}
+                  @let price = linePrices()[$index];
+                  <div class="shrink-0 elements-end-col gap-0.5 text-end">
+                    <span [class]="price?.was ? 'font-body-md font-bold!' : 'font-body-md'">
+                      {{ price?.total }}
                     </span>
-                    @if (lineListLabel(line.productId, line.quantity); as listLabel) {
-                      <span class="font-body-sm text-on-surface-variant line-through">
-                        {{ listLabel }}
-                      </span>
+                    @if (price?.was; as was) {
+                      <span class="font-body-sm text-on-surface-variant line-through">{{ was }}</span>
+                    }
+                    @if (price?.deal; as deal) {
+                      <span class="deal-tag">{{ deal }}</span>
                     }
                   </div>
                 </div>
 
-                @for (gift of giftRows(line); track gift.key) {
+                @for (hint of dealHints($index); track hint.offerId) {
+                  @if (hint.kind === 'add-more') {
+                    <p class="bag-deal-hint">
+                      <mat-icon name="local_offer" size="sm" />
+                      <span>{{ dealHintText(hint) }}</span>
+                    </p>
+                  } @else {
+                    <app-bag-free-pick [hint]="hint" />
+                  }
+                }
+
+                @for (gift of giftRows(line, $index); track gift.key) {
                   <div class="w-full elements-between items-start! gap-3 font-label-md text-on-surface-variant">
                     <span class="min-w-0">{{ gift.label }}</span>
                     <span class="shrink-0">Free</span>

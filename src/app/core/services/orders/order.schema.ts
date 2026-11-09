@@ -47,6 +47,18 @@ export const OrderLinePriceSchema = v.object({
       forLine: v.pipe(v.number(), v.integer(), v.minValue(0)),
     }),
   ),
+  /** Whole EGP a Buy X Get Y offer took off the line (`lineDisplay` is already after it). */
+  discountEgp: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  deals: v.optional(
+    v.array(
+      v.object({
+        offerId: v.string(),
+        units: v.pipe(v.number(), v.integer(), v.minValue(1)),
+        percent: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
+        discountEgp: v.pipe(v.number(), v.integer(), v.minValue(0)),
+      }),
+    ),
+  ),
 });
 
 export const OrderShippingLineSchema = v.object({
