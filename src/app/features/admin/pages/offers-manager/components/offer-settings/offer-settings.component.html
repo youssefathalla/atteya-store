@@ -105,24 +105,6 @@
   <p class="font-body-sm text-on-surface-variant">{{ saleItemsExplanation() }}</p>
 
   <div class="w-full border-t border-outline-variant pt-4 elements-start-col gap-3">
-    <mat-checkbox [checked]="draft().requiresCode" (change)="toggleRequiresCode($event.checked)">
-      Requires a coupon code at checkout
-    </mat-checkbox>
-
-    @if (draft().requiresCode) {
-      <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
-        Coupon code
-        <input
-          type="text"
-          maxlength="32"
-          placeholder="PADEL10"
-          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full uppercase"
-          [value]="draft().code ?? ''"
-          (input)="updateText('code', $event)"
-        />
-      </label>
-    }
-
     <div class="elements-center flex-wrap gap-4">
       <label class="elements-start-col gap-1 font-label-md">
         Total uses limit (optional)
