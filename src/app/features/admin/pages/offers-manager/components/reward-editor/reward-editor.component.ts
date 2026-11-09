@@ -11,9 +11,17 @@ import {
   type OfferScope,
   type OfferTier,
 } from '@core/services/offers/engine';
-import type { Product } from '@core/services/products/product.model';
+import type { Brand, Category, Product } from '@core/services/products/product.model';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import { REWARD_PICKER_OPTIONS, type RewardPickerKind } from '../../models/offer-admin.model';
+import {
+  FREE_ITEM_OPTIONS,
+  MAX_FREE_ITEM_VALUES,
+  readFreeItem,
+  REWARD_PICKER_OPTIONS,
+  type FreeItemMode,
+  type RewardPickerKind,
+  withFreeItem,
+} from '../../models/offer-admin.model';
 
 @Component({
   selector: 'app-reward-editor',
@@ -26,6 +34,8 @@ export class RewardEditorComponent {
   readonly scope = model.required<OfferScope>();
   readonly minimum = model.required<OfferMinimum | null>();
   readonly products = input.required<readonly Product[]>();
+  readonly categories = input<readonly Category[]>([]);
+  readonly brands = input<readonly Brand[]>([]);
 
   readonly pickerOptions = REWARD_PICKER_OPTIONS;
 
@@ -163,6 +173,62 @@ export class RewardEditorComponent {
       maxApplications:
         field === 'maxApps' ? (Number.isFinite(num) && num > 0 ? num : null) : r.maxApplications,
     });
+  }
+
+  readonly freeItemOptions = FREE_ITEM_OPTIONS;
+
+  /** The saved "Which item is free?" choice, read back from the reward. */
+  readonly freeItem = computed(() => {
+    const r = this.reward();
+    return r.kind === 'buyXGetY' ? readFreeItem(r) : null;
+  });
+
+  readonly categoryNames = computed(
+    () => new Map(this.categories().map((category) => [category.id, category.name])),
+  );
+  readonly brandNames = computed(
+    () => new Map(this.brands().map((brand) => [brand.id, brand.name])),
+  );
+
+  onFreeItemModeChange(mode: FreeItemMode): void {
+    const r = this.reward();
+    const current = this.freeItem();
+    if (r.kind !== 'buyXGetY' || !current || current.mode === mode) return;
+    this.reward.set(withFreeItem(r, mode, current.selection));
+  }
+
+  addFreeItemValue(kind: 'productIds' | 'categoryIds' | 'brandIds', event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+    const value = target.value;
+    target.value = '';
+    this.#changeFreeItem(kind, (list) =>
+      !value || list.includes(value) || list.length >= MAX_FREE_ITEM_VALUES
+        ? list
+        : [...list, value],
+    );
+  }
+
+  removeFreeItemValue(kind: 'productIds' | 'categoryIds' | 'brandIds', value: string): void {
+    this.#changeFreeItem(kind, (list) => list.filter((id) => id !== value));
+  }
+
+  onRepeatChange(repeat: boolean): void {
+    const r = this.reward();
+    if (r.kind !== 'buyXGetY') return;
+    this.reward.set({ ...r, repeat });
+  }
+
+  #changeFreeItem(
+    kind: 'productIds' | 'categoryIds' | 'brandIds',
+    change: (list: readonly string[]) => readonly string[],
+  ): void {
+    const r = this.reward();
+    const current = this.freeItem();
+    if (r.kind !== 'buyXGetY' || !current) return;
+    this.reward.set(
+      withFreeItem(r, current.mode, { ...current.selection, [kind]: change(current.selection[kind]) }),
+    );
   }
 
   onTierChange(index: number, field: 'min' | 'percent', event: Event): void {
