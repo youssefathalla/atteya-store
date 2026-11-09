@@ -90,13 +90,18 @@ const DEPLOY_WORD = /(?:^|[\s"'`(;&|=])deploy(?::[\w,:-]+)?(?=$|[\s"'`);&|])/im;
  * The one exception: the shell deletes a backslash-newline (line continuation) and the backslash in front of a
  * plain character before it runs anything, so `firebase\⏎ deploy`, `fire\⏎base deploy` or `firebase \deploy`
  * still deploy. The text is also checked with those removed; the original is checked too, so Windows paths
- * (`C:\…\firebase.cmd`) still match.
+ * (`C:\…\firebase.cmd`) still match. PowerShell does the same with a backtick (`` fire`base `deploy ``,
+ * backtick-newline), so the text is also checked with those removed.
  */
 export function isRawDeploy(command) {
   if (typeof command !== 'string') return false;
   const joined = command.replace(/\\\r?\n/g, '');
   const unescaped = joined.replace(/\\(?=[^\s])/g, '');
-  return [command, joined, unescaped].some((text) => FIREBASE_CLI.test(text) && DEPLOY_WORD.test(text));
+  const psJoined = command.replace(/`\r?\n/g, '');
+  const psUnescaped = psJoined.replace(/`(?=[^\s])/g, '');
+  return [command, joined, unescaped, psJoined, psUnescaped].some(
+    (text) => FIREBASE_CLI.test(text) && DEPLOY_WORD.test(text),
+  );
 }
 
 /** The reason to block this call, or null to let it through. */
