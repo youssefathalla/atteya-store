@@ -25,6 +25,7 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
     >
       <mat-icon name="arrow_forward" />
     </button>
+    @if (showProgress()) {
     <div
       class="row-scroll-nav__progress"
       role="progressbar"
@@ -35,10 +36,13 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
     >
       <div class="row-scroll-nav__progress-fill" aria-hidden="true"></div>
     </div>
+    }
   `,
 })
 export class RowScrollNavComponent {
   readonly progress = input(0);
+  /** Show the thin progress line next to the arrows (off when the page draws its own). */
+  readonly showProgress = input(true);
   readonly canPrev = input(false);
   readonly canNext = input(false);
   readonly prev = output<void>();

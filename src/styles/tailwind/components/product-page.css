@@ -104,40 +104,67 @@
   }
 
   /**
-   * Gift choice as a photo tile: square photo, short name under it. Selected = aria-pressed:
-   * 2px black border (the padding shrinks as the border grows, so the tile never shifts) and a ✓.
+   * Gift choice as a big card in one sideways row (`.pdp-gift-row`, built on `.scroll-row`):
+   * 156px wide, 4:5 photo, one short line under it. Selected = aria-pressed: 1px black border and
+   * the caption turns black with white text and a ✓ before the label.
    */
-  .pdp-gift-tile {
-    @apply relative w-full elements-start-col gap-1 p-[3px] border border-outline-variant border-shape bg-surface cursor-pointer transition-colors;
+  .pdp-gift-row {
+    --scroll-gap: 0.75rem;
+    @apply scroll-px-0;
   }
 
-  .pdp-gift-tile:enabled:hover {
+  .pdp-gift-card {
+    @apply relative shrink-0 w-39 flex flex-col border border-outline-variant border-shape bg-surface overflow-hidden cursor-pointer transition-colors;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  .pdp-gift-card:enabled:hover {
     @apply border-primary;
   }
 
-  .pdp-gift-tile[aria-pressed='true'] {
-    @apply p-0.5 border-2 border-primary;
+  .pdp-gift-card[aria-pressed='true'] {
+    @apply border-primary;
   }
 
-  .pdp-gift-tile[aria-pressed='true']::after {
-    content: '✓';
-    @apply absolute top-1 end-1 size-5 elements-center bg-primary text-on-primary font-label-sm border-shape;
-  }
-
-  .pdp-gift-tile:disabled {
+  .pdp-gift-card:disabled {
     @apply cursor-not-allowed opacity-60;
   }
 
-  .pdp-gift-tile__photo {
-    @apply relative block w-full aspect-square overflow-hidden border-shape;
+  .pdp-gift-card__photo {
+    @apply relative block w-full aspect-4/5 overflow-hidden;
   }
 
-  .pdp-gift-tile__name {
-    @apply w-full px-1 pb-1 text-center font-label-sm line-clamp-2;
+  .pdp-gift-card__label {
+    @apply block w-full h-8 px-2 leading-8 text-center truncate bg-surface font-label-md font-bold!;
+  }
+
+  .pdp-gift-card[aria-pressed='true'] .pdp-gift-card__label {
+    @apply bg-primary text-on-primary;
+  }
+
+  .pdp-gift-card[aria-pressed='true'] .pdp-gift-card__label::before {
+    content: '✓ ';
+    white-space: pre;
+  }
+
+  /** Thin progress line under a gift row. */
+  .pdp-gift-progress {
+    @apply relative h-px w-full mt-3 bg-outline-variant overflow-hidden;
+  }
+
+  .pdp-gift-progress .row-scroll-nav__progress-fill {
+    @apply absolute inset-y-0 left-0 bg-primary;
+    width: calc(var(--row-scroll-progress, 0) * 100%);
+  }
+
+  /** Arrows in a gift step's title row: no padding above them. */
+  .pdp-gift-nav {
+    @apply pt-0 sm:pt-0;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .pdp-gift-tile {
+    .pdp-gift-card {
       transition: none;
     }
   }
@@ -153,7 +180,7 @@
 
   /** One numbered gift step. The step Add to Bag asks for gets a red line on its left. */
   .pdp-gift-step {
-    @apply w-full m-0 p-0 border-0;
+    @apply w-full min-w-0 m-0 p-0 border-0;
   }
 
   .pdp-gift-step--prompt {
