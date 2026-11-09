@@ -9,6 +9,7 @@ import { CartService } from '@core/services/cart/cart.service';
 import type { BagDealHint } from '@core/services/offers/engine';
 import type { Product } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
+import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
@@ -36,6 +37,7 @@ export class BagFreePickComponent {
   readonly hint = input.required<BagDealHint>();
 
   readonly #cart = inject(CartService);
+  readonly #snackbar = inject(SnackbarService);
   readonly #firestore = injectFirestore();
 
   /** The tile whose size is being chosen. */
@@ -85,12 +87,17 @@ export class BagFreePickComponent {
   }
 
   #add(choice: FreePickChoice, sizeId: string | null): void {
-    this.#cart.add({
+    const added = this.#cart.add({
       productId: choice.productId,
       variantId: null,
       selection: sizeId ? { ...choice.fixedSelection, size: sizeId } : choice.fixedSelection,
       quantity: 1,
     });
+    // A full bag adds nothing: say so and keep the choice open, as Add to Bag does.
+    if (!added) {
+      this.#snackbar.error('Your bag is full. Remove an item to add this one.');
+      return;
+    }
     this.openChoice.set(null);
   }
 
