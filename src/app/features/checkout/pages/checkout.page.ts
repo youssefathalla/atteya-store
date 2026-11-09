@@ -41,9 +41,9 @@ import {
   type PricedProduct,
   type PricingContext,
 } from '@core/services/offers/engine';
+import { endedOfferIdFrom } from '@core/services/orders/order-refusal';
 import {
   CheckoutOrderService,
-  endedOfferIdFrom,
   type CheckoutPaymentMethod,
   type CheckoutShippingInput,
 } from '@core/services/orders/checkout-order.service';
@@ -833,8 +833,10 @@ export class CheckoutPageComponent implements OnInit {
         state: { checkoutResult: result },
       });
     } catch (error: unknown) {
-      // An offer in the bag has ended for this shopper: leave it out of the bag and the summary
-      // for the rest of the visit, so they see the new total and place the order again at it.
+      // An offer in the bag has ended for this shopper (its use limit): leave it out of the bag and
+      // the summary for the rest of the visit, so they see the new total and place the order again
+      // at it. "Prices in your bag changed" (`changedOfferId`) only shows the message: the live
+      // offers listener already brings the bag up to date.
       const endedOfferId = endedOfferIdFrom(error);
       if (endedOfferId) this.#offers.markEnded(endedOfferId);
       this.#snackbar.error(callableMessage(error) ?? 'We could not place your order. Try again in a moment.');

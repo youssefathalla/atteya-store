@@ -11,7 +11,11 @@ import {
   readOfferUses,
   releaseOfferUses,
 } from '../../lib/orders/offer-usage.js';
-import { giftWorth, missedDealOfferId } from '../../lib/orders/order-pricing.server.js';
+import {
+  giftWorth,
+  missedDealOfferId,
+  priceWithFreshOffersOnMiss,
+} from '../../lib/orders/order-pricing.server.js';
 import { parseOfferIds } from '../../lib/orders/order-request.js';
 
 /** In-memory stand-in for the few Firestore calls `readOfferUses` / `releaseOfferUses` make. */
@@ -253,6 +257,47 @@ describe('ended offers from checkout', () => {
     assert.equal(missedDealOfferId(['deal-1'], ['deal-1']), null);
     assert.equal(missedDealOfferId([], ['deal-1']), null);
     assert.equal(missedDealOfferId(['deal-1', 'deal-2'], ['deal-1']), 'deal-2');
+  });
+});
+
+describe('a deal the bag showed but the order misses', () => {
+  const STALE = [{ id: 'other' }];
+  const FRESH = [{ id: 'other' }, { id: 'new-deal' }];
+  // Stand-in for priceWithOffers: applies the deal only when the offers list has it.
+  const price = async (offers: readonly { id: string }[]) =>
+    offers.some((offer) => offer.id === 'new-deal') ? { total: 1000 } : { missedDealOfferId: 'new-deal' };
+
+  it('reads the offers again without the cache and prices with them', async () => {
+    const loads: boolean[] = [];
+    const result = await priceWithFreshOffersOnMiss(async (fresh: boolean) => {
+      loads.push(fresh);
+      return (fresh ? FRESH : STALE) as never;
+    }, price as never);
+    assert.deepEqual(result, { total: 1000 });
+    assert.deepEqual(loads, [false, true]);
+  });
+
+  it('reads the offers only once when nothing is missed', async () => {
+    const loads: boolean[] = [];
+    await priceWithFreshOffersOnMiss(async (fresh: boolean) => {
+      loads.push(fresh);
+      return FRESH as never;
+    }, price as never);
+    assert.deepEqual(loads, [false]);
+  });
+
+  it('refuses with changedOfferId, not endedOfferId, when the deal still does not apply', async () => {
+    await assert.rejects(
+      priceWithFreshOffersOnMiss(async () => STALE as never, price as never),
+      (error: unknown) => {
+        const err = error as { code: string; message: string; details: Record<string, unknown> };
+        assert.equal(err.code, 'failed-precondition');
+        assert.equal(err.message, 'Prices in your bag changed. Check your bag and place your order again.');
+        assert.deepEqual(err.details, { changedOfferId: 'new-deal' });
+        assert.equal('endedOfferId' in err.details, false);
+        return true;
+      },
+    );
   });
 });
 

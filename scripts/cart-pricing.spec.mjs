@@ -12,6 +12,7 @@ import {
   MAX_LINE_QUANTITY,
   mergeCartLines,
 } from '../src/app/core/services/cart/cart.model.ts';
+import { endedOfferIdFrom } from '../src/app/core/services/orders/order-refusal.ts';
 
 describe('cart-pricing (AS-33)', () => {
   it('lineDisplayAmount multiplies converted unit price by quantity', () => {
@@ -96,5 +97,17 @@ describe('cart lines merge (ATS-70)', () => {
     assert.equal(clampLineQuantity(25), MAX_LINE_QUANTITY);
     assert.equal(clampLineQuantity(Number.NaN), 1);
     assert.equal(clampLineQuantity(3.7), 3);
+  });
+});
+
+describe('order refusals (ATS-108)', () => {
+  it('leaves an offer out only when its use limit ended it (endedOfferId)', () => {
+    assert.equal(endedOfferIdFrom({ code: 'functions/failed-precondition', details: { endedOfferId: 'deal-1' } }), 'deal-1');
+  });
+
+  it('never leaves out an offer from "Prices in your bag changed" (changedOfferId)', () => {
+    assert.equal(endedOfferIdFrom({ code: 'functions/failed-precondition', details: { changedOfferId: 'deal-1' } }), null);
+    assert.equal(endedOfferIdFrom(new Error('offline')), null);
+    assert.equal(endedOfferIdFrom(null), null);
   });
 });

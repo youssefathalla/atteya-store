@@ -23,7 +23,7 @@ import {
   parseCheckoutShippingConfig,
   SHIPPING_DOC_PATH,
 } from '../shipping/shipping-settings.js';
-import { confirmedEndedOfferIds, offerFullError, type UsedOffer } from './offer-usage.js';
+import { confirmedEndedOfferIds, type UsedOffer } from './offer-usage.js';
 import {
   giftProductIds,
   resolveLineGifts,
@@ -150,12 +150,70 @@ export async function priceStoreOrder(
   signedIn: boolean,
   uid: string,
 ): Promise<PricedStoreOrder> {
-  const [shippingSnap, offers, giftDocs] = await Promise.all([
+  const [shippingSnap, giftDocs] = await Promise.all([
     db.doc(SHIPPING_DOC_PATH).get(),
-    getActiveOffers(db),
     readGiftDocs(db, giftProductIds(input.lines)),
   ]);
   const shippingConfig = parseCheckoutShippingConfig(shippingSnap.data());
+  return priceWithFreshOffersOnMiss(
+    (fresh) => getActiveOffers(db, fresh),
+    (offers) => priceWithOffers(db, input, signedIn, uid, offers, shippingConfig, giftDocs),
+  );
+}
+
+/** A Buy X Get Y offer the bag showed (`dealOfferIds`) that this pricing didn't apply. */
+export interface MissedDeal {
+  readonly missedDealOfferId: string;
+}
+
+/**
+ * The refusal when a Buy X Get Y offer the bag showed still doesn't apply after the offers were
+ * read again: the offer may still be live (only this order doesn't get it), so checkout shows the
+ * message and does not leave the offer out (`details.changedOfferId`, not `endedOfferId`).
+ */
+export function dealChangedError(offerId: string): HttpsError {
+  return new HttpsError(
+    'failed-precondition',
+    'Prices in your bag changed. Check your bag and place your order again.',
+    { changedOfferId: offerId },
+  );
+}
+
+/**
+ * Prices with the cached live offers (`getActiveOffers`, 60 seconds per server). When a Buy X
+ * Get Y offer the bag showed isn't applied, the cache may simply be behind (staff just created or
+ * widened the offer), so the offers are read again without the cache and the order priced again.
+ * Only when the offer is still not applied is the order refused (`dealChangedError`), so the
+ * order never costs more than the shopper saw.
+ */
+export async function priceWithFreshOffersOnMiss<T>(
+  loadOffers: (fresh: boolean) => Promise<readonly Offer[]>,
+  price: (offers: readonly Offer[]) => Promise<T | MissedDeal>,
+): Promise<T> {
+  const first = await price(await loadOffers(false));
+  if (!isMissedDeal(first)) return first;
+  const second = await price(await loadOffers(true));
+  if (!isMissedDeal(second)) return second;
+  throw dealChangedError(second.missedDealOfferId);
+}
+
+function isMissedDeal(value: unknown): value is MissedDeal {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { missedDealOfferId?: unknown }).missedDealOfferId === 'string'
+  );
+}
+
+async function priceWithOffers(
+  db: Firestore,
+  input: CreateStoreOrderRequest,
+  signedIn: boolean,
+  uid: string,
+  offers: readonly Offer[],
+  shippingConfig: ReturnType<typeof parseCheckoutShippingConfig>,
+  giftDocs: ReadonlyMap<string, DocumentData | undefined>,
+): Promise<PricedStoreOrder | MissedDeal> {
   const ctx: PricingContext = { now: new Date(), signedIn, codes: [] };
   const pricedLines: OrderLinePrice[] = [];
   const cartProducts: PricedProduct[] = [];
@@ -212,21 +270,11 @@ export async function priceStoreOrder(
     if (offer) usedOffers.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind: 'deal' });
   }
   // A Buy X Get Y offer the bag showed (`dealOfferIds`) that this order doesn't get (it ended, was
-  // switched off, or the bag's clock was behind) would make the order cost more than the shopper
-  // saw: refuse with its id so checkout leaves it out and shows the new total.
+  // switched off, the bag's clock was behind, or this server's offer cache is) would make the order
+  // cost more than the shopper saw: `priceWithFreshOffersOnMiss` reads the offers again and refuses
+  // only if it still misses.
   const missedDeal = missedDealOfferId(input.dealOfferIds, deals.offerIds);
-  if (missedDeal !== null) {
-    const offer = offers.find((entry) => entry.id === missedDeal);
-    throw offerFullError(
-      {
-        offerId: missedDeal,
-        title: offer?.title ?? '',
-        limits: offer?.limits ?? { totalUses: null, perCustomer: null },
-        kind: 'deal',
-      },
-      'ended',
-    );
-  }
+  if (missedDeal !== null) return { missedDealOfferId: missedDeal };
 
   for (const [index, line] of input.lines.entries()) {
     const { product, variant, weightGrams } = lineResults[index]!;

@@ -121,15 +121,3 @@ export class CheckoutOrderService {
     return response.data;
   }
 }
-
-/**
- * The offer an order callable refused because it has ended for this shopper
- * (`failed-precondition` with `details.endedOfferId`), or null for any other error.
- */
-export function endedOfferIdFrom(error: unknown): string | null {
-  if (typeof error !== 'object' || error === null || !('details' in error)) return null;
-  const details = (error as { details?: unknown }).details;
-  if (typeof details !== 'object' || details === null) return null;
-  const id = (details as { endedOfferId?: unknown }).endedOfferId;
-  return typeof id === 'string' && id.length > 0 ? id : null;
-}

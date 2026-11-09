@@ -58,8 +58,9 @@ export interface CreateStoreOrderRequest {
    */
   readonly endedOfferIds: readonly string[];
   /**
-   * Buy X Get Y offers the bag priced this order with. One the server doesn't apply refuses the
-   * order (with its id) instead of charging more than the shopper saw. Never adds a discount.
+   * Buy X Get Y offers the bag priced this order with. One the server doesn't apply (after reading
+   * the offers again without the cache) refuses the order (`details.changedOfferId`) instead of
+   * charging more than the shopper saw. Never adds a discount.
    */
   readonly dealOfferIds: readonly string[];
 }
