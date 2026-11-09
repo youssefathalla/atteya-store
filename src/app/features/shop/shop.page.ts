@@ -121,7 +121,7 @@ export class ShopPage {
     if (this.forceBags()) return 'Bags';
     if (tab === 'all' && this.filterState().newArrivals) return 'New Arrivals';
     return SHOP_TABS.find((t) => t.id === tab)?.label === 'All'
-      ? 'Shop all'
+      ? 'Shop All'
       : (SHOP_TABS.find((t) => t.id === tab)?.label ?? 'Shop');
   });
 
