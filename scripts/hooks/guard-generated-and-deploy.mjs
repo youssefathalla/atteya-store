@@ -28,8 +28,25 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const SHELL_TOOLS = new Set(['Bash', 'PowerShell']);
 
-/** `firebase deploy` at the start of a command or after `;`, `&&`, `||`, `|`, `npx [-y]`, `&` (PowerShell call). */
-const RAW_DEPLOY = /(?:^|[;&|]\s*|\bnpx\s+(?:-y\s+|--yes\s+)?)firebase(?:-tools)?(?:\.cmd)?\s+deploy\b/im;
+/** Shells that run their quoted argument as a command: the text inside is checked, not dropped. */
+const RUNS_QUOTED = /(?:^|\s)(?:-c|-Command|\/c)\s*$/i;
+/** Words that only start the real command (`env`, `npx`, `time`, PowerShell's `&` and `.` …). */
+const WRAPPERS = new Set([
+  'env',
+  'npx',
+  'bunx',
+  'time',
+  'sudo',
+  'command',
+  'exec',
+  'nohup',
+  'call',
+  '&',
+  '.',
+]);
+/** Package runners whose next word runs a package: `npm exec`, `pnpm dlx`, `yarn dlx`, `bun x`. */
+const RUNNERS = new Set(['npm', 'pnpm', 'yarn', 'bun']);
+const RUNNER_SUBCOMMANDS = new Set(['exec', 'dlx', 'x']);
 
 /** Repo-relative path with forward slashes, or null when the file is outside the repo. */
 export function repoPath(filePath, root = ROOT) {
@@ -48,7 +65,9 @@ export function sourceFor(relative, root = ROOT) {
   const skill = relative.match(/^\.claude\/skills\/([^/]+)\/(.+)$/i);
   if (skill) {
     const [, name, rest] = skill;
-    const owner = existsSync(path.join(root, '.cursor', 'skills', name)) ? '.cursor/skills' : '.agents/skills';
+    const owner = existsSync(path.join(root, '.cursor', 'skills', name))
+      ? '.cursor/skills'
+      : '.agents/skills';
     return { source: `${owner}/${name}/${rest}`, sync: 'npm run sync:agents' };
   }
   if (lower === '.claude/rules/design-system.md' || lower === '.agents/rules/design-system.md') {
@@ -73,20 +92,59 @@ export function sourceFor(relative, root = ROOT) {
 }
 
 /**
- * The command with heredoc bodies, PowerShell here-strings and quoted strings removed, so text that only
- * mentions `firebase deploy` (a commit message, a PR body) is not mistaken for running it.
+ * The command with heredoc bodies, PowerShell here-strings and quoted text removed, so a commit message or
+ * PR body that only mentions `firebase deploy` is not mistaken for running it. One scanner handles both
+ * quote kinds, across newlines. Quoted text handed to a shell (`bash -c "…"`, `pwsh -Command '…'`,
+ * `cmd /c "…"`) is kept as its own command, because that text does run.
  */
 export function withoutQuotedText(command) {
-  return command
+  const text = command
     .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?:\n|$)/g, '\n')
-    .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '')
-    .replace(/'[^'\n]*'/g, "''")
-    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
-    .replace(/`[^`\n]*`/g, '');
+    .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '');
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    const quote = text[i];
+    if (quote !== '"' && quote !== "'") {
+      out += quote;
+      continue;
+    }
+    let j = i + 1;
+    while (j < text.length && text[j] !== quote) j += quote === '"' && text[j] === '\\' ? 2 : 1;
+    const inner = text.slice(i + 1, j);
+    out += RUNS_QUOTED.test(out) ? '\n' + inner + '\n' : '""';
+    i = j;
+  }
+  return out;
+}
+
+/** True when one command segment runs the Firebase CLI with `deploy` (flags before it, a path or `@version` allowed). */
+function segmentDeploys(segment) {
+  const tokens = segment.trim().split(/\s+/).filter(Boolean);
+  let i = 0;
+  while (i < tokens.length) {
+    const lower = tokens[i].toLowerCase();
+    const isAssignment = /^[a-z_][a-z0-9_]*=/i.test(tokens[i]) || lower.startsWith('$env:');
+    if (isAssignment || WRAPPERS.has(lower)) i++;
+    else if (RUNNERS.has(lower) && RUNNER_SUBCOMMANDS.has(tokens[i + 1]?.toLowerCase())) i += 2;
+    else if (lower.startsWith('-'))
+      i++; // a wrapper's own flags: `npx -y`, `npm exec --`, `env -i`
+    else break;
+  }
+  const name = (tokens[i] ?? '')
+    .split(/[\\/]/)
+    .pop()
+    .toLowerCase()
+    .replace(/@[^@]*$/, '')
+    .replace(/\.(?:cmd|ps1|exe|js|cjs|mjs)$/, '');
+  if (name !== 'firebase' && name !== 'firebase-tools') return false;
+  return tokens.slice(i + 1).some((token) => /^deploy(?::|$)/i.test(token));
 }
 
 export function isRawDeploy(command) {
-  return typeof command === 'string' && RAW_DEPLOY.test(withoutQuotedText(command));
+  if (typeof command !== 'string') return false;
+  return withoutQuotedText(command)
+    .split(/;|&+|\|+|\n|\$\(|[()`]/)
+    .some(segmentDeploys);
 }
 
 /** The reason to block this call, or null to let it through. */
@@ -106,7 +164,7 @@ export function blockReason(input, root = ROOT) {
     return (
       'Raw `firebase deploy` skips the branch guard, the index check and the prod confirmation. ' +
       'Use the npm scripts instead: `npm run fb:fn:dev`, `npm run fb:rules:dev`, `npm run fb:indexes:dev` ' +
-      'or `npm run fb:deploy:dev` (prod only with Youssef\'s OK). See AGENTS.md, Deploy safety.'
+      "or `npm run fb:deploy:dev` (prod only with Youssef's OK). See AGENTS.md, Deploy safety."
     );
   }
   return null;
