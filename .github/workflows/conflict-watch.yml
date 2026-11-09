@@ -13,7 +13,7 @@
 # retried until develop moves again. A PR the routine marked "needs a person" for its
 # current head is left alone.
 #
-# Needs the repo secret ATTEYA_ROUTINE_TOKEN (the routine's API token; it can only start
+# Needs the repo secret ATTEYA_ROUTINE_TOKEN_OPUS (the routine's API token; it can only start
 # that routine). Stays inactive until the repository variable CONFLICT_FIX is "enabled".
 
 name: Conflict Watch
@@ -88,7 +88,7 @@ jobs:
         id: fire
         if: steps.find.outputs.count != '0'
         env:
-          ROUTINE_TOKEN: ${{ secrets.ATTEYA_ROUTINE_TOKEN }}
+          ROUTINE_TOKEN: ${{ secrets.ATTEYA_ROUTINE_TOKEN_OPUS }}
         run: |
           if [ -z "$ROUTINE_TOKEN" ]; then
             echo "status=no-token" >> "$GITHUB_OUTPUT"
@@ -144,8 +144,8 @@ jobs:
                     `**🔀 Conflict Fix** · not started for \`${head.slice(0, 7)}\``,
                     '',
                     status === 'no-token'
-                      ? 'The ATTEYA_ROUTINE_TOKEN repo secret is not set, so the Claude routine could not be started. Resolve the conflicts by hand, or add the secret.'
-                      : `The Claude routine could not be started (${status || 'unknown error'}). It may be over its hourly limit or the token may be wrong (a new routine token revokes the old one, so update the ATTEYA_ROUTINE_TOKEN repo secret too). The next scheduled routine run tries again.`,
+                      ? 'The ATTEYA_ROUTINE_TOKEN_OPUS repo secret is not set, so the Claude routine could not be started. Resolve the conflicts by hand, or add the secret.'
+                      : `The Claude routine could not be started (${status || 'unknown error'}). It may be over its hourly limit or the token may be wrong (a new routine token revokes the old one, so update the ATTEYA_ROUTINE_TOKEN_OPUS repo secret too). The next scheduled routine run tries again.`,
                   ].join('\n');
               await github.rest.issues.createComment({ owner, repo, issue_number: number, body });
             }
