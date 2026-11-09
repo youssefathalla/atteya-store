@@ -6,8 +6,8 @@ import {
   type GiftChoiceFacts,
   type Offer,
   type OfferGift,
+  type PricedProduct,
   type PricingContext,
-  type ProductFacts,
   type VariantFacts,
 } from '../offers/engine/index.js';
 import type { OrderGiftPickInput } from './order-request.js';
@@ -36,7 +36,8 @@ const GIFT_INVALID = 'The free gifts in your bag could not be read. Choose them 
 export function resolveLineGifts(args: {
   readonly picks: readonly OrderGiftPickInput[];
   readonly quantity: number;
-  readonly product: ProductFacts;
+  /** The bought product; its old price decides whether an offer that skips sale items applies. */
+  readonly product: PricedProduct;
   readonly variant: VariantFacts | null;
   readonly offers: readonly Offer[];
   readonly ctx: PricingContext;
