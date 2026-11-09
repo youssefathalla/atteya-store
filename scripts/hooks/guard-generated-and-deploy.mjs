@@ -80,25 +80,27 @@ const FIREBASE_CLI =
   /(?:^|[\s"'`(;&|=\\/])firebase(?:-tools)?(?:@[\w.-]+)?(?:\.(?:cmd|ps1|exe|js|cjs|mjs))?(?=$|[\s"'`);&|])/im;
 /** `deploy` as a word, or `deploy:<target>`. `scripts/deploy.mjs` doesn't match. */
 const DEPLOY_WORD = /(?:^|[\s"'`(;&|=])deploy(?::[\w,:-]+)?(?=$|[\s"'`);&|])/im;
-/** A heredoc fed to one of these runs its body, so that body is still checked. */
-const SHELL_BEFORE_HEREDOC = /(?:^|[\s;&|(])(?:bash|sh|zsh|dash|pwsh|powershell|cmd)(?:\.exe)?\b[^\n]*$/i;
+/**
+ * A heredoc whose body is only a message: the line starts with `git` or `gh` (after `cd …;` or `&&`), and nothing
+ * after the heredoc tag on that line sends it anywhere else (no pipe, redirect or further command).
+ */
+const MESSAGE_HEREDOC_COMMAND = /(?:^|[;&]\s*)(?:git|gh)\s[^;&|]*$/;
+const PLAIN_REST = /^[^|<>;&`$()]*$/;
 
 /**
- * The command without text that only feeds a file or a message: heredoc bodies (`git commit -F - <<'EOF'`,
- * `gh pr create --body-file - <<EOF`) and PowerShell here-strings. A heredoc fed to a shell (`bash <<EOF`)
- * keeps its body, because that body runs.
+ * The command without the body of a heredoc that only feeds a commit message or a PR body to `git` or `gh`
+ * (`git commit -F - <<'EOF'`, `gh pr create --body-file - <<EOF`). Every other heredoc body (`cat <<EOF | bash`,
+ * `tee x.sh <<EOF`) and every PowerShell here-string is kept, because it may run.
  */
 export function withoutDocumentText(command) {
-  return command
-    .replace(
-      /<<-?\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)\n\s*\2\s*(?=\n|$)/g,
-      (whole, _q, _tag, rest, body, offset) => {
-        const lineStart = command.lastIndexOf('\n', offset) + 1;
-        const before = command.slice(lineStart, offset);
-        return SHELL_BEFORE_HEREDOC.test(before) ? `${rest}\n${body}\n` : rest;
-      },
-    )
-    .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '');
+  return command.replace(
+    /<<-?\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)\n\s*\2\s*(?=\n|$)/g,
+    (whole, _quote, _tag, rest, _body, offset) => {
+      const lineStart = command.lastIndexOf('\n', offset) + 1;
+      const before = command.slice(lineStart, offset);
+      return MESSAGE_HEREDOC_COMMAND.test(before) && PLAIN_REST.test(rest) ? rest : whole;
+    },
+  );
 }
 
 /**
@@ -132,7 +134,7 @@ export function blockReason(input, root = ROOT) {
       'Use the npm scripts instead: `npm run fb:fn:dev`, `npm run fb:rules:dev`, `npm run fb:indexes:dev` ' +
       "or `npm run fb:deploy:dev` (prod only with Youssef's OK). See AGENTS.md, Deploy safety. " +
       'If the command only mentions it in text, put that text in a file (`git commit -F <file>`, `gh pr create --body-file <file>`, ' +
-      'or a heredoc) or search with the Grep tool.'
+      'or a heredoc into git or gh) or search with the Grep tool.'
     );
   }
   return null;
