@@ -86,9 +86,17 @@ const DEPLOY_WORD = /(?:^|[\s"'`(;&|=])deploy(?::[\w,:-]+)?(?=$|[\s"'`);&|])/im;
  * every way of running a deploy has both words, so none can slip through. A command that only mentions it is
  * blocked too; the message says to write that text to a file first (Write tool, then `git commit -F <file>` or
  * `gh … --body-file <file>`) or to search with the Grep tool.
+ *
+ * The one exception: the shell deletes a backslash-newline (line continuation) and the backslash in front of a
+ * plain character before it runs anything, so `firebase\⏎ deploy`, `fire\⏎base deploy` or `firebase \deploy`
+ * still deploy. The text is also checked with those removed; the original is checked too, so Windows paths
+ * (`C:\…\firebase.cmd`) still match.
  */
 export function isRawDeploy(command) {
-  return typeof command === 'string' && FIREBASE_CLI.test(command) && DEPLOY_WORD.test(command);
+  if (typeof command !== 'string') return false;
+  const joined = command.replace(/\\\r?\n/g, '');
+  const unescaped = joined.replace(/\\(?=[^\s])/g, '');
+  return [command, joined, unescaped].some((text) => FIREBASE_CLI.test(text) && DEPLOY_WORD.test(text));
 }
 
 /** The reason to block this call, or null to let it through. */
