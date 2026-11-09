@@ -5,7 +5,8 @@
 # "Clean" means, all on the PR's latest commit:
 #   - the "Cursor Bugbot" check finished with success (Bugbot found no issues;
 #     "neutral" means it found some, and bugbot-claude-fix.yml takes over),
-#   - the CI "checks" job and the "linear-id" PR title check passed,
+#   - the CI "checks" job and the "linear-id" PR title check passed, and the Browser Check
+#     ("Phone and Desktop Pages", browser-check.yml) passed when it runs on that commit,
 #   - no other check failed or is still running,
 #   - no unresolved review thread from a person or from the Cursor Security Agent
 #     (its check ends "success" even when it reports something) and no "changes requested",
@@ -47,7 +48,8 @@ on:
   workflow_run:
     # "PR title" is the old name, still used by branches made before the rename.
     # "Claude Review": its verdict is the gate when Bugbot could not run on a commit.
-    workflows: [CI, PR Title, PR title, Claude Review]
+    # "Browser Check": required when it runs on the commit, so its end starts a merge check too.
+    workflows: [CI, PR Title, PR title, Claude Review, Browser Check]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -103,6 +105,9 @@ jobs:
               ['Build and Test', 'checks'],
               ['Linear ID in Title', 'linear-id'],
             ];
+            // Browser Check (browser-check.yml) is required when it runs on the commit. Commits
+            // pushed before it existed have no run, and waiting for one would hold them forever.
+            const BROWSER_CHECK = 'Phone and Desktop Pages';
             const OWN_JOB = 'Merge When Clean';
             // Checks that never hold up a merge: this job, and the Claude review trial, which
             // only posts findings.
@@ -267,7 +272,21 @@ jobs:
               }
               const usedClaude = bugbotOut;
               const claudeMissing = !bugbotOut && claudeRanHere && review.verdict === 'none';
-              const required = REQUIRED.map((names) => ({ label: names[0], run: names.map((name) => byName.get(name)).find(Boolean) }));
+              const browserRun = byName.get(BROWSER_CHECK);
+              let browserCheckHere = Boolean(browserRun) && browserRun.conclusion !== 'skipped';
+              if (!browserRun) {
+                // Its check is not listed yet: look for a Browser Check run on this commit.
+                try {
+                  const { data: wf } = await github.rest.actions.listWorkflowRuns({
+                    owner, repo, workflow_id: 'browser-check.yml', head_sha: sha, per_page: 20,
+                  });
+                  browserCheckHere = (wf.workflow_runs || []).some((run) => run.status !== 'completed' || run.conclusion !== 'skipped');
+                } catch (error) {
+                  core.info(`#${n}: could not list Browser Check runs (${error.status ?? error.message}); not requiring it.`);
+                }
+              }
+              const requiredNames = browserCheckHere ? [...REQUIRED, [BROWSER_CHECK]] : REQUIRED;
+              const required = requiredNames.map((names) => ({ label: names[0], run: names.map((name) => byName.get(name)).find(Boolean) }));
               const missing = required.filter((r) => r.run?.status !== 'completed').map((r) => r.label);
               if (missing.length) { stop(`Still waiting for: ${missing.join(', ')}.`); continue; }
               const failedRequired = required.filter((r) => r.run.conclusion !== 'success').map((r) => r.label);

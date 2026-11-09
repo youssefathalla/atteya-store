@@ -1,0 +1,163 @@
+name: Browser Check
+
+# Opens the main storefront pages in a real browser at phone and desktop size, so a broken
+# page is caught before anyone tests the PR. Builds the app, starts the
+# server-rendered store on the runner against dev Firebase / Algolia / ImageKit (public
+# client config only, no secrets), runs scripts/browser-check.mjs, uploads the screenshots
+# and posts one "🖥 Browser Check" comment per commit with a pass/fail table.
+# A failed check holds auto-merge (auto-merge.yml waits for it like CI).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [develop]
+
+concurrency:
+  group: browser-check-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NG_CLI_ANALYTICS: 'false'
+  # Playwright is not a repo dependency; this version is installed for the check only.
+  PLAYWRIGHT_VERSION: 1.63.0
+
+jobs:
+  pages:
+    name: Phone and Desktop Pages
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # This job runs the PR's own code (npm ci, the build, the script, the server), so it gets a
+    # read-only token that checkout does not keep on disk. The "comment" job below posts.
+    permissions:
+      contents: read
+    outputs:
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # package.json pins packageManager to npm 11.17.0.
+      - name: Use pinned npm
+        run: npm install -g npm@11.17.0
+
+      - name: Install app packages
+        run: npm ci
+
+      - name: Cache the browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ env.PLAYWRIGHT_VERSION }}-${{ runner.os }}
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save --no-audit --no-fund --ignore-scripts "playwright@${PLAYWRIGHT_VERSION}"
+          npx playwright install --with-deps chromium
+
+      - name: App build (development)
+        run: npx ng build --configuration development
+
+      - name: Start the store
+        env:
+          PORT: '4000'
+          NG_ALLOWED_HOSTS: localhost,127.0.0.1
+        run: |
+          nohup node dist/atteya-store/server/server.mjs > server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://localhost:4000/; then echo "Store is up"; exit 0; fi
+            sleep 1
+          done
+          echo "The store did not start:"; cat server.log; exit 1
+
+      - name: Open the pages
+        id: check
+        continue-on-error: true
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/browser-check.mjs --base http://localhost:4000 --out browser-check
+
+      - name: Upload screenshots
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-check
+          path: |
+            browser-check/
+            server.log
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Keep the summary for the comment job
+        if: always() && hashFiles('browser-check/summary.md') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-check-summary
+          path: browser-check/summary.md
+          retention-days: 3
+
+      - name: Fail when a page is broken
+        if: steps.check.outcome != 'success'
+        run: |
+          echo "::error::Browser Check failed. The PR comment lists what went wrong; screenshots are under Artifacts."
+          exit 1
+
+  comment:
+    name: Post the Result
+    needs: pages
+    # Runs no PR code: it only reads the summary the pages job wrote and posts it.
+    if: always() && needs.pages.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Get the summary
+        id: summary
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: browser-check-summary
+          path: summary
+
+      - name: Comment on the PR
+        if: steps.summary.outcome == 'success'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ARTIFACT_URL: ${{ needs.pages.outputs.artifact-url }}
+        with:
+          script: |
+            const fs = require('fs');
+            const sha = process.env.HEAD_SHA;
+            const number = context.payload.pull_request.number;
+            const { owner, repo } = context.repo;
+            // A newer commit is already on the PR: its own run will comment.
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            if (pr.head.sha !== sha) { core.info('A newer commit is on the PR; not commenting.'); return; }
+            // summary.md comes from the PR's own code. Auto-merge and Claude Fix trust hidden
+            // markers in github-actions[bot] comments (claude-review-verdict, …), so disarm every
+            // HTML comment in it before adding our own marker, and cap its length.
+            let body = fs.readFileSync('summary/summary.md', 'utf8').slice(0, 60000).replace(/<!--/g, '&lt;!--');
+            const artifact = process.env.ARTIFACT_URL;
+            if (artifact) body += `\nDirect download: [browser-check screenshots](${artifact})\n`;
+            const marker = `<!-- browser-check ${sha} -->`;
+            body = `${marker}\n${body}`;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
+            const mine = comments.find((c) => c.user?.login === 'github-actions[bot]' && c.body?.includes(marker));
+            if (mine) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number: number, body });
