@@ -29,6 +29,8 @@ export interface PricedBagLine {
   /** The line after Buy X Get Y. */
   readonly lineEgp: number;
   readonly deals: BagLineDeals;
+  /** The per-item offer that set `unitEgp`, or null (shown on the bag card's offer strip). */
+  readonly appliedOfferId: string | null;
 }
 
 export interface PricedBagDeals {
@@ -54,11 +56,14 @@ export function priceBag(
   const facts: BagLineFacts[] = [];
   const bagIndex: number[] = [];
   const units: number[] = [];
+  const itemOffers: (string | null)[] = [];
   lines.forEach((line, index) => {
     const product = products.get(line.productId);
     if (!product) return;
     const variant = bagLineVariant(product, line);
-    const unitEgp = priceItem(product.priced, variant, offers, ctx).effectivePrice;
+    const item = priceItem(product.priced, variant, offers, ctx);
+    const unitEgp = item.effectivePrice;
+    itemOffers.push(item.appliedOfferId);
     const compareAt = product.priced.compareAtPrice;
     facts.push({
       product: product.priced,
@@ -82,6 +87,7 @@ export function priceBag(
       fullEgp,
       lineEgp: Math.max(0, fullEgp - lineDeals.discount),
       deals: lineDeals,
+      appliedOfferId: itemOffers[n] ?? null,
     };
   });
   return {

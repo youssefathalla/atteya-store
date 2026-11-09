@@ -26,130 +26,165 @@
         <a matButton="filled" routerLink="/shop" (click)="drawerService.close()"> Start Shopping </a>
       </div>
     } @else {
-      <ul class="px-5">
+      <ul class="px-5 pt-4 pb-1 border-b border-outline-variant">
         @for (line of lines(); track lineKey(line)) {
           @let info = productInfo(line.productId);
-          <li class="bag-line">
+          <li class="bag-card" [class.bag-card--gone]="!info">
             @if (info; as product) {
-              <a
-                class="bag-line__photo no-underline"
-                [routerLink]="['/product', product.slug]"
-                (click)="drawerService.close()"
-                [attr.aria-label]="product.name"
-              >
-                @if (product.imagePath; as path) {
-                  <img
-                    [ngSrc]="imagePath(path)"
-                    [appImageFallback]="path"
-                    [alt]="product.imageAlt || product.name"
-                    width="96"
-                    height="96"
-                    class="size-full object-contain p-1.5"
-                  />
-                }
-              </a>
-
-              <div class="min-w-0 flex-1 elements-start-col gap-1">
-                <!-- The name has the whole row, so it is never cut short by the price or buttons. -->
+              <div class="bag-card__body">
                 <a
-                  class="w-full font-title-sm font-bold! no-underline line-clamp-2"
+                  class="bag-card__photo no-underline"
                   [routerLink]="['/product', product.slug]"
                   (click)="drawerService.close()"
+                  [attr.aria-label]="product.name"
                 >
-                  {{ product.name }}
+                  @if (product.imagePath; as path) {
+                    <img
+                      [ngSrc]="imagePath(path)"
+                      [appImageFallback]="path"
+                      [alt]="product.imageAlt || product.name"
+                      width="96"
+                      height="96"
+                      class="size-full object-contain p-1.5"
+                    />
+                  }
                 </a>
-                <div class="w-full elements-between items-start! gap-3">
-                  <div class="min-w-0 elements-start-col gap-0.5 font-label-md text-on-surface-variant">
-                    @if (product.genderLabel; as gender) {
-                      <p>{{ gender }}</p>
-                    }
-                    @if (selectionLabel(line.productId, line.selection); as selection) {
-                      <p>{{ selection }}</p>
-                    }
+
+                <div class="min-w-0 flex-1 self-stretch elements-between-col items-stretch! gap-3">
+                  <div class="elements-between items-start! gap-3">
+                    <div class="min-w-0 flex-1">
+                      <!-- The name has the whole row, so it is never cut short by the price or buttons. -->
+                      <a
+                        class="font-title-sm font-bold! no-underline line-clamp-2"
+                        [routerLink]="['/product', product.slug]"
+                        (click)="drawerService.close()"
+                      >
+                        {{ product.name }}
+                      </a>
+                      @if (optionsLine(line.productId, line.selection); as options) {
+                        <!-- One line; a long list ends in an ellipsis and the full text stays in the page for screen readers. -->
+                        <p class="truncate font-label-md text-on-surface-variant" [attr.title]="options">
+                          {{ options }}
+                        </p>
+                      }
+                    </div>
+                    <button
+                      matIconButton
+                      type="button"
+                      (click)="removeLine($index)"
+                      [attr.aria-label]="'Remove ' + product.name"
+                    >
+                      <mat-icon name="delete" />
+                    </button>
                   </div>
-                  @let price = linePrices()[$index];
-                  <div class="shrink-0 elements-end-col gap-0.5 text-end">
-                    <span [class]="price?.was ? 'font-body-md font-bold!' : 'font-body-md'">
-                      {{ price?.total }}
-                    </span>
-                    @if (price?.was; as was) {
-                      <span class="font-body-sm text-on-surface-variant line-through">{{ was }}</span>
-                    }
-                    @if (price?.deal; as deal) {
-                      <span class="deal-tag">{{ deal }}</span>
-                    }
+
+                  <div class="elements-between items-end!">
+                    <div class="bag-card__stepper">
+                      <button
+                        matIconButton
+                        type="button"
+                        (click)="decreaseQuantity($index)"
+                        [disabled]="line.quantity <= 1"
+                        [attr.aria-label]="'Decrease quantity of ' + product.name"
+                      >
+                        <mat-icon name="remove" />
+                      </button>
+                      <span class="min-w-8 text-center font-label-lg" aria-live="polite">
+                        {{ line.quantity }}
+                      </span>
+                      <button
+                        matIconButton
+                        type="button"
+                        (click)="increaseQuantity($index)"
+                        [disabled]="line.quantity >= 20"
+                        [attr.aria-label]="'Increase quantity of ' + product.name"
+                      >
+                        <mat-icon name="add" />
+                      </button>
+                    </div>
+
+                    @let price = linePrices()[$index];
+                    <div class="shrink-0 elements-end-col gap-0.5 text-end">
+                      @if (price?.was; as was) {
+                        <span class="font-body-sm text-on-surface-variant line-through">{{ was }}</span>
+                      }
+                      <span class="font-title-sm font-bold!">{{ price?.total }}</span>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                @for (hint of dealHints($index); track hint.offerId) {
-                  @if (hint.kind === 'add-more') {
-                    <p class="bag-deal-hint">
-                      <mat-icon name="local_offer" size="sm" />
-                      <span>{{ dealHintText(hint) }}</span>
-                    </p>
-                  } @else {
+              @for (gift of giftRows(line, $index); track gift.key) {
+                <div class="bag-card__gift">
+                  <span class="bag-card__gift-photo" aria-hidden="true">
+                    @if (gift.imagePath; as giftPath) {
+                      <img
+                        [ngSrc]="imagePath(giftPath)"
+                        [appImageFallback]="giftPath"
+                        alt=""
+                        width="36"
+                        height="42"
+                        class="size-full object-contain"
+                      />
+                    }
+                  </span>
+                  <span class="min-w-0 flex-1">{{ gift.label }}</span>
+                  <span class="shrink-0 font-bold!">Free</span>
+                </div>
+              }
+
+              @for (hint of dealHints($index); track hint.offerId) {
+                @if (hint.kind === 'add-more') {
+                  <div class="bag-card__strip bag-card__strip--hint">
+                    <span>{{ dealHintText(hint) }}</span>
+                    @if (hint.samePool) {
+                      <button
+                        matButton="outlined"
+                        type="button"
+                        (click)="addMore($index, hint.missing)"
+                        [attr.aria-label]="'Add ' + hint.missing + ' more ' + product.name"
+                      >
+                        Add {{ hint.missing }}
+                      </button>
+                    }
+                  </div>
+                } @else {
+                  <div class="bag-card__pick">
                     <app-bag-free-pick [hint]="hint" />
+                  </div>
+                }
+              }
+
+              @for (strip of lineStrips()[$index]; track strip.key) {
+                <div class="bag-card__strip">
+                  <span class="min-w-0 elements-start gap-2">
+                    @if (strip.tag) {
+                      <span class="deal-tag">{{ strip.tag }}</span>
+                    }
+                    <span>{{ strip.title }}</span>
+                  </span>
+                  @if (strip.end) {
+                    <span class="shrink-0 font-bold!">{{ strip.end }}</span>
                   }
-                }
-
-                @for (gift of giftRows(line, $index); track gift.key) {
-                  <div
-                    class="w-full elements-between items-start! gap-3 font-label-md text-on-surface-variant"
-                  >
-                    <span class="min-w-0">{{ gift.label }}</span>
-                    <span class="shrink-0">Free</span>
+                </div>
+              }
+            } @else {
+              <div class="bag-card__body">
+                <div class="bag-card__photo" aria-hidden="true"></div>
+                <div class="min-w-0 flex-1 elements-between items-start! gap-3">
+                  <div class="min-w-0 elements-start-col gap-0.5">
+                    @if (isUnavailable(line.productId)) {
+                      <p class="font-title-sm font-bold! text-on-surface-variant">No longer available</p>
+                      <p class="font-label-md text-on-surface-variant">Please remove it from your bag.</p>
+                    } @else {
+                      <p class="font-title-sm font-bold!">Item</p>
+                      <p class="font-label-md text-on-surface-variant">Qty {{ line.quantity }}</p>
+                    }
                   </div>
-                }
-
-                <div class="w-full elements-between pt-1">
-                  <div class="bag-line__stepper">
-                    <button
-                      matIconButton
-                      type="button"
-                      (click)="decreaseQuantity($index)"
-                      [disabled]="line.quantity <= 1"
-                      [attr.aria-label]="'Decrease quantity of ' + product.name"
-                    >
-                      <mat-icon name="remove" />
-                    </button>
-                    <span class="min-w-6 text-center font-label-lg" aria-live="polite">
-                      {{ line.quantity }}
-                    </span>
-                    <button
-                      matIconButton
-                      type="button"
-                      (click)="increaseQuantity($index)"
-                      [disabled]="line.quantity >= 20"
-                      [attr.aria-label]="'Increase quantity of ' + product.name"
-                    >
-                      <mat-icon name="add" />
-                    </button>
-                  </div>
-                  <button
-                    matIconButton
-                    type="button"
-                    (click)="removeLine($index)"
-                    [attr.aria-label]="'Remove ' + product.name"
-                  >
+                  <button matIconButton type="button" (click)="removeLine($index)" aria-label="Remove item">
                     <mat-icon name="delete" />
                   </button>
                 </div>
-              </div>
-            } @else {
-              <div class="bag-line__photo" aria-hidden="true"></div>
-              <div class="min-w-0 flex-1 elements-between items-start! gap-3">
-                <div class="min-w-0 elements-start-col gap-0.5">
-                  @if (isUnavailable(line.productId)) {
-                    <p class="font-title-sm font-bold!">No longer available</p>
-                    <p class="font-label-md opacity-70">Please remove it from your bag.</p>
-                  } @else {
-                    <p class="font-title-sm font-bold!">Item</p>
-                    <p class="font-label-md opacity-70">Qty {{ line.quantity }}</p>
-                  }
-                </div>
-                <button matIconButton type="button" (click)="removeLine($index)" aria-label="Remove item">
-                  <mat-icon name="delete" />
-                </button>
               </div>
             }
           </li>

@@ -1,18 +1,58 @@
 @layer components {
-  /*! shopping bag (app-cart-drawer): item rows and the Payment Methods row */
+  /*! shopping bag (app-cart-drawer): item cards and the Payment Methods row */
 
-  /* One item: photo on the left, name + price, details and controls on the right. */
-  .bag-line {
-    @apply elements-start items-start! gap-3 py-4 border-b border-outline-variant;
+  /* One item: a bordered card. The body holds the photo and controls; gifts, nudges and offer strips stack under it. */
+  .bag-card {
+    @apply mb-3 overflow-hidden border border-outline-variant border-shape bg-surface-container-lowest;
   }
 
-  .bag-line__photo {
-    @apply relative size-24 shrink-0 overflow-hidden bg-surface-container-high;
+  .bag-card--gone {
+    @apply bg-surface-container-low;
   }
 
-  /* Round − / + buttons with the quantity between them. */
-  .bag-line__stepper {
-    @apply elements-start gap-1 border border-outline-variant rounded-full;
+  .bag-card__body {
+    @apply elements-start items-start! gap-4 p-4;
+  }
+
+  .bag-card__photo {
+    @apply relative w-22 h-26 shrink-0 overflow-hidden bg-surface-container-high;
+  }
+
+  .bag-card--gone .bag-card__photo {
+    @apply opacity-50;
+  }
+
+  /* Square box: − / quantity / + */
+  .bag-card__stepper {
+    @apply elements-start border border-outline-variant border-shape;
+  }
+
+  /* A free gift: small photo, its name, "Free" on the right. */
+  .bag-card__gift {
+    @apply elements-between gap-3 px-4 py-2.5 border-t border-outline-variant font-label-md;
+  }
+
+  .bag-card__gift-photo {
+    @apply relative w-9 h-10.5 shrink-0 overflow-hidden bg-surface-container-high;
+  }
+
+  /* Grey strip along the bottom: which offer applies and what it saves. */
+  .bag-card__strip {
+    @apply elements-between gap-3 px-4 py-2 border-t border-outline-variant bg-surface-container-low font-label-md;
+  }
+
+  /* A nudge ("Add 1 more to get 1 free"): dashed and plain, so it reads as an invitation, not a result. */
+  .bag-card__strip--hint {
+    @apply border-dashed bg-transparent;
+  }
+
+  /* "You've earned a free grip": the free-item tiles inside the card, under a dashed line. */
+  .bag-card__pick {
+    @apply border-t border-dashed border-outline-variant;
+  }
+
+  .bag-card__pick .bag-deal-pick {
+    @apply mt-0 p-4 border-0;
   }
 
   /* One of three equal payment tiles: the method's mark with its name under it (InstaPay: the logo only). */
@@ -33,11 +73,6 @@
 
 @layer components {
   /*! shopping bag: Buy X Get Y nudges under an item */
-
-  /* "Add 1 more to get 1 free": a muted line with a small offer icon. */
-  .bag-deal-hint {
-    @apply w-full elements-start gap-1.5 font-label-md text-on-surface-variant;
-  }
 
   /* "You've earned a free grip": bordered box with the free choices as photo tiles (.pdp-gift-tile). */
   .bag-deal-pick {

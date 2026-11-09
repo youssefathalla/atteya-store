@@ -73,6 +73,19 @@ interface CartLinePrice {
 interface CartGiftRow {
   readonly key: string;
   readonly label: string;
+  /** Main photo of the gift product; null while it loads or when it has none. */
+  readonly imagePath: string | null;
+}
+
+/** The grey strip along the bottom of an item card: which offer applies and what it saves. */
+interface CartLineStrip {
+  readonly key: string;
+  /** Offer title, with its percent off when it has one ("Autumn Sale · 21% off"). */
+  readonly title: string;
+  /** Buy X Get Y tag ("1 free", "−50%"); empty when none. */
+  readonly tag: string;
+  /** Right-hand text: "You save EGP 250" or "2 free gifts". */
+  readonly end: string;
 }
 
 /**
@@ -317,6 +330,72 @@ export class CartDrawerComponent {
 
   readonly dealHintText = dealHintText;
 
+  /** "Add 1" on a nudge: adds the missing pieces to the line (at most 20 per line, like the + button). */
+  addMore(index: number, missing: number): void {
+    const line = this.lines()[index];
+    if (!line) return;
+    this.#cart.setQuantity(index, Math.min(20, line.quantity + missing));
+  }
+
+  /**
+   * The offer strips of each line, in bag order: the per-item offer (with what it saves against the
+   * product's own price), each Buy X Get Y offer, and the line's free gifts. Display only.
+   */
+  readonly lineStrips = computed((): readonly (readonly CartLineStrip[])[] => {
+    const entry = this.#currency.entry();
+    const decimals = displayDecimals(entry.code);
+    const money = (amount: number): string => formatMoney(amount, entry.code, decimals);
+    const offers = this.#offers.all();
+    const titleOf = (offerId: string): string =>
+      offers.find((offer) => offer.id === offerId)?.title || 'Offer applied';
+    const products = this.#products();
+    const bag = this.#pricedBag();
+    return this.lines().map((line, index) => {
+      const priced = bag.lines[index];
+      const info = products.get(line.productId);
+      if (!priced || !info) return [];
+      const strips: CartLineStrip[] = [];
+
+      if (priced.appliedOfferId) {
+        const base = lineDisplayAmount(toDisplayAmount(info.price, entry), line.quantity);
+        const now = lineDisplayAmount(toDisplayAmount(priced.unitEgp, entry), line.quantity);
+        const title = titleOf(priced.appliedOfferId);
+        // Measured against the product's own price, like "You save", not the compare-at price the
+        // engine's `discountPercent` uses for an item that is already on sale.
+        const percent = info.price > 0 ? Math.round(((info.price - priced.unitEgp) / info.price) * 100) : 0;
+        strips.push({
+          key: `item-${priced.appliedOfferId}`,
+          title: percent > 0 ? `${title} · ${percent}% off` : title,
+          tag: '',
+          end: base > now ? `You save ${money(base - now)}` : '',
+        });
+      }
+
+      for (const deal of priced.deals.deals) {
+        strips.push({
+          key: `deal-${deal.offerId}`,
+          title: titleOf(deal.offerId),
+          tag: dealTag([deal], line.quantity),
+          end: deal.discount > 0 ? `You save ${money(toDisplayAmount(deal.discount, entry))}` : '',
+        });
+      }
+
+      const gifts = this.giftRows(line, index);
+      const giftOfferId = line.gifts?.[0]?.offerId;
+      const giftCount = gifts.length * priced.deals.giftUnits;
+      if (gifts.length > 0 && giftOfferId) {
+        strips.push({
+          key: `gift-${giftOfferId}`,
+          title: titleOf(giftOfferId),
+          tag: '',
+          // The order adds each gift once per piece that keeps its gifts, so count them all.
+          end: giftCount === 1 ? '1 free gift' : `${giftCount} free gifts`,
+        });
+      }
+      return strips;
+    });
+  });
+
   /** Convert, then × quantity (as before); a line with a Buy X Get Y discount converts its total. */
   #lineDisplay(unitEgp: number, lineEgp: number, discount: number, quantity: number): number {
     const entry = this.#currency.entry();
@@ -338,18 +417,27 @@ export class CartDrawerComponent {
     return normalizeImageKitPath(rawPath);
   }
 
-  selectionLabel(productId: string, selection: CartLineDraft['selection']): string {
+  /**
+   * One quiet line under the name: size first with its label, then the other choices, then the
+   * gender when the product name doesn't already say it ("Size M · Black · Women").
+   */
+  optionsLine(productId: string, selection: CartLineDraft['selection']): string {
     const info = this.productInfo(productId);
+    if (!info) return '';
     const parts: string[] = [];
-    for (const [key, valueId] of Object.entries(selection)) {
+    const entries = Object.entries(selection).sort(([a], [b]) => Number(b === 'size') - Number(a === 'size'));
+    for (const [key, valueId] of entries) {
       const id = valueId.trim();
       if (!id) continue;
-      const option = info?.options.find((item) => item.key === key);
+      const option = info.options.find((item) => item.key === key);
       const valueLabel = option?.values.find((value) => value.id === id)?.label;
       // A choice the product no longer lists (or a product that has not loaded yet) is
       // left out, so an internal id never reaches the bag.
-      if (valueLabel) parts.push(valueLabel);
+      if (valueLabel) parts.push(key === 'size' ? `Size ${valueLabel}` : valueLabel);
     }
+    const gender = info.genderLabel;
+    // Whole words only: "Men" is not in "Tournament", and "Women" does not say "Men".
+    if (gender && !new RegExp(`\\b${gender}\\b`, 'i').test(info.name)) parts.push(gender);
     return parts.join(' · ');
   }
 
@@ -368,6 +456,7 @@ export class CartDrawerComponent {
       return {
         key: `${gift.offerId}/${gift.giftId}`,
         label: info ? giftLineLabel(name, giftProductLabel(info), size ?? null) : name,
+        imagePath: info?.imagePath ?? null,
       };
     });
   }
