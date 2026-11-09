@@ -16,6 +16,9 @@
  *   - a request to our own server fails or answers 4xx/5xx,
  *   - the main area is empty, the store loader never goes away, or what the page is for is
  *     missing (no product cards on Shop, no bag line in the bag, no email field on Sign In).
+ * Signed-out access: the pages that need an account (/checkout, /account, /favorites, /admin)
+ * are opened as a signed-out visitor and must send them to /login with `returnUrl` pointing back
+ * at that page. One that opens instead fails with "<page> opened without signing in".
  * Each failed page is tried once more before it counts.
  *
  * Writes <out>/<page>-<size>.png, <out>/results.json and <out>/summary.md (the PR comment
@@ -49,7 +52,13 @@ const SETTLE_MS = 2_000;
 
 const SIZES = [
   { id: 'phone', label: 'Phone', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
-  { id: 'desktop', label: 'Desktop', viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false },
+  {
+    id: 'desktop',
+    label: 'Desktop',
+    viewport: { width: 1440, height: 900 },
+    isMobile: false,
+    hasTouch: false,
+  },
 ];
 
 /**
@@ -77,6 +86,19 @@ const PERFORMANCE_HINTS = [
   },
 ];
 
+/**
+ * Pages that need an account. Opened signed out (each check uses a fresh page in a context that
+ * never signs in), each must land on Sign In with `returnUrl` set to that page. /admin's guard runs
+ * after the child redirect, so its `returnUrl` is a page inside /admin (`/admin/navigation`).
+ */
+const SIGNED_OUT_PAGES = [
+  { id: 'checkout', label: 'Checkout', path: '/checkout' },
+  { id: 'account', label: 'Account', path: '/account' },
+  { id: 'favorites', label: 'Favorites', path: '/favorites' },
+  { id: 'admin', label: 'Admin', path: '/admin' },
+];
+const SIGNED_OUT_GROUP = { id: 'signed-out', label: 'Signed-out access' };
+
 /** Phrases that mean the page itself says it could not load. */
 const BROKEN_PAGE_TEXT = /something went wrong|couldn['’]t load|could not load|page not found/i;
 
@@ -92,7 +114,9 @@ await mkdir(OUT, { recursive: true });
 // Sandboxes that only reach the internet through a proxy (HTTPS_PROXY) need Chromium to use it
 // too; GitHub's runners have no proxy. The local server is always reached directly.
 const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
-const browser = await chromium.launch(proxy ? { proxy: { server: proxy, bypass: 'localhost,127.0.0.1' } } : {});
+const browser = await chromium.launch(
+  proxy ? { proxy: { server: proxy, bypass: 'localhost,127.0.0.1' } } : {},
+);
 
 try {
   for (const size of SIZES) {
@@ -193,6 +217,16 @@ function pages() {
       ready: 'input[type="email"]',
       readyWhy: 'The email field never showed.',
     },
+    ...SIGNED_OUT_PAGES.map((locked) => ({
+      id: `signed-out-${locked.id}`,
+      label: `${locked.label} signed out`,
+      group: SIGNED_OUT_GROUP,
+      path: locked.path,
+      expectSignIn: true,
+      // Sign In itself must show once the visitor is sent there.
+      ready: 'input[type="email"]',
+      readyWhy: 'Sign In never showed after the redirect.',
+    })),
   ];
 }
 
@@ -205,7 +239,17 @@ function searchWord() {
 /** Opens one page at one size and returns what went wrong, if anything. */
 async function check(context, size, def) {
   const path = typeof def.path === 'function' ? def.path() : def.path;
-  const base = { page: def.id, label: def.label, size: size.id, sizeLabel: size.label, path, problems: [], notes: [] };
+  const base = {
+    page: def.id,
+    label: def.label,
+    group: def.group?.id ?? null,
+    groupLabel: def.group?.label ?? null,
+    size: size.id,
+    sizeLabel: size.label,
+    path,
+    problems: [],
+    notes: [],
+  };
   if (!path || (def.needs && !def.needs())) {
     return { ...base, ok: false, skipped: true, problems: [def.skipWhy ?? 'Nothing to open.'] };
   }
@@ -274,14 +318,21 @@ async function check(context, size, def) {
     else if (status >= 400) problems.push(`The page answered ${status}.`);
 
     const wanted = new URL(BASE + path).pathname;
-    const landed = new URL(page.url()).pathname;
-    if (landed !== wanted) problems.push(`The page sent the visitor to ${landed} instead.`);
-
-    await waitForBrowserApp(page, problems);
+    let reachedSignIn = true;
+    if (def.expectSignIn) {
+      // Private pages render only in the browser, so the guard redirects after the app starts.
+      await waitForBrowserApp(page, problems);
+      reachedSignIn = await expectSignInRedirect(page, path, problems);
+    } else {
+      const landed = new URL(page.url()).pathname;
+      if (landed !== wanted) problems.push(`The page sent the visitor to ${landed} instead.`);
+      await waitForBrowserApp(page, problems);
+    }
     await page.waitForTimeout(SETTLE_MS);
     await waitForStoreLoader(page, problems);
 
-    if (def.ready) {
+    // A private page that never redirected already failed; "Sign In never showed" would repeat it.
+    if (def.ready && reachedSignIn) {
       try {
         await page.locator(def.ready).first().waitFor({ state: 'visible', timeout: READY_TIMEOUT });
       } catch {
@@ -296,7 +347,8 @@ async function check(context, size, def) {
       .innerText({ timeout: 5_000 })
       .catch(() => '');
     if (mainText.trim().length < 20) problems.push('The main area is empty.');
-    else if (BROKEN_PAGE_TEXT.test(mainText)) problems.push(`The page says: "${mainText.match(BROKEN_PAGE_TEXT)[0]}".`);
+    else if (BROKEN_PAGE_TEXT.test(mainText))
+      problems.push(`The page says: "${mainText.match(BROKEN_PAGE_TEXT)[0]}".`);
 
     if (def.after) await def.after(page).catch(() => undefined);
   } catch (error) {
@@ -339,6 +391,41 @@ async function waitForBrowserApp(page, problems) {
   }
 }
 
+/**
+ * A signed-out visitor on a private page must end on `/login?returnUrl=<that page>`. The guard
+ * waits for Firebase Auth first, so this waits up to READY_TIMEOUT for the address to change.
+ * `returnUrl` may name a page inside the requested one (`/admin` → `/admin/navigation`).
+ * Returns whether the visitor reached Sign In at all.
+ */
+async function expectSignInRedirect(page, path, problems) {
+  const isSignIn = (url) => new URL(url).pathname === '/login';
+  try {
+    await page.waitForURL((url) => isSignIn(url.href), { timeout: READY_TIMEOUT });
+  } catch {
+    // Not on Sign In: reported below from where the page actually is.
+  }
+  const landed = new URL(page.url());
+  // Still on the page, or on a page inside it (`/admin` opening `/admin/navigation`).
+  if (landed.pathname === path || landed.pathname.startsWith(`${path}/`)) {
+    problems.push(`${path} opened without signing in.`);
+    return false;
+  }
+  if (!isSignIn(landed.href)) {
+    problems.push(`${path} sent the visitor to ${landed.pathname} instead of Sign In.`);
+    return false;
+  }
+  const returnUrl = landed.searchParams.get('returnUrl') ?? '';
+  const returnPath = returnUrl.split(/[?#]/)[0];
+  if (returnPath !== path && !returnPath.startsWith(`${path}/`)) {
+    problems.push(
+      returnUrl
+        ? `${path} sent the visitor to Sign In, but back to ${returnUrl} afterwards instead of ${path}.`
+        : `${path} sent the visitor to Sign In without a way back (no returnUrl).`,
+    );
+  }
+  return true;
+}
+
 /** The first-load store loader ("Loading store") must go away. Runs once the browser app runs. */
 async function waitForStoreLoader(page, problems) {
   const loader = page.locator('[role="status"][aria-label="Loading store"]');
@@ -356,7 +443,8 @@ async function waitForStoreLoader(page, problems) {
  */
 async function openBag(page, problems) {
   const button = page.locator('button[aria-label="Shopping Cart"]:visible').first();
-  if (await bagLineOnScreen(page)) problems.push('The bag was already on screen before the bag button was pressed.');
+  if (await bagLineOnScreen(page))
+    problems.push('The bag was already on screen before the bag button was pressed.');
   try {
     await button.click({ timeout: 10_000 });
   } catch {
@@ -377,10 +465,18 @@ async function openBag(page, problems) {
     [...document.querySelectorAll('app-cart-drawer h3')].some((h) => {
       if (!/your bag is empty/i.test(h.textContent ?? '')) return false;
       const r = h.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+      return (
+        r.width > 0 &&
+        r.height > 0 &&
+        r.bottom > 0 &&
+        r.right > 0 &&
+        r.top < innerHeight &&
+        r.left < innerWidth
+      );
     }),
   );
-  if (!lineStillThere || emptyShown) problems.push('The bag shows "Your bag is empty" although it has an item.');
+  if (!lineStillThere || emptyShown)
+    problems.push('The bag shows "Your bag is empty" although it has an item.');
 }
 
 /** True when a bag line is inside the window (runs in the page). */
@@ -426,7 +522,11 @@ function summary() {
   const passed = results.filter((r) => r.ok).length;
   const skipped = results.filter((r) => r.skipped).length;
   const lines = [];
-  lines.push(failed.length ? `### 🖥 Browser Check · ${failed.length} failed` : '### 🖥 Browser Check · all pages passed');
+  lines.push(
+    failed.length
+      ? `### 🖥 Browser Check · ${failed.length} failed`
+      : '### 🖥 Browser Check · all pages passed',
+  );
   lines.push('');
   lines.push(
     `${passed} passed, ${failed.length} failed${skipped ? `, ${skipped} skipped` : ''}, on ${sha ? `\`${sha.slice(0, 7)}\`` : 'this commit'}. ` +
@@ -435,14 +535,24 @@ function summary() {
   lines.push('');
   lines.push('| Page | Phone | Desktop |');
   lines.push('| --- | --- | --- |');
-  const byPage = new Map();
+  // One row per page; grouped pages (Signed-out access) share one row that lists every path.
+  const rows = new Map();
   for (const r of results) {
-    if (!byPage.has(r.page)) byPage.set(r.page, { label: r.label, path: r.path });
-    byPage.get(r.page)[r.size] = r;
+    const key = r.group ?? r.page;
+    if (!rows.has(key)) rows.set(key, { label: r.groupLabel ?? r.label, paths: [], phone: [], desktop: [] });
+    const row = rows.get(key);
+    if (r.path && !row.paths.includes(r.path)) row.paths.push(r.path);
+    row[r.size]?.push(r);
   }
-  const cell = (r) => (!r ? '–' : r.skipped ? '⏭ skipped' : r.ok ? (r.retried ? '✅ (2nd try)' : '✅') : '❌');
-  for (const [, row] of byPage) {
-    const where = row.path ? ` \`${row.path}\`` : '';
+  const cell = (list) => {
+    if (!list.length) return '–';
+    const failedHere = list.filter((r) => !r.ok && !r.skipped).length;
+    if (failedHere) return list.length > 1 ? `❌ ${failedHere} of ${list.length}` : '❌';
+    if (list.every((r) => r.skipped)) return '⏭ skipped';
+    return list.some((r) => r.retried) ? '✅ (2nd try)' : '✅';
+  };
+  for (const [, row] of rows) {
+    const where = row.paths.length ? ` ${row.paths.map((p) => `\`${p}\``).join(', ')}` : '';
     lines.push(`| ${row.label}${where} | ${cell(row.phone)} | ${cell(row.desktop)} |`);
   }
   const problems = results.filter((r) => !r.ok);
