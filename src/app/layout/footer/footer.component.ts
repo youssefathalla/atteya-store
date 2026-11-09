@@ -7,6 +7,7 @@ import { STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
 import { AuthService } from '@core/services/auth/auth.service';
 import { safeReturnUrl } from '@core/services/auth/auth.utils';
 import { NavService } from '@core/services/navigation';
+import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { FooterSignupComponent } from './components/footer-signup/footer-signup.component';
 import { footerLabel, footerSocialLinks } from './utils/footer-links';
 
@@ -21,7 +22,7 @@ const FIXED_SHOP_PATHS = new Set(['/shop', '/brands', '/category/all']);
 @Component({
   selector: 'app-footer',
   host: { class: 'block w-full mt-auto' },
-  imports: [RouterLink, FooterSignupComponent],
+  imports: [RouterLink, LinkTargetPipe, FooterSignupComponent],
   templateUrl: './footer.component.html',
 })
 export class FooterComponent {

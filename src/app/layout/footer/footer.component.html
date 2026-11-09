@@ -7,7 +7,7 @@
           <ul class="elements-start-col gap-3">
             <li><a class="footer-link" routerLink="/shop">Shop All</a></li>
             @for (category of categoryLinks(); track category.path) {
-              <li><a class="footer-link" [routerLink]="category.path">{{ category.label }}</a></li>
+              <li><a class="footer-link" [routerLink]="category.path | linkTarget">{{ category.label }}</a></li>
             }
             <li><a class="footer-link" routerLink="/brands">Brands</a></li>
           </ul>
