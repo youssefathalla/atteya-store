@@ -51,9 +51,7 @@ if (apply && projectId === 'attiya-store' && arg('confirm-prod') !== true) {
   throw new Error('Writing to prod requires --confirm-prod.');
 }
 
-const rows = JSON.parse(
-  readFileSync(new URL('./data/product-players.json', import.meta.url), 'utf8'),
-);
+const rows = JSON.parse(readFileSync(new URL('./data/product-players.json', import.meta.url), 'utf8'));
 const seedIds = new Set(PLAYERS.map((player) => player.id));
 for (const row of rows) {
   if (typeof row.id !== 'string' || !Array.isArray(row.players) || row.players.length === 0) {
@@ -118,7 +116,5 @@ for (const row of rows) {
 
 console.log(
   `\n${apply ? 'Wrote' : 'Would write'} ${written}, skipped ${skipped}, missing ${missing}.` +
-    (apply
-      ? ' Now run Rebuild search in Catalogue tools.'
-      : ' Dry run only; add --apply to write.'),
+    (apply ? ' Now run Rebuild search in Catalogue tools.' : ' Dry run only; add --apply to write.'),
 );

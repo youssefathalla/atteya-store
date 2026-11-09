@@ -15,12 +15,7 @@ import { provideNativeDateAdapter } from '@angular/material/core';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 import { routes } from './app.routes';
 import { environment } from '@env/environment';
-import {
-  provideFirebaseApp,
-  provideAuth,
-  provideFirestore,
-  provideAppCheck,
-} from '@core/firebase';
+import { provideFirebaseApp, provideAuth, provideFirestore, provideAppCheck } from '@core/firebase';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -34,9 +29,7 @@ export const appConfig: ApplicationConfig = {
         // Query-only updates (shop filters) must not crossfade the whole page.
         onViewTransitionCreated: ({ transition, from, to }) => {
           const pathOf = (snap: typeof from) =>
-            snap.pathFromRoot
-              .flatMap((s) => s.url.map((segment) => segment.path))
-              .join('/');
+            snap.pathFromRoot.flatMap((s) => s.url.map((segment) => segment.path)).join('/');
           if (pathOf(from) === pathOf(to)) {
             transition.skipTransition();
           }

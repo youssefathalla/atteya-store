@@ -83,7 +83,8 @@ async function findProduct(slug, id) {
     console.log(`NOTE     no product has the id "${id}"; trying the slug "${slug}"`);
   }
   const page = await db.collection('products').where('slug', '==', slug).limit(2).get();
-  if (page.size > 1) console.log(`NOTE     more than one product has the slug "${slug}"; using ${page.docs[0].id}`);
+  if (page.size > 1)
+    console.log(`NOTE     more than one product has the slug "${slug}"; using ${page.docs[0].id}`);
   return page.empty ? null : page.docs[0];
 }
 
@@ -94,7 +95,10 @@ const entries = Object.entries(FIXES);
 
 for (const [slug, raw] of entries) {
   const { id, colors } = readEntry(raw);
-  const bad = !Array.isArray(colors) || colors.length === 0 ? ['(no colours listed)'] : colors.filter((c) => !COLOR_IDS.includes(c));
+  const bad =
+    !Array.isArray(colors) || colors.length === 0
+      ? ['(no colours listed)']
+      : colors.filter((c) => !COLOR_IDS.includes(c));
   if (bad.length > 0) {
     left.push(`REJECTED ${slug}: ${bad.join(', ')} not in the palette (${COLOR_IDS.join(', ')})`);
     continue;

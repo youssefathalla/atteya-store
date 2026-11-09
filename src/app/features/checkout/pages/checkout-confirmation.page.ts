@@ -91,10 +91,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       hasDetails: hasInstapayDetails(info),
       address: info.address.trim(),
       number: info.number.trim(),
-      whatsappUrl: whatsappChatUrl(
-        STORE_INFO.contact.whatsapp,
-        shopperWhatsappText(stage, input, info),
-      ),
+      whatsappUrl: whatsappChatUrl(STORE_INFO.contact.whatsapp, shopperWhatsappText(stage, input, info)),
     };
   });
 
@@ -178,9 +175,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     return this.order()?.paymentMethod === 'international-bank-transfer' ? 'Bank Transfer' : '—';
   });
 
-  readonly statusLabel = computed(() =>
-    orderStatusName(this.stage(), this.order()?.status ?? '—'),
-  );
+  readonly statusLabel = computed(() => orderStatusName(this.stage(), this.order()?.status ?? '—'));
 
   /**
    * What was ordered, from the saved order lines. Free gifts follow the item they came with and
@@ -227,11 +222,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   readonly displayTotal = computed(() => {
     const pricing = this.order()?.pricing;
     if (!pricing) return '—';
-    const total = formatMoney(
-      pricing.totalDisplay,
-      pricing.currency,
-      displayDecimals(pricing.currency),
-    );
+    const total = formatMoney(pricing.totalDisplay, pricing.currency, displayDecimals(pricing.currency));
     return this.stage() === 'fee-to-be-agreed' ? `${total} + shipping` : total;
   });
 

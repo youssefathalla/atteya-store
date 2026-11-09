@@ -1,7 +1,9 @@
 @use '@angular/material' as mat;
 
 :root {
-  @include mat.autocomplete-overrides((
-    container-shape: var(--border-shape, 2px),
-  ));
+  @include mat.autocomplete-overrides(
+    (
+      container-shape: var(--border-shape, 2px),
+    )
+  );
 }

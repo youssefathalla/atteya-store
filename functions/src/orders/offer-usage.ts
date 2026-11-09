@@ -87,8 +87,7 @@ export async function confirmedEndedOfferIds(
 ): Promise<Set<string>> {
   const wanted = new Set(requested);
   const limited = offers.filter(
-    (offer) =>
-      wanted.has(offer.id) && (offer.limits.totalUses !== null || offer.limits.perCustomer !== null),
+    (offer) => wanted.has(offer.id) && (offer.limits.totalUses !== null || offer.limits.perCustomer !== null),
   );
   const confirmed = new Set<string>();
   if (limited.length === 0) return confirmed;
@@ -154,7 +153,11 @@ export async function readOfferUses(
   return () => {
     const now = FieldValue.serverTimestamp();
     for (const entry of snaps) {
-      tx.set(entry.total, { offerId: entry.offer.offerId, count: entry.totalCount + 1, updatedAt: now }, { merge: true });
+      tx.set(
+        entry.total,
+        { offerId: entry.offer.offerId, count: entry.totalCount + 1, updatedAt: now },
+        { merge: true },
+      );
       tx.set(
         entry.customer,
         { offerId: entry.offer.offerId, uid, count: entry.customerCount + 1, updatedAt: now },
@@ -196,7 +199,11 @@ export async function releaseOfferUses(
     const now = FieldValue.serverTimestamp();
     snaps.forEach((snap, index) => {
       if (!snap.exists) return;
-      tx.set(refs[index]!, { count: Math.max(0, readCount(snap.data()?.['count']) - 1), updatedAt: now }, { merge: true });
+      tx.set(
+        refs[index]!,
+        { count: Math.max(0, readCount(snap.data()?.['count']) - 1), updatedAt: now },
+        { merge: true },
+      );
     });
     offerSnaps.forEach((snap, index) => {
       const data = snap.data();

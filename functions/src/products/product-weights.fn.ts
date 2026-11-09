@@ -2,11 +2,7 @@ import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firesto
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
-import {
-  defaultWeightGrams,
-  readCategoryWeight,
-  type CategoryWeightDefaults,
-} from './catalog-taxonomy.js';
+import { defaultWeightGrams, readCategoryWeight, type CategoryWeightDefaults } from './catalog-taxonomy.js';
 
 /**
  * Admin: shipping weights (Catalogue Tools → Shipping Weights).
@@ -169,11 +165,7 @@ async function buildReport(db: Firestore): Promise<Omit<ProductWeightsReport, 'f
   };
 }
 
-async function saveDefaults(
-  db: Firestore,
-  weights: CategoryWeightDefaults,
-  uid: string,
-): Promise<void> {
+async function saveDefaults(db: Firestore, weights: CategoryWeightDefaults, uid: string): Promise<void> {
   const ids = Object.keys(weights);
   if (ids.length === 0) return;
   const refs = ids.map((id) => db.collection('categories').doc(id));
@@ -245,12 +237,7 @@ function parseInput(raw: unknown): Input {
     }
     if (value === null) {
       out[id] = null;
-    } else if (
-      typeof value === 'number' &&
-      Number.isInteger(value) &&
-      value >= 0 &&
-      value <= MAX_GRAMS
-    ) {
+    } else if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= MAX_GRAMS) {
       out[id] = value;
     } else {
       throw new HttpsError(

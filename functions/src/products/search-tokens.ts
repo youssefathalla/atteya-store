@@ -15,10 +15,7 @@ export function searchWords(text: string): string[] {
     .filter((word) => word.length > 0);
 }
 
-export function buildSearchTokens(
-  name: string,
-  modelGroup: string | null | undefined,
-): readonly string[] {
+export function buildSearchTokens(name: string, modelGroup: string | null | undefined): readonly string[] {
   const unique = new Set<string>();
 
   for (const source of [name, modelGroup ?? '']) {

@@ -68,16 +68,9 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
     const tagLine = getLineNumberFromOffset(templateContent, tagMatch.index, baseLine);
 
     // Collect all class strings and bound classes on the tag
-    const classAttrMatches = [
-      ...fullTag.matchAll(/\b(?:\[?class\]?|\[ngClass\])\s*=\s*["']([^"']+)["']/gi),
-    ];
-    const boundClassMatches = [
-      ...fullTag.matchAll(/\[class\.([^\]]+)\]/gi),
-    ];
-    const allClassStrings = [
-      ...classAttrMatches.map((m) => m[1]),
-      ...boundClassMatches.map((m) => m[1]),
-    ];
+    const classAttrMatches = [...fullTag.matchAll(/\b(?:\[?class\]?|\[ngClass\])\s*=\s*["']([^"']+)["']/gi)];
+    const boundClassMatches = [...fullTag.matchAll(/\[class\.([^\]]+)\]/gi)];
+    const allClassStrings = [...classAttrMatches.map((m) => m[1]), ...boundClassMatches.map((m) => m[1])];
 
     // Check class attributes
     for (const classStr of allClassStrings) {
@@ -85,7 +78,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         logError(
           filePath,
           tagLine,
-          `Tailwind v4 prefix '!' detected in class string: "${classStr}". Use suffix '!' (e.g. 'hidden!' instead of '!hidden').`
+          `Tailwind v4 prefix '!' detected in class string: "${classStr}". Use suffix '!' (e.g. 'hidden!' instead of '!hidden').`,
         );
       }
 
@@ -94,7 +87,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         logError(
           filePath,
           tagLine,
-          `Redundant 'text-on-surface' class detected: "${classStr}". Text color is inherited from body by default; do not apply text-on-surface.`
+          `Redundant 'text-on-surface' class detected: "${classStr}". Text color is inherited from body by default; do not apply text-on-surface.`,
         );
       }
 
@@ -103,7 +96,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         logError(
           filePath,
           tagLine,
-          `Un-postfixed 'font-bold' detected in class string: "${classStr}". Always use 'font-bold!' with suffix '!' to override M3 font shorthand.`
+          `Un-postfixed 'font-bold' detected in class string: "${classStr}". Always use 'font-bold!' with suffix '!' to override M3 font shorthand.`,
         );
       }
 
@@ -112,7 +105,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         logError(
           filePath,
           tagLine,
-          `Deprecated 'rounded-corner-xs' detected: "${classStr}". Use the unified 'border-shape' utility instead.`
+          `Deprecated 'rounded-corner-xs' detected: "${classStr}". Use the unified 'border-shape' utility instead.`,
         );
       }
 
@@ -122,7 +115,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         logError(
           filePath,
           tagLine,
-          `Redundant 'section-space' combined with 'container-content' in "${classStr}". '.container-content' already applies 'p-[5cqw]'.`
+          `Redundant 'section-space' combined with 'container-content' in "${classStr}". '.container-content' already applies 'p-[5cqw]'.`,
         );
       }
 
@@ -134,12 +127,16 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         logError(
           filePath,
           tagLine,
-          `'@container' cannot be placed on the same element as 'container-content' or 'cqw' sizing ("${classStr}") because a CSS container cannot query itself.`
+          `'@container' cannot be placed on the same element as 'container-content' or 'cqw' sizing ("${classStr}") because a CSS container cannot query itself.`,
         );
       }
 
       // Rule: Prefer elements-center, elements-start, elements-end, elements-between shortcuts
-      if (classWords.includes('flex') && classWords.includes('items-center') && !classWords.includes('flex-col')) {
+      if (
+        classWords.includes('flex') &&
+        classWords.includes('items-center') &&
+        !classWords.includes('flex-col')
+      ) {
         for (const [justCls, shortcut] of [
           ['justify-center', 'elements-center'],
           ['justify-start', 'elements-start'],
@@ -150,7 +147,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
             logError(
               filePath,
               tagLine,
-              `Verbose flex alignment detected: 'flex items-center ${justCls}' in "${classStr}". Use '${shortcut}' shortcut instead.`
+              `Verbose flex alignment detected: 'flex items-center ${justCls}' in "${classStr}". Use '${shortcut}' shortcut instead.`,
             );
           }
         }
@@ -168,7 +165,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
             logError(
               filePath,
               tagLine,
-              `Verbose flex column alignment detected: 'flex flex-col ${itemsCls} ${justCls}' in "${classStr}". Use '${shortcut}' shortcut instead.`
+              `Verbose flex column alignment detected: 'flex flex-col ${itemsCls} ${justCls}' in "${classStr}". Use '${shortcut}' shortcut instead.`,
             );
           }
         }
@@ -179,7 +176,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
     // Check for <button ...> or <a ...> with matButton/matIconButton/matFab/matMiniFab and hyphenated variants
     const isMatButton =
       /\b(matButton|matIconButton|matFab|matMiniFab|mat-button|mat-icon-button|mat-fab|mat-mini-fab|mat-stroked-button|mat-flat-button|mat-raised-button)\b/i.test(
-        fullTag
+        fullTag,
       );
 
     if ((tagName === 'button' || tagName === 'a') && isMatButton) {
@@ -187,13 +184,13 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         // Forbid styling (color, bg, border, hover, text, p-) and layout styling (flex, items-, justify-, gap-, w-, h-, size-, grid)
         if (
           /\b(bg-|text-|hover:|border-|shadow-|rounded-|p-|px-|py-|gap-|items-|justify-)|(\b(flex|inline-flex|w-|h-|size-|grid)\b)/.test(
-            classes
+            classes,
           )
         ) {
           logError(
             filePath,
             tagLine,
-            `Tailwind styling or layout applied to Angular Material button: "${classes}". Material components must only be styled via M3 tokens or native inputs.`
+            `Tailwind styling or layout applied to Angular Material button: "${classes}". Material components must only be styled via M3 tokens or native inputs.`,
           );
         }
       }
@@ -206,7 +203,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
           logError(
             filePath,
             tagLine,
-            `Styling class applied to <mat-icon>: "${classes}". Use [iconColor]="..." and [size]="..." inputs instead.`
+            `Styling class applied to <mat-icon>: "${classes}". Use [iconColor]="..." and [size]="..." inputs instead.`,
           );
         }
       }
@@ -218,7 +215,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         logError(
           filePath,
           tagLine,
-          `Tailwind class applied directly to Material container <${tagName}>. Wrap in a native element or use M3 override tokens.`
+          `Tailwind class applied directly to Material container <${tagName}>. Wrap in a native element or use M3 override tokens.`,
         );
       }
     }
@@ -228,24 +225,20 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
       logError(
         filePath,
         tagLine,
-        `Fake button detected: <${tagName} role="button">. Always use native accessible <button type="button">.`
+        `Fake button detected: <${tagName} role="button">. Always use native accessible <button type="button">.`,
       );
     }
 
     // Rule: Invalid ARIA roles
     if (/\brole=["']none["']/i.test(fullTag)) {
-      logError(
-        filePath,
-        tagLine,
-        `Invalid/abstract role="none" detected. Remove role or use semantic HTML.`
-      );
+      logError(filePath, tagLine, `Invalid/abstract role="none" detected. Remove role or use semantic HTML.`);
     }
     if (/^(nav|ul|ol|li)$/i.test(tagName) && /\brole=["'](menu|menubar|menuitem)["']/i.test(fullTag)) {
       const roleName = new RegExp(/\brole=["'](menu|menubar|menuitem)["']/i).exec(fullTag)?.[1];
       logWarning(
         filePath,
         tagLine,
-        `Avoid assigning role="${roleName}" to standard web navigation. Screen readers announce menus as desktop app application menus.`
+        `Avoid assigning role="${roleName}" to standard web navigation. Screen readers announce menus as desktop app application menus.`,
       );
     }
     if (tagName === 'div' && /\brole=["']region["']/i.test(fullTag)) {
@@ -265,7 +258,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
         logError(
           filePath,
           tagLine,
-          `<${tagName} matIconButton> missing required aria-label or aria-labelledby attribute.`
+          `<${tagName} matIconButton> missing required aria-label or aria-labelledby attribute.`,
         );
       }
     }
@@ -282,7 +275,7 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
       logError(
         filePath,
         lineNum,
-        `Tailwind v4 prefix '!' detected. In this project and Tailwind v4, use suffix '!' (e.g., 'hidden!' instead of '!hidden').`
+        `Tailwind v4 prefix '!' detected. In this project and Tailwind v4, use suffix '!' (e.g., 'hidden!' instead of '!hidden').`,
       );
     }
 
@@ -299,13 +292,13 @@ function auditTemplateContent(filePath, templateContent, baseLine = 1) {
     // Rule: Banned generic palette colors (e.g. bg-red-500, bg-emerald-600)
     if (
       /\b(?:hover:)?(bg|text|border|ring)-(red|emerald|amber|green|blue|slate|zinc|gray)-(?:[1-9]00)\b/.test(
-        lineText
+        lineText,
       )
     ) {
       logError(
         filePath,
         lineNum,
-        `Raw palette color detected. Use semantic tokens ('bg-primary', 'text-on-surface', 'bg-success', 'theme="warning"') instead.`
+        `Raw palette color detected. Use semantic tokens ('bg-primary', 'text-on-surface', 'bg-success', 'theme="warning"') instead.`,
       );
     }
   });
@@ -354,20 +347,23 @@ function auditTypeScript(files) {
       // ReDoS: Check for unbounded quantifiers with anchors or repetitions
       // Examples: (a+)+, (\w+)*, ^-+|-+$, ^[\w-]+.+|.+[\w-]+$
       const hasNestedQuantifier = /\([^)]*[+*][^)]*\)[+*]/.test(lineText);
-      const hasUnboundedAnchoredAlternation = /(?:\^(?:\[[^\]]+\]|[^|/])+?[+*].*\||\|.*?(?:\[[^\]]+\]|[^|/])+?[+*]\$)/.test(
-        lineText
-      );
+      const hasUnboundedAnchoredAlternation =
+        /(?:\^(?:\[[^\]]+\]|[^|/])+?[+*].*\||\|.*?(?:\[[^\]]+\]|[^|/])+?[+*]\$)/.test(lineText);
       if (hasNestedQuantifier || hasUnboundedAnchoredAlternation) {
         logError(
           filePath,
           lineNum,
-          `Potential ReDoS polynomial backtracking in regex. Prefer native string methods (startsWith/endsWith/slice) or bounded quantifiers.`
+          `Potential ReDoS polynomial backtracking in regex. Prefer native string methods (startsWith/endsWith/slice) or bounded quantifiers.`,
         );
       }
 
       // Deprecated Standalone flag in Angular v22
       if (/standalone:\s*true/.test(lineText)) {
-        logWarning(filePath, lineNum, `'standalone: true' is redundant in Angular v22+. Standalone is default.`);
+        logWarning(
+          filePath,
+          lineNum,
+          `'standalone: true' is redundant in Angular v22+. Standalone is default.`,
+        );
       }
 
       // Legacy Injectable
@@ -375,17 +371,20 @@ function auditTypeScript(files) {
         logError(
           filePath,
           lineNum,
-          `Legacy @Injectable({ providedIn: 'root' }) found. In Angular v22+, use @Service() from '@angular/core'.`
+          `Legacy @Injectable({ providedIn: 'root' }) found. In Angular v22+, use @Service() from '@angular/core'.`,
         );
       }
     });
 
     // Ensure *-section.component.ts defines host: { class: 'block w-full' }
-    if (filePath.endsWith('-section.component.ts') && !/host:\s*\{[\s\S]*?\bblock\b[\s\S]*?\bw-full\b/.test(content)) {
+    if (
+      filePath.endsWith('-section.component.ts') &&
+      !/host:\s*\{[\s\S]*?\bblock\b[\s\S]*?\bw-full\b/.test(content)
+    ) {
       logError(
         filePath,
         1,
-        `Section component must define "host: { class: 'block w-full' }" in @Component() to prevent inline width/height collapse.`
+        `Section component must define "host: { class: 'block w-full' }" in @Component() to prevent inline width/height collapse.`,
       );
     }
   }
@@ -401,8 +400,9 @@ function auditSSRRoutes() {
   const serverRoutesContent = fs.readFileSync(serverRoutesPath, 'utf-8');
 
   // Find all route files: app.routes.ts and any feature routes (**/*.routes.ts)
-  const allRouteFiles = getFiles(path.join(SRC_DIR, 'app'), ['.routes.ts'])
-    .filter((file) => !file.endsWith('.routes.server.ts'));
+  const allRouteFiles = getFiles(path.join(SRC_DIR, 'app'), ['.routes.ts']).filter(
+    (file) => !file.endsWith('.routes.server.ts'),
+  );
 
   for (const routeFilePath of allRouteFiles) {
     const routesContent = fs.readFileSync(routeFilePath, 'utf-8');
@@ -413,14 +413,20 @@ function auditSSRRoutes() {
       const dynamicPath = match[1];
 
       // Exact match check
-      if (serverRoutesContent.includes(`'${dynamicPath}'`) || serverRoutesContent.includes(`"${dynamicPath}"`)) {
+      if (
+        serverRoutesContent.includes(`'${dynamicPath}'`) ||
+        serverRoutesContent.includes(`"${dynamicPath}"`)
+      ) {
         continue;
       }
 
       // Wildcard prefix check (e.g. 'category/**' covers 'category/:slug')
       const normalizedPath = dynamicPath.replace(/^\//, '');
       const prefix = normalizedPath.split('/')[0];
-      if (prefix && (serverRoutesContent.includes(`'${prefix}/**'`) || serverRoutesContent.includes(`"${prefix}/**"`))) {
+      if (
+        prefix &&
+        (serverRoutesContent.includes(`'${prefix}/**'`) || serverRoutesContent.includes(`"${prefix}/**"`))
+      ) {
         continue;
       }
 
@@ -428,7 +434,10 @@ function auditSSRRoutes() {
       const relToFeatures = path.relative(path.join(SRC_DIR, 'app', 'features'), routeFilePath);
       if (!relToFeatures.startsWith('..')) {
         const featureDir = relToFeatures.split(path.sep)[0];
-        if (serverRoutesContent.includes(`'${featureDir}/**'`) || serverRoutesContent.includes(`"${featureDir}/**"`)) {
+        if (
+          serverRoutesContent.includes(`'${featureDir}/**'`) ||
+          serverRoutesContent.includes(`"${featureDir}/**"`)
+        ) {
           continue;
         }
       }
@@ -436,7 +445,7 @@ function auditSSRRoutes() {
       logError(
         serverRoutesPath,
         1,
-        `Parameterized route '${dynamicPath}' in ${path.relative(process.cwd(), routeFilePath)} is NOT covered in app.routes.server.ts. Dynamic routes require RenderMode.Server to prevent build failures.`
+        `Parameterized route '${dynamicPath}' in ${path.relative(process.cwd(), routeFilePath)} is NOT covered in app.routes.server.ts. Dynamic routes require RenderMode.Server to prevent build failures.`,
       );
     }
   }
@@ -557,7 +566,9 @@ try {
 
 try {
   assertStorefrontAntiFlicker();
-  console.log('\x1b[32m✓\x1b[0m Storefront anti-flicker: nav/catalog seeds, category empty state, app-loader heights');
+  console.log(
+    '\x1b[32m✓\x1b[0m Storefront anti-flicker: nav/catalog seeds, category empty state, app-loader heights',
+  );
 } catch (error) {
   logError(
     path.resolve(process.cwd(), 'scripts/storefront-anti-flicker-check.mjs'),
@@ -574,6 +585,8 @@ if (totalErrors === 0 && totalWarnings === 0) {
   console.log(`\x1b[33m⚠️ Pre-Flight Check PASSED with ${totalWarnings} warning(s).\x1b[0m`);
   process.exit(0);
 } else {
-  console.error(`\x1b[31m❌ Pre-Flight Check FAILED: ${totalErrors} error(s), ${totalWarnings} warning(s).\x1b[0m`);
+  console.error(
+    `\x1b[31m❌ Pre-Flight Check FAILED: ${totalErrors} error(s), ${totalWarnings} warning(s).\x1b[0m`,
+  );
   process.exit(1);
 }

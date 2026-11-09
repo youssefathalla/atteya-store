@@ -118,11 +118,9 @@ export class CatalogToolsService {
    * products that have no weight. Every call returns the fresh report.
    */
   async productWeights(request: ProductWeightsRequest): Promise<ProductWeightsReport> {
-    const call = await callableFrom<ProductWeightsRequest, unknown>(
-      this.#functions(),
-      'productWeights',
-      { timeout: 300_000 },
-    );
+    const call = await callableFrom<ProductWeightsRequest, unknown>(this.#functions(), 'productWeights', {
+      timeout: 300_000,
+    });
     const result = await call(request);
     const parsed = v.safeParse(ProductWeightsSchema, result.data);
     if (!parsed.success) {

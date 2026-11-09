@@ -121,10 +121,7 @@ export const paymobWebhook = onRequest(
         const paymob = isRecord(data['paymob']) ? data['paymob'] : {};
         const storedIntentionOrderId =
           typeof paymob['intentionOrderId'] === 'number' ? paymob['intentionOrderId'] : null;
-        if (
-          storedIntentionOrderId === null ||
-          storedIntentionOrderId !== signedPaymobOrderId
-        ) {
+        if (storedIntentionOrderId === null || storedIntentionOrderId !== signedPaymobOrderId) {
           tx.set(eventRef, {
             orderId,
             transactionId,
@@ -135,14 +132,9 @@ export const paymobWebhook = onRequest(
           });
           return;
         }
-        const expectedCents =
-          typeof paymob['amountCents'] === 'number' ? paymob['amountCents'] : null;
+        const expectedCents = typeof paymob['amountCents'] === 'number' ? paymob['amountCents'] : null;
         // Both sides must be known and equal; a missing amount never confirms.
-        if (
-          expectedCents === null ||
-          !Number.isFinite(amountCents) ||
-          amountCents !== expectedCents
-        ) {
+        if (expectedCents === null || !Number.isFinite(amountCents) || amountCents !== expectedCents) {
           tx.set(eventRef, {
             orderId,
             transactionId,

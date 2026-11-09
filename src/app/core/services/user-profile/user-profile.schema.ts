@@ -2,7 +2,8 @@ import * as v from 'valibot';
 import { TimestampSchema } from '@shared/schemas/common.schema';
 
 const text = (min: number, max: number) => v.pipe(v.string(), v.trim(), v.minLength(min), v.maxLength(max));
-const optionalText = (max: number) => v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(max))), null);
+const optionalText = (max: number) =>
+  v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(max))), null);
 
 /**
  * The one delivery address a shopper keeps in `users/{uid}.address` (Account → Delivery Address).

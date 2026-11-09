@@ -101,23 +101,24 @@ export const migrateCatalogStructure = onCall(
     const db = getFirestore();
 
     const response =
-      input.pass === 'add'
-        ? await runAddPass(db, input.dryRun)
-        : await runDropLegacyPass(db, input.dryRun);
+      input.pass === 'add' ? await runAddPass(db, input.dryRun) : await runDropLegacyPass(db, input.dryRun);
 
     if (!input.dryRun) {
-      await db.collection('auditLogs').doc().set({
-        action: 'catalog.migrate',
-        pass: input.pass,
-        actorUid: actor.uid,
-        actorEmail: actor.email ?? actor.uid,
-        at: FieldValue.serverTimestamp(),
-        counts: {
-          categories: response.categories,
-          brands: response.brands,
-          products: response.products,
-        },
-      });
+      await db
+        .collection('auditLogs')
+        .doc()
+        .set({
+          action: 'catalog.migrate',
+          pass: input.pass,
+          actorUid: actor.uid,
+          actorEmail: actor.email ?? actor.uid,
+          at: FieldValue.serverTimestamp(),
+          counts: {
+            categories: response.categories,
+            brands: response.brands,
+            products: response.products,
+          },
+        });
     }
 
     return response;
@@ -309,8 +310,7 @@ async function backfillProducts(
 
     const existingCategoryIds = nonEmptyStringArray(data['categoryIds']);
     const defaultLeaf = (type && DEFAULT_CATEGORY_FOR_TYPE[type]) || 'accessories';
-    const categoryIds =
-      existingCategoryIds.length > 0 ? existingCategoryIds : categoryIdsFor(defaultLeaf);
+    const categoryIds = existingCategoryIds.length > 0 ? existingCategoryIds : categoryIdsFor(defaultLeaf);
     const existingCategoryId = nonEmptyString(data['categoryId']);
     const categoryId =
       existingCategoryId && categoryIds.includes(existingCategoryId)
@@ -341,9 +341,7 @@ async function backfillProducts(
     const rawLocked = Array.isArray(data['lockedFields']) ? data['lockedFields'] : [];
     const currentLocked = rawLocked.filter((item): item is string => typeof item === 'string');
     if (currentLocked.includes('brand')) {
-      const nextLocked = [
-        ...new Set(currentLocked.map((item) => (item === 'brand' ? 'brandId' : item))),
-      ];
+      const nextLocked = [...new Set(currentLocked.map((item) => (item === 'brand' ? 'brandId' : item)))];
       patch['lockedFields'] = nextLocked;
       diffNotes.push('lockedFields brand -> brandId');
     }
@@ -362,10 +360,8 @@ async function backfillProducts(
     if (currentColors.length > 0) {
       counts.colorsKept += 1;
     } else {
-      const nameColors =
-        optionBackfill.colors.length === 0 ? extractColorsFromName(name) : [];
-      const resolvedColors =
-        optionBackfill.colors.length > 0 ? optionBackfill.colors : nameColors;
+      const nameColors = optionBackfill.colors.length === 0 ? extractColorsFromName(name) : [];
+      const resolvedColors = optionBackfill.colors.length > 0 ? optionBackfill.colors : nameColors;
 
       if (optionBackfill.colors.length > 0) {
         counts.colorsFromOptions += 1;
@@ -389,8 +385,7 @@ async function backfillProducts(
       diffNotes.push('tags -> []');
     }
 
-    const modelGroup =
-      typeof data['modelGroup'] === 'string' ? (data['modelGroup'] as string) : null;
+    const modelGroup = typeof data['modelGroup'] === 'string' ? (data['modelGroup'] as string) : null;
     const nextTokens = buildSearchTokens(name, modelGroup);
     const currentTokens = Array.isArray(data['searchTokens'])
       ? data['searchTokens'].filter((item): item is string => typeof item === 'string')

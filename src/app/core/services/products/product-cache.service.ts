@@ -38,12 +38,7 @@ export class ProductCacheService {
 
   /** Fire-and-forget warm-up on intent. No-op on the server, Save-Data or 2G. Never throws. */
   prefetch(slug: string): void {
-    if (
-      !this.#isBrowser ||
-      isConstrainedNetwork() ||
-      slug.length === 0 ||
-      slug.length > MAX_SLUG_LENGTH
-    ) {
+    if (!this.#isBrowser || isConstrainedNetwork() || slug.length === 0 || slug.length > MAX_SLUG_LENGTH) {
       return;
     }
     void this.getBySlug(slug).catch(() => undefined);

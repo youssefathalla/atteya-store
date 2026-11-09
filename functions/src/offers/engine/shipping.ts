@@ -67,10 +67,7 @@ export type SelectShippingBoxResult =
 
 const TIE_ORDER: readonly ShippingReason[] = ['promo', 'freeOver', 'offer', 'box'];
 
-export function boxesForRegion(
-  settings: ShippingSettings,
-  region: ShippingRegion,
-): readonly ShippingBox[] {
+export function boxesForRegion(settings: ShippingSettings, region: ShippingRegion): readonly ShippingBox[] {
   return region === 'egypt' ? settings.egyptBoxes : settings.internationalBoxes;
 }
 

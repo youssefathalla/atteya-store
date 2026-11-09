@@ -8,12 +8,7 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 @Component({
   selector: 'app-products-toolbar',
   host: { class: 'block w-full' },
-  imports: [
-    MatButtonModule,
-    MatMenuModule,
-    MatProgressSpinnerModule,
-    SharedIconModule,
-  ],
+  imports: [MatButtonModule, MatMenuModule, MatProgressSpinnerModule, SharedIconModule],
   templateUrl: './products-toolbar.component.html',
 })
 export class ProductsToolbarComponent {

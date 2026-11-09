@@ -31,7 +31,8 @@
     <div>
       <h3 class="font-title-md font-bold!">Reusable Skeleton Placeholders (&lt;app-skeleton&gt;)</h3>
       <p class="font-body-sm opacity-70">
-        Light-mode M3 shimmer blocks that adapt to any container aspect ratio (`aspect-16/9`, `aspect-4/5`, `aspect-square`) or cover cards via `overlay`.
+        Light-mode M3 shimmer blocks that adapt to any container aspect ratio (`aspect-16/9`, `aspect-4/5`,
+        `aspect-square`) or cover cards via `overlay`.
       </p>
     </div>
 
@@ -55,10 +56,14 @@
       </div>
 
       <!-- Overlay Veil Skeleton (z-50 sits on top of buttons and content) -->
-      <div class="relative p-4 bg-surface-container-low panel-border space-y-4 overflow-hidden elements-between-col min-h-60">
+      <div
+        class="relative p-4 bg-surface-container-low panel-border space-y-4 overflow-hidden elements-between-col min-h-60"
+      >
         <app-skeleton overlay />
         <div>
-          <span class="font-label-sm font-bold! uppercase opacity-70 block">Overlay Veil Skeleton (z-50)</span>
+          <span class="font-label-sm font-bold! uppercase opacity-70 block"
+            >Overlay Veil Skeleton (z-50)</span
+          >
           <p class="font-body-sm opacity-70 pt-1">
             Component stays rendered underneath, while the z-50 shimmer veil covers all content until ready.
           </p>
@@ -81,9 +86,7 @@
   <!-- 3. Blocking Action / Section Spinner (<app-loader>) -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
     <!-- Controls -->
-    <div
-      class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4"
-    >
+    <div class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4">
       <span class="font-title-sm text-primary">Spinner Overlay Configuration</span>
 
       <div>

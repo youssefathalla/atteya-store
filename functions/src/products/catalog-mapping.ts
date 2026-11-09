@@ -43,10 +43,7 @@ export type BrandId = (typeof PRODUCT_BRANDS)[number]['id'];
 /** Nav brand with no products yet. Counted as 0 so the link can be hidden. */
 export const PLACEHOLDER_BRAND_IDS = ['puma'] as const;
 
-export const CATALOG_CATEGORY_IDS: readonly string[] = [
-  ...PRODUCT_CATEGORY_IDS,
-  ...PLACEHOLDER_CATEGORY_IDS,
-];
+export const CATALOG_CATEGORY_IDS: readonly string[] = [...PRODUCT_CATEGORY_IDS, ...PLACEHOLDER_CATEGORY_IDS];
 
 export const CATALOG_TYPE_IDS: readonly string[] = PRODUCT_TYPES.map((type) => type.id);
 
@@ -91,7 +88,11 @@ export function categoryForType(type: ProductTypeId): ProductCategoryId {
 }
 
 export function collapseSpaces(value: string): string {
-  return value.trim().split(/\s+/).filter((part) => part.length > 0).join(' ');
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
+    .join(' ');
 }
 
 export function sizeRank(label: string): number {

@@ -9,12 +9,7 @@
     </a>
 
     <!-- 2. Menu / Modules Toggle (menu <-> close) -->
-    <button
-      matIconButton
-      type="button"
-      (click)="toggleMenu()"
-      aria-label="Toggle admin navigation menu"
-    >
+    <button matIconButton type="button" (click)="toggleMenu()" aria-label="Toggle admin navigation menu">
       <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" />
     </button>
   </div>

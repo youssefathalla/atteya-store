@@ -4,10 +4,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { safeErrorMessage } from '../search/algolia-client.js';
 import { ALGOLIA_WRITE_KEY } from '../search/algolia-config.js';
 import { getActiveOffers } from './offer-cache.js';
-import {
-  currentLivePublicOfferIds,
-  recomputeAlgoliaOfferPricing,
-} from './on-offer-written.trigger.js';
+import { currentLivePublicOfferIds, recomputeAlgoliaOfferPricing } from './on-offer-written.trigger.js';
 
 export const refreshOfferPricing = onSchedule(
   {

@@ -17,12 +17,7 @@ export class PublicOffersReader {
 
   async fetchActivePublic(): Promise<readonly Offer[]> {
     const snap = await getDocs(
-      query(
-        this.#col,
-        where('active', '==', true),
-        where('visibility', '==', 'public'),
-        limit(100),
-      ),
+      query(this.#col, where('active', '==', true), where('visibility', '==', 'public'), limit(100)),
     );
     const offers: Offer[] = [];
     for (const docSnap of snap.docs) {

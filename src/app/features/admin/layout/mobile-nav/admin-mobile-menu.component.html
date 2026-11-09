@@ -24,21 +24,14 @@
         class="elements-between px-5 pt-safe-top pb-3 border-b border-outline-variant bg-surface-container-lowest"
       >
         <div class="flex items-center gap-2">
-          <span class="font-display-sm font-bold! tracking-widest uppercase">
-            ATTEYA.
-          </span>
+          <span class="font-display-sm font-bold! tracking-widest uppercase"> ATTEYA. </span>
           <span
             class="font-label-sm font-mono font-bold! px-1.5 py-0.5 border-shape bg-surface-container-high uppercase tracking-wider opacity-80"
           >
             Admin
           </span>
         </div>
-        <button
-          matIconButton
-          type="button"
-          (click)="closeMenu()"
-          aria-label="Close menu"
-        >
+        <button matIconButton type="button" (click)="closeMenu()" aria-label="Close menu">
           <mat-icon name="close" />
         </button>
       </div>
@@ -95,14 +88,14 @@
           >
             <div class="flex items-center gap-2.5">
               <mat-icon name="open_in_new" size="sm" />
-              <span class="font-title-sm font-bold! uppercase tracking-wider">
-                Preview Storefront
-              </span>
+              <span class="font-title-sm font-bold! uppercase tracking-wider"> Preview Storefront </span>
             </div>
             <span class="font-label-sm font-bold! opacity-60">Live</span>
           </a>
 
-          <div class="flex items-center gap-3 p-3 border-shape bg-surface-container-low border border-outline-variant">
+          <div
+            class="flex items-center gap-3 p-3 border-shape bg-surface-container-low border border-outline-variant"
+          >
             <div
               class="size-8 rounded-full bg-surface-container-high elements-center font-label-sm font-bold!"
             >
@@ -140,20 +133,13 @@
             <span>All Categories</span>
           </button>
 
-          <button
-            matIconButton
-            type="button"
-            (click)="closeMenu()"
-            aria-label="Close menu"
-          >
+          <button matIconButton type="button" (click)="closeMenu()" aria-label="Close menu">
             <mat-icon name="close" />
           </button>
         </div>
 
         <!-- Current Category Title -->
-        <div
-          class="px-5 py-3 border-b border-outline-variant bg-surface-container-low elements-between"
-        >
+        <div class="px-5 py-3 border-b border-outline-variant bg-surface-container-low elements-between">
           <div class="flex items-center gap-2.5">
             <mat-icon [name]="cat.icon" size="sm" />
             <h2 class="font-title-md font-bold! tracking-wide uppercase">
@@ -187,7 +173,9 @@
                     </div>
                   </div>
                   @if (item.badge) {
-                    <span class="font-label-sm font-mono uppercase px-2 py-0.5 border-shape bg-surface-container-high shrink-0">
+                    <span
+                      class="font-label-sm font-mono uppercase px-2 py-0.5 border-shape bg-surface-container-high shrink-0"
+                    >
                       {{ item.badge }}
                     </span>
                   }
@@ -211,7 +199,9 @@
                     </div>
                   </div>
                   @if (item.badge) {
-                    <span class="font-label-sm font-mono uppercase px-2 py-0.5 border-shape bg-surface-container-highest font-bold! shrink-0">
+                    <span
+                      class="font-label-sm font-mono uppercase px-2 py-0.5 border-shape bg-surface-container-highest font-bold! shrink-0"
+                    >
                       {{ item.badge }}
                     </span>
                   }

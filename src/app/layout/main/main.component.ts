@@ -122,9 +122,7 @@ export class MainLayoutComponent {
       }
       this.#syncTopChromeHeight();
       const ro =
-        typeof ResizeObserver !== 'undefined'
-          ? new ResizeObserver(() => this.#syncTopChromeHeight())
-          : null;
+        typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => this.#syncTopChromeHeight()) : null;
       if (shipping) ro?.observe(shipping);
       if (nav) ro?.observe(nav);
       onCleanup(() => ro?.disconnect());

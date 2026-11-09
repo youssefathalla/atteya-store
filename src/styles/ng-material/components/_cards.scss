@@ -1,16 +1,20 @@
 @use '@angular/material' as mat;
 
 :root {
-  @include mat.card-overrides((
-    elevated-container-shape: var(--border-shape, 2px),
-    outlined-container-shape: var(--border-shape, 2px),
-    filled-container-shape: var(--border-shape, 2px),
-  ));
+  @include mat.card-overrides(
+    (
+      elevated-container-shape: var(--border-shape, 2px),
+      outlined-container-shape: var(--border-shape, 2px),
+      filled-container-shape: var(--border-shape, 2px),
+    )
+  );
 }
 
 //* Cards
 .stats-card {
-  @include mat.card-overrides((
-    elevated-container-color: var(--mat-sys-primary-container),
-  ));
+  @include mat.card-overrides(
+    (
+      elevated-container-color: var(--mat-sys-primary-container),
+    )
+  );
 }

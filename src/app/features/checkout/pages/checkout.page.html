@@ -61,7 +61,12 @@
                       <p class="font-label-md text-on-surface-variant">Please remove it from your bag.</p>
                     </div>
                     <div class="elements-end shrink-0 self-start">
-                      <button matIconButton type="button" (click)="removeLine($index)" aria-label="Remove item">
+                      <button
+                        matIconButton
+                        type="button"
+                        (click)="removeLine($index)"
+                        aria-label="Remove item"
+                      >
                         <mat-icon name="delete" />
                       </button>
                     </div>
@@ -69,7 +74,9 @@
                 } @else {
                   <li class="elements-start gap-4">
                     <div class="relative shrink-0">
-                      <div class="size-16 overflow-hidden bg-surface border border-outline-variant border-shape">
+                      <div
+                        class="size-16 overflow-hidden bg-surface border border-outline-variant border-shape"
+                      >
                         @if (item.imagePath; as path) {
                           <img
                             [ngSrc]="item.imageSrc"
@@ -134,8 +141,8 @@
               </dl>
               @if (summary.feeToBeAgreed) {
                 <p class="font-body-sm" aria-live="polite">
-                  This is a large order, so we'll message you on WhatsApp to agree the delivery fee
-                  before we send it.
+                  This is a large order, so we'll message you on WhatsApp to agree the delivery fee before we
+                  send it.
                 </p>
               } @else if (!abroadOrderingClosed()) {
                 <p class="font-label-sm opacity-70">
@@ -152,14 +159,13 @@
       </div>
     </aside>
 
-    <form
-      class="lg:col-start-1 lg:row-start-1 space-y-8"
-      (submit)="$event.preventDefault(); placeOrder()"
-    >
+    <form class="lg:col-start-1 lg:row-start-1 space-y-8" (submit)="$event.preventDefault(); placeOrder()">
       @if (accountEmail(); as email) {
         <p class="font-body-md elements-start gap-2 pb-6 border-b border-outline-variant">
           <mat-icon name="person" size="lg" />
-          <span class="min-w-0 break-all">Signed in as <span class="font-bold!">{{ email }}</span></span>
+          <span class="min-w-0 break-all"
+            >Signed in as <span class="font-bold!">{{ email }}</span></span
+          >
         </p>
       }
 
@@ -330,7 +336,11 @@
                       <li>We'll contact you about the delivery fee</li>
                       <li>Send the total by InstaPay</li>
                     } @else {
-                      <li><span>Send <strong>{{ ready.instapayTotal }}</strong> by InstaPay</span></li>
+                      <li>
+                        <span
+                          >Send <strong>{{ ready.instapayTotal }}</strong> by InstaPay</span
+                        >
+                      </li>
                     }
                     <li>Send the screenshot on WhatsApp</li>
                   </ol>
@@ -365,9 +375,17 @@
                       <li>We'll contact you about the delivery fee</li>
                       <li>Send the fee by InstaPay</li>
                     } @else if (ready.codShippingEgp > 0) {
-                      <li><span>Send the <strong>{{ ready.codShipping }}</strong> delivery fee by InstaPay</span></li>
+                      <li>
+                        <span
+                          >Send the <strong>{{ ready.codShipping }}</strong> delivery fee by InstaPay</span
+                        >
+                      </li>
                     }
-                    <li><span>Pay <strong>{{ ready.codCash }}</strong> in cash at your door</span></li>
+                    <li>
+                      <span
+                        >Pay <strong>{{ ready.codCash }}</strong> in cash at your door</span
+                      >
+                    </li>
                   </ol>
                 }
               </div>
@@ -393,8 +411,7 @@
         }
         @if (cardOrWalletLive && feeToBeAgreed()) {
           <p class="font-label-sm opacity-70">
-            Card or Wallet isn't available for large orders, because we agree the delivery fee with
-            you first.
+            Card or Wallet isn't available for large orders, because we agree the delivery fee with you first.
           </p>
         }
       </fieldset>

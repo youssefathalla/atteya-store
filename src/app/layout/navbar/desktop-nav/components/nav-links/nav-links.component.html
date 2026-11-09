@@ -41,7 +41,11 @@
             <ul class="flex flex-col gap-2.5">
               @for (link of column.links; track link.label) {
                 <li>
-                  <a [routerLink]="link.path | linkTarget" (click)="closeMegaMenuImmediate()" class="nav-menu-link">
+                  <a
+                    [routerLink]="link.path | linkTarget"
+                    (click)="closeMegaMenuImmediate()"
+                    class="nav-menu-link"
+                  >
                     <span class="nav-label">
                       {{ link.label }}
                     </span>

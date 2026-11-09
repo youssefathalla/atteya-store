@@ -23,10 +23,7 @@ import { SearchService, type SearchSort } from '@core/services/search';
 import { SeoService } from '@core/services/seo';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
 import type { ProductCardPrice } from '@shared/components/product-card/product-card.model';
-import {
-  searchHitCardPrice,
-  searchHitToCardData,
-} from '@shared/components/product-card/product-card.utils';
+import { searchHitCardPrice, searchHitToCardData } from '@shared/components/product-card/product-card.utils';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 

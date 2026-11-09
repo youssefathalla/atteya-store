@@ -50,6 +50,6 @@ describe('paymob HMAC', () => {
     };
     const concat = paymobHmacConcat(walletish);
     assert.ok(concat.endsWith('wallettrue'));
-    assert.ok(concat.includes('falsewallettrue') || concat.includes('false') && concat.includes('wallet'));
+    assert.ok(concat.includes('falsewallettrue') || (concat.includes('false') && concat.includes('wallet')));
   });
 });

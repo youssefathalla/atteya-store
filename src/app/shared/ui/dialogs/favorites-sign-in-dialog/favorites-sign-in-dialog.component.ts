@@ -10,9 +10,7 @@ export type FavoritesSignInDialogResult = 'sign-in' | 'create' | null;
   template: `
     <h2 mat-dialog-title class="font-title-lg font-bold!">Save to favorites</h2>
     <mat-dialog-content>
-      <p class="font-body-md opacity-85 py-1">
-        Sign in or create an account to save favorites.
-      </p>
+      <p class="font-body-md opacity-85 py-1">Sign in or create an account to save favorites.</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 flex-wrap">
       <button matButton="text" type="button" (click)="close(null)">Cancel</button>
@@ -22,8 +20,7 @@ export type FavoritesSignInDialogResult = 'sign-in' | 'create' | null;
   `,
 })
 export class FavoritesSignInDialogComponent {
-  readonly #dialogRef =
-    inject(MatDialogRef<FavoritesSignInDialogComponent, FavoritesSignInDialogResult>);
+  readonly #dialogRef = inject(MatDialogRef<FavoritesSignInDialogComponent, FavoritesSignInDialogResult>);
 
   close(result: FavoritesSignInDialogResult): void {
     this.#dialogRef.close(result);

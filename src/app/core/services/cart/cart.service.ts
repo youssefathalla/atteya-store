@@ -1,14 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import {
-  DestroyRef,
-  PLATFORM_ID,
-  Service,
-  computed,
-  effect,
-  inject,
-  signal,
-  untracked,
-} from '@angular/core';
+import { DestroyRef, PLATFORM_ID, Service, computed, effect, inject, signal, untracked } from '@angular/core';
 import {
   doc,
   onSnapshot,
@@ -48,7 +39,10 @@ type CartMutation = (lines: readonly CartLineDraft[]) => readonly CartLineDraft[
  * - `guest`: signed out. Lines live in `localStorage`.
  * - `account`: signed in. Lines live in `carts/{uid}`, kept live with `onSnapshot`.
  */
-type CartOwner = { readonly kind: 'pending' } | { readonly kind: 'guest' } | { readonly kind: 'account'; readonly uid: string };
+type CartOwner =
+  | { readonly kind: 'pending' }
+  | { readonly kind: 'guest' }
+  | { readonly kind: 'account'; readonly uid: string };
 
 @Service()
 export class CartService {
@@ -243,7 +237,9 @@ export class CartService {
         // Keep the items on this device so the next page load tries again.
         writeStored(mergeCartLines(readStored(), guest));
         if (generation === this.#generation) {
-          this.#snackbar.error("We couldn't add your earlier bag items to your account. Refresh the page to try again.");
+          this.#snackbar.error(
+            "We couldn't add your earlier bag items to your account. Refresh the page to try again.",
+          );
         }
       }
     }

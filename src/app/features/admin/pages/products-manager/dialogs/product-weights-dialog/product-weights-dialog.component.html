@@ -1,9 +1,8 @@
 <h2 mat-dialog-title class="font-title-lg font-bold!">Shipping Weights</h2>
 <mat-dialog-content class="elements-start-col gap-6">
   <p class="font-body-md opacity-85">
-    Checkout uses each product's weight to work out the delivery fee. Set a default weight for each
-    category, then fill the products that have none. A weight already on a product is never
-    replaced.
+    Checkout uses each product's weight to work out the delivery fee. Set a default weight for each category,
+    then fill the products that have none. A weight already on a product is never replaced.
   </p>
 
   @if (reportResource.isLoading() && !report()) {
@@ -13,16 +12,14 @@
       <app-skeleton class="h-10 w-full" />
     </div>
   } @else if (reportResource.error()) {
-    <p class="font-body-md" role="alert">
-      We couldn't load the shipping weights. Close this and try again.
-    </p>
+    <p class="font-body-md" role="alert">We couldn't load the shipping weights. Close this and try again.</p>
   } @else if (report(); as r) {
     <section class="w-full elements-start-col gap-3" aria-labelledby="weights-defaults">
       <h3 id="weights-defaults" class="font-title-md font-bold!">Default Weight per Category</h3>
       <p class="font-body-sm text-on-surface-variant">
-        Grams. T-shirts, shorts, hoodies and socks are the client's figures; the other values are
-        our estimates until the client confirms them. Use 0 for small items like socks that don't
-        add to the parcel. Leave it empty when there's no default yet.
+        Grams. T-shirts, shorts, hoodies and socks are the client's figures; the other values are our
+        estimates until the client confirms them. Use 0 for small items like socks that don't add to the
+        parcel. Leave it empty when there's no default yet.
       </p>
       <ul class="w-full elements-start-col gap-2">
         @for (category of r.categories; track category.id) {
@@ -31,7 +28,8 @@
               <span class="font-body-md">{{ category.name }}</span>
               @if (category.missing > 0) {
                 <span class="font-label-sm text-on-surface-variant">
-                  {{ category.missing }} {{ category.missing === 1 ? 'product has' : 'products have' }} no weight
+                  {{ category.missing }} {{ category.missing === 1 ? 'product has' : 'products have' }} no
+                  weight
                 </span>
               }
             </label>
@@ -80,8 +78,8 @@
         <p class="font-body-md">Every product has a weight.</p>
       } @else {
         <p class="font-body-sm text-on-surface-variant">
-          Until they have one, checkout counts each of these as 500 g. Open a product to type its
-          weight, or fill them all from the defaults above.
+          Until they have one, checkout counts each of these as 500 g. Open a product to type its weight, or
+          fill them all from the defaults above.
           @if (r.missingTotal > r.missing.length) {
             Showing the first {{ r.missing.length }}.
           }
@@ -89,11 +87,7 @@
         <ul class="w-full elements-start-col gap-1">
           @for (row of r.missing; track row.id) {
             <li class="w-full elements-between flex-wrap gap-2">
-              <a
-                class="underline font-body-md"
-                [routerLink]="['/admin/products', row.id]"
-                mat-dialog-close
-              >
+              <a class="underline font-body-md" [routerLink]="['/admin/products', row.id]" mat-dialog-close>
                 {{ row.name }}
               </a>
               <span class="font-label-sm text-on-surface-variant">

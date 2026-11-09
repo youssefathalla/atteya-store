@@ -16,11 +16,7 @@ import {
 import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
 import type { Offer, OfferDraft } from '@core/services/offers/engine';
-import {
-  OFFER_CODES_COLLECTION,
-  OFFERS_COLLECTION,
-  toEngineOffer,
-} from '@core/services/offers/offer.model';
+import { OFFER_CODES_COLLECTION, OFFERS_COLLECTION, toEngineOffer } from '@core/services/offers/offer.model';
 import { OfferCodeDocSchema, OfferDocSchema } from '@core/services/offers/offer.schema';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 

@@ -107,13 +107,16 @@ export const importImageFromUrl = onCall(
 
     const uniquePath = `${folder}/imported-${Date.now()}.${ext}`;
     try {
-      await getStorage().bucket().file(uniquePath).save(image.buffer, {
-        resumable: false,
-        metadata: {
-          contentType: image.contentType,
-          cacheControl: 'public, max-age=31536000, immutable',
-        },
-      });
+      await getStorage()
+        .bucket()
+        .file(uniquePath)
+        .save(image.buffer, {
+          resumable: false,
+          metadata: {
+            contentType: image.contentType,
+            cacheControl: 'public, max-age=31536000, immutable',
+          },
+        });
     } catch {
       logger.warn('Image import could not be saved', { uid, host, reason: 'storage-write' });
       throw new HttpsError('unavailable', 'The image could not be saved. Please try again.');

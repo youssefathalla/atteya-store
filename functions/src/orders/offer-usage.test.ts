@@ -77,7 +77,12 @@ describe('offer limits', () => {
   });
 
   it('switches a Free gift offer off at its last use too', async () => {
-    const gift = { ...DEAL, offerId: 'gift-1', kind: 'gift' as const, limits: { totalUses: 1, perCustomer: null } };
+    const gift = {
+      ...DEAL,
+      offerId: 'gift-1',
+      kind: 'gift' as const,
+      limits: { totalUses: 1, perCustomer: null },
+    };
     const { db, tx, store } = fakeDb({ 'offers/gift-1': { active: true } });
     const ended = (await readOfferUses(tx, db, 'shopper-1', [gift]))();
     assert.deepEqual(ended, ['gift-1']);
@@ -122,7 +127,10 @@ describe('offer limits', () => {
     assert.deepEqual(ended, []);
     assert.equal(store.get('offers/deal-1')?.['active'], true);
     assert.equal(store.get('offerUsage/deal-1')?.['count'], 1);
-    assert.equal(writes.some((write) => write.op === 'update'), false);
+    assert.equal(
+      writes.some((write) => write.op === 'update'),
+      false,
+    );
   });
 
   it('gives the use back and switches the offer on again when the order is not saved', async () => {
@@ -144,7 +152,10 @@ describe('offer limits', () => {
     });
     const ended = (await readOfferUses(tx, db, 'shopper-1', [DEAL]))();
     assert.deepEqual(ended, []);
-    assert.equal(writes.some((write) => write.path === 'offers/deal-1'), false);
+    assert.equal(
+      writes.some((write) => write.path === 'offers/deal-1'),
+      false,
+    );
     await releaseOfferUses(db, 'shopper-1', [DEAL], ended);
     assert.equal(store.get('offers/deal-1')?.['active'], false);
     assert.equal(store.get('offers/deal-1')?.['updatedBy'], 'admin-uid');
@@ -193,7 +204,10 @@ describe('ended offers from checkout', () => {
   const line = { product: TEE, variant: null, quantity: 3, unitPrice: 500, onSale: false, giftWorth: 0 };
 
   it('reads only usable ids, without repeats', () => {
-    assert.deepEqual(parseOfferIds(['deal-1', 'deal-1', 7, '', 'x'.repeat(200), 'deal-2']), ['deal-1', 'deal-2']);
+    assert.deepEqual(parseOfferIds(['deal-1', 'deal-1', 7, '', 'x'.repeat(200), 'deal-2']), [
+      'deal-1',
+      'deal-2',
+    ]);
     assert.deepEqual(parseOfferIds('deal-1'), []);
     assert.deepEqual(parseOfferIds(undefined), []);
   });
@@ -207,7 +221,11 @@ describe('ended offers from checkout', () => {
     const { db } = fakeDb({ 'offerUsage/deal-1_shopper-1': { count: 1 } });
     const ended = await confirmedEndedOfferIds(db, 'shopper-1', [OFFER], ['deal-1']);
     assert.deepEqual([...ended], ['deal-1']);
-    const withoutEnded = priceBagDeals([line], [OFFER].filter((offer) => !ended.has(offer.id)), CTX);
+    const withoutEnded = priceBagDeals(
+      [line],
+      [OFFER].filter((offer) => !ended.has(offer.id)),
+      CTX,
+    );
     assert.equal(withoutEnded.lines[0]?.discount, 0);
   });
 
@@ -255,10 +273,17 @@ describe('ended offers from checkout', () => {
     assert.equal(honest.lines[0]?.discount, 250);
     assert.deepEqual(honest.offerIds, ['deal-half']);
 
-    const { db } = fakeDb({ 'offerUsage/deal-half': { count: 3 }, 'offerUsage/deal-half_shopper-1': { count: 1 } });
+    const { db } = fakeDb({
+      'offerUsage/deal-half': { count: 3 },
+      'offerUsage/deal-half_shopper-1': { count: 1 },
+    });
     const ended = await confirmedEndedOfferIds(db, 'shopper-1', offers, ['deal-half', 'not-an-offer']);
     assert.equal(ended.size, 0);
-    const priced = priceBagDeals([line], offers.filter((offer) => !ended.has(offer.id)), CTX);
+    const priced = priceBagDeals(
+      [line],
+      offers.filter((offer) => !ended.has(offer.id)),
+      CTX,
+    );
     assert.equal(priced.lines[0]?.discount, honest.lines[0]?.discount);
 
     // Had the server trusted the browser, the order would have cost less than the store allows.
@@ -320,13 +345,16 @@ describe('a missed deal that is no longer live on the server', () => {
   it('is refused as ended (endedOfferId), so checkout leaves it out', async () => {
     // The offer's time is up by the server's clock while the shopper's clock is behind.
     const price = async () => ({ missedDealOfferId: 'old-deal', title: 'Buy 2, get 1 free', live: false });
-    await assert.rejects(priceWithFreshOffersOnMiss(async () => [] as never, price as never), (error: unknown) => {
-      const err = error as { code: string; message: string; details: Record<string, unknown> };
-      assert.equal(err.code, 'failed-precondition');
-      assert.deepEqual(err.details, { endedOfferId: 'old-deal' });
-      assert.match(err.message, /^The Buy 2, get 1 free offer has ended/);
-      return true;
-    });
+    await assert.rejects(
+      priceWithFreshOffersOnMiss(async () => [] as never, price as never),
+      (error: unknown) => {
+        const err = error as { code: string; message: string; details: Record<string, unknown> };
+        assert.equal(err.code, 'failed-precondition');
+        assert.deepEqual(err.details, { endedOfferId: 'old-deal' });
+        assert.match(err.message, /^The Buy 2, get 1 free offer has ended/);
+        return true;
+      },
+    );
   });
 
   it('knows whether a missed offer is live by the server clock', () => {
@@ -337,11 +365,25 @@ describe('a missed deal that is no longer live on the server', () => {
       scope: 'item',
       schedule: { endsAt: '2026-11-09T11:00:00Z' },
       conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['t-shirts'] }] }] },
-      reward: { kind: 'buyXGetY', buy: { quantity: 2 }, get: { quantity: 1, percent: 100 }, getConditions: null, cheapestFree: true, repeat: true, maxApplications: null },
+      reward: {
+        kind: 'buyXGetY',
+        buy: { quantity: 2 },
+        get: { quantity: 1, percent: 100 },
+        getConditions: null,
+        cheapestFree: true,
+        repeat: true,
+        maxApplications: null,
+      },
     });
     assert.ok(offer);
-    assert.equal(liveOffers([offer], { now: new Date('2026-11-09T12:00:00Z'), signedIn: true, codes: [] }).length, 0);
-    assert.equal(liveOffers([offer], { now: new Date('2026-11-09T10:00:00Z'), signedIn: true, codes: [] }).length, 1);
+    assert.equal(
+      liveOffers([offer], { now: new Date('2026-11-09T12:00:00Z'), signedIn: true, codes: [] }).length,
+      0,
+    );
+    assert.equal(
+      liveOffers([offer], { now: new Date('2026-11-09T10:00:00Z'), signedIn: true, codes: [] }).length,
+      1,
+    );
   });
 });
 

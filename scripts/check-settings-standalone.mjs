@@ -112,9 +112,7 @@ for (const section of SECTIONS) {
 }
 
 if (errors > 0) {
-  console.error(
-    `\x1b[31m❌ Settings standalone check failed: ${errors} error(s).\x1b[0m`,
-  );
+  console.error(`\x1b[31m❌ Settings standalone check failed: ${errors} error(s).\x1b[0m`);
   process.exit(1);
 }
 

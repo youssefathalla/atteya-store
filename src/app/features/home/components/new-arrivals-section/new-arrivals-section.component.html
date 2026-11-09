@@ -1,15 +1,8 @@
 @if (showSection()) {
-  <section
-    class="container-content home-new-arrivals select-none"
-    aria-labelledby="new-arrivals-heading"
-  >
+  <section class="container-content home-new-arrivals select-none" aria-labelledby="new-arrivals-heading">
     <header class="pb-2 sm:pb-3">
       <h2 id="new-arrivals-heading" class="home-section-title">
-        <a
-          class="home-section-title-link"
-          routerLink="/shop"
-          [queryParams]="titleQueryParams()"
-        >
+        <a class="home-section-title-link" routerLink="/shop" [queryParams]="titleQueryParams()">
           <span>New Arrivals</span>
           <span class="home-section-title-arrow">
             <mat-icon name="arrow_outward" size="lg" />

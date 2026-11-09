@@ -36,7 +36,16 @@ const TEE = {
   name: 'Tee',
   published: true,
   inStock: true,
-  options: [{ key: 'size', label: 'Size', values: [{ id: 's', label: 'S' }, { id: 'm', label: 'M' }] }],
+  options: [
+    {
+      key: 'size',
+      label: 'Size',
+      values: [
+        { id: 's', label: 'S' },
+        { id: 'm', label: 'M' },
+      ],
+    },
+  ],
   stockBySize: { s: 0, m: 3 },
   stock: 3,
 };

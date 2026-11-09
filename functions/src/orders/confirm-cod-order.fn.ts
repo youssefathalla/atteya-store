@@ -107,12 +107,7 @@ function parseOrderId(raw: unknown): string {
     throw new HttpsError('invalid-argument', 'Choose an order to confirm.');
   }
   const orderId = raw['orderId'];
-  if (
-    typeof orderId !== 'string' ||
-    orderId.length === 0 ||
-    orderId.length > 200 ||
-    orderId.includes('/')
-  ) {
+  if (typeof orderId !== 'string' || orderId.length === 0 || orderId.length > 200 || orderId.includes('/')) {
     throw new HttpsError('invalid-argument', 'Choose an order to confirm.');
   }
   return orderId;

@@ -27,10 +27,7 @@ export class OfferSettingsComponent {
     }
   });
 
-  updateText(
-    field: 'name' | 'title' | 'badge' | 'description' | 'code',
-    event: Event,
-  ): void {
+  updateText(field: 'name' | 'title' | 'badge' | 'description' | 'code', event: Event): void {
     const raw = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
     this.draft.update((prev) => {
       if (field === 'name') return { ...prev, name: raw };

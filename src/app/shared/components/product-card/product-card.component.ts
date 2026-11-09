@@ -52,16 +52,12 @@ export class ProductCardComponent {
   /** Pointer type of the last press on a colour ('mouse', 'touch' or 'pen'). */
   #pointerType = 'mouse';
 
-  readonly colorwayRow = computed(() =>
-    visibleColorways(this.product().colorways, this.product().id),
-  );
+  readonly colorwayRow = computed(() => visibleColorways(this.product().colorways, this.product().id));
 
   /** "Men – T-shirts & polos" when gender is set, otherwise the short description. */
   readonly secondLine = computed(() => {
     const product = this.product();
-    const category = product.categoryId
-      ? this.#catalog.categoryBySlug(product.categoryId)
-      : null;
+    const category = product.categoryId ? this.#catalog.categoryBySlug(product.categoryId) : null;
     return genderCategoryLine(product.gender, category?.name ?? null) ?? product.shortDescription;
   });
 
@@ -93,9 +89,7 @@ export class ProductCardComponent {
     return false;
   });
 
-  readonly favoriteLabel = computed(() =>
-    this.isFavorite() ? 'Remove from favorites' : 'Add to favorites',
-  );
+  readonly favoriteLabel = computed(() => (this.isFavorite() ? 'Remove from favorites' : 'Add to favorites'));
 
   imagePath(rawPath: string): string {
     return normalizeImageKitPath(rawPath);

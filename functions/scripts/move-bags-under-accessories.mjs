@@ -132,11 +132,12 @@ async function patchBagProducts() {
       : [];
     const categoryId = typeof data.categoryId === 'string' ? data.categoryId : 'bags';
     const nextCategoryIds = EXPECTED_BAGS_CATEGORY_IDS;
-    const nextCategoryId = categoryId === 'bags' || nextCategoryIds.includes(categoryId)
-      ? categoryId === 'bags'
-        ? 'bags'
-        : categoryId
-      : 'bags';
+    const nextCategoryId =
+      categoryId === 'bags' || nextCategoryIds.includes(categoryId)
+        ? categoryId === 'bags'
+          ? 'bags'
+          : categoryId
+        : 'bags';
 
     const patch = {};
     if (!arraysEqual(categoryIds, nextCategoryIds)) {
@@ -171,7 +172,9 @@ async function patchBagProducts() {
     await commitBatch();
   }
 
-  console.log(`Bag products scanned: ${scanned}, ${dryRun ? 'would update' : 'updated'}: ${wouldUpdate || updated}`);
+  console.log(
+    `Bag products scanned: ${scanned}, ${dryRun ? 'would update' : 'updated'}: ${wouldUpdate || updated}`,
+  );
   return wouldUpdate || updated;
 }
 
@@ -206,7 +209,9 @@ async function patchHomeShopPadelCard() {
     console.log('settings/home shop card 1 already matches padel / rackets');
     return false;
   }
-  console.log(`${dryRun ? '[dry-run] Would patch' : 'Patching'} settings/home shop card 1 → padel /category/rackets`);
+  console.log(
+    `${dryRun ? '[dry-run] Would patch' : 'Patching'} settings/home shop card 1 → padel /category/rackets`,
+  );
   if (!dryRun) {
     const cards = [...shop.cards];
     cards[0] = nextFirst;

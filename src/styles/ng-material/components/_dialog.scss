@@ -1,9 +1,11 @@
 @use '@angular/material' as mat;
 
 :root {
-  @include mat.dialog-overrides((
-    container-shape: var(--border-shape, 2px),
-  ));
+  @include mat.dialog-overrides(
+    (
+      container-shape: var(--border-shape, 2px),
+    )
+  );
 }
 
 // Login Dialog Overrides
@@ -15,7 +17,9 @@
 
 // Category Dialog Overrides
 .cat-dialog {
-  @include mat.dialog-overrides((
-    container-color: var(--mat-sys-surface-container-high),
-  ));
+  @include mat.dialog-overrides(
+    (
+      container-color: var(--mat-sys-surface-container-high),
+    )
+  );
 }

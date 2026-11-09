@@ -14,8 +14,16 @@
     }
   },
   "permissions": {
-    "allow": ["Bash", "PowerShell", "mcp__claude_ai_Linear", "mcp__Linear"],
-    "ask": ["mcp__claude_ai_Linear__delete_comment", "mcp__claude_ai_Linear__merge_diff"]
+    "allow": [
+      "Bash",
+      "PowerShell",
+      "mcp__claude_ai_Linear",
+      "mcp__Linear"
+    ],
+    "ask": [
+      "mcp__claude_ai_Linear__delete_comment",
+      "mcp__claude_ai_Linear__merge_diff"
+    ]
   },
   "hooks": {
     "PreToolUse": [
@@ -25,8 +33,25 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/scripts/hooks/check-branch-name.mjs"],
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/scripts/hooks/check-branch-name.mjs"
+            ],
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/scripts/hooks/format-edited-file.mjs"
+            ],
+            "timeout": 30
           }
         ]
       }

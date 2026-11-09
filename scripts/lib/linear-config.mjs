@@ -18,7 +18,9 @@ export function readLinearConfig() {
   const config = JSON.parse(readFileSync(LINEAR_CONFIG_URL, 'utf8'));
   const previousTeamKeys = config.previousTeamKeys ?? [];
   if (!TEAM_KEY.test(config.teamKey ?? '')) {
-    throw new Error(`linear.config.json: teamKey "${config.teamKey}" must be 1-7 uppercase letters or digits, starting with a letter`);
+    throw new Error(
+      `linear.config.json: teamKey "${config.teamKey}" must be 1-7 uppercase letters or digits, starting with a letter`,
+    );
   }
   if (!Array.isArray(previousTeamKeys) || !previousTeamKeys.every((key) => TEAM_KEY.test(key))) {
     throw new Error('linear.config.json: previousTeamKeys must be a list of uppercase team keys');

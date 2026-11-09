@@ -23,7 +23,8 @@ export interface ResolvedGift {
 }
 
 const GIFT_ENDED = 'The free gift offer on one item in your bag has ended. Remove the item and add it again.';
-const GIFT_GONE = 'One free gift in your bag is no longer available. Remove the item and choose another gift.';
+const GIFT_GONE =
+  'One free gift in your bag is no longer available. Remove the item and choose another gift.';
 const GIFT_INVALID = 'The free gifts in your bag could not be read. Choose them again.';
 
 /**
@@ -72,7 +73,10 @@ export function resolveLineGifts(args: {
     picks.map((pick) => ({ giftId: pick.giftId, productId: pick.productId })),
   );
   if (!check.ok) {
-    throw new HttpsError('failed-precondition', check.problem === 'duplicate-gift' ? GIFT_INVALID : GIFT_GONE);
+    throw new HttpsError(
+      'failed-precondition',
+      check.problem === 'duplicate-gift' ? GIFT_INVALID : GIFT_GONE,
+    );
   }
 
   const resolved: ResolvedGift[] = [];
@@ -102,7 +106,9 @@ export function giftSelection(data: DocumentData, sizeId: string | null): Record
     if (!option || typeof option['key'] !== 'string') continue;
     const values: unknown[] = Array.isArray(option['values']) ? option['values'] : [];
     const ids = values
-      .map((val) => (val && typeof (val as { id?: unknown }).id === 'string' ? (val as { id: string }).id : null))
+      .map((val) =>
+        val && typeof (val as { id?: unknown }).id === 'string' ? (val as { id: string }).id : null,
+      )
       .filter((id): id is string => id !== null);
     if (ids.length === 0) continue;
     if (option['key'] === 'size') {
@@ -135,7 +141,11 @@ export function stockDemandKey(
   return `${productId}\u0000all`;
 }
 
-function assertGiftStock(data: DocumentData, selection: Readonly<Record<string, string>>, quantity: number): void {
+function assertGiftStock(
+  data: DocumentData,
+  selection: Readonly<Record<string, string>>,
+  quantity: number,
+): void {
   if (data['inStock'] !== true) throw new HttpsError('failed-precondition', GIFT_GONE);
   const stockBySize = data['stockBySize'];
   if (typeof stockBySize === 'object' && stockBySize !== null && !Array.isArray(stockBySize)) {
@@ -152,7 +162,9 @@ function assertGiftStock(data: DocumentData, selection: Readonly<Record<string, 
 }
 
 /** Every gift product id the bag asks for, to read them in one go. */
-export function giftProductIds(lines: readonly { readonly gifts: readonly OrderGiftPickInput[] }[]): string[] {
+export function giftProductIds(
+  lines: readonly { readonly gifts: readonly OrderGiftPickInput[] }[],
+): string[] {
   const ids = new Set<string>();
   for (const line of lines) {
     for (const pick of line.gifts) ids.add(pick.productId);

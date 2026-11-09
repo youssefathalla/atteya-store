@@ -47,7 +47,6 @@ export function catalogSeedToRaw(seed: CatalogSettingsSeed | null): unknown | nu
     types: seed.types,
     brands: seed.brands,
     total: seed.total,
-    updatedAt:
-      seed.updatedAtMs != null ? Timestamp.fromMillis(seed.updatedAtMs) : Timestamp.now(),
+    updatedAt: seed.updatedAtMs != null ? Timestamp.fromMillis(seed.updatedAtMs) : Timestamp.now(),
   };
 }

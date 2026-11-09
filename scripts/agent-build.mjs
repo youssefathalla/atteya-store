@@ -69,7 +69,11 @@ function fireUrl(model) {
 }
 
 function readToken(model) {
-  const fromEnv = (process.env[model.tokenEnv] ?? (model.legacyTokenEnv ? process.env[model.legacyTokenEnv] : undefined) ?? '').trim();
+  const fromEnv = (
+    process.env[model.tokenEnv] ??
+    (model.legacyTokenEnv ? process.env[model.legacyTokenEnv] : undefined) ??
+    ''
+  ).trim();
   if (fromEnv) return fromEnv;
   const file = tokenFile(model);
   if (existsSync(file)) return readFileSync(file, 'utf8').trim();
@@ -118,9 +122,7 @@ function usageHelp(teamKey) {
     '',
     'Tokens: each model has its own routine and its own token (a token only starts its own routine),',
     'read from the environment variable or from the file in %USERPROFILE%\\.atteya-store\\ (~/.atteya-store/):',
-    ...Object.values(MODELS).map(
-      (m) => `  ${m.name.padEnd(7)} ${m.tokenEnv.padEnd(29)} ${m.tokenFileName}`,
-    ),
+    ...Object.values(MODELS).map((m) => `  ${m.name.padEnd(7)} ${m.tokenEnv.padEnd(29)} ${m.tokenFileName}`),
     'Run without a token to see the one-time setup steps.',
   ];
 }
@@ -203,7 +205,9 @@ async function main() {
     }
   }
   if (failed === 0) {
-    console.log('Each session claims its ticket in Linear, builds it, and opens a PR; the review → fix → merge loop takes it from there.');
+    console.log(
+      'Each session claims its ticket in Linear, builds it, and opens a PR; the review → fix → merge loop takes it from there.',
+    );
   }
   process.exitCode = failed ? 1 : 0;
 }

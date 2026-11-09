@@ -29,11 +29,7 @@ export class StorageAssetTracker {
   }
 
   orphansOnPublish(previousLive: readonly string[], kept: readonly string[]): string[] {
-    return diffOrphanedPaths(
-      [...previousLive, ...this.#session()],
-      kept,
-      this.#protectedPaths,
-    );
+    return diffOrphanedPaths([...previousLive, ...this.#session()], kept, this.#protectedPaths);
   }
 
   orphansOnDiscard(live: readonly string[]): string[] {

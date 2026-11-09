@@ -2,8 +2,8 @@
   <div>
     <h2 class="font-title-md font-bold!">Shipping boxes</h2>
     <p class="font-body-sm text-on-surface-variant">
-      Up to three parcel sizes for Egypt and for abroad. Fees are whole Egyptian pounds. Changes show
-      on the store right away.
+      Up to three parcel sizes for Egypt and for abroad. Fees are whole Egyptian pounds. Changes show on the
+      store right away.
     </p>
   </div>
 
@@ -24,13 +24,12 @@
     <div class="w-full elements-start-col gap-4">
       <p class="font-body-sm text-on-surface-variant">
         @if (region() === 'egypt') {
-          Rates for orders delivered inside Egypt, picked by the order's weight at checkout. Orders
-          heavier than the biggest box can still be placed: you agree the delivery fee with the
-          shopper on WhatsApp, then set it in Orders. Free shipping and promotions don't apply to
-          those orders.
+          Rates for orders delivered inside Egypt, picked by the order's weight at checkout. Orders heavier
+          than the biggest box can still be placed: you agree the delivery fee with the shopper on WhatsApp,
+          then set it in Orders. Free shipping and promotions don't apply to those orders.
         } @else {
-          Rates for orders shipped outside Egypt, picked by the order's weight at checkout. Orders
-          heavier than the biggest box can't be placed.
+          Rates for orders shipped outside Egypt, picked by the order's weight at checkout. Orders heavier
+          than the biggest box can't be placed.
         }
       </p>
 
@@ -134,10 +133,7 @@
     </div>
 
     <div class="w-full border-t border-outline-variant pt-4 elements-start-col gap-3">
-      <mat-checkbox
-        [checked]="d.freeOverActive"
-        (change)="patch({ freeOverActive: $event.checked })"
-      >
+      <mat-checkbox [checked]="d.freeOverActive" (change)="patch({ freeOverActive: $event.checked })">
         Free shipping over a set amount
       </mat-checkbox>
       @if (d.freeOverActive) {

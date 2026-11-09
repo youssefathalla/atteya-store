@@ -23,18 +23,14 @@ export const DEFAULT_HERO_SLIDES: readonly HeroSlide[] = [
     subtitle: 'Precision-engineered padel rackets and pro accessories.',
     imageUrl: '',
     imageAlt: 'Padel player preparing to serve on court',
-    actions: [
-      { label: 'Shop rackets', link: '/category/rackets' },
-    ],
+    actions: [{ label: 'Shop rackets', link: '/category/rackets' }],
   },
   {
     headline: 'Carry the kit.',
     subtitle: 'Court bags and gear that keep everything ready to play.',
     imageUrl: '',
     imageAlt: 'Padel bag packed with rackets and court gear',
-    actions: [
-      { label: 'Shop bags', link: '/category/bags' },
-    ],
+    actions: [{ label: 'Shop bags', link: '/category/bags' }],
   },
 ];
 

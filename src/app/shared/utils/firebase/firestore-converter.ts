@@ -25,10 +25,7 @@ export function createValibotConverter<T>(
     toFirestore(modelObject: WithFieldValue<T>) {
       return modelObject as Record<string, unknown>;
     },
-    fromFirestore(
-      snapshot: QueryDocumentSnapshot,
-      options?: SnapshotOptions,
-    ): T {
+    fromFirestore(snapshot: QueryDocumentSnapshot, options?: SnapshotOptions): T {
       const data = snapshot.data({
         ...options,
         serverTimestamps: options?.serverTimestamps ?? 'estimate',

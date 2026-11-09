@@ -30,11 +30,7 @@ import { SkeletonComponent } from '@shared/ui/skeleton';
 import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.component';
 import type { StatusConfig } from '@shared/ui/status-badge/status.model';
 import { ProductsAdminService } from '../products-manager/services/products-admin.service';
-import {
-  toOfferTableRow,
-  type OfferStatusFilter,
-  type OfferTableRow,
-} from './models/offer-admin.model';
+import { toOfferTableRow, type OfferStatusFilter, type OfferTableRow } from './models/offer-admin.model';
 import { OffersAdminService } from './services/offers-admin.service';
 
 const FILTER_TABS: readonly { readonly id: OfferStatusFilter; readonly label: string }[] = [

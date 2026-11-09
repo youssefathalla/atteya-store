@@ -39,11 +39,7 @@ export interface PaymobIntentionResult {
   readonly intentionOrderId: number | null;
 }
 
-export function buildUnifiedCheckoutUrl(
-  baseUrl: string,
-  publicKey: string,
-  clientSecret: string,
-): string {
+export function buildUnifiedCheckoutUrl(baseUrl: string, publicKey: string, clientSecret: string): string {
   const origin = baseUrl.replace(/\/+$/, '');
   const params = new URLSearchParams({
     publicKey,
@@ -103,13 +99,11 @@ export async function createPaymobIntention(
   }
   const data = parsed as Record<string, unknown>;
   const id = typeof data['id'] === 'string' ? data['id'] : null;
-  const clientSecret =
-    typeof data['client_secret'] === 'string' ? data['client_secret'] : null;
+  const clientSecret = typeof data['client_secret'] === 'string' ? data['client_secret'] : null;
   if (!id || !clientSecret) {
     throw new Error('Paymob Intention response missing id or client_secret.');
   }
-  const intentionOrderId =
-    typeof data['intention_order_id'] === 'number' ? data['intention_order_id'] : null;
+  const intentionOrderId = typeof data['intention_order_id'] === 'number' ? data['intention_order_id'] : null;
 
   return { id, clientSecret, intentionOrderId };
 }

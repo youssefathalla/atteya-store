@@ -234,9 +234,7 @@ export class NavigationListSectionComponent {
     const ctx = this.#ctx;
     if (!gsap || !ctx || !this.#desktopPhotos()) return;
 
-    const arrows = [
-      ...this.#host.nativeElement.querySelectorAll<HTMLElement>('[data-nav-arrow]'),
-    ];
+    const arrows = [...this.#host.nativeElement.querySelectorAll<HTMLElement>('[data-nav-arrow]')];
     if (arrows.length === 0) return;
 
     const first = this.#lastArrow < 0;
@@ -260,9 +258,7 @@ export class NavigationListSectionComponent {
     const ctx = this.#ctx;
     if (!gsap || !ctx || !this.#desktopPhotos()) return;
 
-    const photos = [
-      ...this.#host.nativeElement.querySelectorAll<HTMLElement>('[data-nav-photo]'),
-    ];
+    const photos = [...this.#host.nativeElement.querySelectorAll<HTMLElement>('[data-nav-photo]')];
     if (photos.length === 0) return;
     if (this.#lastAnimated === index && this.#animatedPhotoCount === photos.length) return;
 

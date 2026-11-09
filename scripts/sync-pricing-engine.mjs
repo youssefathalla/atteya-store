@@ -31,10 +31,7 @@ const isCheck = process.argv.includes('--check');
 
 function transformContent(raw, header) {
   const normalized = raw.replace(/\r\n/g, '\n');
-  const rewrittenImports = normalized.replace(
-    /(from\s+['"]\.\/[a-zA-Z0-9_-]+)\.js(['"])/g,
-    '$1$2',
-  );
+  const rewrittenImports = normalized.replace(/(from\s+['"]\.\/[a-zA-Z0-9_-]+)\.js(['"])/g, '$1$2');
   return `${header}${rewrittenImports}`;
 }
 

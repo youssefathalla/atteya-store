@@ -1,13 +1,4 @@
-import {
-  Directive,
-  ElementRef,
-  inject,
-  input,
-  signal,
-  effect,
-  PLATFORM_ID,
-  DestroyRef,
-} from '@angular/core';
+import { Directive, ElementRef, inject, input, signal, effect, PLATFORM_ID, DestroyRef } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import {
   rowItemTarget,
@@ -300,11 +291,10 @@ export class HorizontalScrollDirective {
     const el = this.#el.nativeElement;
     const max = Math.max(0, el.scrollWidth - el.clientWidth);
     const flicked =
-      performance.now() - this.#lastTime < FLING_MAX_PAUSE_MS &&
-      Math.abs(this.#velocity) > FLING_SPEED;
+      performance.now() - this.#lastTime < FLING_MAX_PAUSE_MS && Math.abs(this.#velocity) > FLING_SPEED;
     const target = flicked
-        ? rowItemTarget(el, this.#velocity < 0 ? 1 : -1)
-        : this.#closestItemTarget(el, max);
+      ? rowItemTarget(el, this.#velocity < 0 ? 1 : -1)
+      : this.#closestItemTarget(el, max);
 
     if (Math.abs(target - el.scrollLeft) <= 2) {
       this.#restoreSnap();

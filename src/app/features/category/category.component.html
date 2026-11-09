@@ -10,10 +10,7 @@
         {{ displayTitle() }}
       </span>
     } @else {
-      <a
-        [routerLink]="'/category/' + slug()"
-        class="hover:underline transition-colors uppercase"
-      >
+      <a [routerLink]="'/category/' + slug()" class="hover:underline transition-colors uppercase">
         {{ category()?.label || slug() }}
       </a>
       @if (subSlug()) {
@@ -71,9 +68,7 @@
   @if (productsResource.error()) {
     <section class="py-12 text-center surface-card p-8" role="alert">
       <h2 class="font-title-md font-bold! mb-1">We couldn't load products</h2>
-      <p class="font-body-sm opacity-80 max-w-md mx-auto mb-6">
-        Please try again in a moment.
-      </p>
+      <p class="font-body-sm opacity-80 max-w-md mx-auto mb-6">Please try again in a moment.</p>
       <button matButton="outlined" type="button" (click)="productsResource.reload()">
         <span>Try Again</span>
       </button>
@@ -96,10 +91,6 @@
       <app-loader [sectionSpace]="false" minHeight="20" [showMessage]="false" />
     </div>
   } @else {
-    <app-catalog-product-grid
-      [products]="products()"
-      [prices]="cardPrices()"
-      [loading]="false"
-    />
+    <app-catalog-product-grid [products]="products()" [prices]="cardPrices()" [loading]="false" />
   }
 </div>

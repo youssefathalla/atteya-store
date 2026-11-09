@@ -1,42 +1,64 @@
 @use '@angular/material' as mat;
 
 :root {
-  @include mat.snack-bar-overrides((
-    container-shape: var(--border-shape, 2px),
-  ));
+  @include mat.snack-bar-overrides(
+    (
+      container-shape: var(--border-shape, 2px),
+    )
+  );
 }
 
 //` SnackBars
 .success-snackbar {
-  @include mat.theme((color: mat.$spring-green-palette));
-  @include mat.snack-bar-overrides((
-    button-color: var(--mat-sys-secondary-container),
-    container-color: var(--mat-sys-on-secondary-container),
-    supporting-text-color: var(--mat-sys-secondary-container),
-  ));
+  @include mat.theme(
+    (
+      color: mat.$spring-green-palette,
+    )
+  );
+  @include mat.snack-bar-overrides(
+    (
+      button-color: var(--mat-sys-secondary-container),
+      container-color: var(--mat-sys-on-secondary-container),
+      supporting-text-color: var(--mat-sys-secondary-container),
+    )
+  );
 }
 .warning-snackbar {
-  @include mat.theme((color: mat.$yellow-palette));
-  @include mat.snack-bar-overrides((
-    button-color: var(--mat-sys-secondary-container),
-    container-color: var(--mat-sys-on-secondary-container),
-    supporting-text-color: var(--mat-sys-secondary-container),
-  ));
+  @include mat.theme(
+    (
+      color: mat.$yellow-palette,
+    )
+  );
+  @include mat.snack-bar-overrides(
+    (
+      button-color: var(--mat-sys-secondary-container),
+      container-color: var(--mat-sys-on-secondary-container),
+      supporting-text-color: var(--mat-sys-secondary-container),
+    )
+  );
 }
 
 .info-snackbar {
-  @include mat.theme((color: mat.$blue-palette));
-  @include mat.snack-bar-overrides((
-    button-color: var(--mat-sys-secondary-container),
-    container-color: var(--mat-sys-on-secondary-container),
-    supporting-text-color: var(--mat-sys-secondary-container),
-  ));
+  @include mat.theme(
+    (
+      color: mat.$blue-palette,
+    )
+  );
+  @include mat.snack-bar-overrides(
+    (
+      button-color: var(--mat-sys-secondary-container),
+      container-color: var(--mat-sys-on-secondary-container),
+      supporting-text-color: var(--mat-sys-secondary-container),
+    )
+  );
 }
 
 .error-snackbar {
-  @include mat.snack-bar-overrides((
-    button-color: var(--mat-sys-error-container),
-    container-color: var(--mat-sys-on-error-container),
-    supporting-text-color: var(--mat-sys-error-container),
-  ));
+  @include mat.snack-bar-overrides(
+    (
+      button-color: var(--mat-sys-error-container),
+      container-color: var(--mat-sys-on-error-container),
+      supporting-text-color: var(--mat-sys-error-container),
+    )
+  );
 }

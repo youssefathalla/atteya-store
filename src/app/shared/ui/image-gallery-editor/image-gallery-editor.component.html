@@ -14,12 +14,7 @@
     </div>
 
     <div class="elements-start flex-wrap gap-2 max-sm:w-full max-sm:[&>button]:w-full">
-      <button
-        matButton="outlined"
-        type="button"
-        [disabled]="isFull()"
-        (click)="toggleWebLinkBar()"
-      >
+      <button matButton="outlined" type="button" [disabled]="isFull()" (click)="toggleWebLinkBar()">
         <mat-icon [name]="showWebLinkBar() ? 'visibility_off' : 'link'" />
         <span>{{ showWebLinkBar() ? 'Hide Link' : 'Add from Link' }}</span>
       </button>
@@ -101,17 +96,13 @@
       <mat-icon name="collections" size="3xl" />
       <span class="font-title-sm font-bold!">No gallery images yet</span>
       <p class="font-body-sm opacity-70 max-w-md">
-        Upload up to {{ maxImages() }} product images or import them from a web link. The first
-        image will automatically serve as the Main Image.
+        Upload up to {{ maxImages() }} product images or import them from a web link. The first image will
+        automatically serve as the Main Image.
       </p>
     </div>
   } @else {
     <!-- Drag-and-Drop Gallery List -->
-    <div
-      cdkDropList
-      (cdkDropListDropped)="onDrop($event)"
-      class="grid grid-cols-1 md:grid-cols-2 gap-4"
-    >
+    <div cdkDropList (cdkDropListDropped)="onDrop($event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
       @for (
         item of images();
         track item.path + '-' + $index;
@@ -140,15 +131,11 @@
               </span>
 
               @if (isFirst) {
-                <span
-                  class="px-2.5 py-0.5 border-shape bg-primary text-on-primary font-label-sm font-bold!"
-                >
+                <span class="px-2.5 py-0.5 border-shape bg-primary text-on-primary font-label-sm font-bold!">
                   Main Image
                 </span>
               } @else {
-                <span
-                  class="px-2 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold!"
-                >
+                <span class="px-2 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold!">
                   #{{ idx + 1 }}
                 </span>
               }

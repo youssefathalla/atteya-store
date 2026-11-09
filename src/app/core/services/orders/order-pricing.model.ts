@@ -20,11 +20,7 @@ export interface OrderPricingSnapshot {
   readonly shipping: OrderShippingLine | null;
   readonly totalDisplay: number;
   readonly totalEgp?: number;
-  readonly fulfilment:
-    | 'domestic-cod'
-    | 'domestic-instapay'
-    | 'domestic-paymob'
-    | 'international-paymob';
+  readonly fulfilment: 'domestic-cod' | 'domestic-instapay' | 'domestic-paymob' | 'international-paymob';
 }
 
 export interface OrderLinePrice {

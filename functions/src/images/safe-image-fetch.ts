@@ -37,11 +37,7 @@ blocked.addSubnet('fc00::', 7, 'ipv6');
 blocked.addSubnet('fe80::', 10, 'ipv6');
 blocked.addSubnet('ff00::', 8, 'ipv6');
 
-export type ImageFetchCode =
-  | 'invalid-argument'
-  | 'deadline-exceeded'
-  | 'failed-precondition'
-  | 'unavailable';
+export type ImageFetchCode = 'invalid-argument' | 'deadline-exceeded' | 'failed-precondition' | 'unavailable';
 
 export class ImageFetchError extends Error {
   readonly code: ImageFetchCode;
@@ -68,8 +64,7 @@ export interface FetchedImage {
 const REFUSED = 'Private or local network addresses are not allowed and were refused.';
 const UNREACHABLE =
   'Could not reach that website to download the image. Please check the link or upload the file from your device.';
-const UNSUPPORTED =
-  'That link does not point to a supported image file (JPG, PNG, WebP, or AVIF).';
+const UNSUPPORTED = 'That link does not point to a supported image file (JPG, PNG, WebP, or AVIF).';
 const TOO_LARGE = 'The image is larger than the 10MB limit.';
 const TOO_SLOW = 'The image took too long to download. Please try again.';
 
@@ -122,11 +117,7 @@ export function assertSafeUrl(raw: string): URL {
   try {
     parsed = new URL(raw);
   } catch {
-    throw new ImageFetchError(
-      'invalid-argument',
-      'The provided image link is not a valid URL.',
-      'bad-url',
-    );
+    throw new ImageFetchError('invalid-argument', 'The provided image link is not a valid URL.', 'bad-url');
   }
 
   if (parsed.protocol !== 'https:') {
@@ -143,7 +134,10 @@ export function assertSafeUrl(raw: string): URL {
     throw new ImageFetchError('invalid-argument', 'That image link was refused.', 'credentials');
   }
 
-  const host = parsed.hostname.toLowerCase().replace(/\.$/, '').replace(/^\[|\]$/g, '');
+  const host = parsed.hostname
+    .toLowerCase()
+    .replace(/\.$/, '')
+    .replace(/^\[|\]$/g, '');
   if (
     BLOCKED_HOSTS.has(host) ||
     host.endsWith('.local') ||
@@ -174,11 +168,7 @@ export async function fetchImage(start: URL, options: FetchImageOptions): Promis
       const outcome = await requestOnce(current, options, controller.signal);
       if (outcome.kind === 'image') return outcome.image;
       if (redirects >= MAX_REDIRECTS) {
-        throw new ImageFetchError(
-          'invalid-argument',
-          'That image link was refused.',
-          'redirect-limit',
-        );
+        throw new ImageFetchError('invalid-argument', 'That image link was refused.', 'redirect-limit');
       }
       current = assertSafeUrl(resolveRedirect(outcome.location, current));
     }
@@ -196,11 +186,7 @@ type RequestOutcome =
   | { readonly kind: 'image'; readonly image: FetchedImage }
   | { readonly kind: 'redirect'; readonly location: string };
 
-function requestOnce(
-  url: URL,
-  options: FetchImageOptions,
-  signal: AbortSignal,
-): Promise<RequestOutcome> {
+function requestOnce(url: URL, options: FetchImageOptions, signal: AbortSignal): Promise<RequestOutcome> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
       reject(new ImageFetchError('deadline-exceeded', TOO_SLOW, 'timeout'));
@@ -224,65 +210,69 @@ function requestOnce(
       signal,
     };
     const req = httpsRequest(requestOptions, (res) => {
-        const status = res.statusCode ?? 0;
-        if (REDIRECT_STATUSES.has(status)) {
-          const location = headerValue(res.headers.location).trim();
-          res.resume();
-          if (!location) {
-            reject(
-              new ImageFetchError(
-                'failed-precondition',
-                'That website refused the download. Please save the image to your device and use Upload Image.',
-                'missing-location',
-              ),
-            );
-            return;
-          }
-          resolve({ kind: 'redirect', location });
-          return;
-        }
-
-        if (status < 200 || status >= 300) {
-          res.resume();
+      const status = res.statusCode ?? 0;
+      if (REDIRECT_STATUSES.has(status)) {
+        const location = headerValue(res.headers.location).trim();
+        res.resume();
+        if (!location) {
           reject(
             new ImageFetchError(
               'failed-precondition',
               'That website refused the download. Please save the image to your device and use Upload Image.',
-              'upstream-status',
+              'missing-location',
             ),
           );
           return;
         }
+        resolve({ kind: 'redirect', location });
+        return;
+      }
 
-        const contentType = canonicalContentType(headerValue(res.headers['content-type']));
-        if (!options.allowedTypes.has(contentType)) {
-          res.resume();
-          reject(new ImageFetchError('invalid-argument', UNSUPPORTED, 'content-type'));
-          return;
-        }
+      if (status < 200 || status >= 300) {
+        res.resume();
+        reject(
+          new ImageFetchError(
+            'failed-precondition',
+            'That website refused the download. Please save the image to your device and use Upload Image.',
+            'upstream-status',
+          ),
+        );
+        return;
+      }
 
-        const declared = contentLength(res.headers['content-length']);
-        if (declared === 'invalid' || (typeof declared === 'number' && declared > options.maxBytes)) {
-          res.resume();
-          reject(new ImageFetchError('invalid-argument', TOO_LARGE, 'too-large'));
-          return;
-        }
+      const contentType = canonicalContentType(headerValue(res.headers['content-type']));
+      if (!options.allowedTypes.has(contentType)) {
+        res.resume();
+        reject(new ImageFetchError('invalid-argument', UNSUPPORTED, 'content-type'));
+        return;
+      }
 
-        void readCapped(res, options.maxBytes)
-          .then((buffer) => {
-            if (buffer.length === 0) {
-              reject(new ImageFetchError('invalid-argument', 'The downloaded image file is empty.', 'empty'));
-              return;
-            }
-            if (!magicMatches(buffer, contentType)) {
-              reject(new ImageFetchError('invalid-argument', UNSUPPORTED, 'magic-mismatch'));
-              return;
-            }
-            resolve({ kind: 'image', image: { buffer, contentType } });
-          })
-          .catch((error: unknown) => {
-            reject(error instanceof ImageFetchError ? error : new ImageFetchError('unavailable', UNREACHABLE, 'stream-error'));
-          });
+      const declared = contentLength(res.headers['content-length']);
+      if (declared === 'invalid' || (typeof declared === 'number' && declared > options.maxBytes)) {
+        res.resume();
+        reject(new ImageFetchError('invalid-argument', TOO_LARGE, 'too-large'));
+        return;
+      }
+
+      void readCapped(res, options.maxBytes)
+        .then((buffer) => {
+          if (buffer.length === 0) {
+            reject(new ImageFetchError('invalid-argument', 'The downloaded image file is empty.', 'empty'));
+            return;
+          }
+          if (!magicMatches(buffer, contentType)) {
+            reject(new ImageFetchError('invalid-argument', UNSUPPORTED, 'magic-mismatch'));
+            return;
+          }
+          resolve({ kind: 'image', image: { buffer, contentType } });
+        })
+        .catch((error: unknown) => {
+          reject(
+            error instanceof ImageFetchError
+              ? error
+              : new ImageFetchError('unavailable', UNREACHABLE, 'stream-error'),
+          );
+        });
     });
 
     req.setTimeout(IDLE_MS, () => {
@@ -344,7 +334,14 @@ function ipv4FromMapped(ip: string): string | null | 'invalid' {
   if (halves.length !== 2 || halves[0] === '' || halves[1] === '') return 'invalid';
   const high = Number.parseInt(halves[0], 16);
   const low = Number.parseInt(halves[1], 16);
-  if (!Number.isInteger(high) || !Number.isInteger(low) || high < 0 || high > 0xffff || low < 0 || low > 0xffff) {
+  if (
+    !Number.isInteger(high) ||
+    !Number.isInteger(low) ||
+    high < 0 ||
+    high > 0xffff ||
+    low < 0 ||
+    low > 0xffff
+  ) {
     return 'invalid';
   }
   return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;

@@ -146,8 +146,7 @@ function instapayPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): Rendere
       subject: `We got your order ${order.ref}`,
       heading: `Thanks for your order, ${firstName(order)}`,
       intro: [`We've received your order ${order.ref}. ${FEE_TO_AGREE}`],
-      highlight:
-        "Once we agree it, transfer the total by InstaPay and we'll confirm your order.",
+      highlight: "Once we agree it, transfer the total by InstaPay and we'll confirm your order.",
       showTotals: true,
       showAddress: true,
       button: orderButton(order, ctx),
@@ -156,9 +155,7 @@ function instapayPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): Rendere
   return shopperEmail(order, ctx, {
     subject: `We got your order ${order.ref}`,
     heading: `Thanks for your order, ${firstName(order)}`,
-    intro: [
-      `We've received your order ${order.ref}. We'll confirm it as soon as we receive your payment.`,
-    ],
+    intro: [`We've received your order ${order.ref}. We'll confirm it as soon as we receive your payment.`],
     highlight: null,
     payment: payBox(order, ctx),
     showTotals: true,
@@ -186,11 +183,7 @@ function instapayConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): Rend
  * Staff saved the delivery fee they agreed with the shopper on a large order (`changed` = a
  * later correction of that fee; the amounts to pay are the new ones).
  */
-function deliveryFeeSet(
-  order: OrderEmailOrder,
-  ctx: OrderEmailContext,
-  changed: boolean,
-): RenderedEmail {
+function deliveryFeeSet(order: OrderEmailOrder, ctx: OrderEmailContext, changed: boolean): RenderedEmail {
   const fee = order.shippingEgp > 0 ? formatEgp(order.shippingEgp) : null;
   const intro = [
     fee
@@ -198,9 +191,7 @@ function deliveryFeeSet(
       : `Good news: delivery is ${changed ? 'now ' : ''}free on your order ${order.ref}.`,
   ];
   if (changed) {
-    intro.push(
-      "If you've already sent a different amount, message us on WhatsApp and we'll sort it out.",
-    );
+    intro.push("If you've already sent a different amount, message us on WhatsApp and we'll sort it out.");
   }
   let highlight: string | null;
   if (order.paymentMethod === 'cash-on-delivery') {
@@ -337,11 +328,9 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
   const warning = order.needsReview
     ? 'One item sold out before this payment came in. Please check this order.'
     : null;
-  const customer = [
-    order.address.fullName,
-    order.address.phone,
-    order.customerEmail,
-  ].filter((part): part is string => Boolean(part?.trim()));
+  const customer = [order.address.fullName, order.address.phone, order.customerEmail].filter(
+    (part): part is string => Boolean(part?.trim()),
+  );
   const button = ctx.storefrontUrl
     ? { label: 'Open Orders in the Dashboard', url: `${ctx.storefrontUrl}/admin/orders` }
     : null;
@@ -419,11 +408,7 @@ function storePayment(order: OrderEmailOrder): StorePayment {
 }
 
 function storePaymentText(payment: StorePayment): string {
-  return [
-    payment.method,
-    ...payment.rows.map(([label, value]) => `${label}: ${value}`),
-    payment.note,
-  ]
+  return [payment.method, ...payment.rows.map(([label, value]) => `${label}: ${value}`), payment.note]
     .filter((line): line is string => Boolean(line))
     .join('\n');
 }
@@ -502,17 +487,13 @@ function payBox(order: OrderEmailOrder, ctx: OrderEmailContext): PayBox | null {
   } else {
     lines.push(`Pay ${what} by InstaPay.`);
     lines.push(
-      waUrl
-        ? "We'll send you the InstaPay details on WhatsApp."
-        : "We'll send you the InstaPay details.",
+      waUrl ? "We'll send you the InstaPay details on WhatsApp." : "We'll send you the InstaPay details.",
     );
   }
 
   return {
     lines,
-    whatsapp: waUrl
-      ? { label: details ? 'Send on WhatsApp' : 'Message Us on WhatsApp', url: waUrl }
-      : null,
+    whatsapp: waUrl ? { label: details ? 'Send on WhatsApp' : 'Message Us on WhatsApp', url: waUrl } : null,
   };
 }
 

@@ -42,9 +42,7 @@ function cloneCategoryCard(card: ShopCategoryCard): ShopCategoryCard {
 function buildThreeCategoryCards(source: HomeShopCategories): ShopCategoryCard[] {
   return [0, 1, 2].map((idx) =>
     cloneCategoryCard(
-      source.cards[idx] ??
-        DEFAULT_SHOP_CATEGORY_CARDS[idx] ??
-        DEFAULT_SHOP_CATEGORY_CARDS[0],
+      source.cards[idx] ?? DEFAULT_SHOP_CATEGORY_CARDS[idx] ?? DEFAULT_SHOP_CATEGORY_CARDS[0],
     ),
   );
 }
@@ -82,9 +80,7 @@ export class HomeDraftService {
 
   // Section 1: Hero State
   readonly #layoutCount = signal<HeroLayoutCount>(1);
-  readonly #slots = signal<readonly HeroSlide[]>(
-    DEFAULT_HERO_SLIDES.map((s) => cloneSlide(s)),
-  );
+  readonly #slots = signal<readonly HeroSlide[]>(DEFAULT_HERO_SLIDES.map((s) => cloneSlide(s)));
   readonly #activeSlotIndex = signal<number>(0);
 
   // Section 2: Shop Categories State
@@ -108,9 +104,7 @@ export class HomeDraftService {
   readonly layoutCount = computed<HeroLayoutCount>(() => this.#layoutCount());
   readonly activeSlotIndex = computed<number>(() => this.#activeSlotIndex());
 
-  readonly activeSlides = computed<HeroSlide[]>(() =>
-    this.#slots().slice(0, this.#layoutCount()),
-  );
+  readonly activeSlides = computed<HeroSlide[]>(() => this.#slots().slice(0, this.#layoutCount()));
 
   readonly activeSlide = computed<HeroSlide>(
     () => this.#slots()[this.#activeSlotIndex()] ?? this.#slots()[0],
@@ -173,9 +167,7 @@ export class HomeDraftService {
 
   #updateCurrentSlot(updater: (slide: HeroSlide) => HeroSlide): void {
     const idx = this.#activeSlotIndex();
-    this.#slots.update((prev) =>
-      prev.map((slide, i) => (i === idx ? updater(slide) : slide)),
-    );
+    this.#slots.update((prev) => prev.map((slide, i) => (i === idx ? updater(slide) : slide)));
     this.#isDirty.set(true);
   }
 
@@ -246,9 +238,7 @@ export class HomeDraftService {
 
   #updateCurrentShopCard(updater: (card: ShopCategoryCard) => ShopCategoryCard): void {
     const idx = this.#activeShopCardIndex();
-    this.#shopCards.update((prev) =>
-      prev.map((card, i) => (i === idx ? updater(card) : card)),
-    );
+    this.#shopCards.update((prev) => prev.map((card, i) => (i === idx ? updater(card) : card)));
     this.#isDirty.set(true);
   }
 
@@ -394,19 +384,11 @@ export class HomeDraftService {
     return this.#assetTracker.orphansOnDiscard(this.#imageUrls(liveHero, liveShop, liveNav));
   }
 
-  getOrphanedPathsForReset(
-    liveHero: HomeHero,
-    liveShop: HomeShopCategories,
-    liveNav: HomeNavList,
-  ): string[] {
+  getOrphanedPathsForReset(liveHero: HomeHero, liveShop: HomeShopCategories, liveNav: HomeNavList): string[] {
     return this.#assetTracker.orphansOnReset(this.#imageUrls(liveHero, liveShop, liveNav));
   }
 
-  resetDraftFromSource(
-    hero: HomeHero,
-    shopCategories: HomeShopCategories,
-    navList: HomeNavList,
-  ): void {
+  resetDraftFromSource(hero: HomeHero, shopCategories: HomeShopCategories, navList: HomeNavList): void {
     this.#layoutCount.set(hero.layoutCount);
     this.#slots.set(buildThreeHeroSlots(hero));
     this.#activeSlotIndex.set(0);
@@ -423,11 +405,7 @@ export class HomeDraftService {
     this.#isDirty.set(false);
   }
 
-  discardDraft(
-    sourceHero: HomeHero,
-    sourceShop: HomeShopCategories,
-    sourceNav: HomeNavList,
-  ): void {
+  discardDraft(sourceHero: HomeHero, sourceShop: HomeShopCategories, sourceNav: HomeNavList): void {
     this.resetDraftFromSource(sourceHero, sourceShop, sourceNav);
   }
 

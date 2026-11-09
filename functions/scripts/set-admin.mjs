@@ -46,7 +46,9 @@ if (arg('list')) {
   process.exit(0);
 }
 
-const email = String(arg('email') ?? '').trim().toLowerCase();
+const email = String(arg('email') ?? '')
+  .trim()
+  .toLowerCase();
 if (!email) throw new Error('--email is required');
 
 const user = await auth.getUserByEmail(email);

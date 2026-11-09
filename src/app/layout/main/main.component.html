@@ -21,11 +21,7 @@
       ></div>
     }
     @if (showInitialShellLoader()) {
-      <div
-        class="fixed inset-0 z-40 bg-surface/90 elements-center"
-        role="status"
-        aria-label="Loading store"
-      >
+      <div class="fixed inset-0 z-40 bg-surface/90 elements-center" role="status" aria-label="Loading store">
         <app-loader [sectionSpace]="false" minHeight="40" [showMessage]="false" bg="surface" />
       </div>
     }

@@ -15,9 +15,7 @@
   </div>
 
   <!-- Status Badges Gallery -->
-  <div
-    class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4"
-  >
+  <div class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4">
     <div class="elements-between">
       <span class="font-title-sm text-primary">Configuration-Driven Status Badges</span>
       <span class="font-body-xs text-on-surface-variant"
@@ -38,25 +36,17 @@
   </div>
 
   <!-- Interactive Chips Component -->
-  <div
-    class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4"
-  >
+  <div class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4">
     <div class="elements-between">
       <span class="font-title-sm text-primary">Interactive Chips Group</span>
       <div class="flex items-center gap-2">
         <span class="font-body-xs text-on-surface-variant">Active Filter:</span>
-        <span
-          class="px-2 py-0.5 border-shape bg-primary text-on-primary font-mono font-label-sm font-bold!"
-        >
+        <span class="px-2 py-0.5 border-shape bg-primary text-on-primary font-mono font-label-sm font-bold!">
           {{ selectedChip() }}
         </span>
       </div>
     </div>
 
-    <app-chips
-      [chips]="availableChips()"
-      [(value)]="selectedChip"
-      ariaLabel="Service category selection"
-    />
+    <app-chips [chips]="availableChips()" [(value)]="selectedChip" ariaLabel="Service category selection" />
   </div>
 </section>

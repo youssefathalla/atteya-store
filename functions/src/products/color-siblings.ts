@@ -28,10 +28,7 @@ export function readModelGroup(data: DocumentData | null | undefined): string | 
 }
 
 /** The list entry for one product, or null when it can't be shown (unpublished, no slug). */
-export function colorSiblingFrom(
-  id: string,
-  data: DocumentData | null | undefined,
-): ColorSibling | null {
+export function colorSiblingFrom(id: string, data: DocumentData | null | undefined): ColorSibling | null {
   if (!data || data['published'] !== true) return null;
   const slug = readString(data['slug']);
   const name = readString(data['name']);
@@ -108,10 +105,7 @@ export async function refreshColorSiblings(
   modelGroup: string,
   options: { readonly dryRun?: boolean } = {},
 ): Promise<number> {
-  const query = db
-    .collection('products')
-    .where('modelGroup', '==', modelGroup)
-    .limit(GROUP_READ_LIMIT);
+  const query = db.collection('products').where('modelGroup', '==', modelGroup).limit(GROUP_READ_LIMIT);
 
   if (options.dryRun) {
     const snap = await query.get();

@@ -6,10 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SkeletonComponent } from '@shared/ui/skeleton';
-import {
-  CatalogToolsService,
-  type ProductWeightsReport,
-} from '../../services/catalog-tools.service';
+import { CatalogToolsService, type ProductWeightsReport } from '../../services/catalog-tools.service';
 import { importActionError } from '../../utils/import-error';
 
 const MAX_GRAMS = 100_000;
@@ -39,9 +36,7 @@ export class ProductWeightsDialogComponent {
 
   readonly reportResource = resource({
     loader: async (): Promise<ProductWeightsReport | undefined> =>
-      isPlatformBrowser(this.#platformId)
-        ? this.#tools.productWeights({ action: 'preview' })
-        : undefined,
+      isPlatformBrowser(this.#platformId) ? this.#tools.productWeights({ action: 'preview' }) : undefined,
   });
 
   /** Text in each category's weight field, keyed by category id. */
@@ -88,14 +83,10 @@ export class ProductWeightsDialogComponent {
   readonly busy = computed(() => this.isSaving() || this.isFilling());
 
   /** Nothing changed, a field isn't valid, or something is running. */
-  readonly saveDisabled = computed(
-    () => this.busy() || this.changes() === null || this.changeCount() === 0,
-  );
+  readonly saveDisabled = computed(() => this.busy() || this.changes() === null || this.changeCount() === 0);
 
   /** Unsaved defaults would be ignored, so they must be saved first. */
-  readonly fillDisabled = computed(
-    () => this.busy() || this.changeCount() > 0 || this.fillable() === 0,
-  );
+  readonly fillDisabled = computed(() => this.busy() || this.changeCount() > 0 || this.fillable() === 0);
 
   constructor() {
     // Fill the fields from each fresh report (on open, after Save Defaults, after Fill).

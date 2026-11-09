@@ -15,11 +15,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { of } from 'rxjs';
 import { AuthService } from '@core/services/auth/auth.service';
 import { SeoService } from '@core/services/seo';
-import {
-  accountDisplayName,
-  accountInitial,
-  UserProfileService,
-} from '@core/services/user-profile';
+import { accountDisplayName, accountInitial, UserProfileService } from '@core/services/user-profile';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { AddressSectionComponent } from './components/address-section/address-section.component';
 import { EmailsSectionComponent } from './components/emails-section/emails-section.component';

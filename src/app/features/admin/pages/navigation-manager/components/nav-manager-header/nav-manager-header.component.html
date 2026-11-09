@@ -19,10 +19,7 @@
         [attr.aria-label]="isResetting() ? 'Resetting to defaults...' : null"
       >
         @if (isResetting()) {
-          <mat-progress-spinner
-            mode="indeterminate"
-            diameter="18"
-          />
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
         } @else {
           <mat-icon name="restart_alt" />
         }
@@ -55,10 +52,7 @@
         [attr.aria-label]="isSaving() ? 'Publishing to store...' : null"
       >
         @if (isSaving()) {
-          <mat-progress-spinner
-            mode="indeterminate"
-            diameter="18"
-          />
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
         } @else {
           <mat-icon name="check_circle" />
         }

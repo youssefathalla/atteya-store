@@ -1,10 +1,4 @@
-import {
-  Component,
-  computed,
-  inject,
-  OnInit,
-  resource,
-} from '@angular/core';
+import { Component, computed, inject, OnInit, resource } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '@core/services/auth/auth.service';
@@ -23,13 +17,7 @@ import { SkeletonComponent } from '@shared/ui/skeleton';
 @Component({
   selector: 'app-favorites-page',
   host: { class: 'block w-full min-h-[60vh] container-content' },
-  imports: [
-    RouterLink,
-    MatButtonModule,
-    ProductCardComponent,
-    SharedIconModule,
-    SkeletonComponent,
-  ],
+  imports: [RouterLink, MatButtonModule, ProductCardComponent, SharedIconModule, SkeletonComponent],
   templateUrl: './favorites.page.html',
 })
 export class FavoritesPageComponent implements OnInit {
@@ -61,7 +49,6 @@ export class FavoritesPageComponent implements OnInit {
     },
   });
 
-
   readonly cards = computed(() => {
     if (!this.productsResource.hasValue()) return [];
     const products = this.productsResource.value();
@@ -83,10 +70,7 @@ export class FavoritesPageComponent implements OnInit {
   );
 
   readonly showEmpty = computed(
-    () =>
-      this.favoritesReady() &&
-      this.productsResource.hasValue() &&
-      this.cards().length === 0,
+    () => this.favoritesReady() && this.productsResource.hasValue() && this.cards().length === 0,
   );
 
   ngOnInit(): void {

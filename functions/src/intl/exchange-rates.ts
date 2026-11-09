@@ -89,9 +89,7 @@ export async function readMarkupOrDefault(db: Firestore): Promise<number> {
   return parseMarkup(snap.data()?.['markupPercent']) ?? DEFAULT_MARKUP_PERCENT;
 }
 
-export function readStoredRates(
-  data: DocumentData | undefined,
-): Readonly<Record<string, number>> | null {
+export function readStoredRates(data: DocumentData | undefined): Readonly<Record<string, number>> | null {
   if (!data) return null;
   const raw = data['rates'];
   if (!isRecord(raw)) return null;
@@ -136,11 +134,7 @@ export function applyJumpGuard(
   return { rates, warnings };
 }
 
-async function markAttempt(
-  ratesRef: DocumentReference,
-  now: Timestamp,
-  lastError: string,
-): Promise<void> {
+async function markAttempt(ratesRef: DocumentReference, now: Timestamp, lastError: string): Promise<void> {
   await ratesRef.set(
     {
       lastAttemptAt: now,

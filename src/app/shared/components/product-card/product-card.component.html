@@ -29,22 +29,14 @@
       [disabled]="favoriteBusy()"
       (click)="onFavoriteClick($event)"
     >
-      <mat-icon
-        name="favorite"
-        [type]="isFavorite() ? 'fill' : 'outline'"
-      />
+      <mat-icon name="favorite" [type]="isFavorite() ? 'fill' : 'outline'" />
     </button>
   </div>
 </div>
 
 @if (colorwayRow().shown.length > 0) {
   <div class="product-card__swatches" role="group" aria-label="Other colours">
-    <div
-      class="product-card__swatch-row"
-      appHorizontalScroll
-      [snapToItems]="false"
-      [enableDrag]="true"
-    >
+    <div class="product-card__swatch-row" appHorizontalScroll [snapToItems]="false" [enableDrag]="true">
       @for (colorway of colorwayRow().shown; track colorway.productId) {
         <a
           class="product-card__swatch"
@@ -73,9 +65,7 @@
         </a>
       }
       @if (colorwayRow().overflow > 0) {
-        <span class="product-card__swatch-more" aria-hidden="true">
-          +{{ colorwayRow().overflow }}
-        </span>
+        <span class="product-card__swatch-more" aria-hidden="true"> +{{ colorwayRow().overflow }} </span>
       }
     </div>
     <div class="product-card__swatch-track" aria-hidden="true"></div>
@@ -89,10 +79,7 @@
   (click)="onProductLinkClick($event)"
 >
   @if (product().marketingBadge; as badge) {
-    <span
-      class="product-card__badge"
-      [class.product-card__badge--boxed]="badge.style === 'boxed'"
-    >
+    <span class="product-card__badge" [class.product-card__badge--boxed]="badge.style === 'boxed'">
       {{ badge.label }}
     </span>
   }

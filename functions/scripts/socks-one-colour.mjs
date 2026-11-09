@@ -93,14 +93,17 @@ const sameList = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 /** A product doc by slug (published or not), or null. */
 async function productBySlug(slug) {
   const page = await db.collection('products').where('slug', '==', slug).limit(2).get();
-  if (page.size > 1) console.log(`NOTE     more than one product has the slug "${slug}"; using ${page.docs[0].id}`);
+  if (page.size > 1)
+    console.log(`NOTE     more than one product has the slug "${slug}"; using ${page.docs[0].id}`);
   return page.empty ? null : page.docs[0];
 }
 
 /** "12" or "12 (by size: 4 + 8)". */
 function describeStock(stock, stockBySize) {
   const total = typeof stock === 'number' ? `${stock}` : 'none';
-  return isMap(stockBySize) ? `${total} (by size: ${Object.values(stockBySize).join(' + ') || 'none'})` : total;
+  return isMap(stockBySize)
+    ? `${total} (by size: ${Object.values(stockBySize).join(' + ') || 'none'})`
+    : total;
 }
 
 /** `Colour: Black, White; Size: S, M` or "none". */
@@ -108,7 +111,9 @@ function describeOptions(options) {
   if (options.length === 0) return 'none';
   return options
     .map((option) => {
-      const labels = asList(option?.values).map((value) => trimmed(value?.label)).filter(Boolean);
+      const labels = asList(option?.values)
+        .map((value) => trimmed(value?.label))
+        .filter(Boolean);
       return `${trimmed(option?.label) || option?.key} (${option?.key}): ${labels.join(', ') || 'no choices'}`;
     })
     .join('; ');
@@ -118,7 +123,9 @@ function describeOptions(options) {
 function printGallery(title, images) {
   console.log(`  ${title}:`);
   if (images.length === 0) console.log('    (no photos)');
-  images.forEach((image, index) => console.log(`    ${index === 0 ? 'main' : `${index + 1}   `} ${trimmed(image?.path)}`));
+  images.forEach((image, index) =>
+    console.log(`    ${index === 0 ? 'main' : `${index + 1}   `} ${trimmed(image?.path)}`),
+  );
 }
 
 const describeColors = (colors) => (colors.length > 0 ? colors.join(', ') : 'none');
@@ -184,7 +191,9 @@ for (const [slug, plan] of Object.entries(PRODUCTS)) {
   } else {
     console.log(`  options: unchanged ${describeOptions(options)}`);
   }
-  const otherChoices = keptOptions.filter((option) => option?.key !== 'size' && asList(option?.values).length > 1);
+  const otherChoices = keptOptions.filter(
+    (option) => option?.key !== 'size' && asList(option?.values).length > 1,
+  );
 
   // Variant rows: only when an option goes.
   const variants = asList(data.variants);
@@ -220,7 +229,8 @@ for (const [slug, plan] of Object.entries(PRODUCTS)) {
         `  stock: ${describeStock(data.stock, map)} -> ${describeStock(next.stock, next.stockBySize)}` +
           `${next.inStock ? '' : ' (out of stock)'}`,
       );
-      if (sizeOption && !map) console.log('  NOTE: it has a size option but no count per size; set them in the product form');
+      if (sizeOption && !map)
+        console.log('  NOTE: it has a size option but no count per size; set them in the product form');
     }
   } else {
     console.log(`  stock: unchanged ${describeStock(data.stock, data.stockBySize)}`);
@@ -233,7 +243,9 @@ for (const [slug, plan] of Object.entries(PRODUCTS)) {
     const keptImages = images.filter((image) => !removing.has(trimmed(image?.path)));
     for (const path of plan.removePhotos) {
       if (!images.some((image) => trimmed(image?.path) === path)) {
-        console.log(`  NOTE: photo ${path} is not in the gallery (already removed, or check it in the product form)`);
+        console.log(
+          `  NOTE: photo ${path} is not in the gallery (already removed, or check it in the product form)`,
+        );
       }
     }
     if (keptImages.length === images.length) {
@@ -268,7 +280,9 @@ for (const [slug, plan] of Object.entries(PRODUCTS)) {
   }
 
   if (otherChoices.length > 0) {
-    console.log(`  NOTE: keeps another choice (${describeOptions(otherChoices)}), so it can't be given as a gift`);
+    console.log(
+      `  NOTE: keeps another choice (${describeOptions(otherChoices)}), so it can't be given as a gift`,
+    );
   } else if (data.published !== true) {
     console.log("  NOTE: not published, so it can't be given as a gift yet");
   } else {
