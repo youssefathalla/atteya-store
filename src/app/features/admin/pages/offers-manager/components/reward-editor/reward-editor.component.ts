@@ -49,7 +49,7 @@ export class RewardEditorComponent {
 
   readonly isDeferredReward = computed(() => {
     const kind = this.selectedPickerKind();
-    return kind === 'buyXGetY' || kind === 'freeShipping' || kind === 'cartThreshold';
+    return kind === 'cartThreshold';
   });
 
   onKindChange(event: Event): void {

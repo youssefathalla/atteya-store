@@ -123,7 +123,7 @@ export function validateOffer(
     }
   }
 
-  if (isCartOrDeferredReward(draft)) {
+  if (draft.scope === 'cart') {
     warnings.push({
       code: 'reward.labelOnly',
       message: 'This offer shows as a label now. It will be applied in the cart once checkout is live.',
@@ -418,10 +418,4 @@ function maxOfferPercent(draft: OfferDraft): number | null {
   }
   if (r.kind === 'buyXGetY') return r.get.percent;
   return null;
-}
-
-function isCartOrDeferredReward(draft: OfferDraft): boolean {
-  if (draft.scope === 'cart') return true;
-  const kind = draft.reward.kind;
-  return kind === 'buyXGetY' || kind === 'freeShipping';
 }

@@ -23,6 +23,10 @@
     </p>
   }
 
+  @if (selectedPickerKind() === 'freeShipping') {
+    <p class="font-body-sm text-on-surface-variant">Applies to orders shipped in Egypt only.</p>
+  }
+
   @let r = reward();
   @if (selectedPickerKind() === 'percentOff' && r.kind === 'percentOff') {
     <label class="elements-start-col gap-1 font-label-md">
