@@ -23,10 +23,10 @@ $handset-landscape: '(max-width: 959.98px) and (orientation: landscape)';
 
 // Storefront: Allow sticky positioning by letting the window handle the scroll
 app-main-layout {
-  // The bag drawer is 28rem wide, like the search and account panels (the 18rem default
-  // above cut product names and squeezed the Recommended for You cards).
+  // The bag drawer is 840px wide on desktop, never wider than the window minus 64px so a strip of
+  // the page stays visible (a click on it closes the bag). The search and account panels stay 28rem.
   @include mat.sidenav-overrides((
-    container-width: 28rem,
+    container-width: min(840px, calc(100vw - 64px)),
   ));
 
   mat-drawer-container,
@@ -43,6 +43,7 @@ app-main-layout {
   // that grows with page content. That stretches app-cart-drawer past the viewport
   // so Subtotal/Checkout sit below the fold in empty flex space. Pin to the viewport.
   mat-drawer.mat-drawer-end {
+    max-width: min(840px, calc(100vw - 64px));
     position: fixed;
     top: 0;
     bottom: 0;
