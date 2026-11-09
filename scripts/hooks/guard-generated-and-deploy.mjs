@@ -97,6 +97,17 @@ export function sourceFor(relative, root = ROOT) {
  * quote kinds, across newlines. Quoted text handed to a shell (`bash -c "…"`, `pwsh -Command '…'`,
  * `cmd /c "…"`) is kept as its own command, because that text does run.
  */
+/**
+ * Commands that still run inside a double-quoted string: `$( … )` in Bash and PowerShell, and backticks in Bash.
+ * Returned as separate lines so each is checked like a command of its own (nested parentheses one level deep).
+ */
+function substitutionsIn(inner, bash) {
+  const found = [];
+  for (const match of inner.matchAll(/\$\(((?:[^()]|\([^()]*\))*)\)/g)) found.push(match[1]);
+  if (bash) for (const match of inner.matchAll(/`([^`]*)`/g)) found.push(match[1]);
+  return found.map((command) => '\n' + command + '\n').join('');
+}
+
 export function withoutQuotedText(command, shell = 'Bash') {
   const bash = shell !== 'PowerShell';
   const text = command
@@ -138,7 +149,8 @@ export function withoutQuotedText(command, shell = 'Bash') {
       break;
     }
     const inner = text.slice(i + 1, j);
-    out += RUNS_QUOTED.test(out) ? '\n' + inner + '\n' : '""';
+    if (RUNS_QUOTED.test(out)) out += '\n' + inner + '\n';
+    else out += '""' + (ch === '"' ? substitutionsIn(inner, bash) : '');
     i = j;
   }
   return out;
