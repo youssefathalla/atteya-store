@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { doc, getDoc } from 'firebase/firestore';
 import { canCheckout, lineDisplayAmount } from '@core/services/cart/cart-pricing';
-import { priceBag, type BagPricingProduct } from '@core/services/cart/cart-deals';
+import { priceBag, type BagPricingProduct, type PricedBagLine } from '@core/services/cart/cart-deals';
 import { dealHintAction, dealHintText, offerShopQuery } from '@core/services/offers/offer-shop';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { isCardOrWalletLive } from '@core/config/store-info';
@@ -307,7 +307,7 @@ export class CartDrawerComponent {
       const priced = bag.lines[index];
       const info = products.get(line.productId);
       if (!priced || !info) return null;
-      const total = this.#lineDisplay(priced.unitEgp, priced.lineEgp, priced.deals.discount, line.quantity);
+      const total = this.#lineDisplay(priced, line.quantity);
       const listUnit = Math.max(info.price, info.compareAtPrice ?? 0);
       const wasAmount = lineDisplayAmount(toDisplayAmount(listUnit, entry), line.quantity);
       return {
@@ -325,8 +325,7 @@ export class CartDrawerComponent {
     let amount = 0;
     this.lines().forEach((line, index) => {
       const priced = bag.lines[index];
-      if (priced)
-        amount += this.#lineDisplay(priced.unitEgp, priced.lineEgp, priced.deals.discount, line.quantity);
+      if (priced) amount += this.#lineDisplay(priced, line.quantity);
     });
     return formatMoney(amount, entry.code, displayDecimals(entry.code));
   });
@@ -384,9 +383,11 @@ export class CartDrawerComponent {
       if (!priced || !info) return [];
       const strips: CartLineStrip[] = [];
 
-      if (priced.appliedOfferId) {
-        const base = lineDisplayAmount(toDisplayAmount(info.price, entry), line.quantity);
-        const now = lineDisplayAmount(toDisplayAmount(priced.unitEgp, entry), line.quantity);
+      // One discount per item: only the pieces outside a Buy X Get Y group that won keep the offer.
+      const offerUnits = priced.deals.offerUnits;
+      if (priced.appliedOfferId && offerUnits > 0) {
+        const base = lineDisplayAmount(toDisplayAmount(info.price, entry), offerUnits);
+        const now = lineDisplayAmount(toDisplayAmount(priced.unitEgp, entry), offerUnits);
         const title = titleOf(priced.appliedOfferId);
         // Measured against the product's own price, like "You save", not the compare-at price the
         // engine's `discountPercent` uses for an item that is already on sale.
@@ -424,12 +425,15 @@ export class CartDrawerComponent {
     });
   });
 
-  /** Convert, then × quantity (as before); a line with a Buy X Get Y discount converts its total. */
-  #lineDisplay(unitEgp: number, lineEgp: number, discount: number, quantity: number): number {
+  /**
+   * Convert, then × quantity (as before); a line with pieces in a Buy X Get Y group converts its
+   * total (those pieces are priced apart from the per-item offer).
+   */
+  #lineDisplay(priced: PricedBagLine, quantity: number): number {
     const entry = this.#currency.entry();
-    return discount > 0
-      ? toDisplayAmount(lineEgp, entry)
-      : lineDisplayAmount(toDisplayAmount(unitEgp, entry), quantity);
+    return priced.deals.dealUnits > 0
+      ? toDisplayAmount(priced.lineEgp, entry)
+      : lineDisplayAmount(toDisplayAmount(priced.unitEgp, entry), quantity);
   }
 
   productInfo(productId: string): CartProductInfo | undefined {

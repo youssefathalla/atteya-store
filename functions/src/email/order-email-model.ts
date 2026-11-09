@@ -109,13 +109,16 @@ export function readOrderForEmail(
     if (!productId || quantity < 1) continue;
     const unitEgp = wholeNumber(raw['unitEgp']);
     const discountEgp = wholeNumber(raw['discountEgp']);
+    // Pieces in a Buy X Get Y group pay the price before per-item offers: `fullEgp` is the line
+    // before the discount. Older orders and other lines don't have it.
+    const fullEgp = typeof raw['fullEgp'] === 'number' ? wholeNumber(raw['fullEgp']) : unitEgp * quantity;
     lines.push({
       productId,
       name: text(raw['name']),
       optionLabels: readOptionLabels(raw['optionLabels']),
       imagePath: text(raw['imagePath']) || null,
       quantity,
-      lineEgp: Math.max(0, unitEgp * quantity - discountEgp),
+      lineEgp: Math.max(0, fullEgp - discountEgp),
       giftName: readGiftName(raw['gift']),
       dealTag: readDealTag(raw['deals'], quantity),
     });
