@@ -91,17 +91,19 @@ const DEPLOY_WORD = /(?:^|[\s"'`(;&|=])deploy(?::[\w,:-]+)?(?=$|[\s"'`);&|])/im;
  * plain character before it runs anything, so `firebase\⏎ deploy`, `fire\⏎base deploy` or `firebase \deploy`
  * still deploy. The text is also checked with those removed; the original is checked too, so Windows paths
  * (`C:\…\firebase.cmd`) still match. PowerShell does the same with a backtick (`` fire`base `deploy ``,
- * backtick-newline), so the text is also checked with those removed.
+ * backtick-newline) and cmd.exe with a caret (`fire^base deploy`, caret-newline), so those are removed too.
  */
 export function isRawDeploy(command) {
   if (typeof command !== 'string') return false;
-  const joined = command.replace(/\\\r?\n/g, '');
-  const unescaped = joined.replace(/\\(?=[^\s])/g, '');
-  const psJoined = command.replace(/`\r?\n/g, '');
-  const psUnescaped = psJoined.replace(/`(?=[^\s])/g, '');
-  return [command, joined, unescaped, psJoined, psUnescaped].some(
-    (text) => FIREBASE_CLI.test(text) && DEPLOY_WORD.test(text),
-  );
+  // Bash `\`, PowerShell backtick, cmd.exe `^`: each is removed with the line break after it and in front of a
+  // plain character, one shell at a time and all together, and every version is checked next to the original.
+  const fold = (text, escape) =>
+    text
+      .replace(new RegExp(`\\${escape}\\r?\\n`, 'g'), '')
+      .replace(new RegExp(`\\${escape}(?=[^\\s])`, 'g'), '');
+  const versions = [command, ...['\\', '`', '^'].map((escape) => fold(command, escape))];
+  versions.push(['\\', '`', '^'].reduce(fold, command));
+  return versions.some((text) => FIREBASE_CLI.test(text) && DEPLOY_WORD.test(text));
 }
 
 /** The reason to block this call, or null to let it through. */
