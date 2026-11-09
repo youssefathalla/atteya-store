@@ -1,6 +1,7 @@
 /**
- * One-off (ATS-74): take the free shirt and socks off the 5 bag bundles, so one admin Free gift
- * offer gives them instead (Admin -> Offers, shown on the product page as the Gift Box).
+ * One-off (ATS-74, ATS-111): take the free shirt and socks off the 5 bag bundles and give each
+ * bag its own Free gift offer instead (Admin -> Offers, shown on the product page as the Gift Box).
+ * Each bag keeps the gifts it offers today (BAGS below), and the script creates the offers itself.
  *
  * Run from the functions directory with Application Default Credentials, dev first:
  *   npm run build
@@ -8,23 +9,39 @@
  *   node scripts/move-bag-gifts-to-offer.mjs --project atteya-store-dev --apply               (writes)
  *   node scripts/move-bag-gifts-to-offer.mjs --project attiya-store --apply --confirm-prod    (prod)
  *
- * For each bag in BAG_SLUGS it:
+ * For each bag in BAGS it:
  * - removes every `gift` option ("Free shirt", "Free socks") and the shirt `size` option
  *   (only while the bag still has a `gift` option, so a size added later in the admin stays),
  * - turns the per-size stock into one plain count with `stockFields()` (the sum of today's
  *   per-size counts), so the bag stays in stock, and deletes `stockBySize`,
- * - removes Arabic lines from `descriptionHtml` and `details` (the old offer text).
+ * - removes Arabic lines from `descriptionHtml` and `details` (the old offer text),
+ * - creates (or updates) the bag's own Free gift offer `offers/bag-gifts-<bag id>`: name
+ *   "Free shirt and socks with <bag name>", title "Free shirt and socks", public, active, applies
+ *   to that one bag, reward Free gift with "Free shirt" and "Free socks" (only the gifts the bag
+ *   has choices for). The document has the same fields and shape Admin -> Offers saves
+ *   (`offers-admin.service.ts`) and is checked with the shared engine's `validateOffer()` first,
+ *   so it opens and edits normally in the admin.
  *
- * The dry run lists, per bag, the options it removes, stock before and after, and each gift
- * choice it found with the product it matches (or that it couldn't match). Then it checks the
- * products the offer gives (OFFER_GIFTS): found, published, in stock, and no second choice
- * besides size (the Gift Box and checkout can't give those). Last it prints the exact offer to
- * create in Admin -> Offers, and any Free gift offer that already covers these bags.
+ * Each bag's gift list comes from its choices today: every choice label is mapped to the product
+ * it is (BAGS), matched by photo (the bag's gift photo is the same file as that product's photo,
+ * or, where the old store used a different photo, the same item: colour, print and brand). A label
+ * mapped to null has no real product; it is left out and listed.
  *
- * Skipped and only listed: a bag that isn't found, or has `variants` rows (they point at the
- * options being removed). Each write is checked against the document's last update time, so a
- * bag edited while the script runs is skipped instead of overwritten; run it again to pick it
- * up. Re-running is safe: a bag with no `gift` option and no Arabic text is left alone.
+ * The dry run (default) lists, per bag: the options it removes, stock before and after, each
+ * choice and the product it maps to, the gift list with each product's status (found, published,
+ * in stock, gift-ready: no second choice besides size, which the Gift Box and checkout can't give)
+ * and the offer it would create or update.
+ *
+ * Re-running is safe: a bag with no `gift` option and no Arabic text is left alone, and its offer
+ * is found by its fixed id. An existing offer gets only the script's fields (name, title, public,
+ * the bag, the gifts); staff changes to active, archived, priority, schedule, badge, description
+ * and limits are kept, and an offer that already matches is not written.
+ *
+ * Skipped and only listed (no offer either): a bag that isn't found, or has `variants` rows (they
+ * point at the options being removed). Each bag write is checked against the document's last
+ * update time, so a bag edited while the script runs is skipped instead of overwritten; run it
+ * again to pick it up. Any other Free gift offer that covers a bag (for example the shared one from
+ * the first version of this script) is listed: pause or archive it in Admin -> Offers.
  *
  * Shoppers' bags are never edited. A bag line saved before this runs still holds the old shirt,
  * socks or size choice; the order callables refuse it ("One item in your bag has changed since you
@@ -34,7 +51,7 @@
  *
  * Old orders keep their saved `optionLabels`, so they still show the shirt and socks ordered.
  * After applying, run "Rebuild search" in Catalogue Tools (the bags leave the Shop size
- * filter). Agents never run --apply and never create the offer.
+ * filter). Agents never run --apply.
  */
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
@@ -45,48 +62,115 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/** The 5 bag bundles from the old store import. */
-const BAG_SLUGS = ['adidas-bag-blue', 'adidas-black', 'adidas-bag-red', 'adidas-pro-tour', 'siux-edge-bag'];
-
-/** The offer's gifts (decided on ATS-74): each choice is a real product, by slug. */
-const OFFER_GIFTS = [
+/**
+ * The 5 bag bundles from the old store import, each with the gifts it offers today (ATS-111:
+ * one Free gift offer per bag). Per gift: the bag's choice label (as `labelKey()` writes it) ->
+ * the product it is, by slug, in the bag's order. Each was matched by photo: the bag's gift photo
+ * is the same file as that product's photo, or (GREEN, ORANGE on the Protour and Multigame black
+ * bags, SIUX WHITE, SIUX GREEN/BLACK, NOX BLACK, NOX WHITE) the same item in another photo. The
+ * Nox pair photos match the main photo of each Nox socks page: `nox-socks` is the white pair and
+ * `nox-socks-2` the black one. BULLPADEL is the Bullpadel pair (`socks`), the same photo the On
+ * socks pages use for their Bullpadel choice. Set a label to null when it has no real product:
+ * it is left out of the offer and listed.
+ */
+const BAGS = [
   {
-    name: 'Free shirt',
-    slugs: ['adidas-polo-white', 'adidas-polo-gray', 'on-polo', 'bullpadel-white-shirt'],
+    slug: 'adidas-bag-blue',
+    gifts: {
+      'Free shirt': {
+        BLACK: 'adidas-shirt-galan-2',
+        WHITE: 'adidas-tshirt-galan',
+        GREEN: 'adidas-shirt-galan',
+        ORANGE: 'adidas-orange',
+        'NAVY BLUE': 'adidas-navy-blue',
+      },
+      'Free socks': {
+        'NOX BLACK': 'nox-socks-2',
+        BULLPADEL: 'socks',
+        BABOLAT: 'babolat-socks',
+        'SIUX BLACK': 'siuxsocksblack',
+      },
+    },
   },
   {
-    name: 'Free socks',
-    slugs: ['on-socks-black', 'on-white-socks', 'socks', 'siuxsocks', 'siuxsocksblack'],
+    slug: 'adidas-black',
+    gifts: {
+      'Free shirt': {
+        BLACK: 'adidas-shirt-galan-2',
+        WHITE: 'adidas-tshirt-galan',
+        ORANGE: 'adidas-orange',
+        'POLO WHITE': 'adidas-polo-white',
+        'POLO BLACK': 'adidas-polo-gray',
+      },
+      'Free socks': {
+        'NOX WHITE': 'nox-socks',
+        'NOX BLACK': 'nox-socks-2',
+        'ON WHITE': 'on-white-socks',
+        'ON BLACK': 'on-socks-black',
+      },
+    },
+  },
+  {
+    slug: 'adidas-bag-red',
+    gifts: {
+      'Free shirt': {
+        'POLO WHITE': 'adidas-polo-white',
+        'POLO BLACK': 'adidas-polo-gray',
+        'ON POLO BALCK': 'on-polo',
+        'BULLPADEL WHITE': 'bullpadel-white-shirt',
+      },
+      'Free socks': {
+        'ON BLACK': 'on-socks-black',
+        'ON WHITE': 'on-white-socks',
+        'BULLPADEL WHITE': 'socks',
+        'SIUX WHITE': 'siuxsocks',
+        'SIUX BLACK': 'siuxsocksblack',
+      },
+    },
+  },
+  {
+    slug: 'adidas-pro-tour',
+    gifts: {
+      'Free shirt': {
+        WHITE: 'adidas-tshirt-galan',
+        BLACK: 'adidas-shirt-galan-2',
+        ORANGE: 'adidas-orange',
+        'NAVY BLUE': 'adidas-navy-blue',
+        GREEN: 'adidas-shirt-galan',
+      },
+      'Free socks': {
+        'SIUX BLACK': 'siuxsocksblack',
+        'SIUX WHITE': 'siuxsocks',
+        BABOLAT: 'babolat-socks',
+        BULLPADEL: 'socks',
+      },
+    },
+  },
+  {
+    slug: 'siux-edge-bag',
+    gifts: {
+      'Free shirt': {
+        'SIUX WHITE': 'siux-t-shirt',
+        'SIUX RED': 'siux-tshirt1',
+        'SIUX BLACK/RED': 'siux-red',
+        'SIUX GREEN/BLACK': 'siux-tshirt-2',
+      },
+      'Free socks': {
+        'SIUX BLACK': 'siuxsocksblack',
+        'SIUX WHITE': 'siuxsocks',
+        BULLPADEL: 'socks',
+        BABOLAT: 'babolat-socks',
+      },
+    },
   },
 ];
 
-/**
- * Gift choice label on the bags -> the product it is, per gift option. Each one was matched by
- * its photo: the bag's gift photo is the same file as that product's photo.
- */
-const LABEL_MATCHES = {
-  'free shirt': {
-    'POLO WHITE': 'adidas-polo-white',
-    'POLO BLACK': 'adidas-polo-gray',
-    'ON POLO BALCK': 'on-polo',
-    'ON POLO BLACK': 'on-polo',
-    'BULLPADEL WHITE': 'bullpadel-white-shirt',
-    BLACK: 'adidas-shirt-galan-2',
-    WHITE: 'adidas-tshirt-galan',
-    'NAVY BLUE': 'adidas-navy-blue',
-    ORANGE: 'adidas-orange',
-    'SIUX RED': 'siux-tshirt1',
-    'SIUX BLACK/RED': 'siux-red',
-  },
-  'free socks': {
-    'ON BLACK': 'on-socks-black',
-    'ON WHITE': 'on-white-socks',
-    'BULLPADEL WHITE': 'socks',
-    'SIUX WHITE': 'siuxsocks',
-    'SIUX BLACK': 'siuxsocksblack',
-    BABOLAT: 'babolat-socks',
-  },
-};
+/** Gift name -> its fixed id inside the offer (bag lines and orders point at it). */
+const GIFT_IDS = { 'Free shirt': 'gift-1', 'Free socks': 'gift-2' };
+
+/** Each bag's offer lives at a fixed id, so running again updates it instead of adding another. */
+const OFFER_ID_PREFIX = 'bag-gifts-';
+const UPDATED_BY = 'script:move-bag-gifts-to-offer';
 
 const ARABIC = /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/;
 
@@ -108,6 +192,8 @@ if (apply && projectId === 'attiya-store' && arg('confirm-prod') !== true) {
 }
 
 const { stockFields } = require(join(__dirname, '../lib/products/stock.js'));
+const { validateOffer } = require(join(__dirname, '../lib/offers/engine/index.js'));
+const { parseOfferDoc } = require(join(__dirname, '../lib/offers/offer-schema.js'));
 
 initializeApp({ credential: applicationDefault(), projectId });
 const db = getFirestore();
@@ -181,50 +267,138 @@ async function productBySlug(slug) {
   return page.empty ? null : page.docs[0];
 }
 
-const offerSlugs = new Map(OFFER_GIFTS.flatMap((gift) => gift.slugs.map((slug) => [slug, gift.name])));
-const bagDocs = [];
+
+/** Gift products and the other offers, read once. */
+const productCache = new Map();
+async function cachedProduct(slug) {
+  if (!productCache.has(slug)) productCache.set(slug, await productBySlug(slug));
+  return productCache.get(slug);
+}
+
+/** The engine's view of a product (same fields as toPricedProduct() in order-pricing.server.ts). */
+function pricedProduct(snap) {
+  const data = snap.data();
+  const sizes = [];
+  for (const option of asList(data.options)) {
+    if (option?.key !== 'size') continue;
+    for (const value of asList(option.values)) {
+      const label = trimmed(value?.label);
+      if (label && !sizes.includes(label)) sizes.push(label);
+    }
+  }
+  const strings = (value) => asList(value).map(String);
+  return {
+    productId: snap.id,
+    name: String(data.name ?? ''),
+    brandId: String(data.brandId ?? ''),
+    categoryIds: strings(data.categoryIds),
+    type: String(data.type ?? ''),
+    modelGroup: typeof data.modelGroup === 'string' ? data.modelGroup : null,
+    colors: strings(data.colors),
+    sizes,
+    tags: strings(data.tags),
+    price: Math.max(0, Math.round(Number(data.price ?? 0))),
+    compareAtPrice:
+      data.compareAtPrice === null || data.compareAtPrice === undefined
+        ? null
+        : Math.max(0, Math.round(Number(data.compareAtPrice))),
+  };
+}
+
+/** Why a gift product can't be given yet (empty = gift-ready), as the Gift Box and checkout see it. */
+function giftProblems(data) {
+  const problems = [];
+  if (data.published !== true) problems.push('not published');
+  const stock = typeof data.stock === 'number' ? data.stock : data.inStock === false ? 0 : null;
+  if (stock === 0) problems.push('out of stock');
+  for (const option of asList(data.options)) {
+    if (option?.key === 'size') continue;
+    const count = asList(option?.values).length;
+    if (count > 1) {
+      problems.push(
+        `has a "${trimmed(option.label) || option.key}" choice with ${count} values, so it can't be ` +
+          'given as a gift until that choice is removed',
+      );
+    }
+  }
+  return problems;
+}
+
+/** JSON with sorted map keys, so a stored offer compares equal whatever order Firestore returns. */
+const stableJson = (value) =>
+  JSON.stringify(value, (_key, inner) =>
+    inner !== null && typeof inner === 'object' && !Array.isArray(inner)
+      ? Object.fromEntries(Object.entries(inner).sort(([a], [b]) => a.localeCompare(b)))
+      : inner,
+  );
+const sameJson = (a, b) => stableJson(a) === stableJson(b);
+
+const offerSnaps = await db.collection('offers').limit(500).get();
+const otherOffers = offerSnaps.docs
+  .map((snap) => parseOfferDoc(snap.id, snap.data(), null))
+  .filter((offer) => offer !== null);
+
+const bagIds = new Set();
+const bagNames = new Map();
+const bagSnaps = new Map();
+for (const bag of BAGS) {
+  const snap = await productBySlug(bag.slug);
+  if (!snap) continue;
+  bagSnaps.set(bag.slug, snap);
+  bagIds.add(snap.id);
+  const name = trimmed(snap.data().name) || bag.slug;
+  bagNames.set(name, (bagNames.get(name) ?? 0) + 1);
+}
+
 let changed = 0;
 let raced = 0;
+let offersCreated = 0;
+let offersUpdated = 0;
+let offersSame = 0;
 const left = [];
 
-for (const slug of BAG_SLUGS) {
-  const snap = await productBySlug(slug);
+for (const bag of BAGS) {
+  const slug = bag.slug;
+  const snap = bagSnaps.get(slug);
   if (!snap) {
-    left.push(`LEFT     ${slug} not found`);
+    left.push(`LEFT     ${slug} not found (no offer either)`);
     continue;
   }
-  bagDocs.push(snap);
   const data = snap.data();
   const name = trimmed(data.name) || slug;
   const options = asList(data.options);
   const giftOptions = options.filter((option) => option?.key === 'gift');
   const sizeOption = options.find((option) => option?.key === 'size');
 
-  console.log(`\n${name}  (${slug}, ${snap.id})`);
+  console.log(`\n${'='.repeat(78)}\n${name}  (${slug}, ${snap.id})`);
 
   if (asList(data.variants).length > 0) {
-    left.push(`LEFT     ${slug} has ${data.variants.length} variant rows that point at its options; fix it in the admin`);
-    console.log('  left alone: it has variant rows');
+    left.push(
+      `LEFT     ${slug} has ${data.variants.length} variant rows that point at its options; fix it in the admin (no offer either)`,
+    );
+    console.log('  left alone: it has variant rows, so no offer either');
     continue;
   }
 
+  // 1. The bag's own document.
   const patch = {};
   const removedOptions = [];
 
   if (giftOptions.length > 0) {
     for (const option of giftOptions) {
       const optionLabel = trimmed(option.label) || 'gift';
-      const matches = LABEL_MATCHES[optionLabel.toLowerCase()] ?? {};
+      const giftName = Object.keys(bag.gifts).find((key) => key.toLowerCase() === optionLabel.toLowerCase());
+      const matches = giftName ? bag.gifts[giftName] : {};
       removedOptions.push(`"${optionLabel}" (${asList(option.values).length} choices)`);
-      console.log(`  ${optionLabel}:`);
+      console.log(`  ${optionLabel} choices today:`);
       for (const value of asList(option.values)) {
         const label = trimmed(value?.label);
-        const match = matches[labelKey(label)];
-        const where = !match
-          ? "couldn't match to a product"
-          : offerSlugs.get(match) === optionLabel
-            ? `-> ${match} (in the offer)`
-            : `-> ${match} (not in the offer)`;
+        const key = labelKey(label);
+        const where = !(key in matches)
+          ? 'NOT IN THE LIST: add it to BAGS in this script, or it is not given'
+          : matches[key] === null
+            ? 'no real product, left out'
+            : `-> ${matches[key]}`;
         console.log(`    ${label.padEnd(18)} ${where}`);
       }
     }
@@ -277,28 +451,186 @@ for (const slug of BAG_SLUGS) {
     left.push(`LEFT     ${slug} has Arabic text in its name or summary; change it in the product form`);
   }
 
-  if (Object.keys(patch).length === 0) continue;
-  console.log(`  ${apply ? 'WRITE' : 'WOULD WRITE'}`);
-  if (apply) {
-    try {
-      await snap.ref.update(
-        { ...patch, updatedAt: FieldValue.serverTimestamp() },
-        { lastUpdateTime: snap.updateTime },
-      );
-    } catch (error) {
-      raced += 1;
-      console.log(`  SKIP: changed while the script ran (${error.message}); run again`);
-      continue;
+  if (Object.keys(patch).length > 0) {
+    console.log(`  bag: ${apply ? 'WRITE' : 'WOULD WRITE'}`);
+    if (apply) {
+      try {
+        await snap.ref.update(
+          { ...patch, updatedAt: FieldValue.serverTimestamp() },
+          { lastUpdateTime: snap.updateTime },
+        );
+      } catch (error) {
+        raced += 1;
+        left.push(`LEFT     ${slug} changed while the script ran; run again (no offer either)`);
+        console.log(`  SKIP: changed while the script ran (${error.message}); run again`);
+        continue;
+      }
     }
+    changed += 1;
   }
-  changed += 1;
+
+  // 2. The bag's gift list: every product it maps to, with its status.
+  const gifts = [];
+  const giftProducts = [];
+  console.log('  gifts:');
+  for (const [giftName, matches] of Object.entries(bag.gifts)) {
+    const slugs = [...new Set(Object.values(matches).filter((match) => match !== null))];
+    const productIds = [];
+    console.log(`    ${giftName}:`);
+    for (const giftSlug of slugs) {
+      const giftSnap = await cachedProduct(giftSlug);
+      if (!giftSnap) {
+        left.push(`LEFT     ${giftSlug} (${giftName} on ${slug}) not found, left out of the offer`);
+        console.log(`      ${giftSlug.padEnd(24)} NOT FOUND, left out`);
+        continue;
+      }
+      productIds.push(giftSnap.id);
+      giftProducts.push(giftSnap);
+      const problems = giftProblems(giftSnap.data());
+      const note = problems.length > 0 ? `WARNING: ${problems.join('; ')}` : 'ok (published, in stock, gift-ready)';
+      console.log(`      ${giftSlug.padEnd(24)} ${giftSnap.id}  ${trimmed(giftSnap.data().name)}  ${note}`);
+    }
+    for (const [label, match] of Object.entries(matches)) {
+      if (match === null) console.log(`      "${label}" has no real product, left out`);
+    }
+    if (productIds.length > 0) gifts.push({ id: GIFT_IDS[giftName], name: giftName, productIds });
+  }
+
+  // 3. The bag's own offer, written the way Admin -> Offers saves one.
+  if (gifts.length === 0) {
+    left.push(`LEFT     ${slug} has no gift products, so no offer`);
+    console.log('  offer: none (no gift products)');
+    continue;
+  }
+  const hasShirt = gifts.some((gift) => gift.name === 'Free shirt');
+  const hasSocks = gifts.some((gift) => gift.name === 'Free socks');
+  const title = hasShirt && hasSocks ? 'Free shirt and socks' : gifts[0].name;
+  // Two bags share a name (Multigame black and red), so the slug tells their offers apart.
+  const offerName = `${title} with ${name}${(bagNames.get(name) ?? 0) > 1 ? ` (${slug})` : ''}`;
+  const offerId = `${OFFER_ID_PREFIX}${snap.id}`;
+  const conditions = { anyOf: [{ allOf: [{ field: 'productId', in: [snap.id] }] }] };
+  const reward = { kind: 'freeGift', gifts };
+
+  const existingSnap = offerSnaps.docs.find((offerSnap) => offerSnap.id === offerId) ?? null;
+  const existing = existingSnap ? parseOfferDoc(offerId, existingSnap.data(), null) : null;
+  const draft = {
+    id: offerId,
+    name: offerName,
+    title,
+    badge: existing?.badge ?? null,
+    description: existing?.description ?? null,
+    active: existing ? existing.active : true,
+    archived: existing ? existing.archived : false,
+    visibility: 'public',
+    audience: existing?.audience ?? 'everyone',
+    schedule: existing?.schedule ?? { startsAt: null, endsAt: null, timezone: 'Africa/Cairo' },
+    priority: existing?.priority ?? 0,
+    stacking: existing?.stacking ?? 'stackable',
+    saleItems: existing?.saleItems ?? 'bestOf',
+    scope: 'item',
+    conditions,
+    exclude: { anyOf: [] },
+    minimum: null,
+    reward,
+    limits: existing?.limits ?? { totalUses: null, perCustomer: null },
+    requiresCode: false,
+    code: null,
+  };
+
+  const { errors, warnings } = validateOffer(
+    draft,
+    [pricedProduct(snap), ...giftProducts.map(pricedProduct)],
+    otherOffers,
+    { now: new Date(), signedIn: true },
+  );
+  console.log(`  offer ${offerId}${existing ? ' (exists)' : ''}:`);
+  console.log(`    Name: ${offerName}`);
+  console.log(`    Title: ${title}`);
+  console.log(
+    `    Public, ${draft.active ? 'Active' : 'Paused'}${draft.archived ? ', Archived' : ''}; applies to ${name} only`,
+  );
+  for (const gift of gifts) {
+    console.log(`    Gift "${gift.name}" (${gift.id}): ${gift.productIds.join(', ')}`);
+  }
+  for (const warning of warnings) console.log(`    note: ${warning.message}`);
+  if (errors.length > 0) {
+    for (const error of errors) console.log(`    ERROR: ${error.message}`);
+    left.push(`LEFT     ${slug} offer not written: ${errors.map((error) => error.message).join(' ')}`);
+    continue;
+  }
+
+  // The fields the script owns. Staff settings (active, priority, schedule, …) stay as they are.
+  const owned = {
+    id: offerId,
+    name: offerName,
+    title,
+    visibility: 'public',
+    scope: 'item',
+    conditions,
+    exclude: { anyOf: [] },
+    minimum: null,
+    reward,
+    requiresCode: false,
+  };
+  const stored = existingSnap?.data() ?? null;
+  if (stored && Object.entries(owned).every(([key, value]) => sameJson(stored[key] ?? null, value))) {
+    offersSame += 1;
+    console.log('    already up to date');
+    continue;
+  }
+
+  if (!existingSnap) {
+    // Same document Admin -> Offers writes for a new offer (OffersAdminService.saveOffer()).
+    const payload = {
+      ...owned,
+      badge: null,
+      description: null,
+      active: true,
+      archived: false,
+      audience: 'everyone',
+      schedule: { startsAt: null, endsAt: null, timezone: 'Africa/Cairo' },
+      priority: 0,
+      stacking: 'stackable',
+      saleItems: 'bestOf',
+      limits: { totalUses: null, perCustomer: null },
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: UPDATED_BY,
+    };
+    console.log(`    ${apply ? 'CREATE' : 'WOULD CREATE'}`);
+    if (apply) {
+      try {
+        await db.collection('offers').doc(offerId).create(payload);
+      } catch (error) {
+        left.push(`LEFT     ${slug} offer was created meanwhile (${error.message}); run again`);
+        console.log(`    SKIP: created meanwhile (${error.message}); run again`);
+        continue;
+      }
+    }
+    offersCreated += 1;
+  } else {
+    console.log(`    ${apply ? 'UPDATE' : 'WOULD UPDATE'} (name, title, the bag and the gifts)`);
+    if (apply) {
+      try {
+        // `reward` is replaced as a whole, so an old one-product gift's fields don't linger.
+        await existingSnap.ref.update(
+          { ...owned, updatedAt: FieldValue.serverTimestamp(), updatedBy: UPDATED_BY },
+          { lastUpdateTime: existingSnap.updateTime },
+        );
+      } catch (error) {
+        left.push(`LEFT     ${slug} offer changed while the script ran; run again`);
+        console.log(`    SKIP: changed while the script ran (${error.message}); run again`);
+        continue;
+      }
+    }
+    offersUpdated += 1;
+  }
 }
 
 // Saved account bags (`carts/{uid}`) that still hold one of these bags with the old choices. They
 // are only counted: once the options are gone, checkout refuses such a line ("One item in your bag
 // has changed since you added it. Remove it and add it again."), so the shopper adds it again from
 // the product page and picks the free gifts there. Guest bags live in browsers and can't be counted.
-const bagIdSet = new Set(bagDocs.map((snap) => snap.id));
 let savedBags = 0;
 let savedLines = 0;
 let cursor = null;
@@ -310,7 +642,7 @@ for (;;) {
     const stale = asList(cart.data().lines).filter((line) => {
       const selection = line?.selection;
       return (
-        bagIdSet.has(line?.productId) &&
+        bagIds.has(line?.productId) &&
         selection !== null &&
         typeof selection === 'object' &&
         ('gift' in selection || 'size' in selection)
@@ -331,70 +663,25 @@ console.log(
     : '\nNo saved account bag holds one of these bags with its old choices.',
 );
 
-console.log('\nGift products the offer gives:');
-const giftIds = new Map();
-for (const gift of OFFER_GIFTS) {
-  console.log(`  ${gift.name}:`);
-  const ids = [];
-  for (const slug of gift.slugs) {
-    const snap = await productBySlug(slug);
-    if (!snap) {
-      console.log(`    ${slug.padEnd(24)} NOT FOUND`);
-      continue;
-    }
-    ids.push(snap.id);
-    const data = snap.data();
-    const problems = [];
-    if (data.published !== true) problems.push('not published');
-    const stock = typeof data.stock === 'number' ? data.stock : data.inStock === false ? 0 : null;
-    if (stock === 0) problems.push('out of stock');
-    for (const option of asList(data.options)) {
-      if (option?.key === 'size') continue;
-      const count = asList(option?.values).length;
-      if (count > 1) {
-        problems.push(
-          `has a "${trimmed(option.label) || option.key}" choice with ${count} values, so it can't be ` +
-            'given as a gift until that choice is removed in the product form',
-        );
-      }
-    }
-    const note = problems.length > 0 ? `  WARNING: ${problems.join('; ')}` : '  ok';
-    console.log(`    ${slug.padEnd(24)} ${snap.id}  ${trimmed(data.name)}${note}`);
-  }
-  giftIds.set(gift.name, ids);
-}
-
-console.log('\nCreate this offer in Admin -> Offers (new offer):');
-console.log('  Name: Free shirt and socks with racket bags');
-console.log('  Title: Free shirt and socks');
-console.log('  Visibility: Public, Active');
-console.log('  Applies to (Specific product):');
-for (const snap of bagDocs) console.log(`    ${trimmed(snap.data().name)}  (${snap.data().slug}, ${snap.id})`);
-console.log('  What shoppers get: Free gift');
-for (const gift of OFFER_GIFTS) {
-  console.log(`    Gift "${gift.name}", products shoppers can choose from: ${giftIds.get(gift.name).join(', ')}`);
-}
-
-const bagIds = new Set(bagDocs.map((snap) => snap.id));
-const offers = await db.collection('offers').limit(500).get();
+// Any other Free gift offer on these bags (for example the shared one from the first version of
+// this script) would compete with the bag's own offer: the Gift Box shows the higher priority one.
 const covering = [];
-for (const snap of offers.docs) {
-  const data = snap.data();
-  if (data.reward?.kind !== 'freeGift') continue;
-  const ids = asList(data.conditions?.anyOf).flatMap((group) =>
-    asList(group?.allOf)
-      .filter((atom) => atom?.field === 'productId')
-      .flatMap((atom) => asList(atom.in)),
+for (const offer of otherOffers) {
+  if (offer.reward.kind !== 'freeGift' || offer.id.startsWith(OFFER_ID_PREFIX)) continue;
+  const ids = offer.conditions.anyOf.flatMap((group) =>
+    group.allOf.filter((atom) => atom.field === 'productId').flatMap((atom) => asList(atom.in)),
   );
   const hits = ids.filter((id) => bagIds.has(id));
   if (hits.length > 0) {
-    covering.push(`  ${trimmed(data.name) || snap.id} (${snap.id}), ${data.active ? 'active' : 'not active'}, ${hits.length} of the bags`);
+    covering.push(
+      `  ${offer.name} (${offer.id}), ${offer.archived ? 'archived' : offer.active ? 'ACTIVE' : 'paused'}, ${hits.length} of the bags`,
+    );
   }
 }
 console.log(
   covering.length > 0
-    ? `\nFree gift offers that already cover these bags:\n${covering.join('\n')}`
-    : '\nNo Free gift offer covers these bags yet.',
+    ? `\nOther Free gift offers that cover these bags (pause or archive the active ones in Admin -> Offers):\n${covering.join('\n')}`
+    : '\nNo other Free gift offer covers these bags.',
 );
 
 if (left.length > 0) {
@@ -402,10 +689,10 @@ if (left.length > 0) {
   for (const line of left) console.log(line);
 }
 
+const verb = apply ? '' : 'would be ';
 console.log(
-  `\n${apply ? 'Changed' : 'Would change'} ${changed} of ${BAG_SLUGS.length} bags` +
-    `${apply ? `, changed meanwhile ${raced}` : ''}.` +
-    (apply
-      ? ' Now run Catalogue Tools -> Rebuild search.'
-      : ' Dry run only; add --apply to write.'),
+  `\nBags: ${apply ? 'changed' : 'would change'} ${changed} of ${BAGS.length}` +
+    `${apply ? `, changed meanwhile ${raced}` : ''}. ` +
+    `Offers: ${offersCreated} ${verb}created, ${offersUpdated} ${verb}updated, ${offersSame} already up to date.` +
+    (apply ? ' Now run Catalogue Tools -> Rebuild search.' : ' Dry run only; add --apply to write.'),
 );
