@@ -9,6 +9,16 @@ export function canShopOffer(offer: Offer): boolean {
   return offer.visibility === 'public' && offer.audience === 'everyone' && !offer.requiresCode;
 }
 
+/**
+ * Whether a shopper may be shown this offer's title (product page line, Shop heading). Free
+ * shipping offers apply to Egypt orders only, so a visitor outside Egypt never sees one. An
+ * unknown country counts as Egypt, like the bag's payment methods.
+ */
+export function offerTitleVisible(offer: Offer, visitorCountry: string | null): boolean {
+  if (offer.reward.kind !== 'freeShipping') return true;
+  return (visitorCountry ?? 'EG') === 'EG';
+}
+
 /** Query params of the offer's Shop page. */
 export function offerShopQuery(offerId: string): { readonly offer: string } {
   return { offer: offerId };
