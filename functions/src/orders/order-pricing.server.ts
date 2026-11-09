@@ -417,22 +417,29 @@ async function priceWithOffers(
       ? new Set<string>()
       : await confirmedEndedOfferIds(db, uid, liveDeals, input.endedOfferIds);
   const dealOffers = ended.size === 0 ? offers : offers.filter((offer) => !ended.has(offer.id));
-  const deals = priceBagDeals(
-    input.lines.map((line, index): BagLineFacts => {
-      const { product, variant, priced } = lineResults[index]!;
-      return {
-        product,
-        variant,
-        quantity: line.quantity,
-        basePrice: product.price,
-        offerPrice: priced.unitEgp,
-        onSale: product.compareAtPrice !== null && product.compareAtPrice > product.price,
-        giftWorth: giftWorth(line, giftDocs),
-      };
-    }),
-    dealOffers,
-    ctx,
-  );
+  const dealFacts = input.lines.map((line, index): BagLineFacts => {
+    const { product, variant, priced } = lineResults[index]!;
+    return {
+      product,
+      variant,
+      quantity: line.quantity,
+      basePrice: product.price,
+      offerPrice: priced.unitEgp,
+      onSale: product.compareAtPrice !== null && product.compareAtPrice > product.price,
+      giftWorth: giftWorth(line, giftDocs),
+    };
+  });
+  const deals = priceBagDeals(dealFacts, dealOffers, ctx);
+  // A page from before "one discount per item" (no `shownBaseEgp`) still shows Buy X Get Y on top
+  // of per-item offers. Never charge it more than it showed, and never give it the double discount
+  // either (any client could leave the field out): refuse and ask for a refresh, only when the
+  // bag really costs more now.
+  if (
+    input.lines.some((line) => line.shownBaseEgp === null) &&
+    costsMoreThanStacked(dealFacts, dealOffers, ctx)
+  ) {
+    throw outdatedPageError();
+  }
   for (const offerId of deals.offerIds) {
     const offer = offers.find((entry) => entry.id === offerId);
     if (offer)
@@ -535,6 +542,33 @@ async function priceWithOffers(
   };
 
   return { pricing, usedOffers: Array.from(usedOffers.values()) };
+}
+
+/**
+ * True when the bag costs more with one discount per item than with Buy X Get Y worked out on top
+ * of per-item offers (what pages from before that rule show).
+ */
+export function costsMoreThanStacked(
+  facts: readonly BagLineFacts[],
+  offers: readonly Offer[],
+  ctx: PricingContext,
+): boolean {
+  const total = (lines: readonly BagLineFacts[]): number =>
+    priceBagDeals(lines, offers, ctx).lines.reduce((sum, line) => sum + line.total, 0);
+  return total(facts) > total(facts.map((line) => ({ ...line, basePrice: line.offerPrice })));
+}
+
+/**
+ * The refusal for a checkout page loaded before "one discount per item": it showed Buy X Get Y
+ * on top of per-item offers, so its total is lower than the order now costs. A refresh loads the
+ * page that prices it the same way as the server.
+ */
+export function outdatedPageError(): HttpsError {
+  return new HttpsError(
+    'failed-precondition',
+    'Prices in your bag changed. Refresh the page and place your order again.',
+    { outdatedPage: true },
+  );
 }
 
 /**
