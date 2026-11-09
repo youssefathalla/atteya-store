@@ -94,7 +94,9 @@ const PLAIN_REST = /^[^|<>;&`$()]*$/;
  */
 export function withoutDocumentText(command) {
   return command.replace(
-    /<<-?\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)\n\s*\2\s*(?=\n|$)/g,
+    // The body ends at the first line that is only the tag, as in Bash; an empty body is allowed, so a later
+    // line with the same tag can't stretch it over real commands.
+    /<<-?\s*(['"]?)(\w+)\1([^\n]*)\n((?:[^\n]*\n)*?)[ \t]*\2[ \t]*(?=\r?\n|$)/g,
     (whole, _quote, _tag, rest, _body, offset) => {
       const lineStart = command.lastIndexOf('\n', offset) + 1;
       const before = command.slice(lineStart, offset);
