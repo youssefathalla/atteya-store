@@ -72,8 +72,21 @@ export function sourceFor(relative, root = ROOT) {
   return null;
 }
 
+/**
+ * The command with heredoc bodies, PowerShell here-strings and quoted strings removed, so text that only
+ * mentions `firebase deploy` (a commit message, a PR body) is not mistaken for running it.
+ */
+export function withoutQuotedText(command) {
+  return command
+    .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?:\n|$)/g, '\n')
+    .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '')
+    .replace(/'[^'\n]*'/g, "''")
+    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
+    .replace(/`[^`\n]*`/g, '');
+}
+
 export function isRawDeploy(command) {
-  return typeof command === 'string' && RAW_DEPLOY.test(command);
+  return typeof command === 'string' && RAW_DEPLOY.test(withoutQuotedText(command));
 }
 
 /** The reason to block this call, or null to let it through. */
