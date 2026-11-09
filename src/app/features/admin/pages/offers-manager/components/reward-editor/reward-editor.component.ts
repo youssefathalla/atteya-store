@@ -161,7 +161,9 @@ export class RewardEditorComponent {
       buy: { quantity: field === 'buyQty' ? Math.max(1, num || 1) : r.buy.quantity },
       get: {
         quantity: field === 'getQty' ? Math.max(1, num || 1) : r.get.quantity,
-        percent: field === 'getPercent' ? Math.min(100, Math.max(1, num || 100)) : r.get.percent,
+        // 0 or an empty field stays 0, so the form shows its error instead of giving the item away.
+        percent:
+          field === 'getPercent' ? Math.min(100, Math.max(0, Number.isFinite(num) ? num : 0)) : r.get.percent,
       },
       maxApplications:
         field === 'maxApps' ? (Number.isFinite(num) && num > 0 ? num : null) : r.maxApplications,
