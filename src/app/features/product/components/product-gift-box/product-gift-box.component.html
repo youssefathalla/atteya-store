@@ -25,17 +25,29 @@
         </div>
 
         @if (step.kind === 'gift') {
-          <div class="grid w-full grid-cols-2 gap-2">
+          <div class="grid w-full grid-cols-3 gap-2 lg:grid-cols-4">
             @for (choice of step.gift.choices; track choice.productId) {
               <button
                 type="button"
                 data-choice
-                class="pdp-choice"
+                class="pdp-gift-tile"
                 [disabled]="disabled()"
                 [attr.aria-pressed]="isProductPicked(step.gift.id, choice.productId)"
                 (click)="productPicked.emit({ giftId: step.gift.id, productId: choice.productId })"
               >
-                {{ choice.label }}
+                <span class="pdp-gift-tile__photo">
+                  @if (choice.imagePath) {
+                    <img
+                      [ngSrc]="path(choice.imagePath)"
+                      [appImageFallback]="choice.imagePath"
+                      alt=""
+                      fill
+                      sizes="(max-width: 1023px) 30vw, 10vw"
+                      class="object-contain"
+                    />
+                  }
+                </span>
+                <span class="pdp-gift-tile__name">{{ choice.label }}</span>
               </button>
             }
           </div>
