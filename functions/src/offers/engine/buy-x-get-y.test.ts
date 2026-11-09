@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 // Runs against the compiled engine (`npm test` builds first); engine files import `./x.js`.
-import { dealTag, freeItemProductIds, priceBagDeals } from '../../../lib/offers/engine/index.js';
+import { canBeFreeItem, dealTag, freeItemProductIds, priceBagDeals } from '../../../lib/offers/engine/index.js';
 import { parseOfferDoc } from '../../../lib/offers/offer-schema.js';
 
 const CTX = { now: new Date('2026-11-09T12:00:00Z'), signedIn: true, codes: [] };
@@ -205,5 +205,33 @@ describe('buy x get y in the bag', () => {
     assert.equal(dealTag([{ units: 1, percent: 100 }], 3), '1 free');
     assert.equal(dealTag([{ units: 2, percent: 50 }], 2), '\u221250%');
     assert.equal(dealTag([{ units: 1, percent: 50 }], 2), '1 at \u221250%');
+  });
+});
+
+describe('free choices the bag may offer', () => {
+  it('offers only products the free-item rule would really discount', () => {
+    assert.equal(canBeFreeItem(RACKET_GRIP, GRIP_1, false), true);
+    assert.equal(canBeFreeItem(RACKET_GRIP, BALLS, false), false);
+  });
+
+  it('leaves out a sale item when the offer excludes sale items, and an excluded product', () => {
+    const noSale = bxgy(
+      'racket-grip-no-sale',
+      {
+        buy: { quantity: 1 },
+        getConditions: { anyOf: [{ allOf: [{ field: 'productId', in: ['grip-1', 'grip-2'] }] }] },
+      },
+      {
+        conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['rackets'] }] }] },
+        saleItems: 'exclude',
+        exclude: { anyOf: [{ allOf: [{ field: 'productId', in: ['grip-2'] }] }] },
+      },
+    );
+    assert.equal(canBeFreeItem(noSale, GRIP_1, false), true);
+    assert.equal(canBeFreeItem(noSale, GRIP_1, true), false);
+    assert.equal(canBeFreeItem(noSale, GRIP_2, false), false);
+    // Same rule as pricing: a sale grip in the bag gets no discount.
+    const priced = priceBagDeals([line(RACKET), line(GRIP_1, 1, { onSale: true })], [noSale], CTX);
+    assert.equal(priced.lines[1].discount, 0);
   });
 });

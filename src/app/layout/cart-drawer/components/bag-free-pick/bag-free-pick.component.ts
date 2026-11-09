@@ -6,7 +6,9 @@ import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { dealPickTitle } from '@core/services/cart/cart-deals';
 import { toGiftChoice, type GiftChoiceView } from '@core/services/cart/cart-gifts';
 import { CartService } from '@core/services/cart/cart.service';
-import type { BagDealHint } from '@core/services/offers/engine';
+import { canBeFreeItem, type BagDealHint } from '@core/services/offers/engine';
+import { toPricedProduct } from '@core/services/offers/offer.model';
+import { OffersService } from '@core/services/offers/offers.service';
 import type { Product } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
@@ -37,6 +39,7 @@ export class BagFreePickComponent {
   readonly hint = input.required<BagDealHint>();
 
   readonly #cart = inject(CartService);
+  readonly #offers = inject(OffersService);
   readonly #snackbar = inject(SnackbarService);
   readonly #firestore = injectFirestore();
 
@@ -45,17 +48,29 @@ export class BagFreePickComponent {
 
   readonly #choices = resource({
     params: () => [...this.hint().productIds],
-    loader: async ({ params: ids }): Promise<readonly FreePickChoice[]> => {
+    loader: async ({ params: ids }): Promise<readonly (readonly [Product, FreePickChoice])[]> => {
       const products = await Promise.all(ids.map((id) => this.#read(id)));
       return products.flatMap((product) => {
         const choice = product ? toGiftChoice(product) : null;
-        return product && choice ? [{ ...choice, fixedSelection: fixedSelection(product) }] : [];
+        return product && choice ? [[product, { ...choice, fixedSelection: fixedSelection(product) }] as const] : [];
       });
     },
   });
 
   readonly loading = computed(() => this.#choices.isLoading() && !this.#choices.hasValue());
-  readonly choices = computed(() => (this.#choices.hasValue() ? this.#choices.value() : []));
+  /**
+   * Only products the offer would really discount: a sale item when the offer leaves sale items
+   * out, or a product the offer excludes, would be added at full price, so it isn't offered.
+   */
+  readonly choices = computed((): readonly FreePickChoice[] => {
+    if (!this.#choices.hasValue()) return [];
+    const offer = this.#offers.all().find((entry) => entry.id === this.hint().offerId);
+    if (!offer) return [];
+    return this.#choices.value().flatMap(([product, choice]) => {
+      const onSale = product.compareAtPrice !== null && product.compareAtPrice > product.price;
+      return canBeFreeItem(offer, toPricedProduct(product), onSale) ? [choice] : [];
+    });
+  });
   readonly title = computed(() => {
     const choices = this.choices();
     return dealPickTitle(this.hint(), choices.length === 1 ? choices[0]!.label : null);

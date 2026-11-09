@@ -140,11 +140,16 @@ export async function readOfferUses(
     const reason = offerFullReason(entry.offer.limits, entry.totalCount, entry.customerCount);
     if (reason) throw offerFullError(entry.offer, reason);
   }
-  // Only the offers this order uses up need their doc: switched off below if it still exists.
+  // Only the offers this order uses up need their doc. One is switched off below only while it is
+  // still on: an offer staff already paused (this server's offer cache can be behind) is left as it
+  // is, so it never gets the marker and a failed Paymob start can't switch it back on.
   const ending = await Promise.all(
     snaps
       .filter((entry) => isLastOfferUse(entry.offer.limits, entry.totalCount))
-      .map(async (entry) => ({ entry, exists: (await tx.get(entry.offerDoc)).exists })),
+      .map(async (entry) => {
+        const snap = await tx.get(entry.offerDoc);
+        return { entry, live: snap.exists && snap.data()?.['active'] === true };
+      }),
   );
   return () => {
     const now = FieldValue.serverTimestamp();
@@ -157,8 +162,8 @@ export async function readOfferUses(
       );
     }
     const ended: string[] = [];
-    for (const { entry, exists } of ending) {
-      if (!exists) continue;
+    for (const { entry, live } of ending) {
+      if (!live) continue;
       tx.update(entry.offerDoc, { active: false, updatedAt: now, updatedBy: OFFER_LIMIT_ACTOR });
       ended.push(entry.offer.offerId);
     }

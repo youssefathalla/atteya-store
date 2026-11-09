@@ -137,6 +137,19 @@ describe('offer limits', () => {
     assert.equal(store.get('offerUsage/deal-1_shopper-1')?.['count'], 0);
   });
 
+  it('leaves an offer staff already paused alone at its last use, so a rollback never revives it', async () => {
+    const { db, tx, store, writes } = fakeDb({
+      'offers/deal-1': { active: false, updatedBy: 'admin-uid' },
+      'offerUsage/deal-1': { count: 2 },
+    });
+    const ended = (await readOfferUses(tx, db, 'shopper-1', [DEAL]))();
+    assert.deepEqual(ended, []);
+    assert.equal(writes.some((write) => write.path === 'offers/deal-1'), false);
+    await releaseOfferUses(db, 'shopper-1', [DEAL], ended);
+    assert.equal(store.get('offers/deal-1')?.['active'], false);
+    assert.equal(store.get('offers/deal-1')?.['updatedBy'], 'admin-uid');
+  });
+
   it('never switches on an offer staff switched off themselves', async () => {
     const { db, store } = fakeDb({
       'offers/deal-1': { active: false, updatedBy: 'admin-uid' },

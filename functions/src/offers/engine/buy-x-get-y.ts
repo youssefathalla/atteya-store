@@ -222,6 +222,25 @@ export function freeItemProductIds(conditions: OfferConditions | null): string[]
   return ids;
 }
 
+/**
+ * True when a product can be the free (or discounted) piece of a Buy X Get Y offer: it matches the
+ * offer's free-item rule (or its own conditions when the free piece comes from the same items),
+ * isn't excluded, and isn't on sale when the offer leaves sale items out. The bag lists only such
+ * products as free choices, so a tapped choice is really discounted.
+ */
+export function canBeFreeItem(offer: Offer, product: ProductFacts, onSale: boolean): boolean {
+  if (offer.reward.kind !== 'buyXGetY') return false;
+  const conditions = offer.reward.getConditions ?? offer.conditions;
+  return qualifies(offer, conditions, {
+    product,
+    variant: null,
+    quantity: 1,
+    unitPrice: product.price,
+    onSale,
+    giftWorth: 0,
+  });
+}
+
 /** Only per-item offers with no spend or quantity minimum give Buy X Get Y discounts. */
 function appliesToBag(offer: Offer): boolean {
   if (offer.reward.kind !== 'buyXGetY' || offer.scope !== 'item') return false;
