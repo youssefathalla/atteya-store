@@ -119,7 +119,14 @@
               (sizePicked)="pickGiftSize($event.giftId, $event.sizeId)"
             />
           } @else if (giftBoxLoading()) {
-            <app-skeleton class="w-full h-48 border-shape" />
+            <div class="pdp-gift-box" aria-hidden="true">
+              <app-skeleton class="h-12 w-full" />
+              <div class="grid grid-cols-3 gap-2 p-4 lg:grid-cols-4">
+                @for (n of [1, 2, 3, 4]; track n) {
+                  <app-skeleton class="aspect-square w-full" />
+                }
+              </div>
+            </div>
           }
           <app-add-to-bag-button
             [line]="cartLine()"

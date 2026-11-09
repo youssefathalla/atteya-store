@@ -1,3 +1,4 @@
+import { NgOptimizedImage } from '@angular/common';
 import {
   afterNextRender,
   Component,
@@ -10,15 +11,18 @@ import {
   output,
   untracked,
 } from '@angular/core';
+import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
+import { normalizeImageKitPath } from '@shared/utils/image';
 import type { ChoicePrompt } from '../../models/product-page.model';
 import { type GiftBoxView, type GiftPicks, giftSteps } from '../../utils/product-gifts';
 
 /**
  * Gift Box: the Free gift offer on the product page. A black header names the gifts, then one
- * numbered step per gift (and per gift size). Every choice is a button with `aria-pressed`.
+ * numbered step per gift (and per gift size). Gift choices are photo tiles, sizes are boxes; every choice is a button with `aria-pressed`.
  */
 @Component({
   selector: 'app-product-gift-box',
+  imports: [NgOptimizedImage, AppImageFallbackDirective],
   templateUrl: './product-gift-box.component.html',
   host: { class: 'block w-full' },
 })
@@ -34,6 +38,8 @@ export class ProductGiftBoxComponent {
 
   readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly #injector = inject(Injector);
+
+  readonly path = normalizeImageKitPath;
 
   readonly steps = computed(() => giftSteps(this.box(), this.picks()));
 
