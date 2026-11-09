@@ -8,8 +8,17 @@ export interface BagLineFacts {
   readonly product: ProductFacts;
   readonly variant: VariantFacts | null;
   readonly quantity: number;
-  /** One piece in whole EGP after per-item offers (`priceItem().effectivePrice`). */
-  readonly unitPrice: number;
+  /**
+   * One piece in whole EGP before per-item offers: the product's price (the sale price when it is
+   * on sale; `priceItem().basePrice`). Buy X Get Y groups are worked out on this price.
+   */
+  readonly basePrice: number;
+  /**
+   * One piece in whole EGP after per-item offers (Percent off, Amount off, Set price;
+   * `priceItem().effectivePrice`), at most `basePrice`. A piece outside every Buy X Get Y group,
+   * or in a group whose per-item offers save more, pays this.
+   */
+  readonly offerPrice: number;
   /** The product has a compare-at price above its price (for the offer's sale-items rule). */
   readonly onSale: boolean;
   /**
@@ -34,12 +43,23 @@ export interface BagLineOfferDeal {
 export interface BagLineDeals {
   /** Usually zero or one entry; two offers can each discount some pieces of one line. */
   readonly deals: readonly BagLineOfferDeal[];
-  /** Whole EGP taken off the line. */
+  /** Whole EGP Buy X Get Y takes off the line, from the price before per-item offers. */
   readonly discount: number;
   /** Pieces with a discount (they get no free gifts). */
   readonly discountedUnits: number;
   /** Pieces that still come with the line's free gifts. */
   readonly giftUnits: number;
+  /**
+   * Pieces in a Buy X Get Y group that won (bought or discounted): they pay `basePrice`, before
+   * the deal's discount, and get no per-item offer. One discount per item, never both.
+   */
+  readonly dealUnits: number;
+  /** Pieces that keep the per-item offer price (`offerPrice`): `quantity − dealUnits`. */
+  readonly offerUnits: number;
+  /** Whole EGP before the Buy X Get Y discount: `dealUnits × basePrice + offerUnits × offerPrice`. */
+  readonly before: number;
+  /** Whole EGP the line costs: `before − discount`. */
+  readonly total: number;
 }
 
 /**
@@ -77,7 +97,10 @@ export interface BagDeals {
 
 interface Unit {
   readonly line: number;
+  /** Before per-item offers. */
   readonly price: number;
+  /** What the per-item offer saves on this piece (`basePrice − offerPrice`). */
+  readonly itemSaving: number;
   readonly giftWorth: number;
   used: boolean;
 }
@@ -89,6 +112,12 @@ interface Unit {
  * none (then a group is buy + get pieces, so "Buy 2, get 1 free" needs 3). The discounted pieces
  * are always the cheapest that can be. `repeat` allows more than one group, up to
  * `maxApplications`. A piece used by one offer (bought or discounted) is not used by another.
+ *
+ * One discount per item: groups are worked out on each piece's price before per-item offers
+ * (`basePrice`), and each group's pieces get either the Buy X Get Y discount or their per-item
+ * offers (`offerPrice`), whichever saves the shopper more in total (a tie keeps the per-item
+ * offers). A group whose per-item offers win doesn't count: its pieces keep their offer price,
+ * the offer gives no discount for it, and another Buy X Get Y offer may still use them.
  * Shared by the bag, checkout and the order callables, so the server charges what the bag shows.
  */
 export function priceBagDeals(
@@ -97,14 +126,18 @@ export function priceBagDeals(
   ctx: PricingContext,
 ): BagDeals {
   const units: Unit[] = [];
+  const prices = lines.map(linePrices);
   lines.forEach((line, index) => {
     const quantity = Math.max(0, Math.floor(line.quantity));
-    const price = Math.max(0, Math.round(line.unitPrice));
+    const { base, offer } = prices[index]!;
     const giftWorth = Math.max(0, Math.round(line.giftWorth));
-    for (let n = 0; n < quantity; n++) units.push({ line: index, price, giftWorth, used: false });
+    for (let n = 0; n < quantity; n++) {
+      units.push({ line: index, price: base, itemSaving: base - offer, giftWorth, used: false });
+    }
   });
 
   const deals: BagLineOfferDeal[][] = lines.map(() => []);
+  const dealUnits = lines.map(() => 0);
   const offerIds: string[] = [];
   const hints: BagDealHint[] = [];
 
@@ -123,24 +156,31 @@ export function priceBagDeals(
       getConditions === null ? inBuy[index]! : qualifies(offer, getConditions, line),
     );
     const free = units.filter((unit) => !unit.used);
-    const buyPool = free.filter((unit) => inBuy[unit.line]);
-    const getPool = free.filter(
+    let buyPool = free.filter((unit) => inBuy[unit.line]);
+    let getPool = free.filter(
       (unit) => inGet[unit.line] && unitDiscount(unit.price, percent) > unit.giftWorth,
     );
 
-    const counts = poolCounts(buyPool, getPool);
     let groups = 0;
-    while (groups < maxGroups && fits(groups + 1, buy, get, counts)) groups++;
+    while (groups < maxGroups && fits(groups + 1, buy, get, poolCounts(buyPool, getPool))) groups++;
 
-    if (groups > 0) {
-      const discounted = pickDiscounted(buyPool, getPool, groups * buy, groups * get);
-      for (const unit of discounted) unit.used = true;
-      const getSet = new Set(getPool);
-      const paid = buyPool
-        .filter((unit) => !unit.used)
-        .sort((a, b) => Number(getSet.has(a)) - Number(getSet.has(b)) || b.price - a.price)
-        .slice(0, groups * buy);
-      for (const unit of paid) unit.used = true;
+    // Groups one at a time, so each one is compared with its pieces' per-item offers on its own.
+    // Every group taken (won or not) leaves this offer's pools, so `groups` groups always fit.
+    const discounted: Unit[] = [];
+    for (let left = groups; left > 0; left--) {
+      const group = takeGroup(buyPool, getPool, buy, get, left);
+      if (!group) break;
+      const taken = new Set([...group.paid, ...group.discounted]);
+      buyPool = buyPool.filter((unit) => !taken.has(unit));
+      getPool = getPool.filter((unit) => !taken.has(unit));
+      if (!dealWins(group.paid, group.discounted, percent)) continue;
+      for (const unit of taken) {
+        unit.used = true;
+        dealUnits[unit.line]! += 1;
+      }
+      discounted.push(...group.discounted);
+    }
+    if (discounted.length > 0) {
       addDeals(deals, offer.id, percent, discounted);
       offerIds.push(offer.id);
     }
@@ -159,13 +199,22 @@ export function priceBagDeals(
 
   const lineDeals = lines.map((line, index): BagLineDeals => {
     const entries = deals[index]!;
+    const quantity = Math.max(0, Math.floor(line.quantity));
     const discount = entries.reduce((sum, entry) => sum + entry.discount, 0);
     const discountedUnits = entries.reduce((sum, entry) => sum + entry.units, 0);
+    const inDeals = Math.min(quantity, dealUnits[index]!);
+    const offerUnits = quantity - inDeals;
+    const { base, offer } = prices[index]!;
+    const before = inDeals * base + offerUnits * offer;
     return {
       deals: entries,
       discount,
       discountedUnits,
-      giftUnits: Math.max(0, Math.floor(line.quantity) - discountedUnits),
+      giftUnits: Math.max(0, quantity - discountedUnits),
+      dealUnits: inDeals,
+      offerUnits,
+      before,
+      total: Math.max(0, before - discount),
     };
   });
 
@@ -231,7 +280,8 @@ export function canBeFreeItem(offer: Offer, product: ProductFacts, onSale: boole
     product,
     variant: null,
     quantity: 1,
-    unitPrice: product.price,
+    basePrice: product.price,
+    offerPrice: product.price,
     onSale,
     giftWorth: 0,
   });
@@ -276,29 +326,63 @@ function fits(groups: number, buy: number, get: number, counts: PoolCounts): boo
   return needBoth <= counts.both;
 }
 
+/** A line's whole-EGP prices: before per-item offers, and after them (never above `base`). */
+function linePrices(line: BagLineFacts): { base: number; offer: number } {
+  const base = Math.max(0, Math.round(line.basePrice));
+  const offer = Math.min(base, Math.max(0, Math.round(line.offerPrice)));
+  return { base, offer };
+}
+
 /**
- * The `getCount` cheapest pieces that can be discounted, keeping `buyCount` pieces to buy.
- * A piece that could be bought is taken only while enough others are left to buy.
+ * One group: the `get` cheapest pieces that can be discounted (the smaller per-item saving first
+ * when prices tie), and `buy` pieces to buy, those that can't be discounted first, then the ones
+ * whose per-item offers save least (they give up the least), then the most expensive. A piece
+ * that could be bought is discounted only while enough others are left to buy for the `groups`
+ * groups still to take; null when the pools no longer fit.
  */
-function pickDiscounted(
+function takeGroup(
   buyPool: readonly Unit[],
   getPool: readonly Unit[],
-  buyCount: number,
-  getCount: number,
-): Unit[] {
+  buy: number,
+  get: number,
+  groups: number,
+): { paid: Unit[]; discounted: Unit[] } | null {
   const buySet = new Set(buyPool);
-  let spareBuyers = buyPool.length - buyCount;
-  const picked: Unit[] = [];
-  const sorted = [...getPool].sort((a, b) => a.price - b.price || b.line - a.line);
+  let spareBuyers = buyPool.length - groups * buy;
+  const discounted: Unit[] = [];
+  const sorted = [...getPool].sort(
+    (a, b) => a.price - b.price || a.itemSaving - b.itemSaving || b.line - a.line,
+  );
   for (const unit of sorted) {
-    if (picked.length >= getCount) break;
+    if (discounted.length >= get) break;
     if (buySet.has(unit)) {
       if (spareBuyers <= 0) continue;
       spareBuyers--;
     }
-    picked.push(unit);
+    discounted.push(unit);
   }
-  return picked;
+  if (discounted.length < get) return null;
+  const getSet = new Set(getPool);
+  const picked = new Set(discounted);
+  const paid = buyPool
+    .filter((unit) => !picked.has(unit))
+    .sort(
+      (a, b) =>
+        Number(getSet.has(a)) - Number(getSet.has(b)) || a.itemSaving - b.itemSaving || b.price - a.price,
+    )
+    .slice(0, buy);
+  if (paid.length < buy) return null;
+  return { paid, discounted };
+}
+
+/**
+ * True when Buy X Get Y saves the shopper more on these pieces than their per-item offers do.
+ * A tie keeps the per-item offers.
+ */
+function dealWins(paid: readonly Unit[], discounted: readonly Unit[], percent: number): boolean {
+  const dealSaving = discounted.reduce((sum, unit) => sum + unitDiscount(unit.price, percent), 0);
+  const itemSaving = [...paid, ...discounted].reduce((sum, unit) => sum + unit.itemSaving, 0);
+  return dealSaving > itemSaving;
 }
 
 function addDeals(
@@ -324,6 +408,9 @@ function addDeals(
  * When the free pieces come from the same items this counts the bought part too, so one item of
  * "Buy 2, get 1 free" asks for 2 more. When the free piece must be another product, the bought
  * part has to be complete first and only the free part (at most `get`) is asked for.
+ * When the free pieces come from the same items and the group would still lose to the pieces'
+ * per-item offers (more of the same item, priced like the line the hint sits under), there is no
+ * hint: adding them would not get the shopper anything free.
  */
 function nextGroupHint(
   offer: Offer,
@@ -350,12 +437,19 @@ function nextGroupHint(
     }
   }
   if (missing === 0) return null;
+  const lineIndex = Math.max(...c.buyPool.map((unit) => unit.line));
+  if (samePool) {
+    const like = c.buyPool.find((unit) => unit.line === lineIndex)!;
+    const extra: Unit[] = Array.from({ length: missing }, () => ({ ...like, giftWorth: 0, used: false }));
+    const group = takeGroup([...c.buyPool, ...extra], [...c.getPool, ...extra], c.buy, c.get, 1);
+    if (!group || !dealWins(group.paid, group.discounted, c.percent)) return null;
+  }
   const productIds = samePool ? null : freeItemProductIds(offer.reward.getConditions);
   return {
     kind: productIds ? 'choose-free' : 'add-more',
     offerId: offer.id,
     title: offer.title,
-    lineIndex: Math.max(...c.buyPool.map((unit) => unit.line)),
+    lineIndex,
     missing,
     free: c.get,
     percent: c.percent,

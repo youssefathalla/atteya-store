@@ -63,6 +63,12 @@ export interface OrderLinePrice {
   readonly discountEgp?: number;
   /** The Buy X Get Y offers behind `discountEgp`: which pieces got which discount. */
   readonly deals?: readonly OrderLineDeal[];
+  /**
+   * The line before its Buy X Get Y discount (`lineDisplay` + `discountEgp`): pieces in a Buy X
+   * Get Y group pay the price before per-item offers, the others `unitEgp`. Only on lines with
+   * pieces in a group; older orders and other lines use `unitEgp × quantity`.
+   */
+  readonly fullEgp?: number;
 }
 
 /** One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100). */
@@ -191,6 +197,11 @@ export interface MissedPrice {
    * itself (or the offer's amount) changed, and checkout should read the products again.
    */
   readonly sameOffer: boolean;
+  /**
+   * The product's price before per-item offers went up on a line with pieces in a Buy X Get Y
+   * group (those pieces pay that price): checkout should read the products again.
+   */
+  readonly baseRose?: boolean;
 }
 
 /** Something the page showed that this pricing doesn't give. */
@@ -232,6 +243,37 @@ export function missedLinePrice(
   return null;
 }
 
+/** A line's price before per-item offers as checkout showed it, and on the server. */
+export interface BaseLinePrice {
+  readonly productId: string;
+  /** What checkout showed (`shownBaseEgp`), or null when it didn't send one (older pages). */
+  readonly shownBaseEgp: number | null;
+  /** The server's price before per-item offers. */
+  readonly baseEgp: number;
+  /** Pieces of the line in a Buy X Get Y group (they pay `baseEgp`). */
+  readonly dealUnits: number;
+}
+
+/**
+ * The first line with pieces in a Buy X Get Y group whose price before per-item offers is higher
+ * than checkout showed, or null. Those pieces pay that price, so a Set price offer can't hide the
+ * rise the way it hides it for `missedLinePrice`. Lines without such pieces, or without
+ * `shownBaseEgp`, are not compared.
+ */
+export function missedBasePrice(lines: readonly BaseLinePrice[]): MissedPrice | null {
+  const line = lines.find(
+    (entry) => entry.dealUnits > 0 && entry.shownBaseEgp !== null && entry.baseEgp > entry.shownBaseEgp,
+  );
+  if (!line) return null;
+  return {
+    missedPriceProductId: line.productId,
+    shownOfferId: null,
+    live: false,
+    sameOffer: false,
+    baseRose: true,
+  };
+}
+
 /**
  * The refusal when a line still costs more than checkout showed after the offers were read again.
  * Always "Prices in your bag changed…"; the details tell checkout what to do next:
@@ -245,7 +287,7 @@ export function missedLinePrice(
 export function priceChangedError(missed: MissedPrice): HttpsError {
   const productChanged = { priceChanged: true, productId: missed.missedPriceProductId };
   const details =
-    missed.shownOfferId === null
+    missed.baseRose === true || missed.shownOfferId === null
       ? productChanged
       : !missed.live
         ? { endedOfferId: missed.shownOfferId }
@@ -361,7 +403,9 @@ async function priceWithOffers(
   if (missedPrice !== null) return missedPrice;
 
   // Buy X Get Y: worked out over the whole bag with the shared engine, so the order charges what
-  // the bag showed. A piece it discounts gets no free gifts; the better deal for the shopper wins.
+  // the bag showed. One discount per item: a group's pieces get either the Buy X Get Y discount
+  // (on the price before per-item offers) or their per-item offers, whichever saves more.
+  // A piece it discounts gets no free gifts; the better deal for the shopper wins.
   // Every live offer counts, as in the bag. Checkout's `endedOfferIds` (offers an earlier refusal
   // said have ended) are left out only when the usage counts confirm they have no use left for this
   // shopper: with two Buy X Get Y offers on the same items, dropping one that still has uses could
@@ -380,7 +424,8 @@ async function priceWithOffers(
         product,
         variant,
         quantity: line.quantity,
-        unitPrice: priced.unitEgp,
+        basePrice: product.price,
+        offerPrice: priced.unitEgp,
         onSale: product.compareAtPrice !== null && product.compareAtPrice > product.price,
         giftWorth: giftWorth(line, giftDocs),
       };
@@ -405,6 +450,17 @@ async function priceWithOffers(
       live: liveOffers(offers, ctx).some((offer) => offer.id === missedDeal),
     };
   }
+  // Pieces in a Buy X Get Y group pay the price before per-item offers: a rise there since checkout
+  // priced the bag would make the order cost more than the shopper saw.
+  const missedBase = missedBasePrice(
+    input.lines.map((line, index) => ({
+      productId: line.productId,
+      shownBaseEgp: line.shownBaseEgp,
+      baseEgp: Math.max(0, Math.round(lineResults[index]!.product.price)),
+      dealUnits: deals.lines[index]!.dealUnits,
+    })),
+  );
+  if (missedBase !== null) return missedBase;
 
   for (const [index, line] of input.lines.entries()) {
     const { product, variant, weightGrams } = lineResults[index]!;
@@ -510,13 +566,17 @@ export function giftWorth(
   return worth;
 }
 
-/** The line with its Buy X Get Y discount taken off (unchanged when it has none). */
-function withDeals(priced: OrderLinePrice, lineDeals: BagLineDeals): OrderLinePrice {
-  if (lineDeals.discount <= 0) return priced;
-  const lineDisplay = Math.max(0, priced.unitEgp * priced.quantity - lineDeals.discount);
+/**
+ * The line with its Buy X Get Y groups priced (unchanged when no piece is in one): pieces in a
+ * group pay the price before per-item offers, minus the deal's discount; the others keep
+ * `unitEgp` (after per-item offers).
+ */
+export function withDeals(priced: OrderLinePrice, lineDeals: BagLineDeals): OrderLinePrice {
+  if (lineDeals.dealUnits <= 0) return priced;
   return {
     ...priced,
-    lineDisplay,
+    lineDisplay: lineDeals.total,
+    fullEgp: lineDeals.before,
     discountEgp: lineDeals.discount,
     deals: lineDeals.deals.map((deal) => ({
       offerId: deal.offerId,

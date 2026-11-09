@@ -201,7 +201,15 @@ describe('ended offers from checkout', () => {
     },
     limits: { totalUses: 10, perCustomer: 1 },
   });
-  const line = { product: TEE, variant: null, quantity: 3, unitPrice: 500, onSale: false, giftWorth: 0 };
+  const line = {
+    product: TEE,
+    variant: null,
+    quantity: 3,
+    basePrice: 500,
+    offerPrice: 500,
+    onSale: false,
+    giftWorth: 0,
+  };
 
   it('reads only usable ids, without repeats', () => {
     assert.deepEqual(parseOfferIds(['deal-1', 'deal-1', 7, '', 'x'.repeat(200), 'deal-2']), [

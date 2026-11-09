@@ -35,6 +35,8 @@ interface CheckoutLineInput {
   readonly shownUnitEgp: number | null;
   /** The per-item offer behind that price, or null. */
   readonly shownOfferId: string | null;
+  /** The per-piece price before per-item offers checkout showed; the server refuses rather than charge more. */
+  readonly shownBaseEgp: number | null;
 }
 
 function toCheckoutLine(line: CartLineDraft, shown: ShownLinePrice | undefined): CheckoutLineInput {
@@ -51,6 +53,7 @@ function toCheckoutLine(line: CartLineDraft, shown: ShownLinePrice | undefined):
     })),
     shownUnitEgp: shown?.shownUnitEgp ?? null,
     shownOfferId: shown?.shownOfferId ?? null,
+    shownBaseEgp: shown?.shownBaseEgp ?? null,
   };
 }
 

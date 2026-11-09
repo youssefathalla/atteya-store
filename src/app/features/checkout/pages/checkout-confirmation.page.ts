@@ -301,7 +301,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
         deal: line.deals?.length ? dealTag(line.deals, line.quantity) : '',
         was:
           (line.discountEgp ?? 0) > 0
-            ? formatMoney(line.unitDisplay * line.quantity, pricing.currency, decimals)
+            ? formatMoney(line.fullEgp ?? line.unitDisplay * line.quantity, pricing.currency, decimals)
             : '',
         gifts: [],
       };

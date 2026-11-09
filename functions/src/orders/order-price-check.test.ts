@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import { parseOfferDoc } from '../../lib/offers/offer-schema.js';
 import { liveOffers, priceItem } from '../../lib/offers/engine/index.js';
 import {
+  missedBasePrice,
   missedLinePrice,
   priceChangedError,
   priceWithFreshOffersOnMiss,
@@ -187,5 +188,24 @@ describe('a line that costs more than checkout showed', () => {
     });
     assert.equal(err.message, CHANGED);
     assert.deepEqual(err.details, { priceChanged: true, productId: 'tee-1' });
+  });
+});
+
+describe('price before per-item offers on pieces in a Buy X Get Y group', () => {
+  const line = (extra) => ({ productId: 'tee-1', shownBaseEgp: 1000, baseEgp: 1000, dealUnits: 3, ...extra });
+
+  it('refuses when that price went up on a line with pieces in a group', () => {
+    const missed = missedBasePrice([line({ baseEgp: 1200 })]);
+    assert.ok(missed);
+    const err = priceChangedError(missed);
+    assert.equal(err.message, CHANGED);
+    assert.deepEqual(err.details, { priceChanged: true, productId: 'tee-1' });
+  });
+
+  it('ignores lines with no piece in a group, an older page, and a lower or equal price', () => {
+    assert.equal(missedBasePrice([line({ baseEgp: 1200, dealUnits: 0 })]), null);
+    assert.equal(missedBasePrice([line({ baseEgp: 1200, shownBaseEgp: null })]), null);
+    assert.equal(missedBasePrice([line({ baseEgp: 900 })]), null);
+    assert.equal(missedBasePrice([line({})]), null);
   });
 });

@@ -31,6 +31,12 @@ export interface OrderLineInput {
   readonly shownUnitEgp: number | null;
   /** The per-item offer checkout priced that piece with, or null for none. */
   readonly shownOfferId: string | null;
+  /**
+   * The price of one piece before per-item offers checkout showed (whole EGP), or null. Pieces in
+   * a Buy X Get Y group pay this price, so the order is refused when it went up. Never lowers a
+   * price.
+   */
+  readonly shownBaseEgp: number | null;
 }
 
 /** One free gift picked on a bag line: which offer and gift, which product, and its size. */
@@ -135,7 +141,17 @@ function parseLines(raw: unknown): OrderLineInput[] {
     const gifts = parseGiftPicks(entry['gifts']);
     const shownUnitEgp = parseShownUnitEgp(entry['shownUnitEgp']);
     const shownOfferId = parseShownOfferId(entry['shownOfferId']);
-    lines.push({ productId, variantId, quantity, selection, gifts, shownUnitEgp, shownOfferId });
+    const shownBaseEgp = parseShownUnitEgp(entry['shownBaseEgp']);
+    lines.push({
+      productId,
+      variantId,
+      quantity,
+      selection,
+      gifts,
+      shownUnitEgp,
+      shownOfferId,
+      shownBaseEgp,
+    });
   }
   return lines;
 }
