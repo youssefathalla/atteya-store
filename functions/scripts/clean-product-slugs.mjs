@@ -1,7 +1,9 @@
 /**
  * One-off (ATS-115), once before launch: give every product a clean web address made from its name
- * plus its colour, so `/product/nox-socks` and `/product/nox-socks-2` become `/product/nox-socks-white`
- * and `/product/nox-socks-black`. Decided by Youssef on Nov 9, 2026. Old addresses are not redirected
+ * and, only when the same product comes in several colours, its colour, so `/product/nox-socks` and
+ * `/product/nox-socks-2` become `/product/nox-socks-white` and `/product/nox-socks-black`, while a
+ * product that comes in one colour gets just its name (`/product/babolat-thermal-bottle`). Decided by
+ * Youssef on Nov 9, 2026 (colour rule: ATS-118). Old addresses are not redirected
  * (the new site isn't live yet); they show the normal "not found" page.
  *
  * Run from the functions directory with Application Default Credentials, dev first:
@@ -17,9 +19,12 @@
  * New slug, worked out the same way for every product (published or not):
  * - the product name with accents folded ("Galán" -> "galan"), lower-case, only a-z and 0-9, words
  *   joined by "-" (`slugBase()` in `src/products/slug.ts`, the same rule as the product form);
- * - then each colour in `colors` (palette order) that the name doesn't already say, as its id
- *   (`light-blue` stays `light-blue`). `multi` never adds a word. A colour counts as said when
- *   `extractColorsFromName()` finds it in the name, so "Charcoal Hoodie" + grey stays `charcoal-hoodie`.
+ * - that name slug is the product's base. Only when another product has the same base (the same name
+ *   in another colour, such as Nox Socks white and black) does each of them also get the colours in
+ *   `colors` (palette order) that the name doesn't already say, as their ids (`light-blue` stays
+ *   `light-blue`). `multi` never adds a word. A colour counts as said when `extractColorsFromName()`
+ *   finds it in the name, so "Charcoal Hoodie" + grey stays `charcoal-hoodie`. A product whose base
+ *   no other product shares gets the bare base, whatever its colours.
  * - Products are taken in document-id order. When a slug is already taken, the later product gets
  *   `-2`, `-3`, ... and is listed as a clash, so a person can rename it in the product form and run
  *   the script again.
@@ -80,8 +85,8 @@ const trimmed = (value) => (typeof value === 'string' ? value.trim() : '');
 /** "Adidas Ale Galán T-Shirt" -> "Adidas Ale Galan T-Shirt". */
 const foldAccents = (value) => value.normalize('NFD').replace(/[̀-ͯ]/g, '');
 
-/** Name words, then the colours the name doesn't already say. Null when there is no usable name. */
-function wantedSlug(data) {
+/** The name slug and the colours the name doesn't already say. Null when there is no usable name. */
+function slugParts(data) {
   const name = trimmed(data.name);
   if (!name) return null;
   const base = slugBase('', foldAccents(name));
@@ -90,8 +95,12 @@ function wantedSlug(data) {
   const colors = sortColors(Array.isArray(data.colors) ? data.colors : []).filter(
     (id) => id !== 'multi' && !said.has(id),
   );
-  return [base, ...colors].join('-');
+  return { base, colors };
 }
+
+/** The slug a product wants: its base, plus its colours only when another product shares that base. */
+const wantedSlug = (parts, sharedBases) =>
+  sharedBases.has(parts.base) ? [parts.base, ...parts.colors].join('-') : parts.base;
 
 // Every product, in document-id order (the order clashes are numbered in).
 const products = [];
@@ -107,10 +116,17 @@ for (;;) {
 
 const taken = new Set();
 const noName = [];
+// How many products share each base (the same name in another colour).
+const baseCount = new Map();
+for (const snap of products) {
+  const parts = slugParts(snap.data());
+  if (parts) baseCount.set(parts.base, (baseCount.get(parts.base) ?? 0) + 1);
+}
+const sharedBases = new Set([...baseCount].filter(([, count]) => count > 1).map(([base]) => base));
 const plan = []; // { snap, name, oldSlug, newSlug, clashWith }
 // Products without a usable name keep their slug, so nobody else may take it.
 for (const snap of products) {
-  if (wantedSlug(snap.data()) === null) {
+  if (slugParts(snap.data()) === null) {
     const oldSlug = trimmed(snap.get('slug'));
     if (oldSlug) taken.add(oldSlug);
     noName.push(`${snap.id}  (slug "${oldSlug || 'none'}")`);
@@ -118,8 +134,9 @@ for (const snap of products) {
 }
 for (const snap of products) {
   const data = snap.data();
-  const wanted = wantedSlug(data);
-  if (wanted === null) continue;
+  const parts = slugParts(data);
+  if (parts === null) continue;
+  const wanted = wantedSlug(parts, sharedBases);
   const newSlug = nextSlug(wanted, taken);
   taken.add(newSlug);
   plan.push({
