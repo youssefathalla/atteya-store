@@ -27,28 +27,18 @@ export class OfferSettingsComponent {
     }
   });
 
-  updateText(field: 'name' | 'title' | 'badge' | 'description' | 'code', event: Event): void {
+  updateText(field: 'name' | 'title' | 'badge' | 'description', event: Event): void {
     const raw = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
     this.draft.update((prev) => {
       if (field === 'name') return { ...prev, name: raw };
       if (field === 'title') return { ...prev, title: raw };
       if (field === 'badge') return { ...prev, badge: raw.trim() ? raw : null };
-      if (field === 'description') return { ...prev, description: raw.trim() ? raw : null };
-      const upper = raw.trim().toUpperCase();
-      return { ...prev, code: upper || null };
+      return { ...prev, description: raw.trim() ? raw : null };
     });
   }
 
   toggleActive(active: boolean): void {
     this.draft.update((prev) => ({ ...prev, active }));
-  }
-
-  toggleRequiresCode(requiresCode: boolean): void {
-    this.draft.update((prev) => ({
-      ...prev,
-      requiresCode,
-      visibility: requiresCode ? 'code' : 'public',
-    }));
   }
 
   onAudienceChange(event: Event): void {
