@@ -81,41 +81,14 @@ const FIREBASE_CLI =
 /** `deploy` as a word, or `deploy:<target>`. `scripts/deploy.mjs` doesn't match. */
 const DEPLOY_WORD = /(?:^|[\s"'`(;&|=])deploy(?::[\w,:-]+)?(?=$|[\s"'`);&|])/im;
 /**
- * A heredoc whose body is only a message: the line starts with `git` or `gh` (after `cd …;` or `&&`), and nothing
- * after the heredoc tag on that line sends it anywhere else (no pipe, redirect or further command).
- */
-// No `$(`, backtick or parenthesis either: a heredoc inside a substitution is read by whatever runs in there.
-const MESSAGE_HEREDOC_COMMAND = /(?:^|[;&]\s*)(?:git|gh)\s[^;&|$`()]*$/;
-const PLAIN_REST = /^[^|<>;&`$()]*$/;
-
-/**
- * The command without the body of a heredoc that only feeds a commit message or a PR body to `git` or `gh`
- * (`git commit -F - <<'EOF'`, `gh pr create --body-file - <<EOF`). Every other heredoc body (`cat <<EOF | bash`,
- * `tee x.sh <<EOF`) and every PowerShell here-string is kept, because it may run.
- */
-export function withoutDocumentText(command) {
-  return command.replace(
-    // The body ends at the first line that is only the tag, as in Bash; an empty body is allowed, so a later
-    // line with the same tag can't stretch it over real commands.
-    /<<-?\s*(['"]?)(\w+)\1([^\n]*)\n((?:[^\n]*\n)*?)[ \t]*\2[ \t]*(?=\r?\n|$)/g,
-    (whole, _quote, _tag, rest, _body, offset) => {
-      const lineStart = command.lastIndexOf('\n', offset) + 1;
-      const before = command.slice(lineStart, offset);
-      return MESSAGE_HEREDOC_COMMAND.test(before) && PLAIN_REST.test(rest) ? rest : whole;
-    },
-  );
-}
-
-/**
- * True when the command names the Firebase CLI and also says `deploy`, anywhere. On purpose this doesn't try to
- * read shell syntax (quotes, substitutions, wrappers, flags, line continuations): every form of a real deploy
- * has both words, so none can slip through. A command that only mentions it in quoted text is blocked too; the
- * message says to put that text in a file (`git commit -F`, `gh … --body-file`) or search with the Grep tool.
+ * True when the command names the Firebase CLI and also has the word `deploy`, anywhere in its text. On purpose
+ * this reads no shell syntax at all (quotes, heredocs, substitutions, wrappers, aliases, flags, line breaks):
+ * every way of running a deploy has both words, so none can slip through. A command that only mentions it is
+ * blocked too; the message says to write that text to a file first (Write tool, then `git commit -F <file>` or
+ * `gh … --body-file <file>`) or to search with the Grep tool.
  */
 export function isRawDeploy(command) {
-  if (typeof command !== 'string') return false;
-  const text = withoutDocumentText(command);
-  return FIREBASE_CLI.test(text) && DEPLOY_WORD.test(text);
+  return typeof command === 'string' && FIREBASE_CLI.test(command) && DEPLOY_WORD.test(command);
 }
 
 /** The reason to block this call, or null to let it through. */
@@ -137,7 +110,7 @@ export function blockReason(input, root = ROOT) {
       'Use the npm scripts instead: `npm run fb:fn:dev`, `npm run fb:rules:dev`, `npm run fb:indexes:dev` ' +
       "or `npm run fb:deploy:dev` (prod only with Youssef's OK). See AGENTS.md, Deploy safety. " +
       'If the command only mentions it in text, put that text in a file (`git commit -F <file>`, `gh pr create --body-file <file>`, ' +
-      'or a heredoc into git or gh) or search with the Grep tool.'
+      'written with the Write tool first) or search with the Grep tool.'
     );
   }
   return null;
