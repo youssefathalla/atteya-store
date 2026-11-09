@@ -97,19 +97,37 @@ export function sourceFor(relative, root = ROOT) {
  * quote kinds, across newlines. Quoted text handed to a shell (`bash -c "…"`, `pwsh -Command '…'`,
  * `cmd /c "…"`) is kept as its own command, because that text does run.
  */
-export function withoutQuotedText(command) {
+export function withoutQuotedText(command, shell = 'Bash') {
+  const bash = shell !== 'PowerShell';
   const text = command
     .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?:\n|$)/g, '\n')
     .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '');
   let out = '';
   for (let i = 0; i < text.length; i++) {
-    const quote = text[i];
-    if (quote !== '"' && quote !== "'") {
-      out += quote;
+    const ch = text[i];
+    // A comment (`#` at the start or after whitespace) runs nothing, and an apostrophe in it is not a quote.
+    if (ch === '#' && (i === 0 || /\s/.test(text[i - 1]))) {
+      while (i + 1 < text.length && text[i + 1] !== '\n') i++;
       continue;
     }
+    // Bash `\'` / `\"` outside quotes is a literal character, not the start of a quote.
+    if (bash && ch === '\\' && i + 1 < text.length) {
+      out += ch + text[++i];
+      continue;
+    }
+    if (ch !== '"' && ch !== "'") {
+      out += ch;
+      continue;
+    }
+    // Backslash escapes only inside Bash double quotes; PowerShell's `"C:\dir\"` closes at the last quote.
+    const escapes = bash && ch === '"';
     let j = i + 1;
-    while (j < text.length && text[j] !== quote) j += quote === '"' && text[j] === '\\' ? 2 : 1;
+    while (j < text.length && text[j] !== ch) j += escapes && text[j] === '\\' ? 2 : 1;
+    if (j >= text.length) {
+      // No closing quote: it wasn't a real quote, so keep the rest as it is rather than hide it.
+      out += text.slice(i);
+      break;
+    }
     const inner = text.slice(i + 1, j);
     out += RUNS_QUOTED.test(out) ? '\n' + inner + '\n' : '""';
     i = j;
@@ -140,9 +158,9 @@ function segmentDeploys(segment) {
   return tokens.slice(i + 1).some((token) => /^deploy(?::|$)/i.test(token));
 }
 
-export function isRawDeploy(command) {
+export function isRawDeploy(command, shell = 'Bash') {
   if (typeof command !== 'string') return false;
-  return withoutQuotedText(command)
+  return withoutQuotedText(command, shell)
     .split(/;|&+|\|+|\n|\$\(|[()`]/)
     .some(segmentDeploys);
 }
@@ -160,7 +178,7 @@ export function blockReason(input, root = ROOT) {
       `Make this change in ${target.source}, then run \`${target.sync}\` to update the copy.`
     );
   }
-  if (SHELL_TOOLS.has(tool) && isRawDeploy(toolInput.command)) {
+  if (SHELL_TOOLS.has(tool) && isRawDeploy(toolInput.command, tool)) {
     return (
       'Raw `firebase deploy` skips the branch guard, the index check and the prod confirmation. ' +
       'Use the npm scripts instead: `npm run fb:fn:dev`, `npm run fb:rules:dev`, `npm run fb:indexes:dev` ' +
