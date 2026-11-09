@@ -97,15 +97,99 @@ export function sourceFor(relative, root = ROOT) {
  * quote kinds, across newlines. Quoted text handed to a shell (`bash -c "…"`, `pwsh -Command '…'`,
  * `cmd /c "…"`) is kept as its own command, because that text does run.
  */
+/** Index of the backtick closing the Bash command substitution opened at `open`, or -1. */
+function closingBacktick(text, open) {
+  let j = open + 1;
+  while (j < text.length) {
+    if (text[j] === '\\') j += 2;
+    else if (text[j] === '`') return j;
+    else j++;
+  }
+  return -1;
+}
+
+/**
+ * Index of the `)` matching the `(` at `open`, or -1. Quoted text and nested substitutions inside are skipped
+ * whole, so a quote or parenthesis inside them (`$(firebase deploy --only "functions")`) does not end it early.
+ */
+function closingParen(text, open, bash) {
+  let depth = 1;
+  for (let j = open + 1; j < text.length; j++) {
+    const c = text[j];
+    if (bash && c === '\\') {
+      j++;
+    } else if (c === '"' || c === "'") {
+      j = closingQuote(text, j, bash);
+      if (j < 0) return -1;
+    } else if (bash && c === '`') {
+      j = closingBacktick(text, j);
+      if (j < 0) return -1;
+    } else if (c === '(') {
+      depth++;
+    } else if (c === ')' && --depth === 0) {
+      return j;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Index of the quote closing the one at `open`, or -1. Inside double quotes, a `$( … )` (and a Bash backtick
+ * substitution) is skipped whole, because quotes inside it belong to the inner command, not the outer string.
+ */
+function closingQuote(text, open, bash) {
+  const ch = text[open];
+  if (ch === "'") return text.indexOf("'", open + 1);
+  let j = open + 1;
+  while (j < text.length) {
+    const c = text[j];
+    // Backslash escapes only inside Bash double quotes; PowerShell's `"C:\dir\"` closes at the last quote.
+    if (bash && c === '\\') {
+      j += 2;
+      continue;
+    }
+    if (c === ch) return j;
+    if (c === '$' && text[j + 1] === '(') {
+      const end = closingParen(text, j + 1, bash);
+      if (end >= 0) {
+        j = end + 1;
+        continue;
+      }
+    } else if (bash && c === '`') {
+      const end = closingBacktick(text, j);
+      if (end >= 0) {
+        j = end + 1;
+        continue;
+      }
+    }
+    j++;
+  }
+  return -1;
+}
+
 /**
  * Commands that still run inside a double-quoted string: `$( … )` in Bash and PowerShell, and backticks in Bash.
- * Returned as separate lines so each is checked like a command of its own (nested parentheses one level deep).
+ * Returned as separate lines so each is checked like a command of its own, with its own quoted text removed.
  */
-function substitutionsIn(inner, bash) {
-  const found = [];
-  for (const match of inner.matchAll(/\$\(((?:[^()]|\([^()]*\))*)\)/g)) found.push(match[1]);
-  if (bash) for (const match of inner.matchAll(/`([^`]*)`/g)) found.push(match[1]);
-  return found.map((command) => '\n' + command + '\n').join('');
+function substitutionsIn(inner, shell) {
+  const bash = shell !== 'PowerShell';
+  let found = '';
+  for (let k = 0; k < inner.length; k++) {
+    if (bash && inner[k] === '\\') {
+      k++;
+    } else if (inner[k] === '$' && inner[k + 1] === '(') {
+      const end = closingParen(inner, k + 1, bash);
+      if (end < 0) continue;
+      found += '\n' + withoutQuotedText(inner.slice(k + 2, end), shell) + '\n';
+      k = end;
+    } else if (bash && inner[k] === '`') {
+      const end = closingBacktick(inner, k);
+      if (end < 0) continue;
+      found += '\n' + withoutQuotedText(inner.slice(k + 1, end), shell) + '\n';
+      k = end;
+    }
+  }
+  return found;
 }
 
 export function withoutQuotedText(command, shell = 'Bash') {
@@ -139,18 +223,15 @@ export function withoutQuotedText(command, shell = 'Bash') {
       out += ch;
       continue;
     }
-    // Backslash escapes only inside Bash double quotes; PowerShell's `"C:\dir\"` closes at the last quote.
-    const escapes = bash && ch === '"';
-    let j = i + 1;
-    while (j < text.length && text[j] !== ch) j += escapes && text[j] === '\\' ? 2 : 1;
-    if (j >= text.length) {
+    const j = closingQuote(text, i, bash);
+    if (j < 0) {
       // No closing quote: it wasn't a real quote, so keep the rest as it is rather than hide it.
       out += text.slice(i);
       break;
     }
     const inner = text.slice(i + 1, j);
     if (RUNS_QUOTED.test(out)) out += '\n' + inner + '\n';
-    else out += '""' + (ch === '"' ? substitutionsIn(inner, bash) : '');
+    else out += '""' + (ch === '"' ? substitutionsIn(inner, shell) : '');
     i = j;
   }
   return out;
