@@ -228,7 +228,10 @@ export function shippingQuote(
     candidates.push({ fee: 0, reason: 'freeOver' });
   }
 
-  for (const offer of liveOffers(offers, ctx)) {
+  // Free shipping offers are campaigns for Egypt orders only: shipping abroad costs far more,
+  // so an order shipped outside Egypt always pays its box fee (or the settings rules above).
+  const offersForRegion = input.region === 'egypt' ? liveOffers(offers, ctx) : [];
+  for (const offer of offersForRegion) {
     if (offer.reward.kind !== 'freeShipping') continue;
     if (offer.minimum?.subtotal !== undefined && input.goodsSubtotal < offer.minimum.subtotal) {
       continue;
