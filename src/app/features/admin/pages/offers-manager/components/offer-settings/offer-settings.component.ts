@@ -1,11 +1,6 @@
 import { Component, computed, model } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import type {
-  OfferAudience,
-  OfferDraft,
-  OfferSaleItemsPolicy,
-  OfferStacking,
-} from '@core/services/offers/engine';
+import type { OfferAudience, OfferDraft, OfferSaleItemsPolicy } from '@core/services/offers/engine';
 
 @Component({
   selector: 'app-offer-settings',
@@ -16,16 +11,11 @@ import type {
 export class OfferSettingsComponent {
   readonly draft = model.required<OfferDraft>();
 
-  readonly saleItemsExplanation = computed(() => {
-    switch (this.draft().saleItems) {
-      case 'bestOf':
-        return 'Example (list EGP 2,000, sale price EGP 1,700, offer 20% off): 20% of 2,000 = EGP 1,600 beats 1,700, so the shopper pays EGP 1,600 (never both discounts).';
-      case 'exclude':
-        return 'Example: products that already have a sale price are skipped and stay at EGP 1,700.';
-      case 'stack':
-        return 'Example: products already on sale get this discount on top of their sale price (20% of 1,700 = EGP 1,360).';
-    }
-  });
+  readonly saleItemsExplanation = computed(() =>
+    this.draft().saleItems === 'exclude'
+      ? 'Example: products that already have a sale price are skipped and stay at EGP 1,700.'
+      : 'Example (list EGP 2,000, sale price EGP 1,700, offer 20% off): 20% of 2,000 = EGP 1,600 beats 1,700, so the shopper pays EGP 1,600 (never both discounts).',
+  );
 
   updateText(field: 'name' | 'title' | 'badge' | 'description', event: Event): void {
     const raw = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
@@ -49,20 +39,9 @@ export class OfferSettingsComponent {
     }));
   }
 
-  onStackingChange(event: Event): void {
-    const val = (event.target as HTMLSelectElement).value as OfferStacking;
-    this.draft.update((prev) => ({
-      ...prev,
-      stacking: val === 'exclusive' ? 'exclusive' : 'stackable',
-    }));
-  }
-
   onSaleItemsChange(event: Event): void {
     const val = (event.target as HTMLSelectElement).value as OfferSaleItemsPolicy;
-    this.draft.update((prev) => ({
-      ...prev,
-      saleItems: val === 'exclude' || val === 'stack' ? val : 'bestOf',
-    }));
+    this.draft.update((prev) => ({ ...prev, saleItems: val === 'exclude' ? 'exclude' : 'bestOf' }));
   }
 
   onPriorityChange(event: Event): void {
