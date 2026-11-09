@@ -26,6 +26,7 @@ Cursor Bugbot reads this file on every pull request. The Claude review workflow 
 - Never commit secrets: Paymob keys, Resend key, Algolia admin/write key, service accounts, `.env` files.
 - GitHub Actions: no untrusted PR text in `run:` scripts, no `pull_request_target` with a checkout of PR code, the smallest token permissions.
 - Regexes on user input must not backtrack badly (ReDoS).
+- The deploy check in `scripts/hooks/guard-generated-and-deploy.mjs` is a best-effort early warning for Claude sessions, not a security boundary. The real protection is `scripts/deploy.mjs` (branch guard, typed `prod` confirmation), and cloud sessions have no Firebase access. Don't report shell tricks that get past it (escapes, aliases, substitutions, obfuscated spellings). Report only a change that lets a plain `firebase deploy` or `npx firebase-tools deploy` through, or one that blocks `npm run fb:*`.
 
 ## Firestore and data
 
