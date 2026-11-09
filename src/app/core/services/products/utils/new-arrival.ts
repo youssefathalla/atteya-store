@@ -1,10 +1,10 @@
-/** Homepage New Arrivals row pool size (3 visible + peek; scroll for the rest). */
-export const NEW_ARRIVALS_LIMIT = 10;
+/** Homepage New Arrivals row: at most this many products (scroll for the rest). */
+export const NEW_ARRIVALS_LIMIT = 6;
 
 /** Default window when an admin ticks "New arrival". */
 export const NEW_ARRIVAL_DEFAULT_MONTHS = 2;
 
-/** Over-fetch flagged docs so we can pick the 10 most recently updated client-side. */
+/** Over-fetch flagged docs so we can pick the most recently updated client-side. */
 export const NEW_ARRIVAL_FLAGGED_FETCH = 40;
 
 export function addMonths(from: Date, months: number): Date {
