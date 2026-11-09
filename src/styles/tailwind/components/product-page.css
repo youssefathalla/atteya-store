@@ -103,6 +103,45 @@
     }
   }
 
+  /**
+   * Gift choice as a photo tile: square photo, short name under it. Selected = aria-pressed:
+   * 2px black border (the padding shrinks as the border grows, so the tile never shifts) and a ✓.
+   */
+  .pdp-gift-tile {
+    @apply relative w-full elements-start-col gap-1 p-[3px] border border-outline-variant border-shape bg-surface cursor-pointer transition-colors;
+  }
+
+  .pdp-gift-tile:enabled:hover {
+    @apply border-primary;
+  }
+
+  .pdp-gift-tile[aria-pressed='true'] {
+    @apply p-0.5 border-2 border-primary;
+  }
+
+  .pdp-gift-tile[aria-pressed='true']::after {
+    content: '✓';
+    @apply absolute top-1 end-1 size-5 elements-center bg-primary text-on-primary font-label-sm border-shape;
+  }
+
+  .pdp-gift-tile:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  .pdp-gift-tile__photo {
+    @apply relative block w-full aspect-square overflow-hidden border-shape;
+  }
+
+  .pdp-gift-tile__name {
+    @apply w-full px-1 pb-1 text-center font-label-sm line-clamp-2;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pdp-gift-tile {
+      transition: none;
+    }
+  }
+
   /** Gift Box (Free gift offers): bordered box with a black header, then numbered steps. */
   .pdp-gift-box {
     @apply w-full border border-primary border-shape bg-surface overflow-hidden;

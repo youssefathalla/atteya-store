@@ -14,6 +14,8 @@ export interface GiftSizeView {
 export interface GiftChoiceView {
   readonly productId: string;
   readonly label: string;
+  /** Main photo path (empty when the product has none yet). Shown on the choice's tile. */
+  readonly imagePath: string;
   readonly sizes: readonly GiftSizeView[] | null;
 }
 
@@ -101,7 +103,12 @@ export function toGiftChoice(product: Product): GiftChoiceView | null {
       return null;
     }
   }
-  return { productId: product.id, label: giftProductLabel(product), sizes };
+  return {
+    productId: product.id,
+    label: giftProductLabel(product),
+    imagePath: product.images[0]?.path ?? '',
+    sizes,
+  };
 }
 
 /** Facts the engine needs to pick the live gift offer: every listed choice can be given. */
