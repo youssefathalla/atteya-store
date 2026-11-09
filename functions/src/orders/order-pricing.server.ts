@@ -32,6 +32,7 @@ import type {
   OrderLineInput,
   StorePaymentMethod,
 } from './order-request.js';
+import { assertCurrentSelection } from './order-selection.js';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 export type OrderPaymentMethod = StorePaymentMethod;
@@ -345,6 +346,7 @@ async function priceLine(
   if (data['published'] !== true) {
     throw new HttpsError('failed-precondition', 'One item in your bag is no longer available.');
   }
+  assertCurrentSelection(data['options'], line.selection);
   assertRequiredSelections(data, line);
   assertLineStock(data, line);
   const product = toPricedProduct(line.productId, data);
