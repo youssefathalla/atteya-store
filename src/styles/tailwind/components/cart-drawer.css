@@ -20,9 +20,14 @@
     @apply min-h-22 elements-center-col gap-1.5 p-2 text-center border border-outline-variant border-shape font-label-md;
   }
 
-  /* A method that isn't offered yet: dashed outline, grey text, "Coming soon" under the name. */
+  /* A method that isn't offered yet: dashed outline, grey text, "Coming soon" under the name. The content (icons, name,
+     "Coming soon") is shown at 40% opacity so it reads as disabled; the dashed border stays as it is. */
   .bag-pay-tile--soon {
     @apply border-dashed text-on-surface-variant;
+  }
+
+  .bag-pay-tile--soon > * {
+    @apply opacity-40;
   }
 }
 
