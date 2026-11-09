@@ -47,7 +47,11 @@
  * socks or size choice; the order callables refuse it ("One item in your bag has changed since you
  * added it. Remove it and add it again.", `order-selection.ts`), so it can't be bought without the
  * free gifts or mixed with a new line for the same bag. The dry run counts the saved account bags
- * that hold one (guest bags stay in the browser and can't be counted).
+ * that hold one (guest bags stay in the browser and can't be counted). It also counts saved bag
+ * lines whose free gifts come from another offer (any `gifts[].offerId` other than the bag's own
+ * offer, such as the shared one from the first version), per offer: once that offer is paused or
+ * archived those lines lose their free gifts (checkout asks the shopper to remove the bag and add
+ * it again), so staff see the count before pausing it.
  *
  * Old orders keep their saved `optionLabels`, so they still show the shirt and socks ordered.
  * After applying, run "Rebuild search" in Catalogue Tools (the bags leave the Shop size
@@ -627,40 +631,82 @@ for (const bag of BAGS) {
   }
 }
 
-// Saved account bags (`carts/{uid}`) that still hold one of these bags with the old choices. They
-// are only counted: once the options are gone, checkout refuses such a line ("One item in your bag
-// has changed since you added it. Remove it and add it again."), so the shopper adds it again from
-// the product page and picks the free gifts there. Guest bags live in browsers and can't be counted.
-let savedBags = 0;
-let savedLines = 0;
+// Saved account bags (`carts/{uid}`) are only counted, never edited. Guest bags live in browsers
+// and can't be counted. Two kinds of line on these bags are counted:
+// - old choices: the line still holds the old shirt, socks or size choice. Once the options are
+//   gone, checkout refuses it ("One item in your bag has changed since you added it. Remove it and
+//   add it again."), so the shopper adds it again from the product page and picks the free gifts.
+// - gifts from another offer: the line's free gifts (`gifts[].offerId`) come from an offer that
+//   isn't this bag's own `bag-gifts-<bag id>` offer, for example the shared one from the first
+//   version of this script. Once that offer is paused or archived, checkout refuses the line ("The
+//   free gift offer on one item in your bag has ended. Remove the item and add it again."), so
+//   those shoppers lose the gifts they picked until they add the bag again.
+let oldChoiceBags = 0;
+let oldChoiceLines = 0;
+let otherOfferBags = 0;
+let otherOfferLines = 0;
+/** Offer id -> { bags, lines } of saved bag lines whose gifts come from it. */
+const savedByOffer = new Map();
 let cursor = null;
 for (;;) {
   let page = db.collection('carts').orderBy('__name__').limit(300);
   if (cursor) page = page.startAfter(cursor);
   const snap = await page.get();
   for (const cart of snap.docs) {
-    const stale = asList(cart.data().lines).filter((line) => {
-      const selection = line?.selection;
-      return (
-        bagIds.has(line?.productId) &&
-        selection !== null &&
-        typeof selection === 'object' &&
-        ('gift' in selection || 'size' in selection)
-      );
-    });
-    if (stale.length > 0) {
-      savedBags += 1;
-      savedLines += stale.length;
+    let oldChoices = 0;
+    let otherOffer = 0;
+    const cartOffers = new Set();
+    for (const line of asList(cart.data().lines)) {
+      if (!bagIds.has(line?.productId)) continue;
+      const selection = line.selection;
+      if (selection !== null && typeof selection === 'object' && ('gift' in selection || 'size' in selection)) {
+        oldChoices += 1;
+      }
+      const ownOfferId = `${OFFER_ID_PREFIX}${line.productId}`;
+      const offerIds = [
+        ...new Set(
+          asList(line.gifts)
+            .map((gift) => (typeof gift?.offerId === 'string' ? gift.offerId : ''))
+            .filter((offerId) => offerId !== '' && offerId !== ownOfferId),
+        ),
+      ];
+      if (offerIds.length === 0) continue;
+      otherOffer += 1;
+      for (const offerId of offerIds) {
+        const entry = savedByOffer.get(offerId) ?? { bags: 0, lines: 0 };
+        entry.lines += 1;
+        if (!cartOffers.has(offerId)) entry.bags += 1;
+        cartOffers.add(offerId);
+        savedByOffer.set(offerId, entry);
+      }
+    }
+    if (oldChoices > 0) {
+      oldChoiceBags += 1;
+      oldChoiceLines += oldChoices;
+    }
+    if (otherOffer > 0) {
+      otherOfferBags += 1;
+      otherOfferLines += otherOffer;
     }
   }
   if (snap.size < 300) break;
   cursor = snap.docs[snap.docs.length - 1];
 }
 console.log(
-  savedBags > 0
-    ? `\nSaved account bags with one of these bags and its old choices: ${savedBags} (${savedLines} lines). ` +
+  oldChoiceBags > 0
+    ? `\nSaved account bags with one of these bags and its old choices: ${oldChoiceBags} (${oldChoiceLines} lines). ` +
         'After --apply, checkout asks those shoppers to remove it and add it again, so they pick the free gifts.'
     : '\nNo saved account bag holds one of these bags with its old choices.',
+);
+const offerNames = new Map(otherOffers.map((offer) => [offer.id, offer.name]));
+const savedOfferLine = (offerId, { bags, lines }) =>
+  `  ${offerNames.get(offerId) ?? 'offer not found'} (${offerId}): ${bags} saved bags, ${lines} lines`;
+console.log(
+  otherOfferBags > 0
+    ? `Saved account bags with one of these bags whose free gifts come from another offer: ${otherOfferBags} ` +
+        `(${otherOfferLines} lines):\n` +
+        [...savedByOffer].map(([offerId, entry]) => savedOfferLine(offerId, entry)).join('\n')
+    : 'No saved account bag holds one of these bags with free gifts from another offer.',
 );
 
 // Any other Free gift offer on these bags (for example the shared one from the first version of
@@ -673,8 +719,12 @@ for (const offer of otherOffers) {
   );
   const hits = ids.filter((id) => bagIds.has(id));
   if (hits.length > 0) {
+    const saved = savedByOffer.get(offer.id);
+    const savedNote = saved
+      ? `; ${saved.lines} lines in ${saved.bags} saved account bags pick their free gifts from it and lose them once it is paused or archived`
+      : '';
     covering.push(
-      `  ${offer.name} (${offer.id}), ${offer.archived ? 'archived' : offer.active ? 'ACTIVE' : 'paused'}, ${hits.length} of the bags`,
+      `  ${offer.name} (${offer.id}), ${offer.archived ? 'archived' : offer.active ? 'ACTIVE' : 'paused'}, ${hits.length} of the bags${savedNote}`,
     );
   }
 }
@@ -683,6 +733,13 @@ console.log(
     ? `\nOther Free gift offers that cover these bags (pause or archive the active ones in Admin -> Offers):\n${covering.join('\n')}`
     : '\nNo other Free gift offer covers these bags.',
 );
+if (otherOfferLines > 0) {
+  console.log(
+    `Before pausing or archiving those offers: ${otherOfferLines} lines in ${otherOfferBags} saved account bags ` +
+      'will lose their free gifts. Checkout asks those shoppers to remove the bag and add it again, and they ' +
+      "pick the gifts from the bag's own offer. Shoppers' bags are not changed by this script.",
+  );
+}
 
 if (left.length > 0) {
   console.log('\nNot changed:');
@@ -694,5 +751,9 @@ console.log(
   `\nBags: ${apply ? 'changed' : 'would change'} ${changed} of ${BAGS.length}` +
     `${apply ? `, changed meanwhile ${raced}` : ''}. ` +
     `Offers: ${offersCreated} ${verb}created, ${offersUpdated} ${verb}updated, ${offersSame} already up to date.` +
-    (apply ? ' Now run Catalogue Tools -> Rebuild search.' : ' Dry run only; add --apply to write.'),
+    (apply ? ' Now run Catalogue Tools -> Rebuild search.' : ' Dry run only; add --apply to write.') +
+    (otherOfferLines > 0
+      ? ` Before pausing another Free gift offer on these bags, note that ${otherOfferLines} saved bag lines ` +
+        'lose their free gifts from it (listed above).'
+      : ''),
 );
