@@ -22,6 +22,7 @@ import {
   dealHintAction,
   dealHintText,
   offerShopSubtitle,
+  offerTitleVisible,
 } from '../src/app/core/services/offers/offer-shop.ts';
 
 describe('cart-pricing (AS-33)', () => {
@@ -254,5 +255,21 @@ describe('bag Buy X Get Y nudge (ATS-130)', () => {
     const grip = { ...base, reward: { ...base.reward, getConditions: atom('productId', ['grip']) } };
     assert.equal(offerShopSubtitle(grip), null);
     assert.equal(offerShopSubtitle({ ...base, reward: { kind: 'freeShipping' } }), null);
+  });
+});
+
+describe('Free shipping offer title abroad', () => {
+  const freeShipping = { id: 'ship', title: 'Free shipping', reward: { kind: 'freeShipping' } };
+  const percent = { id: 'sale', title: '20% off', reward: { kind: 'percentOff', percent: 20 } };
+
+  it('shows a Free shipping offer to Egypt and to an unknown country, never abroad', () => {
+    assert.equal(offerTitleVisible(freeShipping, 'EG'), true);
+    assert.equal(offerTitleVisible(freeShipping, null), true);
+    assert.equal(offerTitleVisible(freeShipping, 'GB'), false);
+    assert.equal(offerTitleVisible(freeShipping, 'AE'), false);
+  });
+
+  it('leaves every other offer alone', () => {
+    assert.equal(offerTitleVisible(percent, 'GB'), true);
   });
 });

@@ -14,7 +14,8 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 import type { Offer } from '@core/services/offers/engine';
-import { offerShopSubtitle } from '@core/services/offers/offer-shop';
+import { offerShopSubtitle, offerTitleVisible } from '@core/services/offers/offer-shop';
+import { CurrencyService } from '@core/services/currency/currency.service';
 import { OffersService } from '@core/services/offers/offers.service';
 import { PlayerListService } from '@core/services/products/player-list.service';
 import { SeoService } from '@core/services/seo';
@@ -86,6 +87,7 @@ export class ShopPage {
   readonly #seo = inject(SeoService);
   readonly #playerList = inject(PlayerListService);
   readonly #offers = inject(OffersService);
+  readonly #currency = inject(CurrencyService);
   readonly #destroyRef = inject(DestroyRef);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #document = inject(DOCUMENT);
@@ -133,14 +135,23 @@ export class ShopPage {
   /** The offer has ended (or never existed): the page lists the whole store instead. */
   readonly offerEnded = computed(() => this.#offerId() !== null && this.#offer() === null);
 
-  readonly pageSubtitle = computed(() => {
+  /**
+   * The offer whose title the heading may show. A Free shipping offer abroad is left out: the page
+   * still lists its products, under the normal Shop title (Free shipping is for Egypt orders only).
+   */
+  readonly #titledOffer = computed((): Offer | null | undefined => {
     const offer = this.#offer();
+    return offer && !offerTitleVisible(offer, this.#currency.visitorCountry()) ? null : offer;
+  });
+
+  readonly pageSubtitle = computed(() => {
+    const offer = this.#titledOffer();
     if (offer) return offerShopSubtitle(offer);
     return this.offerEnded() ? 'This offer has ended. Here is everything else in the store.' : null;
   });
 
   readonly pageTitle = computed(() => {
-    const offer = this.#offer();
+    const offer = this.#titledOffer();
     if (offer) return offer.title;
     // Offers still loading: the header shows a placeholder instead of a title that would change.
     if (offer === undefined) return '';
