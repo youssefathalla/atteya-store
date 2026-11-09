@@ -15,7 +15,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 import {
+  DEFAULT_OFFER_BANNER,
   validateOffer,
+  type OfferBanner,
   type OfferConditions,
   type OfferDraft,
   type OfferMinimum,
@@ -29,6 +31,7 @@ import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { ProductsAdminService } from '../products-manager/services/products-admin.service';
+import { BannerEditorComponent } from './components/banner-editor/banner-editor.component';
 import { ConditionGroupEditorComponent } from './components/condition-group-editor/condition-group-editor.component';
 import { OfferPreviewComponent } from './components/offer-preview/offer-preview.component';
 import { OfferSettingsComponent } from './components/offer-settings/offer-settings.component';
@@ -54,6 +57,7 @@ import { OffersAdminService } from './services/offers-admin.service';
     RewardEditorComponent,
     ConditionGroupEditorComponent,
     ScheduleEditorComponent,
+    BannerEditorComponent,
     OfferPreviewComponent,
   ],
   templateUrl: './offer-editor.page.html',
@@ -109,6 +113,9 @@ export class OfferEditorPageComponent implements OnInit {
     }),
   );
 
+  /** Top banner settings; an offer saved before the banner existed starts switched off. */
+  readonly banner = computed(() => this.draft().banner ?? DEFAULT_OFFER_BANNER);
+
   readonly pageHeading = computed(() => (this.offerId() ? 'Edit offer' : 'Create offer'));
 
   constructor() {
@@ -159,6 +166,10 @@ export class OfferEditorPageComponent implements OnInit {
 
   updateSchedule(schedule: OfferSchedule): void {
     this.draft.update((prev) => ({ ...prev, schedule }));
+  }
+
+  updateBanner(banner: OfferBanner): void {
+    this.draft.update((prev) => ({ ...prev, banner }));
   }
 
   async save(): Promise<void> {

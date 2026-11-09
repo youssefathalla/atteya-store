@@ -53,6 +53,7 @@ export function toEngineOffer(doc: OfferDoc, code?: string | null): Offer {
     requiresCode: doc.requiresCode,
     code: code ?? null,
     updatedAtMs: toDateOrNull(doc.updatedAt)?.getTime() ?? 0,
+    banner: doc.banner,
   };
 }
 

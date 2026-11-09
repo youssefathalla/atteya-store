@@ -1,0 +1,60 @@
+@if (slides().length > 0) {
+  <section
+    class="announcement-bar"
+    aria-label="Announcements"
+    (mouseenter)="onPointerEnter()"
+    (mouseleave)="onPointerLeave()"
+    (focusin)="onFocusIn()"
+    (focusout)="onFocusOut($event)"
+    (touchstart)="onTouchStart($event)"
+    (touchend)="onTouchEnd($event)"
+    (touchcancel)="onTouchCancel()"
+  >
+    @if (hasArrows()) {
+      <button
+        type="button"
+        class="announcement-bar__arrow announcement-bar__arrow--previous"
+        aria-label="Previous announcement"
+        (click)="previous()"
+      >
+        <mat-icon name="chevron_right" />
+      </button>
+    }
+
+    <div class="announcement-bar__track" [attr.aria-live]="rotating() ? 'off' : 'polite'">
+      @for (slide of slides(); track slide.id; let i = $index) {
+        @let active = i === activeIndex();
+        <div
+          class="announcement-bar__slide"
+          [class.announcement-bar__slide--active]="active"
+          [class.announcement-bar__slide--shipping]="slide.kind === 'shipping'"
+          [attr.aria-hidden]="active ? null : 'true'"
+          [attr.inert]="active ? null : ''"
+        >
+          @if (slide.shopQuery) {
+            <a
+              class="announcement-bar__message announcement-bar__link"
+              routerLink="/shop"
+              [queryParams]="slide.shopQuery"
+            >
+              <span class="truncate">{{ slide.text }}</span>
+              @if (slide.countdown) {
+                <span class="announcement-bar__countdown">· {{ slide.countdown }}</span>
+              }
+            </a>
+          } @else {
+            <p class="announcement-bar__message">
+              <span class="truncate">{{ slide.text }}</span>
+            </p>
+          }
+        </div>
+      }
+    </div>
+
+    @if (hasArrows()) {
+      <button type="button" class="announcement-bar__arrow" aria-label="Next announcement" (click)="next()">
+        <mat-icon name="chevron_right" />
+      </button>
+    }
+  </section>
+}

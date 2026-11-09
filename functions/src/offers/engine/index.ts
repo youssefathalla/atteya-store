@@ -1,3 +1,4 @@
+export * from './banner.js';
 export * from './buy-x-get-y.js';
 export * from './cairo-time.js';
 export * from './currency.js';

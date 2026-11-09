@@ -15,7 +15,13 @@ import {
 } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
-import type { Offer, OfferDraft } from '@core/services/offers/engine';
+import {
+  clampBannerCountdownDays,
+  DEFAULT_OFFER_BANNER,
+  MAX_BANNER_TEXT,
+  type Offer,
+  type OfferDraft,
+} from '@core/services/offers/engine';
 import { OFFER_CODES_COLLECTION, OFFERS_COLLECTION, toEngineOffer } from '@core/services/offers/offer.model';
 import { OfferCodeDocSchema, OfferDocSchema } from '@core/services/offers/offer.schema';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
@@ -79,6 +85,7 @@ export class OffersAdminService {
     const normalizedCode = draft.code?.trim().toUpperCase() ?? '';
 
     const isGift = draft.reward.kind === 'freeGift';
+    const banner = draft.banner ?? DEFAULT_OFFER_BANNER;
     const payload: Record<string, unknown> = {
       id: offerId,
       name: draft.name.trim(),
@@ -113,6 +120,13 @@ export class OffersAdminService {
         : draft.reward,
       limits: draft.limits,
       requiresCode,
+      // Top announcement bar. Only offers for everyone (no code) can show there.
+      banner: {
+        show: banner.show && draft.audience === 'everyone' && !requiresCode,
+        text: banner.text?.trim().slice(0, MAX_BANNER_TEXT) || null,
+        countdown: banner.countdown,
+        countdownDays: clampBannerCountdownDays(banner.countdownDays),
+      },
       updatedAt: serverTimestamp(),
       updatedBy: uid,
     };

@@ -96,3 +96,67 @@ function onlyAtom(offer: Offer): ConditionAtom | null {
   if (groups.length !== 1 || groups[0]!.allOf.length !== 1) return null;
   return groups[0]!.allOf[0]!;
 }
+
+/** At most this many offers rotate in the top announcement bar. */
+export const MAX_BANNER_OFFERS = 4;
+
+/**
+ * Offers shown in the top announcement bar, in order: staff turned the banner on, Shop can list
+ * the offer (`canShopOffer`: public, for everyone, no code), it is running at `now` (on, not
+ * archived, started, not ended), and the visitor may see its title (`offerTitleVisible`: no Free
+ * shipping offer outside Egypt). Highest priority first, then the newest edit; at most 4.
+ */
+export function bannerOffers(
+  offers: readonly Offer[],
+  now: Date,
+  visitorCountry: string | null,
+): readonly Offer[] {
+  const nowMs = now.getTime();
+  return offers
+    .filter(
+      (offer) =>
+        offer.banner?.show === true &&
+        canShopOffer(offer) &&
+        offerRunning(offer, nowMs) &&
+        offerTitleVisible(offer, visitorCountry),
+    )
+    .sort((a, b) => b.priority - a.priority || (b.updatedAtMs ?? 0) - (a.updatedAtMs ?? 0))
+    .slice(0, MAX_BANNER_OFFERS);
+}
+
+/** The banner text: what staff typed, or the offer's customer title. */
+export function bannerText(offer: Offer): string {
+  return offer.banner?.text?.trim() || offer.title;
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * The countdown after the banner text, or null when it doesn't show: "Ends in 2d 14h 05m", or under
+ * 24 hours "Ends in 05:12:33". "Only in the last N days" shows it once N days or less are left.
+ */
+export function bannerCountdown(offer: Offer, now: Date): string | null {
+  const banner = offer.banner;
+  const endsAt = offer.schedule.endsAt;
+  if (!banner || banner.countdown === 'hide' || !endsAt) return null;
+  const leftMs = endsAt.getTime() - now.getTime();
+  if (leftMs <= 0) return null;
+  if (banner.countdown === 'lastDays' && leftMs > banner.countdownDays * DAY_MS) return null;
+  const totalSeconds = Math.floor(leftMs / 1000);
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (days === 0) return `Ends in ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  return `Ends in ${days}d ${hours}h ${pad(minutes)}m`;
+}
+
+function offerRunning(offer: Offer, nowMs: number): boolean {
+  if (!offer.active || offer.archived) return false;
+  if (offer.schedule.startsAt && nowMs < offer.schedule.startsAt.getTime()) return false;
+  return !offer.schedule.endsAt || nowMs < offer.schedule.endsAt.getTime();
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
+}

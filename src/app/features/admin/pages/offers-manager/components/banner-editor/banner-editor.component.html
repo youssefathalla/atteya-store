@@ -1,0 +1,69 @@
+<section class="surface-card p-5 w-full elements-start-col gap-4">
+  <div class="elements-between flex-wrap gap-3 w-full">
+    <div>
+      <h2 class="font-title-md font-bold!">Top banner</h2>
+      <p class="font-body-sm text-on-surface-variant">
+        Show this offer in the bar at the very top of the store. Shoppers tap it to see the offer's products.
+      </p>
+    </div>
+    <mat-slide-toggle [checked]="showing()" [disabled]="!canShow()" (change)="onShowChange($event)">
+      Show in the top banner
+    </mat-slide-toggle>
+  </div>
+
+  @if (!canShow()) {
+    <p class="font-body-sm text-on-surface-variant">Only offers for everyone can show in the top banner.</p>
+  }
+
+  @if (showing()) {
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+      <label class="elements-start-col gap-1 font-label-md">
+        Banner text (optional, max {{ maxText }} characters)
+        <input
+          type="text"
+          [attr.maxlength]="maxText"
+          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+          [placeholder]="textPlaceholder()"
+          [value]="banner().text ?? ''"
+          (input)="onTextChange($event)"
+        />
+        <span class="font-body-sm text-on-surface-variant">Leave blank to show the customer title.</span>
+      </label>
+
+      <div class="elements-start-col gap-3">
+        <label class="elements-start-col gap-1 font-label-md w-full">
+          Countdown
+          <select
+            class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+            [value]="banner().countdown"
+            (change)="onCountdownChange($event)"
+          >
+            <option value="hide">Hide</option>
+            <option value="always">Always</option>
+            <option value="lastDays">Only in the last {{ banner().countdownDays }} days</option>
+          </select>
+        </label>
+
+        @if (banner().countdown === 'lastDays') {
+          <label class="elements-start-col gap-1 font-label-md">
+            Days before the end ({{ minDays }}–{{ maxDays }})
+            <input
+              type="number"
+              [attr.min]="minDays"
+              [attr.max]="maxDays"
+              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+              [value]="banner().countdownDays"
+              (input)="onDaysChange($event)"
+            />
+          </label>
+        }
+
+        @if (banner().countdown !== 'hide' && !hasEndDate()) {
+          <p class="font-body-sm text-on-surface-variant">
+            The countdown shows once the offer has an end date (Schedule above).
+          </p>
+        }
+      </div>
+    </div>
+  }
+</section>

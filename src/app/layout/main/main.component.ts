@@ -30,7 +30,7 @@ import { LoaderComponent } from '@shared/ui/loader/loader.component';
 import { DesktopNavComponent } from '../navbar/desktop-nav/desktop-nav.component';
 import { MobileNavComponent } from '../navbar/mobile-nav/mobile-nav.component';
 import { CartDrawerComponent } from '../cart-drawer/cart-drawer.component';
-import { ShippingBannerComponent } from '@shared/components/shipping-banner/shipping-banner.component';
+import { AnnouncementBarComponent } from '../announcement-bar/announcement-bar.component';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 import { LogoComponent } from '@shared/ui/logo/logo.component';
 import { FooterComponent } from '../footer/footer.component';
@@ -47,7 +47,7 @@ const DEFAULT_TOP_CHROME_PX = 56;
     DesktopNavComponent,
     CartDrawerComponent,
     MobileNavComponent,
-    ShippingBannerComponent,
+    AnnouncementBarComponent,
     LoaderComponent,
     LogoComponent,
     FooterComponent,
@@ -85,8 +85,8 @@ export class MainLayoutComponent {
       !this.chromeReady(),
   );
 
-  /** Shipping banner host — contributes to `--storefront-top-chrome`. */
-  readonly shippingChrome = viewChild('shippingChrome', {
+  /** Announcement bar host (offers + shipping message) — contributes to `--storefront-top-chrome`. */
+  readonly bannerChrome = viewChild('bannerChrome', {
     read: ElementRef<HTMLElement>,
   });
   /** Desktop nav host — contributes to `--storefront-top-chrome` (0 when `lg:hidden`). */
@@ -114,16 +114,16 @@ export class MainLayoutComponent {
     });
 
     afterRenderEffect((onCleanup) => {
-      const shipping = this.shippingChrome()?.nativeElement;
+      const banner = this.bannerChrome()?.nativeElement;
       const nav = this.navChrome()?.nativeElement;
-      if (!shipping && !nav) {
+      if (!banner && !nav) {
         this.#setTopChromeHeight(DEFAULT_TOP_CHROME_PX);
         return;
       }
       this.#syncTopChromeHeight();
       const ro =
         typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => this.#syncTopChromeHeight()) : null;
-      if (shipping) ro?.observe(shipping);
+      if (banner) ro?.observe(banner);
       if (nav) ro?.observe(nav);
       onCleanup(() => ro?.disconnect());
     });
@@ -151,10 +151,10 @@ export class MainLayoutComponent {
   }
 
   #syncTopChromeHeight(): void {
-    const shipping = this.shippingChrome()?.nativeElement;
+    const banner = this.bannerChrome()?.nativeElement;
     const nav = this.navChrome()?.nativeElement;
     const height =
-      Math.ceil(shipping?.getBoundingClientRect().height ?? 0) +
+      Math.ceil(banner?.getBoundingClientRect().height ?? 0) +
       Math.ceil(nav?.getBoundingClientRect().height ?? 0);
     this.#setTopChromeHeight(height > 0 ? height : DEFAULT_TOP_CHROME_PX);
   }

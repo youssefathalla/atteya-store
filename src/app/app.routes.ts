@@ -7,6 +7,7 @@ import { serverCurrencyResolver } from '@core/services/currency/server-currency.
 import { catalogSettingsResolver } from '@core/services/products/catalog-settings.resolver';
 import { navigationSettingsResolver } from '@core/services/navigation/navigation-settings.resolver';
 import { shippingSettingsResolver } from '@core/services/shipping/shipping-settings.resolver';
+import { bannerOffersResolver } from '@core/services/offers/banner-offers.resolver';
 import { homeSettingsResolver } from './features/home/resolvers/home-settings.resolver';
 import { FOCUS_CHROME } from './layout/main/chrome-mode';
 import { productPageResolver } from './features/product/resolvers/product-page.resolver';
@@ -19,6 +20,7 @@ export const routes: Routes = [
     resolve: {
       serverCurrency: serverCurrencyResolver,
       shippingSettings: shippingSettingsResolver,
+      bannerOffers: bannerOffersResolver,
       navigationSettings: navigationSettingsResolver,
       catalogSettings: catalogSettingsResolver,
     },
