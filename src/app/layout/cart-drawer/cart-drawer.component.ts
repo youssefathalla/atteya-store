@@ -360,9 +360,12 @@ export class CartDrawerComponent {
         const base = lineDisplayAmount(toDisplayAmount(info.price, entry), line.quantity);
         const now = lineDisplayAmount(toDisplayAmount(priced.unitEgp, entry), line.quantity);
         const title = titleOf(priced.appliedOfferId);
+        // Measured against the product's own price, like "You save", not the compare-at price the
+        // engine's `discountPercent` uses for an item that is already on sale.
+        const percent = info.price > 0 ? Math.round(((info.price - priced.unitEgp) / info.price) * 100) : 0;
         strips.push({
           key: `item-${priced.appliedOfferId}`,
-          title: priced.discountPercent > 0 ? `${title} · ${priced.discountPercent}% off` : title,
+          title: percent > 0 ? `${title} · ${percent}% off` : title,
           tag: '',
           end: base > now ? `You save ${money(base - now)}` : '',
         });
