@@ -108,7 +108,10 @@ export function buildGiftBox(
       id: gift.id,
       name: gift.name.trim(),
       noun: giftNoun(gift.name),
-      choices: giftChoices.map((choice) => ({ ...choice, cardLabel: cardLabels.get(choice.productId) ?? choice.name })),
+      choices: giftChoices.map((choice) => ({
+        ...choice,
+        cardLabel: cardLabels.get(choice.productId) ?? choice.name,
+      })),
     });
   }
   if (gifts.length === 0) return null;
@@ -128,7 +131,9 @@ export function effectiveGiftPicks(box: GiftBoxView, picks: GiftPicks): GiftPick
     const choice = pick ? gift.choices.find((entry) => entry.productId === pick.productId) : undefined;
     if (pick && choice) {
       const sizeId =
-        choice.sizes && pick.sizeId && choice.sizes.some((size) => size.id === pick.sizeId) ? pick.sizeId : null;
+        choice.sizes && pick.sizeId && choice.sizes.some((size) => size.id === pick.sizeId)
+          ? pick.sizeId
+          : null;
       result[gift.id] = { productId: choice.productId, sizeId };
     } else if (gift.choices.length === 1 && gift.choices[0].sizes === null) {
       result[gift.id] = { productId: gift.choices[0].productId, sizeId: null };
@@ -179,7 +184,11 @@ export function missingGiftPrompt(box: GiftBoxView, picks: GiftPicks, attempt: n
     }
     const choice = gift.choices.find((entry) => entry.productId === pick.productId);
     if (choice?.sizes && !pick.sizeId) {
-      return { key: giftSizeStepKey(gift.id), message: `Choose a size for your free ${gift.noun} first.`, attempt };
+      return {
+        key: giftSizeStepKey(gift.id),
+        message: `Choose a size for your free ${gift.noun} first.`,
+        attempt,
+      };
     }
   }
   return null;

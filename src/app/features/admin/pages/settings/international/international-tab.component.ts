@@ -93,14 +93,10 @@ export class InternationalTabComponent implements OnInit {
   });
 
   readonly updatedLabel = computed(() => cairoLabel(this.pageResource.value()?.fetchedAt ?? null));
-  readonly providerLabel = computed(() =>
-    cairoLabel(this.pageResource.value()?.providerUpdatedAt ?? null),
-  );
+  readonly providerLabel = computed(() => cairoLabel(this.pageResource.value()?.providerUpdatedAt ?? null));
   readonly lastError = computed(() => this.pageResource.value()?.lastError ?? null);
   readonly ratesAreOld = computed(() => ratesAreStale(this.pageResource.value()?.fetchedAt ?? null));
-  readonly showForm = computed(
-    () => !this.pageResource.isLoading() || this.pageResource.hasValue(),
-  );
+  readonly showForm = computed(() => !this.pageResource.isLoading() || this.pageResource.hasValue());
 
   constructor() {
     effect(() => {

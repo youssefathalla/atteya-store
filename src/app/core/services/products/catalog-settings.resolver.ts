@@ -18,10 +18,7 @@ export const catalogSettingsResolver: ResolveFn<void> = async () => {
   try {
     const firestore = injectFirestore();
     const snap = await getDoc(doc(firestore, CATALOG_DOC[0], CATALOG_DOC[1]));
-    transfer.set(
-      CATALOG_SETTINGS_KEY,
-      snap.exists() ? toCatalogSettingsSeed(snap.data()) : null,
-    );
+    transfer.set(CATALOG_SETTINGS_KEY, snap.exists() ? toCatalogSettingsSeed(snap.data()) : null);
   } catch {
     transfer.set(CATALOG_SETTINGS_KEY, null);
     if (responseInit) {

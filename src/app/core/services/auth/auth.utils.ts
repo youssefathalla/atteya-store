@@ -65,9 +65,6 @@ export function looksLikeEmail(value: string): boolean {
 
 function isLocalPath(value: string): boolean {
   return (
-    value.startsWith('/') &&
-    !value.startsWith('//') &&
-    !value.startsWith('/\\') &&
-    !value.includes('\\')
+    value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\') && !value.includes('\\')
   );
 }

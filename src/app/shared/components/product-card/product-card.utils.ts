@@ -4,10 +4,7 @@ import {
   type PricedProduct,
   type PricingContext,
 } from '@core/services/offers/engine';
-import {
-  marketingBadgeLabel,
-  type MarketingBadge,
-} from '@core/services/products/marketing-badge';
+import { marketingBadgeLabel, type MarketingBadge } from '@core/services/products/marketing-badge';
 import { PRODUCT_GENDERS } from '@core/services/products/product.constants';
 import type { Product, ProductGenderId } from '@core/services/products/product.model';
 import { cardShortDescription } from '@core/services/products/utils/card-short-description';
@@ -160,9 +157,7 @@ export function searchHitToCardData(hit: SearchHit, price: ProductCardPrice): Pr
     id: hit.objectID,
     slug: hit.slug,
     name: hit.name,
-    shortDescription:
-      hit.shortDescription?.trim() ||
-      cardShortDescription(hit.summary, null),
+    shortDescription: hit.shortDescription?.trim() || cardShortDescription(hit.summary, null),
     gender: hit.gender ?? null,
     // Records indexed before `categoryId` existed: the last id is the leaf (root first).
     categoryId: hit.categoryId ?? hit.categoryIds.at(-1) ?? null,

@@ -18,10 +18,7 @@
       <h2 class="shop-filters-heading">Shop for</h2>
       <div class="elements-start-col gap-1">
         @for (opt of genderOptions; track opt.id) {
-          <mat-checkbox
-            [checked]="filters().genders.includes(opt.id)"
-            (change)="toggleGender(opt.id)"
-          >
+          <mat-checkbox [checked]="filters().genders.includes(opt.id)" (change)="toggleGender(opt.id)">
             {{ opt.label }}
           </mat-checkbox>
         }
@@ -34,10 +31,7 @@
       <h2 class="shop-filters-heading">Category</h2>
       <div class="elements-start-col gap-1">
         @for (opt of categoryOptions(); track opt.id) {
-          <mat-checkbox
-            [checked]="filters().categories.includes(opt.id)"
-            (change)="toggleCategory(opt.id)"
-          >
+          <mat-checkbox [checked]="filters().categories.includes(opt.id)" (change)="toggleCategory(opt.id)">
             {{ opt.label }}
           </mat-checkbox>
         }
@@ -50,10 +44,7 @@
       <h2 class="shop-filters-heading">Brand</h2>
       <div class="elements-start-col gap-1">
         @for (brand of brands(); track brand.name) {
-          <mat-checkbox
-            [checked]="filters().brands.includes(brand.name)"
-            (change)="toggleBrand(brand.name)"
-          >
+          <mat-checkbox [checked]="filters().brands.includes(brand.name)" (change)="toggleBrand(brand.name)">
             {{ brand.name }}
           </mat-checkbox>
         }
@@ -66,10 +57,7 @@
       <h2 class="shop-filters-heading">Player</h2>
       <div class="elements-start-col gap-1">
         @for (player of players(); track player.id) {
-          <mat-checkbox
-            [checked]="filters().players.includes(player.id)"
-            (change)="togglePlayer(player.id)"
-          >
+          <mat-checkbox [checked]="filters().players.includes(player.id)" (change)="togglePlayer(player.id)">
             {{ player.name }}
           </mat-checkbox>
         }
@@ -127,9 +115,7 @@
       <mat-checkbox [checked]="filters().newArrivals" (change)="setNewArrivals($event.checked)">
         New Arrivals
       </mat-checkbox>
-      <mat-checkbox [checked]="filters().onSale" (change)="setOnSale($event.checked)">
-        On sale
-      </mat-checkbox>
+      <mat-checkbox [checked]="filters().onSale" (change)="setOnSale($event.checked)"> On sale </mat-checkbox>
       <mat-checkbox [checked]="filters().inStock" (change)="setInStock($event.checked)">
         In stock
       </mat-checkbox>

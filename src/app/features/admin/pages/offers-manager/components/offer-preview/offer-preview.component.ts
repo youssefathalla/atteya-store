@@ -51,8 +51,7 @@ export class OfferPreviewComponent {
     const draft = this.draft();
     const products = this.products();
     const mode = this.viewMode();
-    const evalTime =
-      this.customAt() ?? draft.schedule.startsAt ?? new Date();
+    const evalTime = this.customAt() ?? draft.schedule.startsAt ?? new Date();
 
     const simulatedOffer: Offer = {
       ...draft,
@@ -64,10 +63,7 @@ export class OfferPreviewComponent {
     const ctx: PricingContext = {
       now: evalTime,
       signedIn: mode === 'signedIn' || mode === 'withCode',
-      codes:
-        mode === 'withCode' && draft.code?.trim()
-          ? [draft.code.trim().toUpperCase()]
-          : [],
+      codes: mode === 'withCode' && draft.code?.trim() ? [draft.code.trim().toUpperCase()] : [],
     };
 
     let fullCount = 0;

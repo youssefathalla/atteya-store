@@ -1,11 +1,7 @@
 import { IMAGE_LIMITS } from './image.constants';
 import { extractManagedStoragePath } from './image-url.utils';
 
-export type ImageInputIssue =
-  | 'empty'
-  | 'malformed-url'
-  | 'unsupported-protocol'
-  | 'not-an-image-file';
+export type ImageInputIssue = 'empty' | 'malformed-url' | 'unsupported-protocol' | 'not-an-image-file';
 
 export type ParsedImageInput =
   | { readonly kind: 'external-url'; readonly url: string }

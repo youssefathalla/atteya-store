@@ -112,14 +112,17 @@ function removedKeysFor(slug) {
 /** A product doc by slug (published or not), or null. */
 async function productBySlug(slug) {
   const page = await db.collection('products').where('slug', '==', slug).limit(2).get();
-  if (page.size > 1) console.log(`NOTE     more than one product has the slug "${slug}"; using ${page.docs[0].id}`);
+  if (page.size > 1)
+    console.log(`NOTE     more than one product has the slug "${slug}"; using ${page.docs[0].id}`);
   return page.empty ? null : page.docs[0];
 }
 
 /** "12" or "12 (by size: 4 + 8)". */
 function describeStock(stock, stockBySize) {
   const total = typeof stock === 'number' ? `${stock}` : 'none';
-  return isMap(stockBySize) ? `${total} (by size: ${Object.values(stockBySize).join(' + ') || 'none'})` : total;
+  return isMap(stockBySize)
+    ? `${total} (by size: ${Object.values(stockBySize).join(' + ') || 'none'})`
+    : total;
 }
 
 /** JSON with object keys sorted at every level, so two equal rows always compare equal. */
@@ -165,7 +168,9 @@ function stripVariantRows(variants, removedKeys) {
     if (!seen) {
       bySignature.set(signature, { row: nextRow, comparable });
     } else if (seen.comparable !== comparable) {
-      return { problem: 'rows for the same choice disagree (for example on stock) once the pair choice is gone' };
+      return {
+        problem: 'rows for the same choice disagree (for example on stock) once the pair choice is gone',
+      };
     }
   }
   const rows = [...bySignature.values()].map((entry) => entry.row);
@@ -200,7 +205,8 @@ for (const slug of SOCKS_SLUGS) {
   const currentColors = asList(data.colors).filter((id) => typeof id === 'string');
 
   console.log(`\n${name}  (${slug}, ${snap.id})`);
-  const keyList = (list) => [...new Set(list.map((option) => option?.key ?? '(no key)'))].join(', ') || 'none';
+  const keyList = (list) =>
+    [...new Set(list.map((option) => option?.key ?? '(no key)'))].join(', ') || 'none';
   console.log(`  option keys: remove ${keyList(removed)}; keep ${keyList(kept)}`);
 
   // A choice kept on purpose (nox-socks' colour) still stops the socks being given as a gift.
@@ -215,10 +221,13 @@ for (const slug of SOCKS_SLUGS) {
   }
   // Any other option with a real choice would still stop the socks being given as a gift.
   const otherChoices = kept.filter(
-    (option) => option?.key !== 'size' && !keptOnPurpose.has(option?.key) && asList(option?.values).length > 1,
+    (option) =>
+      option?.key !== 'size' && !keptOnPurpose.has(option?.key) && asList(option?.values).length > 1,
   );
   for (const option of otherChoices) {
-    console.log(`  WARNING: keeps a "${trimmed(option.label) || option.key}" choice with ${option.values.length} values`);
+    console.log(
+      `  WARNING: keeps a "${trimmed(option.label) || option.key}" choice with ${option.values.length} values`,
+    );
   }
   const giftable = keptChoices.length === 0 && otherChoices.length === 0;
 
@@ -228,16 +237,27 @@ for (const slug of SOCKS_SLUGS) {
   }
 
   for (const option of removed) {
-    const labels = asList(option.values).map((value) => trimmed(value?.label)).filter(Boolean);
-    console.log(`  remove "${trimmed(option.label) || option.key}" (${option.key}): ${labels.join(', ') || 'no choices'}`);
+    const labels = asList(option.values)
+      .map((value) => trimmed(value?.label))
+      .filter(Boolean);
+    console.log(
+      `  remove "${trimmed(option.label) || option.key}" (${option.key}): ${labels.join(', ') || 'no choices'}`,
+    );
   }
   for (const option of kept) {
-    const labels = asList(option?.values).map((value) => trimmed(value?.label)).filter(Boolean).join(', ');
-    console.log(`  keep "${trimmed(option?.label) || option?.key}" (${option?.key}): ${labels || 'no choices'}`);
+    const labels = asList(option?.values)
+      .map((value) => trimmed(value?.label))
+      .filter(Boolean)
+      .join(', ');
+    console.log(
+      `  keep "${trimmed(option?.label) || option?.key}" (${option?.key}): ${labels || 'no choices'}`,
+    );
   }
 
   if (otherChoices.length > 0) {
-    left.push(`LEFT     ${slug} keeps another option with more than one choice; check it in the product form`);
+    left.push(
+      `LEFT     ${slug} keeps another option with more than one choice; check it in the product form`,
+    );
     console.log('  left alone: another option with a real choice stays');
     continue;
   }
@@ -253,12 +273,16 @@ for (const slug of SOCKS_SLUGS) {
     if (rowsPointAtRemoved) {
       const result = stripVariantRows(variants, removedKeys);
       if (result.problem) {
-        left.push(`LEFT     ${slug} variant rows can't be kept per colour (${result.problem}); fix it in the admin`);
+        left.push(
+          `LEFT     ${slug} variant rows can't be kept per colour (${result.problem}); fix it in the admin`,
+        );
         console.log(`  left alone: ${result.problem}`);
         continue;
       }
       patch.variants = result.rows;
-      console.log(`  variants: ${variants.length} rows -> ${result.rows.length} (pair choice taken out of each row)`);
+      console.log(
+        `  variants: ${variants.length} rows -> ${result.rows.length} (pair choice taken out of each row)`,
+      );
     } else if (variants.length > 0) {
       console.log(`  variants: ${variants.length} rows unchanged`);
     }
@@ -272,7 +296,9 @@ for (const slug of SOCKS_SLUGS) {
         Object.keys(isMap(row?.values) ? row.values : {}).some((key) => !removedKeys.has(key)),
       );
       if (pointsElsewhere) {
-        left.push(`LEFT     ${slug} has variant rows that also point at an option that stays; fix it in the admin`);
+        left.push(
+          `LEFT     ${slug} has variant rows that also point at an option that stays; fix it in the admin`,
+        );
         console.log(`  left alone: ${variants.length} variant rows also point at an option that stays`);
         continue;
       }
@@ -312,7 +338,9 @@ for (const slug of SOCKS_SLUGS) {
       const nextColors = sortColors(named);
       const same = JSON.stringify(sortColors(currentColors)) === JSON.stringify(nextColors);
       if (locked) {
-        console.log(`  colors: unchanged ${describeColors(currentColors)} (set by hand and locked; check it in the product form)`);
+        console.log(
+          `  colors: unchanged ${describeColors(currentColors)} (set by hand and locked; check it in the product form)`,
+        );
       } else if (nextColors.length === 0) {
         console.log(
           `  colors: unchanged ${describeColors(currentColors)} (its name and slug name no colour, so it can't be ` +
@@ -322,14 +350,17 @@ for (const slug of SOCKS_SLUGS) {
         console.log(`  colors: already ${describeColors(nextColors)} (from its ${from})`);
       } else {
         patch.colors = nextColors;
-        console.log(`  colors: ${describeColors(currentColors)} -> ${describeColors(nextColors)} (from its ${from})`);
+        console.log(
+          `  colors: ${describeColors(currentColors)} -> ${describeColors(nextColors)} (from its ${from})`,
+        );
       }
     } else {
       console.log(`  colors: unchanged ${describeColors(currentColors)} (no colour option removed)`);
     }
   }
 
-  if (giftable && data.published !== true) console.log('  NOTE: not published, so it can\'t be given as a gift yet');
+  if (giftable && data.published !== true)
+    console.log("  NOTE: not published, so it can't be given as a gift yet");
 
   console.log(`  ${apply ? 'WRITE' : 'WOULD WRITE'}: ${Object.keys(patch).join(', ')}`);
   if (apply) {

@@ -10,7 +10,13 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { TableColumn, FilterOptions, FilterState, ExcelColumnConfig, PaginationServiceInterface } from './table.model';
+import {
+  TableColumn,
+  FilterOptions,
+  FilterState,
+  ExcelColumnConfig,
+  PaginationServiceInterface,
+} from './table.model';
 import { NgTemplateOutlet } from '@angular/common';
 import { MatChipsModule } from '@angular/material/chips';
 import { LoggerService } from '@core/services/logger/logger.service';
@@ -228,7 +234,7 @@ export class ReusableTable<T extends object> {
   clearAllServerFilters(): void {
     this.serverFilterState.set(new Map());
     // Emit filterChanged events for all columns that have server filters to notify parent
-    const serverFilterColumns = this.columns().filter(col => col.serverFilter);
+    const serverFilterColumns = this.columns().filter((col) => col.serverFilter);
     for (const column of serverFilterColumns) {
       this.filterChanged.emit({ column: column.key, value: null });
     }

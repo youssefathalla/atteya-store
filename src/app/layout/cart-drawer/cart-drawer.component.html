@@ -9,12 +9,7 @@
       }
     </h2>
 
-    <button
-      matIconButton
-      type="button"
-      (click)="drawerService.close()"
-      aria-label="Close shopping bag"
-    >
+    <button matIconButton type="button" (click)="drawerService.close()" aria-label="Close shopping bag">
       <mat-icon name="close" />
     </button>
   </header>
@@ -28,9 +23,7 @@
         <p class="font-body-md opacity-80 max-w-60 mb-6">
           Find something you like and it will wait for you here.
         </p>
-        <a matButton="filled" routerLink="/shop" (click)="drawerService.close()">
-          Start Shopping
-        </a>
+        <a matButton="filled" routerLink="/shop" (click)="drawerService.close()"> Start Shopping </a>
       </div>
     } @else {
       <ul class="px-5">
@@ -100,7 +93,9 @@
                 }
 
                 @for (gift of giftRows(line, $index); track gift.key) {
-                  <div class="w-full elements-between items-start! gap-3 font-label-md text-on-surface-variant">
+                  <div
+                    class="w-full elements-between items-start! gap-3 font-label-md text-on-surface-variant"
+                  >
                     <span class="min-w-0">{{ gift.label }}</span>
                     <span class="shrink-0">Free</span>
                   </div>
@@ -152,12 +147,7 @@
                     <p class="font-label-md opacity-70">Qty {{ line.quantity }}</p>
                   }
                 </div>
-                <button
-                  matIconButton
-                  type="button"
-                  (click)="removeLine($index)"
-                  aria-label="Remove item"
-                >
+                <button matIconButton type="button" (click)="removeLine($index)" aria-label="Remove item">
                   <mat-icon name="delete" />
                 </button>
               </div>
@@ -166,7 +156,10 @@
         }
       </ul>
 
-      <section class="px-5 py-5 space-y-3 border-b border-outline-variant" aria-labelledby="bag-payment-title">
+      <section
+        class="px-5 py-5 space-y-3 border-b border-outline-variant"
+        aria-labelledby="bag-payment-title"
+      >
         <h3 id="bag-payment-title" class="font-title-sm font-bold!">Payment Methods</h3>
         <ul class="grid grid-cols-3 gap-2">
           @for (method of paymentMethods(); track method.id) {
@@ -188,9 +181,7 @@
 
       @if (placement() === 'sheet' && recommendations().length > 0) {
         <section class="py-5 space-y-3" aria-labelledby="bag-recommended-title">
-          <h3 id="bag-recommended-title" class="px-5 font-title-sm font-bold!">
-            Recommended for You
-          </h3>
+          <h3 id="bag-recommended-title" class="px-5 font-title-sm font-bold!">Recommended for You</h3>
           <!-- The wheel stays on the bag's own scroll; drag, swipe and the arrows move the row. -->
           <div>
             <div
@@ -202,7 +193,9 @@
             >
               @for (card of recommendations(); track card.id) {
                 <div class="scroll-row-item">
-                  <app-product-card [product]="card" sizes="(max-width: 1023px) 45vw, 20vw"
+                  <app-product-card
+                    [product]="card"
+                    sizes="(max-width: 1023px) 45vw, 20vw"
                     (productOpen)="drawerService.close()"
                   />
                 </div>
@@ -237,9 +230,7 @@
 
       <div class="w-full [&>button]:w-full [&>a]:w-full">
         @if (showCheckout()) {
-          <a matButton="filled" routerLink="/checkout" (click)="drawerService.close()">
-            Checkout
-          </a>
+          <a matButton="filled" routerLink="/checkout" (click)="drawerService.close()"> Checkout </a>
         } @else {
           <button matButton="filled" type="button" disabled>Checkout</button>
         }

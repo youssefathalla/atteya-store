@@ -26,10 +26,7 @@ const TTL_MS = 5 * 60 * 1000;
 let cachedAt = 0;
 let cachedLookup: CatalogLookupMaps | null = null;
 
-export async function getCatalogLookup(
-  db: Firestore,
-  forceRefresh = false,
-): Promise<CatalogLookupMaps> {
+export async function getCatalogLookup(db: Firestore, forceRefresh = false): Promise<CatalogLookupMaps> {
   const now = Date.now();
   if (!forceRefresh && cachedLookup && now - cachedAt < TTL_MS) {
     return cachedLookup;

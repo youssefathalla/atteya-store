@@ -66,9 +66,7 @@ export class NewArrivalsSectionComponent {
   readonly #nowMs = signal(Date.now());
 
   /** SSR TransferState seed — keeps cards visible across hydrate (no skeleton flash). */
-  readonly #seeded = signal(
-    takeHomeRowSeed(this.#transfer, HOME_NEW_ARRIVALS_ROW_KEY, this.isBrowser),
-  );
+  readonly #seeded = signal(takeHomeRowSeed(this.#transfer, HOME_NEW_ARRIVALS_ROW_KEY, this.isBrowser));
 
   readonly #list = resource({
     loader: async () => {
@@ -77,7 +75,6 @@ export class NewArrivalsSectionComponent {
       return products;
     },
   });
-
 
   readonly products = computed(() => {
     if (this.#list.hasValue()) return this.#list.value() ?? [];

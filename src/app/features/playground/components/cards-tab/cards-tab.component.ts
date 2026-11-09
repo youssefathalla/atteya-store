@@ -9,13 +9,7 @@ import { Review } from '@shared/ui/cards/review-card/review.model';
 
 @Component({
   selector: 'app-cards-tab',
-  imports: [
-    MatButtonModule,
-    SharedIconModule,
-    BaseCardComponent,
-    InfoCardComponent,
-    ReviewCardComponent,
-  ],
+  imports: [MatButtonModule, SharedIconModule, BaseCardComponent, InfoCardComponent, ReviewCardComponent],
   templateUrl: './cards-tab.component.html',
 })
 export class CardsTabComponent {

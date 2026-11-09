@@ -32,7 +32,14 @@ const PAGE_SIZE = 48;
 
 @Component({
   selector: 'app-category',
-  imports: [RouterLink, LinkTargetPipe, MatButtonModule, SharedIconModule, CatalogProductGridComponent, LoaderComponent],
+  imports: [
+    RouterLink,
+    LinkTargetPipe,
+    MatButtonModule,
+    SharedIconModule,
+    CatalogProductGridComponent,
+    LoaderComponent,
+  ],
   templateUrl: './category.component.html',
   host: {
     class: 'block w-full min-h-[60vh] container-content',
@@ -75,9 +82,7 @@ export class CategoryComponent {
     });
   }
 
-  readonly isBrandRoute = computed(
-    () => this.isBrand() || this.#router.url.startsWith('/brand/'),
-  );
+  readonly isBrandRoute = computed(() => this.isBrand() || this.#router.url.startsWith('/brand/'));
 
   readonly matchedBrand = computed(() => {
     if (!this.isBrandRoute()) return null;

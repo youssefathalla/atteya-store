@@ -12,9 +12,7 @@ export const APP_CHECK_ENFORCED = defineBoolean('APP_CHECK_ENFORCED', {
     'Reject callable requests that fail App Check. Keep false until reCAPTCHA Enterprise keys exist.',
 });
 
-export function adminCallableOptions(
-  extra: Partial<CallableOptions> = {},
-): CallableOptions {
+export function adminCallableOptions(extra: Partial<CallableOptions> = {}): CallableOptions {
   return {
     region: 'europe-west3',
     cors: true,

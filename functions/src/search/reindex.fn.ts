@@ -163,14 +163,17 @@ export const reindexSearch = onCall(
 
       await clearSearchSyncErrors(db);
 
-      await db.collection('auditLogs').doc().set({
-        action: 'search.reindex',
-        actorUid: actor.uid,
-        actorEmail: actor.email ?? actor.uid,
-        indexName,
-        counts: { indexed: records.length, deleted: strayIds.length },
-        at: FieldValue.serverTimestamp(),
-      });
+      await db
+        .collection('auditLogs')
+        .doc()
+        .set({
+          action: 'search.reindex',
+          actorUid: actor.uid,
+          actorEmail: actor.email ?? actor.uid,
+          indexName,
+          counts: { indexed: records.length, deleted: strayIds.length },
+          at: FieldValue.serverTimestamp(),
+        });
 
       return {
         dryRun: false,
@@ -180,10 +183,7 @@ export const reindexSearch = onCall(
         sample: records.slice(0, 3),
       };
     } catch (error: unknown) {
-      throw new HttpsError(
-        'internal',
-        `Couldn't rebuild the search index: ${safeErrorMessage(error)}`,
-      );
+      throw new HttpsError('internal', `Couldn't rebuild the search index: ${safeErrorMessage(error)}`);
     }
   },
 );
@@ -241,9 +241,7 @@ async function applyIndexSettings(
     const response = await client.setSettings({
       indexName: options.indexName,
       indexSettings: options.indexSettings,
-      ...(options.forwardToReplicas !== undefined
-        ? { forwardToReplicas: options.forwardToReplicas }
-        : {}),
+      ...(options.forwardToReplicas !== undefined ? { forwardToReplicas: options.forwardToReplicas } : {}),
     });
     if (options.waitForTasks) {
       await client.waitForTask({ indexName: options.indexName, taskID: response.taskID });

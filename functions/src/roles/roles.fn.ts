@@ -51,93 +51,90 @@ export const listAdmins = onCall(adminCallableOptions(), async (request): Promis
   return admins;
 });
 
-export const setUserRole = onCall(
-  adminCallableOptions(),
-  async (request): Promise<SetUserRoleResult> => {
-    const actor = await requireRole(request, 'admin');
-    const input = parseSetUserRoleInput(request.data);
+export const setUserRole = onCall(adminCallableOptions(), async (request): Promise<SetUserRoleResult> => {
+  const actor = await requireRole(request, 'admin');
+  const input = parseSetUserRoleInput(request.data);
 
-    let user;
-    try {
-      user = await getAuth().getUserByEmail(input.email);
-    } catch (error: unknown) {
-      if (isUserNotFound(error)) {
-        throw new HttpsError('not-found', UNKNOWN_ACCOUNT_MESSAGE);
-      }
-      throw new HttpsError('internal', 'Could not look up that account. Please try again.');
+  let user;
+  try {
+    user = await getAuth().getUserByEmail(input.email);
+  } catch (error: unknown) {
+    if (isUserNotFound(error)) {
+      throw new HttpsError('not-found', UNKNOWN_ACCOUNT_MESSAGE);
     }
+    throw new HttpsError('internal', 'Could not look up that account. Please try again.');
+  }
 
-    const before = readRole(user.customClaims);
-    if (before === input.role) {
-      return { changed: false };
-    }
+  const before = readRole(user.customClaims);
+  if (before === input.role) {
+    return { changed: false };
+  }
 
-    const claimAdmins = await listClaimAdmins();
-    const otherClaimAdmins = claimAdmins.filter((admin) => admin.uid !== user.uid).length;
-    if (isLastAdminDemotion(input.role, before, otherClaimAdmins)) {
+  const claimAdmins = await listClaimAdmins();
+  const otherClaimAdmins = claimAdmins.filter((admin) => admin.uid !== user.uid).length;
+  if (isLastAdminDemotion(input.role, before, otherClaimAdmins)) {
+    throw new HttpsError('failed-precondition', LAST_ADMIN_MESSAGE);
+  }
+
+  await reconcileAdminMirrors(claimAdmins);
+
+  const db = getFirestore();
+  const auditRef = db.collection('auditLogs').doc();
+  const actorLabel = actor.email ?? actor.uid;
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(db.collection('roles').where('role', '==', 'admin'));
+    const otherMirrorAdmins = snap.docs.filter((doc) => doc.id !== user.uid).length;
+    if (isLastAdminDemotion(input.role, before, otherMirrorAdmins)) {
       throw new HttpsError('failed-precondition', LAST_ADMIN_MESSAGE);
     }
 
-    await reconcileAdminMirrors(claimAdmins);
-
-    const db = getFirestore();
-    const auditRef = db.collection('auditLogs').doc();
-    const actorLabel = actor.email ?? actor.uid;
-
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(db.collection('roles').where('role', '==', 'admin'));
-      const otherMirrorAdmins = snap.docs.filter((doc) => doc.id !== user.uid).length;
-      if (isLastAdminDemotion(input.role, before, otherMirrorAdmins)) {
-        throw new HttpsError('failed-precondition', LAST_ADMIN_MESSAGE);
-      }
-
-      tx.set(
-        db.doc(`roles/${user.uid}`),
-        {
-          role: input.role,
-          email: input.email,
-          updatedAt: FieldValue.serverTimestamp(),
-          updatedBy: actorLabel,
-        },
-        { merge: true },
-      );
-      tx.set(auditRef, {
-        action: 'role.set',
-        targetUid: user.uid,
-        targetEmail: input.email,
-        from: before,
-        to: input.role,
-        actorUid: actor.uid,
-        actorEmail: actorLabel,
-        at: FieldValue.serverTimestamp(),
-      });
+    tx.set(
+      db.doc(`roles/${user.uid}`),
+      {
+        role: input.role,
+        email: input.email,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: actorLabel,
+      },
+      { merge: true },
+    );
+    tx.set(auditRef, {
+      action: 'role.set',
+      targetUid: user.uid,
+      targetEmail: input.email,
+      from: before,
+      to: input.role,
+      actorUid: actor.uid,
+      actorEmail: actorLabel,
+      at: FieldValue.serverTimestamp(),
     });
+  });
 
+  try {
+    await getAuth().setCustomUserClaims(user.uid, {
+      ...(user.customClaims ?? {}),
+      role: input.role,
+    });
+    if (input.role === 'user') {
+      await recordSessionRevocation(user.uid);
+    }
+  } catch {
     try {
       await getAuth().setCustomUserClaims(user.uid, {
         ...(user.customClaims ?? {}),
-        role: input.role,
+        role: before,
       });
-      if (input.role === 'user') {
-        await recordSessionRevocation(user.uid);
-      }
     } catch {
-      try {
-        await getAuth().setCustomUserClaims(user.uid, {
-          ...(user.customClaims ?? {}),
-          role: before,
-        });
-      } catch {
-        // The claim write did not stick. The mirror rollback still runs.
-      }
-      try {
-        await revertRoleMirror(user.uid, before, input.email, actorLabel, auditRef.path);
-      } catch {
-        // The next role change reconciles the mirror.
-      }
-      throw new HttpsError('internal', 'Could not update admin access. Please try again.');
+      // The claim write did not stick. The mirror rollback still runs.
     }
+    try {
+      await revertRoleMirror(user.uid, before, input.email, actorLabel, auditRef.path);
+    } catch {
+      // The next role change reconciles the mirror.
+    }
+    throw new HttpsError('internal', 'Could not update admin access. Please try again.');
+  }
 
-    return { changed: true };
-  },
-);
+  return { changed: true };
+});

@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 // Runs against the compiled code (`npm test` builds first).
-import { assertCurrentSelection, ITEM_CHANGED, staleSelectionKeys } from '../../lib/orders/order-selection.js';
+import {
+  assertCurrentSelection,
+  ITEM_CHANGED,
+  staleSelectionKeys,
+} from '../../lib/orders/order-selection.js';
 
 const BAG_BEFORE = [
   { key: 'gift', label: 'Free shirt', values: [{ id: 'polo', label: 'POLO WHITE' }] },

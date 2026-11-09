@@ -82,11 +82,7 @@ function parseSetProductStockRequest(raw: unknown): SetProductStockRequest {
   return { productId, stockBySize: parseStockBySize(raw['stockBySize']) };
 }
 
-function nextStock(
-  sizeIds: readonly string[],
-  liveMap: unknown,
-  input: SetProductStockRequest,
-): StockFields {
+function nextStock(sizeIds: readonly string[], liveMap: unknown, input: SetProductStockRequest): StockFields {
   if (sizeIds.length > 0) {
     const sent = input.stockBySize;
     if (sent === undefined) {
@@ -108,10 +104,7 @@ function nextStock(
   }
 
   if (input.stockBySize !== undefined) {
-    throw new HttpsError(
-      'failed-precondition',
-      'This product has no sizes. Enter one stock number.',
-    );
+    throw new HttpsError('failed-precondition', 'This product has no sizes. Enter one stock number.');
   }
   if (input.stock === undefined) {
     throw new HttpsError('invalid-argument', 'Stock must be a whole number of 0 or more.');

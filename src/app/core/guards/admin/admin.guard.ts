@@ -21,9 +21,7 @@ export const adminGuard: CanActivateFn = async (_route, state) => {
   await auth.waitForAuthReady();
 
   const returnUrl = safeReturnUrl(state.url);
-  const login = new RedirectCommand(
-    router.createUrlTree(['/login'], { queryParams: { returnUrl } }),
-  );
+  const login = new RedirectCommand(router.createUrlTree(['/login'], { queryParams: { returnUrl } }));
 
   if (!auth.isAuthenticated()) {
     throw login;

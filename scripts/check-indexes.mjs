@@ -37,7 +37,9 @@ export function checkIndexes(alias) {
   try {
     fileDoc = JSON.parse(fs.readFileSync(INDEXES_PATH, 'utf8'));
   } catch (err) {
-    console.error(`${RED}✖ Index check failed:${RESET} could not read firestore.indexes.json: ${err.message}`);
+    console.error(
+      `${RED}✖ Index check failed:${RESET} could not read firestore.indexes.json: ${err.message}`,
+    );
     return empty;
   }
 

@@ -31,9 +31,7 @@ async function initAppCheck(app: FirebaseApp, options: AppCheckOptions): Promise
 
   appCheckInitPromise = (async () => {
     if (options.debug && typeof window !== 'undefined') {
-      (
-        window as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }
-      ).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+      (window as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
     }
 
     const { initializeAppCheck, ReCaptchaEnterpriseProvider, ReCaptchaV3Provider } =

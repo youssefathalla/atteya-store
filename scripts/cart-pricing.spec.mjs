@@ -102,11 +102,17 @@ describe('cart lines merge (ATS-70)', () => {
 
 describe('order refusals (ATS-108)', () => {
   it('leaves an offer out only when its use limit ended it (endedOfferId)', () => {
-    assert.equal(endedOfferIdFrom({ code: 'functions/failed-precondition', details: { endedOfferId: 'deal-1' } }), 'deal-1');
+    assert.equal(
+      endedOfferIdFrom({ code: 'functions/failed-precondition', details: { endedOfferId: 'deal-1' } }),
+      'deal-1',
+    );
   });
 
   it('never leaves out an offer from "Prices in your bag changed" (changedOfferId)', () => {
-    assert.equal(endedOfferIdFrom({ code: 'functions/failed-precondition', details: { changedOfferId: 'deal-1' } }), null);
+    assert.equal(
+      endedOfferIdFrom({ code: 'functions/failed-precondition', details: { changedOfferId: 'deal-1' } }),
+      null,
+    );
     assert.equal(endedOfferIdFrom(new Error('offline')), null);
     assert.equal(endedOfferIdFrom(null), null);
   });
@@ -115,9 +121,21 @@ describe('order refusals (ATS-108)', () => {
     const changed = { details: { changedOfferId: 'deal-1' } };
     const first = offerToLeaveOut(changed, null);
     assert.deepEqual(first, { leaveOut: null, lastChangedOfferId: 'deal-1' });
-    assert.deepEqual(offerToLeaveOut(changed, first.lastChangedOfferId), { leaveOut: 'deal-1', lastChangedOfferId: null });
-    assert.deepEqual(offerToLeaveOut({ details: { changedOfferId: 'deal-2' } }, 'deal-1'), { leaveOut: null, lastChangedOfferId: 'deal-2' });
-    assert.deepEqual(offerToLeaveOut({ details: { endedOfferId: 'deal-3' } }, 'deal-1'), { leaveOut: 'deal-3', lastChangedOfferId: null });
-    assert.deepEqual(offerToLeaveOut(new Error('offline'), 'deal-1'), { leaveOut: null, lastChangedOfferId: null });
+    assert.deepEqual(offerToLeaveOut(changed, first.lastChangedOfferId), {
+      leaveOut: 'deal-1',
+      lastChangedOfferId: null,
+    });
+    assert.deepEqual(offerToLeaveOut({ details: { changedOfferId: 'deal-2' } }, 'deal-1'), {
+      leaveOut: null,
+      lastChangedOfferId: 'deal-2',
+    });
+    assert.deepEqual(offerToLeaveOut({ details: { endedOfferId: 'deal-3' } }, 'deal-1'), {
+      leaveOut: 'deal-3',
+      lastChangedOfferId: null,
+    });
+    assert.deepEqual(offerToLeaveOut(new Error('offline'), 'deal-1'), {
+      leaveOut: null,
+      lastChangedOfferId: null,
+    });
   });
 });

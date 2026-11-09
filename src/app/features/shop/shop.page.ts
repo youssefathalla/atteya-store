@@ -21,11 +21,7 @@ import { ShopFiltersDrawerComponent } from './components/shop-filters-drawer/sho
 import { ShopFiltersComponent } from './components/shop-filters/shop-filters.component';
 import { ShopGridComponent } from './components/shop-grid/shop-grid.component';
 import { ShopHeaderComponent } from './components/shop-header/shop-header.component';
-import {
-  DEFAULT_SHOP_FILTERS,
-  SHOP_TABS,
-  type ShopFilterState,
-} from './models/shop.model';
+import { DEFAULT_SHOP_FILTERS, SHOP_TABS, type ShopFilterState } from './models/shop.model';
 import {
   brandOptionsFromFacets,
   buildCatalogBrowseOptions,
@@ -98,9 +94,7 @@ export class ShopPage {
   /** Tracks shop tab/bags scope so we only clear the snapshot on a real tab change. */
   readonly #tabScopeKey = signal('');
 
-  readonly activeTab = computed(() =>
-    resolveShopTab(this.shopCategory(), this.shopSubcategory()),
-  );
+  readonly activeTab = computed(() => resolveShopTab(this.shopCategory(), this.shopSubcategory()));
 
   readonly forceBags = computed(() => {
     const cat = (this.shopCategory() ?? '').toLowerCase();
@@ -173,27 +167,15 @@ export class ShopPage {
 
   readonly facets = computed(() => this.#snapshot()?.facets ?? {});
 
-  readonly brands = computed(() =>
-    brandOptionsFromFacets(this.facets(), this.filterState().brands),
-  );
+  readonly brands = computed(() => brandOptionsFromFacets(this.facets(), this.filterState().brands));
   readonly players = computed(() =>
-    playerOptionsFromFacets(
-      this.facets(),
-      this.#playerList.players(),
-      this.filterState().players,
-    ),
+    playerOptionsFromFacets(this.facets(), this.#playerList.players(), this.filterState().players),
   );
-  readonly sizes = computed(() =>
-    sizeOptionsFromFacets(this.facets(), this.filterState().sizes),
-  );
-  readonly colors = computed(() =>
-    colorOptionsFromFacets(this.facets(), this.filterState().colors),
-  );
+  readonly sizes = computed(() => sizeOptionsFromFacets(this.facets(), this.filterState().sizes));
+  readonly colors = computed(() => colorOptionsFromFacets(this.facets(), this.filterState().colors));
   readonly showGender = computed(() => genderFacetHasData(this.facets()));
   readonly showSizes = computed(() => hasApparelSizes(this.facets()));
-  readonly accessoriesSubOnly = computed(
-    () => this.activeTab() === 'accessories' && !this.forceBags(),
-  );
+  readonly accessoriesSubOnly = computed(() => this.activeTab() === 'accessories' && !this.forceBags());
 
   readonly isConfigured = computed(() => this.#search.isConfigured());
 
@@ -206,9 +188,7 @@ export class ShopPage {
       this.resultsResource.isLoading(),
   );
 
-  readonly isRefreshing = computed(
-    () => this.#snapshot() !== null && this.resultsResource.isLoading(),
-  );
+  readonly isRefreshing = computed(() => this.#snapshot() !== null && this.resultsResource.isLoading());
 
   readonly showEmpty = computed(
     () =>
@@ -327,10 +307,9 @@ export class ShopPage {
    */
   async #navigate(state: ShopFilterState, preserveScroll = true): Promise<void> {
     const tab = this.activeTab();
-    const path =
-      this.forceBags()
-        ? '/category/accessories/bags'
-        : (SHOP_TABS.find((t) => t.id === tab)?.path ?? '/shop');
+    const path = this.forceBags()
+      ? '/category/accessories/bags'
+      : (SHOP_TABS.find((t) => t.id === tab)?.path ?? '/shop');
 
     await this.#router.navigate([path], {
       queryParams: shopFiltersToQueryParams(state),

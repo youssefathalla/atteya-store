@@ -134,9 +134,32 @@ const GIT_VALUE_OPTIONS = new Set(['-C', '-c', '--git-dir', '--work-tree', '--na
 
 /** `git branch` flags that list, delete or edit branches instead of creating one. */
 const BRANCH_READ_ONLY_FLAGS = new Set([
-  '-d', '-D', '--delete', '-l', '--list', '-a', '--all', '-r', '--remotes', '-v', '-vv', '--verbose',
-  '--show-current', '--contains', '--no-contains', '--merged', '--no-merged', '--points-at', '--format',
-  '--sort', '-u', '--set-upstream-to', '--unset-upstream', '--edit-description', '--column', '--no-column',
+  '-d',
+  '-D',
+  '--delete',
+  '-l',
+  '--list',
+  '-a',
+  '--all',
+  '-r',
+  '--remotes',
+  '-v',
+  '-vv',
+  '--verbose',
+  '--show-current',
+  '--contains',
+  '--no-contains',
+  '--merged',
+  '--no-merged',
+  '--points-at',
+  '--format',
+  '--sort',
+  '-u',
+  '--set-upstream-to',
+  '--unset-upstream',
+  '--edit-description',
+  '--column',
+  '--no-column',
 ]);
 const BRANCH_RENAME_FLAGS = new Set(['-m', '-M', '--move', '-c', '-C', '--copy']);
 
@@ -146,7 +169,12 @@ function gitArgs(words) {
   // Skip env assignments (`FOO=1 git ...`) and PowerShell's call operator.
   while (i < words.length && (words[i].includes('=') || words[i] === '&')) i++;
   const program = (words[i] ?? '').toLowerCase().replaceAll('\\', '/');
-  if (program !== 'git' && program !== 'git.exe' && !program.endsWith('/git') && !program.endsWith('/git.exe')) {
+  if (
+    program !== 'git' &&
+    program !== 'git.exe' &&
+    !program.endsWith('/git') &&
+    !program.endsWith('/git.exe')
+  ) {
     return null;
   }
   i++;
@@ -179,8 +207,10 @@ export function newBranchNames(words) {
   const [sub, ...rest] = args;
 
   if (sub === 'checkout') return [flagValue(rest, ['-b', '-B', '--orphan'])].filter(Boolean);
-  if (sub === 'switch') return [flagValue(rest, ['-c', '-C', '--create', '--force-create', '--orphan'])].filter(Boolean);
-  if (sub === 'worktree' && rest[0] === 'add') return [flagValue(rest.slice(1), ['-b', '-B'])].filter(Boolean);
+  if (sub === 'switch')
+    return [flagValue(rest, ['-c', '-C', '--create', '--force-create', '--orphan'])].filter(Boolean);
+  if (sub === 'worktree' && rest[0] === 'add')
+    return [flagValue(rest.slice(1), ['-b', '-B'])].filter(Boolean);
 
   if (sub === 'branch') {
     const flags = rest.filter((arg) => arg.startsWith('-')).map((arg) => arg.split('=')[0]);
@@ -212,7 +242,8 @@ function ghPrArgs(words) {
   let i = 0;
   while (i < words.length && (words[i].includes('=') || words[i] === '&')) i++;
   const program = (words[i] ?? '').toLowerCase().replaceAll('\\', '/');
-  if (program !== 'gh' && program !== 'gh.exe' && !program.endsWith('/gh') && !program.endsWith('/gh.exe')) return null;
+  if (program !== 'gh' && program !== 'gh.exe' && !program.endsWith('/gh') && !program.endsWith('/gh.exe'))
+    return null;
   const args = words.slice(i + 1);
   if (args[0] !== 'pr' || !['create', 'edit'].includes(args[1])) return null;
   return args.slice(2);
@@ -270,7 +301,10 @@ function main() {
   const command = CURSOR ? input.command : input.tool_input?.command;
   const badNames = typeof command === 'string' ? badBranchNames(command) : [];
   const badTitles = typeof command === 'string' ? badPrTitles(command) : [];
-  const message = [badNames.length ? ruleMessage(badNames) : '', badTitles.length ? prTitleMessage(badTitles) : '']
+  const message = [
+    badNames.length ? ruleMessage(badNames) : '',
+    badTitles.length ? prTitleMessage(badTitles) : '',
+  ]
     .filter(Boolean)
     .join('\n\n');
 

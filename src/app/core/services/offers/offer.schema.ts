@@ -1,11 +1,6 @@
 import * as v from 'valibot';
 import { idSchema, timestampSchema } from '@shared/schemas';
-import {
-  MAX_GIFT_CHOICES,
-  MAX_GIFT_NAME,
-  MAX_OFFER_GIFTS,
-  type OfferReward,
-} from './engine';
+import { MAX_GIFT_CHOICES, MAX_GIFT_NAME, MAX_OFFER_GIFTS, type OfferReward } from './engine';
 
 const wholeEgp = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000));
 const positiveInt = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100_000));

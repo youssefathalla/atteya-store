@@ -67,9 +67,7 @@ export function parseShopFilterState(input: {
   }
 
   const colors = parseList(input.color).filter((id): id is ColorId => COLOR_ID_SET.has(id));
-  const genders = parseList(input.gender).filter((id): id is ShopGenderFilterId =>
-    GENDER_ID_SET.has(id),
-  );
+  const genders = parseList(input.gender).filter((id): id is ShopGenderFilterId => GENDER_ID_SET.has(id));
 
   return {
     sort,
@@ -86,9 +84,7 @@ export function parseShopFilterState(input: {
   };
 }
 
-export function shopFiltersToQueryParams(
-  state: ShopFilterState,
-): Record<string, string | null> {
+export function shopFiltersToQueryParams(state: ShopFilterState): Record<string, string | null> {
   return {
     sort: state.sort === 'featured' ? null : state.sort,
     category: state.categories.length > 0 ? state.categories.join(',') : null,
@@ -141,9 +137,7 @@ export function buildCatalogBrowseOptions(input: {
 
   if (panelCategoryIds.length > 0 && scopedIds.length === 0) {
     // Parenthesize OR so AND with onSale/inStock/gender does not widen the match.
-    filterParts.push(
-      `(${panelCategoryIds.map((id) => `categoryIds:${id}`).join(' OR ')})`,
-    );
+    filterParts.push(`(${panelCategoryIds.map((id) => `categoryIds:${id}`).join(' OR ')})`);
   } else if (panelCategoryIds.includes('bags') && tab === 'accessories' && !forceBags) {
     filterParts.push('categoryIds:bags');
   }
@@ -166,10 +160,7 @@ export function buildCatalogBrowseOptions(input: {
 
   if (filters.genders.length > 0) {
     // Missing gender should still match (treated as unisex). Index may omit the field.
-    const genderClause = [
-      ...filters.genders.map((g) => `gender:${g}`),
-      'gender:unisex',
-    ].join(' OR ');
+    const genderClause = [...filters.genders.map((g) => `gender:${g}`), 'gender:unisex'].join(' OR ');
     filterParts.push(`(${genderClause})`);
   }
 
@@ -194,15 +185,7 @@ export function buildCatalogBrowseOptions(input: {
     sort: filters.sort,
     filters: filterParts.length > 0 ? filterParts.join(' AND ') : undefined,
     facetFilters: facetFilters.length > 0 ? facetFilters : undefined,
-    facets: [
-      'brandName',
-      'players',
-      'colors',
-      'sizes',
-      'onSale',
-      'gender',
-      'hierarchicalCategories.lvl0',
-    ],
+    facets: ['brandName', 'players', 'colors', 'sizes', 'onSale', 'gender', 'hierarchicalCategories.lvl0'],
     disjunctiveFacets: ['brandName', 'players', 'colors', 'sizes'],
     maxValuesPerFacet: 50,
   };

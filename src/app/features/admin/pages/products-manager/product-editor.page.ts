@@ -30,11 +30,7 @@ import {
   type MarketingBadgeKind,
   type MarketingBadgeStyle,
 } from '@core/services/products/marketing-badge';
-import {
-  PRODUCT_GENDERS,
-  PRODUCT_TYPES,
-  SIZE_ORDER,
-} from '@core/services/products/product.constants';
+import { PRODUCT_GENDERS, PRODUCT_TYPES, SIZE_ORDER } from '@core/services/products/product.constants';
 import type { Product, ProductGenderId, ProductTypeId } from '@core/services/products/product.model';
 import { PlayerListService } from '@core/services/products/player-list.service';
 import { MAX_PRODUCT_PLAYERS } from '@core/services/products/player.schema';
@@ -141,9 +137,7 @@ export class ProductEditorPageComponent implements OnInit {
   readonly types = PRODUCT_TYPES;
   readonly genderOptions = GENDER_OPTIONS;
   readonly colorPalette = COLOR_PALETTE;
-  readonly quickSizes = SIZE_ORDER.filter((label) =>
-    (QUICK_SIZES as readonly string[]).includes(label),
-  );
+  readonly quickSizes = SIZE_ORDER.filter((label) => (QUICK_SIZES as readonly string[]).includes(label));
 
   readonly isSaving = signal(false);
   readonly images = signal<ImageAsset[]>([]);
@@ -227,9 +221,7 @@ export class ProductEditorPageComponent implements OnInit {
   readonly categoryOptions = computed(() =>
     buildLeafCategoryOptions(this.editorResource.value()?.categories ?? []),
   );
-  readonly brandOptions = computed(() =>
-    buildBrandOptions(this.editorResource.value()?.brands ?? []),
-  );
+  readonly brandOptions = computed(() => buildBrandOptions(this.editorResource.value()?.brands ?? []));
   readonly groupHint = computed(() => {
     const groups = this.editorResource.value()?.groups ?? [];
     return groups.length
@@ -293,15 +285,7 @@ export class ProductEditorPageComponent implements OnInit {
     const date = parseDateInputValue(this.newArrivalUntilInput());
     if (!date) return null;
     // End of local day so "today" still counts as active.
-    const untilMs = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      23,
-      59,
-      59,
-      999,
-    ).getTime();
+    const untilMs = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999).getTime();
     return newArrivalCountdownLabel(untilMs);
   });
 
@@ -389,10 +373,7 @@ export class ProductEditorPageComponent implements OnInit {
   constructor() {
     effect(() => {
       const current = this.model();
-      if (
-        current.categoryId !== this.#lastSuggestedCategory &&
-        current.type === this.#lastType
-      ) {
+      if (current.categoryId !== this.#lastSuggestedCategory && current.type === this.#lastType) {
         this.#categoryPicked = true;
         this.#lastSuggestedCategory = current.categoryId;
       }
@@ -645,9 +626,7 @@ export class ProductEditorPageComponent implements OnInit {
     if (!(target instanceof HTMLInputElement)) return;
     const value = target.value;
     this.sizes.update((list) =>
-      list.map((size, itemIndex) =>
-        itemIndex === index ? { ...size, initialStock: value } : size,
-      ),
+      list.map((size, itemIndex) => (itemIndex === index ? { ...size, initialStock: value } : size)),
     );
   }
 
@@ -808,9 +787,7 @@ export class ProductEditorPageComponent implements OnInit {
     this.sizeInput.set('');
     this.sizeError.set('');
     this.flatStock.set('0');
-    this.weight.set(
-      typeof product.weightGrams === 'number' ? String(product.weightGrams) : '',
-    );
+    this.weight.set(typeof product.weightGrams === 'number' ? String(product.weightGrams) : '');
     this.formError.set('');
     this.#saveTried.set(false);
     this.#loadedProduct.set(product);
@@ -919,9 +896,7 @@ export class ProductEditorPageComponent implements OnInit {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
     const value = target.value;
-    this.marketingBadgeKind.set(
-      value === '' ? '' : (value as MarketingBadgeKind),
-    );
+    this.marketingBadgeKind.set(value === '' ? '' : (value as MarketingBadgeKind));
   }
 
   onMarketingBadgeStyleChange(event: Event): void {
@@ -966,15 +941,7 @@ export class ProductEditorPageComponent implements OnInit {
   #newArrivalUntilPayload(): string | null {
     const date = parseDateInputValue(this.newArrivalUntilInput());
     if (!date) return null;
-    const endOfDay = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      23,
-      59,
-      59,
-      999,
-    );
+    const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
     return endOfDay.toISOString();
   }
 
@@ -989,9 +956,7 @@ export class ProductEditorPageComponent implements OnInit {
     return {
       name: collapseSpaces(asText(value.name)),
       summary: asText(value.summary).trim() || null,
-      ...(sendDescription
-        ? { description: descriptionText.length === 0 ? null : descriptionText }
-        : {}),
+      ...(sendDescription ? { description: descriptionText.length === 0 ? null : descriptionText } : {}),
       details: detailLinesFromText(asText(value.details)),
       type: value.type,
       categoryId: value.categoryId.trim(),
@@ -1018,8 +983,7 @@ export class ProductEditorPageComponent implements OnInit {
       })),
       sizes: this.sizes().map((size) => toSizePayload(size, this.isCreate())),
       ...(sendStock ? { stock: Number(this.flatStock().trim()) } : {}),
-      weightGrams:
-        this.weight().trim().length === 0 ? null : parseWeightGrams(this.weight()),
+      weightGrams: this.weight().trim().length === 0 ? null : parseWeightGrams(this.weight()),
     };
   }
 }
@@ -1048,10 +1012,7 @@ function hasSizeOption(product: Product | null): boolean {
   return product.options.some((option) => option.key === 'size' && option.values.length > 0);
 }
 
-function mergeSizeIds(
-  draft: readonly ProductSizeDraft[],
-  product: Product,
-): ProductSizeDraft[] {
+function mergeSizeIds(draft: readonly ProductSizeDraft[], product: Product): ProductSizeDraft[] {
   const option = product.options.find((item) => item.key === 'size');
   const live = option?.values ?? [];
   const used = new Set<number>();
@@ -1084,10 +1045,7 @@ function sizeDraftsFrom(product: Product): ProductSizeDraft[] {
   }));
 }
 
-function stockDraftFromMap(
-  map: Readonly<Record<string, number>> | undefined,
-  sizeId: string,
-): string {
+function stockDraftFromMap(map: Readonly<Record<string, number>> | undefined, sizeId: string): string {
   if (!map) return '0';
   const count = map[sizeId];
   return typeof count === 'number' ? String(count) : '0';
@@ -1168,7 +1126,11 @@ function plainFromHtml(html: string | null): string {
 }
 
 function collapseSpaces(value: string): string {
-  return value.trim().split(/\s+/).filter((part) => part.length > 0).join(' ');
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
+    .join(' ');
 }
 
 function asText(value: unknown): string {

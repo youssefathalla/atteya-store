@@ -15,11 +15,7 @@ export const onShippingSettingsWritten = onDocumentWritten(
     const after = event.data?.after.exists ? (event.data.after.data() ?? null) : null;
     if (!before && !after) return;
 
-    const action = !before
-      ? 'shipping.create'
-      : !after
-        ? 'shipping.delete'
-        : 'shipping.update';
+    const action = !before ? 'shipping.create' : !after ? 'shipping.delete' : 'shipping.update';
 
     const actorUid =
       (typeof after?.['updatedBy'] === 'string' && after['updatedBy']) ||

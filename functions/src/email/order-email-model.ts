@@ -90,20 +90,11 @@ export function readOrderForEmail(
 ): OrderEmailOrder | null {
   if (!data) return null;
   const paymentMethod = data['paymentMethod'];
-  if (
-    paymentMethod !== 'paymob' &&
-    paymentMethod !== 'cash-on-delivery' &&
-    paymentMethod !== 'instapay'
-  ) {
+  if (paymentMethod !== 'paymob' && paymentMethod !== 'cash-on-delivery' && paymentMethod !== 'instapay') {
     return null;
   }
   const status = data['status'];
-  if (
-    status !== 'pending' &&
-    status !== 'confirmed' &&
-    status !== 'cancelled' &&
-    status !== 'failed'
-  ) {
+  if (status !== 'pending' && status !== 'confirmed' && status !== 'cancelled' && status !== 'failed') {
     return null;
   }
 

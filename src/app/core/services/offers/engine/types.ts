@@ -6,15 +6,7 @@ export type OfferSaleItemsPolicy = 'bestOf' | 'exclude' | 'stack';
 export type OfferScope = 'item' | 'cart';
 
 export type OfferConditionField =
-  | 'productId'
-  | 'brandId'
-  | 'categoryIds'
-  | 'type'
-  | 'modelGroup'
-  | 'colors'
-  | 'sizes'
-  | 'tags'
-  | 'price';
+  'productId' | 'brandId' | 'categoryIds' | 'type' | 'modelGroup' | 'colors' | 'sizes' | 'tags' | 'price';
 
 export interface OfferSetAtom {
   readonly field: Exclude<OfferConditionField, 'price'>;

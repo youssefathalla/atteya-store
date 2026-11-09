@@ -1,9 +1,4 @@
-import {
-  FieldValue,
-  getFirestore,
-  type DocumentReference,
-  type Firestore,
-} from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, type DocumentReference, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
@@ -74,8 +69,7 @@ export const createPaymobOrder = onCall(
     const orderId = orderRef.id;
     const amountCents = priced.pricing.totalEgp * 100;
     const name = splitPersonName(input.shipping.fullName);
-    const email =
-      caller.email && caller.email.includes('@') ? caller.email : 'orders@atteyastore.com';
+    const email = caller.email && caller.email.includes('@') ? caller.email : 'orders@atteyastore.com';
 
     let intention;
     try {
@@ -122,10 +116,7 @@ export const createPaymobOrder = onCall(
       } catch (releaseError: unknown) {
         console.error('Failed to give back offer uses', releaseError);
       }
-      throw new HttpsError(
-        'unavailable',
-        'We could not start online payment. Wait a moment and try again.',
-      );
+      throw new HttpsError('unavailable', 'We could not start online payment. Wait a moment and try again.');
     }
 
     const checkoutUrl = buildUnifiedCheckoutUrl(
@@ -174,10 +165,7 @@ export const createPaymobOrder = onCall(
       } catch (releaseError: unknown) {
         console.error('Failed to give back offer uses', releaseError);
       }
-      throw new HttpsError(
-        'unavailable',
-        'We could not start online payment. Wait a moment and try again.',
-      );
+      throw new HttpsError('unavailable', 'We could not start online payment. Wait a moment and try again.');
     }
 
     return {

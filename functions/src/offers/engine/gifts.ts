@@ -1,12 +1,6 @@
 import { liveOffers } from './item-price.js';
 import { matchProduct, matchVariant } from './match.js';
-import type {
-  Offer,
-  OfferGift,
-  PricingContext,
-  ProductFacts,
-  VariantFacts,
-} from './types.js';
+import type { Offer, OfferGift, PricingContext, ProductFacts, VariantFacts } from './types.js';
 
 /** Most gifts in one Free gift offer (e.g. a shirt and socks). */
 export const MAX_OFFER_GIFTS = 5;

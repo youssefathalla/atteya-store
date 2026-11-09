@@ -5,10 +5,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { NavSettingsSchema } from './nav.schema';
-import {
-  NAVIGATION_SETTINGS_KEY,
-  toNavigationSettingsSeed,
-} from './navigation-settings.state';
+import { NAVIGATION_SETTINGS_KEY, toNavigationSettingsSeed } from './navigation-settings.state';
 
 /**
  * One server read of settings/navigation so storefront nav is in the first HTML.
@@ -22,14 +19,9 @@ export const navigationSettingsResolver: ResolveFn<void> = async () => {
   try {
     const firestore = injectFirestore();
     const snap = await getDoc(
-      doc(firestore, 'settings', 'navigation').withConverter(
-        createValibotConverter(NavSettingsSchema),
-      ),
+      doc(firestore, 'settings', 'navigation').withConverter(createValibotConverter(NavSettingsSchema)),
     );
-    transfer.set(
-      NAVIGATION_SETTINGS_KEY,
-      snap.exists() ? toNavigationSettingsSeed(snap.data()) : null,
-    );
+    transfer.set(NAVIGATION_SETTINGS_KEY, snap.exists() ? toNavigationSettingsSeed(snap.data()) : null);
   } catch {
     transfer.set(NAVIGATION_SETTINGS_KEY, null);
     if (responseInit) {

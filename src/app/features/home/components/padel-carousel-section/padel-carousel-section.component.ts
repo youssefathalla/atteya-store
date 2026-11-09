@@ -22,11 +22,7 @@ import { normalizeImageKitPath } from '@shared/utils/image';
 import { RowScrollNavComponent } from '@shared/ui/row-scroll-nav';
 import { rowScrollProgress } from '@shared/utils/row-scroll.utils';
 import { RowScrollLockDirective } from '../../directives/row-scroll-lock.directive';
-import {
-  HOME_PADEL_ROW_KEY,
-  putHomeRowSeed,
-  takeHomeRowSeed,
-} from '../../utils/home-row-products.state';
+import { HOME_PADEL_ROW_KEY, putHomeRowSeed, takeHomeRowSeed } from '../../utils/home-row-products.state';
 
 /** Rackets shown in the home Padel row. */
 const PADEL_CAROUSEL_LIMIT = 8;
@@ -60,9 +56,7 @@ export class PadelCarouselSectionComponent {
   readonly canNext = signal(false);
 
   /** SSR TransferState seed — keeps tiles visible across hydrate (no skeleton flash). */
-  readonly #seeded = signal(
-    takeHomeRowSeed(this.#transfer, HOME_PADEL_ROW_KEY, this.isBrowser),
-  );
+  readonly #seeded = signal(takeHomeRowSeed(this.#transfer, HOME_PADEL_ROW_KEY, this.isBrowser));
 
   readonly #list = resource({
     loader: async () => {

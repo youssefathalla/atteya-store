@@ -8,10 +8,7 @@ export const ITEM_CHANGED =
  * Choice keys on a bag line that the product no longer has as an option (an option staff removed
  * after the shopper added it, such as the bag bundles' old "Free shirt" and shirt size, ATS-74).
  */
-export function staleSelectionKeys(
-  options: unknown,
-  selection: Readonly<Record<string, string>>,
-): string[] {
+export function staleSelectionKeys(options: unknown, selection: Readonly<Record<string, string>>): string[] {
   const keys = new Set<string>();
   if (Array.isArray(options)) {
     for (const option of options) {
@@ -27,10 +24,7 @@ export function staleSelectionKeys(
  * one product, which confirm can't take from stock), and adding it again from the product page
  * picks up what the product offers now, free gifts included.
  */
-export function assertCurrentSelection(
-  options: unknown,
-  selection: Readonly<Record<string, string>>,
-): void {
+export function assertCurrentSelection(options: unknown, selection: Readonly<Record<string, string>>): void {
   if (staleSelectionKeys(options, selection).length > 0) {
     throw new HttpsError('failed-precondition', ITEM_CHANGED);
   }

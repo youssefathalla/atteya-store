@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 // Runs against the compiled engine (`npm test` builds first); engine files import `./x.js`.
-import {
-  checkGiftPicks,
-  giftOfferById,
-  giftOfferForProduct,
-} from '../../../lib/offers/engine/index.js';
+import { checkGiftPicks, giftOfferById, giftOfferForProduct } from '../../../lib/offers/engine/index.js';
 import { parseOfferDoc } from '../../../lib/offers/offer-schema.js';
 
 const NOW = new Date('2026-11-08T12:00:00Z');
@@ -74,7 +70,10 @@ describe('free gift offers', () => {
       { productId: 'tee-1', published: true, inStock: true },
       { productId: 'socks-1', published: false, inStock: true },
     ]);
-    assert.deepEqual(result?.gifts.map((gift) => gift.id), ['shirt']);
+    assert.deepEqual(
+      result?.gifts.map((gift) => gift.id),
+      ['shirt'],
+    );
   });
 
   it('gives nothing when every gift is sold out', () => {
@@ -117,13 +116,10 @@ describe('free gift offers', () => {
       { giftId: 'shirt', productId: 'tee-2' },
     ]);
     assert.equal(check.ok, true);
-    assert.deepEqual(
-      check.ok ? check.picks.map((pick) => [pick.gift.id, pick.productId]) : [],
-      [
-        ['shirt', 'tee-2'],
-        ['socks', 'socks-1'],
-      ],
-    );
+    assert.deepEqual(check.ok ? check.picks.map((pick) => [pick.gift.id, pick.productId]) : [], [
+      ['shirt', 'tee-2'],
+      ['socks', 'socks-1'],
+    ]);
   });
 
   it('refuses a product the gift does not offer, an unknown gift and a repeated gift', () => {

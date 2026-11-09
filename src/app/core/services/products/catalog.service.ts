@@ -1,22 +1,11 @@
 import { isPlatformBrowser } from '@angular/common';
-import {
-  computed,
-  DestroyRef,
-  inject,
-  PLATFORM_ID,
-  Service,
-  signal,
-  TransferState,
-} from '@angular/core';
+import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal, TransferState } from '@angular/core';
 import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { signalCollection } from '@shared/utils/firebase/firestore-signals';
-import {
-  CATALOG_SETTINGS_KEY,
-  catalogSeedToRaw,
-} from './catalog-settings.state';
+import { CATALOG_SETTINGS_KEY, catalogSeedToRaw } from './catalog-settings.state';
 import { SEED_BRANDS, SEED_CATEGORIES, type SeedBrand, type SeedCategory } from './catalog-taxonomy';
 import { BrandSchema, CategorySchema } from './category.schema';
 import {
@@ -52,10 +41,9 @@ export class CatalogService {
   /** undefined until the SSR seed or first browser read settles. */
   readonly #catalogRaw = signal<unknown | null | undefined>(undefined);
 
-  readonly #categoriesCollection = collection(
-    this.#firestore,
-    CATEGORIES_COLLECTION,
-  ).withConverter(createValibotConverter(CategorySchema));
+  readonly #categoriesCollection = collection(this.#firestore, CATEGORIES_COLLECTION).withConverter(
+    createValibotConverter(CategorySchema),
+  );
 
   readonly #brandsCollection = collection(this.#firestore, BRANDS_COLLECTION).withConverter(
     createValibotConverter(BrandSchema),
@@ -130,12 +118,7 @@ export class CatalogService {
   );
 
   readonly brands = signalCollection(
-    query(
-      this.#brandsCollection,
-      where('published', '==', true),
-      orderBy('sortOrder', 'asc'),
-      limit(100),
-    ),
+    query(this.#brandsCollection, where('published', '==', true), orderBy('sortOrder', 'asc'), limit(100)),
   );
 
   readonly summary = computed((): CatalogSummary | null => {
@@ -221,9 +204,8 @@ export class CatalogService {
     );
     if (live) return live;
     return (
-      SEED_BRANDS.find(
-        (item) => item.slug.toLowerCase() === target || item.id.toLowerCase() === target,
-      ) ?? null
+      SEED_BRANDS.find((item) => item.slug.toLowerCase() === target || item.id.toLowerCase() === target) ??
+      null
     );
   }
 

@@ -1,7 +1,4 @@
-import type {
-  MarketingBadgeKind,
-  MarketingBadgeStyle,
-} from '@core/services/products/marketing-badge';
+import type { MarketingBadgeKind, MarketingBadgeStyle } from '@core/services/products/marketing-badge';
 import type { ProductGenderId } from '@core/services/products/product.model';
 
 export interface ProductCardPrice {

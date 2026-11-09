@@ -8,100 +8,132 @@ mat-icon {
 }
 // *icon button sizes
 .icon-btn-lg {
-  @include mat.icon-button-overrides((
-    icon-size: 24px,
-    state-layer-size: 40px
-  ));
+  @include mat.icon-button-overrides(
+    (
+      icon-size: 24px,
+      state-layer-size: 40px,
+    )
+  );
 }
 
 .icon-btn-md {
-  @include mat.icon-button-overrides((
-    icon-size: 18px,
-    state-layer-size: 36px
-  ));
+  @include mat.icon-button-overrides(
+    (
+      icon-size: 18px,
+      state-layer-size: 36px,
+    )
+  );
 }
 
 //* icons
-[iconColor="primary"] {
-  @include mat.icon-overrides((
-    color: var(--mat-sys-primary),
-  ));
+[iconColor='primary'] {
+  @include mat.icon-overrides(
+    (
+      color: var(--mat-sys-primary),
+    )
+  );
 
-  @include mat.list-overrides((
-    list-item-leading-icon-color: var(--mat-sys-primary),
-    list-item-trailing-icon-color: var(--mat-sys-primary)
-  ));
+  @include mat.list-overrides(
+    (
+      list-item-leading-icon-color: var(--mat-sys-primary),
+      list-item-trailing-icon-color: var(--mat-sys-primary),
+    )
+  );
 }
-[iconColor="secondary"] {
-   @include mat.icon-overrides((
-    color: var(--mat-sys-secondary),
-  ));
+[iconColor='secondary'] {
+  @include mat.icon-overrides(
+    (
+      color: var(--mat-sys-secondary),
+    )
+  );
 
-  @include mat.list-overrides((
-    list-item-leading-icon-color: var(--mat-sys-secondary),
-    list-item-hover-leading-icon-color: var(--mat-sys-secondary),
-    list-item-trailing-icon-color: var(--mat-sys-secondary),
-    list-item-hover-trailing-icon-color: var(--mat-sys-secondary)
-  ));
+  @include mat.list-overrides(
+    (
+      list-item-leading-icon-color: var(--mat-sys-secondary),
+      list-item-hover-leading-icon-color: var(--mat-sys-secondary),
+      list-item-trailing-icon-color: var(--mat-sys-secondary),
+      list-item-hover-trailing-icon-color: var(--mat-sys-secondary),
+    )
+  );
 }
-[iconColor="tertiary"] {
-   @include mat.icon-overrides((
-    color: var(--mat-sys-tertiary),
-  ));
+[iconColor='tertiary'] {
+  @include mat.icon-overrides(
+    (
+      color: var(--mat-sys-tertiary),
+    )
+  );
 
-  @include mat.list-overrides((
-    list-item-leading-icon-color: var(--mat-sys-tertiary),
-    list-item-hover-leading-icon-color: var(--mat-sys-tertiary),
-    list-item-trailing-icon-color: var(--mat-sys-tertiary),
-    list-item-hover-trailing-icon-color: var(--mat-sys-tertiary)
-  ));
+  @include mat.list-overrides(
+    (
+      list-item-leading-icon-color: var(--mat-sys-tertiary),
+      list-item-hover-leading-icon-color: var(--mat-sys-tertiary),
+      list-item-trailing-icon-color: var(--mat-sys-tertiary),
+      list-item-hover-trailing-icon-color: var(--mat-sys-tertiary),
+    )
+  );
 }
-[iconColor="success"] {
-   @include mat.icon-overrides((
-    color: light-dark(#006d33, #00e472),
-  ));
+[iconColor='success'] {
+  @include mat.icon-overrides(
+    (
+      color: light-dark(#006d33, #00e472),
+    )
+  );
 
-  @include mat.list-overrides((
-    list-item-leading-icon-color: light-dark(#006d33, #00e472),
-    list-item-hover-leading-icon-color: light-dark(#006d33, #00e472),
-    list-item-trailing-icon-color: light-dark(#006d33, #00e472),
-    list-item-hover-trailing-icon-color: light-dark(#006d33, #00e472)
-  ));
+  @include mat.list-overrides(
+    (
+      list-item-leading-icon-color: light-dark(#006d33, #00e472),
+      list-item-hover-leading-icon-color: light-dark(#006d33, #00e472),
+      list-item-trailing-icon-color: light-dark(#006d33, #00e472),
+      list-item-hover-trailing-icon-color: light-dark(#006d33, #00e472),
+    )
+  );
 }
-[iconColor="warning"] {
-   @include mat.icon-overrides((
-    color: light-dark(#626200, #cccc26),
-  ));
+[iconColor='warning'] {
+  @include mat.icon-overrides(
+    (
+      color: light-dark(#626200, #cccc26),
+    )
+  );
 
-  @include mat.list-overrides((
-    list-item-leading-icon-color: light-dark(#626200, #cccc26),
-    list-item-hover-leading-icon-color: light-dark(#626200, #cccc26),
-    list-item-trailing-icon-color: light-dark(#626200, #cccc26),
-    list-item-hover-trailing-icon-color: light-dark(#626200, #cccc26)
-  ));
+  @include mat.list-overrides(
+    (
+      list-item-leading-icon-color: light-dark(#626200, #cccc26),
+      list-item-hover-leading-icon-color: light-dark(#626200, #cccc26),
+      list-item-trailing-icon-color: light-dark(#626200, #cccc26),
+      list-item-hover-trailing-icon-color: light-dark(#626200, #cccc26),
+    )
+  );
 }
-[iconColor="info"] {
-  @include mat.icon-overrides((
-    color: light-dark(#005cbb, #abc7ff),
-  ));
+[iconColor='info'] {
+  @include mat.icon-overrides(
+    (
+      color: light-dark(#005cbb, #abc7ff),
+    )
+  );
 
-  @include mat.list-overrides((
-    list-item-leading-icon-color: light-dark(#005cbb, #abc7ff),
-    list-item-hover-leading-icon-color: light-dark(#005cbb, #abc7ff),
-    list-item-trailing-icon-color: light-dark(#005cbb, #abc7ff),
-    list-item-hover-trailing-icon-color: light-dark(#005cbb, #abc7ff)
-  ));
+  @include mat.list-overrides(
+    (
+      list-item-leading-icon-color: light-dark(#005cbb, #abc7ff),
+      list-item-hover-leading-icon-color: light-dark(#005cbb, #abc7ff),
+      list-item-trailing-icon-color: light-dark(#005cbb, #abc7ff),
+      list-item-hover-trailing-icon-color: light-dark(#005cbb, #abc7ff),
+    )
+  );
 }
 
-[iconColor="error"] {
-  @include mat.icon-overrides((
-    color: var(--mat-sys-error)
-  ));
+[iconColor='error'] {
+  @include mat.icon-overrides(
+    (
+      color: var(--mat-sys-error),
+    )
+  );
 
-  @include mat.list-overrides((
-    list-item-leading-icon-color: var(--mat-sys-error),
-    list-item-hover-leading-icon-color: var(--mat-sys-error),
-    list-item-trailing-icon-color: var(--mat-sys-error),
-    list-item-hover-trailing-icon-color: var(--mat-sys-error)
-  ));
+  @include mat.list-overrides(
+    (
+      list-item-leading-icon-color: var(--mat-sys-error),
+      list-item-hover-leading-icon-color: var(--mat-sys-error),
+      list-item-trailing-icon-color: var(--mat-sys-error),
+      list-item-hover-trailing-icon-color: var(--mat-sys-error),
+    )
+  );
 }

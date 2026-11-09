@@ -90,9 +90,7 @@ export class ProductsManagerComponent implements OnInit {
 
   readonly isSearchMode = computed(() => this.debouncedSearch().trim().length > 0);
 
-  readonly searchTooShort = computed(() =>
-    isSearchTooShort(searchWordsFromTerm(this.debouncedSearch())),
-  );
+  readonly searchTooShort = computed(() => isSearchTooShort(searchWordsFromTerm(this.debouncedSearch())));
 
   readonly activity = computed<'tools' | null>(() => (this.#tools.busy() ? 'tools' : null));
 

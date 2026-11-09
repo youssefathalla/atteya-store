@@ -13,11 +13,7 @@ import {
 /**
  * Validates a single hero action button.
  */
-export function validateHeroAction(
-  action: HeroAction,
-  actionIndex: number,
-  prefix: string,
-): string | null {
+export function validateHeroAction(action: HeroAction, actionIndex: number, prefix: string): string | null {
   if (!action.label || action.label.trim().length === 0) {
     return `${prefix}Action #${actionIndex + 1} requires a button label.`;
   }
@@ -30,11 +26,7 @@ export function validateHeroAction(
 /**
  * Validates a single hero card/slide.
  */
-export function validateHeroSlide(
-  slide: HeroSlide,
-  slideIndex: number,
-  totalSlides: number,
-): string | null {
+export function validateHeroSlide(slide: HeroSlide, slideIndex: number, totalSlides: number): string | null {
   const prefix = totalSlides > 1 ? `Banner #${slideIndex + 1}: ` : '';
 
   if (!slide.headline || slide.headline.trim().length < 3) {
@@ -81,10 +73,7 @@ export function validateHomeHeroDraft(hero: HomeHero): string | null {
 /**
  * Validates a single Shop Category card in Section 2.
  */
-export function validateShopCategoryCard(
-  card: ShopCategoryCard,
-  cardIndex: number,
-): string | null {
+export function validateShopCategoryCard(card: ShopCategoryCard, cardIndex: number): string | null {
   const prefix = `Section 2 • Card #${cardIndex + 1}: `;
 
   if (!card.buttonLabel || card.buttonLabel.trim().length === 0) {
@@ -106,9 +95,7 @@ export function validateShopCategoryCard(
 /**
  * Validates Section 2 (Shop Categories) before publishing.
  */
-export function validateHomeShopCategoriesDraft(
-  shopCategories: HomeShopCategories,
-): string | null {
+export function validateHomeShopCategoriesDraft(shopCategories: HomeShopCategories): string | null {
   if (!shopCategories.title || shopCategories.title.trim().length === 0) {
     return 'Section 2: Section title cannot be empty (e.g. "Shop").';
   }
@@ -133,10 +120,7 @@ function isInternalLink(value: string): boolean {
 /**
  * Validates one category-list link. The photo is decorative, so a description is optional.
  */
-export function validateNavListItem(
-  item: HomeNavListItem,
-  itemIndex: number,
-): string | null {
+export function validateNavListItem(item: HomeNavListItem, itemIndex: number): string | null {
   const name = item.label.trim();
   const prefix = `Section 3, link ${itemIndex + 1}: `;
 

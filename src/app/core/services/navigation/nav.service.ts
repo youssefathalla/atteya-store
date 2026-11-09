@@ -1,13 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import {
-  computed,
-  DestroyRef,
-  inject,
-  PLATFORM_ID,
-  Service,
-  signal,
-  TransferState,
-} from '@angular/core';
+import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal, TransferState } from '@angular/core';
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { CatalogService } from '@core/services/products/catalog.service';

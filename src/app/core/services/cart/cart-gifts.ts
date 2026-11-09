@@ -11,7 +11,10 @@ export const FALLBACK_GIFT_NAME = 'Free gift';
  * A product with no colour, several colours, or a name that already ends with the colour keeps
  * its name.
  */
-export function giftProductLabel(product: { readonly name: string; readonly colors?: readonly string[] }): string {
+export function giftProductLabel(product: {
+  readonly name: string;
+  readonly colors?: readonly string[];
+}): string {
   const name = product.name.trim();
   const colors = product.colors ?? [];
   if (colors.length !== 1 || colors[0] === 'multi') return name;

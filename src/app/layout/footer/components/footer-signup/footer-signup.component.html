@@ -29,7 +29,12 @@
     </button>
   </div>
 
-  <p class="font-body-sm min-h-5" role="status" aria-live="polite" [class.text-error]="feedback()?.tone === 'error'">
+  <p
+    class="font-body-sm min-h-5"
+    role="status"
+    aria-live="polite"
+    [class.text-error]="feedback()?.tone === 'error'"
+  >
     {{ feedback()?.text }}
   </p>
 </form>

@@ -1,13 +1,7 @@
 // GENERATED — edit functions/src/offers/engine
 import { liveOffers } from './item-price';
 import { matchProduct, matchVariant } from './match';
-import type {
-  Offer,
-  OfferGift,
-  PricingContext,
-  ProductFacts,
-  VariantFacts,
-} from './types';
+import type { Offer, OfferGift, PricingContext, ProductFacts, VariantFacts } from './types';
 
 /** Most gifts in one Free gift offer (e.g. a shirt and socks). */
 export const MAX_OFFER_GIFTS = 5;

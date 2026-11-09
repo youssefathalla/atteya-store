@@ -36,14 +36,7 @@ const CAIRO_DISPLAY_FORMATTER = new Intl.DateTimeFormat('en-GB', {
  * dynamically accounting for Egypt DST (+02:00 / +03:00).
  */
 export function cairoWallTimeToDate(wall: CairoWallTime): Date {
-  const targetUtcLikeMs = Date.UTC(
-    wall.year,
-    wall.month - 1,
-    wall.day,
-    wall.hour,
-    wall.minute,
-    wall.second,
-  );
+  const targetUtcLikeMs = Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second);
 
   // Two-pass refinement handles DST transitions accurately.
   let guessMs = targetUtcLikeMs - 2 * 3600_000;
@@ -67,15 +60,11 @@ export function cairoWallTimeToDate(wall: CairoWallTime): Date {
  * Parses an HTML `datetime-local` or `YYYY-MM-DD` string in Africa/Cairo time.
  * When `endOfDayIfDateOnly` is true, a date-only string resolves to 23:59:59.
  */
-export function parseCairoDateTimeInput(
-  raw: string,
-  endOfDayIfDateOnly = false,
-): Date | null {
+export function parseCairoDateTimeInput(raw: string, endOfDayIfDateOnly = false): Date | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
-  const match =
-    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(trimmed);
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(trimmed);
   if (!match) return null;
 
   const year = Number.parseInt(match[1], 10);
@@ -86,11 +75,7 @@ export function parseCairoDateTimeInput(
   const hour = hasTime ? Number.parseInt(match[4], 10) : endOfDayIfDateOnly ? 23 : 0;
   const minute = hasTime ? Number.parseInt(match[5], 10) : endOfDayIfDateOnly ? 59 : 0;
   const second =
-    match[6] !== undefined
-      ? Number.parseInt(match[6], 10)
-      : endOfDayIfDateOnly && !hasTime
-        ? 59
-        : 0;
+    match[6] !== undefined ? Number.parseInt(match[6], 10) : endOfDayIfDateOnly && !hasTime ? 59 : 0;
 
   return cairoWallTimeToDate({ year, month, day, hour, minute, second });
 }

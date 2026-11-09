@@ -68,9 +68,7 @@
           <!-- The only way off this step without agreeing (every other page sends them back). -->
           <p class="font-body-sm text-on-surface-variant elements-start gap-1">
             Not your account?
-            <button matButton type="button" (click)="auth.logout()" [disabled]="isBusy()">
-              Sign Out
-            </button>
+            <button matButton type="button" (click)="auth.logout()" [disabled]="isBusy()">Sign Out</button>
           </p>
         </div>
       } @else {
@@ -144,7 +142,9 @@
               matButton="filled"
               type="submit"
               [disabled]="isBusy()"
-              [attr.aria-label]="isEmailBusy() ? (isCreateIntent() ? 'Creating account...' : 'Signing in...') : null"
+              [attr.aria-label]="
+                isEmailBusy() ? (isCreateIntent() ? 'Creating account...' : 'Signing in...') : null
+              "
             >
               @if (isEmailBusy()) {
                 <mat-progress-spinner mode="indeterminate" diameter="18" />

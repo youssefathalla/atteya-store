@@ -29,10 +29,7 @@ export function leaveAfterSignIn(
     const ready = auth.isAuthReady();
     const signedIn = auth.isAuthenticated();
     const hold =
-      auth.needsGoogleLink() ||
-      auth.linkingGoogle() ||
-      !auth.consentReady() ||
-      auth.needsConsent();
+      auth.needsGoogleLink() || auth.linkingGoogle() || !auth.consentReady() || auth.needsConsent();
     const admin = auth.isAdmin();
     const requested = returnUrl();
     if (!ready || !signedIn || hold || left) return;

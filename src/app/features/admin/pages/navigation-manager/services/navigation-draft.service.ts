@@ -62,10 +62,7 @@ export class NavigationDraftService {
     const cloned = structuredClone(source) as NavCategory[];
     this.draftCategories.set(cloned);
     const currentSelected = this.selectedCategoryId();
-    if (
-      cloned.length > 0 &&
-      (!currentSelected || !cloned.some((c) => c.id === currentSelected))
-    ) {
+    if (cloned.length > 0 && (!currentSelected || !cloned.some((c) => c.id === currentSelected))) {
       this.selectedCategoryId.set(cloned[0].id);
     }
   }
@@ -90,9 +87,7 @@ export class NavigationDraftService {
 
     this.draftCategories.update((list) => [...list, newCat]);
     this.selectedCategoryId.set(newId);
-    this.#snackbar.info(
-      label ? `Category "${label}" added to draft.` : 'New category added to draft.',
-    );
+    this.#snackbar.info(label ? `Category "${label}" added to draft.` : 'New category added to draft.');
   }
 
   deleteCategory(id: string): void {
@@ -130,9 +125,7 @@ export class NavigationDraftService {
     if (!current) return;
 
     this.isDraftDirty.set(true);
-    this.draftCategories.update((list) =>
-      list.map((c) => (c.id === current.id ? updater(c) : c)),
-    );
+    this.draftCategories.update((list) => list.map((c) => (c.id === current.id ? updater(c) : c)));
   }
 
   #updateColumns(updater: (columns: MegaMenuColumn[]) => MegaMenuColumn[]): void {
@@ -167,9 +160,7 @@ export class NavigationDraftService {
   addColumn(data?: { title: string }): void {
     const title = data?.title?.trim() ?? '';
     this.#updateColumns((cols) => [...cols, { title, links: [] }]);
-    this.#snackbar.info(
-      title ? `Column "${title}" added to mega menu.` : 'New column added to mega menu.',
-    );
+    this.#snackbar.info(title ? `Column "${title}" added to mega menu.` : 'New column added to mega menu.');
   }
 
   deleteColumn(colIndex: number): void {
@@ -177,9 +168,7 @@ export class NavigationDraftService {
   }
 
   updateColumnTitle(colIndex: number, title: string): void {
-    this.#updateColumns((cols) =>
-      cols.map((col, idx) => (idx === colIndex ? { ...col, title } : col)),
-    );
+    this.#updateColumns((cols) => cols.map((col, idx) => (idx === colIndex ? { ...col, title } : col)));
   }
 
   dropColumn(event: CdkDragDrop<MegaMenuColumn[]>): void {
@@ -192,10 +181,7 @@ export class NavigationDraftService {
   }
 
   // --- Link Management ---
-  addLink(
-    colIndex: number,
-    data?: { label: string; path: string; badge?: string; isBrand?: boolean },
-  ): void {
+  addLink(colIndex: number, data?: { label: string; path: string; badge?: string; isBrand?: boolean }): void {
     const label = data?.label?.trim() ?? '';
     const path = data?.path?.trim() ? normalizePath(data.path) : '';
     const badge = data?.badge?.trim() ? data.badge.trim() : undefined;
@@ -209,21 +195,15 @@ export class NavigationDraftService {
     };
 
     this.#updateColumns((cols) =>
-      cols.map((col, idx) =>
-        idx === colIndex ? { ...col, links: [...col.links, newLink] } : col,
-      ),
+      cols.map((col, idx) => (idx === colIndex ? { ...col, links: [...col.links, newLink] } : col)),
     );
-    this.#snackbar.info(
-      label ? `Link "${label}" added to column.` : 'New link added to column.',
-    );
+    this.#snackbar.info(label ? `Link "${label}" added to column.` : 'New link added to column.');
   }
 
   deleteLink(colIndex: number, linkIndex: number): void {
     this.#updateColumns((cols) =>
       cols.map((col, idx) =>
-        idx === colIndex
-          ? { ...col, links: col.links.filter((_, lIdx) => lIdx !== linkIndex) }
-          : col,
+        idx === colIndex ? { ...col, links: col.links.filter((_, lIdx) => lIdx !== linkIndex) } : col,
       ),
     );
   }
@@ -248,22 +228,16 @@ export class NavigationDraftService {
 
     const basePath = link.isBrand
       ? '/brand'
-      : (current.path || `/category/${slugify(current.label || current.id)}`);
+      : current.path || `/category/${slugify(current.label || current.id)}`;
     const slug = slugify(link.label || 'item');
     this.updateLinkField(colIndex, linkIndex, 'path', `${basePath}/${slug}`);
   }
 
-  updateLinkField(
-    colIndex: number,
-    linkIndex: number,
-    field: keyof MegaMenuLink,
-    value: unknown,
-  ): void {
+  updateLinkField(colIndex: number, linkIndex: number, field: keyof MegaMenuLink, value: unknown): void {
     const current = this.selectedCategory();
     if (!current) return;
 
-    const basePath =
-      current.path || `/category/${slugify(current.label || current.id)}`;
+    const basePath = current.path || `/category/${slugify(current.label || current.id)}`;
 
     this.#updateColumns((cols) =>
       cols.map((col, cIdx) => {

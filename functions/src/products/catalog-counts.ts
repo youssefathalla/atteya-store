@@ -38,10 +38,7 @@ export async function recountCatalog(db: Firestore, scope?: RecountScope): Promi
   ]);
 }
 
-async function resolveCategoryIds(
-  db: Firestore,
-  scoped?: readonly string[],
-): Promise<readonly string[]> {
+async function resolveCategoryIds(db: Firestore, scoped?: readonly string[]): Promise<readonly string[]> {
   if (scoped) {
     return [...new Set(scoped.filter((id) => id.length > 0))];
   }
@@ -51,10 +48,7 @@ async function resolveCategoryIds(
   return [...ids];
 }
 
-async function resolveBrandIds(
-  db: Firestore,
-  scoped?: readonly string[],
-): Promise<readonly string[]> {
+async function resolveBrandIds(db: Firestore, scoped?: readonly string[]): Promise<readonly string[]> {
   if (scoped) {
     return [...new Set(scoped.filter((id) => id.length > 0))];
   }
@@ -64,10 +58,7 @@ async function resolveBrandIds(
   return [...ids];
 }
 
-async function countCategories(
-  db: Firestore,
-  ids: readonly string[],
-): Promise<Record<string, number>> {
+async function countCategories(db: Firestore, ids: readonly string[]): Promise<Record<string, number>> {
   const entries = await Promise.all(
     ids.map(async (id) => {
       const snap = await db

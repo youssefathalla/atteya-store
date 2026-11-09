@@ -206,11 +206,7 @@ export function computeOfferStatus(offer: Offer, now: Date): OfferComputedStatus
   return 'live';
 }
 
-export function toOfferTableRow(
-  offer: Offer,
-  products: readonly PricedProduct[],
-  now: Date,
-): OfferTableRow {
+export function toOfferTableRow(offer: Offer, products: readonly PricedProduct[], now: Date): OfferTableRow {
   const status = computeOfferStatus(offer, now);
   let fullCount = 0;
   let partialCount = 0;

@@ -27,10 +27,7 @@ function bagMethod(id: PaymentMethodId, comingSoon = false): BagPaymentMethod {
  * (`STORE_INFO.payments.cardOrWallet`) is off, Card or Wallet is marked "Coming soon" and comes
  * last, after the methods shoppers can use today (checkout does the same).
  */
-export function bagPaymentMethods(
-  isEgypt: boolean,
-  cardOrWalletLive: boolean,
-): readonly BagPaymentMethod[] {
+export function bagPaymentMethods(isEgypt: boolean, cardOrWalletLive: boolean): readonly BagPaymentMethod[] {
   const cardOrWallet = bagMethod('paymob', !cardOrWalletLive);
   if (!isEgypt) return [cardOrWallet];
   return cardOrWalletLive

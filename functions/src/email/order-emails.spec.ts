@@ -151,11 +151,10 @@ describe('InstaPay emails', () => {
   });
 
   it('InstaPay placed without details set says we will send them', () => {
-    const email = renderOrderEmail(
-      'instapay-placed',
-      read(orderDoc({ paymentMethod: 'instapay' })),
-      { ...withPay, instapay: { address: '', number: '' } },
-    );
+    const email = renderOrderEmail('instapay-placed', read(orderDoc({ paymentMethod: 'instapay' })), {
+      ...withPay,
+      instapay: { address: '', number: '' },
+    });
     assert.match(email.text, /We'll send you the InstaPay details on WhatsApp/);
     assert.ok(!email.text.includes('screenshot'));
   });
@@ -217,7 +216,7 @@ describe('order email wording and amounts', () => {
     assert.ok(placed.text.includes('Shipping: Free'));
     assert.ok(!placed.text.includes('shipping fee of'));
     const confirmed = renderOrderEmail('cod-confirmed', order, ctx);
-    assert.ok(!confirmed.text.includes("received your shipping fee"));
+    assert.ok(!confirmed.text.includes('received your shipping fee'));
     const alert = renderOrderEmail('store-new-order', order, ctx);
     assert.ok(alert.text.includes(`Shipping Fee: Free\nCash at the Door: ${formatEgp(2370)}`));
     assert.ok(!alert.text.includes('arrives on InstaPay'), 'no fee to wait for');
@@ -287,9 +286,7 @@ describe('order email wording and amounts', () => {
     const email = renderOrderEmail('cod-placed', read(orderDoc({})), ctx);
     assert.ok(email.html.includes('Padel Racket &lt;Pro&gt;'));
     assert.ok(!email.html.includes('<Pro>'));
-    assert.ok(
-      email.html.includes('https://ik.imagekit.io/atteyastore/dev/products/p1/a%20b.jpg?tr='),
-    );
+    assert.ok(email.html.includes('https://ik.imagekit.io/atteyastore/dev/products/p1/a%20b.jpg?tr='));
   });
 
   it('skips orders without an email address for the shopper', () => {
@@ -334,7 +331,10 @@ describe('order email Buy X Get Y', () => {
 
 describe('order email help line', () => {
   it('shows the business WhatsApp number with a chat link when set', () => {
-    const email = renderOrderEmail('cod-placed', read(orderDoc({})), { ...ctx, whatsappNumber: '+20 120 565 8954' });
+    const email = renderOrderEmail('cod-placed', read(orderDoc({})), {
+      ...ctx,
+      whatsappNumber: '+20 120 565 8954',
+    });
     assert.ok(email.text.includes('Questions? Message us on WhatsApp: +20 120 565 8954'));
     assert.ok(email.html.includes('href="https://wa.me/201205658954"'));
     assert.ok(!email.text.includes('reply to this email'));
@@ -347,7 +347,10 @@ describe('order email help line', () => {
   });
 
   it('never puts the WhatsApp line in the store alert', () => {
-    const email = renderOrderEmail('store-new-order', read(orderDoc({})), { ...ctx, whatsappNumber: '+20 120 565 8954' });
+    const email = renderOrderEmail('store-new-order', read(orderDoc({})), {
+      ...ctx,
+      whatsappNumber: '+20 120 565 8954',
+    });
     assert.ok(!email.text.includes('Message us on WhatsApp'));
   });
 });
@@ -402,15 +405,26 @@ describe('large order: delivery fee to be agreed', () => {
     const changed = read(orderDoc({ feeAgreed: true, shippingEgp: 300 }));
     assert.equal(claimId('delivery-fee-set', set), 'abcdef123456_delivery-fee-set');
     assert.equal(claimId('delivery-fee-changed', changed), 'abcdef123456_delivery-fee-changed_300');
-    const withTime = readOrderForEmail('abcdef123456', { ...orderDoc({ feeAgreed: true, shippingEgp: 300 }), deliveryFeeSetAt: new Date(1_700_000_000_000) });
+    const withTime = readOrderForEmail('abcdef123456', {
+      ...orderDoc({ feeAgreed: true, shippingEgp: 300 }),
+      deliveryFeeSetAt: new Date(1_700_000_000_000),
+    });
     assert.ok(withTime);
     assert.equal(withTime.deliveryFeeSetAtMs, 1_700_000_000_000);
-    assert.equal(claimId('delivery-fee-changed', withTime), 'abcdef123456_delivery-fee-changed_1700000000000');
+    assert.equal(
+      claimId('delivery-fee-changed', withTime),
+      'abcdef123456_delivery-fee-changed_1700000000000',
+    );
   });
 
   it('placed emails say we will agree the fee on WhatsApp and ask for no payment', () => {
     for (const kind of ['cod-placed', 'instapay-placed'] as const) {
-      const order = read(orderDoc({ paymentMethod: kind === 'cod-placed' ? 'cash-on-delivery' : 'instapay', feeAgreed: false }));
+      const order = read(
+        orderDoc({
+          paymentMethod: kind === 'cod-placed' ? 'cash-on-delivery' : 'instapay',
+          feeAgreed: false,
+        }),
+      );
       const email = renderOrderEmail(kind, order, withPay);
       assert.match(email.text, /message you on WhatsApp to agree the delivery fee/);
       assert.match(email.text, /Shipping: We'll contact you/);

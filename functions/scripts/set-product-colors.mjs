@@ -56,8 +56,23 @@ const COLORS = {
 };
 
 const PALETTE = new Set([
-  'white', 'black', 'grey', 'beige', 'brown', 'navy', 'blue', 'light-blue', 'red',
-  'orange', 'yellow', 'pink', 'green', 'purple', 'gold', 'silver', 'multi',
+  'white',
+  'black',
+  'grey',
+  'beige',
+  'brown',
+  'navy',
+  'blue',
+  'light-blue',
+  'red',
+  'orange',
+  'yellow',
+  'pink',
+  'green',
+  'purple',
+  'gold',
+  'silver',
+  'multi',
 ]);
 
 const arg = (name) => {

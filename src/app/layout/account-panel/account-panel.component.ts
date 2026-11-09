@@ -63,7 +63,9 @@ export class AccountPanelComponent {
     () => this.profile.hasValue() && isProfileIncomplete(this.profile.value()),
   );
 
-  readonly latest = computed(() => (this.latestOrder.hasValue() ? (this.latestOrder.value()[0] ?? null) : null));
+  readonly latest = computed(() =>
+    this.latestOrder.hasValue() ? (this.latestOrder.value()[0] ?? null) : null,
+  );
   readonly latestLoading = computed(() => this.latestOrder.isLoading() && !this.latestOrder.hasValue());
 
   readonly favoritesReady = this.#favorites.ready;

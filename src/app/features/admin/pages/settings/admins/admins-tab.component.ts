@@ -97,9 +97,7 @@ export class AdminsTabComponent implements OnInit {
     const error = this.adminsResource.error();
     return error ? roleActionError(error) : '';
   });
-  readonly showSkeleton = computed(
-    () => this.adminsResource.isLoading() && !this.adminsResource.hasValue(),
-  );
+  readonly showSkeleton = computed(() => this.adminsResource.isLoading() && !this.adminsResource.hasValue());
   readonly columns = computed((): TableColumn<AdminTableRow>[] => {
     const base: TableColumn<AdminTableRow>[] = [
       { key: 'email', label: 'Email', sortable: true },

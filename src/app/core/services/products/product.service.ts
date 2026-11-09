@@ -67,12 +67,7 @@ export class ProductService {
       this.listPublished({ limit: max }),
     ]);
     const flagged = flaggedSnap.docs.map((item) => item.data());
-    return mergeNewArrivalPool(
-      flagged,
-      newest,
-      (product) => timestampToMs(product.updatedAt) ?? 0,
-      max,
-    );
+    return mergeNewArrivalPool(flagged, newest, (product) => timestampToMs(product.updatedAt) ?? 0, max);
   }
 
   async getBySlug(slug: string): Promise<Product | null> {

@@ -13,15 +13,9 @@ import { map } from 'rxjs';
  *   Defaults to `1024`.
  * @param initialValue - Fallback value before the first browser match evaluation (default `true`).
  */
-export function useBreakpoint(
-  breakpoint: number | string = 1024,
-  initialValue = true,
-): Signal<boolean> {
+export function useBreakpoint(breakpoint: number | string = 1024, initialValue = true): Signal<boolean> {
   const breakpointObserver = inject(BreakpointObserver);
   const query = typeof breakpoint === 'number' ? `(min-width: ${breakpoint}px)` : breakpoint;
 
-  return toSignal(
-    breakpointObserver.observe(query).pipe(map(({ matches }) => matches)),
-    { initialValue },
-  );
+  return toSignal(breakpointObserver.observe(query).pipe(map(({ matches }) => matches)), { initialValue });
 }

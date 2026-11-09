@@ -8,19 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Keep in sync with LoaderHeight in src/app/shared/ui/loader/loader.model.ts */
-const LOADER_HEIGHTS = new Set([
-  '10',
-  '20',
-  '30',
-  '40',
-  '50',
-  '60',
-  '70',
-  '80',
-  '90',
-  'full',
-  'parent',
-]);
+const LOADER_HEIGHTS = new Set(['10', '20', '30', '40', '50', '60', '70', '80', '90', 'full', 'parent']);
 
 /**
  * @param {string} html
@@ -155,10 +143,7 @@ export function assertStorefrontAntiFlicker(cwd = process.cwd()) {
   const categoryResult = checkCategoryListingAntiFlicker(categoryTs, categoryHtml);
   if (!categoryResult.ok) throw new Error(categoryResult.reason);
 
-  const navTs = fs.readFileSync(
-    path.resolve(src, 'app/core/services/navigation/nav.service.ts'),
-    'utf8',
-  );
+  const navTs = fs.readFileSync(path.resolve(src, 'app/core/services/navigation/nav.service.ts'), 'utf8');
   const routesTs = fs.readFileSync(path.resolve(src, 'app/app.routes.ts'), 'utf8');
   const catalogTs = fs.readFileSync(
     path.resolve(src, 'app/core/services/products/catalog.service.ts'),

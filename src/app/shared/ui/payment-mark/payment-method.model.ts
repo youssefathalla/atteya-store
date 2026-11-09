@@ -5,8 +5,7 @@ export type PaymentMethodId = CheckoutPaymentMethod;
 
 /** How a method is shown: its brand logo, or one or two icons from our icon font. */
 export type PaymentMark =
-  | { readonly kind: 'logo' }
-  | { readonly kind: 'icons'; readonly icons: readonly string[] };
+  { readonly kind: 'logo' } | { readonly kind: 'icons'; readonly icons: readonly string[] };
 
 export interface PaymentMethodInfo {
   /** The method's name, written as a name: "InstaPay", "Card or Wallet", "Cash on Delivery". */

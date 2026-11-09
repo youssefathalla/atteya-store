@@ -155,7 +155,10 @@ const width = Math.min(48, Math.max(4, ...plan.map((row) => row.name.length)));
 console.log(`${'NAME'.padEnd(width)}  OLD SLUG -> NEW SLUG`);
 for (const row of plan) {
   const name = row.name.length > width ? `${row.name.slice(0, width - 1)}…` : row.name.padEnd(width);
-  const move = row.oldSlug === row.newSlug ? `${row.oldSlug}  unchanged` : `${row.oldSlug || '(none)'} -> ${row.newSlug}`;
+  const move =
+    row.oldSlug === row.newSlug
+      ? `${row.oldSlug}  unchanged`
+      : `${row.oldSlug || '(none)'} -> ${row.newSlug}`;
   const clash = row.clashWith ? `  CLASH: "${row.clashWith}" was taken, rename this product` : '';
   console.log(`${name}  ${move}${clash}`);
 }

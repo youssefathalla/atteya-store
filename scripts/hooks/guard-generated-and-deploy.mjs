@@ -28,9 +28,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const SHELL_TOOLS = new Set(['Bash', 'PowerShell']);
 
-/** `firebase deploy` at the start of a command or after `;`, `&&`, `||`, `|`, `npx [-y]`, `&` (PowerShell call). */
-const RAW_DEPLOY = /(?:^|[;&|]\s*|\bnpx\s+(?:-y\s+|--yes\s+)?)firebase(?:-tools)?(?:\.cmd)?\s+deploy\b/im;
-
 /** Repo-relative path with forward slashes, or null when the file is outside the repo. */
 export function repoPath(filePath, root = ROOT) {
   if (!filePath) return null;
@@ -48,7 +45,9 @@ export function sourceFor(relative, root = ROOT) {
   const skill = relative.match(/^\.claude\/skills\/([^/]+)\/(.+)$/i);
   if (skill) {
     const [, name, rest] = skill;
-    const owner = existsSync(path.join(root, '.cursor', 'skills', name)) ? '.cursor/skills' : '.agents/skills';
+    const owner = existsSync(path.join(root, '.cursor', 'skills', name))
+      ? '.cursor/skills'
+      : '.agents/skills';
     return { source: `${owner}/${name}/${rest}`, sync: 'npm run sync:agents' };
   }
   if (lower === '.claude/rules/design-system.md' || lower === '.agents/rules/design-system.md') {
@@ -73,20 +72,23 @@ export function sourceFor(relative, root = ROOT) {
 }
 
 /**
- * The command with heredoc bodies, PowerShell here-strings and quoted strings removed, so text that only
- * mentions `firebase deploy` (a commit message, a PR body) is not mistaken for running it.
+ * The Firebase CLI as a word: `firebase`, `firebase-tools`, with an optional `@version`, a `.cmd` / `.ps1` /
+ * `.exe` / `.js` ending, and any path or quote in front (`./node_modules/.bin/firebase`, `"C:\…\firebase.cmd"`).
+ * `firebase-guard.mjs` or `src/firebase.ts` don't match: the word must end there.
  */
-export function withoutQuotedText(command) {
-  return command
-    .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?:\n|$)/g, '\n')
-    .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '')
-    .replace(/'[^'\n]*'/g, "''")
-    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
-    .replace(/`[^`\n]*`/g, '');
-}
-
+const FIREBASE_CLI =
+  /(?:^|[\s"'`(;&|=\\/])firebase(?:-tools)?(?:@[\w.-]+)?(?:\.(?:cmd|ps1|exe|js|cjs|mjs))?(?=$|[\s"'`);&|])/im;
+/** `deploy` as a word, or `deploy:<target>`. `scripts/deploy.mjs` doesn't match. */
+const DEPLOY_WORD = /(?:^|[\s"'`(;&|=])deploy(?::[\w,:-]+)?(?=$|[\s"'`);&|])/im;
+/**
+ * True when the command names the Firebase CLI and also has the word `deploy`, anywhere in its text. On purpose
+ * this reads no shell syntax at all (quotes, heredocs, substitutions, wrappers, aliases, flags, line breaks):
+ * every way of running a deploy has both words, so none can slip through. A command that only mentions it is
+ * blocked too; the message says to write that text to a file first (Write tool, then `git commit -F <file>` or
+ * `gh … --body-file <file>`) or to search with the Grep tool.
+ */
 export function isRawDeploy(command) {
-  return typeof command === 'string' && RAW_DEPLOY.test(withoutQuotedText(command));
+  return typeof command === 'string' && FIREBASE_CLI.test(command) && DEPLOY_WORD.test(command);
 }
 
 /** The reason to block this call, or null to let it through. */
@@ -106,7 +108,9 @@ export function blockReason(input, root = ROOT) {
     return (
       'Raw `firebase deploy` skips the branch guard, the index check and the prod confirmation. ' +
       'Use the npm scripts instead: `npm run fb:fn:dev`, `npm run fb:rules:dev`, `npm run fb:indexes:dev` ' +
-      'or `npm run fb:deploy:dev` (prod only with Youssef\'s OK). See AGENTS.md, Deploy safety.'
+      "or `npm run fb:deploy:dev` (prod only with Youssef's OK). See AGENTS.md, Deploy safety. " +
+      'If the command only mentions it in text, put that text in a file (`git commit -F <file>`, `gh pr create --body-file <file>`, ' +
+      'written with the Write tool first) or search with the Grep tool.'
     );
   }
   return null;

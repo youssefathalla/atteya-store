@@ -14,7 +14,12 @@ $handset-landscape: '(max-width: 959.98px) and (orientation: landscape)';
 }
 
 @media #{$handset-portrait}, #{$handset-landscape} {
-:root {
-    @include mat.toolbar-overrides((title-text-size: 1.125rem,title-text-weight: 450));
+  :root {
+    @include mat.toolbar-overrides(
+      (
+        title-text-size: 1.125rem,
+        title-text-weight: 450,
+      )
+    );
   }
 }

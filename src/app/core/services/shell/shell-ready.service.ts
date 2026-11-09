@@ -15,15 +15,10 @@ export class ShellReadyService {
   readonly #platformId = inject(PLATFORM_ID);
 
   readonly chromeReady = computed(
-    () =>
-      this.#currency.ready() &&
-      this.#shipping.shellReady() &&
-      this.#nav.shellReady(),
+    () => this.#currency.ready() && this.#shipping.shellReady() && this.#nav.shellReady(),
   );
 
   readonly ready = computed(
-    () =>
-      this.chromeReady() &&
-      (isPlatformBrowser(this.#platformId) ? this.#auth.isAuthReady() : true),
+    () => this.chromeReady() && (isPlatformBrowser(this.#platformId) ? this.#auth.isAuthReady() : true),
   );
 }

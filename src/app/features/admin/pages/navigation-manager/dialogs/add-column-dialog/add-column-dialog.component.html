@@ -30,14 +30,8 @@
   </mat-dialog-content>
 
   <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">
-    <button matButton="text" type="button" (click)="cancel()">
-      Cancel
-    </button>
-    <button
-      matButton="filled"
-      type="submit"
-      [disabled]="!isValid()"
-    >
+    <button matButton="text" type="button" (click)="cancel()">Cancel</button>
+    <button matButton="filled" type="submit" [disabled]="!isValid()">
       <span>Create Column</span>
     </button>
   </mat-dialog-actions>

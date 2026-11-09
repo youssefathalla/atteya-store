@@ -78,7 +78,9 @@ describe('delivery fee to be agreed', () => {
   it('only applies while the order is open; confirmed and cancelled orders keep their stage', () => {
     assert.equal(orderStage(order({ ...TO_AGREE, status: 'cancelled' })), 'cancelled');
     assert.equal(
-      orderStage(order({ paymentMethod: 'cash-on-delivery', status: 'confirmed', shippingEgp: 200, totalEgp: 2200 })),
+      orderStage(
+        order({ paymentMethod: 'cash-on-delivery', status: 'confirmed', shippingEgp: 200, totalEgp: 2200 }),
+      ),
       'cod-confirmed',
     );
   });
@@ -91,7 +93,10 @@ describe('delivery fee to be agreed', () => {
       shopperWhatsappText('fee-to-be-agreed', input, INSTAPAY),
       'مرحباً، طلبي رقم #A1B2C3. عايز أعرف مصاريف الشحن.',
     );
-    assert.match(staffWhatsappText('fee-to-be-agreed', input, 'Ahmed Ali', INSTAPAY) ?? '', /نتفق معاك على مصاريف الشحن/);
+    assert.match(
+      staffWhatsappText('fee-to-be-agreed', input, 'Ahmed Ali', INSTAPAY) ?? '',
+      /نتفق معاك على مصاريف الشحن/,
+    );
   });
 
   it('once the fee is set the order asks for money as usual', () => {

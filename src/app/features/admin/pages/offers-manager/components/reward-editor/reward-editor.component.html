@@ -1,9 +1,7 @@
 <section class="surface-card p-5 w-full elements-start-col gap-4">
   <div>
     <h2 class="font-title-md font-bold!">What shoppers get</h2>
-    <p class="font-body-sm text-on-surface-variant">
-      Choose the discount or deal for matching products.
-    </p>
+    <p class="font-body-sm text-on-surface-variant">Choose the discount or deal for matching products.</p>
   </div>
 
   <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
@@ -140,7 +138,9 @@
                   <button
                     matIconButton
                     type="button"
-                    [attr.aria-label]="'Remove ' + (productNames().get(productId) ?? 'product') + ' from the free items'"
+                    [attr.aria-label]="
+                      'Remove ' + (productNames().get(productId) ?? 'product') + ' from the free items'
+                    "
                     (click)="removeFreeItemValue('productIds', productId)"
                   >
                     <mat-icon name="close" />
@@ -176,7 +176,9 @@
                   <button
                     matIconButton
                     type="button"
-                    [attr.aria-label]="'Remove ' + (categoryNames().get(categoryId) ?? 'category') + ' from the free items'"
+                    [attr.aria-label]="
+                      'Remove ' + (categoryNames().get(categoryId) ?? 'category') + ' from the free items'
+                    "
                     (click)="removeFreeItemValue('categoryIds', categoryId)"
                   >
                     <mat-icon name="close" />
@@ -210,7 +212,9 @@
                   <button
                     matIconButton
                     type="button"
-                    [attr.aria-label]="'Remove ' + (brandNames().get(brandId) ?? 'brand') + ' from the free items'"
+                    [attr.aria-label]="
+                      'Remove ' + (brandNames().get(brandId) ?? 'brand') + ' from the free items'
+                    "
                     (click)="removeFreeItemValue('brandIds', brandId)"
                   >
                     <mat-icon name="close" />
@@ -281,8 +285,8 @@
     </div>
   } @else if (selectedPickerKind() === 'freeGift' && r.kind === 'freeGift') {
     <p class="font-body-sm text-on-surface-variant">
-      Shoppers get one of each gift for every matching item they buy, and choose which product
-      (and size) they want. Gifts are free, ship with the order and come out of stock.
+      Shoppers get one of each gift for every matching item they buy, and choose which product (and size) they
+      want. Gifts are free, ship with the order and come out of stock.
     </p>
     <div class="w-full elements-start-col gap-3">
       @for (gift of r.gifts; track gift.id) {
@@ -314,7 +318,9 @@
                     <button
                       matIconButton
                       type="button"
-                      [attr.aria-label]="'Remove ' + (productNames().get(productId) ?? 'product') + ' from this gift'"
+                      [attr.aria-label]="
+                        'Remove ' + (productNames().get(productId) ?? 'product') + ' from this gift'
+                      "
                       (click)="removeGiftChoice(gift.id, productId)"
                     >
                       <mat-icon name="close" />

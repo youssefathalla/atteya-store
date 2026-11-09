@@ -22,8 +22,7 @@ export interface ProductTableRow {
 }
 
 export type StockChange =
-  | { readonly stockBySize: Readonly<Record<string, number>> }
-  | { readonly stock: number };
+  { readonly stockBySize: Readonly<Record<string, number>> } | { readonly stock: number };
 
 export interface StockResult {
   readonly stock: number;

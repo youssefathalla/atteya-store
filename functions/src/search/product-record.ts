@@ -1,8 +1,4 @@
-import {
-  displayPrice,
-  type Offer,
-  type PricedProduct,
-} from '../offers/engine/index.js';
+import { displayPrice, type Offer, type PricedProduct } from '../offers/engine/index.js';
 import { cardShortDescription } from '../products/card-short-description.js';
 import { PRODUCT_TYPES, sizeRank, type ProductTypeId } from '../products/catalog-mapping.js';
 import { categoryIdsFor, DEFAULT_CATEGORY_FOR_TYPE } from '../products/catalog-taxonomy.js';
@@ -13,10 +9,7 @@ import {
   type MarketingBadgeKind,
   type MarketingBadgeStyle,
 } from '../products/marketing-badge.js';
-import {
-  PRODUCT_GENDER_IDS,
-  type ProductGenderId,
-} from '../products/product-form.js';
+import { PRODUCT_GENDER_IDS, type ProductGenderId } from '../products/product-form.js';
 import { readProductPlayerIds } from '../products/players.js';
 import type { CachedBrandInfo, CachedCategoryInfo } from './catalog-cache.js';
 
@@ -82,9 +75,7 @@ export interface ProductSearchRecord extends SearchOfferFields {
 
 const PRODUCT_GENDER_SET = new Set<string>(PRODUCT_GENDER_IDS);
 
-const TYPE_LABEL_BY_ID = new Map<string, string>(
-  PRODUCT_TYPES.map((entry) => [entry.id, entry.label]),
-);
+const TYPE_LABEL_BY_ID = new Map<string, string>(PRODUCT_TYPES.map((entry) => [entry.id, entry.label]));
 
 export function toSearchRecord(
   productId: string,
@@ -110,9 +101,7 @@ export function toSearchRecord(
   const brandName = brandsById.get(brandId)?.name ?? brandId;
   const typeLabel = TYPE_LABEL_BY_ID.get(type) ?? type;
   const modelGroup =
-    typeof data['modelGroup'] === 'string' && data['modelGroup'].trim()
-      ? data['modelGroup'].trim()
-      : null;
+    typeof data['modelGroup'] === 'string' && data['modelGroup'].trim() ? data['modelGroup'].trim() : null;
 
   const categoryIds = resolveCategoryIds(data, type);
   const mainCategory = readString(data['categoryId']);
@@ -128,9 +117,7 @@ export function toSearchRecord(
 
   const onSale = compareAtPrice !== null && compareAtPrice > price && price > 0;
   const discountPercent =
-    onSale && compareAtPrice !== null
-      ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
-      : 0;
+    onSale && compareAtPrice !== null ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100) : 0;
 
   const colors = readStringArray(data['colors']);
   const sizes = extractSizes(data['options']);
@@ -145,32 +132,24 @@ export function toSearchRecord(
   const shortDescription = cardShortDescription(summary, descriptionHtml);
   const rawStock = data['stock'];
   const inStock =
-    typeof rawStock === 'number' && Number.isFinite(rawStock)
-      ? rawStock > 0
-      : data['inStock'] === true;
+    typeof rawStock === 'number' && Number.isFinite(rawStock) ? rawStock > 0 : data['inStock'] === true;
   const image = extractPrimaryImage(data['images'], name);
   const colorSiblings = readColorSiblings(data['colorSiblings']);
   const createdAtMs = extractTimestampMs(data['createdAt']);
   const newArrivalUntilMs = extractTimestampMs(data['newArrivalUntil']);
 
-  const offerFields = computeProductOfferFields(
-    productId,
-    data,
-    offers,
-    now,
-    {
-      name,
-      brandId,
-      categoryIds,
-      type,
-      modelGroup,
-      colors,
-      sizes,
-      tags,
-      price,
-      compareAtPrice,
-    },
-  );
+  const offerFields = computeProductOfferFields(productId, data, offers, now, {
+    name,
+    brandId,
+    categoryIds,
+    type,
+    modelGroup,
+    colors,
+    sizes,
+    tags,
+    price,
+    compareAtPrice,
+  });
 
   return {
     objectID: productId,
@@ -297,15 +276,12 @@ export function searchRecordsEqual(
 function resolveCategoryIds(data: Record<string, unknown>, type: string): string[] {
   const raw = data['categoryIds'];
   if (Array.isArray(raw)) {
-    const cleaned = raw.filter(
-      (id): id is string => typeof id === 'string' && id.trim().length > 0,
-    );
+    const cleaned = raw.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
     if (cleaned.length > 0) {
       return Array.from(new Set(cleaned));
     }
   }
-  const defaultLeaf =
-    DEFAULT_CATEGORY_FOR_TYPE[type as ProductTypeId] ?? readString(data['categoryId']);
+  const defaultLeaf = DEFAULT_CATEGORY_FOR_TYPE[type as ProductTypeId] ?? readString(data['categoryId']);
   return defaultLeaf ? categoryIdsFor(defaultLeaf) : [];
 }
 
@@ -383,8 +359,7 @@ function extractTimestampMs(raw: unknown): number {
       if (typeof ms === 'number' && Number.isFinite(ms)) return ms;
     }
     const seconds =
-      (raw as { _seconds?: unknown; seconds?: unknown })._seconds ??
-      (raw as { seconds?: unknown }).seconds;
+      (raw as { _seconds?: unknown; seconds?: unknown })._seconds ?? (raw as { seconds?: unknown }).seconds;
     if (typeof seconds === 'number' && Number.isFinite(seconds)) {
       return Math.round(seconds * 1000);
     }

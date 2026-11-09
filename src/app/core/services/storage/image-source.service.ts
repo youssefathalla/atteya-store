@@ -47,10 +47,7 @@ function mapInputIssueToError(issue: ImageInputIssue): ImageInputError {
     case 'empty':
       return new ImageInputError('INVALID_INPUT', 'Please enter an image link or file path.');
     case 'unsupported-protocol':
-      return new ImageInputError(
-        'INVALID_INPUT',
-        'Only https:// image links are supported.',
-      );
+      return new ImageInputError('INVALID_INPUT', 'Only https:// image links are supported.');
     case 'malformed-url':
       return new ImageInputError(
         'INVALID_INPUT',
@@ -79,9 +76,7 @@ function isNotAllowed(err: unknown): boolean {
   if (typeof err !== 'object' || err === null || !('code' in err)) return false;
   const code = (err as { code?: unknown }).code;
   return (
-    code === 'storage/unauthorized' ||
-    code === 'functions/permission-denied' ||
-    code === 'permission-denied'
+    code === 'storage/unauthorized' || code === 'functions/permission-denied' || code === 'permission-denied'
   );
 }
 
@@ -180,10 +175,7 @@ export class ImageSourceService {
     }
 
     if (file.size > IMAGE_LIMITS.maxBytes) {
-      throw new ImageInputError(
-        'TOO_LARGE',
-        'This image is larger than 10MB. Please choose a smaller file.',
-      );
+      throw new ImageInputError('TOO_LARGE', 'This image is larger than 10MB. Please choose a smaller file.');
     }
   }
 
@@ -253,10 +245,7 @@ export class ImageSourceService {
   }
 
   /** Only checks that the photo is reachable. Don't store this size. */
-  async #probeImageKitWithRetries(
-    path: string,
-    attempts: number,
-  ): Promise<ImageDimensions | null> {
+  async #probeImageKitWithRetries(path: string, attempts: number): Promise<ImageDimensions | null> {
     const probeUrl = buildImageKitUrl(path, { w: 64, q: 60 });
     for (let i = 0; i < attempts; i++) {
       const dims = await this.#probeImageElement(probeUrl);

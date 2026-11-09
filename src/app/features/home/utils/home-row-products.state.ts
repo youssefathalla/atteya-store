@@ -33,9 +33,7 @@ export interface HomeRowProductSeed {
   readonly updatedAtMs: number;
 }
 
-export const HOME_PADEL_ROW_KEY = makeStateKey<readonly HomeRowProductSeed[] | null>(
-  'home-padel-row',
-);
+export const HOME_PADEL_ROW_KEY = makeStateKey<readonly HomeRowProductSeed[] | null>('home-padel-row');
 export const HOME_NEW_ARRIVALS_ROW_KEY = makeStateKey<readonly HomeRowProductSeed[] | null>(
   'home-new-arrivals-row',
 );
@@ -100,8 +98,7 @@ export function fromHomeRowProductSeed(seed: HomeRowProductSeed): Product {
     // Home cards never show players; the product page reads its own doc.
     players: [],
     marketingBadge: seed.marketingBadge ? { ...seed.marketingBadge } : null,
-    newArrivalUntil:
-      seed.newArrivalUntilMs != null ? Timestamp.fromMillis(seed.newArrivalUntilMs) : null,
+    newArrivalUntil: seed.newArrivalUntilMs != null ? Timestamp.fromMillis(seed.newArrivalUntilMs) : null,
     variants: [],
     published: seed.published,
     searchTokens: [],
@@ -133,8 +130,5 @@ export function putHomeRowSeed(
   isBrowser: boolean,
 ): void {
   if (isBrowser) return;
-  transfer.set(
-    key,
-    products.map(toHomeRowProductSeed),
-  );
+  transfer.set(key, products.map(toHomeRowProductSeed));
 }

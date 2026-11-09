@@ -1,21 +1,9 @@
 import { isPlatformBrowser } from '@angular/common';
-import {
-  computed,
-  DestroyRef,
-  inject,
-  PLATFORM_ID,
-  Service,
-  signal,
-  TransferState,
-} from '@angular/core';
+import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal, TransferState } from '@angular/core';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { CurrencyService } from '@core/services/currency/currency.service';
-import {
-  shippingFromFee,
-  type ShippingBox,
-  type ShippingSettings,
-} from '@core/services/offers/engine';
+import { shippingFromFee, type ShippingBox, type ShippingSettings } from '@core/services/offers/engine';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import {
   DEFAULT_EGYPT_BOXES,

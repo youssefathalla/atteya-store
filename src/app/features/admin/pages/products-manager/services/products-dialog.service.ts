@@ -12,11 +12,7 @@ import {
   ProductStockDialogComponent,
   ProductStockDialogData,
 } from '../dialogs/product-stock-dialog/product-stock-dialog.component';
-import type {
-  MigrateReport,
-  ReindexSearchReport,
-  StockChange,
-} from '../models/product-admin.model';
+import type { MigrateReport, ReindexSearchReport, StockChange } from '../models/product-admin.model';
 
 @Service()
 export class ProductsDialogService {

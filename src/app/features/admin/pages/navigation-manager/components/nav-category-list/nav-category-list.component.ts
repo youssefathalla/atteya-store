@@ -1,10 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import {
-  CdkDrag,
-  CdkDragDrop,
-  CdkDragHandle,
-  CdkDropList,
-} from '@angular/cdk/drag-drop';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from '@angular/cdk/drag-drop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -13,14 +8,7 @@ import { NavCategory } from '@core/services/navigation';
 @Component({
   selector: 'app-nav-category-list',
   templateUrl: './nav-category-list.component.html',
-  imports: [
-    CdkDropList,
-    CdkDrag,
-    CdkDragHandle,
-    MatButtonModule,
-    MatTooltipModule,
-    SharedIconModule,
-  ],
+  imports: [CdkDropList, CdkDrag, CdkDragHandle, MatButtonModule, MatTooltipModule, SharedIconModule],
 })
 export class NavCategoryListComponent {
   readonly categories = input.required<readonly NavCategory[]>();

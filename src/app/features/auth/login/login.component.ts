@@ -1,13 +1,4 @@
-import {
-  Component,
-  computed,
-  effect,
-  inject,
-  input,
-  OnInit,
-  signal,
-  untracked,
-} from '@angular/core';
+import { Component, computed, effect, inject, input, OnInit, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { submit } from '@angular/forms/signals';
@@ -27,11 +18,9 @@ import { leaveAfterSignIn } from '../utils/login-exit';
 
 type LoginAction = 'google' | 'email' | 'reset' | 'consent';
 
-const TERMS_REQUIRED_MESSAGE =
-  'Tick the box to agree to the Terms and Conditions and Privacy Policy.';
+const TERMS_REQUIRED_MESSAGE = 'Tick the box to agree to the Terms and Conditions and Privacy Policy.';
 
-const PASSWORD_RESET_NOTICE =
-  "If an account uses that email, we've sent a link to reset the password.";
+const PASSWORD_RESET_NOTICE = "If an account uses that email, we've sent a link to reset the password.";
 
 @Component({
   selector: 'app-login',
@@ -84,14 +73,9 @@ export class LoginComponent implements OnInit {
    * navigate. The page holds its last state (spinner) instead of flashing the form.
    */
   readonly #leaving = computed(
-    () =>
-      this.#auth.isAuthenticated() &&
-      !this.#auth.needsGoogleLink() &&
-      !this.#auth.needsConsent(),
+    () => this.#auth.isAuthenticated() && !this.#auth.needsGoogleLink() && !this.#auth.needsConsent(),
   );
-  readonly #active = computed(
-    () => this.#busy() || (this.#leaving() ? this.#lastAction() : ''),
-  );
+  readonly #active = computed(() => this.#busy() || (this.#leaving() ? this.#lastAction() : ''));
 
   /**
    * Before Firebase restores a session (or finishes the terms check), and while a person who
@@ -110,9 +94,7 @@ export class LoginComponent implements OnInit {
   readonly isResetting = computed(() => this.#active() === 'reset');
   readonly isConsentBusy = computed(() => this.#active() === 'consent');
   /** The "Almost done" step stays on screen after Continue until the page leaves. */
-  readonly showConsentStep = computed(
-    () => this.#auth.needsConsent() || this.isConsentBusy(),
-  );
+  readonly showConsentStep = computed(() => this.#auth.needsConsent() || this.isConsentBusy());
   readonly notice = this.#notice.asReadonly();
   /** Sign-in / create form feedback (must stay below the password field — AS-34). */
   readonly shownError = computed(() =>
@@ -147,8 +129,7 @@ export class LoginComponent implements OnInit {
   async continueWithGoogle(): Promise<void> {
     if (this.isBusy()) return;
     await this.#run('google', async () => {
-      const consent =
-        this.isCreateIntent() && this.termsAccepted() ? this.#consentDraft() : undefined;
+      const consent = this.isCreateIntent() && this.termsAccepted() ? this.#consentDraft() : undefined;
       const outcome = await this.#auth.loginWithGoogle(consent);
       if (outcome === 'popup') this.#snackbar.success('Signed in');
     });
@@ -157,8 +138,7 @@ export class LoginComponent implements OnInit {
   onSubmit(event: Event): void {
     event.preventDefault();
     if (this.isBusy()) return;
-    const termsMissing =
-      this.isCreateIntent() && !this.#auth.needsGoogleLink() && !this.termsAccepted();
+    const termsMissing = this.isCreateIntent() && !this.#auth.needsGoogleLink() && !this.termsAccepted();
     this.#termsMissing.set(termsMissing);
     submit(this.loginForm, async () => {
       if (termsMissing) return;

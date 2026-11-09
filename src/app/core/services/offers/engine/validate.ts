@@ -62,10 +62,7 @@ export function validateOffer(
       });
     } else {
       const duplicate = others.find(
-        (other) =>
-          other.id !== draft.id &&
-          !other.archived &&
-          other.code?.trim().toUpperCase() === code,
+        (other) => other.id !== draft.id && !other.archived && other.code?.trim().toUpperCase() === code,
       );
       if (duplicate) {
         errors.push({
@@ -153,11 +150,7 @@ export function validateOffer(
   return { errors, warnings };
 }
 
-function validateConditionsShape(
-  conditions: OfferConditions,
-  label: string,
-  errors: OfferIssue[],
-): void {
+function validateConditionsShape(conditions: OfferConditions, label: string, errors: OfferIssue[]): void {
   if (conditions.anyOf.length > 10) {
     errors.push({
       code: `${label}.groups`,
@@ -233,10 +226,7 @@ function validateRewardErrors(
           break;
         }
         prevMin = tier.min;
-        if (
-          typeof tier.percent === 'number' &&
-          (tier.percent < 1 || tier.percent > 100)
-        ) {
+        if (typeof tier.percent === 'number' && (tier.percent < 1 || tier.percent > 100)) {
           errors.push({
             code: 'reward.tierPercent',
             message: 'Each tier percentage must be between 1 and 100.',
@@ -324,7 +314,10 @@ function validateGifts(
   const ids = new Set<string>();
   for (const gift of gifts) {
     if (!gift.id.trim() || ids.has(gift.id)) {
-      errors.push({ code: 'reward.giftId', message: 'Each gift needs its own id. Remove the gift and add it again.' });
+      errors.push({
+        code: 'reward.giftId',
+        message: 'Each gift needs its own id. Remove the gift and add it again.',
+      });
       break;
     }
     ids.add(gift.id);
