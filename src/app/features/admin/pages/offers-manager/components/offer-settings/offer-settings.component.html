@@ -3,7 +3,7 @@
     <div>
       <h2 class="font-title-md font-bold!">Offer details &amp; rules</h2>
       <p class="font-body-sm text-on-surface-variant">
-        Name your offer, choose who sees it, and set how it combines with other deals.
+        Name your offer, choose who sees it, and set how it works with products already on sale.
       </p>
     </div>
     <mat-checkbox [checked]="draft().active" (change)="toggleActive($event.checked)">
@@ -64,7 +64,7 @@
     </label>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
     <label class="elements-start-col gap-1 font-label-md">
       Who can get this offer
       <select
@@ -78,18 +78,6 @@
     </label>
 
     <label class="elements-start-col gap-1 font-label-md">
-      Combining with other offers
-      <select
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-        [value]="draft().stacking"
-        (change)="onStackingChange($event)"
-      >
-        <option value="stackable">Can combine with cart offers</option>
-        <option value="exclusive">Exclusive (blocks cart offers)</option>
-      </select>
-    </label>
-
-    <label class="elements-start-col gap-1 font-label-md">
       Products already on sale
       <select
         class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
@@ -98,7 +86,6 @@
       >
         <option value="bestOf">Best discount wins (recommended)</option>
         <option value="exclude">Skip products already on sale</option>
-        <option value="stack">Apply on top of sale price</option>
       </select>
     </label>
   </div>

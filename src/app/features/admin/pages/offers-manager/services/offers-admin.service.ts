@@ -19,6 +19,7 @@ import type { Offer, OfferDraft } from '@core/services/offers/engine';
 import { OFFER_CODES_COLLECTION, OFFERS_COLLECTION, toEngineOffer } from '@core/services/offers/offer.model';
 import { OfferCodeDocSchema, OfferDocSchema } from '@core/services/offers/offer.schema';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
+import { withoutStackSaleItems } from '../models/offer-admin.model';
 
 @Service()
 export class OffersAdminService {
@@ -95,7 +96,7 @@ export class OffersAdminService {
       },
       priority: Math.max(-100, Math.min(100, Math.round(draft.priority))),
       stacking: draft.stacking,
-      saleItems: draft.saleItems,
+      saleItems: withoutStackSaleItems(draft).saleItems,
       // A Free gift offer gives one set of gifts per qualifying item, so it is never a cart offer.
       scope: isGift ? 'item' : draft.scope,
       conditions: draft.conditions,

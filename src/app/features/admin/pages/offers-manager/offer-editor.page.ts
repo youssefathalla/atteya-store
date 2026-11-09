@@ -34,7 +34,11 @@ import { OfferPreviewComponent } from './components/offer-preview/offer-preview.
 import { OfferSettingsComponent } from './components/offer-settings/offer-settings.component';
 import { RewardEditorComponent } from './components/reward-editor/reward-editor.component';
 import { ScheduleEditorComponent } from './components/schedule-editor/schedule-editor.component';
-import { createEmptyOfferDraft, withoutEmptyFreeItemRules } from './models/offer-admin.model';
+import {
+  createEmptyOfferDraft,
+  withoutEmptyFreeItemRules,
+  withoutStackSaleItems,
+} from './models/offer-admin.model';
 import { OffersAdminService } from './services/offers-admin.service';
 
 @Component({
@@ -117,7 +121,7 @@ export class OfferEditorPageComponent implements OnInit {
 
       untracked(() => {
         if (value.offer) {
-          this.draft.set({ ...value.offer });
+          this.draft.set(withoutStackSaleItems({ ...value.offer }));
         } else {
           this.draft.set(createEmptyOfferDraft());
         }
