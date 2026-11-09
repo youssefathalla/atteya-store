@@ -4,7 +4,7 @@
     <h2 [id]="'pdp-gift-heading-' + current.offerId" class="font-title-sm font-bold!">{{ current.heading }}</h2>
   </header>
 
-  <div class="elements-start-col gap-5 p-4">
+  <div class="elements-start-col min-w-0 gap-5 p-4">
     <p class="font-body-md">Pick them below. They ship in the same parcel.</p>
 
     @for (step of steps(); track step.key) {
@@ -31,7 +31,7 @@
               />
             }
           </div>
-          <div class="w-full">
+          <div class="w-full min-w-0">
             <div
               class="scroll-row pdp-gift-row"
               appHorizontalScroll
