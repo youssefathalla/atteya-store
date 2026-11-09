@@ -43,28 +43,21 @@ export class FavoritesPageComponent implements OnInit {
 
   readonly favoritesReady = this.#favorites.ready;
 
+  /**
+   * Read by product id, never by the slug saved on the favorite: a product's web address can
+   * change (ATS-115), its id never does. The saved `slug` is only a leftover hint.
+   */
   readonly productsResource = resource({
     params: () => {
       if (!this.#favorites.ready()) return undefined;
-      return this.#favorites.items().map((item) => ({
-        productId: item.productId,
-        slug: item.slug,
-      }));
+      return this.#favorites.items().map((item) => item.productId);
     },
     loader: async ({ params }) => {
       if (params.length === 0) return [] as readonly Product[];
-      const loaded = await Promise.all(
-        params.map((item) => this.#products.getBySlug(item.slug)),
-      );
-      const bySlug = new Map<string, Product>();
-      for (const product of loaded) {
-        if (product) bySlug.set(product.slug, product);
-      }
-      // Keep favorite order (newest first from the service). Drop unpublished/missing.
-      return params.flatMap((item) => {
-        const product = bySlug.get(item.slug);
-        return product ? [product] : [];
-      });
+      const loaded = await Promise.all(params.map((id) => this.#products.getById(id)));
+      // Keep favorite order (newest first from the service). Drop unpublished/missing
+      // (an admin can read unpublished products, so check the flag too).
+      return loaded.filter((product): product is Product => product !== null && product.published);
     },
   });
 
