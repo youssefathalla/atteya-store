@@ -28,26 +28,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const SHELL_TOOLS = new Set(['Bash', 'PowerShell']);
 
-/** Shells that run their quoted argument as a command: the text inside is checked, not dropped. */
-const RUNS_QUOTED = /(?:^|\s)(?:-c|-Command|\/c)\s*$/i;
-/** Words that only start the real command (`env`, `npx`, `time`, PowerShell's `&` and `.` …). */
-const WRAPPERS = new Set([
-  'env',
-  'npx',
-  'bunx',
-  'time',
-  'sudo',
-  'command',
-  'exec',
-  'nohup',
-  'call',
-  '&',
-  '.',
-]);
-/** Package runners whose next word runs a package: `npm exec`, `pnpm dlx`, `yarn dlx`, `bun x`. */
-const RUNNERS = new Set(['npm', 'pnpm', 'yarn', 'bun']);
-const RUNNER_SUBCOMMANDS = new Set(['exec', 'dlx', 'x']);
-
 /** Repo-relative path with forward slashes, or null when the file is outside the repo. */
 export function repoPath(filePath, root = ROOT) {
   if (!filePath) return null;
@@ -91,180 +71,46 @@ export function sourceFor(relative, root = ROOT) {
   return null;
 }
 
-/** Index of the backtick closing the Bash command substitution opened at `open`, or -1. */
-function closingBacktick(text, open) {
-  let j = open + 1;
-  while (j < text.length) {
-    if (text[j] === '\\') j += 2;
-    else if (text[j] === '`') return j;
-    else j++;
-  }
-  return -1;
-}
+/**
+ * The Firebase CLI as a word: `firebase`, `firebase-tools`, with an optional `@version`, a `.cmd` / `.ps1` /
+ * `.exe` / `.js` ending, and any path or quote in front (`./node_modules/.bin/firebase`, `"C:\…\firebase.cmd"`).
+ * `firebase-guard.mjs` or `src/firebase.ts` don't match: the word must end there.
+ */
+const FIREBASE_CLI =
+  /(?:^|[\s"'`(;&|=\\/])firebase(?:-tools)?(?:@[\w.-]+)?(?:\.(?:cmd|ps1|exe|js|cjs|mjs))?(?=$|[\s"'`);&|])/im;
+/** `deploy` as a word, or `deploy:<target>`. `scripts/deploy.mjs` doesn't match. */
+const DEPLOY_WORD = /(?:^|[\s"'`(;&|=])deploy(?::[\w,:-]+)?(?=$|[\s"'`);&|])/im;
+/** A heredoc fed to one of these runs its body, so that body is still checked. */
+const SHELL_BEFORE_HEREDOC = /(?:^|[\s;&|(])(?:bash|sh|zsh|dash|pwsh|powershell|cmd)(?:\.exe)?\b[^\n]*$/i;
 
 /**
- * Index of the `)` matching the `(` at `open`, or -1. Quoted text and nested substitutions inside are skipped
- * whole, so a quote or parenthesis inside them (`$(firebase deploy --only "functions")`) does not end it early.
+ * The command without text that only feeds a file or a message: heredoc bodies (`git commit -F - <<'EOF'`,
+ * `gh pr create --body-file - <<EOF`) and PowerShell here-strings. A heredoc fed to a shell (`bash <<EOF`)
+ * keeps its body, because that body runs.
  */
-function closingParen(text, open, bash) {
-  let depth = 1;
-  for (let j = open + 1; j < text.length; j++) {
-    const c = text[j];
-    if (bash && c === '\\') {
-      j++;
-    } else if (c === '"' || c === "'") {
-      j = closingQuote(text, j, bash);
-      if (j < 0) return -1;
-    } else if (bash && c === '`') {
-      j = closingBacktick(text, j);
-      if (j < 0) return -1;
-    } else if (c === '(') {
-      depth++;
-    } else if (c === ')' && --depth === 0) {
-      return j;
-    }
-  }
-  return -1;
-}
-
-/**
- * Index of the quote closing the one at `open`, or -1. Inside double quotes, a `$( … )` (and a Bash backtick
- * substitution) is skipped whole, because quotes inside it belong to the inner command, not the outer string.
- */
-function closingQuote(text, open, bash) {
-  const ch = text[open];
-  if (ch === "'") return text.indexOf("'", open + 1);
-  let j = open + 1;
-  while (j < text.length) {
-    const c = text[j];
-    // Backslash escapes only inside Bash double quotes; PowerShell's `"C:\dir\"` closes at the last quote.
-    if (bash && c === '\\') {
-      j += 2;
-      continue;
-    }
-    if (c === ch) return j;
-    if (c === '$' && text[j + 1] === '(') {
-      const end = closingParen(text, j + 1, bash);
-      if (end >= 0) {
-        j = end + 1;
-        continue;
-      }
-    } else if (bash && c === '`') {
-      const end = closingBacktick(text, j);
-      if (end >= 0) {
-        j = end + 1;
-        continue;
-      }
-    }
-    j++;
-  }
-  return -1;
-}
-
-/**
- * Commands that still run inside a double-quoted string: `$( … )` in Bash and PowerShell, and backticks in Bash.
- * Returned as separate lines so each is checked like a command of its own, with its own quoted text removed.
- */
-function substitutionsIn(inner, shell) {
-  const bash = shell !== 'PowerShell';
-  let found = '';
-  for (let k = 0; k < inner.length; k++) {
-    if (bash && inner[k] === '\\') {
-      k++;
-    } else if (inner[k] === '$' && inner[k + 1] === '(') {
-      const end = closingParen(inner, k + 1, bash);
-      if (end < 0) continue;
-      found += '\n' + withoutQuotedText(inner.slice(k + 2, end), shell) + '\n';
-      k = end;
-    } else if (bash && inner[k] === '`') {
-      const end = closingBacktick(inner, k);
-      if (end < 0) continue;
-      found += '\n' + withoutQuotedText(inner.slice(k + 1, end), shell) + '\n';
-      k = end;
-    }
-  }
-  return found;
-}
-
-/**
- * The command with heredoc bodies, PowerShell here-strings and quoted text removed, so a commit message or
- * PR body that only mentions `firebase deploy` is not mistaken for running it. One scanner handles both
- * quote kinds, across newlines. Quoted text handed to a shell (`bash -c "…"`, `pwsh -Command '…'`,
- * `cmd /c "…"`) is kept as its own command, because that text does run.
- */
-export function withoutQuotedText(command, shell = 'Bash') {
-  const bash = shell !== 'PowerShell';
-  const text = command
-    .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?:\n|$)/g, '\n')
+export function withoutDocumentText(command) {
+  return command
+    .replace(
+      /<<-?\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)\n\s*\2\s*(?=\n|$)/g,
+      (whole, _q, _tag, rest, body, offset) => {
+        const lineStart = command.lastIndexOf('\n', offset) + 1;
+        const before = command.slice(lineStart, offset);
+        return SHELL_BEFORE_HEREDOC.test(before) ? `${rest}\n${body}\n` : rest;
+      },
+    )
     .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '');
-  const escapeChar = bash ? '\\' : '`';
-  let out = '';
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    // A comment (`#` at the start or after whitespace) runs nothing, and an apostrophe in it is not a quote.
-    if (ch === '#' && (i === 0 || /\s/.test(text[i - 1]))) {
-      while (i + 1 < text.length && text[i + 1] !== '\n') i++;
-      continue;
-    }
-    // The escape character outside quotes (Bash `\`, PowerShell backtick). At the end of a line it continues the
-    // command; before anything else (`\'`, `\\`) it makes that character literal, not a quote. Comments are
-    // skipped above first, so a trailing `\` inside a comment does not join the next line.
-    if (ch === escapeChar && i + 1 < text.length) {
-      const lineEnd = text[i + 1] === '\n' ? 1 : text[i + 1] === '\r' && text[i + 2] === '\n' ? 2 : 0;
-      if (lineEnd) {
-        out += ' ';
-        i += lineEnd;
-      } else {
-        out += ch + text[++i];
-      }
-      continue;
-    }
-    if (ch !== '"' && ch !== "'") {
-      out += ch;
-      continue;
-    }
-    const j = closingQuote(text, i, bash);
-    if (j < 0) {
-      // No closing quote: it wasn't a real quote, so keep the rest as it is rather than hide it.
-      out += text.slice(i);
-      break;
-    }
-    const inner = text.slice(i + 1, j);
-    if (RUNS_QUOTED.test(out)) out += '\n' + inner + '\n';
-    else out += '""' + (ch === '"' ? substitutionsIn(inner, shell) : '');
-    i = j;
-  }
-  return out;
 }
 
-/** True when one command segment runs the Firebase CLI with `deploy` (flags before it, a path or `@version` allowed). */
-function segmentDeploys(segment) {
-  const tokens = segment.trim().split(/\s+/).filter(Boolean);
-  let i = 0;
-  while (i < tokens.length) {
-    const lower = tokens[i].toLowerCase();
-    const isAssignment = /^[a-z_][a-z0-9_]*=/i.test(tokens[i]) || lower.startsWith('$env:');
-    if (isAssignment || WRAPPERS.has(lower)) i++;
-    else if (RUNNERS.has(lower) && RUNNER_SUBCOMMANDS.has(tokens[i + 1]?.toLowerCase())) i += 2;
-    else if (lower.startsWith('-'))
-      i++; // a wrapper's own flags: `npx -y`, `npm exec --`, `env -i`
-    else break;
-  }
-  const name = (tokens[i] ?? '')
-    .split(/[\\/]/)
-    .pop()
-    .toLowerCase()
-    .replace(/@[^@]*$/, '')
-    .replace(/\.(?:cmd|ps1|exe|js|cjs|mjs)$/, '');
-  if (name !== 'firebase' && name !== 'firebase-tools') return false;
-  return tokens.slice(i + 1).some((token) => /^deploy(?::|$)/i.test(token));
-}
-
-export function isRawDeploy(command, shell = 'Bash') {
+/**
+ * True when the command names the Firebase CLI and also says `deploy`, anywhere. On purpose this doesn't try to
+ * read shell syntax (quotes, substitutions, wrappers, flags, line continuations): every form of a real deploy
+ * has both words, so none can slip through. A command that only mentions it in quoted text is blocked too; the
+ * message says to put that text in a file (`git commit -F`, `gh … --body-file`) or search with the Grep tool.
+ */
+export function isRawDeploy(command) {
   if (typeof command !== 'string') return false;
-  return withoutQuotedText(command, shell)
-    .split(/;|&+|\|+|\n|\$\(|[()`]/)
-    .some(segmentDeploys);
+  const text = withoutDocumentText(command);
+  return FIREBASE_CLI.test(text) && DEPLOY_WORD.test(text);
 }
 
 /** The reason to block this call, or null to let it through. */
@@ -280,11 +126,13 @@ export function blockReason(input, root = ROOT) {
       `Make this change in ${target.source}, then run \`${target.sync}\` to update the copy.`
     );
   }
-  if (SHELL_TOOLS.has(tool) && isRawDeploy(toolInput.command, tool)) {
+  if (SHELL_TOOLS.has(tool) && isRawDeploy(toolInput.command)) {
     return (
       'Raw `firebase deploy` skips the branch guard, the index check and the prod confirmation. ' +
       'Use the npm scripts instead: `npm run fb:fn:dev`, `npm run fb:rules:dev`, `npm run fb:indexes:dev` ' +
-      "or `npm run fb:deploy:dev` (prod only with Youssef's OK). See AGENTS.md, Deploy safety."
+      "or `npm run fb:deploy:dev` (prod only with Youssef's OK). See AGENTS.md, Deploy safety. " +
+      'If the command only mentions it in text, put that text in a file (`git commit -F <file>`, `gh pr create --body-file <file>`, ' +
+      'or a heredoc) or search with the Grep tool.'
     );
   }
   return null;
