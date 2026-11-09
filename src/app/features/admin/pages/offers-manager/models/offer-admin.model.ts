@@ -3,8 +3,12 @@ import {
   formatCairoDisplay,
   matchProduct,
   type Offer,
+  type OfferConditionAtom,
   type OfferConditionField,
+  type OfferConditionGroup,
+  type OfferConditions,
   type OfferDraft,
+  type OfferReward,
   type PricedProduct,
 } from '@core/services/offers/engine';
 
@@ -67,6 +71,98 @@ export const REWARD_PICKER_OPTIONS: readonly RewardPickerOption[] = [
   { id: 'freeShipping', label: 'Free shipping' },
   { id: 'cartThreshold', label: 'Spend X, get…' },
 ];
+
+/** Which item becomes free in a Buy X get Y offer. */
+export type FreeItemMode = 'cheapest' | 'products' | 'categoryBrand';
+
+export interface FreeItemOption {
+  readonly id: FreeItemMode;
+  readonly label: string;
+}
+
+export const FREE_ITEM_OPTIONS: readonly FreeItemOption[] = [
+  { id: 'cheapest', label: 'The cheapest of them' },
+  { id: 'products', label: 'One of these products' },
+  { id: 'categoryBrand', label: 'Any item from a category or brand' },
+];
+
+/** The most values one free-item choice can hold (same cap as every condition rule). */
+export const MAX_FREE_ITEM_VALUES = 200;
+
+export interface FreeItemSelection {
+  readonly productIds: readonly string[];
+  readonly categoryIds: readonly string[];
+  readonly brandIds: readonly string[];
+}
+
+type BuyXGetYReward = Extract<OfferReward, { kind: 'buyXGetY' }>;
+
+function setAtoms(conditions: OfferConditions | null): readonly OfferConditionAtom[] {
+  return conditions?.anyOf.flatMap((group) => group.allOf) ?? [];
+}
+
+function valuesOf(atoms: readonly OfferConditionAtom[], field: OfferConditionField): string[] {
+  const values: string[] = [];
+  for (const atom of atoms) {
+    if (atom.field === field && atom.field !== 'price') values.push(...(atom.in ?? []));
+  }
+  return values;
+}
+
+/** Reads the saved free-item choice back into the mode and picked values. */
+export function readFreeItem(reward: BuyXGetYReward): {
+  readonly mode: FreeItemMode;
+  readonly selection: FreeItemSelection;
+} {
+  const atoms = setAtoms(reward.getConditions);
+  const mode: FreeItemMode = !reward.getConditions
+    ? 'cheapest'
+    : atoms.some((atom) => atom.field === 'productId')
+      ? 'products'
+      : 'categoryBrand';
+  return {
+    mode,
+    selection: {
+      productIds: valuesOf(atoms, 'productId'),
+      categoryIds: valuesOf(atoms, 'categoryIds'),
+      brandIds: valuesOf(atoms, 'brandId'),
+    },
+  };
+}
+
+/**
+ * Builds the reward for a free-item choice. Picking a mode with nothing chosen yet keeps an
+ * empty rule, so the editor remembers the mode; validation stops the save until values are
+ * picked, and `withoutEmptyFreeItemRules` cleans up before it is written.
+ */
+export function withFreeItem(
+  reward: BuyXGetYReward,
+  mode: FreeItemMode,
+  selection: FreeItemSelection,
+): BuyXGetYReward {
+  let getConditions: OfferConditions | null = null;
+  if (mode === 'products') {
+    getConditions = { anyOf: [{ allOf: [{ field: 'productId', in: selection.productIds }] }] };
+  } else if (mode === 'categoryBrand') {
+    getConditions = {
+      anyOf: [
+        { allOf: [{ field: 'categoryIds', in: selection.categoryIds }] },
+        { allOf: [{ field: 'brandId', in: selection.brandIds }] },
+      ],
+    };
+  }
+  return { ...reward, getConditions, cheapestFree: true };
+}
+
+/** Drops free-item rules with nothing picked, so the saved offer never holds an empty rule. */
+export function withoutEmptyFreeItemRules(draft: OfferDraft): OfferDraft {
+  const r = draft.reward;
+  if (r.kind !== 'buyXGetY' || !r.getConditions) return draft;
+  const anyOf = r.getConditions.anyOf.filter((group: OfferConditionGroup) =>
+    group.allOf.some((atom) => atom.field === 'price' || (atom.in?.length ?? 0) > 0),
+  );
+  return { ...draft, reward: { ...r, getConditions: { anyOf } } };
+}
 
 export function createEmptyOfferDraft(): OfferDraft {
   return {

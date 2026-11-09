@@ -34,7 +34,7 @@ import { OfferPreviewComponent } from './components/offer-preview/offer-preview.
 import { OfferSettingsComponent } from './components/offer-settings/offer-settings.component';
 import { RewardEditorComponent } from './components/reward-editor/reward-editor.component';
 import { ScheduleEditorComponent } from './components/schedule-editor/schedule-editor.component';
-import { createEmptyOfferDraft } from './models/offer-admin.model';
+import { createEmptyOfferDraft, withoutEmptyFreeItemRules } from './models/offer-admin.model';
 import { OffersAdminService } from './services/offers-admin.service';
 
 @Component({
@@ -170,7 +170,7 @@ export class OfferEditorPageComponent implements OnInit {
 
     this.isSaving.set(true);
     try {
-      await this.#offersAdmin.saveOffer(this.draft());
+      await this.#offersAdmin.saveOffer(withoutEmptyFreeItemRules(this.draft()));
       this.#snackbar.success('Offer saved.');
       await this.#router.navigate(['/admin/offers']);
     } catch {
