@@ -2,6 +2,12 @@ name: CI
 
 # Runs the same checks agents and humans run locally before merging.
 # Read-only: never deploys and needs no secrets.
+# A pull request that only changes docs or scripts (every changed file is a *.md file, or under
+# .agents/, .claude/, .cursor/, docs/, functions/scripts/ or scripts/ (except
+# scripts/browser-check.mjs), or linear.config.json) skips the app build, and skips the functions
+# tests when nothing under functions/ changed. Preflight and the cart tests always run, and the
+# job still reports, so auto-merge sees "Build and Test" pass. Pushes to develop and main always
+# run everything. browser-check.yml skips the same pull requests (its `paths` filter).
 on:
   pull_request:
   push:
@@ -24,6 +30,34 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          # On a pull request HEAD is GitHub's merge commit; its first parent is the base, so
+          # HEAD^1..HEAD is exactly what the pull request changes.
+          fetch-depth: 2
+
+      - name: Find what the pull request changes
+        id: changes
+        if: github.event_name == 'pull_request'
+        run: |
+          changed="$RUNNER_TEMP/changed-files.txt"
+          # --no-renames lists a moved file under both its old and new path, so moving an app file
+          # into docs/ or scripts/ still counts as an app change.
+          git -c core.quotePath=false diff --name-only --no-renames HEAD^1 HEAD > "$changed"
+          total=$(grep -c . "$changed" || true)
+          # Files that are not docs or scripts. scripts/browser-check.mjs is the Browser Check itself.
+          other=$(grep -Ev '\.md$|^\.agents/|^\.claude/|^\.cursor/|^docs/|^functions/scripts/|^scripts/|^linear\.config\.json$' "$changed" | grep -c . || true)
+          check=$(grep -cx 'scripts/browser-check.mjs' "$changed" || true)
+          functions=$(grep -c '^functions/' "$changed" || true)
+          docs_only=false
+          if [ "$total" -gt 0 ] && [ "$other" -eq 0 ] && [ "$check" -eq 0 ]; then docs_only=true; fi
+          functions_changed=false
+          if [ "$functions" -gt 0 ]; then functions_changed=true; fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "functions_changed=$functions_changed" >> "$GITHUB_OUTPUT"
+          echo "$total changed file(s): docs/scripts only = $docs_only, functions changed = $functions_changed"
+          if [ "$docs_only" = true ]; then
+            echo "Only docs and scripts changed: the app build is skipped$([ "$functions_changed" = true ] || echo ', and the functions tests too')." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - uses: actions/setup-node@v4
         with:
@@ -50,7 +84,9 @@ jobs:
         run: npm run test:cart
 
       - name: Functions build and tests
+        if: steps.changes.outputs.docs_only != 'true' || steps.changes.outputs.functions_changed == 'true'
         run: npm test --prefix functions
 
       - name: App build (development)
+        if: steps.changes.outputs.docs_only != 'true'
         run: npx ng build --configuration development
