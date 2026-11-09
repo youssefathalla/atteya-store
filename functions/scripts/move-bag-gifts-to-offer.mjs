@@ -55,7 +55,7 @@
  *
  * Old orders keep their saved `optionLabels`, so they still show the shirt and socks ordered.
  * After applying, run "Rebuild search" in Catalogue Tools (the bags leave the Shop size
- * filter). Agents never run --apply.
+ * filter). On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety).
  */
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
