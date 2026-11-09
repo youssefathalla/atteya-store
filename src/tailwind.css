@@ -20,4 +20,5 @@
 @import './styles/tailwind/components/cart-drawer';
 @import './styles/tailwind/components/payment-methods';
 @import './styles/tailwind/components/deals';
+@import './styles/tailwind/components/order-confirmation';
 @import './styles/tailwind/utils-base';

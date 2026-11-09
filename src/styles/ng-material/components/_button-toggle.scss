@@ -15,6 +15,8 @@
 // Spacing only; colours come from the tokens above.
 .mat-button-toggle-group.instapay-switch {
   gap: 8px;
+  // On a very narrow phone the second option goes to its own line instead of cutting its label.
+  flex-wrap: wrap;
   border: none;
   border-radius: 0;
   overflow: visible;

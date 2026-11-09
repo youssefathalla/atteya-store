@@ -79,11 +79,18 @@ export function toShopperOrderRow(order: OrderDoc): ShopperOrderRow {
   };
 }
 
-function placedOn(raw: unknown): string {
+/** A saved order date (Firestore Timestamp, Date or ISO string) as a Date, or null when unreadable. */
+export function orderDate(raw: unknown): Date | null {
   let date: Date | null = null;
   if (raw instanceof Date) date = raw;
   else if (raw && typeof raw === 'object' && 'toDate' in raw && typeof raw.toDate === 'function') {
     date = (raw as { toDate: () => Date }).toDate();
   } else if (typeof raw === 'string') date = new Date(raw);
-  return date && !Number.isNaN(date.getTime()) ? DATE_FORMAT.format(date) : '';
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+/** "8 Nov 2026", or empty when the saved date is unreadable. */
+export function placedOn(raw: unknown): string {
+  const date = orderDate(raw);
+  return date ? DATE_FORMAT.format(date) : '';
 }
