@@ -206,7 +206,12 @@
                     <p
                       class="w-full elements-between items-start! gap-3 font-body-sm text-on-surface-variant"
                     >
-                      <span class="min-w-0">{{ gift.label }}</span>
+                      <span class="min-w-0"
+                        >{{ gift.label }}
+                        @if (gift.quantity > 1) {
+                          <span class="whitespace-nowrap">× {{ gift.quantity }}</span>
+                        }
+                      </span>
                       <span class="shrink-0">Free</span>
                     </p>
                   }
