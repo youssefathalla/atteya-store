@@ -318,6 +318,10 @@ Located in `src/app/shared/utils/`:
   - Returns a reactive `Signal<boolean>` indicating whether the media query matches.
   - Automatically wraps Angular CDK `BreakpointObserver` in `toSignal()`.
   - Usage: `readonly isDesktop = useBreakpoint(1280);` or `useBreakpoint('(min-width: 1024px)')`.
+- **`injectFirstRowCount`** (`src/app/shared/utils/first-row.utils.ts`):
+  - How many cards fill a product grid's first row, so exactly that row gets `priority` photos: `readonly firstRow = injectFirstRowCount({ base: 2, md: 3, lg: 4 });` then `[priority]="i < firstRow"` on `app-product-card`. Pass the same counts as the grid's `grid-cols-*` classes (`md` = 768px, `lg` = 1024px).
+  - The server always returns `base` (the phone row), so server HTML never holds more image preloads than a phone needs. The browser reads `matchMedia` once when the grid is created (never live: `NgOptimizedImage` throws if `priority` changes), so a wider screen's extra first-row photos switch to eager + high fetch priority on hydration (attributes only, no hydration mismatch).
+  - Used by `app-catalog-product-grid` (2 / 3 / 4) and `app-shop-grid` (2 / 3, `.shop-product-grid`). Search keeps the phone row (`i < 2`) because the Browser Check shows no NG02955 note there.
 - **`useStepperOrientation`** (`src/app/shared/utils/stepper-orientation.utils.ts`):
   - Returns a reactive `Signal<StepperOrientation>` (`'horizontal' | 'vertical'`) for Material Stepper components.
   - Usage: `readonly stepperOrientation = useStepperOrientation(800);`

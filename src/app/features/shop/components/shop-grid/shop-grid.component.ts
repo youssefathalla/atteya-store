@@ -9,6 +9,7 @@ import {
   searchHitToCardData,
 } from '@shared/components/product-card/product-card.utils';
 import { SkeletonComponent } from '@shared/ui/skeleton';
+import { injectFirstRowCount } from '@shared/utils/first-row.utils';
 
 @Component({
   selector: 'app-shop-grid',
@@ -23,6 +24,8 @@ export class ShopGridComponent {
   readonly nowMs = input(Date.now());
 
   readonly skeletonSlots = [0, 1, 2, 3, 4, 5] as const;
+  /** Photos that load first: one row (2 phone, 3 from tablet up), matching `.shop-product-grid`. */
+  readonly firstRow = injectFirstRowCount({ base: 2, md: 3 });
 
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);

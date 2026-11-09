@@ -16,7 +16,7 @@
 } @else {
   <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
     @for (card of cards(); track card.id; let i = $index) {
-      <app-product-card [product]="card" [priority]="i < 2" />
+      <app-product-card [product]="card" [priority]="i < firstRow" />
     }
   </div>
 }
