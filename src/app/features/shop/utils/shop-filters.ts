@@ -115,10 +115,17 @@ export function buildCatalogBrowseOptions(input: {
   readonly forceBags?: boolean;
   /** Current time; only read when the New arrivals filter is on. */
   readonly nowMs?: number;
+  /** Only products in this offer (`?offer=<id>`, already checked by `parseOfferParam`). */
+  readonly offerId?: string | null;
 }): CatalogBrowseOptions {
   const { tab, filters, forceBags = false } = input;
   const filterParts: string[] = [];
   const facetFilters: (string | readonly string[])[] = [];
+
+  if (input.offerId) {
+    // `offerIds` is a filter-only attribute on each record (the live public offers it is in).
+    filterParts.push(`offerIds:"${input.offerId}"`);
+  }
 
   const scopedIds = [...tabCategoryIds(tab)];
   if (forceBags && !scopedIds.includes('bags')) {
@@ -189,6 +196,14 @@ export function buildCatalogBrowseOptions(input: {
     disjunctiveFacets: ['brandName', 'players', 'colors', 'sizes'],
     maxValuesPerFacet: 50,
   };
+}
+
+const OFFER_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+/** The `?offer=` id when it looks like an offer id (letters, digits, `-`, `_`), else null. */
+export function parseOfferParam(raw: string | null | undefined): string | null {
+  const id = (raw ?? '').trim();
+  return OFFER_ID.test(id) ? id : null;
 }
 
 /**
