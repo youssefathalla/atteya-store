@@ -16,6 +16,7 @@ import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CurrencyService } from '@core/services/currency/currency.service';
+import { offerTitleVisible } from '@core/services/offers/offer-shop';
 import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
 import {
   displayPrice,
@@ -321,13 +322,17 @@ export class ProductComponent {
     const lines: string[] = [];
     // An amount in EGP means nothing to a visitor paying in another currency.
     const hideEgp = this.#currency.selected() !== 'EGP';
+    const country = this.#currency.visitorCountry();
     for (const badge of badges) {
       const kind = badge.labelOnly
         ? offers.find((offer) => offer.id === badge.offerId)?.reward.kind
         : undefined;
       if (kind === 'freeGift') continue;
       if (kind === 'buyXGetY' || kind === 'tiered' || kind === 'freeShipping') {
-        const title = offers.find((offer) => offer.id === badge.offerId)?.title.trim() || badge.text;
+        const offer = offers.find((candidate) => candidate.id === badge.offerId);
+        // Free shipping applies to Egypt orders only, so it is never promised abroad.
+        if (offer && !offerTitleVisible(offer, country)) continue;
+        const title = offer?.title.trim() || badge.text;
         if (!lines.includes(title) && !(hideEgp && /\bEGP\b/.test(title))) lines.push(title);
         continue;
       }
