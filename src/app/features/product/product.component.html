@@ -4,7 +4,7 @@
     <article class="container-content elements-start-col">
       <!-- Phone and tablet: photos, details, sections. lg+ (1024px): photos with the sections under them, details beside both. -->
       <div
-        class="grid w-full items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-12"
+        class="grid w-full grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-12"
       >
         <app-product-gallery
           class="lg:col-start-1 lg:row-start-1"
@@ -14,7 +14,7 @@
         />
 
         <div
-          class="elements-start-col gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)]"
+          class="elements-start-col min-w-0 gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)]"
         >
           <nav aria-label="Breadcrumb" class="w-full">
             <ol class="pdp-kicker flex flex-wrap items-center gap-x-2 gap-y-1 list-none m-0 p-0">

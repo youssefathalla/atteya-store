@@ -28,9 +28,10 @@ function nameWords(input: GiftCardLabelInput, colour: string | null): string[] {
 }
 
 /**
- * One short line under each gift card. The colour word when the product has one colour
- * ("White"); the short model name when it has none. When two choices of the same step would
- * read the same, the model name and the colour are joined with " · " ("Siux Tee · Red").
+ * One short line under each gift card, the same style for every card of a step. When every
+ * choice is the same model (same name without its colour), each card shows only its colour
+ * ("White", "Black"). Otherwise every card shows "Model · Colour" ("Augsburger · Red"). A
+ * product with no colour shows its model only.
  * The model name drops the words every choice starts with (the brand, when they share it)
  * and plain nouns such as "Polo", so it stays short. Never the full long name.
  */
@@ -56,12 +57,14 @@ export function giftCardLabels(choices: readonly GiftCardLabelInput[]): Map<stri
     return (kept.length > 0 ? kept : rest).join(' ');
   });
 
-  const base = choices.map((_, index) => colours[index] ?? models[index]);
+  // Same model in every card (names equal once the colour is removed): the colour alone tells them apart.
+  const sameModel = lists.every((list) => list.join(' ').toLowerCase() === lists[0].join(' ').toLowerCase());
+
   const result = new Map<string, string>();
   choices.forEach((choice, index) => {
-    const duplicated = base.filter((label) => label.toLowerCase() === base[index].toLowerCase()).length > 1;
     const colour = colours[index];
-    result.set(choice.productId, duplicated && colour ? `${models[index]} · ${colour}` : base[index]);
+    if (sameModel) result.set(choice.productId, colour ?? models[index]);
+    else result.set(choice.productId, colour ? `${models[index]} · ${colour}` : models[index]);
   });
   return result;
 }
