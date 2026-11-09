@@ -3,6 +3,7 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { getActiveOffers } from '../offers/offer-cache.js';
 import {
   boxesForRegion,
+  liveOffers,
   parcelWeight,
   planDelivery,
   priceBagDeals,
@@ -23,7 +24,7 @@ import {
   parseCheckoutShippingConfig,
   SHIPPING_DOC_PATH,
 } from '../shipping/shipping-settings.js';
-import { confirmedEndedOfferIds, type UsedOffer } from './offer-usage.js';
+import { confirmedEndedOfferIds, offerFullError, type UsedOffer } from './offer-usage.js';
 import {
   giftProductIds,
   resolveLineGifts,
@@ -164,6 +165,13 @@ export async function priceStoreOrder(
 /** A Buy X Get Y offer the bag showed (`dealOfferIds`) that this pricing didn't apply. */
 export interface MissedDeal {
   readonly missedDealOfferId: string;
+  /** The offer's title, '' when the server doesn't have it. */
+  readonly title: string;
+  /**
+   * The offer is live by the server's clock and rules (`liveOffers`: active, not archived, inside
+   * its schedule, audience and code match). False when it is gone, paused, or its time is up.
+   */
+  readonly live: boolean;
 }
 
 /**
@@ -194,7 +202,26 @@ export async function priceWithFreshOffersOnMiss<T>(
   if (!isMissedDeal(first)) return first;
   const second = await price(await loadOffers(true));
   if (!isMissedDeal(second)) return second;
-  throw dealChangedError(second.missedDealOfferId);
+  throw missedDealError(second);
+}
+
+/**
+ * The refusal for a deal that still misses after the fresh read. An offer that is no longer live
+ * on the server (its time is up while the shopper's clock is behind, paused, archived, gone) is
+ * refused as ended (`details.endedOfferId`), so checkout leaves it out and the shopper can order.
+ * Only an offer that is live but still not applied gets `changedOfferId`.
+ */
+export function missedDealError(missed: MissedDeal): HttpsError {
+  if (missed.live) return dealChangedError(missed.missedDealOfferId);
+  return offerFullError(
+    {
+      offerId: missed.missedDealOfferId,
+      title: missed.title,
+      limits: { totalUses: null, perCustomer: null },
+      kind: 'deal',
+    },
+    'ended',
+  );
 }
 
 function isMissedDeal(value: unknown): value is MissedDeal {
@@ -274,7 +301,13 @@ async function priceWithOffers(
   // cost more than the shopper saw: `priceWithFreshOffersOnMiss` reads the offers again and refuses
   // only if it still misses.
   const missedDeal = missedDealOfferId(input.dealOfferIds, deals.offerIds);
-  if (missedDeal !== null) return { missedDealOfferId: missedDeal };
+  if (missedDeal !== null) {
+    return {
+      missedDealOfferId: missedDeal,
+      title: offers.find((offer) => offer.id === missedDeal)?.title ?? '',
+      live: liveOffers(offers, ctx).some((offer) => offer.id === missedDeal),
+    };
+  }
 
   for (const [index, line] of input.lines.entries()) {
     const { product, variant, weightGrams } = lineResults[index]!;

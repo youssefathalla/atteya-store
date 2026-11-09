@@ -12,7 +12,7 @@ import {
   MAX_LINE_QUANTITY,
   mergeCartLines,
 } from '../src/app/core/services/cart/cart.model.ts';
-import { endedOfferIdFrom } from '../src/app/core/services/orders/order-refusal.ts';
+import { endedOfferIdFrom, offerToLeaveOut } from '../src/app/core/services/orders/order-refusal.ts';
 
 describe('cart-pricing (AS-33)', () => {
   it('lineDisplayAmount multiplies converted unit price by quantity', () => {
@@ -109,5 +109,15 @@ describe('order refusals (ATS-108)', () => {
     assert.equal(endedOfferIdFrom({ code: 'functions/failed-precondition', details: { changedOfferId: 'deal-1' } }), null);
     assert.equal(endedOfferIdFrom(new Error('offline')), null);
     assert.equal(endedOfferIdFrom(null), null);
+  });
+
+  it('leaves out a changed offer only when the same one is refused twice in a row', () => {
+    const changed = { details: { changedOfferId: 'deal-1' } };
+    const first = offerToLeaveOut(changed, null);
+    assert.deepEqual(first, { leaveOut: null, lastChangedOfferId: 'deal-1' });
+    assert.deepEqual(offerToLeaveOut(changed, first.lastChangedOfferId), { leaveOut: 'deal-1', lastChangedOfferId: null });
+    assert.deepEqual(offerToLeaveOut({ details: { changedOfferId: 'deal-2' } }, 'deal-1'), { leaveOut: null, lastChangedOfferId: 'deal-2' });
+    assert.deepEqual(offerToLeaveOut({ details: { endedOfferId: 'deal-3' } }, 'deal-1'), { leaveOut: 'deal-3', lastChangedOfferId: null });
+    assert.deepEqual(offerToLeaveOut(new Error('offline'), 'deal-1'), { leaveOut: null, lastChangedOfferId: null });
   });
 });

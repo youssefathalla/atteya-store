@@ -41,7 +41,7 @@ import {
   type PricedProduct,
   type PricingContext,
 } from '@core/services/offers/engine';
-import { endedOfferIdFrom } from '@core/services/orders/order-refusal';
+import { offerToLeaveOut } from '@core/services/orders/order-refusal';
 import {
   CheckoutOrderService,
   type CheckoutPaymentMethod,
@@ -725,6 +725,9 @@ export class CheckoutPageComponent implements OnInit {
     this.summaryOpen.update((open) => !open);
   }
 
+  /** The offer of the last "Prices in your bag changed" refusal on this visit (see `placeOrder`). */
+  #lastChangedOfferId: string | null = null;
+
   async placeOrder(): Promise<void> {
     if (this.isSubmitting() || this.isEmpty()) return;
     if (this.abroadOrderingClosed()) {
@@ -833,12 +836,14 @@ export class CheckoutPageComponent implements OnInit {
         state: { checkoutResult: result },
       });
     } catch (error: unknown) {
-      // An offer in the bag has ended for this shopper (its use limit): leave it out of the bag and
+      // An offer in the bag has ended for this shopper (`endedOfferId`): leave it out of the bag and
       // the summary for the rest of the visit, so they see the new total and place the order again
-      // at it. "Prices in your bag changed" (`changedOfferId`) only shows the message: the live
-      // offers listener already brings the bag up to date.
-      const endedOfferId = endedOfferIdFrom(error);
-      if (endedOfferId) this.#offers.markEnded(endedOfferId);
+      // at it. "Prices in your bag changed" (`changedOfferId`) only shows the message the first
+      // time (the live offers listener brings the bag up to date); the same offer refused twice in
+      // a row is left out too, so Place Order never fails forever.
+      const next = offerToLeaveOut(error, this.#lastChangedOfferId);
+      this.#lastChangedOfferId = next.lastChangedOfferId;
+      if (next.leaveOut) this.#offers.markEnded(next.leaveOut);
       this.#snackbar.error(callableMessage(error) ?? 'We could not place your order. Try again in a moment.');
     } finally {
       this.isSubmitting.set(false);

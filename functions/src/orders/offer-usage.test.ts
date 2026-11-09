@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 // Runs against the compiled code (`npm test` builds first).
 import { parseOfferDoc } from '../../lib/offers/offer-schema.js';
-import { priceBagDeals } from '../../lib/offers/engine/index.js';
+import { liveOffers, priceBagDeals } from '../../lib/offers/engine/index.js';
 import {
   OFFER_LIMIT_ACTOR,
   confirmedEndedOfferIds,
@@ -278,7 +278,9 @@ describe('a deal the bag showed but the order misses', () => {
   const FRESH = [{ id: 'other' }, { id: 'new-deal' }];
   // Stand-in for priceWithOffers: applies the deal only when the offers list has it.
   const price = async (offers: readonly { id: string }[]) =>
-    offers.some((offer) => offer.id === 'new-deal') ? { total: 1000 } : { missedDealOfferId: 'new-deal' };
+    offers.some((offer) => offer.id === 'new-deal')
+      ? { total: 1000 }
+      : { missedDealOfferId: 'new-deal', title: 'Buy 2, get 1 free', live: true };
 
   it('reads the offers again without the cache and prices with them', async () => {
     const loads: boolean[] = [];
@@ -311,6 +313,35 @@ describe('a deal the bag showed but the order misses', () => {
         return true;
       },
     );
+  });
+});
+
+describe('a missed deal that is no longer live on the server', () => {
+  it('is refused as ended (endedOfferId), so checkout leaves it out', async () => {
+    // The offer's time is up by the server's clock while the shopper's clock is behind.
+    const price = async () => ({ missedDealOfferId: 'old-deal', title: 'Buy 2, get 1 free', live: false });
+    await assert.rejects(priceWithFreshOffersOnMiss(async () => [] as never, price as never), (error: unknown) => {
+      const err = error as { code: string; message: string; details: Record<string, unknown> };
+      assert.equal(err.code, 'failed-precondition');
+      assert.deepEqual(err.details, { endedOfferId: 'old-deal' });
+      assert.match(err.message, /^The Buy 2, get 1 free offer has ended/);
+      return true;
+    });
+  });
+
+  it('knows whether a missed offer is live by the server clock', () => {
+    const offer = parseOfferDoc('timed', {
+      name: 'Timed',
+      title: 'Buy 2, get 1 free',
+      active: true,
+      scope: 'item',
+      schedule: { endsAt: '2026-11-09T11:00:00Z' },
+      conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['t-shirts'] }] }] },
+      reward: { kind: 'buyXGetY', buy: { quantity: 2 }, get: { quantity: 1, percent: 100 }, getConditions: null, cheapestFree: true, repeat: true, maxApplications: null },
+    });
+    assert.ok(offer);
+    assert.equal(liveOffers([offer], { now: new Date('2026-11-09T12:00:00Z'), signedIn: true, codes: [] }).length, 0);
+    assert.equal(liveOffers([offer], { now: new Date('2026-11-09T10:00:00Z'), signedIn: true, codes: [] }).length, 1);
   });
 });
 
