@@ -50,7 +50,7 @@ export class ProductService {
 
   /**
    * Homepage New Arrivals: unexpired `newArrivalUntil` first (most recently
-   * updated), then newest published by `createdAt`, capped at 10.
+   * updated), then newest published by `createdAt`, capped at `max` (the row size).
    */
   async listNewArrivals(max = NEW_ARRIVALS_LIMIT): Promise<readonly Product[]> {
     const now = Timestamp.now();
