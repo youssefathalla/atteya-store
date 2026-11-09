@@ -122,6 +122,25 @@ export function dealOfferIdsOf(lines: readonly (PricedBagLine | null)[]): string
   return Array.from(ids);
 }
 
+/** What checkout showed for one bag line, sent with the order (`shownUnitEgp`, `shownOfferId`). */
+export interface ShownLinePrice {
+  /** One piece after per-item offers, before Buy X Get Y; null when the line wasn't priced. */
+  readonly shownUnitEgp: number | null;
+  /** The per-item offer behind that price, or null. */
+  readonly shownOfferId: string | null;
+}
+
+/**
+ * The per-piece price and per-item offer checkout showed for each bag line (same order as the
+ * bag). The server refuses the order instead of charging more than this; it never lowers a price.
+ */
+export function shownLinePrices(lines: readonly (PricedBagLine | null)[]): ShownLinePrice[] {
+  return lines.map((line) => ({
+    shownUnitEgp: line?.unitEgp ?? null,
+    shownOfferId: line?.appliedOfferId ?? null,
+  }));
+}
+
 /**
  * The variant a bag line's choices point at, matched the way the order callables match it.
  * Null when the product has no size or colour choice, or the choices match no variant.

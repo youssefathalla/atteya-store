@@ -24,6 +24,17 @@ export function changedOfferIdFrom(error: unknown): string | null {
 }
 
 /**
+ * True for a "Prices in your bag changed" refusal where checkout showed no offer on the line
+ * (`details.priceChanged`): the product price went up, so checkout reads the products again.
+ */
+export function priceChangedFrom(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('details' in error)) return false;
+  const details = (error as { details?: unknown }).details;
+  if (typeof details !== 'object' || details === null) return false;
+  return (details as { priceChanged?: unknown }).priceChanged === true;
+}
+
+/**
  * Which offer checkout leaves out after a refused order, and the `changedOfferId` to remember for
  * the next try. An `endedOfferId` is always left out. A `changedOfferId` is left out only when the
  * same one comes back twice in a row in one visit, so Place Order can never fail forever on a

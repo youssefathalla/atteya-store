@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "test": "npm run build && node --test lib/search/sync-product.errors.spec.js lib/paymob/hmac.spec.js lib/orders/decrement-order-stock.spec.js lib/email/order-emails.spec.js lib/store/order-messages.spec.js lib/offers/engine/shipping.spec.js lib/products/default-weight.spec.js && node --experimental-strip-types --test src/auth/session-revocation.test.ts src/auth/accepted-terms.test.ts src/offers/engine/gifts.test.ts src/offers/engine/buy-x-get-y.test.ts src/orders/order-gifts.test.ts src/orders/order-selection.test.ts src/orders/offer-usage.test.ts"
+    "test": "npm run build && node --test lib/search/sync-product.errors.spec.js lib/paymob/hmac.spec.js lib/orders/decrement-order-stock.spec.js lib/email/order-emails.spec.js lib/store/order-messages.spec.js lib/offers/engine/shipping.spec.js lib/products/default-weight.spec.js && node --experimental-strip-types --test src/auth/session-revocation.test.ts src/auth/accepted-terms.test.ts src/offers/engine/gifts.test.ts src/offers/engine/buy-x-get-y.test.ts src/orders/order-gifts.test.ts src/orders/order-selection.test.ts src/orders/offer-usage.test.ts src/orders/order-price-check.test.ts"
   },
   "engines": {
     "node": "22"

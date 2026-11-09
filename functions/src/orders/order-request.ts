@@ -23,6 +23,14 @@ export interface OrderLineInput {
   readonly selection: Readonly<Record<string, string>>;
   /** Free gifts the shopper picked for this line (one set per piece). Re-checked on the server. */
   readonly gifts: readonly OrderGiftPickInput[];
+  /**
+   * The price of one piece checkout showed (whole EGP, after per-item offers, before Buy X Get Y),
+   * or null when checkout didn't send one (older pages). When the server's price is higher, the
+   * order is refused instead of charging more than the shopper saw. Never lowers a price.
+   */
+  readonly shownUnitEgp: number | null;
+  /** The per-item offer checkout priced that piece with, or null for none. */
+  readonly shownOfferId: string | null;
 }
 
 /** One free gift picked on a bag line: which offer and gift, which product, and its size. */
@@ -125,9 +133,30 @@ function parseLines(raw: unknown): OrderLineInput[] {
     const quantity = readQuantity(entry['quantity']);
     const selection = parseSelection(entry['selection']);
     const gifts = parseGiftPicks(entry['gifts']);
-    lines.push({ productId, variantId, quantity, selection, gifts });
+    const shownUnitEgp = parseShownUnitEgp(entry['shownUnitEgp']);
+    const shownOfferId = parseShownOfferId(entry['shownOfferId']);
+    lines.push({ productId, variantId, quantity, selection, gifts, shownUnitEgp, shownOfferId });
   }
   return lines;
+}
+
+/** Most whole EGP one piece can show at checkout; anything above is read as not sent. */
+const MAX_SHOWN_UNIT_EGP = 10_000_000;
+
+/**
+ * The unit price checkout showed for a line, or null when it is missing or unreadable (the
+ * comparison is then skipped). Only ever used to refuse an order, so a wrong value can't lower a
+ * price.
+ */
+export function parseShownUnitEgp(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0 || raw > MAX_SHOWN_UNIT_EGP) return null;
+  // Rounded down, so a fraction can never let the order cost more than the page showed.
+  return Math.floor(raw);
+}
+
+/** The per-item offer id checkout showed for a line, or null. */
+export function parseShownOfferId(raw: unknown): string | null {
+  return typeof raw === 'string' && raw.length >= 1 && raw.length <= 128 ? raw : null;
 }
 
 /** Gift picks of one line. Every pick on a line must name the same offer. */

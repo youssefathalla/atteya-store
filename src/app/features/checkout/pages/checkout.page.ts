@@ -21,7 +21,12 @@ import { doc, getDoc } from 'firebase/firestore';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { lineDisplayAmount } from '@core/services/cart/cart-pricing';
-import { dealOfferIdsOf, priceBag, type PricedBagLine } from '@core/services/cart/cart-deals';
+import {
+  dealOfferIdsOf,
+  priceBag,
+  shownLinePrices,
+  type PricedBagLine,
+} from '@core/services/cart/cart-deals';
 import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
@@ -41,7 +46,7 @@ import {
   type PricedProduct,
   type PricingContext,
 } from '@core/services/offers/engine';
-import { offerToLeaveOut } from '@core/services/orders/order-refusal';
+import { offerToLeaveOut, priceChangedFrom } from '@core/services/orders/order-refusal';
 import {
   CheckoutOrderService,
   type CheckoutPaymentMethod,
@@ -791,10 +796,11 @@ export class CheckoutPageComponent implements OnInit {
       return;
     }
 
-    // The Buy X Get Y offers this summary shows: the server refuses (with the offer's id) rather
-    // than charge more because one of them no longer applies.
+    // The Buy X Get Y offers this summary shows, and each line's price per piece with its offer:
+    // the server refuses rather than charge more than this summary shows.
     const priced = this.#pricedBag();
     const dealOfferIds = priced.state === 'ready' ? dealOfferIdsOf(priced.lines) : [];
+    const shownPrices = priced.state === 'ready' ? shownLinePrices(priced.lines) : [];
 
     this.isSubmitting.set(true);
     try {
@@ -816,6 +822,7 @@ export class CheckoutPageComponent implements OnInit {
           shipping,
           endedOfferIds: this.#offers.endedIds(),
           dealOfferIds,
+          shownPrices,
         });
         // Wait for the account bag to save before the full-page redirect to Paymob.
         await this.#cart.clear();
@@ -833,6 +840,7 @@ export class CheckoutPageComponent implements OnInit {
         shipping,
         endedOfferIds: this.#offers.endedIds(),
         dealOfferIds,
+        shownPrices,
       });
       void this.#cart.clear();
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {
@@ -843,10 +851,13 @@ export class CheckoutPageComponent implements OnInit {
       // the summary for the rest of the visit, so they see the new total and place the order again
       // at it. "Prices in your bag changed" (`changedOfferId`) only shows the message the first
       // time (the live offers listener brings the bag up to date); the same offer refused twice in
-      // a row is left out too, so Place Order never fails forever.
+      // a row is left out too, so Place Order never fails forever. The same goes for a Percent off,
+      // Amount off or Set price offer whose price changed. When the line had no offer, the product
+      // price itself went up: read the products again so the summary shows the new price.
       const next = offerToLeaveOut(error, this.#lastChangedOfferId);
       this.#lastChangedOfferId = next.lastChangedOfferId;
       if (next.leaveOut) this.#offers.markEnded(next.leaveOut);
+      if (priceChangedFrom(error)) this.productsResource.reload();
       this.#snackbar.error(callableMessage(error) ?? 'We could not place your order. Try again in a moment.');
     } finally {
       this.isSubmitting.set(false);
