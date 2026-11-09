@@ -436,7 +436,8 @@ export class CartDrawerComponent {
       if (valueLabel) parts.push(key === 'size' ? `Size ${valueLabel}` : valueLabel);
     }
     const gender = info.genderLabel;
-    if (gender && !info.name.toLowerCase().includes(gender.toLowerCase())) parts.push(gender);
+    // Whole words only: "Men" is not in "Tournament", and "Women" does not say "Men".
+    if (gender && !new RegExp(`\\b${gender}\\b`, 'i').test(info.name)) parts.push(gender);
     return parts.join(' · ');
   }
 
