@@ -44,7 +44,8 @@ export interface BagLineDeals {
 /**
  * A nudge shown in the bag:
  * - `add-more`: the shopper is `missing` pieces short of one more group. `samePool` = the free
- *   pieces come from the same items ("Add 1 more to get 1 free").
+ *   pieces come from the same items, and `missing` then counts the bought part too ("Add 2 more
+ *   to get 1 free" with one item of "Buy 2, get 1 free").
  * - `choose-free`: the group is complete but the free piece must be one of `productIds` and
  *   none (or not enough) is in the bag.
  */
@@ -318,8 +319,10 @@ function addDeals(
 }
 
 /**
- * What the shopper still needs for one more group, when it is only the free part: the fewest
- * pieces (at most `get`) that would complete it. Nothing when even the bought part is short.
+ * What the shopper still needs for one more group: the fewest pieces that would complete it.
+ * When the free pieces come from the same items this counts the bought part too, so one item of
+ * "Buy 2, get 1 free" asks for 2 more. When the free piece must be another product, the bought
+ * part has to be complete first and only the free part (at most `get`) is asked for.
  */
 function nextGroupHint(
   offer: Offer,
@@ -334,8 +337,9 @@ function nextGroupHint(
   if (offer.reward.kind !== 'buyXGetY' || c.buyPool.length === 0) return null;
   const samePool = offer.reward.getConditions === null;
   const counts = poolCounts(c.buyPool, c.getPool);
+  const maxExtra = samePool ? c.buy + c.get - 1 : c.get;
   let missing = 0;
-  for (let extra = 1; extra <= c.get; extra++) {
+  for (let extra = 1; extra <= maxExtra; extra++) {
     const withExtra = samePool
       ? { ...counts, both: counts.both + extra }
       : { ...counts, getOnly: counts.getOnly + extra };
