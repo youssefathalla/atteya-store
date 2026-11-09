@@ -20,10 +20,7 @@ function photoIndex(photo: HTMLElement): number {
  * will never load, so it counts as settled: `AppImageFallbackDirective`
  * keeps `.skeleton` on the image only while it is still trying.
  */
-export function pendingNavListImage(
-  photos: readonly HTMLElement[],
-  index: number,
-): HTMLImageElement | null {
+export function pendingNavListImage(photos: readonly HTMLElement[], index: number): HTMLImageElement | null {
   const photo = photos.find((candidate) => photoIndex(candidate) === index);
   const img = photo?.querySelector('img');
   if (!img || !img.complete) return img ?? null;

@@ -3,10 +3,10 @@
     <div>
       <h1 class="font-title-lg font-bold!">Orders</h1>
       <p class="font-body-md text-on-surface-variant">
-        Review InstaPay, Card or Wallet, and Cash on Delivery orders. Confirm an InstaPay payment only after the
-        money shows in your bank app. For a large order, agree the delivery fee with the customer on
-        WhatsApp, then use Set Delivery Fee before you confirm it. Current stock comes from each product right now, not from the
-        amounts stored when the order was placed.
+        Review InstaPay, Card or Wallet, and Cash on Delivery orders. Confirm an InstaPay payment only after
+        the money shows in your bank app. For a large order, agree the delivery fee with the customer on
+        WhatsApp, then use Set Delivery Fee before you confirm it. Current stock comes from each product right
+        now, not from the amounts stored when the order was placed.
       </p>
     </div>
 
@@ -44,9 +44,7 @@
         [showHeaderControls]="false"
         [isLoading]="dataResource.isLoading()"
       >
-        <p noDataContent class="font-body-md">
-          No orders in this view yet.
-        </p>
+        <p noDataContent class="font-body-md">No orders in this view yet.</p>
       </app-reusable-table>
     }
   </section>
@@ -55,9 +53,7 @@
 <ng-template #orderCell [templateType]="sampleRow" let-row>
   <div class="elements-start-col gap-0.5 min-w-40">
     <span class="font-body-md font-bold! break-all" [attr.title]="row.orderId">{{ row.orderRef }}</span>
-    <span class="font-body-sm text-on-surface-variant">
-      {{ row.customerName }} · {{ row.country }}
-    </span>
+    <span class="font-body-sm text-on-surface-variant"> {{ row.customerName }} · {{ row.country }} </span>
     <span class="font-label-sm text-on-surface-variant">{{ row.phone }}</span>
     <span class="font-label-sm text-on-surface-variant">
       {{ row.paymentLabel }} · {{ row.placedAtLabel }}

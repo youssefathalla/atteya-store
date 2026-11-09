@@ -7,10 +7,7 @@ export const MAX_ORDERS_PER_UID_PER_UTC_DAY = 20;
 export function nextDailyOrderCount(raw: unknown): number {
   const count = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
   if (count >= MAX_ORDERS_PER_UID_PER_UTC_DAY) {
-    throw new HttpsError(
-      'resource-exhausted',
-      'You have placed too many orders today. Try again tomorrow.',
-    );
+    throw new HttpsError('resource-exhausted', 'You have placed too many orders today. Try again tomorrow.');
   }
   return count + 1;
 }

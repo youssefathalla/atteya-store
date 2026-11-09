@@ -4,10 +4,7 @@ import { OffersService } from '@core/services/offers/offers.service';
 import type { SearchHit } from '@core/services/search';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
 import type { ProductCardPrice } from '@shared/components/product-card/product-card.model';
-import {
-  searchHitCardPrice,
-  searchHitToCardData,
-} from '@shared/components/product-card/product-card.utils';
+import { searchHitCardPrice, searchHitToCardData } from '@shared/components/product-card/product-card.utils';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { injectFirstRowCount } from '@shared/utils/first-row.utils';
 

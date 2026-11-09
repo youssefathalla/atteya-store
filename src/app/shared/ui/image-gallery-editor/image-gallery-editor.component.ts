@@ -1,13 +1,7 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgOptimizedImage } from '@angular/common';
-import {
-  CdkDrag,
-  CdkDragDrop,
-  CdkDragHandle,
-  CdkDropList,
-  moveItemInArray,
-} from '@angular/cdk/drag-drop';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -74,9 +68,7 @@ export class ImageGalleryEditorComponent {
 
   protected readonly isFull = computed(() => this.images().length >= this.maxImages());
 
-  protected readonly remainingSlots = computed(() =>
-    Math.max(0, this.maxImages() - this.images().length),
-  );
+  protected readonly remainingSlots = computed(() => Math.max(0, this.maxImages() - this.images().length));
 
   protected readonly isExternalUrlInput = computed(() => {
     const raw = this.#webLinkInput().trim();
@@ -166,9 +158,7 @@ export class ImageGalleryEditorComponent {
       if (added.length > 0) {
         this.imagesChange.emit([...this.images(), ...added]);
         this.#snackbar.success(
-          added.length === 1
-            ? 'Image added to gallery.'
-            : `${added.length} images added to gallery.`,
+          added.length === 1 ? 'Image added to gallery.' : `${added.length} images added to gallery.`,
         );
       }
     } catch (err: unknown) {

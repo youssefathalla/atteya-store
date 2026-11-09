@@ -68,9 +68,7 @@ app.get('/api/visitor-location', async (req, res) => {
 
 function visitorLocationHeaders(req: express.Request): Headers {
   delete req.headers[VISITOR_COUNTRY_HEADER];
-  const headers = headersFromRecord(
-    req.headers as Record<string, string | string[] | undefined>,
-  );
+  const headers = headersFromRecord(req.headers as Record<string, string | string[] | undefined>);
   return enrichHeadersForVisitorGeo(stripUntrustedVisitorCountry(headers), req.socket.remoteAddress);
 }
 

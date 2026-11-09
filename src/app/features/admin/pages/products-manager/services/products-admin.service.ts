@@ -74,9 +74,7 @@ export class ProductsAdminService {
   }
 
   async listAllProducts(): Promise<readonly Product[]> {
-    const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(
-      this.#productConverter,
-    );
+    const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(this.#productConverter);
     const all: Product[] = [];
     let lastDoc: QueryDocumentSnapshot<Product> | undefined;
 
@@ -103,9 +101,7 @@ export class ProductsAdminService {
       return { products: [], truncated: false };
     }
 
-    const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(
-      this.#productConverter,
-    );
+    const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(this.#productConverter);
     const snap = await getDocs(
       query(products, where('searchTokens', 'array-contains', anchor), limit(SEARCH_QUERY_LIMIT)),
     );
@@ -121,9 +117,7 @@ export class ProductsAdminService {
   }
 
   async listModelGroups(): Promise<readonly string[]> {
-    const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(
-      this.#productConverter,
-    );
+    const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(this.#productConverter);
     const snap = await getDocs(query(products, where('modelGroup', '!=', null)));
     const groups = new Set<string>();
     for (const docSnap of snap.docs) {

@@ -15,10 +15,7 @@ export function searchWords(text: string): string[] {
     .filter((word) => word.length > 0);
 }
 
-export function buildSearchTokens(
-  name: string,
-  modelGroup: string | null | undefined,
-): readonly string[] {
+export function buildSearchTokens(name: string, modelGroup: string | null | undefined): readonly string[] {
   const unique = new Set<string>();
 
   for (const source of [name, modelGroup ?? '']) {
@@ -47,9 +44,7 @@ export function longestSearchWord(words: readonly string[]): string | null {
 /** Every word must be a token; a word shorter than MIN_PREFIX_LEN matches any token that starts with it. */
 export function matchesSearchWords(tokens: readonly string[], words: readonly string[]): boolean {
   return words.every((word) =>
-    word.length >= MIN_PREFIX_LEN
-      ? tokens.includes(word)
-      : tokens.some((token) => token.startsWith(word)),
+    word.length >= MIN_PREFIX_LEN ? tokens.includes(word) : tokens.some((token) => token.startsWith(word)),
   );
 }
 

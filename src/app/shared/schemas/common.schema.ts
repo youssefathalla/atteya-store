@@ -62,25 +62,13 @@ export const passwordSchema = v.optional(
   '',
 );
 
-export const idSchema = v.pipe(
-  v.string(),
-  v.trim(),
-  v.nonEmpty('ID is required'),
-);
+export const idSchema = v.pipe(v.string(), v.trim(), v.nonEmpty('ID is required'));
 export const IdSchema = idSchema;
 
-export const slugSchema = v.pipe(
-  v.string(),
-  v.trim(),
-  v.nonEmpty('Slug is required'),
-);
+export const slugSchema = v.pipe(v.string(), v.trim(), v.nonEmpty('Slug is required'));
 export const SlugSchema = slugSchema;
 
-export const timestampSchema = v.union([
-  v.instance(Timestamp),
-  v.date(),
-  v.string(),
-]);
+export const timestampSchema = v.union([v.instance(Timestamp), v.date(), v.string()]);
 export const TimestampSchema = timestampSchema;
 
 export const auditSchema = v.object({
@@ -88,4 +76,3 @@ export const auditSchema = v.object({
   updatedAt: v.optional(timestampSchema),
 });
 export const AuditSchema = auditSchema;
-

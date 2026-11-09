@@ -43,8 +43,7 @@ export function initialSelection(product: ProductView): OptionSelection {
   const colour = product.options.find((option) => option.key === 'colour');
   if (colour && !selection['colour']) {
     const first =
-      colour.values.find((val) => isValueAvailable(product, 'colour', val.id)) ??
-      colour.values[0];
+      colour.values.find((val) => isValueAvailable(product, 'colour', val.id)) ?? colour.values[0];
     if (first) {
       selection['colour'] = first.id;
     }

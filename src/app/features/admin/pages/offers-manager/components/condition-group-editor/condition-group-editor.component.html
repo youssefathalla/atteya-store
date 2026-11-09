@@ -13,9 +13,7 @@
   </div>
 
   @if (conditions().anyOf.length === 0) {
-    <p class="font-body-sm text-on-surface-variant">
-      No rules added here.
-    </p>
+    <p class="font-body-sm text-on-surface-variant">No rules added here.</p>
   }
 
   @for (group of conditions().anyOf; track $index; let gIdx = $index) {
@@ -96,11 +94,7 @@
                   (click)="toggleValue(gIdx, aIdx, atom, choice.id)"
                 >
                   @if (choice.swatch || choice.id === 'multi') {
-                    <app-color-swatch
-                      class="size-3"
-                      [colorId]="choice.id"
-                      [swatch]="choice.swatch ?? null"
-                    />
+                    <app-color-swatch class="size-3" [colorId]="choice.id" [swatch]="choice.swatch ?? null" />
                   }
                   <span>{{ choice.label }}</span>
                 </button>

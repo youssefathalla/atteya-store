@@ -89,8 +89,7 @@ export function extractManagedStoragePath(rawUrl: string): string | null {
 export function isExternalUrl(urlOrPath: string): boolean {
   if (!urlOrPath) return false;
   const trimmed = urlOrPath.trim();
-  const isHttp =
-    trimmed.toLowerCase().startsWith('http://') || trimmed.toLowerCase().startsWith('https://');
+  const isHttp = trimmed.toLowerCase().startsWith('http://') || trimmed.toLowerCase().startsWith('https://');
   if (!isHttp) return false;
   return extractManagedStoragePath(trimmed) === null;
 }

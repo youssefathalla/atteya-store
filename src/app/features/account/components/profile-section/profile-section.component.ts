@@ -19,7 +19,13 @@ const PHONE_MAX = 20;
 @Component({
   selector: 'app-profile-section',
   host: { class: 'block w-full account-section' },
-  imports: [MatButtonModule, MatProgressSpinnerModule, SharedIconModule, SkeletonComponent, TextInputComponent],
+  imports: [
+    MatButtonModule,
+    MatProgressSpinnerModule,
+    SharedIconModule,
+    SkeletonComponent,
+    TextInputComponent,
+  ],
   templateUrl: './profile-section.component.html',
 })
 export class ProfileSectionComponent {
@@ -46,7 +52,8 @@ export class ProfileSectionComponent {
     validate(path.name, ({ value }) => {
       const name = value().trim();
       if (!name) return { kind: 'name', message: 'Enter your name.' };
-      if (name.length > NAME_MAX) return { kind: 'name', message: 'Your name must be 120 characters or fewer.' };
+      if (name.length > NAME_MAX)
+        return { kind: 'name', message: 'Your name must be 120 characters or fewer.' };
       return undefined;
     });
     validate(path.phone, ({ value }) => {
@@ -55,7 +62,8 @@ export class ProfileSectionComponent {
       if (phone.length > PHONE_MAX || shopperWhatsappNumber(phone, 'EG') === null) {
         return {
           kind: 'phone',
-          message: 'Enter an Egyptian mobile, e.g. 010 1234 5678, or start with your country code, e.g. +971.',
+          message:
+            'Enter an Egyptian mobile, e.g. 010 1234 5678, or start with your country code, e.g. +971.',
         };
       }
       return undefined;

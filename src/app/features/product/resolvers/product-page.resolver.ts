@@ -1,23 +1,12 @@
 import { isPlatformServer } from '@angular/common';
-import {
-  inject,
-  Injector,
-  makeStateKey,
-  PLATFORM_ID,
-  RESPONSE_INIT,
-  TransferState,
-} from '@angular/core';
+import { inject, Injector, makeStateKey, PLATFORM_ID, RESPONSE_INIT, TransferState } from '@angular/core';
 import type { ResolveFn } from '@angular/router';
 import { ProductCacheService, ProductService } from '@core/services/products';
 import { matchProduct, type Offer } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { type TransferOffer, toTransferOffer } from '@core/services/offers/offer-transfer';
 import { PublicOffersReader } from '@core/services/offers/public-offers.reader';
-import {
-  type ProductPageResult,
-  type ProductView,
-  toProductView,
-} from '../models/product-page.model';
+import { type ProductPageResult, type ProductView, toProductView } from '../models/product-page.model';
 
 const MAX_SLUG_LENGTH = 200;
 

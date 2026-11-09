@@ -101,17 +101,12 @@ export async function resolveVisitorCountry(
 }
 
 /** Non-production only: localhost/private IP geo → Egypt (store home market). */
-export function applyDevLocalGeoFallback(
-  country: string | null,
-  devFallback: boolean,
-): string | null {
+export function applyDevLocalGeoFallback(country: string | null, devFallback: boolean): string | null {
   if (country !== null || !devFallback) return country;
   return 'EG';
 }
 
-export function headersFromRecord(
-  record: Record<string, string | string[] | undefined>,
-): Headers {
+export function headersFromRecord(record: Record<string, string | string[] | undefined>): Headers {
   const headers = new Headers();
   for (const [key, value] of Object.entries(record)) {
     if (value === undefined) continue;

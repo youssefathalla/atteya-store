@@ -15,8 +15,7 @@ export const routes: Routes = [
   // 1. Storefront Routes (wrapped inside MainLayoutComponent with the Puma-style Navbar)
   {
     path: '',
-    loadComponent: () =>
-      import('./layout/main/main.component').then((m) => m.MainLayoutComponent),
+    loadComponent: () => import('./layout/main/main.component').then((m) => m.MainLayoutComponent),
     resolve: {
       serverCurrency: serverCurrencyResolver,
       shippingSettings: shippingSettingsResolver,
@@ -26,15 +25,13 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        loadComponent: () =>
-          import('./features/home/home.component').then((m) => m.HomeComponent),
+        loadComponent: () => import('./features/home/home.component').then((m) => m.HomeComponent),
         resolve: { homeSettings: homeSettingsResolver },
         title: 'Atteya Store | Premium Padel & Sports Gear',
       },
       {
         path: 'shop',
-        loadComponent: () =>
-          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
         title: 'Shop | Atteya Store',
         data: { preload: true },
       },
@@ -45,29 +42,25 @@ export const routes: Routes = [
       },
       {
         path: 'category/apparel',
-        loadComponent: () =>
-          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
         title: 'Apparel | Atteya Store',
         data: { shopCategory: 'apparel', preload: true },
       },
       {
         path: 'category/accessories/bags',
-        loadComponent: () =>
-          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
         title: 'Bags | Atteya Store',
         data: { shopCategory: 'accessories', shopSubcategory: 'bags', preload: true },
       },
       {
         path: 'category/accessories',
-        loadComponent: () =>
-          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
         title: 'Accessories | Atteya Store',
         data: { shopCategory: 'accessories', preload: true },
       },
       {
         path: 'category/rackets',
-        loadComponent: () =>
-          import('./features/shop/shop.page').then((m) => m.ShopPage),
+        loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
         title: 'Padel | Atteya Store',
         data: { shopCategory: 'rackets', preload: true },
       },
@@ -92,8 +85,7 @@ export const routes: Routes = [
       },
       {
         path: 'brands',
-        loadComponent: () =>
-          import('./features/brands/brands.component').then((m) => m.BrandsComponent),
+        loadComponent: () => import('./features/brands/brands.component').then((m) => m.BrandsComponent),
         title: 'Featured Brands | Atteya Store',
       },
       {
@@ -105,8 +97,7 @@ export const routes: Routes = [
       },
       {
         path: 'product/:slug',
-        loadComponent: () =>
-          import('./features/product/product.component').then((m) => m.ProductComponent),
+        loadComponent: () => import('./features/product/product.component').then((m) => m.ProductComponent),
         resolve: { page: productPageResolver },
         runGuardsAndResolvers: 'always',
         title: 'Product | Atteya Store',
@@ -114,35 +105,30 @@ export const routes: Routes = [
       },
       {
         path: 'search',
-        loadComponent: () =>
-          import('./features/search/search.component').then((m) => m.SearchComponent),
+        loadComponent: () => import('./features/search/search.component').then((m) => m.SearchComponent),
         title: 'Search | Atteya Store',
         data: { preload: true },
       },
       {
         path: 'login',
-        loadComponent: () =>
-          import('./features/auth/login/login.component').then((m) => m.LoginComponent),
+        loadComponent: () => import('./features/auth/login/login.component').then((m) => m.LoginComponent),
         title: 'Sign in | Atteya Store',
         data: FOCUS_CHROME,
       },
       {
         path: 'terms',
-        loadComponent: () =>
-          import('./features/legal/terms.page').then((m) => m.TermsPage),
+        loadComponent: () => import('./features/legal/terms.page').then((m) => m.TermsPage),
         title: 'Terms and Conditions | Atteya Store',
       },
       {
         path: 'privacy',
-        loadComponent: () =>
-          import('./features/legal/privacy.page').then((m) => m.PrivacyPage),
+        loadComponent: () => import('./features/legal/privacy.page').then((m) => m.PrivacyPage),
         title: 'Privacy Policy | Atteya Store',
       },
       {
         path: 'account',
         canActivate: [accountAuthGuard],
-        loadComponent: () =>
-          import('./features/account/account.page').then((m) => m.AccountPageComponent),
+        loadComponent: () => import('./features/account/account.page').then((m) => m.AccountPageComponent),
         title: 'Your Account | Atteya Store',
       },
       {

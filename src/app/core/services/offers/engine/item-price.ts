@@ -139,19 +139,14 @@ export function displayPrice(
   const matchingOfferIds: string[] = [];
   for (const offer of active) {
     if (matchProduct(offer.conditions, offer.exclude, product) === 'none') continue;
-    if (
-      productLevel.appliedOfferId === offer.id ||
-      productLevel.badges.some((b) => b.offerId === offer.id)
-    ) {
+    if (productLevel.appliedOfferId === offer.id || productLevel.badges.some((b) => b.offerId === offer.id)) {
       matchingOfferIds.push(offer.id);
     }
   }
 
   const listPrice = productLevel.listPrice;
   const maxDiscountPercent =
-    listPrice > 0 && fromPrice < listPrice
-      ? Math.round(((listPrice - fromPrice) / listPrice) * 100)
-      : 0;
+    listPrice > 0 && fromPrice < listPrice ? Math.round(((listPrice - fromPrice) / listPrice) * 100) : 0;
 
   return {
     fromPrice,
@@ -172,8 +167,7 @@ function computeCandidateUnitPrice(
   if (offer.scope !== 'item') return null;
   if (alreadyOnSale && offer.saleItems === 'exclude') return basePrice;
 
-  const referencePrice =
-    alreadyOnSale && offer.saleItems === 'bestOf' ? listPrice : basePrice;
+  const referencePrice = alreadyOnSale && offer.saleItems === 'bestOf' ? listPrice : basePrice;
 
   let rawDiscounted: number | null = null;
   const r = offer.reward;

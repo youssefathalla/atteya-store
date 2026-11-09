@@ -27,7 +27,13 @@ const EXEMPT = new Set(['develop', 'main']);
 const KEY = allTeamKeysOrEmpty()[0] ?? '';
 const COMMIT_ID = KEY ? new RegExp(`^(${KEY}-[0-9]+)([ ,]|$)`) : null;
 /** App code: a change here needs the dev build. */
-const APP_PATHS = [/^src\//, /^public\//, /^angular\.json$/, /^package(-lock)?\.json$/, /^tsconfig[^/]*\.json$/];
+const APP_PATHS = [
+  /^src\//,
+  /^public\//,
+  /^angular\.json$/,
+  /^package(-lock)?\.json$/,
+  /^tsconfig[^/]*\.json$/,
+];
 const FUNCTIONS_PATHS = [/^functions\//];
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
@@ -61,17 +67,20 @@ function newCommits(localSha, remoteSha) {
     ? [localSha, '--not', '--remotes=origin']
     : [localSha, `^${remoteSha}`, '--not', '--remotes=origin'];
   const out = tryGit('log', '--no-merges', '--format=%h%x09%s', ...range);
-  return out ? out.split('\n').map((line) => {
-    const [hash, ...subject] = line.split('\t');
-    return { hash, subject: subject.join('\t') };
-  }) : [];
+  return out
+    ? out.split('\n').map((line) => {
+        const [hash, ...subject] = line.split('\t');
+        return { hash, subject: subject.join('\t') };
+      })
+    : [];
 }
 
 /** Files changed by this push, compared with the remote branch or, for a new branch, origin/develop. */
 function changedFiles(localSha, remoteSha) {
   const base = !ZERO.test(remoteSha) ? remoteSha : tryGit('merge-base', localSha, 'origin/develop');
   if (!base) return null; // Unknown: run everything.
-  const out = tryGit('diff', '--name-only', `${base}...${localSha}`) || tryGit('diff', '--name-only', base, localSha);
+  const out =
+    tryGit('diff', '--name-only', `${base}...${localSha}`) || tryGit('diff', '--name-only', base, localSha);
   return out ? out.split('\n') : [];
 }
 
@@ -80,18 +89,25 @@ function run(label, command, args) {
   process.stdout.write(`${DIM}→ ${label}${RESET}\n`);
   // npm/npx are .cmd files on Windows and need a shell. The arguments are fixed strings in this
   // file (never user input), so one command line is safe and avoids Node's args-with-shell warning.
-  const result = process.platform === 'win32'
-    ? spawnSync([command, ...args].join(' '), { stdio: 'inherit', shell: true })
-    : spawnSync(command, args, { stdio: 'inherit' });
+  const result =
+    process.platform === 'win32'
+      ? spawnSync([command, ...args].join(' '), { stdio: 'inherit', shell: true })
+      : spawnSync(command, args, { stdio: 'inherit' });
   const seconds = Math.round((Date.now() - started) / 1000);
   if (result.status !== 0) {
-    fail([`${label} failed (${seconds}s). Fix it, commit, and push again.`, `Run it yourself: ${[command, ...args].join(' ')}`]);
+    fail([
+      `${label} failed (${seconds}s). Fix it, commit, and push again.`,
+      `Run it yourself: ${[command, ...args].join(' ')}`,
+    ]);
   }
   process.stdout.write(`${GREEN}✓ ${label}${RESET} ${DIM}(${seconds}s)${RESET}\n`);
 }
 
 function main() {
-  const lines = readFileSync(0, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+  const lines = readFileSync(0, 'utf8')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
   const pushes = lines
     .map((line) => line.split(/\s+/))
     .filter(([, localSha]) => localSha && !ZERO.test(localSha)) // deletes have an all-zero local sha
@@ -143,7 +159,9 @@ function main() {
 
   // 3. Checks.
   if (process.env.SKIP_PUSH_CHECKS === '1') {
-    process.stdout.write(`${DIM}SKIP_PUSH_CHECKS=1: names and commits checked, build and tests skipped.${RESET}\n`);
+    process.stdout.write(
+      `${DIM}SKIP_PUSH_CHECKS=1: names and commits checked, build and tests skipped.${RESET}\n`,
+    );
     return;
   }
   if (!existsSync('node_modules')) {
@@ -161,11 +179,14 @@ function main() {
   const touches = (patterns) => unknown || files.some((f) => patterns.some((re) => re.test(f)));
 
   const checksStarted = Date.now();
-  process.stdout.write(`${DIM}Pre-push checks (${unknown ? 'all' : `${files.length} changed file(s)`}). git push --no-verify skips them.${RESET}\n`);
+  process.stdout.write(
+    `${DIM}Pre-push checks (${unknown ? 'all' : `${files.length} changed file(s)`}). git push --no-verify skips them.${RESET}\n`,
+  );
   run('Preflight (engine sync, docs sync, design/a11y scan, eslint)', 'npm', ['run', 'preflight']);
   run('Cart pricing tests', 'npm', ['run', 'test:cart']);
   if (touches(FUNCTIONS_PATHS)) {
-    if (!existsSync('functions/node_modules')) fail(['functions/node_modules is missing. Run npm ci --prefix functions, then push again.']);
+    if (!existsSync('functions/node_modules'))
+      fail(['functions/node_modules is missing. Run npm ci --prefix functions, then push again.']);
     run('Functions build and tests', 'npm', ['test', '--prefix', 'functions']);
   }
   if (touches(APP_PATHS)) {

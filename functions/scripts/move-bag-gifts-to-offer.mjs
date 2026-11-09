@@ -267,10 +267,10 @@ function withoutArabicDescription(html) {
 /** A product doc by slug (published or not), or null. */
 async function productBySlug(slug) {
   const page = await db.collection('products').where('slug', '==', slug).limit(2).get();
-  if (page.size > 1) console.log(`NOTE     more than one product has the slug "${slug}"; using ${page.docs[0].id}`);
+  if (page.size > 1)
+    console.log(`NOTE     more than one product has the slug "${slug}"; using ${page.docs[0].id}`);
   return page.empty ? null : page.docs[0];
 }
-
 
 /** Gift products and the other offers, read once. */
 const productCache = new Map();
@@ -407,7 +407,9 @@ for (const bag of BAGS) {
       }
     }
     if (sizeOption) {
-      const labels = asList(sizeOption.values).map((value) => trimmed(value?.label)).join(', ');
+      const labels = asList(sizeOption.values)
+        .map((value) => trimmed(value?.label))
+        .join(', ');
       removedOptions.push(`"${trimmed(sizeOption.label) || 'Size'}" (${labels})`);
     }
     patch.options = options.filter((option) => option?.key !== 'gift' && option?.key !== 'size');
@@ -491,7 +493,8 @@ for (const bag of BAGS) {
       productIds.push(giftSnap.id);
       giftProducts.push(giftSnap);
       const problems = giftProblems(giftSnap.data());
-      const note = problems.length > 0 ? `WARNING: ${problems.join('; ')}` : 'ok (published, in stock, gift-ready)';
+      const note =
+        problems.length > 0 ? `WARNING: ${problems.join('; ')}` : 'ok (published, in stock, gift-ready)';
       console.log(`      ${giftSlug.padEnd(24)} ${giftSnap.id}  ${trimmed(giftSnap.data().name)}  ${note}`);
     }
     for (const [label, match] of Object.entries(matches)) {
@@ -659,7 +662,11 @@ for (;;) {
     for (const line of asList(cart.data().lines)) {
       if (!bagIds.has(line?.productId)) continue;
       const selection = line.selection;
-      if (selection !== null && typeof selection === 'object' && ('gift' in selection || 'size' in selection)) {
+      if (
+        selection !== null &&
+        typeof selection === 'object' &&
+        ('gift' in selection || 'size' in selection)
+      ) {
         oldChoices += 1;
       }
       const ownOfferId = `${OFFER_ID_PREFIX}${line.productId}`;

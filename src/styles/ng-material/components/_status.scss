@@ -6,29 +6,36 @@
   border-color: var(--mat-sys-outline-variant);
 }
 
-[theme="success"] {
-  @include mat.theme((
-    color: mat.$spring-green-palette,
-  ));
+[theme='success'] {
+  @include mat.theme(
+    (
+      color: mat.$spring-green-palette,
+    )
+  );
 }
 
-[theme="warning"] {
-  @include mat.theme((
-    color: mat.$yellow-palette,
-  ));
+[theme='warning'] {
+  @include mat.theme(
+    (
+      color: mat.$yellow-palette,
+    )
+  );
 }
 
-[theme="info"] {
-  @include mat.theme((
-    color: mat.$azure-palette,
-  ));
+[theme='info'] {
+  @include mat.theme(
+    (
+      color: mat.$azure-palette,
+    )
+  );
 }
-[theme="error"] {
-  @include mat.theme((
-    color: mat.$red-palette,
-  ));
+[theme='error'] {
+  @include mat.theme(
+    (
+      color: mat.$red-palette,
+    )
+  );
 }
-
 
 //! Status Colors
 [status='primary'] {

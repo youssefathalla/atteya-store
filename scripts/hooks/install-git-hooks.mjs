@@ -8,7 +8,10 @@ import { execFileSync } from 'node:child_process';
 if (process.env.CI || process.env.GITHUB_ACTIONS) process.exit(0);
 try {
   execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'ignore' });
-  const current = execFileSync('git', ['config', '--get', 'core.hooksPath'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  const current = execFileSync('git', ['config', '--get', 'core.hooksPath'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim();
   if (current === 'scripts/git-hooks') process.exit(0);
 } catch {
   // Not a git checkout, or core.hooksPath not set yet: fall through.

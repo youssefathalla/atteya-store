@@ -57,9 +57,7 @@ export function parseOfferDoc(
       : 0;
   const stacking: OfferStacking = data['stacking'] === 'exclusive' ? 'exclusive' : 'stackable';
   const saleItems: OfferSaleItemsPolicy =
-    data['saleItems'] === 'exclude' || data['saleItems'] === 'stack'
-      ? data['saleItems']
-      : 'bestOf';
+    data['saleItems'] === 'exclude' || data['saleItems'] === 'stack' ? data['saleItems'] : 'bestOf';
   const scope: OfferScope = data['scope'] === 'cart' ? 'cart' : 'item';
 
   const conditions = parseConditions(data['conditions']);
@@ -139,13 +137,9 @@ function parseAtom(raw: unknown): OfferConditionAtom | null {
 
   if (field === 'price') {
     const min =
-      typeof obj['min'] === 'number' && Number.isFinite(obj['min'])
-        ? Math.round(obj['min'])
-        : undefined;
+      typeof obj['min'] === 'number' && Number.isFinite(obj['min']) ? Math.round(obj['min']) : undefined;
     const max =
-      typeof obj['max'] === 'number' && Number.isFinite(obj['max'])
-        ? Math.round(obj['max'])
-        : undefined;
+      typeof obj['max'] === 'number' && Number.isFinite(obj['max']) ? Math.round(obj['max']) : undefined;
     return { field: 'price', ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) };
   }
 
@@ -239,13 +233,9 @@ function parseReward(raw: unknown): OfferReward | null {
     }
     case 'buyXGetY': {
       const buyObj =
-        typeof obj['buy'] === 'object' && obj['buy'] !== null
-          ? (obj['buy'] as Record<string, unknown>)
-          : {};
+        typeof obj['buy'] === 'object' && obj['buy'] !== null ? (obj['buy'] as Record<string, unknown>) : {};
       const getObj =
-        typeof obj['get'] === 'object' && obj['get'] !== null
-          ? (obj['get'] as Record<string, unknown>)
-          : {};
+        typeof obj['get'] === 'object' && obj['get'] !== null ? (obj['get'] as Record<string, unknown>) : {};
       const buyQty = readNumber(buyObj['quantity']) ?? 1;
       const getQty = readNumber(getObj['quantity']) ?? 1;
       const getPercent = readNumber(getObj['percent']) ?? 100;
@@ -299,9 +289,7 @@ export function parseGifts(obj: Record<string, unknown>): OfferGift[] {
     return gifts;
   }
   const legacyProductId = readString(obj['giftProductId']);
-  return legacyProductId
-    ? [{ id: 'gift-1', name: 'Free gift', productIds: [legacyProductId] }]
-    : [];
+  return legacyProductId ? [{ id: 'gift-1', name: 'Free gift', productIds: [legacyProductId] }] : [];
 }
 
 function readString(raw: unknown): string {
@@ -333,8 +321,7 @@ function readTimestampMs(raw: unknown): number {
       if (typeof ms === 'number' && Number.isFinite(ms)) return ms;
     }
     const seconds =
-      (raw as { _seconds?: unknown; seconds?: unknown })._seconds ??
-      (raw as { seconds?: unknown }).seconds;
+      (raw as { _seconds?: unknown; seconds?: unknown })._seconds ?? (raw as { seconds?: unknown }).seconds;
     if (typeof seconds === 'number' && Number.isFinite(seconds)) {
       return Math.round(seconds * 1000);
     }

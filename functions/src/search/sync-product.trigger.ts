@@ -1,9 +1,4 @@
-import {
-  type DocumentData,
-  FieldValue,
-  type Firestore,
-  getFirestore,
-} from 'firebase-admin/firestore';
+import { type DocumentData, FieldValue, type Firestore, getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getActiveOffers } from '../offers/offer-cache.js';
@@ -64,14 +59,10 @@ export async function executeProductSearchSync(
     return;
   }
 
-  let op: 'saveObject' | 'deleteObject' =
-    afterData?.['published'] === true ? 'saveObject' : 'deleteObject';
+  let op: 'saveObject' | 'deleteObject' = afterData?.['published'] === true ? 'saveObject' : 'deleteObject';
 
   try {
-    let [catalog, offers] = await Promise.all([
-      deps.getCatalogLookup(db),
-      deps.getActiveOffers(db, true),
-    ]);
+    let [catalog, offers] = await Promise.all([deps.getCatalogLookup(db), deps.getActiveOffers(db, true)]);
     // The catalogue lookup is cached for a few minutes. A player added since then would be
     // dropped from both records, the save would look unchanged and nothing would reach the
     // index, so read the player list again when this product names a player it doesn't know.
@@ -108,11 +99,7 @@ export async function executeProductSearchSync(
         productId,
       );
     } else {
-      await deps.withRetry(
-        () => client.saveObject({ indexName, body: after }),
-        'saveObject',
-        productId,
-      );
+      await deps.withRetry(() => client.saveObject({ indexName, body: after }), 'saveObject', productId);
     }
 
     await db.collection('searchSyncErrors').doc(productId).delete();

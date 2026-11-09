@@ -1,11 +1,6 @@
 import { signal, DestroyRef, inject, Signal, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import {
-  DocumentReference,
-  Query,
-  onSnapshot,
-  FirestoreError,
-} from 'firebase/firestore';
+import { DocumentReference, Query, onSnapshot, FirestoreError } from 'firebase/firestore';
 
 export interface SignalDocOptions {
   onError?: (error: FirestoreError) => void;
@@ -53,10 +48,7 @@ export function signalDoc<T>(
  * - T[]: List of document data
  * Automatically unsubscribes on component destruction. SSR-safe.
  */
-export function signalCollection<T>(
-  query: Query<T>,
-  options?: SignalDocOptions,
-): Signal<T[] | undefined> {
+export function signalCollection<T>(query: Query<T>, options?: SignalDocOptions): Signal<T[] | undefined> {
   const data = signal<T[] | undefined>(undefined);
   const platformId = inject(PLATFORM_ID);
   const destroyRef = inject(DestroyRef);

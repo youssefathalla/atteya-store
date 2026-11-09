@@ -49,11 +49,7 @@ export class RewardEditorComponent {
 
   readonly isDeferredReward = computed(() => {
     const kind = this.selectedPickerKind();
-    return (
-      kind === 'buyXGetY' ||
-      kind === 'freeShipping' ||
-      kind === 'cartThreshold'
-    );
+    return kind === 'buyXGetY' || kind === 'freeShipping' || kind === 'cartThreshold';
   });
 
   onKindChange(event: Event): void {
@@ -154,10 +150,7 @@ export class RewardEditorComponent {
     }
   }
 
-  onBuyXGetYChange(
-    field: 'buyQty' | 'getQty' | 'getPercent' | 'maxApps',
-    event: Event,
-  ): void {
+  onBuyXGetYChange(field: 'buyQty' | 'getQty' | 'getPercent' | 'maxApps', event: Event): void {
     const r = this.reward();
     if (r.kind !== 'buyXGetY') return;
     const raw = (event.target as HTMLInputElement).value.trim();
@@ -186,9 +179,7 @@ export class RewardEditorComponent {
   readonly categoryNames = computed(
     () => new Map(this.categories().map((category) => [category.id, category.name])),
   );
-  readonly brandNames = computed(
-    () => new Map(this.brands().map((brand) => [brand.id, brand.name])),
-  );
+  readonly brandNames = computed(() => new Map(this.brands().map((brand) => [brand.id, brand.name])));
 
   onFreeItemModeChange(mode: FreeItemMode): void {
     const r = this.reward();
@@ -203,9 +194,7 @@ export class RewardEditorComponent {
     const value = target.value;
     target.value = '';
     this.#changeFreeItem(kind, (list) =>
-      !value || list.includes(value) || list.length >= MAX_FREE_ITEM_VALUES
-        ? list
-        : [...list, value],
+      !value || list.includes(value) || list.length >= MAX_FREE_ITEM_VALUES ? list : [...list, value],
     );
   }
 

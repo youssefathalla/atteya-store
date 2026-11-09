@@ -101,9 +101,7 @@ export function runGuard(alias) {
   try {
     indexesRaw = fs.readFileSync(INDEXES_PATH, 'utf8');
   } catch {
-    console.error(
-      `${RED}✖ Deploy blocked:${RESET} missing ${path.relative(process.cwd(), INDEXES_PATH)}`,
-    );
+    console.error(`${RED}✖ Deploy blocked:${RESET} missing ${path.relative(process.cwd(), INDEXES_PATH)}`);
     return { ok: false };
   }
 

@@ -158,7 +158,10 @@ for (const row of rows) {
   console.log(`${apply ? 'WRITE   ' : 'WOULD   '} ${row.slug}  ${notes.join('; ')}`);
   if (apply) {
     try {
-      await ref.update({ ...patch, updatedAt: FieldValue.serverTimestamp() }, { lastUpdateTime: snap.updateTime });
+      await ref.update(
+        { ...patch, updatedAt: FieldValue.serverTimestamp() },
+        { lastUpdateTime: snap.updateTime },
+      );
     } catch (error) {
       raced += 1;
       console.log(`SKIP     ${row.slug} changed while the script ran (${error.message}); run again`);

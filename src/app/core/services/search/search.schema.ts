@@ -20,10 +20,7 @@ export const SearchHitSchema = v.object({
   categoryId: v.optional(v.nullable(v.string()), null),
   categoryIds: v.optional(v.array(v.string()), []),
   price: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000)),
-  compareAtPrice: v.nullable(
-    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000)),
-    null,
-  ),
+  compareAtPrice: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000)), null),
   discountPercent: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)), 0),
   onSale: v.optional(v.boolean(), false),
   listPrice: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000))),
@@ -31,23 +28,14 @@ export const SearchHitSchema = v.object({
   hasOffer: v.optional(v.boolean(), false),
   offerIds: v.optional(v.array(v.string()), []),
   offerBadges: v.optional(v.array(v.string()), []),
-  maxDiscountPercent: v.optional(
-    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
-    0,
-  ),
+  maxDiscountPercent: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)), 0),
   pricePartial: v.optional(v.boolean()),
   colors: v.optional(v.array(v.string()), []),
   sizes: v.optional(v.array(v.string()), []),
   tags: v.optional(v.array(v.string()), []),
   gender: v.optional(v.picklist(['women', 'men', 'kids', 'unisex'])),
-  marketingBadgeKind: v.optional(
-    v.nullable(v.picklist(MARKETING_BADGE_KINDS)),
-    null,
-  ),
-  marketingBadgeStyle: v.optional(
-    v.nullable(v.picklist(MARKETING_BADGE_STYLES)),
-    null,
-  ),
+  marketingBadgeKind: v.optional(v.nullable(v.picklist(MARKETING_BADGE_KINDS)), null),
+  marketingBadgeStyle: v.optional(v.nullable(v.picklist(MARKETING_BADGE_STYLES)), null),
   summary: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(300))), null),
   // Clip instead of reject so a pre-cap Algolia record never drops the whole hit.
   shortDescription: v.optional(

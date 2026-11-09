@@ -220,7 +220,8 @@ export function staffWhatsappText(
       return `${greeting}\nطلبك وصلنا والشحن مجاني، فمفيش حاجة مطلوبة دلوقتي. هتدفع ${cashText} كاش عند الاستلام.`;
     case 'cod-confirmed': {
       const fee = wholeEgp(order.shippingEgp);
-      const head = fee !== null && fee > 0 ? 'استلمنا مصاريف الشحن، وطلبك اتأكد وبنجهزه.' : 'طلبك اتأكد وبنجهزه.';
+      const head =
+        fee !== null && fee > 0 ? 'استلمنا مصاريف الشحن، وطلبك اتأكد وبنجهزه.' : 'طلبك اتأكد وبنجهزه.';
       return `${greeting}\n${head} جهّز ${cashText} كاش عند الاستلام.`;
     }
     case 'paid':

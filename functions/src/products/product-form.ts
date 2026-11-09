@@ -1,11 +1,7 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { collapseSpaces, PRODUCT_TYPES, type ProductTypeId } from './catalog-mapping.js';
 import { COLOR_IDS, type ColorId } from './catalog-taxonomy.js';
-import {
-  isMarketingBadgeKind,
-  isMarketingBadgeStyle,
-  type MarketingBadge,
-} from './marketing-badge.js';
+import { isMarketingBadgeKind, isMarketingBadgeStyle, type MarketingBadge } from './marketing-badge.js';
 import { isPlayerId, MAX_PRODUCT_PLAYERS } from './players.js';
 import { nextSlug } from './slug.js';
 
@@ -142,9 +138,7 @@ export function descriptionToHtml(text: string | null): string | null {
   if (current.length > 0) paragraphs.push(current);
   if (paragraphs.length === 0) return null;
 
-  return paragraphs
-    .map((lines) => `<p>${lines.map((line) => escapeHtml(line)).join('<br>')}</p>`)
-    .join('');
+  return paragraphs.map((lines) => `<p>${lines.map((line) => escapeHtml(line)).join('<br>')}</p>`).join('');
 }
 
 /**
@@ -277,12 +271,7 @@ function readCreateId(value: unknown): string {
 }
 
 function readUpdateId(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value.length > 200 ||
-    value.includes('/')
-  ) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 200 || value.includes('/')) {
     invalid('Choose a product and try again.');
   }
   return value;

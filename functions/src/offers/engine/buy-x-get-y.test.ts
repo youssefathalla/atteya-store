@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 // Runs against the compiled engine (`npm test` builds first); engine files import `./x.js`.
-import { canBeFreeItem, dealTag, freeItemProductIds, priceBagDeals } from '../../../lib/offers/engine/index.js';
+import {
+  canBeFreeItem,
+  dealTag,
+  freeItemProductIds,
+  priceBagDeals,
+} from '../../../lib/offers/engine/index.js';
 import { parseOfferDoc } from '../../../lib/offers/offer-schema.js';
 
 const CTX = { now: new Date('2026-11-09T12:00:00Z'), signedIn: true, codes: [] };
@@ -30,7 +35,15 @@ const GRIP_2 = product('grip-2', ['accessories', 'grips'], 120);
 const BALLS = product('balls-1', ['padel', 'balls'], 250);
 
 function line(facts, quantity = 1, extra = {}) {
-  return { product: facts, variant: null, quantity, unitPrice: facts.price, onSale: false, giftWorth: 0, ...extra };
+  return {
+    product: facts,
+    variant: null,
+    quantity,
+    unitPrice: facts.price,
+    onSale: false,
+    giftWorth: 0,
+    ...extra,
+  };
 }
 
 function bxgy(id, reward, overrides = {}) {
@@ -70,7 +83,10 @@ describe('buy x get y in the bag', () => {
   it('buy 2 get 1 free: the cheapest of three is free', () => {
     const result = priceBagDeals([line(TEE_A), line(TEE_B), line(TEE_C)], [bxgy('b2g1', {})], CTX);
     assert.equal(result.discount, 300);
-    assert.deepEqual(result.lines.map((entry) => entry.discount), [0, 300, 0]);
+    assert.deepEqual(
+      result.lines.map((entry) => entry.discount),
+      [0, 300, 0],
+    );
     assert.deepEqual(result.lines[1].deals, [{ offerId: 'b2g1', units: 1, percent: 100, discount: 300 }]);
     assert.deepEqual(result.offerIds, ['b2g1']);
     assert.deepEqual(result.hints, []);
@@ -108,7 +124,10 @@ describe('buy x get y in the bag', () => {
 
   it('free item from a product list: buy a racket, get the cheaper grip free', () => {
     const result = priceBagDeals([line(RACKET), line(GRIP_1), line(GRIP_2)], [RACKET_GRIP], CTX);
-    assert.deepEqual(result.lines.map((entry) => entry.discount), [0, 0, 120]);
+    assert.deepEqual(
+      result.lines.map((entry) => entry.discount),
+      [0, 0, 120],
+    );
     assert.deepEqual(result.hints, []);
   });
 
@@ -150,7 +169,10 @@ describe('buy x get y in the bag', () => {
       [bxgy('b2g1', {}), RACKET_GRIP],
       CTX,
     );
-    assert.deepEqual(result.lines.map((entry) => entry.discount), [0, 0, 0, 120, 300]);
+    assert.deepEqual(
+      result.lines.map((entry) => entry.discount),
+      [0, 0, 0, 120, 300],
+    );
     assert.equal(result.discount, 420);
     assert.deepEqual([...result.offerIds].sort(), ['b2g1', 'racket-grip']);
   });
@@ -162,7 +184,10 @@ describe('buy x get y in the bag', () => {
       [bxgy('b2g1', {})],
       CTX,
     );
-    assert.deepEqual(giftWins.lines.map((entry) => entry.discount), [0, 400, 0]);
+    assert.deepEqual(
+      giftWins.lines.map((entry) => entry.discount),
+      [0, 400, 0],
+    );
     assert.equal(giftWins.lines[2].giftUnits, 1);
 
     // A gift worth 100 loses to a free 300 tee: that piece is free and gets no gift.
@@ -171,7 +196,10 @@ describe('buy x get y in the bag', () => {
       [bxgy('b2g1', {})],
       CTX,
     );
-    assert.deepEqual(dealWins.lines.map((entry) => entry.discount), [0, 0, 300]);
+    assert.deepEqual(
+      dealWins.lines.map((entry) => entry.discount),
+      [0, 0, 300],
+    );
     assert.equal(dealWins.lines[2].giftUnits, 0);
   });
 
@@ -194,10 +222,7 @@ describe('buy x get y in the bag', () => {
   it('reads a free-item product list', () => {
     assert.deepEqual(freeItemProductIds(RACKET_GRIP.reward.getConditions), ['grip-1', 'grip-2', 'grip-3']);
     assert.equal(freeItemProductIds(null), null);
-    assert.equal(
-      freeItemProductIds({ anyOf: [{ allOf: [{ field: 'categoryIds', in: ['grips'] }] }] }),
-      null,
-    );
+    assert.equal(freeItemProductIds({ anyOf: [{ allOf: [{ field: 'categoryIds', in: ['grips'] }] }] }), null);
   });
 
   it('tags a discounted line', () => {

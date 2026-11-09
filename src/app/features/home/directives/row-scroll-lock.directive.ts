@@ -95,10 +95,7 @@ export class RowScrollLockDirective {
 
   async #boot(): Promise<void> {
     try {
-      const [{ gsap }, { ScrollTrigger }] = await Promise.all([
-        import('gsap'),
-        import('gsap/ScrollTrigger'),
-      ]);
+      const [{ gsap }, { ScrollTrigger }] = await Promise.all([import('gsap'), import('gsap/ScrollTrigger')]);
       if (this.#destroyed) return;
       gsap.registerPlugin(ScrollTrigger);
       this.#mm = gsap.matchMedia();

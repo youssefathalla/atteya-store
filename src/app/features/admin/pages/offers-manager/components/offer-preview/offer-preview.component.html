@@ -46,7 +46,9 @@
   }
 
   @if (validation().warnings.length > 0) {
-    <div class="w-full border-shape border border-outline-variant bg-surface-container p-3 elements-start-col gap-1">
+    <div
+      class="w-full border-shape border border-outline-variant bg-surface-container p-3 elements-start-col gap-1"
+    >
       <p class="font-label-md font-bold!">Heads-up:</p>
       @for (warn of validation().warnings; track warn.code) {
         <p class="font-body-sm text-on-surface-variant">• {{ warn.message }}</p>

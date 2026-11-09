@@ -20,31 +20,16 @@ import {
   type ShippingSettings,
   type VariantFacts,
 } from '../offers/engine/index.js';
-import {
-  parseCheckoutShippingConfig,
-  SHIPPING_DOC_PATH,
-} from '../shipping/shipping-settings.js';
+import { parseCheckoutShippingConfig, SHIPPING_DOC_PATH } from '../shipping/shipping-settings.js';
 import { confirmedEndedOfferIds, offerFullError, type UsedOffer } from './offer-usage.js';
-import {
-  giftProductIds,
-  resolveLineGifts,
-  stockDemandKey,
-  type ResolvedGift,
-} from './order-gifts.js';
-import type {
-  CreateStoreOrderRequest,
-  OrderLineInput,
-  StorePaymentMethod,
-} from './order-request.js';
+import { giftProductIds, resolveLineGifts, stockDemandKey, type ResolvedGift } from './order-gifts.js';
+import type { CreateStoreOrderRequest, OrderLineInput, StorePaymentMethod } from './order-request.js';
 import { assertCurrentSelection } from './order-selection.js';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 export type OrderPaymentMethod = StorePaymentMethod;
 export type OrderFulfilment =
-  | 'domestic-cod'
-  | 'domestic-instapay'
-  | 'domestic-paymob'
-  | 'international-paymob';
+  'domestic-cod' | 'domestic-instapay' | 'domestic-paymob' | 'international-paymob';
 
 /** One chosen option, saved as the shopper saw it (e.g. `Size` → `M`). */
 export interface OrderLineOptionLabel {
@@ -294,7 +279,8 @@ async function priceWithOffers(
   );
   for (const offerId of deals.offerIds) {
     const offer = offers.find((entry) => entry.id === offerId);
-    if (offer) usedOffers.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind: 'deal' });
+    if (offer)
+      usedOffers.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind: 'deal' });
   }
   // A Buy X Get Y offer the bag showed (`dealOfferIds`) that this order doesn't get (it ended, was
   // switched off, the bag's clock was behind, or this server's offer cache is) would make the order
@@ -339,7 +325,12 @@ async function priceWithOffers(
       parcelLines.push({ weightGrams: readWeightGrams(gift.data['weightGrams']), quantity: giftQuantity });
       const offer = offers.find((entry) => entry.id === gift.offerId);
       if (offer && !usedOffers.has(offer.id)) {
-        usedOffers.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind: 'gift' });
+        usedOffers.set(offer.id, {
+          offerId: offer.id,
+          title: offer.title,
+          limits: offer.limits,
+          kind: 'gift',
+        });
       }
     }
   }
@@ -454,10 +445,7 @@ function giftOrderLine(gift: ResolvedGift, quantity: number, forLine: number): O
   };
 }
 
-function resolveFulfilment(
-  method: StorePaymentMethod,
-  isInternational: boolean,
-): OrderFulfilment {
+function resolveFulfilment(method: StorePaymentMethod, isInternational: boolean): OrderFulfilment {
   if (method === 'cash-on-delivery') return 'domestic-cod';
   if (method === 'instapay') return 'domestic-instapay';
   return isInternational ? 'international-paymob' : 'domestic-paymob';
@@ -664,10 +652,7 @@ function resolveVariantFacts(data: DocumentData, line: OrderLineInput): VariantF
       throw new HttpsError('invalid-argument', 'Choose an option for each item in your bag.');
     }
     if (line.variantId != null && line.variantId !== matched.id) {
-      throw new HttpsError(
-        'invalid-argument',
-        'One bag item could not be priced. Refresh and try again.',
-      );
+      throw new HttpsError('invalid-argument', 'One bag item could not be priced. Refresh and try again.');
     }
     return matched;
   }
@@ -693,8 +678,7 @@ function findVariantMatchingSelection(
   if (!match || typeof match['id'] !== 'string') return null;
   const values = match['values'];
   const sizeId = isRecord(values) && typeof values['size'] === 'string' ? values['size'] : undefined;
-  const colourId =
-    isRecord(values) && typeof values['colour'] === 'string' ? values['colour'] : undefined;
+  const colourId = isRecord(values) && typeof values['colour'] === 'string' ? values['colour'] : undefined;
   return {
     id: match['id'],
     size: optionLabel(data, 'size', sizeId),
@@ -717,11 +701,7 @@ function variantFromSelection(
   };
 }
 
-function optionLabel(
-  data: DocumentData,
-  key: string,
-  valueId: string | undefined,
-): string | null {
+function optionLabel(data: DocumentData, key: string, valueId: string | undefined): string | null {
   if (typeof valueId !== 'string') return null;
   const options = data['options'];
   if (!Array.isArray(options)) return null;
@@ -733,11 +713,7 @@ function optionLabel(
   return null;
 }
 
-function optionColor(
-  data: DocumentData,
-  key: string,
-  valueId: string | undefined,
-): string | null {
+function optionColor(data: DocumentData, key: string, valueId: string | undefined): string | null {
   if (typeof valueId !== 'string') return null;
   const options = data['options'];
   if (!Array.isArray(options)) return null;

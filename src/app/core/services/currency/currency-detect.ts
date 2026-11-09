@@ -79,10 +79,7 @@ export function readFreshCurrencyMap(): PublicCurrencyMap | null {
 
 export function storeCachedCurrencyMap(currencies: PublicCurrencyMap): void {
   try {
-    localStorage.setItem(
-      STORED_DOC_KEY,
-      JSON.stringify({ savedAt: Date.now(), currencies }),
-    );
+    localStorage.setItem(STORED_DOC_KEY, JSON.stringify({ savedAt: Date.now(), currencies }));
   } catch {
     // A failed cache write only costs a network read next time.
   }

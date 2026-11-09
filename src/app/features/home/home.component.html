@@ -2,10 +2,7 @@
   <app-hero-section [hero]="hero()" [isLoading]="isLoading()" />
 
   @defer (hydrate on viewport) {
-    <app-shop-categories-section
-      [shopCategories]="shopCategories()"
-      [isLoading]="isLoading()"
-    />
+    <app-shop-categories-section [shopCategories]="shopCategories()" [isLoading]="isLoading()" />
   } @placeholder {
     <section class="container-content" aria-hidden="true">
       <app-skeleton class="w-full min-h-120" />

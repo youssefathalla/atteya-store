@@ -96,9 +96,7 @@ export class OfferEditorPageComponent implements OnInit {
   readonly brands = computed(() => this.editorResource.value()?.brands ?? []);
   readonly otherOffers = computed(() => this.editorResource.value()?.offers ?? []);
 
-  readonly pricedProducts = computed(() =>
-    this.products().map((product) => toPricedProduct(product)),
-  );
+  readonly pricedProducts = computed(() => this.products().map((product) => toPricedProduct(product)));
 
   readonly validation = computed(() =>
     validateOffer(this.draft(), this.pricedProducts(), this.otherOffers(), {
@@ -107,9 +105,7 @@ export class OfferEditorPageComponent implements OnInit {
     }),
   );
 
-  readonly pageHeading = computed(() =>
-    this.offerId() ? 'Edit offer' : 'Create offer',
-  );
+  readonly pageHeading = computed(() => (this.offerId() ? 'Edit offer' : 'Create offer'));
 
   constructor() {
     effect(() => {

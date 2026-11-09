@@ -80,8 +80,7 @@ export class NavigationManagerComponent {
     const col = current?.megaMenu?.[colIndex];
     const colTitle = col?.title?.toLowerCase() ?? '';
     const hasExistingBrandLinks = col?.links?.some((l) => l.isBrand) ?? false;
-    const isBrandCategory =
-      current?.id?.toLowerCase() === 'brands' || current?.path === '/brands';
+    const isBrandCategory = current?.id?.toLowerCase() === 'brands' || current?.path === '/brands';
     const isBrandContext =
       hasExistingBrandLinks ||
       colTitle.includes('brand') ||

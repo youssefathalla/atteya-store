@@ -15,13 +15,9 @@ import {
 export class ScheduleEditorComponent {
   readonly schedule = model.required<OfferSchedule>();
 
-  readonly startsAtInput = computed(() =>
-    formatCairoDateTimeInput(this.schedule().startsAt),
-  );
+  readonly startsAtInput = computed(() => formatCairoDateTimeInput(this.schedule().startsAt));
 
-  readonly endsAtInput = computed(() =>
-    formatCairoDateTimeInput(this.schedule().endsAt),
-  );
+  readonly endsAtInput = computed(() => formatCairoDateTimeInput(this.schedule().endsAt));
 
   onStartChange(event: Event): void {
     const raw = (event.target as HTMLInputElement).value;

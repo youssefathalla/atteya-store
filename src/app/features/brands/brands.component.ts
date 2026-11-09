@@ -61,13 +61,11 @@ export class BrandsComponent implements OnInit {
 
     return brandsCategory.megaMenu.map((col) => ({
       title: col.title || 'BRANDS',
-      brands: col.links.map(
-        (link): BrandCardItem => ({
-          label: link.label,
-          path: link.path,
-          groupTitle: col.title || 'BRANDS',
-        }),
-      ),
+      brands: col.links.map((link): BrandCardItem => ({
+        label: link.label,
+        path: link.path,
+        groupTitle: col.title || 'BRANDS',
+      })),
     }));
   });
 

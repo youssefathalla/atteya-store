@@ -5,8 +5,7 @@
 export const AUTH_ERROR_MAPPINGS: Record<string, string> = {
   'auth/user-not-found': "We couldn't find an account with that email.",
   'auth/wrong-password': 'That password is incorrect. Try again, or reset it.',
-  'auth/invalid-credential':
-    "That email or password doesn't match. Try again, or reset your password.",
+  'auth/invalid-credential': "That email or password doesn't match. Try again, or reset your password.",
   'auth/email-already-in-use': 'An account with this email already exists. Sign in instead.',
   'auth/weak-password': 'Use at least 8 characters.',
   'auth/invalid-email': 'Enter a valid email address.',

@@ -77,15 +77,8 @@
       (conditionsChange)="updateExclude($event)"
     />
 
-    <app-schedule-editor
-      [schedule]="draft().schedule"
-      (scheduleChange)="updateSchedule($event)"
-    />
+    <app-schedule-editor [schedule]="draft().schedule" (scheduleChange)="updateSchedule($event)" />
 
-    <app-offer-preview
-      [draft]="draft()"
-      [products]="products()"
-      [validation]="validation()"
-    />
+    <app-offer-preview [draft]="draft()" [products]="products()" [validation]="validation()" />
   }
 </div>

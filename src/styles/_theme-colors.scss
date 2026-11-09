@@ -13,11 +13,13 @@ $_palettes: (
     25: #3b3b3b,
     30: #474747,
     35: #525252,
-    40: #000000, // Light Primary: 100% Pure Black (was #5e5e5e)
+    40: #000000,
+    // Light Primary: 100% Pure Black (was #5e5e5e)
     50: #777777,
     60: #919191,
     70: #ababab,
-    80: #ffffff, // Dark Primary: 100% Pure White (was #c6c6c6)
+    80: #ffffff,
+    // Dark Primary: 100% Pure White (was #c6c6c6)
     90: #f4f4f5,
     95: #fafafa,
     98: #ffffff,
@@ -31,7 +33,8 @@ $_palettes: (
     25: #3b3b3b,
     30: #474747,
     35: #525252,
-    40: #18181b, // Light Secondary: Sleek charcoal
+    40: #18181b,
+    // Light Secondary: Sleek charcoal
     50: #777777,
     60: #919191,
     70: #ababab,
@@ -49,7 +52,8 @@ $_palettes: (
     25: #3b3b3b,
     30: #474747,
     35: #525252,
-    40: #27272a, // Light Tertiary: Deep slate-charcoal
+    40: #27272a,
+    // Light Tertiary: Deep slate-charcoal
     50: #777777,
     60: #919191,
     70: #ababab,
@@ -62,7 +66,8 @@ $_palettes: (
   ),
   neutral: (
     0: #000000,
-    10: #000000, // On-Surface: 100% Pure Black in light mode
+    10: #000000,
+    // On-Surface: 100% Pure Black in light mode
     20: #303030,
     25: #3b3b3b,
     30: #474747,
@@ -72,13 +77,16 @@ $_palettes: (
     60: #919191,
     70: #ababab,
     80: #c6c6c6,
-    90: #ffffff, // On-Surface: 100% Pure White in dark mode
+    90: #ffffff,
+    // On-Surface: 100% Pure White in dark mode
     95: #fafafa,
-    98: #ffffff, // Surface & Background: 100% Pure White in light mode (was #f9f9f9)
+    98: #ffffff,
+    // Surface & Background: 100% Pure White in light mode (was #f9f9f9)
     99: #ffffff,
     100: #ffffff,
     4: #000000,
-    6: #000000, // Surface & Background: 100% Pure Black in dark mode
+    6: #000000,
+    // Surface & Background: 100% Pure Black in dark mode
     12: #121212,
     17: #18181b,
     22: #27272a,
@@ -96,10 +104,12 @@ $_palettes: (
     30: #474747,
     35: #525252,
     40: #5e5e5e,
-    50: #71717a, // Outline: clean neutral gray (no pink tint)
+    50: #71717a,
+    // Outline: clean neutral gray (no pink tint)
     60: #919191,
     70: #ababab,
-    80: #e4e4e7, // Outline Variant: clean light gray
+    80: #e4e4e7,
+    // Outline Variant: clean light gray
     90: #f4f4f5,
     95: #fafafa,
     98: #ffffff,

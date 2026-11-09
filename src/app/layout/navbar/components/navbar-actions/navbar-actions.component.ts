@@ -9,13 +9,7 @@ import { SearchPanelService } from '../../../search-panel/services/search-panel.
 import { AccountMenuComponent } from '../account-menu/account-menu.component';
 
 @Component({
-  imports: [
-    SharedIconModule,
-    MatBadgeModule,
-    MatButtonModule,
-    MatTooltipModule,
-    AccountMenuComponent,
-  ],
+  imports: [SharedIconModule, MatBadgeModule, MatButtonModule, MatTooltipModule, AccountMenuComponent],
   selector: 'app-navbar-actions',
   templateUrl: './navbar-actions.component.html',
 })

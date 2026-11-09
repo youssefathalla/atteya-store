@@ -105,10 +105,7 @@
   <p class="font-body-sm text-on-surface-variant">{{ saleItemsExplanation() }}</p>
 
   <div class="w-full border-t border-outline-variant pt-4 elements-start-col gap-3">
-    <mat-checkbox
-      [checked]="draft().requiresCode"
-      (change)="toggleRequiresCode($event.checked)"
-    >
+    <mat-checkbox [checked]="draft().requiresCode" (change)="toggleRequiresCode($event.checked)">
       Requires a coupon code at checkout
     </mat-checkbox>
 

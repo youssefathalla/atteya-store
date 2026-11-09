@@ -24,10 +24,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, filter, firstValueFrom, map, of } from 'rxjs';
 import { injectAuth, injectFirestore } from '@core/firebase';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
-import {
-  UserProfileService,
-  type SignupConsent,
-} from '@core/services/user-profile';
+import { UserProfileService, type SignupConsent } from '@core/services/user-profile';
 import { notifyNotAdmin } from '@features/auth/utils/login-exit';
 import { AUTH_ERROR_MAPPINGS, DEFAULT_AUTH_ERROR } from './auth.errors';
 import { AppRole, GoogleSignInOutcome, roleFromClaims } from './auth.model';
@@ -582,11 +579,9 @@ export class AuthService {
       if (!raw) return null;
       const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== 'object') return null;
-      const termsAccepted =
-        'termsAccepted' in parsed && parsed.termsAccepted === true;
+      const termsAccepted = 'termsAccepted' in parsed && parsed.termsAccepted === true;
       if (!termsAccepted) return null;
-      const marketingOptIn =
-        'marketingOptIn' in parsed && parsed.marketingOptIn === true;
+      const marketingOptIn = 'marketingOptIn' in parsed && parsed.marketingOptIn === true;
       return { termsAccepted: true, marketingOptIn };
     } catch {
       return null;

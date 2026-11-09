@@ -52,7 +52,9 @@ export class BagFreePickComponent {
       const products = await Promise.all(ids.map((id) => this.#read(id)));
       return products.flatMap((product) => {
         const choice = product ? toGiftChoice(product) : null;
-        return product && choice ? [[product, { ...choice, fixedSelection: fixedSelection(product) }] as const] : [];
+        return product && choice
+          ? [[product, { ...choice, fixedSelection: fixedSelection(product) }] as const]
+          : [];
       });
     },
   });

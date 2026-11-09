@@ -166,7 +166,5 @@ if (offersToEdit.length > 0) {
 console.log(
   `\nScanned ${scanned} products. ${apply ? 'Renamed' : 'Would rename'} sizes on ${changed}, ` +
     `conflicts ${conflicts}${apply ? `, skipped (changed meanwhile) ${raced}` : ''}.` +
-    (apply
-      ? ' Now run Catalogue Tools -> Rebuild search.'
-      : ' Dry run only; add --apply to write.'),
+    (apply ? ' Now run Catalogue Tools -> Rebuild search.' : ' Dry run only; add --apply to write.'),
 );

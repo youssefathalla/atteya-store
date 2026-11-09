@@ -50,10 +50,7 @@ export const setDeliveryFee = onCall(
       const pricing = isRecord(order['pricing']) ? order['pricing'] : null;
       const shipping = pricing && isRecord(pricing['shipping']) ? pricing['shipping'] : null;
       if (!pricing || !shipping || shipping['kind'] !== 'domestic-agreed') {
-        throw new HttpsError(
-          'failed-precondition',
-          'This order already has its delivery fee from checkout.',
-        );
+        throw new HttpsError('failed-precondition', 'This order already has its delivery fee from checkout.');
       }
       const subtotalEgp = pricing['subtotalEgp'];
       if (typeof subtotalEgp !== 'number' || !Number.isInteger(subtotalEgp) || subtotalEgp < 0) {
@@ -82,25 +79,12 @@ function parseInput(raw: unknown): { orderId: string; feeEgp: number } {
     throw new HttpsError('invalid-argument', 'Choose an order and enter a delivery fee.');
   }
   const orderId = raw['orderId'];
-  if (
-    typeof orderId !== 'string' ||
-    orderId.length === 0 ||
-    orderId.length > 200 ||
-    orderId.includes('/')
-  ) {
+  if (typeof orderId !== 'string' || orderId.length === 0 || orderId.length > 200 || orderId.includes('/')) {
     throw new HttpsError('invalid-argument', 'Choose an order.');
   }
   const feeEgp = raw['feeEgp'];
-  if (
-    typeof feeEgp !== 'number' ||
-    !Number.isInteger(feeEgp) ||
-    feeEgp < 0 ||
-    feeEgp > MAX_FEE_EGP
-  ) {
-    throw new HttpsError(
-      'invalid-argument',
-      'Enter the delivery fee in whole pounds, from 0 to 100,000.',
-    );
+  if (typeof feeEgp !== 'number' || !Number.isInteger(feeEgp) || feeEgp < 0 || feeEgp > MAX_FEE_EGP) {
+    throw new HttpsError('invalid-argument', 'Enter the delivery fee in whole pounds, from 0 to 100,000.');
   }
   return { orderId, feeEgp };
 }

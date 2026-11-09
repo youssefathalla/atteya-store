@@ -74,10 +74,7 @@ export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderReq
   const paymentMethod = parsePaymentMethod(data['paymentMethod'], shipping.country);
   // Staff reach Egypt shoppers on WhatsApp (InstaPay screenshot, cash-on-delivery fee).
   if (shipping.country === 'EG' && !isEgyptMobile(shipping.phone)) {
-    throw new HttpsError(
-      'invalid-argument',
-      'Enter an Egyptian mobile number, e.g. 010 1234 5678.',
-    );
+    throw new HttpsError('invalid-argument', 'Enter an Egyptian mobile number, e.g. 010 1234 5678.');
   }
   const endedOfferIds = parseOfferIds(data['endedOfferIds']);
   const dealOfferIds = parseOfferIds(data['dealOfferIds']);
@@ -109,10 +106,7 @@ function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {
     );
   }
   if (raw === 'instapay' && country !== 'EG') {
-    throw new HttpsError(
-      'failed-precondition',
-      'InstaPay is only available for orders delivered in Egypt.',
-    );
+    throw new HttpsError('failed-precondition', 'InstaPay is only available for orders delivered in Egypt.');
   }
   return raw;
 }
@@ -140,12 +134,18 @@ function parseLines(raw: unknown): OrderLineInput[] {
 export function parseGiftPicks(raw: unknown): OrderGiftPickInput[] {
   if (raw === undefined || raw === null) return [];
   if (!Array.isArray(raw) || raw.length > MAX_LINE_GIFTS) {
-    throw new HttpsError('invalid-argument', 'The free gifts in your bag could not be read. Choose them again.');
+    throw new HttpsError(
+      'invalid-argument',
+      'The free gifts in your bag could not be read. Choose them again.',
+    );
   }
   const picks: OrderGiftPickInput[] = [];
   for (const entry of raw) {
     if (!isRecord(entry)) {
-      throw new HttpsError('invalid-argument', 'The free gifts in your bag could not be read. Choose them again.');
+      throw new HttpsError(
+        'invalid-argument',
+        'The free gifts in your bag could not be read. Choose them again.',
+      );
     }
     picks.push({
       offerId: readGiftId(entry['offerId']),
@@ -158,14 +158,20 @@ export function parseGiftPicks(raw: unknown): OrderGiftPickInput[] {
     });
   }
   if (picks.some((pick) => pick.offerId !== picks[0]?.offerId)) {
-    throw new HttpsError('invalid-argument', 'The free gifts in your bag could not be read. Choose them again.');
+    throw new HttpsError(
+      'invalid-argument',
+      'The free gifts in your bag could not be read. Choose them again.',
+    );
   }
   return picks;
 }
 
 function readGiftId(raw: unknown): string {
   if (typeof raw !== 'string' || raw.length < 1 || raw.length > 128) {
-    throw new HttpsError('invalid-argument', 'The free gifts in your bag could not be read. Choose them again.');
+    throw new HttpsError(
+      'invalid-argument',
+      'The free gifts in your bag could not be read. Choose them again.',
+    );
   }
   return raw;
 }

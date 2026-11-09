@@ -1,7 +1,9 @@
 @let current = box();
 <section class="pdp-gift-box" [attr.aria-labelledby]="'pdp-gift-heading-' + current.offerId">
   <header class="pdp-gift-box__header">
-    <h2 [id]="'pdp-gift-heading-' + current.offerId" class="font-title-sm font-bold!">{{ current.heading }}</h2>
+    <h2 [id]="'pdp-gift-heading-' + current.offerId" class="font-title-sm font-bold!">
+      {{ current.heading }}
+    </h2>
   </header>
 
   <div class="elements-start-col min-w-0 gap-5 p-4">

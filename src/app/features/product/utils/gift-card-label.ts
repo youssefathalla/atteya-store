@@ -45,7 +45,9 @@ export function giftCardLabels(choices: readonly GiftCardLabelInput[]): Map<stri
     const [first, ...rest] = lists;
     while (
       shared < first.length - 1 &&
-      rest.every((list) => shared < list.length - 1 && list[shared].toLowerCase() === first[shared].toLowerCase())
+      rest.every(
+        (list) => shared < list.length - 1 && list[shared].toLowerCase() === first[shared].toLowerCase(),
+      )
     ) {
       shared += 1;
     }

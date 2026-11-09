@@ -1,14 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import {
-  Component,
-  effect,
-  inject,
-  OnInit,
-  PLATFORM_ID,
-  resource,
-  signal,
-  untracked,
-} from '@angular/core';
+import { Component, effect, inject, OnInit, PLATFORM_ID, resource, signal, untracked } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -86,7 +77,11 @@ const EMPTY_DRAFT: ShippingDraft = {
 function toDate(raw: unknown): Date | null {
   if (!raw) return null;
   if (raw instanceof Date) return raw;
-  if (typeof raw === 'object' && 'toDate' in raw && typeof (raw as { toDate: () => unknown }).toDate === 'function') {
+  if (
+    typeof raw === 'object' &&
+    'toDate' in raw &&
+    typeof (raw as { toDate: () => unknown }).toDate === 'function'
+  ) {
     return (raw as { toDate: () => Date }).toDate();
   }
   if (typeof raw === 'string') {
@@ -209,9 +204,7 @@ export class ShippingTabComponent implements OnInit {
   /** Removes the last box. Orders heavier than the boxes left are handled as described above them. */
   removeLastBox(): void {
     const key = this.region() === 'egypt' ? 'egyptBoxes' : 'internationalBoxes';
-    this.draft.update((prev) =>
-      prev[key].length > 1 ? { ...prev, [key]: prev[key].slice(0, -1) } : prev,
-    );
+    this.draft.update((prev) => (prev[key].length > 1 ? { ...prev, [key]: prev[key].slice(0, -1) } : prev));
   }
 
   dateFrom(event: Event, endOfDay: boolean): Date | null {
@@ -238,11 +231,7 @@ export class ShippingTabComponent implements OnInit {
       this.#snackbar.error('Each box needs a maximum weight.');
       return;
     }
-    if (
-      allBoxes.some(
-        (box) => box.maxLengthCm < 1 || box.maxWidthCm < 1 || box.maxHeightCm < 1,
-      )
-    ) {
+    if (allBoxes.some((box) => box.maxLengthCm < 1 || box.maxWidthCm < 1 || box.maxHeightCm < 1)) {
       this.#snackbar.error('Each box needs length, width, and height.');
       return;
     }

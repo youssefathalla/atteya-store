@@ -1,11 +1,6 @@
 import * as v from 'valibot';
 
-const isoCountry = v.pipe(
-  v.string(),
-  v.trim(),
-  v.toUpperCase(),
-  v.regex(/^[A-Z]{2}$/),
-);
+const isoCountry = v.pipe(v.string(), v.trim(), v.toUpperCase(), v.regex(/^[A-Z]{2}$/));
 
 export const VisitorLocationResponseSchema = v.object({
   country: v.nullable(isoCountry),

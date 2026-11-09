@@ -1,11 +1,4 @@
-import {
-  Component,
-  inject,
-  input,
-  output,
-  signal,
-  DestroyRef,
-} from '@angular/core';
+import { Component, inject, input, output, signal, DestroyRef } from '@angular/core';
 import { FormField } from '@angular/forms/signals';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';

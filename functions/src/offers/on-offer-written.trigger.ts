@@ -28,11 +28,7 @@ export const onOfferWritten = onDocumentWritten(
     const afterData = afterExists ? event.data?.after.data() : null;
     const beforeData = beforeExists ? event.data?.before.data() : null;
 
-    const action = !beforeExists
-      ? 'offer.create'
-      : !afterExists
-        ? 'offer.delete'
-        : 'offer.update';
+    const action = !beforeExists ? 'offer.create' : !afterExists ? 'offer.delete' : 'offer.update';
 
     const actorUid =
       action === 'offer.delete'

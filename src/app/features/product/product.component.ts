@@ -322,7 +322,9 @@ export class ProductComponent {
     // An amount in EGP means nothing to a visitor paying in another currency.
     const hideEgp = this.#currency.selected() !== 'EGP';
     for (const badge of badges) {
-      const kind = badge.labelOnly ? offers.find((offer) => offer.id === badge.offerId)?.reward.kind : undefined;
+      const kind = badge.labelOnly
+        ? offers.find((offer) => offer.id === badge.offerId)?.reward.kind
+        : undefined;
       if (kind === 'freeGift') continue;
       if (kind === 'buyXGetY' || kind === 'tiered' || kind === 'freeShipping') {
         const title = offers.find((offer) => offer.id === badge.offerId)?.title.trim() || badge.text;
@@ -486,7 +488,10 @@ export class ProductComponent {
   pickGift(giftId: string, productId: string): void {
     this.#giftPicks.update((current) => ({
       ...current,
-      [giftId]: { productId, sizeId: current[giftId]?.productId === productId ? current[giftId].sizeId : null },
+      [giftId]: {
+        productId,
+        sizeId: current[giftId]?.productId === productId ? current[giftId].sizeId : null,
+      },
     }));
     if (this.choicePrompt()?.key === giftStepKey(giftId)) this.choicePrompt.set(null);
   }

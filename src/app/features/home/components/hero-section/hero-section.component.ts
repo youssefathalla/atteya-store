@@ -1,11 +1,4 @@
-import {
-  Component,
-  computed,
-  inject,
-  input,
-  output,
-  PLATFORM_ID,
-} from '@angular/core';
+import { Component, computed, inject, input, output, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';

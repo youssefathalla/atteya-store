@@ -84,7 +84,9 @@
     type="button"
     theme="error"
     [disabled]="removingUid() !== null"
-    [attr.aria-label]="removingUid() === row.id ? 'Removing admin access' : 'Remove admin access for ' + row.email"
+    [attr.aria-label]="
+      removingUid() === row.id ? 'Removing admin access' : 'Remove admin access for ' + row.email
+    "
     (click)="removeAdmin(row)"
   >
     @if (removingUid() === row.id) {

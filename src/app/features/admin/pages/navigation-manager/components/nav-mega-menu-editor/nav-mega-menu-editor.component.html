@@ -2,9 +2,7 @@
   <div class="sm:elements-between elements-start-col gap-4 border-b border-outline-variant pb-6">
     <div>
       <h3 class="font-title-md font-bold!">Mega Menu Columns</h3>
-      <p class="font-body-sm opacity-70">
-        Columns displayed in the dropdown drawer on hover/click.
-      </p>
+      <p class="font-body-sm opacity-70">Columns displayed in the dropdown drawer on hover/click.</p>
     </div>
     <button matButton="tonal" theme="success" type="button" (click)="columnAdd.emit()">
       <mat-icon name="add" />
@@ -18,11 +16,7 @@
         <mat-expansion-panel-header collapsedHeight="auto" expandedHeight="auto">
           <mat-panel-title>
             <div class="flex items-center gap-2 flex-1 w-full md:max-w-xs py-1">
-              <span
-                cdkDragHandle
-                class="drag-handle-wrapper shrink-0"
-                matTooltip="Drag to reorder column"
-              >
+              <span cdkDragHandle class="drag-handle-wrapper shrink-0" matTooltip="Drag to reorder column">
                 <mat-icon name="drag_indicator" size="lg" />
               </span>
               <mat-form-field appearance="outline" class="w-full flex-1" subscriptSizing="dynamic">
@@ -234,9 +228,7 @@
                 </div>
 
                 <!-- Delete Link -->
-                <div
-                  class="w-full sm:w-auto sm:col-span-3 2xl:col-span-1 elements-center icon-btn-md"
-                >
+                <div class="w-full sm:w-auto sm:col-span-3 2xl:col-span-1 elements-center icon-btn-md">
                   <!-- Mobile Full Width (< sm) -->
                   <div class="w-full sm:hidden [&>button]:w-full">
                     <button

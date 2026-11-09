@@ -1,13 +1,7 @@
 // GENERATED — edit functions/src/offers/engine
 import { liveOffers } from './item-price';
 import { matchProduct, matchVariant } from './match';
-import type {
-  Offer,
-  OfferConditions,
-  PricingContext,
-  ProductFacts,
-  VariantFacts,
-} from './types';
+import type { Offer, OfferConditions, PricingContext, ProductFacts, VariantFacts } from './types';
 
 /** What Buy X Get Y needs to know about one bag line. */
 export interface BagLineFacts {
@@ -277,8 +271,7 @@ function poolCounts(buyPool: readonly Unit[], getPool: readonly Unit[]): PoolCou
 
 /** True when `groups` groups fit: enough pieces to buy and to discount, never the same piece twice. */
 function fits(groups: number, buy: number, get: number, counts: PoolCounts): boolean {
-  const needBoth =
-    Math.max(0, groups * buy - counts.buyOnly) + Math.max(0, groups * get - counts.getOnly);
+  const needBoth = Math.max(0, groups * buy - counts.buyOnly) + Math.max(0, groups * get - counts.getOnly);
   return needBoth <= counts.both;
 }
 

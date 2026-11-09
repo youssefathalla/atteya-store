@@ -13,12 +13,7 @@ import { cartLineKey, type CartLineDraft } from '@core/services/cart/cart.model'
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
-import {
-  dealTag,
-  displayDecimals,
-  toDisplayAmount,
-  type BagDealHint,
-} from '@core/services/offers/engine';
+import { dealTag, displayDecimals, toDisplayAmount, type BagDealHint } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import { PRODUCT_GENDERS } from '@core/services/products/product.constants';
@@ -28,10 +23,7 @@ import { DrawerService } from '@core/services/drawer/drawer.service';
 import { SearchService, type SearchHit } from '@core/services/search';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
 import type { ProductCardData } from '@shared/components/product-card/product-card.model';
-import {
-  searchHitCardPrice,
-  searchHitToCardData,
-} from '@shared/components/product-card/product-card.utils';
+import { searchHitCardPrice, searchHitToCardData } from '@shared/components/product-card/product-card.utils';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -158,10 +150,7 @@ export class CartDrawerComponent {
    * known yet, the same fallback checkout uses).
    */
   readonly paymentMethods = computed(() =>
-    bagPaymentMethods(
-      (this.#currency.visitorCountry() ?? 'EG') === 'EG',
-      isCardOrWalletLive(),
-    ),
+    bagPaymentMethods((this.#currency.visitorCountry() ?? 'EG') === 'EG', isCardOrWalletLive()),
   );
   /** Rows are tracked by product + chosen options, so removing one row leaves the others in place. */
   readonly lineKey = cartLineKey;
@@ -231,8 +220,7 @@ export class CartDrawerComponent {
    * no value), the products already loaded stay on screen; only the new row waits.
    */
   readonly #products = linkedSignal<CartProducts | undefined, CartProducts>({
-    source: () =>
-      this.productsResource.hasValue() ? this.productsResource.value() : undefined,
+    source: () => (this.productsResource.hasValue() ? this.productsResource.value() : undefined),
     computation: (next, previous) => next ?? previous?.value ?? NO_PRODUCTS,
   });
 
@@ -245,9 +233,7 @@ export class CartDrawerComponent {
   async #readProduct(productId: string): Promise<CartProductInfo | null | undefined> {
     const converter = createValibotConverter(ProductSchema);
     try {
-      const snap = await getDoc(
-        doc(this.#firestore, 'products', productId).withConverter(converter),
-      );
+      const snap = await getDoc(doc(this.#firestore, 'products', productId).withConverter(converter));
       if (!snap.exists()) return null;
       const data = snap.data();
       if (!data.published) return null;
@@ -310,7 +296,8 @@ export class CartDrawerComponent {
     let amount = 0;
     this.lines().forEach((line, index) => {
       const priced = bag.lines[index];
-      if (priced) amount += this.#lineDisplay(priced.unitEgp, priced.lineEgp, priced.deals.discount, line.quantity);
+      if (priced)
+        amount += this.#lineDisplay(priced.unitEgp, priced.lineEgp, priced.deals.discount, line.quantity);
     });
     return formatMoney(amount, entry.code, displayDecimals(entry.code));
   });
@@ -351,10 +338,7 @@ export class CartDrawerComponent {
     return normalizeImageKitPath(rawPath);
   }
 
-  selectionLabel(
-    productId: string,
-    selection: CartLineDraft['selection'],
-  ): string {
+  selectionLabel(productId: string, selection: CartLineDraft['selection']): string {
     const info = this.productInfo(productId);
     const parts: string[] = [];
     for (const [key, valueId] of Object.entries(selection)) {
@@ -390,9 +374,7 @@ export class CartDrawerComponent {
 
   /** True once this copy of the bag has been on screen; recommendations load from then on. */
   readonly #shown = linkedSignal<boolean, boolean>({
-    source: () =>
-      this.drawerService.isOpen('cart') &&
-      (this.placement() === 'side') === this.#isDesktop(),
+    source: () => this.drawerService.isOpen('cart') && (this.placement() === 'side') === this.#isDesktop(),
     computation: (now, previous) => now || (previous?.value ?? false),
   });
 
@@ -438,12 +420,9 @@ export class CartDrawerComponent {
   >({
     source: () => {
       if (this.isEmpty()) return null;
-      return this.#recommendationsResource.hasValue()
-        ? this.#recommendationsResource.value()
-        : undefined;
+      return this.#recommendationsResource.hasValue() ? this.#recommendationsResource.value() : undefined;
     },
-    computation: (next, previous) =>
-      next === undefined ? (previous?.value ?? null) : next,
+    computation: (next, previous) => (next === undefined ? (previous?.value ?? null) : next),
   });
 
   /** Up to 4 in-stock products from the bag's categories that are not in the bag yet. */

@@ -5,21 +5,11 @@ import { COLOR_IDS } from './catalog-taxonomy';
 import { MARKETING_BADGE_KINDS, MARKETING_BADGE_STYLES } from './marketing-badge';
 import { MAX_PRODUCT_PLAYERS, PlayerIdSchema } from './player.schema';
 import { MAX_DETAIL_LINE, MAX_DETAIL_LINES } from './utils/product-details';
-import {
-  LOCKABLE_PRODUCT_FIELDS,
-  PRODUCT_GENDER_IDS,
-  PRODUCT_TYPE_IDS,
-} from './product.constants';
+import { LOCKABLE_PRODUCT_FIELDS, PRODUCT_GENDER_IDS, PRODUCT_TYPE_IDS } from './product.constants';
 
 const wholeNumber = v.pipe(v.number(), v.integer(), v.minValue(0));
 const countMap = v.record(v.string(), wholeNumber);
-const tagSlugSchema = v.pipe(
-  v.string(),
-  v.trim(),
-  v.minLength(1),
-  v.maxLength(32),
-  v.regex(/^[a-z0-9-]+$/),
-);
+const tagSlugSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(32), v.regex(/^[a-z0-9-]+$/));
 
 export const MarketingBadgeSchema = v.object({
   kind: v.picklist(MARKETING_BADGE_KINDS),
@@ -101,10 +91,7 @@ export const ProductSchema = v.pipe(
     modelGroup: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80))),
     gender: v.optional(v.picklist(PRODUCT_GENDER_IDS)),
     /** Every colour of the model in a fixed order (this product included). A bad list never drops the product. */
-    colorSiblings: v.optional(
-      v.fallback(v.pipe(v.array(ColorSiblingSchema), v.maxLength(12)), []),
-      [],
-    ),
+    colorSiblings: v.optional(v.fallback(v.pipe(v.array(ColorSiblingSchema), v.maxLength(12)), []), []),
     currency: v.literal('EGP'),
     price: wholeNumber,
     compareAtPrice: v.nullable(wholeNumber),

@@ -1,0 +1,26 @@
+# Build output and dependencies (Prettier also reads .gitignore)
+dist/
+functions/lib/
+.angular/
+
+# Generated copies: format the source, then run the sync script (AGENTS.md, Living Documentation)
+src/app/core/services/offers/engine/
+src/app/core/config/store-info.ts
+src/app/core/config/order-messages.ts
+.claude/skills/
+.claude/rules/
+.agents/rules/
+.agents/workflows/
+
+# Written by scripts/generate-tz-currency.mjs
+functions/src/intl/country-currency.generated.ts
+src/app/core/services/currency/country-currency.ts
+src/app/core/services/currency/tz-currency.ts
+
+# Only code is formatted; docs and data keep their hand layout
+*.md
+*.mdc
+*.json
+*.yaml
+*.yml
+package-lock.json

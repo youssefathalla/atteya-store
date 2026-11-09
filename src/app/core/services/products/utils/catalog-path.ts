@@ -1,9 +1,5 @@
 import { SEED_BRANDS, SEED_CATEGORIES } from '../catalog-taxonomy';
-import {
-  CATALOG_BRAND_IDS,
-  CATALOG_CATEGORY_IDS,
-  PRODUCT_TYPE_IDS,
-} from '../product.constants';
+import { CATALOG_BRAND_IDS, CATALOG_CATEGORY_IDS, PRODUCT_TYPE_IDS } from '../product.constants';
 import type { CatalogSummary } from '../product.model';
 
 const TYPE_IDS = new Set<string>(PRODUCT_TYPE_IDS);

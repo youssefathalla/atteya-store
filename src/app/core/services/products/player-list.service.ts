@@ -21,9 +21,7 @@ export class PlayerListService {
   });
 
   /** Players in the order staff saved them; empty while loading or when the read failed. */
-  readonly players = computed<readonly Player[]>(() =>
-    this.#list.hasValue() ? this.#list.value() : [],
-  );
+  readonly players = computed<readonly Player[]>(() => (this.#list.hasValue() ? this.#list.value() : []));
 
   readonly namesById = computed<ReadonlyMap<string, string>>(
     () => new Map(this.players().map((player) => [player.id, player.name])),

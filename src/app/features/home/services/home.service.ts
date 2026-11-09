@@ -1,29 +1,12 @@
 import { isPlatformBrowser } from '@angular/common';
-import {
-  computed,
-  DestroyRef,
-  inject,
-  PLATFORM_ID,
-  Service,
-  signal,
-  TransferState,
-} from '@angular/core';
+import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal, TransferState } from '@angular/core';
 import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { HomeSettingsSchema } from '../schemas/home.schema';
 import { HOME_SETTINGS_KEY, HomeSettingsSeed, toHomeSettingsSeed } from '../resolvers/home-settings.state';
-import {
-  HomeHero,
-  HomeNavList,
-  HomeSettings,
-  HomeShopCategories,
-} from '../models/home.model';
-import {
-  DEFAULT_HOME_HERO,
-  DEFAULT_HOME_NAV_LIST,
-  DEFAULT_HOME_SHOP_CATEGORIES,
-} from '../data/home.data';
+import { HomeHero, HomeNavList, HomeSettings, HomeShopCategories } from '../models/home.model';
+import { DEFAULT_HOME_HERO, DEFAULT_HOME_NAV_LIST, DEFAULT_HOME_SHOP_CATEGORIES } from '../data/home.data';
 
 const HERO_STORAGE_KEY = 'atteya_store_home_hero';
 const SHOP_CATEGORIES_STORAGE_KEY = 'atteya_store_home_shop_categories';

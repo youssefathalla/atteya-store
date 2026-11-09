@@ -15,10 +15,7 @@ export const OrderShippingSchema = v.pipe(
     country,
     phone: v.pipe(v.string(), v.trim(), v.minLength(6), v.maxLength(20)),
     governorateId: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(40)), null), null),
-    boxId: v.optional(
-      v.nullable(v.picklist(['box1', 'box2', 'box3']), null),
-      null,
-    ),
+    boxId: v.optional(v.nullable(v.picklist(['box1', 'box2', 'box3']), null), null),
   }),
   v.check(
     (shipping) => shipping.country === 'EG' || shipping.postalCode.length >= 1,

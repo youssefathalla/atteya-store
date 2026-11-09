@@ -105,7 +105,9 @@ export function selectionLabel(
  * Order-level actions, decided by the order's current stage. The WhatsApp text always matches
  * the status loaded now (the list reloads after every confirm or cancel).
  */
-export function orderActions(order: OrderDoc): Pick<
+export function orderActions(
+  order: OrderDoc,
+): Pick<
   OrderLineAdminRow,
   | 'stage'
   | 'whatsappUrl'
@@ -137,13 +139,8 @@ export function orderActions(order: OrderDoc): Pick<
           : null,
     canCancel: open && manual,
     amountDueLabel: due?.amountEgp != null ? formatMoney(due.amountEgp, 'EGP', 0) : null,
-    deliveryFeeAction: agreedLine
-      ? isDeliveryFeeToBeAgreed(shipping)
-        ? 'set'
-        : 'change'
-      : null,
-    deliveryFeeEgp:
-      agreedLine && !isDeliveryFeeToBeAgreed(shipping) ? (shipping?.priceEgp ?? null) : null,
+    deliveryFeeAction: agreedLine ? (isDeliveryFeeToBeAgreed(shipping) ? 'set' : 'change') : null,
+    deliveryFeeEgp: agreedLine && !isDeliveryFeeToBeAgreed(shipping) ? (shipping?.priceEgp ?? null) : null,
   };
 }
 

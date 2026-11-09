@@ -25,8 +25,7 @@ export class DialogsTabComponent {
     this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData>(ConfirmDialogComponent, {
       data: {
         title: 'Confirm Component Deployment',
-        message:
-          'Are you sure you want to deploy these design tokens to the production design system?',
+        message: 'Are you sure you want to deploy these design tokens to the production design system?',
         confirmText: 'Deploy to Production',
         cancelText: 'Cancel',
       },

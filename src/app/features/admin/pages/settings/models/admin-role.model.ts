@@ -1,9 +1,5 @@
 import * as v from 'valibot';
-import {
-  AdminRecordSchema,
-  RoleAuditSchema,
-  SetUserRoleResultSchema,
-} from '../schemas/admin-role.schema';
+import { AdminRecordSchema, RoleAuditSchema, SetUserRoleResultSchema } from '../schemas/admin-role.schema';
 
 export type AdminRecord = v.InferOutput<typeof AdminRecordSchema>;
 export type RoleAudit = v.InferOutput<typeof RoleAuditSchema>;

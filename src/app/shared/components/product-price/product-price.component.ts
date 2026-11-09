@@ -41,15 +41,11 @@ export class ProductPriceComponent {
   readonly priceClass = computed(() => {
     if (!this.isListing()) return 'font-title-sm font-bold!';
     // Sale price bold; ordinary listing price stays regular (card typography).
-    return this.effectiveListPrice() !== null
-      ? 'font-body-md font-bold!'
-      : 'font-body-md';
+    return this.effectiveListPrice() !== null ? 'font-body-md font-bold!' : 'font-body-md';
   });
 
   readonly showFromPrefix = computed(
-    () =>
-      this.partial() ||
-      (this.fromPrice() !== null && this.fromPrice() !== this.price()),
+    () => this.partial() || (this.fromPrice() !== null && this.fromPrice() !== this.price()),
   );
 
   readonly shownPrice = computed(() => this.#format(this.displayedPrice()));

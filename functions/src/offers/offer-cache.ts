@@ -11,20 +11,13 @@ export function clearOfferCache(): void {
   cachedOffers = null;
 }
 
-export async function getActiveOffers(
-  db: Firestore,
-  forceRefresh = false,
-): Promise<readonly Offer[]> {
+export async function getActiveOffers(db: Firestore, forceRefresh = false): Promise<readonly Offer[]> {
   const now = Date.now();
   if (!forceRefresh && cachedOffers && now - cachedAt < TTL_MS) {
     return cachedOffers;
   }
 
-  const snap = await db
-    .collection('offers')
-    .where('active', '==', true)
-    .limit(200)
-    .get();
+  const snap = await db.collection('offers').where('active', '==', true).limit(200).get();
 
   const list: Offer[] = [];
   for (const doc of snap.docs) {

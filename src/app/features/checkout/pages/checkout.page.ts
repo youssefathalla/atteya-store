@@ -73,8 +73,7 @@ import { PaymentMarkComponent } from '@shared/ui/payment-mark';
 const TOO_HEAVY_MESSAGE = 'This order is too heavy to send abroad. Remove an item or message us.';
 const ABROAD_COMING_SOON_MESSAGE =
   "Ordering from outside Egypt is coming soon. Message us on WhatsApp and we'll help you order.";
-const DELIVERY_UNAVAILABLE_MESSAGE =
-  'We could not work out delivery for this order. Please try again later.';
+const DELIVERY_UNAVAILABLE_MESSAGE = 'We could not work out delivery for this order. Please try again later.';
 
 /**
  * Product details by id. `null` = no longer available (deleted, or unpublished: shoppers get
@@ -440,7 +439,11 @@ export class CheckoutPageComponent implements OnInit {
         quantity: line.quantity,
         price: display == null ? '' : formatMoney(display, entry.code, decimals),
         was: deal
-          ? formatMoney(lineDisplayAmount(toDisplayAmount(deal.unitEgp, entry), line.quantity), entry.code, decimals)
+          ? formatMoney(
+              lineDisplayAmount(toDisplayAmount(deal.unitEgp, entry), line.quantity),
+              entry.code,
+              decimals,
+            )
           : '',
         deal: deal ? dealTag(deal.deals.deals, line.quantity) : '',
         gifts: (giftUnits > 0 ? (line.gifts ?? []) : []).map((gift) => {
@@ -852,8 +855,15 @@ export class CheckoutPageComponent implements OnInit {
 }
 
 function hasTypedAddress(shipping: CheckoutShippingInput): boolean {
-  return [shipping.fullName, shipping.line1, shipping.line2 ?? '', shipping.city, shipping.region ?? '', shipping.postalCode, shipping.phone]
-    .some((value) => value.trim().length > 0);
+  return [
+    shipping.fullName,
+    shipping.line1,
+    shipping.line2 ?? '',
+    shipping.city,
+    shipping.region ?? '',
+    shipping.postalCode,
+    shipping.phone,
+  ].some((value) => value.trim().length > 0);
 }
 
 /** Saved address → checkout form (same country). Egypt keeps only its four fields. */

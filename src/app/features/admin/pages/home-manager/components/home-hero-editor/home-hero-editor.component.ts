@@ -7,12 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { ImagePickerComponent } from '@shared/ui/image-picker';
 import { ImageAsset } from '@shared/schemas';
-import {
-  ActionMoveEvent,
-  HeroAction,
-  HeroLayoutCount,
-  HeroSlide,
-} from '../../models/home-manager.model';
+import { ActionMoveEvent, HeroAction, HeroLayoutCount, HeroSlide } from '../../models/home-manager.model';
 
 @Component({
   selector: 'app-home-hero-editor',
@@ -48,9 +43,7 @@ export class HomeHeroEditorComponent {
     Array.from({ length: this.layoutCount() }, (_, i) => i),
   );
 
-  protected readonly pickerLabel = computed<string>(
-    () => `1. Banner #${this.activeSlotIndex() + 1} Image`,
-  );
+  protected readonly pickerLabel = computed<string>(() => `1. Banner #${this.activeSlotIndex() + 1} Image`);
 
   protected readonly slideAsset = computed<ImageAsset>(() => ({
     path: this.slide().imageUrl,

@@ -96,15 +96,7 @@ export const SHOP_COLOR_IDS = [
   'multi',
 ] as const satisfies readonly ColorId[];
 
-export const APPAREL_LETTER_SIZES = [
-  'S',
-  'M',
-  'L',
-  'XL',
-  '2XL',
-  '3XL',
-  '4XL',
-] as const;
+export const APPAREL_LETTER_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'] as const;
 
 export const SHOP_SORT_OPTIONS: readonly {
   readonly value: CatalogSort;
