@@ -9,15 +9,17 @@ import {
   type OfferMinimum,
   type OfferReward,
   type OfferScope,
-  type OfferTier,
 } from '@core/services/offers/engine';
 import type { Brand, Category, Product } from '@core/services/products/product.model';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import {
   FREE_ITEM_OPTIONS,
+  isUnavailableDeal,
   MAX_FREE_ITEM_VALUES,
   readFreeItem,
   REWARD_PICKER_OPTIONS,
+  rewardPickerKind,
+  UNAVAILABLE_DEAL_MESSAGE,
   type FreeItemMode,
   type RewardPickerKind,
   withFreeItem,
@@ -39,18 +41,13 @@ export class RewardEditorComponent {
 
   readonly pickerOptions = REWARD_PICKER_OPTIONS;
 
-  readonly selectedPickerKind = computed<RewardPickerKind>(() => {
-    const r = this.reward();
-    if (this.scope() === 'cart' && (r.kind === 'percentOff' || r.kind === 'amountOff')) {
-      return 'cartThreshold';
-    }
-    return r.kind;
-  });
+  readonly selectedPickerKind = computed<RewardPickerKind>(() =>
+    rewardPickerKind(this.reward(), this.scope()),
+  );
 
-  readonly isDeferredReward = computed(() => {
-    const kind = this.selectedPickerKind();
-    return kind === 'cartThreshold';
-  });
+  /** An old offer of a deal type that is hidden for launch: it opens, but can't be saved. */
+  readonly isUnavailableDeal = computed(() => isUnavailableDeal(this.reward(), this.scope()));
+  readonly unavailableDealMessage = UNAVAILABLE_DEAL_MESSAGE;
 
   onKindChange(event: Event): void {
     const target = event.target;
@@ -86,18 +83,6 @@ export class RewardEditorComponent {
           maxApplications: null,
         });
         break;
-      case 'tiered':
-        this.scope.set('item');
-        this.minimum.set(null);
-        this.reward.set({
-          kind: 'tiered',
-          basis: 'quantity',
-          tiers: [
-            { min: 1, percent: 10 },
-            { min: 3, percent: 20 },
-          ],
-        });
-        break;
       case 'freeGift':
         // One set of gifts per qualifying item bought, so it is an item offer with no minimum.
         this.scope.set('item');
@@ -111,11 +96,6 @@ export class RewardEditorComponent {
         this.scope.set('cart');
         this.minimum.set({ subtotal: 3000 });
         this.reward.set({ kind: 'freeShipping' });
-        break;
-      case 'cartThreshold':
-        this.scope.set('cart');
-        this.minimum.set({ subtotal: 4000 });
-        this.reward.set({ kind: 'amountOff', amount: 300 });
         break;
     }
   }
@@ -138,16 +118,6 @@ export class RewardEditorComponent {
   onMinSubtotalChange(event: Event): void {
     const val = this.#readInt(event, 0);
     this.minimum.set(val > 0 ? { subtotal: val } : null);
-  }
-
-  onCartRewardTypeChange(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    if (target.value === 'percentOff') {
-      this.reward.set({ kind: 'percentOff', percent: 10 });
-    } else {
-      this.reward.set({ kind: 'amountOff', amount: 300 });
-    }
   }
 
   onBuyXGetYChange(field: 'buyQty' | 'getQty' | 'getPercent' | 'maxApps', event: Event): void {
@@ -220,37 +190,6 @@ export class RewardEditorComponent {
     this.reward.set(
       withFreeItem(r, current.mode, { ...current.selection, [kind]: change(current.selection[kind]) }),
     );
-  }
-
-  onTierChange(index: number, field: 'min' | 'percent', event: Event): void {
-    const r = this.reward();
-    if (r.kind !== 'tiered') return;
-    const val = this.#readInt(event, 1);
-    const nextTiers: OfferTier[] = r.tiers.map((tier, idx) =>
-      idx === index
-        ? {
-            min: field === 'min' ? val : tier.min,
-            percent: field === 'percent' ? Math.min(100, val) : (tier.percent ?? 10),
-          }
-        : tier,
-    );
-    this.reward.set({ ...r, tiers: nextTiers });
-  }
-
-  addTier(): void {
-    const r = this.reward();
-    if (r.kind !== 'tiered' || r.tiers.length >= 5) return;
-    const last = r.tiers[r.tiers.length - 1];
-    this.reward.set({
-      ...r,
-      tiers: [...r.tiers, { min: (last?.min ?? 1) + 2, percent: Math.min(100, (last?.percent ?? 10) + 5) }],
-    });
-  }
-
-  removeTier(index: number): void {
-    const r = this.reward();
-    if (r.kind !== 'tiered' || r.tiers.length <= 2) return;
-    this.reward.set({ ...r, tiers: r.tiers.filter((_, idx) => idx !== index) });
   }
 
   readonly maxGifts = MAX_OFFER_GIFTS;
