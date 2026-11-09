@@ -349,10 +349,10 @@ export class CartDrawerComponent {
       const id = valueId.trim();
       if (!id) continue;
       const option = info?.options.find((item) => item.key === key);
-      const valueLabel = option?.values.find((value) => value.id === id)?.label ?? id;
-      // Skip raw Firestore ids when the product doc has not loaded yet.
-      if (!option && /^[0-9a-f-]{20,}$/i.test(id)) continue;
-      parts.push(valueLabel);
+      const valueLabel = option?.values.find((value) => value.id === id)?.label;
+      // A choice the product no longer lists (or a product that has not loaded yet) is
+      // left out, so an internal id never reaches the bag.
+      if (valueLabel) parts.push(valueLabel);
     }
     return parts.join(' · ');
   }
