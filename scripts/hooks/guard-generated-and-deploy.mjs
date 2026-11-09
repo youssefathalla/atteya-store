@@ -101,7 +101,9 @@ export function withoutQuotedText(command, shell = 'Bash') {
   const bash = shell !== 'PowerShell';
   const text = command
     .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?:\n|$)/g, '\n')
-    .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '');
+    .replace(/@(['"])\r?\n[\s\S]*?\r?\n\1@/g, '')
+    // A line continuation (Bash `\` or PowerShell backtick at the end of a line) keeps one command going.
+    .replace(bash ? /\\\r?\n/g : /`\r?\n/g, ' ');
   let out = '';
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
