@@ -13,7 +13,7 @@
  * builds and opens a PR exactly like a scheduled run. Nothing is built on this machine.
  *
  * Three routines on claude.ai share that same prompt and differ only in the model:
- *   Opus   (no flag)   trig_01BzzGXbAheJgZo7kqRxGUh8   ATTEYA_ROUTINE_TOKEN          routine-token
+ *   Opus   (no flag)   trig_01BzzGXbAheJgZo7kqRxGUh8   ATTEYA_ROUTINE_TOKEN_OPUS     routine-token
  *   Sonnet (--sonnet)  trig_01UwGVcKtQkxrepBwEZEzcJ3   ATTEYA_ROUTINE_TOKEN_SONNET   routine-token-sonnet
  *   Haiku  (--haiku)   trig_01PWLhc1Yzys3h3sKHd1bkmT   ATTEYA_ROUTINE_TOKEN_HAIKU    routine-token-haiku
  * Only the Opus routine runs on the hourly schedule (and is the one Conflict Watch starts); Sonnet
@@ -35,7 +35,8 @@ const MODELS = {
   opus: {
     name: 'Opus',
     routineId: 'trig_01BzzGXbAheJgZo7kqRxGUh8',
-    tokenEnv: 'ATTEYA_ROUTINE_TOKEN',
+    tokenEnv: 'ATTEYA_ROUTINE_TOKEN_OPUS',
+    legacyTokenEnv: 'ATTEYA_ROUTINE_TOKEN', // old name, still read so an existing setup keeps working
     tokenFileName: 'routine-token',
   },
   sonnet: {
@@ -68,7 +69,7 @@ function fireUrl(model) {
 }
 
 function readToken(model) {
-  const fromEnv = (process.env[model.tokenEnv] ?? '').trim();
+  const fromEnv = (process.env[model.tokenEnv] ?? (model.legacyTokenEnv ? process.env[model.legacyTokenEnv] : undefined) ?? '').trim();
   if (fromEnv) return fromEnv;
   const file = tokenFile(model);
   if (existsSync(file)) return readFileSync(file, 'utf8').trim();
