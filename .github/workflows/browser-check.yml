@@ -25,6 +25,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'tsconfig*.json'
+      - '.postcssrc.json'
+      - '.nvmrc'
       - 'scripts/browser-check.mjs'
       - '.github/workflows/browser-check.yml'
       - 'apphosting*.yaml'
