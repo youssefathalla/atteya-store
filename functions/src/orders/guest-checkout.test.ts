@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 
+import { liveOffers } from '../../lib/offers/engine/index.js';
 import { guestOfferCustomerKey } from '../../lib/orders/offer-usage.js';
 import { parseGuestCheckout } from '../../lib/orders/order-request.js';
 import {
@@ -98,6 +99,28 @@ describe('guest offer-limit key', () => {
       guestOfferCustomerKey('shopper@example.com'),
     );
     assert.notEqual(guestOfferCustomerKey('a@example.com'), guestOfferCustomerKey('b@example.com'));
+  });
+});
+
+describe('guest pricing', () => {
+  it('a guest order (signedIn false) never gets a signed-in-only offer; offers for everyone still apply', () => {
+    const base = {
+      active: true,
+      archived: false,
+      schedule: { startsAt: null, endsAt: null },
+      requiresCode: false,
+      visibility: 'public',
+      code: null,
+    };
+    const offers = [
+      { ...base, id: 'members', audience: 'signedIn' },
+      { ...base, id: 'everyone', audience: 'everyone' },
+    ] as unknown as Parameters<typeof liveOffers>[0];
+    const now = new Date('2026-11-10T12:00:00Z');
+    const guest = liveOffers(offers, { now, signedIn: false, codes: [] }).map((offer) => offer.id);
+    const account = liveOffers(offers, { now, signedIn: true, codes: [] }).map((offer) => offer.id);
+    assert.deepEqual(guest, ['everyone']);
+    assert.deepEqual(account, ['members', 'everyone']);
   });
 });
 
