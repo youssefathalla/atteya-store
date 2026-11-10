@@ -804,7 +804,7 @@ function quoteShippingLine(
       if (c.paymentMethod === 'paymob') {
         throw new HttpsError(
           'failed-precondition',
-          "Card or Wallet isn't available for large orders, because we agree the delivery fee with you first. Choose InstaPay or Cash on Delivery.",
+          "Card isn't available for large orders, because we agree the delivery fee with you first. Choose InstaPay or Cash on Delivery.",
         );
       }
       return {

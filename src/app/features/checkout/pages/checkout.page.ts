@@ -1,4 +1,4 @@
-import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
+import { isPlatformBrowser, NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   computed,
@@ -75,6 +75,7 @@ import { callableMessage } from '@shared/utils/firebase/firebase-errors';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
+import { cashOnDeliverySteps, instapaySteps } from '../utils/checkout-pay-steps';
 import {
   countryLabel,
   filterCheckoutCountries,
@@ -171,7 +172,7 @@ type CheckoutSummary =
       readonly state: 'ready';
       /**
        * Egypt order heavier than the biggest box: we message the shopper on WhatsApp to agree
-       * the delivery fee. Card or Wallet is hidden; `shipping` reads "We'll contact you".
+       * the delivery fee. Card is hidden; `shipping` reads "We'll contact you".
        */
       readonly feeToBeAgreed: boolean;
       readonly subtotal: string;
@@ -198,6 +199,7 @@ type CheckoutSummary =
   imports: [
     RouterLink,
     NgOptimizedImage,
+    NgTemplateOutlet,
     AppImageFallbackDirective,
     MatAutocompleteModule,
     MatButtonModule,
@@ -232,17 +234,17 @@ export class CheckoutPageComponent implements OnInit {
   /** The signed-in shopper's email (checkout is behind sign-in). */
   readonly accountEmail = computed(() => this.#auth.user()?.email ?? '');
   /**
-   * Card or Wallet can be picked (`STORE_INFO.payments.cardOrWallet`). While it is
+   * Card can be picked (`STORE_INFO.payments.cardOrWallet`). While it is
    * `'coming-soon'` it is listed greyed out and visitors outside Egypt order on WhatsApp.
    */
   readonly cardOrWalletLive = isCardOrWalletLive();
-  /** Business WhatsApp chat for visitors outside Egypt while Card or Wallet is coming soon. */
+  /** Business WhatsApp chat for visitors outside Egypt while Card is coming soon. */
   readonly whatsappUrl = whatsappChatUrl(STORE_INFO.contact.whatsapp);
   /** What the shopper picked; null = not chosen yet (Egypt then starts on InstaPay). */
   readonly #chosenMethod = signal<CheckoutPaymentMethod | null>(null);
   /**
-   * Egypt: InstaPay (default), card or wallet, or cash on delivery.
-   * Abroad: card or wallet only, whatever was picked before; null while Card or Wallet is
+   * Egypt: InstaPay (default), card, or cash on delivery.
+   * Abroad: card only, whatever was picked before; null while Card is
    * coming soon (nothing to pay with, so checkout points to WhatsApp instead).
    */
   readonly paymentMethod = computed<CheckoutPaymentMethod | null>(() => {
@@ -294,7 +296,7 @@ export class CheckoutPageComponent implements OnInit {
   readonly isEgypt = computed(() => this.shipping().country === 'EG');
   /** InstaPay and cash on delivery are Egypt-only. */
   readonly localMethodsAvailable = computed(() => this.isEgypt());
-  /** A country outside Egypt is chosen while Card or Wallet is coming soon: order on WhatsApp. */
+  /** A country outside Egypt is chosen while Card is coming soon: order on WhatsApp. */
   readonly abroadOrderingClosed = computed(() => {
     const country = this.shipping().country;
     return !this.cardOrWalletLive && isCheckoutCountry(country) && country !== 'EG';
@@ -664,6 +666,17 @@ export class CheckoutPageComponent implements OnInit {
     return summary.state === 'ready' ? summary : null;
   });
 
+  /** How to pay, step by step, under the chosen method (empty until the bag is priced). */
+  readonly instapaySteps = computed(() => {
+    const ready = this.readySummary();
+    return ready ? instapaySteps(ready) : [];
+  });
+
+  readonly cashOnDeliverySteps = computed(() => {
+    const ready = this.readySummary();
+    return ready ? cashOnDeliverySteps(ready) : [];
+  });
+
   constructor() {
     // Tell the shopper when an offer stops applying to their bag (notes above the summary).
     effect(() => {
@@ -712,7 +725,7 @@ export class CheckoutPageComponent implements OnInit {
     this.#seo.setPageMetadata({
       title: 'Checkout | Atteya Store',
       description: this.cardOrWalletLive
-        ? 'Pay by Card or Wallet, or by InstaPay or Cash on Delivery in Egypt.'
+        ? 'Pay by Card, or by InstaPay or Cash on Delivery in Egypt.'
         : 'Pay by InstaPay or Cash on Delivery in Egypt.',
       noindex: true,
     });

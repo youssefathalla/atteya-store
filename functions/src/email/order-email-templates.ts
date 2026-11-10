@@ -403,7 +403,7 @@ function storePayment(order: OrderEmailOrder): StorePayment {
         note: 'Confirm the payment in the dashboard once you see it in your bank app.',
       };
     default:
-      return { method: 'Card or Wallet', rows: [['Paid', total]], note: null };
+      return { method: 'Card', rows: [['Paid', total]], note: null };
   }
 }
 

@@ -330,6 +330,8 @@
                 <div class="elements-between gap-3 pe-3">
                   <mat-radio-button value="instapay">
                     <span class="elements-start gap-3">
+                      <!-- Stretches the label over the whole row, so a click anywhere on it picks this method. -->
+                      <span class="pay-option__hit" aria-hidden="true"></span>
                       <span class="pay-option__mark"><app-payment-mark method="instapay" /></span>
                       <span>InstaPay</span>
                     </span>
@@ -340,18 +342,9 @@
                 </div>
                 @if (paymentMethod() === 'instapay' && ready) {
                   <ol class="pay-steps" aria-label="How to pay by InstaPay" aria-live="polite">
-                    <li>Place your order</li>
-                    @if (ready.feeToBeAgreed) {
-                      <li>We'll contact you about the delivery fee</li>
-                      <li>Send the total by InstaPay</li>
-                    } @else {
-                      <li>
-                        <span
-                          >Send <strong>{{ ready.instapayTotal }}</strong> by InstaPay</span
-                        >
-                      </li>
+                    @for (step of instapaySteps(); track $index) {
+                      <ng-container *ngTemplateOutlet="payStep; context: { $implicit: step }" />
                     }
-                    <li>Send the screenshot on WhatsApp</li>
                   </ol>
                 }
               </div>
@@ -360,8 +353,10 @@
               <div class="pay-option" [class.pay-option--selected]="paymentMethod() === 'paymob'">
                 <mat-radio-button value="paymob">
                   <span class="elements-start gap-3">
+                    <!-- Stretches the label over the whole row, so a click anywhere on it picks this method. -->
+                    <span class="pay-option__hit" aria-hidden="true"></span>
                     <span class="pay-option__mark"><app-payment-mark method="paymob" /></span>
-                    <span>Card or Wallet</span>
+                    <span>Card</span>
                   </span>
                 </mat-radio-button>
               </div>
@@ -371,30 +366,22 @@
                 class="pay-option space-y-2"
                 [class.pay-option--selected]="paymentMethod() === 'cash-on-delivery'"
               >
-                <mat-radio-button value="cash-on-delivery">
-                  <span class="elements-start gap-3">
-                    <span class="pay-option__mark"><app-payment-mark method="cash-on-delivery" /></span>
-                    <span>Cash on Delivery</span>
-                  </span>
-                </mat-radio-button>
+                <!-- Same header box as InstaPay's, so the steps start the same distance below it. -->
+                <div class="elements-start">
+                  <mat-radio-button value="cash-on-delivery">
+                    <span class="elements-start gap-3">
+                      <!-- Stretches the label over the whole row, so a click anywhere on it picks this method. -->
+                      <span class="pay-option__hit" aria-hidden="true"></span>
+                      <span class="pay-option__mark"><app-payment-mark method="cash-on-delivery" /></span>
+                      <span>Cash on Delivery</span>
+                    </span>
+                  </mat-radio-button>
+                </div>
                 @if (paymentMethod() === 'cash-on-delivery' && ready) {
                   <ol class="pay-steps" aria-label="How to pay with Cash on Delivery" aria-live="polite">
-                    <li>Place your order</li>
-                    @if (ready.feeToBeAgreed) {
-                      <li>We'll contact you about the delivery fee</li>
-                      <li>Send the fee by InstaPay</li>
-                    } @else if (ready.codShippingEgp > 0) {
-                      <li>
-                        <span
-                          >Send the <strong>{{ ready.codShipping }}</strong> delivery fee by InstaPay</span
-                        >
-                      </li>
+                    @for (step of cashOnDeliverySteps(); track $index) {
+                      <ng-container *ngTemplateOutlet="payStep; context: { $implicit: step }" />
                     }
-                    <li>
-                      <span
-                        >Pay <strong>{{ ready.codCash }}</strong> in cash at your door</span
-                      >
-                    </li>
                   </ol>
                 }
               </div>
@@ -405,7 +392,7 @@
                 <mat-radio-button value="paymob" disabled>
                   <span class="elements-start gap-3">
                     <span class="pay-option__mark"><app-payment-mark method="paymob" /></span>
-                    <span>Card or Wallet</span>
+                    <span>Card</span>
                   </span>
                 </mat-radio-button>
                 <span class="font-body-sm text-on-surface-variant">Coming soon</span>
@@ -420,7 +407,7 @@
         }
         @if (cardOrWalletLive && feeToBeAgreed()) {
           <p class="font-label-sm opacity-70">
-            Card or Wallet isn't available for large orders, because we agree the delivery fee with you first.
+            Card isn't available for large orders, because we agree the delivery fee with you first.
           </p>
         }
       </fieldset>
@@ -479,3 +466,16 @@
     </form>
   </div>
 </section>
+
+<!-- One "how to pay" step: number and line come from CSS, then title, note and the amount on the right. -->
+<ng-template #payStep let-step>
+  <li class="pay-step">
+    <span class="pay-step__text">
+      <span class="font-body-md font-bold!">{{ step.title }}</span>
+      <span class="font-body-sm text-on-surface-variant">{{ step.note }}</span>
+    </span>
+    @if (step.amount) {
+      <span class="pay-step__amount">{{ step.amount }}</span>
+    }
+  </li>
+</ng-template>

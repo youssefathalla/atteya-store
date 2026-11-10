@@ -11,7 +11,7 @@
  * shipped to every visitor's browser.
  */
 
-/** Whether shoppers can pay by Card or Wallet yet (see `StoreInfo.payments.cardOrWallet`). */
+/** Whether shoppers can pay by Card yet (see `StoreInfo.payments.cardOrWallet`). */
 export type CardOrWalletStatus = 'coming-soon' | 'live';
 
 export interface StoreInfo {
@@ -38,7 +38,7 @@ export interface StoreInfo {
    */
   readonly payments: {
     /**
-     * Card or Wallet (Paymob). `'coming-soon'` until the client's Paymob account is live:
+     * Card (Paymob). `'coming-soon'` until the client's Paymob account is live:
      * checkout shows it greyed out with a "Coming soon" tag, visitors outside Egypt are sent to
      * WhatsApp to order, and `createPaymobOrder` refuses. `'live'` turns it on everywhere.
      */
@@ -89,7 +89,7 @@ export const STORE_INFO: StoreInfo = {
   },
 };
 
-/** True once Card or Wallet can be chosen at checkout and `createPaymobOrder` accepts orders. */
+/** True once Card can be chosen at checkout and `createPaymobOrder` accepts orders. */
 export function isCardOrWalletLive(info: StoreInfo = STORE_INFO): boolean {
   return info.payments.cardOrWallet === 'live';
 }

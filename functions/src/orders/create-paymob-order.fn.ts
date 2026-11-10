@@ -31,7 +31,7 @@ export const createPaymobOrder = onCall(
     if (!isCardOrWalletLive()) {
       throw new HttpsError(
         'failed-precondition',
-        'Card or Wallet is coming soon. Choose another way to pay, or message us on WhatsApp to order.',
+        'Card is coming soon. Choose another way to pay, or message us on WhatsApp to order.',
       );
     }
     await requireAcceptedTerms(caller.uid);

@@ -60,10 +60,20 @@
     @apply mt-0 p-4 border-0;
   }
 
-  /* One payment method: its mark in a small box, then the name (14px); "Coming soon" on the right when it isn't offered
-     yet. Rows are split by the list's light divider. */
+  /* The payment methods: stacked rows split by a light divider on a phone; from `sm` (tablet sheet and the desktop
+     side bag) all three sit on one line, so the list doesn't leave a wide empty space on the right. */
+  .bag-pay-list {
+    @apply divide-y divide-outline-variant sm:flex sm:flex-wrap sm:gap-x-8 sm:gap-y-3 sm:divide-y-0;
+  }
+
+  /* One payment method: its mark in a small box, then the name (14px); "Coming soon" after it when it isn't offered
+     yet (on the right of the row on a phone). */
   .bag-pay-row {
-    @apply elements-start gap-3 py-2 font-body-md;
+    @apply elements-start gap-3 py-2 font-body-md sm:py-0;
+  }
+
+  .bag-pay-row__name {
+    @apply min-w-0 flex-1 truncate sm:flex-none;
   }
 
   /* 52×32 box holding app-payment-mark (icons 20px); the InstaPay logo is scaled to about 18px tall. */
@@ -75,13 +85,11 @@
     @apply h-4.5!;
   }
 
-  /* A method that isn't offered yet: dashed mark box, and the whole row at 40% opacity so it reads as disabled. */
-  .bag-pay-row--soon {
+  /* A method that isn't offered yet: its icons, name and "Coming soon" at 40% opacity so it reads as disabled, while
+     the mark box keeps the same full border as the other methods. */
+  .bag-pay-row--soon > :not(.bag-pay-row__mark),
+  .bag-pay-row--soon .bag-pay-row__mark > * {
     @apply opacity-40;
-  }
-
-  .bag-pay-row--soon .bag-pay-row__mark {
-    @apply border-dashed;
   }
 }
 

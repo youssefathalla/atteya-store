@@ -24,7 +24,7 @@ export function paymentLabel(order: OrderDoc): string {
     case 'instapay':
       return 'InstaPay';
     case 'paymob':
-      return 'Card or Wallet (Paymob)';
+      return 'Card (Paymob)';
     case 'international-bank-transfer':
       return 'Bank Transfer (legacy)';
   }

@@ -258,13 +258,51 @@
             <br />{{ address.phone }}
           </address>
         }
-        <p class="elements-start flex-wrap gap-x-2 gap-y-1 font-body-md">
+      </section>
+
+      <section
+        class="bg-surface-container-low border-shape p-5 elements-start-col items-stretch! gap-3"
+        aria-labelledby="payment-heading"
+      >
+        <div class="elements-between gap-3">
+          <h2 id="payment-heading" class="font-title-md font-bold!">Payment</h2>
+          <span
+            class="order-pay-tag"
+            [class.order-pay-tag--done]="paymentTone() === 'done'"
+            [class.order-pay-tag--stopped]="paymentTone() === 'stopped'"
+            >{{ statusLabel() }}</span
+          >
+        </div>
+        <div class="order-pay-method">
           @if (paymentMethod(); as method) {
-            <app-payment-mark [method]="method" />
+            <span class="order-pay-method__mark"><app-payment-mark [method]="method" /></span>
           }
-          <span class="font-bold!">{{ paymentLabel() }}</span>
-          <span class="text-on-surface-variant">· {{ statusLabel() }}</span>
-        </p>
+          <span class="font-body-md font-bold!">{{ paymentLabel() }}</span>
+        </div>
+        @if (paymentParts().length > 0) {
+          <ul class="divide-y divide-outline-variant">
+            @for (part of paymentParts(); track part.key) {
+              <li class="order-pay-part">
+                <span class="order-pay-part__mark"><app-payment-mark [method]="part.mark" /></span>
+                <span class="min-w-0 flex-1 elements-start-col">
+                  <span class="font-body-md">{{ part.title }}</span>
+                  <span class="elements-start gap-1 font-body-sm text-on-surface-variant">
+                    @if (part.paid) {
+                      <mat-icon name="check" size="sm" weight="700" />
+                    }
+                    {{ part.note }}
+                  </span>
+                </span>
+                <span
+                  class="order-pay-part__amount"
+                  [class.order-pay-part__amount--muted]="part.struck || part.soft"
+                  [class.line-through]="part.struck"
+                  >{{ part.amount }}</span
+                >
+              </li>
+            }
+          </ul>
+        }
       </section>
     </div>
 
