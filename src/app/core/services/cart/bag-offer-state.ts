@@ -95,6 +95,9 @@ export function bagOfferLook(args: {
     // choices, and the gift product published with enough stock in the chosen size for this
     // line's gifts on top of everything else the bag takes from it.
     const giftOffer = giftOfferById(offerId, product.priced, variant, offers, ctx, choices);
+    // Only gifts that are really given take stock, as in the order callables: a pick that is sold
+    // out or no longer allowed must not make a later line's gift look sold out.
+    const given = new Map<string, number>();
     picks.forEach((pick, i) => {
       const allowed = giftOffer?.gifts.some(
         (gift) => gift.id === pick.giftId && gift.productIds.includes(pick.productId),
@@ -104,9 +107,13 @@ export function bagOfferLook(args: {
         lineKey,
         name: giftNameFor(offers, pick.offerId, pick.giftId),
       });
+      const info = products.get(pick.productId);
+      if (!info) return;
+      const key = giftStockKey(pick.productId, info, pick.sizeId);
+      given.set(key, (given.get(key) ?? 0) + wanted);
     });
     if (units > 0) {
-      for (const [key, taken] of added) demand.set(key, (demand.get(key) ?? 0) + taken);
+      for (const [key, taken] of given) demand.set(key, (demand.get(key) ?? 0) + taken);
     }
   });
 
