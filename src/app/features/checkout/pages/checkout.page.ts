@@ -28,7 +28,7 @@ import {
   type PricedBagLine,
 } from '@core/services/cart/cart-deals';
 import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
-import { bagGiftKey, giftNoteText } from '@core/services/cart/bag-offer-notes';
+import { bagGiftKey, giftNoteText, unavailableGiftsMessage } from '@core/services/cart/bag-offer-notes';
 import { BagOfferNotesService } from '@core/services/cart/bag-offer-notes.service';
 import { bagOfferLook } from '@core/services/cart/bag-offer-state';
 import { cartLineKey } from '@core/services/cart/cart.model';
@@ -133,6 +133,8 @@ type PricedBag =
       readonly parcelLines: readonly ParcelLine[];
       readonly subtotalEgp: number;
       readonly subtotalDisplay: number;
+      /** Picked free gifts that are gone or sold out right now (`bagGiftKey`): not given, not weighed. */
+      readonly unavailableGifts: ReadonlySet<string>;
     };
 
 /** One row of the order summary list. */
@@ -357,10 +359,16 @@ export class CheckoutPageComponent implements OnInit {
     return this.lines().filter((line) => products.get(line.productId) === null).length;
   });
 
-  /** Shown next to Place Order (and as the snackbar) while the bag holds a gone item. */
+  /**
+   * Shown next to Place Order (and as the snackbar) while the bag holds a gone item, or a free
+   * gift that is gone or sold out (counted, same wording as the order callables for one).
+   */
   readonly unavailableMessage = computed((): string | null => {
     const count = this.unavailableLineCount();
-    if (count === 0) return null;
+    if (count === 0) {
+      const bag = this.#pricedBag();
+      return bag.state === 'ready' ? unavailableGiftsMessage(bag.unavailableGifts.size) : null;
+    }
     return count === 1
       ? 'One item in your bag is no longer available. Remove it to place your order.'
       : 'Some items in your bag are no longer available. Remove them to place your order.';
@@ -387,6 +395,10 @@ export class CheckoutPageComponent implements OnInit {
     const entry = this.#currency.entry();
     // Per-item offers on each piece, then Buy X Get Y over the whole bag, like the server.
     const bag = priceBag(lines, products, offers, ctx);
+    // Which picked gifts can be given right now, with the same checks as the order callables.
+    const giftLook = bagOfferLook({ bagKey: '', lines, products, priced: bag.lines, offers, ctx });
+    const givenGifts = giftLook?.state.gifts ?? new Map();
+    const unavailableGifts = new Set(giftLook?.state.unavailableGifts?.keys() ?? []);
     const lineDisplay: (number | null)[] = [];
     const pricedLines: PricedProduct[] = [];
     const parcelLines: ParcelLine[] = [];
@@ -404,8 +416,10 @@ export class CheckoutPageComponent implements OnInit {
       }
       parcelLines.push({ weightGrams: info.weightGrams, quantity: line.quantity });
       // Each free gift goes in the same parcel (one per piece without a Buy X Get Y discount),
-      // as the server weighs it.
+      // as the server weighs it. A gift that can't be given (gone, sold out) is left out.
+      const lineKey = cartLineKey(line);
       for (const gift of line.gifts ?? []) {
+        if (!givenGifts.has(bagGiftKey(lineKey, gift.offerId, gift.giftId))) continue;
         parcelLines.push({
           weightGrams: products.get(gift.productId)?.weightGrams ?? null,
           quantity: priced.deals.giftUnits,
@@ -433,6 +447,7 @@ export class CheckoutPageComponent implements OnInit {
       parcelLines,
       subtotalEgp,
       subtotalDisplay,
+      unavailableGifts,
     };
   });
 
@@ -467,11 +482,16 @@ export class CheckoutPageComponent implements OnInit {
       const deal = priced && priced.deals.discount > 0 ? priced : null;
       // A piece with a Buy X Get Y discount comes without its free gifts.
       const giftUnits = priced ? priced.deals.giftUnits : line.quantity;
-      // A gift that can no longer be given shows its note instead of its row.
+      // A gift that can no longer be given shows its note instead of its row. One that is gone or
+      // sold out right now is never listed as given, even before its note is in.
       const lineKey = cartLineKey(line);
       const noted = (gift: { offerId: string; giftId: string }): boolean =>
         giftNotes.has(bagGiftKey(lineKey, gift.offerId, gift.giftId));
-      const lineGifts = (giftUnits > 0 ? (line.gifts ?? []) : []).filter((gift) => !noted(gift));
+      const unavailable = (gift: { offerId: string; giftId: string }): boolean =>
+        bag.state === 'ready' && bag.unavailableGifts.has(bagGiftKey(lineKey, gift.offerId, gift.giftId));
+      const lineGifts = (giftUnits > 0 ? (line.gifts ?? []) : []).filter(
+        (gift) => !noted(gift) && !unavailable(gift),
+      );
       return {
         unavailable: false,
         name: info?.name ?? 'Item',
