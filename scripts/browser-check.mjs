@@ -72,6 +72,9 @@ const ALLOWED_CONSOLE = [
   // The router's view transition is skipped when a second navigation or redirect starts
   // before the first one finished drawing; the page itself is fine.
   /AbortError: Transition was skipped/i,
+  // Google's own report-only CSP on its frame (the reCAPTCHA / sign-in iframe) logs this when it
+  // is framed by our page. "Report-only" means nothing is blocked; it failed PR 219's check once.
+  /^Framing 'https:\/\/www\.google\.com\/' violates the following report-only Content Security Policy directive: "frame-ancestors 'self'"/,
 ];
 
 /**
