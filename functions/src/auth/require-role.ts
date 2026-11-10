@@ -8,6 +8,8 @@ export type Role = 'user' | 'admin';
 export interface RequiredCaller {
   readonly uid: string;
   readonly email?: string;
+  /** True only when the ID token says the provider verified `email`. */
+  readonly emailVerified: boolean;
   readonly role: Role;
 }
 
@@ -48,6 +50,7 @@ export async function requireRole(req: CallableRequest, needed: Role): Promise<R
   return {
     uid: req.auth.uid,
     email: typeof email === 'string' ? email : undefined,
+    emailVerified: req.auth.token.email_verified === true,
     role,
   };
 }

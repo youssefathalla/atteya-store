@@ -44,10 +44,11 @@ export const claimOrder = onCall(adminCallableOptions(), async (request): Promis
     if (typeof owner === 'string' && owner.length > 0) {
       throw new HttpsError('failed-precondition', 'This order is already linked to another account.');
     }
-    if (!claimEmailMatches(order['customerEmail'], caller.email)) {
+    // An unverified token email can be any address the caller typed at sign-up, so it proves nothing.
+    if (!caller.emailVerified || !claimEmailMatches(order['customerEmail'], caller.email)) {
       throw new HttpsError(
         'permission-denied',
-        'Sign in with the email you used for this order to save it to your account.',
+        'Sign in with the verified email you used for this order to save it to your account.',
       );
     }
     const now = FieldValue.serverTimestamp();
