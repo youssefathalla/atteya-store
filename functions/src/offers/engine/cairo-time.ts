@@ -30,6 +30,13 @@ const CAIRO_DISPLAY_FORMATTER = new Intl.DateTimeFormat('en-GB', {
   hourCycle: 'h23',
 });
 
+const CAIRO_DATE_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: CAIRO_TIMEZONE,
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
 /**
  * Converts a wall-clock date/time in Africa/Cairo into an exact UTC Date,
  * dynamically accounting for Egypt DST (+02:00 / +03:00).
@@ -112,4 +119,9 @@ export function formatCairoDateTimeInput(date: Date | null): string {
 export function formatCairoDisplay(date: Date | null): string {
   if (!date) return '';
   return CAIRO_DISPLAY_FORMATTER.format(date);
+}
+
+/** The day in Cairo, e.g. "12 Nov 2026". */
+export function formatCairoDate(date: Date): string {
+  return CAIRO_DATE_FORMATTER.format(date);
 }
