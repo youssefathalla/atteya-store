@@ -47,7 +47,7 @@ Do NOT build, and stop after this step, when any of these is true:
 - It needs a product, design, pricing or wording decision nobody has made, or anything from the client.
 - It needs something only a person can do before the change works: a Firebase or Google Cloud console change, a new secret or env value, running a data migration on live data, or anything on production.
 - It needs changes under `.github/`.
-  A normal dev deploy after merge (`fb:rules:dev`, `fb:fn:dev`, `fb:indexes:dev`) is NOT a reason to stop: build the change and list that deploy step in the PR (step 5).
+  A normal dev deploy after merge (`fb:rules:dev`, `fb:fn:dev`, `fb:indexes:dev`) is NOT a reason to stop: build the change and list that deploy step in the PR (step 6).
   In that case comment exactly what is missing as a short list of questions or items, move it to **Blocked** (waiting on someone else) or **Backlog** with the label `Open Questions` (an undecided choice), and remove the label `agent`. Final message: "<id> needs input: <one line>."
 
 ## 4. Build it
@@ -62,23 +62,31 @@ Do NOT build, and stop after this step, when any of these is true:
    - `npm run test:cart`
    - `npm test --prefix functions`
    - `npx ng build --configuration development`
-5. Commit with messages that start with the issue id (`<id> Short summary`) and end with the line `Co-Authored-By: Claude <noreply@anthropic.com>`. Push the branch to `origin` (`git push -u origin <type>/<short-name>`). If the pre-push hook refuses the branch name, rename it with the `git branch -m` command the hook prints and push again; that is never a reason to move the issue to Blocked.
+5. Review your own change before it leaves this session, so Bugbot, the Claude review and Claude Fix find little or nothing:
+   - Commit your work first (the reviews read the branch against `origin/develop`), then run `git remote set-head origin develop` once. Without it `/security-review` fails with "ambiguous argument 'origin/HEAD...'".
+   - Run `/code-review` on the branch against `origin/develop`: at `high` when the change touches money, stock, sign-in, Firestore or Storage rules, `functions/` or checkout; at `medium` otherwise (the `preflight-gate` skill's rule).
+   - Run `/security-review` on the same branch.
+   - Fix every high and medium finding you agree with, then run the step 4 checks again and fix what they catch. A finding you decide is wrong stays unfixed, with one line saying why in the PR body. Low findings are notes only.
+   - If a review can't run at all (an error, not findings), don't stop: say so in the "Self-review" section and carry on. The reviews after the push still run.
+   - Keep what you found for the PR body's "Self-review" section (step 6).
+6. Commit with messages that start with the issue id (`<id> Short summary`) and end with the line `Co-Authored-By: Claude <noreply@anthropic.com>`. Push the branch to `origin` (`git push -u origin <type>/<short-name>`). If the pre-push hook refuses the branch name, rename it with the `git branch -m` command the hook prints and push again; that is never a reason to move the issue to Blocked.
 
-## 5. Open the pull request
+## 6. Open the pull request
 
 - Base `develop`. Title starts with the issue id: `<id> <plain summary>`.
 - Body: first line `Linear: [<id>](https://linear.app/<workspace>/issue/<id>)`, a clickable link to the issue (`workspace` from `linear.config.json`). Then what changed and why, how to check it on the dev site, and any deploy step it needs (for example `fb:rules:dev` or `fb:fn:dev`) for the person who deploys. Never write closing words like "Fixes <id>" or "Closes <id>".
-- If every check in step 4.4 passed, open it as a normal (ready) PR. Bugbot, the security review and the Claude fix workflow review it, and it merges into `develop` by itself when clean.
+- Add a short "Self-review" section to the body: the `/code-review` level used, that `/security-review` ran, what each found and you fixed, and any finding left on purpose with its one-line reason. "Nothing found" is a fine answer.
+- If every check in step 4.4 passed after the self-review in step 4.5, open it as a normal (ready) PR. Bugbot, the security review and the Claude fix workflow review it, and it merges into `develop` by itself when clean.
 - If a check still fails and you could not fix it, open it as a **draft** and say in the body exactly what fails and why. Drafts are never merged automatically.
 - Use `gh pr create` if it is available. Otherwise use whatever GitHub tool this session has.
 
-## 6. Update Linear
+## 7. Update Linear
 
 - Move the issue to **To Review**. For a draft PR, move it to **Blocked** instead and comment what fails, that a person should fix it and mark the PR ready for review, and that the issue then goes back to **To Review**. Blocked issues don't hold a slot.
 - Comment with the PR link, a one-line summary, and any deploy step it needs.
 - If you noticed a separate bug along the way, create a new issue with the label `Bug` in status **Bugs**. Don't fix it in this PR.
 
-## 7. Final message
+## 8. Final message
 
 One short paragraph: the issue id, the branch, the PR link, whether checks passed, and anything a person must do (deploy step, open question).
 
@@ -92,7 +100,7 @@ Another PR merged into `develop` first, so these can't merge. Fix at most 3 per 
    - No conflict after all: run the checks below and push if they pass.
    - A conflicted file is under `.github/`, or is `.env*`, a secret, or a file you would have to guess about: `git merge --abort`, then go to step 5.
    - Otherwise resolve every conflicted file so that BOTH sides' changes survive. `develop` already shipped its side: never drop it. Keep the PR's own change on top of it. For AGENTS.md and other docs, keep every note from both sides in a sensible order with no duplicate sentences. For `package-lock.json` / `functions/package-lock.json`, resolve `package.json` first, then regenerate the lock file with `npm install` (or `npm install --prefix functions`). Read the code around each conflict, and AGENTS.md for the area, before deciding. No conflict markers may remain (`git diff --check`, and search for `<<<<<<<`).
-4. Check it like a normal build: `npm ci`, `npm ci --prefix functions`, `npm run preflight`, `npm run test:cart`, `npm test --prefix functions`, `npx ng build --configuration development`. Fix only what the merge broke. Then commit with the message `<id> Merge develop and resolve conflicts` (the `<teamKey>-<number>` id from the PR title) ending with the line `Co-Authored-By: Claude <noreply@anthropic.com>`, and `git push` (a normal push, never force). Comment on the PR: "🔀 Conflict Fix · resolved" plus one line per file saying what you kept. CI, Bugbot and auto-merge take it from there. Don't change the Linear status.
+4. Check it like a normal build: `npm ci`, `npm ci --prefix functions`, `npm run preflight`, `npm run test:cart`, `npm test --prefix functions`, `npx ng build --configuration development`. Fix only what the merge broke. Then commit with the message `<id> Merge develop and resolve conflicts` (the `<teamKey>-<number>` id from the PR title) ending with the line `Co-Authored-By: Claude <noreply@anthropic.com>`. When you resolved a conflict in code by hand (not only docs or lock files), review it before pushing, like step 4.5 of a build: run `git remote set-head origin develop` first (a conflict-fix run never reaches step 4), then `/code-review` and `/security-review` on the branch against `origin/develop`, then fix only high and medium findings in the lines you resolved (findings in the PR's own code are its reviewers' job), run the checks again and commit the fix with a message starting with the same id. A review that can't run never stops the push of a merge that already passed its checks; say so in the "🔀 Conflict Fix · resolved" comment. Then `git push` (a normal push, never force). Comment on the PR: "🔀 Conflict Fix · resolved" plus one line per file saying what you kept. CI, Bugbot and auto-merge take it from there. Don't change the Linear status.
    If the push is refused because the branch moved (non-fast-forward): `git fetch origin`. When `origin/<branch>` now contains `origin/develop` (`git merge-base --is-ancestor origin/develop origin/<branch>`), another session already fixed it: drop your work and move on, with no comment. Otherwise start this PR again from step 3, once.
 5. If you can't resolve it safely, a check still fails after a fair try, or the push is refused for another reason (for example because `develop` brought in `.github/workflows` changes this session may not push): don't push (`git merge --abort` or reset the branch to `origin/<branch>`). Comment on the PR "🔀 Conflict Fix · needs a person" with the full 40-character head commit SHA, the files, and exactly why, and add the same as a comment on its Linear issue.
 6. Never merge a PR, never push to `develop` or `main`, never force-push, never edit `.github/`.
