@@ -76,7 +76,7 @@ Always use Material M3 typography tokens. Never use arbitrary Tailwind text sizi
 2. **Angular Component Host Sizing**:
    - All section and page components (`app-*-section`, `app-*`) must define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
 3. **Full-Viewport Sections**:
-   - Full-screen heroes directly below the stacked top chrome must use `h-[calc(100dvh-var(--storefront-top-chrome,56px))]`. `--storefront-top-chrome` is measured from the shipping banner + desktop nav stack in `MainLayoutComponent` (falls back to `56px` / `h-14` navbar-only).
+   - Full-screen heroes directly below the stacked top chrome must use `h-[calc(100dvh-var(--storefront-top-chrome,56px))]`. `--storefront-top-chrome` is measured from the announcement bar + desktop nav stack in `MainLayoutComponent` (falls back to `56px` / `h-14` navbar-only).
    - When a full-height hero is specified, do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to the slide containers, as `aspect-ratio` overrides height in modern CSS.
 4. **Section Spacing**:
    - Use `.container-content` as the single unified class for page section layout and responsive container padding (`p-[5cqw]`). Do not append `.section-space` to elements that already have `.container-content`.

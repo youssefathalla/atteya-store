@@ -102,6 +102,20 @@ export interface OfferLimits {
   readonly perCustomer: number | null;
 }
 
+/** When the top banner shows the time left: never, always, or only in the last `countdownDays` days. */
+export type OfferBannerCountdown = 'hide' | 'always' | 'lastDays';
+
+/** How an offer shows in the storefront's top announcement bar. */
+export interface OfferBanner {
+  /** Staff turned the offer on in the top banner (offers for everyone only). */
+  readonly show: boolean;
+  /** Banner text, at most 60 characters; null = the offer's customer title. */
+  readonly text: string | null;
+  readonly countdown: OfferBannerCountdown;
+  /** Used when `countdown` is `lastDays`: 1 to 30, default 7. */
+  readonly countdownDays: number;
+}
+
 export interface OfferDraft {
   readonly id?: string;
   readonly name: string;
@@ -124,6 +138,8 @@ export interface OfferDraft {
   readonly limits: OfferLimits;
   readonly requiresCode: boolean;
   readonly code?: string | null;
+  /** Top banner settings; missing (older offers) = not in the banner. */
+  readonly banner?: OfferBanner;
 }
 
 export interface Offer extends OfferDraft {

@@ -1,4 +1,4 @@
-import { MAX_GIFT_CHOICES, MAX_OFFER_GIFTS } from './engine/index.js';
+import { MAX_GIFT_CHOICES, MAX_OFFER_GIFTS, parseOfferBanner } from './engine/index.js';
 import type {
   Offer,
   OfferGift,
@@ -66,6 +66,7 @@ export function parseOfferDoc(
   const limits = parseLimits(data['limits']);
   const requiresCode = data['requiresCode'] === true || visibility === 'code';
   const updatedAtMs = readTimestampMs(data['updatedAt']);
+  const banner = parseOfferBanner(data['banner']);
 
   return {
     id,
@@ -90,6 +91,7 @@ export function parseOfferDoc(
     requiresCode,
     code: code ?? null,
     updatedAtMs,
+    banner,
   };
 }
 

@@ -33,9 +33,12 @@ export class OfferSettingsComponent {
 
   onAudienceChange(event: Event): void {
     const val = (event.target as HTMLSelectElement).value as OfferAudience;
+    const audience: OfferAudience = val === 'signedIn' ? 'signedIn' : 'everyone';
     this.draft.update((prev) => ({
       ...prev,
-      audience: val === 'signedIn' ? 'signedIn' : 'everyone',
+      audience,
+      // Only offers for everyone can show in the top banner.
+      ...(audience !== 'everyone' && prev.banner?.show ? { banner: { ...prev.banner, show: false } } : {}),
     }));
   }
 

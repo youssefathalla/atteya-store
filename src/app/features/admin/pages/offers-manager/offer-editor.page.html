@@ -79,6 +79,15 @@
 
     <app-schedule-editor [schedule]="draft().schedule" (scheduleChange)="updateSchedule($event)" />
 
+    <app-banner-editor
+      [banner]="banner()"
+      [audience]="draft().audience"
+      [requiresCode]="draft().requiresCode && !!draft().code?.trim()"
+      [title]="draft().title"
+      [hasEndDate]="draft().schedule.endsAt !== null"
+      (bannerChange)="updateBanner($event)"
+    />
+
     <app-offer-preview [draft]="draft()" [products]="products()" [validation]="validation()" />
   }
 </div>

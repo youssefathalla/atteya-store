@@ -1,3 +1,4 @@
+import { MAX_BANNER_COUNTDOWN_DAYS, MAX_BANNER_TEXT, MIN_BANNER_COUNTDOWN_DAYS } from './banner.js';
 import { MAX_GIFT_CHOICES, MAX_GIFT_NAME, MAX_OFFER_GIFTS } from './gifts.js';
 import { formatCairoDate } from './cairo-time.js';
 import { matchProduct } from './match.js';
@@ -39,6 +40,8 @@ export function validateOffer(
       message: 'Keep the badge under 24 characters so it fits on product cards.',
     });
   }
+
+  validateBanner(draft, errors);
 
   validateConditionsShape(draft.conditions, 'conditions', errors);
   validateConditionsShape(draft.exclude, 'exclude', errors);
@@ -419,6 +422,41 @@ function maxOfferPercent(draft: OfferDraft): number | null {
   }
   if (r.kind === 'buyXGetY') return r.get.percent;
   return null;
+}
+
+/** Top banner: short text, 1 to 30 days, and only offers for everyone without a code (Shop lists only those). */
+function validateBanner(draft: OfferDraft, errors: OfferIssue[]): void {
+  const banner = draft.banner;
+  if (!banner) return;
+  if (banner.text && banner.text.trim().length > MAX_BANNER_TEXT) {
+    errors.push({
+      code: 'banner.text',
+      message: `Keep the banner text under ${MAX_BANNER_TEXT} characters so it fits on one line.`,
+    });
+  }
+  if (
+    banner.countdown === 'lastDays' &&
+    (!Number.isInteger(banner.countdownDays) ||
+      banner.countdownDays < MIN_BANNER_COUNTDOWN_DAYS ||
+      banner.countdownDays > MAX_BANNER_COUNTDOWN_DAYS)
+  ) {
+    errors.push({
+      code: 'banner.countdownDays',
+      message: `Show the countdown in the last ${MIN_BANNER_COUNTDOWN_DAYS} to ${MAX_BANNER_COUNTDOWN_DAYS} days.`,
+    });
+  }
+  if (banner.show && draft.audience !== 'everyone') {
+    errors.push({
+      code: 'banner.audience',
+      message: 'Only offers for everyone can show in the top banner.',
+    });
+  }
+  if (banner.show && draft.requiresCode && draft.code?.trim()) {
+    errors.push({
+      code: 'banner.code',
+      message: 'Coupon-code offers cannot show in the top banner.',
+    });
+  }
 }
 
 /** What an offer does to an item when it overlaps another: null = it can always come on top. */
