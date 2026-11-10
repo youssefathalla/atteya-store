@@ -778,7 +778,7 @@ describe('P2 / P3 / P8 counting inside the order (any offer type)', () => {
     assert.equal(store.get('offerUsage/deal').count, 2);
   });
 
-  it('per customer 1: signed in and as a guest with the same email share one count', async () => {
+  it('several customer keys share one count (the highest is checked, every key goes up)', async () => {
     const o = used('deal', 'Buy 2, get 1 free', { totalUses: null, perCustomer: 1 }, 'deal');
     // Signed in first (uid + the guest key of the account email), then a guest order with that email.
     const { db, tx, store } = fakeDb({ 'offers/deal': { active: true } });

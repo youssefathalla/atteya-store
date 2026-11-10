@@ -3,10 +3,16 @@ import type { BagDealHint, Offer, OfferConditions } from './engine';
 
 /**
  * True when Shop can list this offer's products (`/shop?offer=<id>`): the search index keeps the
- * offer ids of public offers for everyone that need no code, so only those can be filtered on.
+ * offer ids of public offers for everyone that need no code and have no per-customer limit (those
+ * are for signed-in shoppers only, see `liveOffers`), so only those can be filtered on.
  */
 export function canShopOffer(offer: Offer): boolean {
-  return offer.visibility === 'public' && offer.audience === 'everyone' && !offer.requiresCode;
+  return (
+    offer.visibility === 'public' &&
+    offer.audience === 'everyone' &&
+    !offer.requiresCode &&
+    offer.limits.perCustomer === null
+  );
 }
 
 /**

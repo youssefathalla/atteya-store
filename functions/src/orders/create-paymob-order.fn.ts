@@ -81,7 +81,6 @@ export const createPaymobOrder = onCall(
       day,
       priced.usedOffers,
     );
-    if (filledGuestStoreCap) logGuestStoreCapReached(day);
 
     const orderRef = db.collection('orders').doc();
     const orderId = orderRef.id;
@@ -186,6 +185,8 @@ export const createPaymobOrder = onCall(
       throw new HttpsError('unavailable', 'We could not start online payment. Wait a moment and try again.');
     }
 
+    // Logged only once the order is saved: a failed start gives its slot back.
+    if (filledGuestStoreCap) logGuestStoreCapReached(day);
     return {
       orderId,
       status: 'pending',

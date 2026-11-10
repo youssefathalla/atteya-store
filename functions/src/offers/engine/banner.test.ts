@@ -73,6 +73,17 @@ describe('offer top banner (ATS-145)', () => {
     assert.deepEqual(bannerErrors(draft({ ...on, show: false }, { audience: 'signedIn' })), []);
   });
 
+  it('offers with a per-customer limit cannot show in the banner', () => {
+    const on = { show: true, text: null, countdown: 'always', countdownDays: 7 };
+    const limited = { limits: { totalUses: null, perCustomer: 2 } };
+    assert.deepEqual(
+      bannerErrors(draft(on, limited)).map((issue) => issue.code),
+      ['banner.perCustomer'],
+    );
+    assert.deepEqual(bannerErrors(draft({ ...on, show: false }, limited)), []);
+    assert.deepEqual(bannerErrors(draft(on, { limits: { totalUses: 5, perCustomer: null } })), []);
+  });
+
   it('checks the text length and the countdown days', () => {
     const base = { show: true, text: null, countdown: 'lastDays', countdownDays: 7 };
     assert.deepEqual(

@@ -451,6 +451,13 @@ function validateBanner(draft: OfferDraft, errors: OfferIssue[]): void {
       message: 'Only offers for everyone can show in the top banner.',
     });
   }
+  if (banner.show && draft.limits.perCustomer !== null) {
+    errors.push({
+      code: 'banner.perCustomer',
+      message:
+        'Offers with a per-customer limit are only for signed-in shoppers, so they cannot show in the top banner.',
+    });
+  }
   if (banner.show && draft.requiresCode && draft.code?.trim()) {
     errors.push({
       code: 'banner.code',

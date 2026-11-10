@@ -31,8 +31,9 @@ export function guestOfferCustomerKey(email: string): string {
 
 /**
  * The ids one shopper's `perCustomer` offer uses are counted under. A string is one id; a list is
- * the same person under several ids (a signed-in shopper's uid plus the guest key of their account
- * email), so a use under any of them counts against all of them.
+ * the same person under several ids, and the highest count among them is the one checked. Orders
+ * pass one id today: the uid when signed in, `guestOfferCustomerKey(email)` for a guest (guests
+ * never get `perCustomer` offers, see `liveOffers`, so their key only counts toward nothing).
  */
 export type OfferCustomerKeys = string | readonly string[];
 
@@ -151,10 +152,8 @@ export async function confirmedEndedOfferIds(
  * (`active: false`) in the same transaction, so the live offers listener takes it out of every
  * bag, product page and checkout. The function returns the ids it switched off.
  * Counts live in `offerUsage/{offerId}` and `offerUsage/{offerId}_{key}` (Admin SDK only), one
- * doc per customer key: a guest's key is `guestOfferCustomerKey(email)`; a signed-in shopper has
- * their uid and the guest key of their account email, and the highest of those counts is checked,
- * so ordering once signed in and once as a guest with the same email can't use a `perCustomer`
- * offer twice. This order's use is added to every key.
+ * doc per customer key: the uid when signed in, `guestOfferCustomerKey(email)` for a guest. With
+ * several keys the highest count is checked and this order's use is added to every key.
  */
 export async function readOfferUses(
   tx: Transaction,

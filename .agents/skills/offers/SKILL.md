@@ -17,6 +17,7 @@ The rules for offers, moved here from one long AGENTS.md paragraph so offers PRs
 
 - **Top banner (<KEY>-145)**: an offer may carry `banner` (`show`, `text` ≤ 60 characters or null = the customer title, `countdown` `hide` | `always` | `lastDays`, `countdownDays` 1–30, default 7); engine type `OfferBanner` and `parseOfferBanner()` (`engine/banner.ts`, read by both `OfferDocSchema` and `parseOfferDoc`; missing or bad = not in the banner).
 - The offer form's **Top banner** section (`banner-editor`) is disabled with "Only offers for everyone can show in the top banner." for signed-in-only offers; switching an offer to signed-in turns it off, `saveOffer()` writes `show: false` for those and for code offers, and `validateOffer()` refuses the mix (`banner.audience`).
+- An offer with a per-customer limit (`limits.perCustomer` set) is for signed-in shoppers only, so `validateOffer()` refuses it in the top banner (`banner.perCustomer`, "Offers with a per-customer limit are only for signed-in shoppers, so they cannot show in the top banner.") and `canShopOffer()` is false for it (no `/shop?offer=` page, the bag nudge opens Shop instead); search records and Sale leave it out, like signed-in-only offers (run Rebuild search after the functions deploy that brought this in).
 - Tests: `functions/src/offers/engine/banner.test.ts`, `npm run test:cart`.
 
 ## Prices come from the shared engine
