@@ -31,12 +31,12 @@ export function atteyaImageKitLoader(config: ImageLoaderConfig): string {
 }
 
 /**
- * `sizes` of the product page gallery photos: one photo per view below 768px,
- * one in a ~60% column up to 1279px, two side by side (~30vw each) from 1280px.
+ * `sizes` of the product page gallery photos: one full-width photo per view up to
+ * 1279px (one column, like a phone), two side by side (~30vw each) from 1280px.
  * The first photo is `priority`, so on the server `NgOptimizedImage` adds its own
  * `<link rel="preload" as="image">` with the same `imagesrcset` and these sizes.
  */
-export const PDP_GALLERY_SIZES = '(max-width: 1023px) 100vw, (max-width: 1279px) 60vw, 30vw';
+export const PDP_GALLERY_SIZES = '(max-width: 1279px) 100vw, 30vw';
 
 export function provideAtteyaImageKitLoader(): Provider[] {
   return [{ provide: IMAGE_LOADER, useValue: atteyaImageKitLoader }];

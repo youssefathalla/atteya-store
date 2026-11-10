@@ -2,19 +2,19 @@
   @case ('found') {
     @let p = product()!;
     <article class="container-content elements-start-col">
-      <!-- Phone and tablet: photos, details, sections. lg+ (1024px): photos with the sections under them, details beside both. -->
+      <!-- Below xl (1280px): photos, details (with the free gift picker), sections, one column like on a phone. xl+: photos with the sections under them, details beside both. -->
       <div
-        class="grid w-full grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-12"
+        class="grid w-full grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem] xl:grid-rows-[auto_1fr] xl:gap-8 xl:gap-x-12"
       >
         <app-product-gallery
-          class="lg:col-start-1 lg:row-start-1"
+          class="xl:col-start-1 xl:row-start-1"
           [images]="p.images"
           [name]="p.name"
           [activeColourImage]="colourImage()"
         />
 
         <div
-          class="elements-start-col min-w-0 gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)]"
+          class="elements-start-col min-w-0 gap-5 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:sticky xl:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)]"
         >
           <nav aria-label="Breadcrumb" class="w-full">
             <ol class="pdp-kicker flex flex-wrap items-center gap-x-2 gap-y-1 list-none m-0 p-0">
@@ -141,7 +141,7 @@
           />
         </div>
 
-        <div class="w-full border-t border-outline lg:col-start-1 lg:row-start-2">
+        <div class="w-full border-t border-outline xl:col-start-1 xl:row-start-2">
           @if (p.details.length > 0) {
             <details class="pdp-section">
               <summary>
