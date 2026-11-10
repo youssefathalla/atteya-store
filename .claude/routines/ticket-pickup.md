@@ -53,6 +53,7 @@ Do NOT build, and stop after this step, when any of these is true:
 ## 4. Build it
 
 1. `git fetch origin` and create the branch from the latest `origin/develop`: `git switch -c <type>/<short-name> origin/develop`, following `.agents/skills/branch-naming/SKILL.md` (types: feature, fix, hotfix, refactor, perf, docs, test, chore, ci; 2 to 5 lowercase words; no id, username or date).
+   The branch this cloud session started on (for example `claude/keen-gauss-…`) is only a placeholder. Never push it and never stop because of its name. If you are still on it, rename it before the first push: `git branch -m <type>/<short-name>`, then push under that name. This needs no person's OK. Never use `--no-verify`.
 2. Read the skills AGENTS.md points to for the area you change (`.agents/skills/…`, `.cursor/rules/design-system.mdc`, `copywriting` for any user-facing text).
 3. Make the change, keeping it as small as the ticket allows. Follow the living-documentation rule: update AGENTS.md and the matching skills when you add a pattern, service or utility. If you edit a mirrored source, run `npm run sync:agents`. If you edit shared engine or store files in `functions/`, run `npm run sync:engine`. Do not write `.spec.ts` files.
 4. Install and check, and fix every failure you caused:
@@ -61,7 +62,7 @@ Do NOT build, and stop after this step, when any of these is true:
    - `npm run test:cart`
    - `npm test --prefix functions`
    - `npx ng build --configuration development`
-5. Commit with messages that start with the issue id (`<id> Short summary`) and end with the line `Co-Authored-By: Claude <noreply@anthropic.com>`. Push the branch to `origin`.
+5. Commit with messages that start with the issue id (`<id> Short summary`) and end with the line `Co-Authored-By: Claude <noreply@anthropic.com>`. Push the branch to `origin` (`git push -u origin <type>/<short-name>`). If the pre-push hook refuses the branch name, rename it with the `git branch -m` command the hook prints and push again; that is never a reason to move the issue to Blocked.
 
 ## 5. Open the pull request
 
