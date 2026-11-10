@@ -32,7 +32,7 @@ Plan: `docs/qa/offers-test-scenarios.md`. Run: workflow `wf_aa27b51d-1c7` (Sonne
 
 ## Not bugs, but worth a decision
 
-- **Custom badge on a one-colour offer** reads "Black Friday in Black". Accurate, a bit odd. Keep it, or change it to "Black Friday (Black only)"?
+- **Custom badge on a one-colour offer** reads "Black Friday in Black" (before ATS-168). It now reads "Black Friday · Black only".
 - **J4 plan row is out of date**: one piece already shows "Add 2 more to get 1 free" (on purpose since ATS-148). Update the plan.
 - **Q3 Shop card price lag**: after changing an offer from 10% to 30%, one Shop card kept the old price for minutes, while the product page and bag updated in seconds. The Opus check couldn't explain it from the code (the card reprices from the live offers listener). Recheck once. If it repeats, file a ticket.
 

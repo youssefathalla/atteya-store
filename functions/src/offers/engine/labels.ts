@@ -136,7 +136,7 @@ function appendPartialContext(baseText: string, offer: Offer, facts: ProductFact
   const colors = partialColorSummary(offer.conditions, facts);
   if (colors.length === 1) {
     const label = COLOR_DISPLAY_LABELS[colors[0]] ?? colors[0];
-    return `${baseText} in ${label}`;
+    return `${baseText} · ${label} only`;
   }
   return baseText;
 }
