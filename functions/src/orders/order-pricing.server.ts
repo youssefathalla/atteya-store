@@ -16,12 +16,13 @@ import {
   type ParcelLine,
   type PricedProduct,
   type PricingContext,
+  type ShippingQuote,
   type ShippingRegion,
   type ShippingSettings,
   type VariantFacts,
 } from '../offers/engine/index.js';
 import { parseCheckoutShippingConfig, SHIPPING_DOC_PATH } from '../shipping/shipping-settings.js';
-import { confirmedEndedOfferIds, offerFullError, type UsedOffer } from './offer-usage.js';
+import { confirmedEndedOfferIds, offerFullError, type UsedOffer, type UsedOfferKind } from './offer-usage.js';
 import { giftProductIds, resolveLineGifts, stockDemandKey, type ResolvedGift } from './order-gifts.js';
 import type { CreateStoreOrderRequest, OrderLineInput, StorePaymentMethod } from './order-request.js';
 import { assertCurrentSelection } from './order-selection.js';
@@ -126,8 +127,9 @@ export interface OrderPricingSnapshot {
 export interface PricedStoreOrder {
   readonly pricing: OrderPricingSnapshot;
   /**
-   * Offers this order uses: Free gift offers it gives gifts from and Buy X Get Y offers that
-   * discount it (each counts once towards its limits).
+   * Offers this order uses: Free gift offers it gives gifts from, Buy X Get Y offers that discount
+   * it, Percent off, Amount off and Set price offers that lower at least one piece, and a Free
+   * shipping offer that made the shipping free (each counts once towards its limits).
    */
   readonly usedOffers: readonly UsedOffer[];
 }
@@ -423,11 +425,22 @@ async function priceWithOffers(
   input: CreateStoreOrderRequest,
   signedIn: boolean,
   uid: string,
-  offers: readonly Offer[],
+  allOffers: readonly Offer[],
   shippingConfig: ReturnType<typeof parseCheckoutShippingConfig>,
   giftDocs: ReadonlyMap<string, DocumentData | undefined>,
 ): Promise<PricedStoreOrder | PricingMiss> {
   const ctx: PricingContext = { now: new Date(), signedIn, codes: [] };
+  // Every live offer counts, as in the bag. Checkout's `endedOfferIds` (offers of any type an
+  // earlier refusal said have ended for this shopper) are left out of all pricing only when the
+  // usage counts confirm they have no use left: with two Buy X Get Y offers on the same items,
+  // dropping one that still has uses could let a bigger, lower-priority discount win. An offer with
+  // no use left that checkout didn't leave out is refused in the order transaction
+  // (`readOfferUses`) with its id, never dropped silently.
+  const ended =
+    input.endedOfferIds.length === 0
+      ? new Set<string>()
+      : await confirmedEndedOfferIds(db, uid, allOffers, input.endedOfferIds);
+  const offers = ended.size === 0 ? allOffers : allOffers.filter((offer) => !ended.has(offer.id));
   const pricedLines: OrderLinePrice[] = [];
   const cartProducts: PricedProduct[] = [];
   let subtotalEgp = 0;
@@ -465,17 +478,6 @@ async function priceWithOffers(
   // the bag showed. One discount per item: a group's pieces get either the Buy X Get Y discount
   // (on the price before per-item offers) or their per-item offers, whichever saves more.
   // A piece it discounts gets no free gifts; the better deal for the shopper wins.
-  // Every live offer counts, as in the bag. Checkout's `endedOfferIds` (offers an earlier refusal
-  // said have ended) are left out only when the usage counts confirm they have no use left for this
-  // shopper: with two Buy X Get Y offers on the same items, dropping one that still has uses could
-  // let a bigger, lower-priority discount win. An offer with no use left is refused in the order
-  // transaction (`readOfferUses`) with its id, never dropped silently.
-  const liveDeals = offers.filter((offer) => offer.reward.kind === 'buyXGetY');
-  const ended =
-    input.endedOfferIds.length === 0
-      ? new Set<string>()
-      : await confirmedEndedOfferIds(db, uid, liveDeals, input.endedOfferIds);
-  const dealOffers = ended.size === 0 ? offers : offers.filter((offer) => !ended.has(offer.id));
   const dealFacts = input.lines.map((line, index): BagLineFacts => {
     const { product, variant, priced } = lineResults[index]!;
     return {
@@ -488,22 +490,18 @@ async function priceWithOffers(
       giftWorth: giftWorth(line, giftDocs),
     };
   });
-  const deals = priceBagDeals(dealFacts, dealOffers, ctx);
+  const deals = priceBagDeals(dealFacts, offers, ctx);
   // A page from before "one discount per item" (no `shownBaseEgp`) still shows Buy X Get Y on top
   // of per-item offers. Never charge it more than it showed, and never give it the double discount
   // either (any client could leave the field out): refuse and ask for a refresh, only when the
   // bag really costs more now.
   if (
     input.lines.some((line) => line.shownBaseEgp === null) &&
-    costsMoreThanStacked(dealFacts, dealOffers, ctx)
+    costsMoreThanStacked(dealFacts, offers, ctx)
   ) {
     throw outdatedPageError();
   }
-  for (const offerId of deals.offerIds) {
-    const offer = offers.find((entry) => entry.id === offerId);
-    if (offer)
-      usedOffers.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind: 'deal' });
-  }
+  for (const offerId of deals.offerIds) addUsedOffer(usedOffers, offers, offerId, 'deal');
   // A Buy X Get Y offer the bag showed (`dealOfferIds`) that this order doesn't get (it ended, was
   // switched off, the bag's clock was behind, or this server's offer cache is) would make the order
   // cost more than the shopper saw: `priceWithFreshOffersOnMiss` reads the offers again and refuses
@@ -533,7 +531,7 @@ async function priceWithOffers(
   const roseLine = baseRiseCostsMore(
     dealFacts,
     input.lines.map((line) => line.shownBaseEgp),
-    dealOffers,
+    offers,
     ctx,
   );
   if (roseLine !== null) {
@@ -550,6 +548,11 @@ async function priceWithOffers(
     const { product, variant, weightGrams } = lineResults[index]!;
     const lineDeals = deals.lines[index]!;
     const priced = withDeals(lineResults[index]!.priced, lineDeals);
+    // A Percent off, Amount off or Set price offer counts once when it lowers at least one piece
+    // the order pays for (pieces in a Buy X Get Y group that won pay the price before it).
+    const itemOfferId = lineResults[index]!.appliedOfferId;
+    if (itemOfferId !== null && lineDeals.offerUnits > 0)
+      addUsedOffer(usedOffers, offers, itemOfferId, 'item');
     const forLine = pricedLines.length;
     pricedLines.push(priced);
     cartProducts.push(product);
@@ -574,21 +577,13 @@ async function priceWithOffers(
     for (const gift of gifts) {
       pricedLines.push(giftOrderLine(gift, giftQuantity, forLine));
       parcelLines.push({ weightGrams: readWeightGrams(gift.data['weightGrams']), quantity: giftQuantity });
-      const offer = offers.find((entry) => entry.id === gift.offerId);
-      if (offer && !usedOffers.has(offer.id)) {
-        usedOffers.set(offer.id, {
-          offerId: offer.id,
-          title: offer.title,
-          limits: offer.limits,
-          kind: 'gift',
-        });
-      }
+      addUsedOffer(usedOffers, offers, gift.offerId, 'gift');
     }
   }
 
   // Client payloads cannot choose a box. A sent boxId is not on this input.
   const plan = planDelivery(regionBoxes, region, parcelWeight(parcelLines));
-  const shippingLine = quoteShippingLine(plan, {
+  const { line: shippingLine, freeShippingOfferId } = quoteShippingLine(plan, {
     settings: shippingConfig.settings,
     region,
     isInternational,
@@ -598,6 +593,10 @@ async function priceWithOffers(
     offers,
     ctx,
   });
+
+  // A Free shipping offer counts only when it made the shipping free (not when the box fee, the
+  // Settings promo or free-over was already as low).
+  if (freeShippingOfferId !== null) addUsedOffer(usedOffers, offers, freeShippingOfferId, 'shipping');
 
   const totalEgp = subtotalEgp + shippingLine.priceEgp;
   // Every line passed, but the shipping fee or the total can still be higher than checkout showed
@@ -625,6 +624,23 @@ async function priceWithOffers(
   };
 
   return { pricing, usedOffers: Array.from(usedOffers.values()) };
+}
+
+/**
+ * Adds an offer the order uses (once; the first kind seen wins). An id that isn't among `offers`
+ * is skipped, and so is an offer with no limits: nothing reads its counts, and a store-wide offer
+ * would otherwise make every order write the same `offerUsage` document.
+ */
+export function addUsedOffer(
+  used: Map<string, UsedOffer>,
+  offers: readonly Offer[],
+  offerId: string,
+  kind: UsedOfferKind,
+): void {
+  if (used.has(offerId)) return;
+  const offer = offers.find((entry) => entry.id === offerId);
+  if (!offer || (offer.limits.totalUses === null && offer.limits.perCustomer === null)) return;
+  used.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind });
 }
 
 /**
@@ -774,11 +790,15 @@ interface ShippingLineContext {
 }
 
 /**
- * The order's delivery line. An Egypt order heavier than the biggest box is placed with the fee
- * to be agreed (InstaPay or Cash on Delivery only: a card can't be charged an unknown amount).
- * Promotions and free shipping don't apply to it; staff set the fee they agreed.
+ * The order's delivery line, plus the Free shipping offer that made it free (null when none did).
+ * An Egypt order heavier than the biggest box is placed with the fee to be agreed (InstaPay or
+ * Cash on Delivery only: a card can't be charged an unknown amount). Promotions and free shipping
+ * don't apply to it; staff set the fee they agreed.
  */
-function quoteShippingLine(plan: DeliveryPlan, c: ShippingLineContext): OrderShippingLine {
+function quoteShippingLine(
+  plan: DeliveryPlan,
+  c: ShippingLineContext,
+): { line: OrderShippingLine; freeShippingOfferId: string | null } {
   switch (plan.kind) {
     case 'to-be-agreed':
       if (c.paymentMethod === 'paymob') {
@@ -787,7 +807,10 @@ function quoteShippingLine(plan: DeliveryPlan, c: ShippingLineContext): OrderShi
           "Card or Wallet isn't available for large orders, because we agree the delivery fee with you first. Choose InstaPay or Cash on Delivery.",
         );
       }
-      return { kind: 'domestic-agreed', boxId: null, priceEgp: 0, priceDisplay: 0, feeAgreed: false };
+      return {
+        line: { kind: 'domestic-agreed', boxId: null, priceEgp: 0, priceDisplay: 0, feeAgreed: false },
+        freeShippingOfferId: null,
+      };
     case 'too-heavy':
       throw new HttpsError(
         'failed-precondition',
@@ -823,11 +846,25 @@ function quoteShippingLine(plan: DeliveryPlan, c: ShippingLineContext): OrderShi
     );
   }
   return {
-    kind: c.isInternational ? 'international-box' : 'domestic-box',
-    boxId: quote.boxId,
-    priceEgp: quote.fee,
-    priceDisplay: quote.fee,
+    line: {
+      kind: c.isInternational ? 'international-box' : 'domestic-box',
+      boxId: quote.boxId,
+      priceEgp: quote.fee,
+      priceDisplay: quote.fee,
+    },
+    freeShippingOfferId: freeShippingOfferIdOf(quote),
   };
+}
+
+/**
+ * The Free shipping offer that made the shipping free in this quote, or null (also when the box
+ * itself already costs 0: the offer saved nothing).
+ */
+export function freeShippingOfferIdOf(
+  quote: Pick<ShippingQuote, 'fee' | 'reason' | 'offerId'> & { readonly box: { readonly feeEgp: number } },
+): string | null {
+  const madeItFree = quote.reason === 'offer' && quote.fee === 0 && Math.round(quote.box.feeEgp) > 0;
+  return madeItFree && quote.offerId ? quote.offerId : null;
 }
 
 async function priceLine(

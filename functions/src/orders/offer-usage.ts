@@ -3,16 +3,20 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import type { OfferLimits } from '../offers/engine/index.js';
 
 /**
- * An offer an order uses, with its limits: a Free gift offer it gives gifts from (`gift`), or a
- * Buy X Get Y offer that discounts it (`deal`).
+ * An offer an order uses, with its limits: a Free gift offer it gives gifts from (`gift`), a
+ * Buy X Get Y offer that discounts it (`deal`), a Percent off, Amount off or Set price offer that
+ * lowers the price of at least one piece (`item`), or a Free shipping offer that made the
+ * shipping free (`shipping`). Each counts once per order, however many pieces it touches.
  */
 export interface UsedOffer {
   readonly offerId: string;
   /** The offer's title as shoppers see it ("Buy 2, get 1 free"); used in the refusal message. */
   readonly title: string;
   readonly limits: OfferLimits;
-  readonly kind: 'gift' | 'deal';
+  readonly kind: UsedOfferKind;
 }
+
+export type UsedOfferKind = 'gift' | 'deal' | 'item' | 'shipping';
 
 /**
  * `updatedBy` on an offer an order switched off at its last use, so a failed Paymob start can
@@ -55,9 +59,10 @@ export function offerFullReason(
 }
 
 /**
- * The refusal for an order whose offer is full. A Buy X Get Y offer names itself and puts its id in
- * `details.endedOfferId`, so checkout can leave it out of its own pricing and show the new total;
- * the order is never charged more than the shopper saw.
+ * The refusal for an order whose offer is full. Every offer type except Free gift names itself and
+ * puts its id in `details.endedOfferId`, so checkout can leave it out of its own pricing and show
+ * the new total; the order is never charged more than the shopper saw. A full Free gift offer
+ * asks the shopper to add the item again, since its gifts are saved on the bag line.
  */
 export function offerFullError(offer: UsedOffer, reason: OfferFullReason): HttpsError {
   if (offer.kind === 'gift') return new HttpsError('failed-precondition', GIFT_OFFER_FULL);
@@ -75,9 +80,10 @@ export function offerFullError(offer: UsedOffer, reason: OfferFullReason): Https
 
 /**
  * The ids from checkout's `endedOfferIds` that really have no use left for `uid` (read outside a
- * transaction). Only those may be left out of the order's pricing: with two Buy X Get Y offers on
- * the same items, dropping one that still has uses could let a bigger, lower-priority discount win,
- * so an id the server can't confirm is ignored. Ids that aren't among `offers` change nothing.
+ * transaction). Any offer type counts. Only those may be left out of the order's pricing: with two
+ * Buy X Get Y offers on the same items, dropping one that still has uses could let a bigger,
+ * lower-priority discount win, so an id the server can't confirm is ignored. Ids that aren't among
+ * `offers` change nothing.
  */
 export async function confirmedEndedOfferIds(
   db: Firestore,
