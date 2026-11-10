@@ -1,5 +1,5 @@
 @layer components {
-  /*! shopping bag (app-cart-drawer): item cards and the Payment Methods row */
+  /*! shopping bag (app-cart-drawer): item cards and the Payment Methods list */
 
   /* One item: a bordered card. The body holds the photo and controls; gifts, nudges and offer strips stack under it. */
   .bag-card {
@@ -60,19 +60,28 @@
     @apply mt-0 p-4 border-0;
   }
 
-  /* One of three equal payment tiles: the method's mark with its name under it (InstaPay: the logo only). */
-  .bag-pay-tile {
-    @apply min-h-22 elements-center-col gap-1.5 p-2 text-center border border-outline-variant border-shape font-label-md;
+  /* One payment method: its mark in a small box, then the name (14px); "Coming soon" on the right when it isn't offered
+     yet. Rows are split by the list's light divider. */
+  .bag-pay-row {
+    @apply elements-start gap-3 py-2 font-body-md;
   }
 
-  /* A method that isn't offered yet: dashed outline, grey text, "Coming soon" under the name. The content (icons, name,
-     "Coming soon") is shown at 40% opacity so it reads as disabled; the dashed border stays as it is. */
-  .bag-pay-tile--soon {
-    @apply border-dashed text-on-surface-variant;
+  /* 52×32 box holding app-payment-mark (icons 20px); the InstaPay logo is scaled to about 18px tall. */
+  .bag-pay-row__mark {
+    @apply w-13 h-8 shrink-0 elements-center border border-outline-variant border-shape bg-surface-container-lowest;
   }
 
-  .bag-pay-tile--soon > * {
+  .bag-pay-row__mark img {
+    @apply h-4.5!;
+  }
+
+  /* A method that isn't offered yet: dashed mark box, and the whole row at 40% opacity so it reads as disabled. */
+  .bag-pay-row--soon {
     @apply opacity-40;
+  }
+
+  .bag-pay-row--soon .bag-pay-row__mark {
+    @apply border-dashed;
   }
 }
 

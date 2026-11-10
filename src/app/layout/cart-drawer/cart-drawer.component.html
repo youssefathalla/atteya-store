@@ -215,18 +215,13 @@
         aria-labelledby="bag-payment-title"
       >
         <h3 id="bag-payment-title" class="font-title-sm font-bold!">Payment Methods</h3>
-        <ul class="grid grid-cols-3 gap-2">
+        <ul class="divide-y divide-outline-variant">
           @for (method of paymentMethods(); track method.id) {
-            <li class="bag-pay-tile" [class.bag-pay-tile--soon]="method.comingSoon">
-              @if (method.id === 'instapay') {
-                <!-- The InstaPay logo says the name, so it stands alone with "InstaPay" as its alt text. -->
-                <app-payment-mark [method]="method.id" size="lg" alone />
-              } @else {
-                <app-payment-mark [method]="method.id" size="lg" />
-                <span>{{ method.name }}</span>
-                @if (method.comingSoon) {
-                  <span class="font-label-sm text-on-surface-variant">Coming soon</span>
-                }
+            <li class="bag-pay-row" [class.bag-pay-row--soon]="method.comingSoon">
+              <span class="bag-pay-row__mark"><app-payment-mark [method]="method.id" /></span>
+              <span class="min-w-0 flex-1 truncate">{{ method.name }}</span>
+              @if (method.comingSoon) {
+                <span class="shrink-0 font-body-sm text-on-surface-variant">Coming soon</span>
               }
             </li>
           }
