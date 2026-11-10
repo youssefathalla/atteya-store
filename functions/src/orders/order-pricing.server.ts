@@ -22,7 +22,13 @@ import {
   type VariantFacts,
 } from '../offers/engine/index.js';
 import { parseCheckoutShippingConfig, SHIPPING_DOC_PATH } from '../shipping/shipping-settings.js';
-import { confirmedEndedOfferIds, offerFullError, type OfferCustomerKeys, type UsedOffer, type UsedOfferKind } from './offer-usage.js';
+import {
+  confirmedEndedOfferIds,
+  offerFullError,
+  type OfferCustomerKeys,
+  type UsedOffer,
+  type UsedOfferKind,
+} from './offer-usage.js';
 import { giftProductIds, resolveLineGifts, stockDemandKey, type ResolvedGift } from './order-gifts.js';
 import type { CreateStoreOrderRequest, OrderLineInput, StorePaymentMethod } from './order-request.js';
 import { assertCurrentSelection } from './order-selection.js';
