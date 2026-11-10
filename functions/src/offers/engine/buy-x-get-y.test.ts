@@ -6,6 +6,7 @@ import {
   dealTag,
   displayPrice,
   freeItemProductIds,
+  freeItemWins,
   priceBagDeals,
 } from '../../../lib/offers/engine/index.js';
 import { parseOfferDoc } from '../../../lib/offers/offer-schema.js';
@@ -365,6 +366,77 @@ describe('one discount per item: Buy X Get Y or the per-item offer, the bigger s
     const tenOff = priceBagDeals([withOffer(TEE, 1, 900)], [bxgy('b2g1', {})], CTX);
     assert.equal(tenOff.hints.length, 1);
     assert.equal(tenOff.hints[0].missing, 2);
+  });
+});
+
+describe('free item promises (ATS-148)', () => {
+  const RACKET_3000 = product('racket-3000', ['padel', 'rackets'], 3000);
+  const GRIP_100 = product('grip-1', ['accessories', 'grips'], 100);
+  const GRIP_400 = product('grip-2', ['accessories', 'grips'], 400);
+  // 10% off the racket: one piece costs 2,700 and the offer saves 300.
+  const racket = line(RACKET_3000, 1, { offerPrice: 2700 });
+  const ANY_GRIP = bxgy(
+    'racket-any-grip',
+    {
+      buy: { quantity: 1 },
+      getConditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['grips'] }] }] },
+    },
+    {
+      title: 'Buy a racket, get any grip free',
+      conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['rackets'] }] }] },
+    },
+  );
+
+  it('racket + grip: a 100 grip is not really free next to 10% off a 3,000 racket', () => {
+    assert.equal(freeItemWins([racket], [RACKET_GRIP], CTX, 'racket-grip', line(GRIP_100)), false);
+    // A 400 grip saves more than the 300 the racket gives up, so it is really free.
+    assert.equal(freeItemWins([racket], [RACKET_GRIP], CTX, 'racket-grip', line(GRIP_400)), true);
+    // Without a per-item offer on the racket, any grip on the list is free.
+    assert.equal(freeItemWins([line(RACKET_3000)], [RACKET_GRIP], CTX, 'racket-grip', line(GRIP_100)), true);
+    // Another offer's id never counts.
+    assert.equal(freeItemWins([racket], [RACKET_GRIP], CTX, 'other', line(GRIP_400)), false);
+  });
+
+  it('racket + grip in the bag: the racket keeps 10% off and the grip pays full price, with no promise', () => {
+    const result = priceBagDeals([racket, line(GRIP_100)], [RACKET_GRIP], CTX);
+    assert.deepEqual(
+      result.lines.map((entry) => entry.total),
+      [2700, 100],
+    );
+    assert.deepEqual(
+      result.lines.map((entry) => entry.earns),
+      [[], []],
+    );
+  });
+
+  it('a racket that pays full price for a free grip says what it earns', () => {
+    const result = priceBagDeals(
+      [line(RACKET_3000, 1, { offerPrice: 2900 }), line(GRIP_400)],
+      [RACKET_GRIP],
+      CTX,
+    );
+    assert.deepEqual(
+      result.lines.map((entry) => entry.total),
+      [3000, 0],
+    );
+    assert.deepEqual(result.lines[0].earns, [
+      { offerId: 'racket-grip', units: 1, percent: 100, freeLines: [1] },
+    ]);
+    assert.deepEqual(result.lines[1].earns, []);
+  });
+
+  it('free pieces from the same item earn nothing on another line', () => {
+    const result = priceBagDeals([line(TEE_A, 3)], [bxgy('b2g1', {})], CTX);
+    assert.equal(result.lines[0].discount, 500);
+    assert.deepEqual(result.lines[0].earns, []);
+  });
+
+  it('no "add the free item" nudge for a category free item while the racket offer saves something', () => {
+    const plain = priceBagDeals([line(RACKET_3000)], [ANY_GRIP], CTX);
+    assert.equal(plain.hints.length, 1);
+    assert.equal(plain.hints[0].kind, 'add-more');
+    assert.equal(plain.hints[0].samePool, false);
+    assert.deepEqual(priceBagDeals([racket], [ANY_GRIP], CTX).hints, []);
   });
 });
 

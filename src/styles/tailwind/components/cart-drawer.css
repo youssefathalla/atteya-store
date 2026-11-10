@@ -23,6 +23,11 @@
   }
 
   /* Square box: − / quantity / + */
+  /* "Gets you the free bag": same size as .deal-tag, under the name; always one line, never wider than the name column. */
+  .bag-card__earned {
+    @apply w-fit max-w-full mt-1.5 px-1.5 border border-primary border-shape font-label-sm truncate;
+  }
+
   .bag-card__stepper {
     @apply elements-start border border-outline-variant border-shape;
   }
