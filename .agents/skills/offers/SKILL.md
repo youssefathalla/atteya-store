@@ -1,0 +1,160 @@
+---
+name: offers
+description: Every rule for offers in Atteya Store - who can read them, the shared pricing engine, the top banner, overlap warnings, free gifts and the Gift Box, Buy X Get Y in the bag, checkout and orders, one discount per item, offer limits, the price, total and ended-offer guards at Place Order, offer notes, and the bag-bundle and socks data scripts. Read it before changing offers, pricing, the bag, checkout, the order callables or an offer data script.
+---
+
+# Offers
+
+The rules for offers, moved here from one long AGENTS.md paragraph so offers PRs stop conflicting with each other (<KEY>-157). The general Firestore, checkout and shipping rules stay in AGENTS.md.
+
+**How to edit this file:** one fact per line, as a list item under the heading it belongs to. Add a new rule as its own line, or a new `##` heading for a new topic. Never join rules into one long paragraph: Git merges line by line, so two PRs that touch the same long line conflict even when they change different sentences.
+
+## Who can read offers
+
+- `offers/{id}` is public-read only when `active == true && visibility == 'public'`; `offerCodes` is admin-only; `offerUsage` is Admin SDK only.
+
+## Top banner (<KEY>-145)
+
+- **Top banner (<KEY>-145)**: an offer may carry `banner` (`show`, `text` ≤ 60 characters or null = the customer title, `countdown` `hide` | `always` | `lastDays`, `countdownDays` 1–30, default 7); engine type `OfferBanner` and `parseOfferBanner()` (`engine/banner.ts`, read by both `OfferDocSchema` and `parseOfferDoc`; missing or bad = not in the banner).
+- The offer form's **Top banner** section (`banner-editor`) is disabled with "Only offers for everyone can show in the top banner." for signed-in-only offers; switching an offer to signed-in turns it off, `saveOffer()` writes `show: false` for those and for code offers, and `validateOffer()` refuses the mix (`banner.audience`).
+- Tests: `functions/src/offers/engine/banner.test.ts`, `npm run test:cart`.
+
+## Prices come from the shared engine
+
+- **Never bake offer prices into product docs**: prices come from the shared pure engine in `functions/src/offers/engine/`, copied to `src/app/core/services/offers/engine/` by `npm run sync:engine` (`preflight` fails when the copies differ; edit only the `functions` copy).
+- Algolia offer fields are display-only; checkout re-prices from Firestore on place-order.
+- `onOfferWritten` and the 15-minute `refreshOfferPricing` schedule refresh them.
+- Cart-level rewards and quantity tiers still show as labels only, so the offer form hides "Buy more, save more" and "Spend X, get…" from the Deal type list for launch (`REWARD_PICKER_OPTIONS`; the engine keeps them for later): an old offer of those types still opens with "This deal type isn't available yet. Pause or archive this offer." and Save Offer stays disabled (`isUnavailableDeal()` in `offers-manager/models/offer-admin.model.ts`).
+
+## Overlap warnings
+
+- **Overlap warnings:** the offer form's Heads-up list has one line per other offer that is on or scheduled (not paused, archived or ended; any audience or coupon code) and shares products with the one being edited, saying what shoppers get (`overlapMessage()` in the engine's `validate.ts`, tests `validate.test.ts`): two price offers (Percent off, Amount off, Set price) "Shoppers get whichever is cheaper."; a price offer and Buy X get Y "Shoppers get whichever saves them more, never both."; a Free gift with a price offer "n products also have "<other>". Shoppers get both: the discount and the free gift.", with Buy X get Y "Each item gets either the free gift or the Buy X get Y discount, whichever is worth more."; two Free gift offers "Only the higher-priority gift offer applies."; two Buy X get Y offers "Each item counts toward one Buy X get Y offer only, the higher-priority one first.".
+- Free shipping, tiered, cart offers and offers with a minimum never warn.
+- A scheduled offer's line ends with " (starts <Cairo date>)" (`formatCairoDate()`).
+- Warnings never block saving.
+
+## Free gift offers
+
+- **Free gift offers** (`reward.kind: 'freeGift'`): an item offer (admin saves `scope: 'item'`, `minimum: null`) with one to five `gifts` (`id`, short `name` such as "Free shirt", one to 20 `productIds` to choose from; Offers → Free gift).
+- An old offer holding one `giftProductId` is read as one "Free gift" with that one choice (`parseGifts` in `offer-schema.ts`, `OfferRewardSchema` transform in `offer.schema.ts`), and the admin save deletes the old fields.
+- The engine (`gifts.ts`) gives `giftOfferForProduct()` (the live gift offer for a product or variant with only published, in-stock choices; a gift with none is left out, highest priority wins; an offer set to "Skip products already on sale" (`saleItems: 'exclude'`) gives nothing to a product whose old price is above its price, so the Gift Box doesn't show and the order callables refuse a saved pick for it as ended, while "Best discount wins" still gives gifts; the offer form offers only those two choices under "Products already on sale", has no "Combining with other offers" setting, and an old offer saved with `saleItems: 'stack'` opens as and saves as `bestOf` through `withoutStackSaleItems()` in `offers-manager/models/offer-admin.model.ts`, while `stacking` is still written with its saved value, `'stackable'` for new offers, so old readers don't break), `giftOfferById()` and `checkGiftPicks()`.
+- A bag line may carry `gifts` (`offerId`, `giftId`, `productId`, `sizeId`; at most 5, one offer per line; part of `cartLineKey`, so different picks are separate lines; `carts/{uid}` rules allow the list).
+- One set of gifts per piece.
+- The three order callables re-check every pick on the server (`resolveLineGifts` in `functions/src/orders/order-gifts.ts`: offer live, product qualifies, choice allowed, size valid, published and enough stock; a gift product with a real choice besides size can't be given; gifts the shopper didn't pick are just not given) and save each gift as its own `pricing.lines` entry right after its item at `unitEgp` 0 with `gift: { offerId, giftId, giftName, forLine }`.
+- Gifts add weight to the parcel, never to the subtotal, and come out of stock with the rest of the order on confirm (`confirmCodOrder`, `paymobWebhook` short-stock handling).
+
+## Offer limits (<KEY>-133)
+
+- Offer limits (`limits.totalUses`, `limits.perCustomer`) count orders, once per offer however many gifts or pieces, for every offer type an order uses (<KEY>-133; `UsedOffer.kind` in `offer-usage.ts`, collected by `addUsedOffer` in `order-pricing.server.ts`): a Free gift it gives gifts from (`gift`), a Buy X Get Y offer that discounts it (`deal`), a Percent off, Amount off or Set price offer that lowers at least one piece the order pays for (`item`; pieces in a Buy X Get Y group that won don't count, since they pay the price before it), and a Free shipping offer only when it made the shipping free (`shipping`, `freeShippingOfferIdOf()`: not when the box fee, the Settings promo or free-over was already as low, nor when the box itself costs 0); an offer with no limits is not counted at all (nothing reads its counts, and a store-wide sale would otherwise make every order write the same `offerUsage` document), so a limit added later counts orders from then on: `readOfferUses` (`functions/src/orders/offer-usage.ts`) checks and bumps `offerUsage/{offerId}` and `offerUsage/{offerId}_{uid}` in the order transaction (Paymob: in the rate-limit reservation, given back by `releaseOfferUses` if the payment can't start); uses are not given back when an order is later cancelled or fails.
+- The order that takes an offer's **last** `totalUses` use also switches that offer off in the same transaction when it is still on (`active: false`, `updatedAt`, `updatedBy: 'system:offer-limit'`; an offer staff already paused is left alone), so the live offers listener takes it out of every bag, product page and checkout; a Paymob start that fails switches it back on (only when `updatedBy` is still that marker).
+- Tests: `functions/src/orders/offer-usage.test.ts`.
+
+## Gift Box and how gifts show
+
+- Emails, the confirmation page (new Items list) and admin Orders show a gift under its item, marked "Free".
+- Shoppers pick gifts on the product page in the **Gift Box** (`app-product-gift-box`, under the options: black header "Free shirt and socks with this bag", one numbered step per gift plus a size step once a gift with sizes is chosen; each gift is one sideways row (`.pdp-gift-row` on `.scroll-row`, `appHorizontalScroll` with `[trackScroll]="true"`, wheel left to the page) of big cards (`.pdp-gift-card`: 156px wide, 4:5 photo, one short line under it from `giftCardLabels()` in `features/product/utils/gift-card-label.ts`: the colour word, or the short model name when there is no colour, joined as "Model · Colour" when two choices would read the same; the card's `aria-label` is the full name plus colour; chosen = 1px black border, black caption with white text and a ✓), with previous/next arrows (`app-row-scroll-nav` with `[showProgress]="false"`) on the step's title row and a thin `.pdp-gift-progress` line under the row, both only when the row can scroll, while sizes stay as boxes (`.pdp-choice`); the loading placeholder is a header bar and one row of skeleton cards; Add to Bag with a gift still open adds nothing, highlights the first open step with "Choose your free shirt first." and focuses it).
+- Gift products are read in the browser after hydration (`ProductService.getById`; only published, in-stock choices with no second choice besides size, sizes with stock); a skeleton keeps the space while they load, server render included.
+- A gift with one choice and no sizes is picked for the shopper.
+- The bag, the checkout summary (which also adds gift weight to the parcel, as the server does) and the confirmation page show each gift under its item as "Free shirt: Adidas Simple Polo White, L" · "Free" (`giftLineLabel` / `giftProductLabel` / `giftNameFor` in `@core/services/cart/cart-gifts`).
+
+## Offer lines on the product page
+
+- One design per offer type on the product page: percent off, amount off and fixed price stay price badges; Buy X get Y, tiered and free shipping show one line under the price with the offer's title; Free gift never shows as a badge.
+
+## Buy X Get Y: which item is free
+
+- **Buy X get Y free item**: the editor's "Which item is free?" question (`reward-editor`, helpers `readFreeItem` / `withFreeItem` / `withoutEmptyFreeItemRules` in `offers-manager/models/offer-admin.model.ts`) saves `getConditions` (`null` = the cheapest of them; `productId in [...]`; or a category group plus a brand group) with `cheapestFree: true`, and "Apply again for every extra group" saves `repeat`.
+- `validateFreeItem` in the engine's `validate.ts` stops a save with no product, category or brand picked; empty rules are removed before the offer is written.
+
+## Buy X Get Y in the bag, checkout and the order
+
+- **Buy X Get Y really discounts the bag, checkout and the order** (not label-only any more, though the product page line stays as it was): `priceBagDeals(lines, offers, ctx)` in the engine's `buy-x-get-y.ts` prices a whole bag.
+- Each line passes its product and variant facts, quantity, `basePrice` (one piece before per-item offers: the product's price, the sale price when on sale) and `offerPrice` (after per-item offers, `priceItem`), `onSale` and `giftWorth` (the prices of the gift products its picks name; a gone or unpublished gift product is worth 0 on both sides, `giftWorth()` in `order-pricing.server.ts`, and while the browser hasn't read a gift product the worth counts as unknown, so the piece keeps its gifts and shows no discount; checkout reads gift products like items, and one it can't read stops the summary).
+- For each live per-item `buyXGetY` offer with no minimum (highest priority first), every complete group discounts `get.quantity` pieces by `get.percent`, always the cheapest that can be; with no `getConditions` the free pieces come from the same items, so a group is buy + get pieces ("Buy 2, get 1 free" needs 3); `repeat` and `maxApplications` cap the groups; `saleItems: 'exclude'` leaves sale items out; a piece used by one offer is never used by another.
+- A piece never gets both a Buy X Get Y discount and a free gift: a piece whose gifts are worth at least the discount keeps its gifts and is not chosen, otherwise it is discounted and that line gives gifts only for its other pieces (`giftUnits`).
+- Discounts are whole EGP (`unitDiscount`).
+- It also returns nudges (`hints`): `add-more` (from the first piece when the free piece comes from the same items, counting the bought part too; for a free item from another product only once the bought part is complete).
+- The bag picks the nudge's button and wording with `dealHintAction()` / `dealHintText()` in `@core/services/offers/offer-shop` (tested by `npm run test:cart`): an offer on one product says "Add 2 more to get 1 free" with **Add 2** (more of the same item); a wider offer says "Add 2 more from <category> to get 1 free" (one category, name from `CatalogService`), "Add any 2 more items…" (whole store) or "Add 2 more items…" with **Shop the Offer**, which opens `/shop?offer=<id>`; an offer Shop can't filter on (`canShopOffer()`: signed-in only or with a code, because the search index keeps only public offers for everyone) gets **Keep Shopping** (`/shop`).
+
+## Shop the Offer page (`?offer=`)
+
+- Shop's `?offer=` (`parseOfferParam()`) filters Algolia on the filter-only `offerIds` attribute (from `displayPrice()`: every live public offer for everyone whose conditions the product matches, minus sale items an offer excludes, not only the offers whose badge fits on the card), titles the page with the offer's title and, for a same-items Buy X Get Y, a line "The cheapest one is free." (`offerShopSubtitle()`); the server (no offers listener) and the first browser paint show a title placeholder, and an offer that has ended shows Shop All with "This offer has ended. Here is everything else in the store." and `choose-free` (the group is complete but the free piece must come from a product list, `freeItemProductIds()`, and none is in the bag).
+- `dealTag(deals, quantity)` gives the item tag: "Free", "1 free", "−50%" or "1 at −50%".
+- Engine tests: `buy-x-get-y.test.ts`.
+
+## Bag and checkout pricing (`priceBag`)
+
+- The browser side is `priceBag()` in `@core/services/cart/cart-deals` (per-item offers, then `priceBagDeals`, with the same variant matching as the server, `bagLineVariant()`), used by the bag (`app-cart-drawer`: discounted line price, the old price struck through, a `.deal-tag`, the nudge line under the item, and `app-bag-free-pick`, which lists only products the offer would really discount (`canBeFreeItem()` in the engine: the free-item rule, `exclude`, and no sale items when the offer leaves them out; plus `freeItemWins()` through `priceBag().wouldDiscount`, which prices the bag again with the choice added, so a free grip worth less than the 10% the racket would give up is not offered, and the box hides when no choice is left, <KEY>-148), with the free choices as `.pdp-gift-tile` photo tiles, then size boxes, which adds the product to the bag) and checkout's `#pricedBag` (rows, subtotal, free-over shipping and gift weight all use the discounted lines).
+- The bag now also applies per-item offers to its prices, like checkout.
+
+## One discount per item (<KEY>-137)
+
+- **One discount per item (<KEY>-137):** Buy X Get Y groups are built one at a time on `basePrice`, and each group's pieces get either the Buy X Get Y discount or their per-item offers (Percent off, Amount off, Set price), whichever saves the shopper more in total (a tie keeps the per-item offers), never both (`dealWins()` in `buy-x-get-y.ts`; paid pieces are picked from those whose per-item offers save least).
+- A group that loses gives no discount, is not in `offerIds` (so `dealOfferIds` and offer limits don't count it) and its pieces may still be used by another Buy X Get Y offer; pieces outside every group keep their per-item offer.
+- A free item from a category or brand (no product list) gets no "add the free item" nudge while the bought pieces' per-item offers save anything, because the bag can't know the free item's price (`otherItemMustBeat` in `nextGroupHint`).
+- Each line's `BagLineDeals.earns` lists, for its pieces bought in a group that won, the other lines whose pieces that group made free or cheaper (`offerId`, `units`, `percent`, `freeLines`); a line that has a per-item offer it gave up for that shows a one-line label under its name (`.bag-card__earned`, `deal-tag` size): "Gets you the free bag" / "Gets you 50% off the bag", the free item's category as a short lower-case singular word (`shortItemWord()` / `earnedItemLabel()` in `@core/services/offers/offer-shop`, at most `EARNED_LABEL_MAX` 28 characters, else "Gets you a free item" / "Gets you 50% off an item"; tested by `npm run test:cart`).
+- Each line's `BagLineDeals` says `dealUnits` (pieces in a group that won: they pay `basePrice`), `offerUnits`, `before` and `total`; the bag shows the per-item offer strip only for `offerUnits` pieces and the deal tag only when a group won, and a same-items `add-more` nudge is left out when the next group would lose too.
+- Free gifts and free shipping are not discounts for this rule and may come on top.
+
+## Offer notes (<KEY>-143)
+
+- **Offer notes (<KEY>-143):** when an offer that was giving the bag something stops applying during the visit (ended, paused, archived, its time is up, or checkout was refused because it is full), the bag (above the items) and checkout (above the summary) show one note per offer: "The <offer title> offer has ended, so your total changed." or, when the refusal says this shopper used it up (`details.reason: 'used'` from `offerFullError`, read by `endedOfferReasonFrom()` and passed to `OffersService.markEnded(id, 'used')`), "You've already used the <offer title> offer, so your total changed."; a free gift that can no longer be given shows "Your free shirt is no longer available." under its item instead of its row.
+- Notes are only for a change seen during this visit (never on first load, sign-in or sign-out), close with ✕ (aria-label "Dismiss") and go away when the bag changes; an offer that just lost to a better one gets no note.
+- Free gift offers never get an "offer" note (a gift doesn't change the total).
+- After any `failed-precondition` refusal checkout reads its products again (`isFailedPrecondition()`), so a sold-out gift shows.
+- `BagOfferNotesService` and the helpers are in the `reusable-catalog` skill.
+- Pieces in a group pay the price before per-item offers, so each order line also sends `shownBaseEgp` (`shownLinePrices()`), and `missedBasePrice()` refuses with `details.priceChanged` when that price went up on a line with pieces in a group (a Set price offer would otherwise hide the rise from `missedLinePrice`).
+- A request with no `shownBaseEgp` (a page from before this rule, which stacks Buy X Get Y on per-item offers) is never given the stacked price: when `costsMoreThanStacked()` says the bag now costs more, `outdatedPageError()` refuses with "Prices in your bag changed. Refresh the page and place your order again." (`details.outdatedPage`).
+- `priceStoreOrder` runs the same engine on the server, so a client can't fake a discount: a line with pieces in a group keeps `unitEgp` (after per-item offers), has `lineDisplay` after the discount, and saves `fullEgp` (the line before the discount, with group pieces at the price before per-item offers; readers use it for the struck price and fall back to `unitEgp × quantity` on older orders), `discountEgp` plus `deals` (`offerId`, `units`, `percent`, `discountEgp`); gifts are resolved and saved for `giftUnits` pieces only.
+- The confirmation page, admin Orders ("Offer · Free") and emails (a tag on the item card, the line price after the discount) read those fields.
+
+## Ended offers at Place Order
+
+- An order is never charged more than the shopper saw: when an offer the order uses (Buy X Get Y, Percent off, Amount off, Set price or Free shipping) is already full (every use gone, or this shopper's `perCustomer` uses), `readOfferUses` refuses with `failed-precondition`, the message "The <offer title> offer has ended, so this order's total changed. Check your bag and place your order again." (or "You've already used the <offer title> offer, …") and `details.endedOfferId`.
+- Checkout (`endedOfferIdFrom()` in `@core/services/orders/order-refusal`, tested by `npm run test:cart`) shows that message and calls `OffersService.markEnded(id)`, which leaves the offer out of `all()` (bag, checkout summary, product page) for the rest of the visit, and every order request sends `endedOfferIds` (`OffersService.endedIds()`).
+- `priceStoreOrder` leaves one of those offers (any type except Free gift, whose full offer asks the shopper to add the item again instead) out of all its pricing (per-item prices, Buy X Get Y, shipping) only when `confirmedEndedOfferIds()` (`offer-usage.ts`) reads its `offerUsage` counts and finds no use left for this shopper; any other id is ignored, because with two Buy X Get Y offers on the same items dropping one that still has uses could let a bigger, lower-priority discount win.
+- The shopper then places the order again at the total they now see.
+
+## Buy X Get Y guard at Place Order
+
+- Every order request also sends `dealOfferIds` (the Buy X Get Y offers checkout's summary applied, `dealOfferIdsOf()` in `@core/services/cart/cart-deals`); when the server's pricing doesn't apply one of them (`missedDealOfferId()` in `order-pricing.server.ts`), `priceWithFreshOffersOnMiss()` first reads the offers again without the 60-second `getActiveOffers()` cache (staff may have just created or widened the offer) and prices again; if it still misses, `missedDealError()` refuses instead of charging more than the summary showed: an offer that is no longer live by the server's clock and rules (`liveOffers`: its time is up while the shopper's clock is behind, not started, paused, archived, gone, audience or code no longer match) is refused as ended ("The <offer title> offer has ended, …", `details.endedOfferId`), and only an offer that is live but still not applied gets "Prices in your bag changed. Check your bag and place your order again." with `details.changedOfferId`.
+- Checkout (`offerToLeaveOut()` in `@core/services/orders/order-refusal`) calls `markEnded` for every `endedOfferId`, and for a `changedOfferId` only when the same one comes back twice in a row on one visit, so Place Order never fails forever.
+
+## Price guard for Percent off, Amount off and Set price (<KEY>-139)
+
+- **Percent off, Amount off and Set price offers get the same guard (<KEY>-139):** each order line also sends what checkout showed for one piece (`shownUnitEgp`, after per-item offers and before Buy X Get Y) and the per-item offer behind it (`shownOfferId`), from `shownLinePrices()` in `@core/services/cart/cart-deals` (parsed by `parseShownUnitEgp` / `parseShownOfferId` in `order-request.ts`; a line without them, from an older page, is not compared).
+- When the server's unit price is higher (`missedLinePrice()` in `order-pricing.server.ts`), `priceWithFreshOffersOnMiss()` reads the offers again without the cache and prices again; if it is still higher, `priceChangedError()` refuses with "Prices in your bag changed. Check your bag and place your order again." and `details.endedOfferId` (the shown offer is no longer live on the server), `details.changedOfferId` (live but no longer gives that price) or `details.priceChanged` (the product price went up: no offer was shown, or the shown offer still applies, in which case `changedOfferId` comes too; checkout reloads its products, `priceChangedFrom()` in `order-refusal`).
+- A lower or equal server price goes through at the server's price; the shown price never lowers anything.
+- Tests: `functions/src/orders/order-price-check.test.ts`.
+
+## Shipping fee and total guard (<KEY>-147)
+
+- **The shipping fee and the order total get the same guard (<KEY>-147):** every order request also sends `shownShippingEgp` and `shownTotalEgp` (whole EGP, from the checkout summary's `shown`; null while the fee is to be agreed), parsed by `parseShownAmountEgp` in `order-request.ts`.
+- After pricing, `missedOrderTotal()` in `order-pricing.server.ts` compares them with the server's shipping fee and `totalEgp` (a `domestic-agreed` order and a value not sent are skipped), because a lower price can drop the bag under the free-shipping amount, shrink a Buy X Get Y discount or make a piece keep its free gift instead, while every line passes.
+- When either is higher, `priceWithFreshOffersOnMiss()` reads the offers again without the cache; if it still misses, `totalChangedError()` refuses with "Prices in your bag changed. Check your bag and place your order again." and `details` `priceChanged: true`, `totalChanged: { shippingEgp, totalEgp }` and `nowMs` (the server's clock).
+- A lower or equal server amount goes through at the server's total.
+- Checkout (`@core/services/orders/order-refusal`: `totalChangedFrom`, `serverClockFrom`, `serverTotalsToShow`, tested by `npm run test:cart`) reads the products again, calls `OffersService.syncClock(nowMs)` (the offer clock ticks at once and keeps the server's offset when it is 10 seconds or more off, so a device with a wrong clock prices offers like the server) and, when the same server totals come back twice in a row, shows them in the summary (Subtotal, Shipping, Total and the payment steps) while its own figures stay the same, and sends them, so Place Order never fails forever.
+- Bag and checkout price with `OffersService.now()` (the offer clock, moved every minute), so an offer whose time is up stops discounting without waiting for the bag to change.
+
+## Bag bundles (`move-bag-gifts-to-offer.mjs`)
+
+- **Bag bundles**: the 5 bags from the old store (`adidas-bag-blue`, `adidas-black`, `adidas-bag-red`, `adidas-pro-tour`, `siux-edge-bag`) get their free shirt and socks from their own Free gift offer each (one offer per bag, each keeping the gifts that bag offered), not from product options.
+- `functions/scripts/move-bag-gifts-to-offer.mjs` (one-off; `npm run build` in `functions` first; dry run by default, `--apply` to write, prod also needs `--confirm-prod`; on dev the manager agent applies after a dry run, prod only on Youssef's OK: see Deploy safety) removes their `gift` options and the shirt `size` option, turns their stock into one plain count with `stockFields()`, drops Arabic lines from `descriptionHtml` / `details`, and creates or updates each bag's offer `offers/bag-gifts-<bag id>` (name "Free shirt and socks with <bag name>", plus the slug for the two bags that share a name; title "Free shirt and socks"; public, active, that one bag; gifts `gift-1` "Free shirt" and `gift-2` "Free socks" from the per-bag lists in `BAGS`, each choice label matched to its product by photo).
+- The document has the same fields as `OffersAdminService.saveOffer()` writes and is checked with the engine's `validateOffer()` first, so it opens and edits normally in Admin → Offers.
+- Running it again finds the offer by that fixed id and writes only the script's own fields (name, title, the bag, the gifts), keeping staff changes to active, priority, schedule, badge, description and limits; an offer that already matches isn't written.
+- The dry run lists per bag the options removed, stock before → after, each choice → product, each gift product's status (found, published, in stock, gift-ready; a socks product with a "Choose Your Pair" choice can't be given until that choice is removed) and the offer it would create or update, plus any other Free gift offer on these bags (pause or archive it); run Rebuild search after applying.
+
+## Socks: one pair (`remove-socks-pair-choice.mjs`)
+
+- `functions/scripts/remove-socks-pair-choice.mjs` (one-off, Nov 2026; same flags and safety as the bag script: dry run by default, `--apply` to write, prod also needs `--confirm-prod`, a product edited meanwhile is skipped, re-running is safe; on dev the manager agent applies after a dry run, prod only on Youssef's OK: see Deploy safety) makes each of the 8 socks products from the old store (`on-socks-black`, `on-white-socks`, `socks`, `siuxsocks`, `siuxsocksblack`, `babolat-socks`, `nox-socks`, `nox-socks-2`) one pair: it removes their cross-brand "Choose Your Pair" (`choice`) and `colour` options (a `size` option stays), rewrites stock with `stockFields()` (one plain count, or per size when a size stays), empties `variants` only when every row points at the removed options, sets `colors` from the product's name (or slug) when it removes a `colour` option (left as it is, and said so in the dry run, when neither names a colour or `colors` is locked), and lists any product it leaves alone; `nox-socks` keeps its real Black / White `colour` option, its stock, its per-colour variant rows and its `colors`, and loses only `choice` (so it still can't be a gift); saved bag lines with the old choice are refused at checkout like the bags' (`assertCurrentSelection`), old orders keep their `optionLabels`; run Rebuild search after applying, then the socks show in the bag offers' Gift Box.
+
+## Socks: one colour (`socks-one-colour.mjs`)
+
+- `functions/scripts/socks-one-colour.mjs` (one-off, Nov 2026, run after that one; same flags and safety: dry run by default, `--apply` to write, prod also needs `--confirm-prod`, each write checked against `updateTime`, re-running is safe; on dev the manager agent applies after a dry run, prod only on Youssef's OK: see Deploy safety) makes each socks product one colour: on `nox-socks` (white) it removes the `colour` option, takes `colour` out of the variant rows (rows left with no choice are dropped, rows on the same choice merged), rewrites stock with `stockFields()` (one plain count of today's total), removes the black photo `266b4e10ce2103c5.jpg` from `images` (the first white photo becomes the main photo; nothing is removed from Storage) and sets `colors: ['white']`; it sets `colors: ['black']` on `nox-socks-2` and `colors: ['white']` on `babolat-socks`; on all three it locks `colors`.
+- The dry run prints options, stock, gallery and `colors` before → after and counts saved account bags holding `nox-socks` with a colour chosen (refused at checkout, as above); afterwards `nox-socks` can be given as a free gift; run Rebuild search after applying.
+- It never edits shoppers' bags: a saved line that still holds a choice its product no longer has (the old shirt, socks or size) is refused by the three order callables with "One item in your bag has changed since you added it. Remove it and add it again." (`assertCurrentSelection` in `functions/src/orders/order-selection.ts`, checked before the other option checks in `priceLine`), so it is never bought without its free gifts or mixed with a new unsized line for the same product; the dry run counts saved account bags that hold one.
+- It also counts, per offer, saved bag lines whose free gifts come from an offer other than that bag's own (`gifts[].offerId`, such as the shared offer from the first version), and warns before the pause step that those lines lose their free gifts once that offer is paused or archived (checkout asks the shopper to remove the bag and add it again).
+
+## Tests
+
+- Engine and order gift tests are `*.test.ts` files run by `npm test --prefix functions` against the compiled `lib/` (the engine imports `./x.js`); `sync:engine` skips `*.test.ts`.
