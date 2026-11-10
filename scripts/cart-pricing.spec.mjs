@@ -261,6 +261,7 @@ describe('bag Buy X Get Y nudge (ATS-130)', () => {
     visibility: 'public',
     audience: 'everyone',
     requiresCode: false,
+    limits: { totalUses: null, perCustomer: null },
     conditions,
     reward: {
       kind: 'buyXGetY',
@@ -311,6 +312,9 @@ describe('bag Buy X Get Y nudge (ATS-130)', () => {
     assert.equal(dealHintAction(signedIn), 'browse');
     assert.equal(dealHintText(hint(2), signedIn), 'Add any 2 more items to get 1 free');
     assert.equal(dealHintAction(offer({ anyOf: [] }, { requiresCode: true })), 'browse');
+    const limited = offer({ anyOf: [] }, { limits: { totalUses: null, perCustomer: 1 } });
+    assert.equal(canShopOffer(limited), false, 'a per-customer offer is for signed-in shoppers only');
+    assert.equal(dealHintAction(limited), 'browse');
     const onePolo = offer(atom('productId', ['polo-1']), { audience: 'signedIn' });
     assert.equal(dealHintAction(onePolo), 'add-same');
     assert.equal(dealHintAction(undefined), 'add-same');
@@ -369,6 +373,7 @@ describe('top announcement bar offers (ATS-145)', () => {
     schedule: { startsAt: null, endsAt: null, timezone: 'Africa/Cairo' },
     reward: { kind: 'percentOff', percent: 10 },
     banner: { show: true, text: null, countdown: 'hide', countdownDays: 7 },
+    limits: { totalUses: null, perCustomer: null },
     ...extra,
   });
   const ids = (list) => list.map((o) => o.id);

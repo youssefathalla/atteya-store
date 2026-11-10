@@ -1,4 +1,11 @@
 /**
+ * The terms version a guest order records in `guest.termsVersion` (placing the order is the
+ * agreement). Keep equal to `CURRENT_TERMS_VERSION` in
+ * `src/app/core/services/user-profile/user-profile.model.ts`.
+ */
+export const CURRENT_TERMS_VERSION = '2026-10-31-placeholder';
+
+/**
  * True when a `users/{uid}` profile records accepted terms. The website writes it at
  * signup (email Create account, or the "Almost done" step after a new Google sign-in).
  * The exact version is checked on the website (`CURRENT_TERMS_VERSION`), which asks

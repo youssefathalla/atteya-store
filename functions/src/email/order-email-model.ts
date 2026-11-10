@@ -60,6 +60,17 @@ export interface OrderEmailOrder {
   readonly deliveryFeeAgreed: boolean;
   /** When staff last saved the delivery fee (`deliveryFeeSetAt`, epoch ms), or null. */
   readonly deliveryFeeSetAtMs: number | null;
+  /** A guest order's secret view key (its links carry `?key=`); null for signed-in orders. */
+  readonly viewKey: string | null;
+}
+
+/**
+ * The order page link: `/checkout/confirmation/{orderId}`, plus `?key={viewKey}` for a guest order
+ * so a shopper who isn't signed in can open it. Used by order emails and the Paymob return link.
+ */
+export function orderConfirmationUrl(storefrontUrl: string, orderId: string, viewKey: string | null): string {
+  const base = `${storefrontUrl}/checkout/confirmation/${encodeURIComponent(orderId)}`;
+  return viewKey ? `${base}?key=${encodeURIComponent(viewKey)}` : base;
 }
 
 /** The gift name of a free gift line, or null for a bought line. */
@@ -162,6 +173,7 @@ export function readOrderForEmail(
     feeToBeAgreed: isDeliveryFeeToBeAgreed(shipping),
     deliveryFeeAgreed: shipping?.['kind'] === 'domestic-agreed' && shipping['feeAgreed'] === true,
     deliveryFeeSetAtMs: timestampMs(data['deliveryFeeSetAt']),
+    viewKey: text(data['viewKey']) || null,
   };
 }
 

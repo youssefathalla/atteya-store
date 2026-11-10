@@ -778,6 +778,27 @@ describe('P2 / P3 / P8 counting inside the order (any offer type)', () => {
     assert.equal(store.get('offerUsage/deal').count, 2);
   });
 
+  it('several customer keys share one count (the highest is checked, every key goes up)', async () => {
+    const o = used('deal', 'Buy 2, get 1 free', { totalUses: null, perCustomer: 1 }, 'deal');
+    // Signed in first (uid + the guest key of the account email), then a guest order with that email.
+    const { db, tx, store } = fakeDb({ 'offers/deal': { active: true } });
+    (await readOfferUses(tx, db, ['uid1', 'guest_x'], [o]))();
+    assert.equal(store.get('offerUsage/deal_uid1').count, 1);
+    assert.equal(store.get('offerUsage/deal_guest_x').count, 1);
+    await assert.rejects(readOfferUses(tx, db, ['guest_x'], [o]), (error) => {
+      assert.deepEqual(error.details, { endedOfferId: 'deal', reason: 'used' });
+      return true;
+    });
+
+    // Guest first, then signed in with the same email.
+    const second = fakeDb({ 'offers/deal': { active: true } });
+    (await readOfferUses(second.tx, second.db, ['guest_y'], [o]))();
+    await assert.rejects(readOfferUses(second.tx, second.db, ['uid2', 'guest_y'], [o]), (error) => {
+      assert.deepEqual(error.details, { endedOfferId: 'deal', reason: 'used' });
+      return true;
+    });
+  });
+
   it('a refused order writes nothing', async () => {
     const o = used('deal', 'D', { totalUses: 1, perCustomer: null }, 'deal');
     const { db, tx, writes } = fakeDb({ 'offers/deal': { active: true }, 'offerUsage/deal': { count: 1 } });

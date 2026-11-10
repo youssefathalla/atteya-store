@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { FieldValue, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { OfferLimits } from '../offers/engine/index.js';
@@ -17,6 +18,29 @@ export interface UsedOffer {
 }
 
 export type UsedOfferKind = 'gift' | 'deal' | 'item' | 'shipping';
+
+/**
+ * The key a guest's `perCustomer` offer uses are counted under, in place of a uid:
+ * `guest_<sha256 of the lower-cased, trimmed email>`, so `offerUsage/{offerId}_guest_<hash>`.
+ * The same email gives the same key on every guest order.
+ */
+export function guestOfferCustomerKey(email: string): string {
+  const normalized = email.trim().toLowerCase();
+  return `guest_${createHash('sha256').update(normalized).digest('hex')}`;
+}
+
+/**
+ * The ids one shopper's `perCustomer` offer uses are counted under. A string is one id; a list is
+ * the same person under several ids, and the highest count among them is the one checked. Orders
+ * pass one id today: the uid when signed in, `guestOfferCustomerKey(email)` for a guest (guests
+ * never get `perCustomer` offers, see `liveOffers`, so their key only counts toward nothing).
+ */
+export type OfferCustomerKeys = string | readonly string[];
+
+function customerKeyList(keys: OfferCustomerKeys): readonly string[] {
+  const list = typeof keys === 'string' ? [keys] : keys;
+  return [...new Set(list.filter((key) => key.length > 0))];
+}
 
 /**
  * `updatedBy` on an offer an order switched off at its last use, so a failed Paymob start can
@@ -83,7 +107,7 @@ export function offerFullError(offer: UsedOffer, reason: OfferFullReason): Https
 }
 
 /**
- * The ids from checkout's `endedOfferIds` that really have no use left for `uid` (read outside a
+ * The ids from checkout's `endedOfferIds` that really have no use left for this shopper (read outside a
  * transaction). Any offer type counts. Only those may be left out of the order's pricing: with two
  * Buy X Get Y offers on the same items, dropping one that still has uses could let a bigger,
  * lower-priority discount win, so an id the server can't confirm is ignored. Ids that aren't among
@@ -91,10 +115,12 @@ export function offerFullError(offer: UsedOffer, reason: OfferFullReason): Https
  */
 export async function confirmedEndedOfferIds(
   db: Firestore,
-  uid: string,
+  keys: OfferCustomerKeys,
   offers: readonly { readonly id: string; readonly limits: OfferLimits }[],
   requested: readonly string[],
 ): Promise<Set<string>> {
+  const customerKeys = customerKeyList(keys);
+  const perOffer = 1 + customerKeys.length;
   const wanted = new Set(requested);
   const limited = offers.filter(
     (offer) => wanted.has(offer.id) && (offer.limits.totalUses !== null || offer.limits.perCustomer !== null),
@@ -104,12 +130,16 @@ export async function confirmedEndedOfferIds(
   const snaps = await db.getAll(
     ...limited.flatMap((offer) => [
       db.collection('offerUsage').doc(offer.id),
-      db.collection('offerUsage').doc(`${offer.id}_${uid}`),
+      ...customerKeys.map((key) => db.collection('offerUsage').doc(`${offer.id}_${key}`)),
     ]),
   );
   limited.forEach((offer, index) => {
-    const totalCount = readCount(snaps[index * 2]?.data()?.['count']);
-    const customerCount = readCount(snaps[index * 2 + 1]?.data()?.['count']);
+    const base = index * perOffer;
+    const totalCount = readCount(snaps[base]?.data()?.['count']);
+    const customerCount = Math.max(
+      0,
+      ...customerKeys.map((_, k) => readCount(snaps[base + 1 + k]?.data()?.['count'])),
+    );
     if (offerFullReason(offer.limits, totalCount, customerCount) !== null) confirmed.add(offer.id);
   });
   return confirmed;
@@ -121,27 +151,38 @@ export async function confirmedEndedOfferIds(
  * read in `tx`); when that use is the last one `totalUses` allows, it also switches the offer off
  * (`active: false`) in the same transaction, so the live offers listener takes it out of every
  * bag, product page and checkout. The function returns the ids it switched off.
- * Counts live in `offerUsage/{offerId}` and `offerUsage/{offerId}_{uid}` (Admin SDK only).
+ * Counts live in `offerUsage/{offerId}` and `offerUsage/{offerId}_{key}` (Admin SDK only), one
+ * doc per customer key: the uid when signed in, `guestOfferCustomerKey(email)` for a guest. With
+ * several keys the highest count is checked and this order's use is added to every key.
  */
 export async function readOfferUses(
   tx: Transaction,
   db: Firestore,
-  uid: string,
+  keys: OfferCustomerKeys,
   offers: readonly UsedOffer[],
 ): Promise<() => readonly string[]> {
+  const customerKeys = customerKeyList(keys);
   const refs = offers.map((offer) => ({
     offer,
     total: db.collection('offerUsage').doc(offer.offerId),
-    customer: db.collection('offerUsage').doc(`${offer.offerId}_${uid}`),
+    customers: customerKeys.map((key) => ({
+      key,
+      ref: db.collection('offerUsage').doc(`${offer.offerId}_${key}`),
+    })),
     offerDoc: db.collection('offers').doc(offer.offerId),
   }));
   const snaps = await Promise.all(
     refs.map(async (entry) => {
-      const [totalSnap, customerSnap] = await Promise.all([tx.get(entry.total), tx.get(entry.customer)]);
+      const [totalSnap, ...customerSnaps] = await Promise.all([
+        tx.get(entry.total),
+        ...entry.customers.map((customer) => tx.get(customer.ref)),
+      ]);
+      const customerCounts = customerSnaps.map((snap) => readCount(snap.data()?.['count']));
       return {
         ...entry,
-        totalCount: readCount(totalSnap.data()?.['count']),
-        customerCount: readCount(customerSnap.data()?.['count']),
+        totalCount: readCount(totalSnap?.data()?.['count']),
+        customerCounts,
+        customerCount: Math.max(0, ...customerCounts),
       };
     }),
   );
@@ -168,11 +209,18 @@ export async function readOfferUses(
         { offerId: entry.offer.offerId, count: entry.totalCount + 1, updatedAt: now },
         { merge: true },
       );
-      tx.set(
-        entry.customer,
-        { offerId: entry.offer.offerId, uid, count: entry.customerCount + 1, updatedAt: now },
-        { merge: true },
-      );
+      entry.customers.forEach((customer, k) => {
+        tx.set(
+          customer.ref,
+          {
+            offerId: entry.offer.offerId,
+            uid: customer.key,
+            count: (entry.customerCounts[k] ?? 0) + 1,
+            updatedAt: now,
+          },
+          { merge: true },
+        );
+      });
     }
     const ended: string[] = [];
     for (const { entry, live } of ending) {
@@ -191,15 +239,16 @@ export async function readOfferUses(
  */
 export async function releaseOfferUses(
   db: Firestore,
-  uid: string,
+  keys: OfferCustomerKeys,
   offers: readonly UsedOffer[],
   endedOfferIds: readonly string[] = [],
 ): Promise<void> {
   if (offers.length === 0) return;
+  const customerKeys = customerKeyList(keys);
   await db.runTransaction(async (tx) => {
     const refs = offers.flatMap((offer) => [
       db.collection('offerUsage').doc(offer.offerId),
-      db.collection('offerUsage').doc(`${offer.offerId}_${uid}`),
+      ...customerKeys.map((key) => db.collection('offerUsage').doc(`${offer.offerId}_${key}`)),
     ]);
     const offerRefs = endedOfferIds.map((id) => db.collection('offers').doc(id));
     const [snaps, offerSnaps] = await Promise.all([

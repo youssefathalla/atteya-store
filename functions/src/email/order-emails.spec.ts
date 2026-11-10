@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { claimId, orderEmailsForWrite } from './order-email-events.js';
-import { readOrderForEmail, shortOrderRef, type OrderEmailOrder } from './order-email-model.js';
+import {
+  orderConfirmationUrl,
+  readOrderForEmail,
+  shortOrderRef,
+  type OrderEmailOrder,
+} from './order-email-model.js';
 import { formatEgp, renderOrderEmail, type OrderEmailContext } from './order-email-templates.js';
 
 const ctx: OrderEmailContext = {
@@ -455,5 +460,33 @@ describe('large order: delivery fee to be agreed', () => {
     assert.match(email.text, new RegExp(`delivery fee for your order #ABCDEF is ${formatEgp(250)}`));
     assert.match(email.text, /atteya@instapay/);
     assert.match(email.text, new RegExp(`the ${formatEgp(250)} shipping fee`));
+  });
+});
+
+describe('order page link', () => {
+  const KEY = 'k'.repeat(43);
+
+  it('a signed-in order links to the order page without a key', () => {
+    assert.equal(
+      orderConfirmationUrl('https://shop.example', 'abc123', null),
+      'https://shop.example/checkout/confirmation/abc123',
+    );
+    const email = renderOrderEmail('cod-placed', read(orderDoc({})), ctx);
+    assert.ok(email.text.includes('https://shop.example/checkout/confirmation/abcdef123456'));
+    assert.ok(!email.text.includes('?key='));
+  });
+
+  it('a guest order carries its view key in every View Your Order link', () => {
+    assert.equal(
+      orderConfirmationUrl('https://shop.example', 'abc123', KEY),
+      `https://shop.example/checkout/confirmation/abc123?key=${KEY}`,
+    );
+    const order = read({ ...orderDoc({}), customerId: null, viewKey: KEY });
+    assert.equal(order.viewKey, KEY);
+    for (const kind of ['cod-placed', 'cod-confirmed'] as const) {
+      const email = renderOrderEmail(kind, order, ctx);
+      assert.ok(email.text.includes(`/checkout/confirmation/abcdef123456?key=${KEY}`), kind);
+      assert.ok(email.html.includes(`/checkout/confirmation/abcdef123456?key=${KEY}`), kind);
+    }
   });
 });

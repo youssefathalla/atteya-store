@@ -1,12 +1,13 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
-import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
-import { requireRole } from '../auth/require-role.js';
+import { identifyOrderCustomer, orderCustomerFields, requireCustomerTerms } from './order-customer.js';
 import { parseCreateStoreOrderRequest } from './order-request.js';
 import { priceStoreOrder, type OrderPricingSnapshot } from './order-pricing.server.js';
 import { readOfferUses } from './offer-usage.js';
-import { nextDailyOrderCount, utcDayKey } from './order-rate-limit.js';
+import { utcDayKey } from './order-rate-limit.js';
+import { logGuestStoreCapReached, readOrderRateLimits } from './order-rate-limit-docs.js';
+import { newOrderViewKey } from './order-view.js';
 
 /** Egypt-only orders paid outside Paymob and confirmed by staff (`confirmCodOrder`). */
 export type ManualPaymentMethod = 'cash-on-delivery' | 'instapay';
@@ -16,6 +17,8 @@ export interface CreateManualOrderResponse<M extends ManualPaymentMethod = Manua
   readonly status: 'pending';
   readonly paymentMethod: M;
   readonly pricing: OrderPricingSnapshot;
+  /** A guest order's secret view key (for `?key=` on the order page); null when signed in. */
+  readonly viewKey: string | null;
 }
 
 export type CreateCodOrderResponse = CreateManualOrderResponse<'cash-on-delivery'>;
@@ -49,8 +52,8 @@ async function createManualOrder<M extends ManualPaymentMethod>(
   request: CallableRequest,
   method: M,
 ): Promise<CreateManualOrderResponse<M>> {
-  const caller = await requireRole(request, 'user');
-  await requireAcceptedTerms(caller.uid);
+  const customer = await identifyOrderCustomer(request);
+  await requireCustomerTerms(customer);
   const input = parseCreateStoreOrderRequest({
     ...(isRecord(request.data) ? request.data : {}),
     paymentMethod: method,
@@ -60,35 +63,27 @@ async function createManualOrder<M extends ManualPaymentMethod>(
   }
 
   const db = getFirestore();
-  const priced = await priceStoreOrder(db, input, true, caller.uid);
+  const priced = await priceStoreOrder(db, input, customer.signedIn, customer.offerKeys);
   const orderRef = db.collection('orders').doc();
+  const viewKey = customer.kind === 'guest' ? newOrderViewKey() : null;
+  const day = utcDayKey();
 
+  // Set inside the transaction (which may retry) and logged once after it commits.
+  let filledGuestStoreCap = false;
   await db.runTransaction(async (tx) => {
-    const day = utcDayKey();
-    const rateLimitRef = db.collection('orderRateLimits').doc(`${caller.uid}_${day}`);
-    const rateLimitSnap = await tx.get(rateLimitRef);
-    const nextRateCount = nextDailyOrderCount(rateLimitSnap.data()?.['count']);
+    const rateLimits = await readOrderRateLimits(tx, db, customer, day);
+    filledGuestStoreCap = rateLimits.filledGuestStoreCap;
     // Offer limits (every offer type with a limit): an order counts once per offer, however many items it has.
-    const addOfferUses = await readOfferUses(tx, db, caller.uid, priced.usedOffers);
+    const addOfferUses = await readOfferUses(tx, db, customer.offerKeys, priced.usedOffers);
     const now = FieldValue.serverTimestamp();
     addOfferUses();
+    rateLimits.write();
 
-    tx.set(
-      rateLimitRef,
-      {
-        uid: caller.uid,
-        day,
-        count: nextRateCount,
-        updatedAt: now,
-      },
-      { merge: true },
-    );
     tx.set(orderRef, {
       id: orderRef.id,
       status: 'pending',
       paymentMethod: method,
-      customerId: caller.uid,
-      customerEmail: caller.email ?? null,
+      ...orderCustomerFields(customer, viewKey, now),
       shipping: {
         ...input.shipping,
         boxId: priced.pricing.shipping?.boxId ?? null,
@@ -101,12 +96,14 @@ async function createManualOrder<M extends ManualPaymentMethod>(
       updatedAt: now,
     });
   });
+  if (filledGuestStoreCap) logGuestStoreCapReached(day);
 
   return {
     orderId: orderRef.id,
     status: 'pending',
     paymentMethod: method,
     pricing: priced.pricing,
+    viewKey,
   };
 }
 

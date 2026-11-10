@@ -1,4 +1,5 @@
 import { HttpsError } from 'firebase-functions/v2/https';
+import * as v from 'valibot';
 import { isEgyptMobile } from '../store/order-messages.js';
 
 const COUNTRY_CODE = /^[A-Z]{2}$/;
@@ -88,6 +89,25 @@ export interface CreateStoreOrderRequest {
    * when the server's `totalEgp` is higher. Never lowers a price.
    */
   readonly shownTotalEgp: number | null;
+}
+
+/** Longest email address a guest can order with (RFC 5321 path limit). */
+const MAX_GUEST_EMAIL = 254;
+
+/**
+ * The `guest` block of a call with no sign-in: `{ email }`, trimmed and lower-cased so the same
+ * address always gives the same rate-limit and offer-limit keys.
+ */
+export const GuestCheckoutSchema = v.object({
+  email: v.pipe(v.string(), v.trim(), v.toLowerCase(), v.maxLength(MAX_GUEST_EMAIL), v.email()),
+});
+
+export type GuestCheckoutInput = v.InferOutput<typeof GuestCheckoutSchema>;
+
+/** The guest's email from a call with no sign-in, or null when the block is missing or invalid. */
+export function parseGuestCheckout(raw: unknown): GuestCheckoutInput | null {
+  const result = v.safeParse(GuestCheckoutSchema, raw);
+  return result.success ? result.output : null;
 }
 
 export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderRequest {

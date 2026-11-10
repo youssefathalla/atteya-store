@@ -118,7 +118,8 @@ export const OrderBankTransferSchema = v.object({
 const OrderBaseFields = {
   id: v.string(),
   status: v.picklist(['pending', 'confirmed', 'cancelled', 'failed']),
-  customerId: v.string(),
+  /** `null` on guest orders (placed without signing in). */
+  customerId: v.nullable(v.string(), null),
   customerEmail: v.nullable(v.string(), null),
   shipping: OrderShippingSchema,
   pricing: OrderPricingSnapshotSchema,
