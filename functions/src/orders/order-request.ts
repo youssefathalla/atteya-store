@@ -77,6 +77,17 @@ export interface CreateStoreOrderRequest {
    * charging more than the shopper saw. Never adds a discount.
    */
   readonly dealOfferIds: readonly string[];
+  /**
+   * The shipping fee checkout showed (whole EGP), or null when it didn't send one (older pages, or
+   * a large order whose fee is agreed later). The order is refused when the server's fee is higher.
+   * Never lowers a price.
+   */
+  readonly shownShippingEgp: number | null;
+  /**
+   * The order total checkout showed (whole EGP, items plus shipping), or null. The order is refused
+   * when the server's `totalEgp` is higher. Never lowers a price.
+   */
+  readonly shownTotalEgp: number | null;
 }
 
 export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderRequest {
@@ -92,7 +103,22 @@ export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderReq
   }
   const endedOfferIds = parseOfferIds(data['endedOfferIds']);
   const dealOfferIds = parseOfferIds(data['dealOfferIds']);
-  return { lines, shipping, paymentMethod, endedOfferIds, dealOfferIds };
+  const shownShippingEgp = parseShownAmountEgp(data['shownShippingEgp']);
+  const shownTotalEgp = parseShownAmountEgp(data['shownTotalEgp']);
+  return { lines, shipping, paymentMethod, endedOfferIds, dealOfferIds, shownShippingEgp, shownTotalEgp };
+}
+
+/** Most whole EGP a shown shipping fee or order total can be; anything above is read as not sent. */
+const MAX_SHOWN_AMOUNT_EGP = 1_000_000_000;
+
+/**
+ * The shipping fee or order total checkout showed, or null when it is missing or unreadable (the
+ * comparison is then skipped). Rounded down, and only ever used to refuse an order, so a wrong value
+ * can't lower a price.
+ */
+export function parseShownAmountEgp(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0 || raw > MAX_SHOWN_AMOUNT_EGP) return null;
+  return Math.floor(raw);
 }
 
 /**

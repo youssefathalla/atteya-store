@@ -39,6 +39,15 @@ interface CheckoutLineInput {
   readonly shownBaseEgp: number | null;
 }
 
+/**
+ * The shipping fee and order total (whole EGP) checkout showed, sent only so the server can refuse
+ * rather than charge more. Null when the summary showed none (a fee to be agreed later).
+ */
+export interface ShownOrderTotals {
+  readonly shippingEgp: number | null;
+  readonly totalEgp: number | null;
+}
+
 function toCheckoutLine(line: CartLineDraft, shown: ShownLinePrice | undefined): CheckoutLineInput {
   return {
     productId: line.productId,
@@ -93,6 +102,8 @@ export class CheckoutOrderService {
     readonly dealOfferIds: readonly string[];
     /** What the summary showed per line (same order as `lines`). */
     readonly shownPrices: readonly ShownLinePrice[];
+    /** The shipping fee and total the summary showed; the server refuses rather than charge more. */
+    readonly shownTotals: ShownOrderTotals;
   }): Promise<CreatePaymobOrderResult> {
     const call = await callableFrom<
       {
@@ -101,6 +112,8 @@ export class CheckoutOrderService {
         paymentMethod: 'paymob';
         endedOfferIds: readonly string[];
         dealOfferIds: readonly string[];
+        shownShippingEgp: number | null;
+        shownTotalEgp: number | null;
       },
       CreatePaymobOrderResult
     >(this.#functions(), 'createPaymobOrder');
@@ -110,6 +123,8 @@ export class CheckoutOrderService {
       paymentMethod: 'paymob',
       endedOfferIds: args.endedOfferIds,
       dealOfferIds: args.dealOfferIds,
+      shownShippingEgp: args.shownTotals.shippingEgp,
+      shownTotalEgp: args.shownTotals.totalEgp,
     });
     return response.data;
   }
@@ -124,6 +139,8 @@ export class CheckoutOrderService {
     readonly dealOfferIds: readonly string[];
     /** What the summary showed per line (same order as `lines`). */
     readonly shownPrices: readonly ShownLinePrice[];
+    /** The shipping fee and total the summary showed; the server refuses rather than charge more. */
+    readonly shownTotals: ShownOrderTotals;
   }): Promise<CreateManualOrderResult<M>> {
     const call = await callableFrom<
       {
@@ -132,6 +149,8 @@ export class CheckoutOrderService {
         paymentMethod: M;
         endedOfferIds: readonly string[];
         dealOfferIds: readonly string[];
+        shownShippingEgp: number | null;
+        shownTotalEgp: number | null;
       },
       CreateManualOrderResult<M>
     >(this.#functions(), args.method === 'instapay' ? 'createInstapayOrder' : 'createCodOrder');
@@ -141,6 +160,8 @@ export class CheckoutOrderService {
       paymentMethod: args.method,
       endedOfferIds: args.endedOfferIds,
       dealOfferIds: args.dealOfferIds,
+      shownShippingEgp: args.shownTotals.shippingEgp,
+      shownTotalEgp: args.shownTotals.totalEgp,
     });
     return response.data;
   }
