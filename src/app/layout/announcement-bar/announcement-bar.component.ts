@@ -166,6 +166,9 @@ export class AnnouncementBarComponent {
     if (startX === null || endX === undefined) return;
     const moved = endX - startX;
     if (Math.abs(moved) < SWIPE_PX) return;
+    // A swipe only changes the slide: cancel the tap the browser would otherwise send to the
+    // offer link under the finger.
+    event.preventDefault();
     if (moved < 0) this.next();
     else this.previous();
   }
