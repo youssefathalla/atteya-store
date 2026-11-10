@@ -236,10 +236,12 @@ export function shippingQuote(
     if (offer.minimum?.subtotal !== undefined && input.goodsSubtotal < offer.minimum.subtotal) {
       continue;
     }
-    const lines = input.lines ?? [];
-    const qualifies =
-      offer.conditions.anyOf.length === 0 ||
-      lines.some((line) => matchProduct(offer.conditions, offer.exclude, line) !== 'none');
+    // With lines, every line goes through `matchProduct`, so Except rules always apply (an
+    // "all except Brand X" offer never frees a bag of only Brand X). Without lines, only an
+    // offer with no product rules and no Except rules can qualify.
+    const qualifies = input.lines
+      ? input.lines.some((line) => matchProduct(offer.conditions, offer.exclude, line) !== 'none')
+      : offer.conditions.anyOf.length === 0 && offer.exclude.anyOf.length === 0;
     if (qualifies) candidates.push({ fee: 0, reason: 'offer', offerId: offer.id });
   }
 
