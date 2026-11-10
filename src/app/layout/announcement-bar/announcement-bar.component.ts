@@ -143,8 +143,14 @@ export class AnnouncementBarComponent {
     this.#hovered.set(false);
   }
 
-  onFocusIn(): void {
-    this.#focused.set(true);
+  /**
+   * Only keyboard focus pauses. A click or tap also focuses the arrow or offer link, and that
+   * focus stays until something outside the bar is focused, which froze the bar (even on the
+   * Shop page after an offer link). The browser marks keyboard focus as `:focus-visible`.
+   */
+  onFocusIn(event: FocusEvent): void {
+    const target = event.target;
+    if (target instanceof Element && target.matches(':focus-visible')) this.#focused.set(true);
   }
 
   onFocusOut(event: FocusEvent): void {
