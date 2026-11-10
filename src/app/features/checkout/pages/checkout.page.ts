@@ -27,7 +27,7 @@ import {
   shownLinePrices,
   type PricedBagLine,
 } from '@core/services/cart/cart-deals';
-import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
+import { giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
 import { bagGiftKey, giftNoteText, unavailableGiftsMessage } from '@core/services/cart/bag-offer-notes';
 import { BagOfferNotesService } from '@core/services/cart/bag-offer-notes.service';
 import { bagOfferLook } from '@core/services/cart/bag-offer-state';
@@ -156,10 +156,23 @@ interface CheckoutSummaryItem {
   /** Buy X Get Y: the line before the discount (struck through) and its tag ("Free", "−50%"). */
   readonly was: string;
   readonly deal: string;
-  /** Free gifts picked with the item, each as "Free shirt: Adidas Simple Polo White, L". */
-  readonly gifts: readonly { readonly key: string; readonly label: string }[];
+  /** Free gifts picked with the item, shown under it with their photo. */
+  readonly gifts: readonly SummaryGift[];
   /** Free gifts that can no longer be given: "Your free shirt is no longer available." */
   readonly giftNotes: readonly string[];
+}
+
+/** One free gift under its item in the order summary. */
+interface SummaryGift {
+  readonly key: string;
+  /** The gift's name from its offer ("Free shirt"), shown as the row's tag. */
+  readonly tag: string;
+  /** The product with its colour ("Adidas Simple Polo White"). */
+  readonly name: string;
+  /** "Size L", or empty when the gift has no size. */
+  readonly details: string;
+  readonly imagePath: string | null;
+  readonly imageSrc: string;
 }
 
 type CheckoutSummary =
@@ -515,9 +528,14 @@ export class CheckoutPageComponent implements OnInit {
           const size = giftInfo?.options
             .find((option) => option.key === 'size')
             ?.values.find((value) => value.id === gift.sizeId)?.label;
+          const imagePath = giftInfo?.imagePath ?? null;
           return {
             key: `${gift.offerId}/${gift.giftId}`,
-            label: giftInfo ? giftLineLabel(name, giftProductLabel(giftInfo), size ?? null) : name,
+            tag: name,
+            name: giftInfo ? giftProductLabel(giftInfo) : name,
+            details: size ? `Size ${size}` : '',
+            imagePath,
+            imageSrc: imagePath ? normalizeImageKitPath(imagePath) : '',
           };
         }),
       };

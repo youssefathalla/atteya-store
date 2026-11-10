@@ -175,55 +175,76 @@
           </div>
           <ul class="elements-start-col items-stretch! gap-4">
             @for (item of items(); track item.key) {
-              <li class="elements-start gap-3">
-                <div class="order-thumb">
-                  <div
-                    class="size-full overflow-hidden bg-surface border border-outline-variant border-shape"
-                  >
-                    @if (item.imagePath; as path) {
-                      <img
-                        [ngSrc]="item.imageSrc"
-                        [appImageFallback]="path"
-                        [alt]="item.name"
-                        width="56"
-                        height="56"
-                        class="size-full object-contain p-1"
-                      />
+              <li>
+                <div class="elements-start gap-3">
+                  <div class="order-thumb">
+                    <div
+                      class="size-full overflow-hidden bg-surface border border-outline-variant border-shape"
+                    >
+                      @if (item.imagePath; as path) {
+                        <img
+                          [ngSrc]="item.imageSrc"
+                          [appImageFallback]="path"
+                          [alt]="item.name"
+                          width="56"
+                          height="56"
+                          class="size-full object-contain p-1"
+                        />
+                      }
+                    </div>
+                    <span class="order-thumb__qty" aria-hidden="true">{{ item.quantity }}</span>
+                  </div>
+                  <div class="min-w-0 flex-1 elements-start-col gap-0.5">
+                    <p class="font-title-sm font-bold! break-words">{{ item.name }}</p>
+                    @if (item.details) {
+                      <p class="font-body-sm text-on-surface-variant">{{ item.details }}</p>
+                    }
+                    <p class="sr-only">Quantity {{ item.quantity }}</p>
+                    @if (item.deal) {
+                      <span class="deal-tag">{{ item.deal }}</span>
                     }
                   </div>
-                  <span class="order-thumb__qty" aria-hidden="true">{{ item.quantity }}</span>
+                  <div class="shrink-0 elements-end-col text-end">
+                    <span class="font-body-md font-bold! whitespace-nowrap">{{ item.price }}</span>
+                    @if (item.was) {
+                      <span class="font-body-sm text-on-surface-variant line-through whitespace-nowrap">{{
+                        item.was
+                      }}</span>
+                    }
+                  </div>
                 </div>
-                <div class="min-w-0 flex-1 elements-start-col gap-0.5">
-                  <p class="font-title-sm font-bold! break-words">{{ item.name }}</p>
-                  @if (item.details) {
-                    <p class="font-body-sm text-on-surface-variant">{{ item.details }}</p>
-                  }
-                  <p class="sr-only">Quantity {{ item.quantity }}</p>
-                  @if (item.deal) {
-                    <span class="deal-tag">{{ item.deal }}</span>
-                  }
-                  @for (gift of item.gifts; track gift.key) {
-                    <p
-                      class="w-full elements-between items-start! gap-3 font-body-sm text-on-surface-variant"
-                    >
-                      <span class="min-w-0"
-                        >{{ gift.label }}
-                        @if (gift.quantity > 1) {
-                          <span class="whitespace-nowrap">× {{ gift.quantity }}</span>
-                        }
-                      </span>
-                      <span class="shrink-0">Free</span>
-                    </p>
-                  }
-                </div>
-                <div class="shrink-0 elements-end-col text-end">
-                  <span class="font-body-md font-bold! whitespace-nowrap">{{ item.price }}</span>
-                  @if (item.was) {
-                    <span class="font-body-sm text-on-surface-variant line-through whitespace-nowrap">{{
-                      item.was
-                    }}</span>
-                  }
-                </div>
+                @if (item.gifts.length) {
+                  <ul class="gift-tree [--gift-tree-indent:1.75rem]" aria-label="Free gifts with this item">
+                    @for (gift of item.gifts; track gift.key) {
+                      <li class="gift-tree__item">
+                        <div class="gift-tree__photo" aria-hidden="true">
+                          @if (gift.imagePath; as giftPath) {
+                            <img
+                              [ngSrc]="gift.imageSrc"
+                              [appImageFallback]="giftPath"
+                              alt=""
+                              width="40"
+                              height="40"
+                              class="size-full object-contain p-0.5"
+                            />
+                          }
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <p class="font-label-lg break-words">
+                            {{ gift.name }}
+                            @if (gift.quantity > 1) {
+                              <span class="whitespace-nowrap">× {{ gift.quantity }}</span>
+                            }
+                          </p>
+                          @if (gift.details) {
+                            <p class="font-label-md text-on-surface-variant">{{ gift.details }}</p>
+                          }
+                        </div>
+                        <span class="gift-tree__tag" [title]="gift.tag">{{ gift.tag }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
               </li>
             }
           </ul>

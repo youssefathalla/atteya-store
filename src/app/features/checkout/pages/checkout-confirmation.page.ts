@@ -16,7 +16,7 @@ import {
   type OrderStage,
 } from '@core/config/order-messages';
 import { STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
-import { FALLBACK_GIFT_NAME, giftLineLabel } from '@core/services/cart/cart-gifts';
+import { FALLBACK_GIFT_NAME } from '@core/services/cart/cart-gifts';
 import type { CreateManualOrderResult } from '@core/services/orders/checkout-order.service';
 import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
@@ -292,26 +292,29 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     const isSize = (label: string) => label.trim().toLowerCase() === 'size';
     const items: ConfirmationItem[] = [];
     const byLine = new Map<number, ConfirmationItem>();
+    const detailsOf = (labels: readonly { label: string; value: string }[] | undefined): string =>
+      (labels ?? []).map((opt) => (isSize(opt.label) ? `Size ${opt.value}` : opt.value)).join(' · ');
     pricing.lines.forEach((line, index) => {
+      const imagePath = line.imagePath?.trim() || null;
       if (line.gift) {
-        // One line under its item, like the bag: "Free shirt: Adidas Simple Polo, L".
-        const size = (line.optionLabels ?? []).find((opt) => isSize(opt.label))?.value ?? null;
-        const gift = {
+        // A row under its item with its photo, joined to the item by a thin line.
+        const gift: ConfirmationGift = {
           key: `${index}:${line.productId}`,
-          label: giftLineLabel(line.gift.giftName || FALLBACK_GIFT_NAME, line.name || 'Item', size),
+          tag: line.gift.giftName || FALLBACK_GIFT_NAME,
+          name: line.name || 'Item',
+          details: detailsOf(line.optionLabels),
           quantity: line.quantity,
+          imagePath,
+          imageSrc: imagePath ? normalizeImageKitPath(imagePath) : '',
         };
         const owner = byLine.get(line.gift.forLine) ?? items.at(-1);
         owner?.gifts.push(gift);
         return;
       }
-      const imagePath = line.imagePath?.trim() || null;
       const item: ConfirmationItem = {
         key: `${index}:${line.productId}`,
         name: line.name || 'Item',
-        details: (line.optionLabels ?? [])
-          .map((opt) => (isSize(opt.label) ? `Size ${opt.value}` : opt.value))
-          .join(' · '),
+        details: detailsOf(line.optionLabels),
         quantity: line.quantity,
         imagePath,
         imageSrc: imagePath ? normalizeImageKitPath(imagePath) : '',
@@ -419,8 +422,21 @@ interface ConfirmationItem {
   readonly price: string;
   readonly deal: string;
   readonly was: string;
-  /** Free gifts that came with this item ("Free shirt: Adidas Simple Polo, L"). */
-  readonly gifts: { readonly key: string; readonly label: string; readonly quantity: number }[];
+  /** Free gifts that came with this item, shown under it with their photo. */
+  readonly gifts: ConfirmationGift[];
+}
+
+/** One free gift under its item: photo, product name, options and the gift's name as a tag. */
+interface ConfirmationGift {
+  readonly key: string;
+  /** The gift's name from its offer ("Free shirt"). */
+  readonly tag: string;
+  readonly name: string;
+  /** "Size L", or empty when the gift has no options. */
+  readonly details: string;
+  readonly quantity: number;
+  readonly imagePath: string | null;
+  readonly imageSrc: string;
 }
 
 const DAY_FORMAT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
