@@ -1,6 +1,6 @@
 // GENERATED — edit functions/src/offers/engine
 import { MAX_GIFT_CHOICES, MAX_GIFT_NAME, MAX_OFFER_GIFTS } from './gifts';
-import { liveOffers } from './item-price';
+import { formatCairoDate } from './cairo-time';
 import { matchProduct } from './match';
 import type {
   Offer,
@@ -131,20 +131,21 @@ export function validateOffer(
     });
   }
 
-  const liveOthers = liveOffers(
-    others.filter((other) => other.id !== draft.id),
-    { now: ctx.now, signedIn: true },
-  );
-  for (const other of liveOthers) {
+  for (const other of overlapCandidates(others, draft.id, ctx.now)) {
     const overlapCount = matchedProducts.filter(
       (product) => matchProduct(other.conditions, other.exclude, product) !== 'none',
     ).length;
-    if (overlapCount > 0) {
-      warnings.push({
-        code: `overlap.${other.id}`,
-        message: `${overlapCount} ${overlapCount === 1 ? 'product is' : 'products are'} also in "${other.name}". Shoppers get whichever is cheaper.`,
-      });
-    }
+    if (overlapCount === 0) continue;
+    const message = overlapMessage(draft, other, overlapCount);
+    if (!message) continue;
+    const startsAt = other.schedule.startsAt;
+    warnings.push({
+      code: `overlap.${other.id}`,
+      message:
+        startsAt && startsAt.getTime() > ctx.now.getTime()
+          ? `${message} (starts ${formatCairoDate(startsAt)})`
+          : message,
+    });
   }
 
   return { errors, warnings };
@@ -419,4 +420,77 @@ function maxOfferPercent(draft: OfferDraft): number | null {
   }
   if (r.kind === 'buyXGetY') return r.get.percent;
   return null;
+}
+
+/** What an offer does to an item when it overlaps another: null = it can always come on top. */
+type OverlapRole = 'price' | 'deal' | 'gift';
+
+/**
+ * Other offers that are on now or scheduled to start later (on, not archived, not ended), whatever
+ * their audience or coupon code: staff should hear about every offer a shopper could also get.
+ */
+function overlapCandidates(others: readonly Offer[], draftId: string | undefined, now: Date): Offer[] {
+  const nowMs = now.getTime();
+  return others.filter((other) => {
+    if (other.id === draftId || !other.active || other.archived) return false;
+    const endsAt = other.schedule.endsAt;
+    return !endsAt || nowMs < endsAt.getTime();
+  });
+}
+
+/**
+ * How an offer acts on items, following the bag and checkout: Percent off, Amount off and Set
+ * price change the item price, Buy X get Y and Free gift (per item, no minimum) apply in the bag.
+ * Free shipping, tiered and cart offers never change what an item costs, so they never warn.
+ */
+function overlapRole(offer: OfferDraft): OverlapRole | null {
+  if (offer.scope !== 'item') return null;
+  switch (offer.reward.kind) {
+    case 'percentOff':
+    case 'amountOff':
+    case 'fixedPrice':
+      return 'price';
+    case 'buyXGetY':
+      return hasMinimum(offer) ? null : 'deal';
+    case 'freeGift':
+      return hasMinimum(offer) ? null : 'gift';
+    default:
+      return null;
+  }
+}
+
+function hasMinimum(offer: OfferDraft): boolean {
+  const minimum = offer.minimum;
+  return !!minimum && ((minimum.subtotal ?? 0) > 0 || (minimum.quantity ?? 0) > 0);
+}
+
+/**
+ * The Heads-up line for products in both offers: what shoppers get when both apply
+ * (one discount per item; a free gift may come with a discount).
+ */
+function overlapMessage(draft: OfferDraft, other: Offer, count: number): string | null {
+  const mine = overlapRole(draft);
+  const theirs = overlapRole(other);
+  if (!mine || !theirs) return null;
+
+  const one = count === 1;
+  const alsoIn = `${count} ${one ? 'product is' : 'products are'} also in "${other.name}".`;
+  const alsoHave = `${count} ${one ? 'product also has' : 'products also have'} "${other.name}".`;
+  const roles = new Set([mine, theirs]);
+
+  if (mine === 'gift' && theirs === 'gift') {
+    return `${alsoIn} Only the higher-priority gift offer applies.`;
+  }
+  if (roles.has('gift')) {
+    return roles.has('deal')
+      ? `${alsoHave} Each item gets either the free gift or the Buy X get Y discount, whichever is worth more.`
+      : `${alsoHave} Shoppers get both: the discount and the free gift.`;
+  }
+  if (mine === 'deal' && theirs === 'deal') {
+    return `${alsoIn} Each item counts toward one Buy X get Y offer only, the higher-priority one first.`;
+  }
+  if (roles.has('deal')) {
+    return `${alsoIn} Shoppers get whichever saves them more, never both.`;
+  }
+  return `${alsoIn} Shoppers get whichever is cheaper.`;
 }
