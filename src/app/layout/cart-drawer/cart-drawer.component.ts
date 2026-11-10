@@ -5,7 +5,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { doc, getDoc } from 'firebase/firestore';
 import { canCheckout, lineDisplayAmount } from '@core/services/cart/cart-pricing';
 import { priceBag, type BagPricingProduct, type PricedBagLine } from '@core/services/cart/cart-deals';
-import { dealHintAction, dealHintText, offerShopQuery } from '@core/services/offers/offer-shop';
+import {
+  dealHintAction,
+  dealHintText,
+  earnedItemLabel,
+  offerShopQuery,
+  shortItemWord,
+} from '@core/services/offers/offer-shop';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { isCardOrWalletLive } from '@core/config/store-info';
 import { AuthService } from '@core/services/auth/auth.service';
@@ -351,6 +357,37 @@ export class CartDrawerComponent {
       map.set(hint.lineIndex, [...(map.get(hint.lineIndex) ?? []), nudge]);
     }
     return map;
+  });
+
+  /** For the free-item tiles: would adding this product really make it free (see `priceBag`). */
+  readonly wouldDiscount = computed(() => this.#pricedBag().wouldDiscount);
+
+  /**
+   * The small label under an item that pays full price because it gets another item free or
+   * cheaper, its own per-item offer having lost to that bigger saving: "Gets you the free bag",
+   * "Gets you 50% off the bag" (the free item's category as a short word; generic when unknown).
+   * Empty for every other line, in bag order.
+   */
+  readonly earnedLabels = computed((): readonly string[] => {
+    const products = this.#products();
+    const bag = this.#pricedBag();
+    const categories = this.#catalog.categories() ?? [];
+    const lines = this.lines();
+    const wordFor = (index: number): string | null => {
+      const line = lines[index];
+      const info = line ? products.get(line.productId) : null;
+      if (!info) return null;
+      return shortItemWord(categories.find((category) => category.id === info.categoryId)?.name);
+    };
+    return lines.map((_, index) => {
+      const priced = bag.lines[index];
+      const earned = priced?.deals.earns[0];
+      // Only when the line has a per-item offer it gave up for the deal.
+      if (!priced || !earned || !priced.appliedOfferId || priced.unitEgp >= priced.baseEgp) return '';
+      const words = new Set(earned.freeLines.map(wordFor));
+      const word = words.size === 1 ? [...words][0]! : null;
+      return earnedItemLabel(earned.percent, word);
+    });
   });
 
   dealHints(index: number): readonly CartDealNudge[] {

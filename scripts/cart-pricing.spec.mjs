@@ -24,8 +24,11 @@ import {
   canShopOffer,
   dealHintAction,
   dealHintText,
+  EARNED_LABEL_MAX,
+  earnedItemLabel,
   offerShopSubtitle,
   offerTitleVisible,
+  shortItemWord,
 } from '../src/app/core/services/offers/offer-shop.ts';
 
 describe('cart-pricing (AS-33)', () => {
@@ -309,5 +312,38 @@ describe('Free shipping offer title abroad', () => {
 
   it('leaves every other offer alone', () => {
     assert.equal(offerTitleVisible(percent, 'GB'), true);
+  });
+});
+
+describe("bag label for an item that earns another item's deal (ATS-148)", () => {
+  it('turns a category name into a short singular word', () => {
+    assert.equal(shortItemWord('Bags & gear'), 'bag');
+    assert.equal(shortItemWord('Grips & protectors'), 'grip');
+    assert.equal(shortItemWord('Socks'), 'socks');
+    assert.equal(shortItemWord('Shorts'), 'shorts');
+    assert.equal(shortItemWord('Hoodies'), 'hoodie');
+    assert.equal(shortItemWord('Rackets'), 'racket');
+    assert.equal(shortItemWord('Bottles'), 'bottle');
+    assert.equal(shortItemWord('T-shirts & polos'), 't-shirt');
+    assert.equal(shortItemWord('Accessories'), 'accessory');
+    assert.equal(shortItemWord('Glasses'), 'glass');
+    assert.equal(shortItemWord(''), null);
+    assert.equal(shortItemWord(null), null);
+    assert.equal(shortItemWord('Padel balls'), null);
+  });
+
+  it('says what the item gets the shopper, in at most 28 characters', () => {
+    assert.equal(earnedItemLabel(100, 'bag'), 'Gets you the free bag');
+    assert.equal(earnedItemLabel(100, 'grip'), 'Gets you the free grip');
+    assert.equal(earnedItemLabel(50, 'bag'), 'Gets you 50% off the bag');
+    assert.equal(earnedItemLabel(100, null), 'Gets you a free item');
+    assert.equal(earnedItemLabel(50, null), 'Gets you 50% off an item');
+    // Too long for one line: the generic wording.
+    assert.equal(earnedItemLabel(50, 'tracksuit'), 'Gets you 50% off an item');
+    assert.equal(earnedItemLabel(100, 'accessory'), 'Gets you the free accessory');
+    assert.equal(earnedItemLabel(100, 'supercalifragilistic'), 'Gets you a free item');
+    for (const label of [earnedItemLabel(100, 'tracksuit'), earnedItemLabel(99, 'bottle')]) {
+      assert.ok(label.length <= EARNED_LABEL_MAX, label);
+    }
   });
 });

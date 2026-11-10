@@ -1,4 +1,5 @@
 import {
+  freeItemWins,
   priceBagDeals,
   priceItem,
   type BagDealHint,
@@ -46,6 +47,12 @@ export interface PricedBagDeals {
   readonly lines: readonly (PricedBagLine | null)[];
   /** Buy X Get Y nudges, with `lineIndex` pointing at the bag line (not the priced subset). */
   readonly hints: readonly BagDealHint[];
+  /**
+   * True when adding `quantity` of this product to the bag would really get it a discount from
+   * the Buy X Get Y offer `offerId` (one discount per item applied), so the bag never offers a
+   * free item that would cost full price.
+   */
+  readonly wouldDiscount: (offerId: string, product: PricedProduct, quantity: number) => boolean;
 }
 
 /**
@@ -90,6 +97,8 @@ export function priceBag(
   });
 
   const deals = priceBagDeals(facts, offers, ctx);
+  // Each line's `earns` points at lines of the priced subset; turn them into bag lines.
+  const toBagLine = (n: number): number => bagIndex[n] ?? n;
   const priced: (PricedBagLine | null)[] = lines.map(() => null);
   deals.lines.forEach((lineDeals, n) => {
     const index = bagIndex[n]!;
@@ -98,13 +107,38 @@ export function priceBag(
       baseEgp: bases[n]!,
       fullEgp: lineDeals.before,
       lineEgp: lineDeals.total,
-      deals: lineDeals,
+      deals: {
+        ...lineDeals,
+        earns: lineDeals.earns.map((earned) => ({ ...earned, freeLines: earned.freeLines.map(toBagLine) })),
+      },
       appliedOfferId: itemOffers[n] ?? null,
     };
   });
   return {
     lines: priced,
-    hints: deals.hints.map((hint) => ({ ...hint, lineIndex: bagIndex[hint.lineIndex] ?? hint.lineIndex })),
+    hints: deals.hints.map((hint) => ({ ...hint, lineIndex: toBagLine(hint.lineIndex) })),
+    wouldDiscount: (offerId, product, quantity) =>
+      freeItemWins(facts, offers, ctx, offerId, extraLineFacts(product, quantity, offers, ctx)),
+  };
+}
+
+/** A product not in the bag yet as one more bag line (no size chosen, no gifts). */
+function extraLineFacts(
+  product: PricedProduct,
+  quantity: number,
+  offers: readonly Offer[],
+  ctx: PricingContext,
+): BagLineFacts {
+  const item = priceItem(product, null, offers, ctx);
+  const compareAt = product.compareAtPrice;
+  return {
+    product,
+    variant: null,
+    quantity: Math.max(1, Math.floor(quantity)),
+    basePrice: item.basePrice,
+    offerPrice: item.effectivePrice,
+    onSale: compareAt !== null && compareAt > product.price,
+    giftWorth: 0,
   };
 }
 

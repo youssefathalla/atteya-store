@@ -96,3 +96,43 @@ function onlyAtom(offer: Offer): ConditionAtom | null {
   if (groups.length !== 1 || groups[0]!.allOf.length !== 1) return null;
   return groups[0]!.allOf[0]!;
 }
+
+/** Longest "Gets you the free bag" label the bag shows; a longer one uses the generic wording. */
+export const EARNED_LABEL_MAX = 28;
+
+/** Words that have no singular ("the free socks"). */
+const PLURAL_ONLY = new Set(['socks', 'shorts', 'leggings', 'trousers', 'pants', 'jeans', 'sunglasses']);
+/** Words the general rules below get wrong. */
+const SINGULAR: Readonly<Record<string, string>> = { hoodies: 'hoodie' };
+
+/**
+ * A short lower-case singular word for a category name, for the bag's "Gets you the free bag"
+ * label: the first part of the name ("Bags & gear" → "bag", "Grips & protectors" → "grip",
+ * "Socks" → "socks"). Null when the name has no single plain word to use.
+ */
+export function shortItemWord(categoryName: string | null | undefined): string | null {
+  const first = (categoryName ?? '').split(/[&,/]/)[0]!.trim().toLowerCase();
+  if (!/^[a-z]+(-[a-z]+)?$/.test(first)) return null;
+  if (PLURAL_ONLY.has(first)) return first;
+  const known = SINGULAR[first];
+  if (known) return known;
+  if (first.endsWith('ies') && first.length > 4) return `${first.slice(0, -3)}y`;
+  if (/(ss|x|ch|sh)es$/.test(first)) return first.slice(0, -2);
+  if (first.endsWith('s') && !first.endsWith('ss')) return first.slice(0, -1);
+  return first;
+}
+
+/**
+ * The small label under a bag item that pays full price because it earns another item's Buy X
+ * Get Y discount: "Gets you the free bag" or "Gets you 50% off the bag". With no short word, or
+ * when the text would be longer than `EARNED_LABEL_MAX`: "Gets you a free item" /
+ * "Gets you 50% off an item".
+ */
+export function earnedItemLabel(percent: number, word: string | null): string {
+  const free = percent >= 100;
+  if (word) {
+    const text = free ? `Gets you the free ${word}` : `Gets you ${percent}% off the ${word}`;
+    if (text.length <= EARNED_LABEL_MAX) return text;
+  }
+  return free ? 'Gets you a free item' : `Gets you ${percent}% off an item`;
+}
