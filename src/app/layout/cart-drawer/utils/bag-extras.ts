@@ -10,7 +10,7 @@ export const BAG_RECOMMENDATION_LIMIT = 4;
  */
 export const BAG_RECOMMENDATION_FETCH = BAG_RECOMMENDATION_LIMIT + 20;
 
-/** One tile in the bag's "Payment Methods" row. */
+/** One row in the bag's "Payment Methods" list. */
 export interface BagPaymentMethod {
   readonly id: PaymentMethodId;
   readonly name: string;
