@@ -69,6 +69,8 @@ const SIZES = [
 const ALLOWED_CONSOLE = [
   // reCAPTCHA / App Check warm-up on localhost (App Check is not enforced on dev).
   /AppCheck|app-check|recaptcha/i,
+  // reCAPTCHA's iframe on www.google.com: report-only CSP notice from Google's page, nothing is blocked.
+  /^Framing 'https:\/\/www\.google\.com\/' violates the following report-only Content Security Policy directive/,
   // The router's view transition is skipped when a second navigation or redirect starts
   // before the first one finished drawing; the page itself is fine.
   /AbortError: Transition was skipped/i,
