@@ -17,7 +17,9 @@ export interface AccountOrderCustomer {
   readonly signedIn: true;
   /**
    * The ids `perCustomer` offer uses are counted under: the uid, plus the guest key of the account
-   * email when there is one, so a guest order with the same email shares the count.
+   * email when that email is confirmed (`email_verified`), so a guest order with the same email
+   * shares the count. An unconfirmed email is left out: anyone can sign up with someone else's
+   * address, and counting it would use up that person's guest offer uses.
    */
   readonly offerKeys: readonly string[];
 }
@@ -51,7 +53,10 @@ export async function identifyOrderCustomer(request: CallableRequest): Promise<O
       uid: caller.uid,
       email: caller.email ?? null,
       signedIn: true,
-      offerKeys: caller.email ? [caller.uid, guestOfferCustomerKey(caller.email)] : [caller.uid],
+      offerKeys:
+        caller.email && caller.emailVerified
+          ? [caller.uid, guestOfferCustomerKey(caller.email)]
+          : [caller.uid],
     };
   }
   requireAppCheck(request);
