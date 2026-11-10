@@ -12,7 +12,8 @@
  * What it does, for products copied from the old store only (matched by the saved `source.id`, never by name):
  * - PRICE  the old store's sale price becomes `price` and its price becomes `compareAtPrice`
  *          (no lower sale price: `price` only, `compareAtPrice` null).
- * - HIDE   a product that is hidden on, or gone from, the old store gets `published: false`.
+ * - HIDE   a product that is hidden on, or gone from, the old store gets `published: false`, unless staff
+ *          set Published in our admin (`lockedFields` has `published`): that one is listed as CHECK.
  * - STOCK  only when the old store has a number above 0 on at least one size: every size takes the old
  *          store's count (matched by size name), through `stockFields()`. A product with no sizes takes
  *          the old store's quantity when stock tracking is on there.
@@ -201,9 +202,14 @@ for (const doc of snapshot.docs) {
         `Could not tell whether "${data.name}" is still on the old store (status ${direct.status}).`,
       );
     }
-    if (data.published === true) {
+    const where = hidden ? 'hidden on' : 'gone from';
+    const publishedLocked = Array.isArray(data.lockedFields) && data.lockedFields.includes('published');
+    if (data.published === true && publishedLocked) {
+      // Staff published it in our admin on purpose (that locks `published`); their choice stands.
+      checks.push(`${label}: left published, ${where} the old store but staff set it in our admin`);
+    } else if (data.published === true) {
       changes.published = false;
-      notes.push(`HIDE   ${hidden ? 'hidden on' : 'gone from'} the old store`);
+      notes.push(`HIDE   ${where} the old store`);
     }
     old = null;
   }
