@@ -9,7 +9,7 @@
   <div class="elements-start-col min-w-0 gap-5 p-4">
     <p class="font-body-md">Pick them below. They ship in the same parcel.</p>
 
-    @for (step of steps(); track step.key) {
+    @for (step of steps(); track step.key; let lastStep = $last) {
       @let promptHere = prompt()?.key === step.key;
       @let messageId = 'pdp-gift-msg-' + step.key;
       <fieldset
@@ -79,6 +79,9 @@
               >
                 <div class="row-scroll-nav__progress-fill" aria-hidden="true"></div>
               </div>
+            } @else if (!lastStep) {
+              <!-- The row fits (wide screens): the same thin line, without the fill, keeps the steps apart. -->
+              <div class="pdp-gift-progress" aria-hidden="true"></div>
             }
           </div>
         } @else {
