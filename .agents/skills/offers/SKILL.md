@@ -24,6 +24,7 @@ The rules for offers, moved here from one long AGENTS.md paragraph so offers PRs
 - **Never bake offer prices into product docs**: prices come from the shared pure engine in `functions/src/offers/engine/`, copied to `src/app/core/services/offers/engine/` by `npm run sync:engine` (`preflight` fails when the copies differ; edit only the `functions` copy).
 - Algolia offer fields are display-only; checkout re-prices from Firestore on place-order.
 - `onOfferWritten` and the 15-minute `refreshOfferPricing` schedule refresh them.
+- `onOfferWritten` (`onDocumentWrittenWithAuthContext`) also writes one `auditLogs` entry per offer create, update and delete; `actorUid` is the doc's `updatedBy`, and for a delete (no doc left) the write's `event.authId` (`unknown` only when the write had no signed-in caller).
 - Cart-level rewards and quantity tiers still show as labels only, so the offer form hides "Buy more, save more" and "Spend X, get…" from the Deal type list for launch (`REWARD_PICKER_OPTIONS`; the engine keeps them for later): an old offer of those types still opens with "This deal type isn't available yet. Pause or archive this offer." and Save Offer stays disabled (`isUnavailableDeal()` in `offers-manager/models/offer-admin.model.ts`).
 
 ## Overlap warnings
