@@ -72,23 +72,15 @@ export async function identifyOrderCustomer(request: CallableRequest): Promise<O
 }
 
 /**
- * The caller IP for the guest rate limit. The Google front end appends the real client IP to the
- * end of X-Forwarded-For; earlier entries come from the caller and can be faked, and Express
- * `req.ip` (with `trust proxy`) returns the left-most one. So take the last entry.
+ * The caller IP for the guest rate limit: Express `req.ip`, the same source the footer email
+ * sign-up uses (`subscribeToEmails`). The last X-Forwarded-For entry can be a Google proxy hop shared
+ * by many shoppers, which would make the 5-per-connection cap refuse real people. `req.ip` can be
+ * faked by a caller adding entries to that header, so it only slows casual repeats; the per-email
+ * and store-wide daily caps bound a script, and App Check enforcement is the stronger guard.
  */
 function guestCallerIp(request: CallableRequest): string {
   const raw = request.rawRequest;
-  const header = raw?.headers?.['x-forwarded-for'];
-  const value = Array.isArray(header) ? header.join(',') : header;
-  if (typeof value === 'string') {
-    const entries = value
-      .split(',')
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0);
-    const last = entries[entries.length - 1];
-    if (last) return last;
-  }
-  return raw?.socket?.remoteAddress || raw?.ip || 'unknown';
+  return raw?.ip || raw?.socket?.remoteAddress || 'unknown';
 }
 
 /**
