@@ -3,7 +3,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
-import { isOrderViewKey } from './order-view.js';
+import { claimEmailMatches, isOrderViewKey } from './order-view.js';
 
 export interface ClaimOrderResponse {
   readonly orderId: string;
@@ -13,8 +13,9 @@ export interface ClaimOrderResponse {
 const NOT_FOUND = "We couldn't find that order. Check the link in your order email.";
 
 /**
- * Links a guest order to the signed-in caller's account. The caller proves they hold the order by
- * its secret `viewKey` (from the order link). Sets `customerId` (and `claimedAt`) only while the
+ * Links a guest order to the signed-in caller's account. The caller needs both the order's secret
+ * `viewKey` (from the order link) and an account email equal to the email on the order, so a
+ * forwarded or leaked link can't move the order to someone else's account. Sets `customerId` (and `claimedAt`) only while the
  * order has no owner; an order that already belongs to another account is refused. Calling again
  * for the same account changes nothing.
  */
@@ -42,6 +43,12 @@ export const claimOrder = onCall(adminCallableOptions(), async (request): Promis
     if (owner === caller.uid) return;
     if (typeof owner === 'string' && owner.length > 0) {
       throw new HttpsError('failed-precondition', 'This order is already linked to another account.');
+    }
+    if (!claimEmailMatches(order['customerEmail'], caller.email)) {
+      throw new HttpsError(
+        'permission-denied',
+        'Sign in with the email you used for this order to save it to your account.',
+      );
     }
     const now = FieldValue.serverTimestamp();
     tx.update(orderRef, { customerId: caller.uid, claimedAt: now, updatedAt: now });

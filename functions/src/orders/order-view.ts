@@ -14,6 +14,17 @@ export function isOrderViewKey(value: unknown): value is string {
 }
 
 /**
+ * True when the signed-in caller's email is the guest order's email (trimmed, any case). The link
+ * key alone is not enough to take a guest order: a forwarded or leaked link must not let another
+ * account become its owner.
+ */
+export function claimEmailMatches(orderEmail: unknown, callerEmail: string | undefined): boolean {
+  if (typeof orderEmail !== 'string' || typeof callerEmail !== 'string') return false;
+  const order = orderEmail.trim().toLowerCase();
+  return order.length > 0 && order === callerEmail.trim().toLowerCase();
+}
+
+/**
  * What `orderViews/{viewKey}` holds for a guest order: only the fields the confirmation page reads.
  * Never staff-only fields (`confirmedBy`, `cancelledBy`, `deliveryFeeSetBy`, `stockIssues`, Paymob
  * intention ids), the customer's email or uid, or the key itself.

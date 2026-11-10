@@ -20,7 +20,12 @@ import {
   nextGuestIpOrderCount,
   nextGuestStoreOrderCount,
 } from '../../lib/orders/order-rate-limit.js';
-import { isOrderViewKey, newOrderViewKey, orderViewFields } from '../../lib/orders/order-view.js';
+import {
+  claimEmailMatches,
+  isOrderViewKey,
+  newOrderViewKey,
+  orderViewFields,
+} from '../../lib/orders/order-view.js';
 
 const GUEST_LIMIT =
   /Too many orders were placed today\. Please try again tomorrow or message us on WhatsApp\./;
@@ -165,5 +170,19 @@ describe('order view', () => {
     ]) {
       assert.ok(!(hidden in view), hidden);
     }
+  });
+});
+
+describe('claiming a guest order', () => {
+  it('needs the account email to be the order email', () => {
+    assert.equal(claimEmailMatches('shopper@example.com', 'shopper@example.com'), true);
+    assert.equal(claimEmailMatches('shopper@example.com', ' Shopper@Example.COM '), true);
+  });
+
+  it('refuses another email, a missing email, or an order without an email', () => {
+    assert.equal(claimEmailMatches('shopper@example.com', 'someone@example.com'), false);
+    assert.equal(claimEmailMatches('shopper@example.com', undefined), false);
+    assert.equal(claimEmailMatches(null, 'shopper@example.com'), false);
+    assert.equal(claimEmailMatches('', ''), false);
   });
 });
