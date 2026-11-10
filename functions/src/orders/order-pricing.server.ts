@@ -204,8 +204,57 @@ export interface MissedPrice {
   readonly baseRose?: boolean;
 }
 
+/**
+ * The order's shipping fee or total is higher than checkout showed, while every line passed: a
+ * lower price dropped the bag under the free-shipping amount, a Buy X Get Y discount shrank, a
+ * piece kept its free gift instead of its discount, or a shipping rule changed.
+ */
+export interface MissedTotal {
+  /** The server's order total (whole EGP). */
+  readonly missedTotalEgp: number;
+  /** The server's shipping fee (whole EGP). */
+  readonly shippingEgp: number;
+}
+
 /** Something the page showed that this pricing doesn't give. */
-export type PricingMiss = MissedDeal | MissedPrice;
+export type PricingMiss = MissedDeal | MissedPrice | MissedTotal;
+
+/**
+ * The server's totals when its shipping fee or order total is higher than checkout showed, or
+ * null. A fee to be agreed later (`domestic-agreed`) is never compared: it is 0 until staff set it.
+ * A value checkout didn't send (null, older pages) is not compared. A lower or equal server
+ * amount is never a miss: the order goes through at the server's total.
+ */
+export function missedOrderTotal(
+  shown: { readonly shownShippingEgp: number | null; readonly shownTotalEgp: number | null },
+  shipping: Pick<OrderShippingLine, 'kind' | 'priceEgp'>,
+  totalEgp: number,
+): MissedTotal | null {
+  if (shipping.kind === 'domestic-agreed') return null;
+  const shippingHigher = shown.shownShippingEgp !== null && shipping.priceEgp > shown.shownShippingEgp;
+  const totalHigher = shown.shownTotalEgp !== null && totalEgp > shown.shownTotalEgp;
+  if (!shippingHigher && !totalHigher) return null;
+  return { missedTotalEgp: totalEgp, shippingEgp: shipping.priceEgp };
+}
+
+/**
+ * The refusal when the shipping fee or total is still higher than checkout showed after the offers
+ * were read again. Same message as a line price change. The details tell checkout to read the
+ * products again (`priceChanged`), give the server's clock (`nowMs`, so checkout prices offers on
+ * the same clock) and the server's figures (`totalChanged`): when the same figures come back twice
+ * in a row, checkout shows them in its summary, so Place Order can never fail forever.
+ */
+export function totalChangedError(missed: MissedTotal, nowMs: number): HttpsError {
+  return new HttpsError(
+    'failed-precondition',
+    'Prices in your bag changed. Check your bag and place your order again.',
+    {
+      priceChanged: true,
+      totalChanged: { shippingEgp: missed.shippingEgp, totalEgp: missed.missedTotalEgp },
+      nowMs,
+    },
+  );
+}
 
 /** Every line's shown unit price and offer, as `priceWithOffers` compares them. */
 export interface ShownLinePrice {
@@ -303,8 +352,9 @@ export function priceChangedError(missed: MissedPrice): HttpsError {
 
 /**
  * Prices with the cached live offers (`getActiveOffers`, 60 seconds per server). When the page
- * showed something this pricing doesn't give (a Buy X Get Y offer that isn't applied, or a line
- * that costs more per piece than checkout showed), the cache may simply be behind (staff just
+ * showed something this pricing doesn't give (a Buy X Get Y offer that isn't applied, a line
+ * that costs more per piece than checkout showed, or a shipping fee or total higher than it showed),
+ * the cache may simply be behind (staff just
  * created, widened or raised the offer), so the offers are read again without the cache and the
  * order priced again. Only when it still misses is the order refused, so the order never costs
  * more than the shopper saw.
@@ -317,6 +367,7 @@ export async function priceWithFreshOffersOnMiss<T>(
   if (!isPricingMiss(first)) return first;
   const second = await price(await loadOffers(true));
   if (!isPricingMiss(second)) return second;
+  if (isMissedTotal(second)) throw totalChangedError(second, Date.now());
   throw isMissedPrice(second) ? priceChangedError(second) : missedDealError(second);
 }
 
@@ -340,7 +391,15 @@ export function missedDealError(missed: MissedDeal): HttpsError {
 }
 
 function isPricingMiss(value: unknown): value is PricingMiss {
-  return isMissedPrice(value) || isMissedDeal(value);
+  return isMissedPrice(value) || isMissedDeal(value) || isMissedTotal(value);
+}
+
+function isMissedTotal(value: unknown): value is MissedTotal {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { missedTotalEgp?: unknown }).missedTotalEgp === 'number'
+  );
 }
 
 function isMissedDeal(value: unknown): value is MissedDeal {
@@ -541,6 +600,12 @@ async function priceWithOffers(
   });
 
   const totalEgp = subtotalEgp + shippingLine.priceEgp;
+  // Every line passed, but the shipping fee or the total can still be higher than checkout showed
+  // (a lower price dropped the bag under the free-shipping amount, a Buy X Get Y discount shrank,
+  // a piece kept its free gift instead): `priceWithFreshOffersOnMiss` reads the offers again and
+  // refuses only if it still misses.
+  const missedTotal = missedOrderTotal(input, shippingLine, totalEgp);
+  if (missedTotal !== null) return missedTotal;
   const fulfilment = resolveFulfilment(input.paymentMethod, isInternational);
 
   const pricing: OrderPricingSnapshot = {

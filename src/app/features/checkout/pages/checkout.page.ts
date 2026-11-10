@@ -46,11 +46,18 @@ import {
   type PricedProduct,
   type PricingContext,
 } from '@core/services/offers/engine';
-import { offerToLeaveOut, priceChangedFrom } from '@core/services/orders/order-refusal';
+import {
+  offerToLeaveOut,
+  priceChangedFrom,
+  serverClockFrom,
+  serverTotalsToShow,
+  type ServerTotals,
+} from '@core/services/orders/order-refusal';
 import {
   CheckoutOrderService,
   type CheckoutPaymentMethod,
   type CheckoutShippingInput,
+  type ShownOrderTotals,
 } from '@core/services/orders/checkout-order.service';
 import type { Product, ProductVariant } from '@core/services/products/product.model';
 import { ProductSchema } from '@core/services/products/product.schema';
@@ -162,6 +169,11 @@ type CheckoutSummary =
       readonly codShippingEgp: number;
       readonly codShipping: string;
       readonly codCash: string;
+      /**
+       * The shipping fee and total (whole EGP) this summary shows, sent with the order so the
+       * server refuses rather than charge more. Null while the fee is to be agreed.
+       */
+      readonly shown: ShownOrderTotals;
     };
 
 @Component({
@@ -493,6 +505,7 @@ export class CheckoutPageComponent implements OnInit {
         codShippingEgp: 0,
         codShipping: '',
         codCash: formatMoney(subtotalEgp, 'EGP', 0),
+        shown: { shippingEgp: null, totalEgp: null },
       };
     }
 
@@ -514,6 +527,27 @@ export class CheckoutPageComponent implements OnInit {
       return { state: 'unavailable' };
     }
 
+    // The server refused this same shipping fee and total twice in a row with its own figures:
+    // show those, so the shopper sees what the order costs (see `placeOrder`).
+    const server = this.#serverTotals();
+    if (server && server.forShippingEgp === feeEgp && server.forTotalEgp === subtotalEgp + feeEgp) {
+      const serverSubtotalEgp = server.totalEgp - server.shippingEgp;
+      const serverSubtotalDisplay = toDisplayAmount(serverSubtotalEgp, entry);
+      const serverShippingDisplay = toDisplayAmount(server.shippingEgp, entry);
+      return {
+        state: 'ready',
+        feeToBeAgreed: false,
+        subtotal: formatMoney(serverSubtotalDisplay, entry.code, decimals),
+        shipping: formatMoney(serverShippingDisplay, entry.code, decimals),
+        total: formatMoney(serverSubtotalDisplay + serverShippingDisplay, entry.code, decimals),
+        instapayTotal: formatMoney(server.totalEgp, 'EGP', 0),
+        codShippingEgp: server.shippingEgp,
+        codShipping: formatMoney(server.shippingEgp, 'EGP', 0),
+        codCash: formatMoney(serverSubtotalEgp, 'EGP', 0),
+        shown: { shippingEgp: server.shippingEgp, totalEgp: server.totalEgp },
+      };
+    }
+
     const shippingDisplay = toDisplayAmount(feeEgp, entry);
     return {
       state: 'ready',
@@ -525,6 +559,7 @@ export class CheckoutPageComponent implements OnInit {
       codShippingEgp: feeEgp,
       codShipping: formatMoney(feeEgp, 'EGP', 0),
       codCash: formatMoney(subtotalEgp, 'EGP', 0),
+      shown: { shippingEgp: feeEgp, totalEgp: subtotalEgp + feeEgp },
     };
   });
 
@@ -730,6 +765,15 @@ export class CheckoutPageComponent implements OnInit {
 
   /** The offer of the last "Prices in your bag changed" refusal on this visit (see `placeOrder`). */
   #lastChangedOfferId: string | null = null;
+  /** The server totals of the last shipping or total refusal on this visit (see `placeOrder`). */
+  #lastServerTotals: ServerTotals | null = null;
+  /**
+   * The server's shipping fee and total after the same ones were refused twice in a row, with the
+   * figures this summary showed then (`for…`): shown while the summary's own figures stay the same.
+   */
+  readonly #serverTotals = signal<
+    (ServerTotals & { readonly forShippingEgp: number; readonly forTotalEgp: number }) | null
+  >(null);
 
   async placeOrder(): Promise<void> {
     if (this.isSubmitting() || this.isEmpty()) return;
@@ -796,6 +840,8 @@ export class CheckoutPageComponent implements OnInit {
     const priced = this.#pricedBag();
     const dealOfferIds = priced.state === 'ready' ? dealOfferIdsOf(priced.lines) : [];
     const shownPrices = priced.state === 'ready' ? shownLinePrices(priced.lines) : [];
+    // The shipping fee and total this summary shows: the server refuses rather than charge more.
+    const shownTotals = summary.shown;
 
     this.isSubmitting.set(true);
     try {
@@ -818,6 +864,7 @@ export class CheckoutPageComponent implements OnInit {
           endedOfferIds: this.#offers.endedIds(),
           dealOfferIds,
           shownPrices,
+          shownTotals,
         });
         // Wait for the account bag to save before the full-page redirect to Paymob.
         await this.#cart.clear();
@@ -836,6 +883,7 @@ export class CheckoutPageComponent implements OnInit {
         endedOfferIds: this.#offers.endedIds(),
         dealOfferIds,
         shownPrices,
+        shownTotals,
       });
       void this.#cart.clear();
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {
@@ -853,6 +901,27 @@ export class CheckoutPageComponent implements OnInit {
       this.#lastChangedOfferId = next.lastChangedOfferId;
       if (next.leaveOut) this.#offers.markEnded(next.leaveOut);
       if (priceChangedFrom(error)) this.productsResource.reload();
+      // The shipping fee or total came out higher than this summary showed (a lower price dropped
+      // the bag under free shipping, a Buy X Get Y discount shrank): price offers on the server's
+      // clock from now on and read the products again (above). When the same server totals come
+      // back twice in a row, the summary shows them, so Place Order never fails forever.
+      const serverNowMs = serverClockFrom(error);
+      if (serverNowMs !== null) this.#offers.syncClock(serverNowMs);
+      const totals = serverTotalsToShow(error, this.#lastServerTotals);
+      this.#lastServerTotals = totals.last;
+      if (totals.show && shownTotals.shippingEgp !== null && shownTotals.totalEgp !== null) {
+        // Keyed on the summary's own figures, also when it was already showing server totals.
+        const current = this.#serverTotals();
+        const showingServer =
+          current !== null &&
+          current.shippingEgp === shownTotals.shippingEgp &&
+          current.totalEgp === shownTotals.totalEgp;
+        this.#serverTotals.set({
+          ...totals.show,
+          forShippingEgp: showingServer ? current.forShippingEgp : shownTotals.shippingEgp,
+          forTotalEgp: showingServer ? current.forTotalEgp : shownTotals.totalEgp,
+        });
+      }
       this.#snackbar.error(callableMessage(error) ?? 'We could not place your order. Try again in a moment.');
     } finally {
       this.isSubmitting.set(false);

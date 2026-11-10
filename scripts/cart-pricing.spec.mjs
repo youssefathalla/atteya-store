@@ -16,6 +16,9 @@ import {
   endedOfferIdFrom,
   offerToLeaveOut,
   priceChangedFrom,
+  serverClockFrom,
+  serverTotalsToShow,
+  totalChangedFrom,
 } from '../src/app/core/services/orders/order-refusal.ts';
 import {
   canShopOffer,
@@ -175,6 +178,41 @@ describe('price offer refusals (ATS-139)', () => {
       offerToLeaveOut({ details: { changedOfferId: 'off-20' } }, first.lastChangedOfferId).leaveOut,
       'off-20',
     );
+  });
+});
+
+describe('shipping and total refusals (ATS-147)', () => {
+  const refusal = (shippingEgp, totalEgp) => ({
+    details: { priceChanged: true, totalChanged: { shippingEgp, totalEgp }, nowMs: 1_700_000_000_000 },
+  });
+
+  it('reads the server totals and clock, and reads the products again', () => {
+    assert.deepEqual(totalChangedFrom(refusal(115, 2105)), { shippingEgp: 115, totalEgp: 2105 });
+    assert.equal(serverClockFrom(refusal(115, 2105)), 1_700_000_000_000);
+    assert.equal(priceChangedFrom(refusal(115, 2105)), true);
+    assert.equal(totalChangedFrom({ details: { priceChanged: true, productId: 'tee-1' } }), null);
+    assert.equal(
+      totalChangedFrom({ details: { totalChanged: { shippingEgp: '115', totalEgp: 2105 } } }),
+      null,
+    );
+    assert.equal(serverClockFrom({ details: { changedOfferId: 'off-20' } }), null);
+    assert.equal(totalChangedFrom(new Error('offline')), null);
+    assert.equal(serverClockFrom(null), null);
+  });
+
+  it('shows the server totals only when the same ones are refused twice in a row', () => {
+    const first = serverTotalsToShow(refusal(115, 2105), null);
+    assert.deepEqual(first, { show: null, last: { shippingEgp: 115, totalEgp: 2105 } });
+    assert.deepEqual(serverTotalsToShow(refusal(115, 2105), first.last), {
+      show: { shippingEgp: 115, totalEgp: 2105 },
+      last: null,
+    });
+    // Different totals start again; any other error forgets them.
+    assert.deepEqual(serverTotalsToShow(refusal(135, 2125), first.last), {
+      show: null,
+      last: { shippingEgp: 135, totalEgp: 2125 },
+    });
+    assert.deepEqual(serverTotalsToShow(new Error('offline'), first.last), { show: null, last: null });
   });
 });
 
