@@ -5,6 +5,17 @@
     @apply bg-primary text-on-primary;
   }
 
+  /* Fixed top and bottom padding on this page: the 5cqw of .container-content left a tall empty band on wide screens. */
+  .order-section.container-content {
+    padding-block: 1.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .order-section.container-content {
+      padding-block: 2rem;
+    }
+  }
+
   /* Order total / Pay now / At your door, side by side in one bordered strip. */
   .order-money {
     @apply grid grid-flow-col auto-cols-fr border border-on-primary/25 border-shape;
