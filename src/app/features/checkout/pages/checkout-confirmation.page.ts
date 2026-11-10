@@ -421,14 +421,17 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       const memory = readGuestOrder(id);
       const fromLink = this.key();
       if (isOrderViewKey(fromLink)) {
-        rememberGuestOrder(id, { key: fromLink });
+        const saved = rememberGuestOrder(id, { key: fromLink });
         this.#savedKey.set(fromLink);
-        // The key opens the order: keep it out of the address bar (and of anything copied from it).
-        void this.#router.navigate([], {
-          queryParams: { key: null },
-          queryParamsHandling: 'merge',
-          replaceUrl: true,
-        });
+        // The key opens the order: keep it out of the address bar (and of anything copied from it),
+        // but only once it is saved on this device, or a reload would lose the order.
+        if (saved) {
+          void this.#router.navigate([], {
+            queryParams: { key: null },
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+          });
+        }
       } else {
         this.#savedKey.set(memory.key);
       }

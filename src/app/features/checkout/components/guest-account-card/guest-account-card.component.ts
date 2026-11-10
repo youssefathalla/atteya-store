@@ -84,7 +84,17 @@ export class GuestAccountCardComponent implements OnInit {
   readonly #userRefreshed = signal(0);
 
   /** Sign In from the card comes back to this order (its key stays saved on this device). */
-  readonly returnUrl = computed(() => `/checkout/confirmation/${this.orderId()}`);
+  readonly #orderPath = computed(() => `/checkout/confirmation/${this.orderId()}`);
+
+  /**
+   * Where Sign In comes back to. The key stays out of the URL when this device saved it; when it
+   * couldn't (storage blocked), it rides along so the order still opens after signing in.
+   */
+  readonly returnUrl = computed(() => {
+    const path = this.#orderPath();
+    if (!isPlatformBrowser(this.#platformId) || readGuestOrder(this.orderId()).key) return path;
+    return `${path}?key=${encodeURIComponent(this.viewKey())}`;
+  });
 
   /**
    * True when the signed-in person can already read the order as its owner (saved before), so
@@ -141,9 +151,10 @@ export class GuestAccountCardComponent implements OnInit {
     if (this.#auth.user()) {
       const owned = !this.#owned.hasValue() || this.#owned.value();
       if (!owned && (this.#needsVerification() || this.verificationSent())) return 'verify';
-      if (this.message()) return 'message';
-      if (owned) return 'hidden';
-      return this.#canClaim() ? 'claim' : 'hidden';
+      if (owned) return this.message() ? 'message' : 'hidden';
+      // A refused or failed save keeps the Save button (with the reason) so it can be tried again.
+      if (this.#canClaim()) return 'claim';
+      return this.message() ? 'message' : 'hidden';
     }
     return this.#skipped() ? 'hidden' : 'offer';
   });
@@ -280,6 +291,6 @@ export class GuestAccountCardComponent implements OnInit {
   #continueUrl(): string | undefined {
     const origin = globalThis.location?.origin;
     if (!origin) return undefined;
-    return `${origin}${this.returnUrl()}?key=${encodeURIComponent(this.viewKey())}`;
+    return `${origin}${this.#orderPath()}?key=${encodeURIComponent(this.viewKey())}`;
   }
 }

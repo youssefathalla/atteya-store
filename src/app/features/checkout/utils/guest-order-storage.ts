@@ -29,13 +29,20 @@ export function readGuestOrder(orderId: string): GuestOrderMemory {
   }
 }
 
-/** Merges `patch` into what is saved for the order (storage blocked: nothing is saved). */
-export function rememberGuestOrder(orderId: string, patch: Partial<GuestOrderMemory>): void {
+/**
+ * Merges `patch` into what is saved for the order. Returns false when storage is missing or
+ * blocked (nothing was saved), so callers can keep anything they would otherwise lose.
+ */
+export function rememberGuestOrder(orderId: string, patch: Partial<GuestOrderMemory>): boolean {
   try {
+    const storage = globalThis.localStorage;
+    if (!storage) return false;
     const next = { ...readGuestOrder(orderId), ...patch };
-    globalThis.localStorage?.setItem(PREFIX + orderId, JSON.stringify(next));
+    storage.setItem(PREFIX + orderId, JSON.stringify(next));
+    return true;
   } catch {
     // Storage blocked: the page still works from the link for this visit.
+    return false;
   }
 }
 

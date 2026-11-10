@@ -171,6 +171,9 @@
         <h2 id="guest-claim-heading" class="font-title-md font-bold!">Save Your Order to an Account</h2>
         <p class="font-body-md text-on-surface-variant">Keep this order with your other orders.</p>
       </div>
+      @if (message()) {
+        <p class="font-body-sm text-error" role="alert">{{ message() }}</p>
+      }
       <div class="grid gap-3 @xl:flex">
         <button
           matButton="filled"
