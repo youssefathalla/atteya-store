@@ -154,7 +154,16 @@ export class GuestAccountCardComponent implements OnInit {
         termsAccepted: true,
         marketingOptIn: this.marketingOptIn(),
       });
-      // A new email/password account isn't confirmed yet, so `claimOrder` would refuse it.
+      // A new email/password account isn't confirmed yet, so `claimOrder` would refuse it until
+      // the shopper opens the confirmation link sent here.
+      try {
+        await this.#auth.sendVerificationEmail();
+      } catch {
+        this.message.set(
+          "Account created, but we couldn't send the confirmation email, so this order isn't saved to it yet.",
+        );
+        return;
+      }
       this.#outcome.set('created');
     } catch (error) {
       if (authErrorCode(error) === 'auth/email-already-in-use') {

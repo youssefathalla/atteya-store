@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, of } from 'rxjs';
+import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
 import {
   cashOnDeliveryEgp,
@@ -452,9 +453,9 @@ export class CheckoutConfirmationPageComponent implements OnInit {
    */
   #watchView(id: string, key: string): Observable<OrderDoc | null | undefined> {
     if (!isPlatformBrowser(this.#platformId)) return of(null);
-    const ref = doc(this.#firestore, ORDER_VIEWS_COLLECTION, key).withConverter(
-      createValibotConverter(OrderViewSchema),
-    );
+    // Not `createValibotConverter`: it sets `id` to the doc id (the view key), while the view's
+    // own `id` field is the order id that is checked against the route below.
+    const ref = doc(this.#firestore, ORDER_VIEWS_COLLECTION, key);
     return new Observable<OrderDoc | null | undefined>((subscriber) => {
       let found = false;
       const timer = setTimeout(() => {
@@ -468,7 +469,12 @@ export class CheckoutConfirmationPageComponent implements OnInit {
             if (found) subscriber.next(null);
             return;
           }
-          const view = snap.data();
+          const parsed = v.safeParse(OrderViewSchema, snap.data({ serverTimestamps: 'estimate' }));
+          if (!parsed.success) {
+            subscriber.next(null);
+            return;
+          }
+          const view = parsed.output;
           if (view.id !== id) {
             subscriber.next(null);
             return;

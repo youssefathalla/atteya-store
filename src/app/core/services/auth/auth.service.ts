@@ -11,6 +11,7 @@ import {
   getRedirectResult,
   linkWithCredential,
   onIdTokenChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -231,6 +232,13 @@ export class AuthService {
     }
     // A failed write still settles: `#applyUser` awaits it, fails closed and sets the flag.
     await this.#writeConsent(result.user.uid, consent);
+  }
+
+  /** Emails the signed-in account a link that confirms its address. No-op when signed out. */
+  async sendVerificationEmail(): Promise<void> {
+    const user = this.#auth.currentUser;
+    if (!user || user.emailVerified) return;
+    await sendEmailVerification(user);
   }
 
   /**
