@@ -224,11 +224,11 @@
         aria-labelledby="bag-payment-title"
       >
         <h3 id="bag-payment-title" class="font-title-sm font-bold!">Payment Methods</h3>
-        <ul class="divide-y divide-outline-variant">
+        <ul class="bag-pay-list">
           @for (method of paymentMethods(); track method.id) {
             <li class="bag-pay-row" [class.bag-pay-row--soon]="method.comingSoon">
               <span class="bag-pay-row__mark"><app-payment-mark [method]="method.id" /></span>
-              <span class="min-w-0 flex-1 truncate">{{ method.name }}</span>
+              <span class="bag-pay-row__name">{{ method.name }}</span>
               @if (method.comingSoon) {
                 <span class="shrink-0 font-body-sm text-on-surface-variant">Coming soon</span>
               }

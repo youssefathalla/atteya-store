@@ -81,3 +81,52 @@
     @apply absolute -top-2 -end-2 min-w-5 h-5 px-1 elements-center rounded-full bg-primary text-on-primary font-label-sm font-bold!;
   }
 }
+
+@layer components {
+  /*! order confirmation: the Payment card (method, status tag, one row per part of the payment) */
+
+  /* Status next to the Payment heading: outlined while waiting on the shopper or us, black once confirmed, grey once it
+     stopped (Payment Failed, Cancelled). */
+  .order-pay-tag {
+    @apply px-2 py-0.5 border border-primary border-shape bg-surface-container-lowest font-label-md whitespace-nowrap;
+  }
+
+  .order-pay-tag--done {
+    @apply bg-primary text-on-primary;
+  }
+
+  .order-pay-tag--stopped {
+    @apply bg-transparent border-outline-variant text-on-surface-variant;
+  }
+
+  /* The method the shopper chose: its mark in a 56×40 box, then its name, on a white strip. */
+  .order-pay-method {
+    @apply elements-start gap-3 p-3 border border-outline-variant border-shape bg-surface-container-lowest;
+  }
+
+  .order-pay-method__mark {
+    @apply w-14 h-10 shrink-0 elements-center border border-outline-variant border-shape bg-surface-container-lowest;
+  }
+
+  /* One part of the payment (the fee by InstaPay, the cash at the door): small mark box, what and how, amount. */
+  .order-pay-part {
+    @apply elements-start gap-2.5 py-2.5 first:pt-0 last:pb-0;
+  }
+
+  .order-pay-part__mark {
+    @apply w-11 h-7.5 shrink-0 elements-center border border-outline-variant border-shape bg-surface-container-lowest;
+  }
+
+  /* The amount: bold while it is owed or paid; grey and regular when it is struck through or not known yet. */
+  .order-pay-part__amount {
+    @apply shrink-0 font-body-md font-bold! whitespace-nowrap;
+  }
+
+  .order-pay-part__amount--muted {
+    @apply font-normal! text-on-surface-variant;
+  }
+
+  .order-pay-part__mark img {
+    @apply h-4!;
+  }
+}

@@ -8,7 +8,7 @@ export type PaymentMark =
   { readonly kind: 'logo' } | { readonly kind: 'icons'; readonly icons: readonly string[] };
 
 export interface PaymentMethodInfo {
-  /** The method's name, written as a name: "InstaPay", "Card or Wallet", "Cash on Delivery". */
+  /** The method's name, written as a name: "InstaPay", "Card", "Cash on Delivery". */
   readonly name: string;
   readonly mark: PaymentMark;
 }
@@ -20,8 +20,8 @@ export interface PaymentMethodInfo {
 export const PAYMENT_METHODS: Readonly<Record<PaymentMethodId, PaymentMethodInfo>> = {
   instapay: { name: 'InstaPay', mark: { kind: 'logo' } },
   paymob: {
-    name: 'Card or Wallet',
-    mark: { kind: 'icons', icons: ['credit_card', 'account_balance_wallet'] },
+    name: 'Card',
+    mark: { kind: 'icons', icons: ['credit_card'] },
   },
   'cash-on-delivery': { name: 'Cash on Delivery', mark: { kind: 'icons', icons: ['payments'] } },
 };

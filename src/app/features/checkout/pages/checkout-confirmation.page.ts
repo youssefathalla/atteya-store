@@ -34,6 +34,7 @@ import { createValibotConverter } from '@shared/utils/firebase/firestore-convert
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
 import { confirmationSteps } from '../utils/confirmation-steps';
+import { paymentParts as buildPaymentParts, paymentTagTone } from '../utils/confirmation-payment';
 
 /**
  * Order status after checkout. The order is read live, so the page changes by itself when
@@ -259,6 +260,24 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     if (method) return PAYMENT_METHODS[method].name;
     return this.order()?.paymentMethod === 'international-bank-transfer' ? 'Bank Transfer' : '—';
   });
+
+  /** The Payment card: one row per part of the payment (the fee by InstaPay, the cash at the door). */
+  readonly paymentParts = computed(() => {
+    const pricing = this.order()?.pricing;
+    const input = this.#input();
+    if (!pricing || !input) return [];
+    const fee =
+      input.shippingEgp !== null && input.shippingEgp > 0 ? formatMoney(input.shippingEgp, 'EGP', 0) : null;
+    return buildPaymentParts(this.stage(), {
+      method: this.paymentMethod(),
+      total: formatMoney(pricing.totalDisplay, pricing.currency, displayDecimals(pricing.currency)),
+      items: formatMoney(pricing.subtotalDisplay, pricing.currency, displayDecimals(pricing.currency)),
+      fee,
+      cash: this.#cash(),
+    });
+  });
+
+  readonly paymentTone = computed(() => paymentTagTone(this.stage()));
 
   readonly statusLabel = computed(() => orderStatusName(this.stage(), this.order()?.status ?? '—'));
 

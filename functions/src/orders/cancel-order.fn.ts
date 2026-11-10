@@ -37,7 +37,7 @@ export const cancelOrder = onCall(adminCallableOptions(), async (request): Promi
     if (method !== 'cash-on-delivery' && method !== 'instapay') {
       throw new HttpsError(
         'failed-precondition',
-        "Card or Wallet orders can't be cancelled here. They update on their own when the payment clears or fails.",
+        "Card orders can't be cancelled here. They update on their own when the payment clears or fails.",
       );
     }
     if (order['status'] !== 'pending') {

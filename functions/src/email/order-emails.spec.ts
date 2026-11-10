@@ -278,7 +278,7 @@ describe('order email wording and amounts', () => {
       ctx,
     );
     assert.match(paid.subject, /Paid Online$/);
-    assert.ok(paid.text.includes(`Card or Wallet\nPaid: ${formatEgp(2450)}`));
+    assert.ok(paid.text.includes(`Card\nPaid: ${formatEgp(2450)}`));
     assert.match(paid.text, /sold out before this payment/);
   });
 
