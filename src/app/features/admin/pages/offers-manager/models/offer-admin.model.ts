@@ -1,4 +1,5 @@
 import {
+  DEFAULT_OFFER_BANNER,
   describeOfferReward,
   formatCairoDisplay,
   matchProduct,
@@ -221,6 +222,7 @@ export function createEmptyOfferDraft(): OfferDraft {
     limits: { totalUses: null, perCustomer: null },
     requiresCode: false,
     code: null,
+    banner: DEFAULT_OFFER_BANNER,
   };
 }
 

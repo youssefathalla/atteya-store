@@ -1,6 +1,13 @@
 import * as v from 'valibot';
 import { idSchema, timestampSchema } from '@shared/schemas';
-import { MAX_GIFT_CHOICES, MAX_GIFT_NAME, MAX_OFFER_GIFTS, type OfferReward } from './engine';
+import {
+  DEFAULT_OFFER_BANNER,
+  MAX_GIFT_CHOICES,
+  MAX_GIFT_NAME,
+  MAX_OFFER_GIFTS,
+  parseOfferBanner,
+  type OfferReward,
+} from './engine';
 
 const wholeEgp = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000));
 const positiveInt = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100_000));
@@ -135,6 +142,16 @@ export const OfferLimitsSchema = v.object({
   perCustomer: v.nullable(positiveInt, null),
 });
 
+/**
+ * Top banner settings (`show`, `text`, `countdown`, `countdownDays`). Read leniently with the
+ * engine's `parseOfferBanner`, the same reader Cloud Functions use: an old offer without the field,
+ * or a bad value, is simply not in the banner and never drops the offer.
+ */
+export const OfferBannerSchema = v.pipe(
+  v.optional(v.unknown(), DEFAULT_OFFER_BANNER),
+  v.transform((raw) => parseOfferBanner(raw)),
+);
+
 export const OfferDocSchema = v.object({
   id: idSchema,
   name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80)),
@@ -156,6 +173,7 @@ export const OfferDocSchema = v.object({
   reward: OfferRewardSchema,
   limits: v.optional(OfferLimitsSchema, { totalUses: null, perCustomer: null }),
   requiresCode: v.optional(v.boolean(), false),
+  banner: OfferBannerSchema,
   createdAt: v.optional(timestampSchema),
   updatedAt: v.optional(timestampSchema),
   updatedBy: v.optional(v.string()),

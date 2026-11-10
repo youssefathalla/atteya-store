@@ -29,7 +29,8 @@ Shared chrome that depends on **client Firebase** or **async settings**:
 |--------|-------------|
 | Currency | `CurrencyService.ready()`; EGP-only copy hidden while pending (`html[data-cur-pending]`) |
 | Auth | `AuthService.isAuthReady()` (browser only; account control) |
-| Shipping banner | `shippingSettingsResolver` → `shipping-settings`; `ShippingSettingsService.shellReady()` |
+| Announcement bar (shipping slide) | `shippingSettingsResolver` → `shipping-settings`; `ShippingSettingsService.shellReady()` |
+| Announcement bar (offer slides) | `bannerOffersResolver` → `banner-offers`; `BannerOffersService.shellReady()` (seed, first `OffersService` snapshot, or 2.5 s timeout) |
 | Navigation | `navigationSettingsResolver` → `navigation-settings`; `catalogSettingsResolver` → `catalog-settings`; `NavService.shellReady()`; CSR `getDoc` before `onSnapshot` on both docs; desktop nav waits for `navLinksReady()` (nav + `CatalogService.shellReady()`) |
 
 **Policy:** On **initial storefront load**, do not show shipping/nav-dependent chrome until **`ShellReadyService.chromeReady()`** is true. **`ready()`** also waits for auth in the browser. `MainLayoutComponent` uses a one-time `<app-loader>` overlay until `chromeReady()` (route changes keep the top pulse only). Focus-chrome routes (`data: FOCUS_CHROME`: `/login`, `/checkout`) show only the logo bar and skip that overlay, so a page there must handle its own loading (checkout waits for `CurrencyService.ready()`).
@@ -67,7 +68,7 @@ Answer: *“What does the user see in the first ~500ms if Firestore is slow?”*
 - `@if (text())` with no reserved height when text comes from async settings.
 - Different template branches with **different sizes** for loading vs ready on the same control (e.g. account icon).
 - Full-screen spinner over SSR hero/LCP on home or PDP.
-- EGP shipping banner while international currency is still pending.
+- EGP shipping slide of the announcement bar while international currency is still pending.
 - Global “wait for all Firestore listeners” before any paint.
 
 ---
@@ -80,6 +81,7 @@ Answer: *“What does the user see in the first ~500ms if Firestore is slow?”*
 | Main layout overlay | `MainLayoutComponent` — first-load `chromeReady()` |
 | Home settings | `home-settings.resolver.ts`, `HOME_SETTINGS_KEY` (`home-settings`) |
 | Shipping | `shipping-settings.resolver.ts`, `SHIPPING_SETTINGS_KEY` (`shipping-settings`) |
+| Banner offers | `banner-offers.resolver.ts`, `BANNER_OFFERS_KEY` (`banner-offers`), `BannerOffersService` |
 | Navigation | `navigation-settings.resolver.ts`, `NAVIGATION_SETTINGS_KEY` (`navigation-settings`) |
 | Catalog counts | `catalog-settings.resolver.ts`, `CATALOG_SETTINGS_KEY` (`catalog-settings`) |
 | Currency SSR | `serverCurrencyResolver`, `CurrencyService.prepareForServerRender()`, `CURRENCY_BOOT_KEY` (`currency-boot`) |

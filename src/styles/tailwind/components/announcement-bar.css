@@ -1,0 +1,72 @@
+@layer components {
+  /*! top announcement bar (app-announcement-bar): banner offers + the shipping message (ATS-145) */
+
+  /* Same height on phone and desktop; one line, black like the brand. */
+  .announcement-bar {
+    @apply w-full h-9 elements-center gap-1 px-2 bg-primary text-on-primary overflow-hidden;
+    touch-action: pan-y;
+  }
+
+  /* Arrows: desktop only; phones swipe. Native buttons so they fit the slim bar. */
+  .announcement-bar__arrow {
+    @apply hidden lg:elements-center size-8 shrink-0 border-shape cursor-pointer bg-transparent;
+    color: inherit;
+  }
+
+  /* The icon font has only chevron_right, so Previous is the same arrow mirrored. */
+  .announcement-bar__arrow--previous {
+    transform: scaleX(-1);
+  }
+
+  .announcement-bar__arrow:hover {
+    @apply bg-on-primary/10;
+  }
+
+  .announcement-bar__arrow:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -2px;
+  }
+
+  /* All slides sit in one grid cell, so the bar never changes height between them. */
+  .announcement-bar__track {
+    @apply grid flex-1 min-w-0 h-full;
+  }
+
+  .announcement-bar__slide {
+    @apply col-start-1 row-start-1 min-w-0 elements-center opacity-0 pointer-events-none;
+    transition: opacity 400ms ease;
+  }
+
+  .announcement-bar__slide--active {
+    @apply opacity-100 pointer-events-auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .announcement-bar__slide {
+      transition: none;
+    }
+  }
+
+  .announcement-bar__message {
+    @apply max-w-full min-w-0 elements-center gap-1 px-2 font-label-md whitespace-nowrap;
+  }
+
+  .announcement-bar__link {
+    @apply underline-offset-2;
+    color: inherit;
+  }
+
+  .announcement-bar__link:hover {
+    @apply underline;
+  }
+
+  .announcement-bar__link:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  /* Fixed-width digits so the ticking clock never shifts the text. */
+  .announcement-bar__countdown {
+    @apply shrink-0 tabular-nums;
+  }
+}

@@ -33,6 +33,9 @@ import {
   totalChangedFrom,
 } from '../src/app/core/services/orders/order-refusal.ts';
 import {
+  bannerCountdown,
+  bannerOffers,
+  bannerText,
   canShopOffer,
   dealHintAction,
   dealHintText,
@@ -345,6 +348,95 @@ describe('Free shipping offer title abroad', () => {
 
   it('leaves every other offer alone', () => {
     assert.equal(offerTitleVisible(percent, 'GB'), true);
+  });
+});
+
+describe('top announcement bar offers (ATS-145)', () => {
+  const NOW = new Date('2026-11-10T10:00:00Z');
+  const HOUR = 3_600_000;
+  const DAY = 24 * HOUR;
+  const offer = (id, extra = {}) => ({
+    id,
+    title: `Offer ${id}`,
+    active: true,
+    archived: false,
+    visibility: 'public',
+    audience: 'everyone',
+    requiresCode: false,
+    priority: 0,
+    updatedAtMs: 0,
+    schedule: { startsAt: null, endsAt: null, timezone: 'Africa/Cairo' },
+    reward: { kind: 'percentOff', percent: 10 },
+    banner: { show: true, text: null, countdown: 'hide', countdownDays: 7 },
+    ...extra,
+  });
+  const ids = (list) => list.map((o) => o.id);
+
+  it('keeps live banner offers for everyone, highest priority then newest edit, at most 4', () => {
+    const list = [
+      offer('low', { priority: -5 }),
+      offer('old', { priority: 10, updatedAtMs: 1 }),
+      offer('new', { priority: 10, updatedAtMs: 2 }),
+      offer('mid'),
+      offer('extra', { priority: -10 }),
+      offer('off', { banner: { show: false, text: null, countdown: 'hide', countdownDays: 7 } }),
+      offer('legacy', { banner: undefined }),
+      offer('signed-in', { audience: 'signedIn', priority: 50 }),
+      offer('code', { requiresCode: true, priority: 50 }),
+      offer('paused', { active: false, priority: 50 }),
+      offer('archived', { archived: true, priority: 50 }),
+      offer('later', { priority: 50, schedule: { startsAt: new Date(NOW.getTime() + HOUR), endsAt: null } }),
+      offer('ended', { priority: 50, schedule: { startsAt: null, endsAt: NOW } }),
+    ];
+    assert.deepEqual(ids(bannerOffers(list, NOW, 'EG')), ['new', 'old', 'mid', 'low']);
+  });
+
+  it('never shows a Free shipping offer outside Egypt', () => {
+    const ship = offer('ship', { reward: { kind: 'freeShipping' } });
+    assert.deepEqual(ids(bannerOffers([ship], NOW, 'EG')), ['ship']);
+    assert.deepEqual(ids(bannerOffers([ship], NOW, null)), ['ship']);
+    assert.deepEqual(ids(bannerOffers([ship], NOW, 'GB')), []);
+  });
+
+  it('uses the banner text, or the customer title when it is empty', () => {
+    assert.equal(bannerText(offer('a')), 'Offer a');
+    const typed = offer('b', {
+      banner: { show: true, text: 'Black Friday', countdown: 'hide', countdownDays: 7 },
+    });
+    assert.equal(bannerText(typed), 'Black Friday');
+  });
+
+  it('formats the countdown in days, or as a clock under 24 hours', () => {
+    const ending = (ms, countdown = 'always', countdownDays = 7) =>
+      offer('c', {
+        schedule: { startsAt: null, endsAt: new Date(NOW.getTime() + ms) },
+        banner: { show: true, text: null, countdown, countdownDays },
+      });
+    assert.equal(
+      bannerCountdown(ending(2 * DAY + 14 * HOUR + 5 * 60_000 + 59_000), NOW),
+      'Ends in 2d 14h 05m',
+    );
+    assert.equal(bannerCountdown(ending(5 * HOUR + 12 * 60_000 + 33_000), NOW), 'Ends in 05:12:33');
+    assert.equal(bannerCountdown(ending(DAY), NOW), 'Ends in 1d 0h 00m');
+    assert.equal(bannerCountdown(ending(0), NOW), null);
+    assert.equal(bannerCountdown(ending(HOUR, 'hide'), NOW), null);
+    assert.equal(
+      bannerCountdown(
+        offer('no-end', { banner: { show: true, text: null, countdown: 'always', countdownDays: 7 } }),
+        NOW,
+      ),
+      null,
+    );
+  });
+
+  it('"Only in the last N days" waits until N days or less are left', () => {
+    const ending = (ms) =>
+      offer('d', {
+        schedule: { startsAt: null, endsAt: new Date(NOW.getTime() + ms) },
+        banner: { show: true, text: null, countdown: 'lastDays', countdownDays: 3 },
+      });
+    assert.equal(bannerCountdown(ending(3 * DAY + 1000), NOW), null);
+    assert.equal(bannerCountdown(ending(3 * DAY), NOW), 'Ends in 3d 0h 00m');
   });
 });
 
