@@ -32,9 +32,10 @@ import {
 } from '../../utils/guest-order-storage';
 
 const CLAIM_FAILED = "We couldn't save this order to your account. Try again in a moment.";
+const VERIFY_SEND_FAILED = "We couldn't send the confirmation email. Try again in a moment.";
 
 /** What the card shows. `hidden` renders nothing. */
-type CardMode = 'hidden' | 'offer' | 'created' | 'saved' | 'exists' | 'claim' | 'message';
+type CardMode = 'hidden' | 'offer' | 'saved' | 'exists' | 'claim' | 'verify' | 'message';
 
 /**
  * After a guest order: offer to save it to an account (optional, only after the order).
@@ -69,11 +70,18 @@ export class GuestAccountCardComponent implements OnInit {
 
   readonly password = signal('');
   readonly marketingOptIn = signal(false);
-  readonly busy = signal<'create' | 'google' | 'claim' | null>(null);
+  readonly busy = signal<'create' | 'google' | 'claim' | 'verify' | null>(null);
   /** Something to tell the shopper (a refused save, a sign-up problem). */
   readonly message = signal('');
+  /** A confirmation email went out from this card (on Create Account or on request). */
+  readonly verificationSent = signal(false);
   readonly #outcome = signal<'created' | 'saved' | 'exists' | null>(null);
   readonly #skipped = signal(false);
+  /**
+   * Bumped after the account is reloaded: `User` is mutated in place, so the signal holding it
+   * does not notify when `emailVerified` changes.
+   */
+  readonly #userRefreshed = signal(0);
 
   /** Sign In from the card comes back to this order (its key stays saved on this device). */
   readonly returnUrl = computed(() => `/checkout/confirmation/${this.orderId()}`);
@@ -97,24 +105,44 @@ export class GuestAccountCardComponent implements OnInit {
     },
   });
 
-  /** Signed in with a confirmed email that is the order's (when this device knows it). */
-  readonly #canClaim = computed(() => {
+  /** Signed in with an email that is the order's (when this device knows it). */
+  readonly #emailMatches = computed(() => {
     const user = this.#auth.user();
-    if (!user?.emailVerified || !user.email) return false;
+    if (!user?.email) return false;
     const email = this.email();
     return email === null || email === user.email.trim().toLowerCase();
   });
 
+  /** Signed in with a confirmed email that is the order's (when this device knows it). */
+  readonly #canClaim = computed(() => {
+    this.#userRefreshed();
+    return this.#auth.user()?.emailVerified === true && this.#emailMatches();
+  });
+
+  /** Signed in with the order's email, but it isn't confirmed yet, so `claimOrder` would refuse. */
+  readonly #needsVerification = computed(() => {
+    this.#userRefreshed();
+    const user = this.#auth.user();
+    return !!user && !user.emailVerified && this.#emailMatches();
+  });
+
+  /** The address shown in the confirm-your-email state. */
+  readonly accountEmail = computed(() => this.#auth.user()?.email ?? this.email() ?? '');
+
   readonly mode = computed((): CardMode => {
     if (!this.#auth.isAuthReady()) return 'hidden';
     const outcome = this.#outcome();
-    if (outcome) return outcome;
+    if (outcome === 'saved' || outcome === 'exists') return outcome;
     // Signing in from the offer: keep it on screen until the result is known.
     const busy = this.busy();
     if (busy === 'create' || busy === 'google') return 'offer';
+    // Just created here: confirm the email, then save (it shows its own messages).
+    if (outcome === 'created') return 'verify';
     if (this.#auth.user()) {
+      const owned = !this.#owned.hasValue() || this.#owned.value();
+      if (!owned && (this.#needsVerification() || this.verificationSent())) return 'verify';
       if (this.message()) return 'message';
-      if (!this.#owned.hasValue() || this.#owned.value()) return 'hidden';
+      if (owned) return 'hidden';
       return this.#canClaim() ? 'claim' : 'hidden';
     }
     return this.#skipped() ? 'hidden' : 'offer';
@@ -155,16 +183,16 @@ export class GuestAccountCardComponent implements OnInit {
         marketingOptIn: this.marketingOptIn(),
       });
       // A new email/password account isn't confirmed yet, so `claimOrder` would refuse it until
-      // the shopper opens the confirmation link sent here.
+      // the shopper opens the confirmation link sent here and then saves the order.
+      this.#outcome.set('created');
       try {
-        await this.#auth.sendVerificationEmail();
+        await this.#auth.sendVerificationEmail(this.#continueUrl());
+        this.verificationSent.set(true);
       } catch {
         this.message.set(
-          "Account created, but we couldn't send the confirmation email, so this order isn't saved to it yet.",
+          "Account created, but we couldn't send the confirmation email. Send it again to save this order.",
         );
-        return;
       }
-      this.#outcome.set('created');
     } catch (error) {
       if (authErrorCode(error) === 'auth/email-already-in-use') {
         this.#outcome.set('exists');
@@ -205,12 +233,36 @@ export class GuestAccountCardComponent implements OnInit {
     }
   }
 
+  /** Sends (or resends) the confirmation email, with a link back to this order. */
+  async sendVerification(): Promise<void> {
+    if (this.busy()) return;
+    this.message.set('');
+    this.busy.set('verify');
+    try {
+      await this.#auth.sendVerificationEmail(this.#continueUrl());
+      this.verificationSent.set(true);
+    } catch (error) {
+      const code = authErrorCode(error);
+      this.message.set(code ? this.#auth.mapFirebaseError(error) : VERIFY_SEND_FAILED);
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
   /** Saves the guest order to the signed-in account. Refused (wrong or unconfirmed email): says why. */
   async claim(): Promise<void> {
     if (this.busy()) return;
     this.message.set('');
     this.busy.set('claim');
     try {
+      // The email may have been confirmed since this token was minted (in another tab, or before
+      // this page loaded); `claimOrder` reads `email_verified` from the token, so refresh it.
+      const verified = await this.#auth.refreshEmailVerified();
+      this.#userRefreshed.update((n) => n + 1);
+      if (!verified) {
+        this.message.set("Your email isn't confirmed yet. Open the link we emailed you, then try again.");
+        return;
+      }
       await this.#orders.claimOrder(this.orderId(), this.viewKey());
       this.#outcome.set('saved');
     } catch (error) {
@@ -218,5 +270,11 @@ export class GuestAccountCardComponent implements OnInit {
     } finally {
       this.busy.set(null);
     }
+  }
+
+  /** Absolute link back to this order, for the confirmation email's continue button. */
+  #continueUrl(): string | undefined {
+    const origin = globalThis.location?.origin;
+    return origin ? `${origin}${this.returnUrl()}` : undefined;
   }
 }
