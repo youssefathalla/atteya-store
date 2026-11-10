@@ -10,14 +10,13 @@ import { requireAgreedAccount, requireConsentIfSignedIn } from '../account/requi
 export const checkoutAuthGuard: CanActivateFn = (_route, state) => requireConsentIfSignedIn(state.url);
 
 /**
- * The order page opens without signing in only for a guest order: a view key in the link or one
- * saved on this device. Any other link (a signed-in customer's order, whose email link has no key)
- * still needs the account, so a signed-out owner is sent to sign in instead of "could not find".
+ * The order page. A guest order opens by its view key (`?key=` in the link, or saved on this
+ * device at checkout or an earlier visit), so a visit with a key works as for checkout. Without
+ * a key the order can only be read by its signed-in owner, so a visitor goes to sign in first
+ * (and comes back to the order) instead of seeing "could not find".
  */
-export const orderConfirmationGuard: CanActivateFn = (route, state) => {
+export const orderPageAuthGuard: CanActivateFn = (route, state) => {
   const orderId = route.paramMap.get('orderId') ?? '';
-  const hasKey =
-    isOrderViewKey(route.queryParamMap.get('key')) ||
-    (orderId !== '' && readGuestOrder(orderId).key !== null);
+  const hasKey = isOrderViewKey(route.queryParamMap.get('key')) || readGuestOrder(orderId).key !== null;
   return hasKey ? requireConsentIfSignedIn(state.url) : requireAgreedAccount(state.url);
 };

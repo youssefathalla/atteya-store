@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from '@core/guards/admin/admin.guard';
-import { checkoutAuthGuard, orderConfirmationGuard } from '@core/guards/checkout/checkout-auth.guard';
+import { checkoutAuthGuard, orderPageAuthGuard } from '@core/guards/checkout/checkout-auth.guard';
 import { accountAuthGuard } from '@core/guards/account/account-auth.guard';
 import { favoritesAuthGuard } from '@core/guards/favorites/favorites-auth.guard';
 import { serverCurrencyResolver } from '@core/services/currency/server-currency.resolver';
@@ -150,7 +150,7 @@ export const routes: Routes = [
       },
       {
         path: 'checkout/confirmation/:orderId',
-        canActivate: [orderConfirmationGuard],
+        canActivate: [orderPageAuthGuard],
         loadComponent: () =>
           import('./features/checkout/pages/checkout-confirmation.page').then(
             (m) => m.CheckoutConfirmationPageComponent,
