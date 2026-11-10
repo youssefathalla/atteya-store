@@ -54,10 +54,13 @@ export function bagOfferLook(args: {
   for (const offerId of args.extraOfferIds ?? []) add(offerId);
 
   const gifts = new Map<string, BagGiftState>();
-  for (const line of lines) {
+  lines.forEach((line, index) => {
     const picks = line.gifts ?? [];
     const product = products.get(line.productId);
-    if (picks.length === 0 || !product) continue;
+    if (picks.length === 0 || !product) return;
+    // A piece with a Buy X Get Y discount comes without its free gifts: none are given here.
+    const pricedLine = priced[index];
+    if (pricedLine && pricedLine.deals.giftUnits <= 0) return;
     const lineKey = cartLineKey(line);
     const choices = picks.map((pick) => {
       const info = products.get(pick.productId);
@@ -78,7 +81,7 @@ export function bagOfferLook(args: {
         name: giftNameFor(offers, pick.offerId, pick.giftId),
       });
     }
-  }
+  });
 
   return {
     state: { bagKey: args.bagKey, offers: offerTitles, gifts },
