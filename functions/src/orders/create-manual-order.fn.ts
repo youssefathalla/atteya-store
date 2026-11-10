@@ -68,7 +68,7 @@ async function createManualOrder<M extends ManualPaymentMethod>(
     const rateLimitRef = db.collection('orderRateLimits').doc(`${caller.uid}_${day}`);
     const rateLimitSnap = await tx.get(rateLimitRef);
     const nextRateCount = nextDailyOrderCount(rateLimitSnap.data()?.['count']);
-    // Offer limits (free gifts, Buy X Get Y): an order counts once per offer, however many items it has.
+    // Offer limits (every offer type with a limit): an order counts once per offer, however many items it has.
     const addOfferUses = await readOfferUses(tx, db, caller.uid, priced.usedOffers);
     const now = FieldValue.serverTimestamp();
     addOfferUses();
