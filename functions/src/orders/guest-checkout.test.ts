@@ -108,7 +108,7 @@ describe('guest offer-limit key', () => {
 });
 
 describe('guest pricing', () => {
-  it('a guest order (signedIn false) never gets a signed-in-only offer; offers for everyone still apply', () => {
+  it('a guest order (signedIn false) never gets a signed-in-only or once-per-customer offer; other offers for everyone still apply', () => {
     const base = {
       active: true,
       archived: false,
@@ -116,16 +116,18 @@ describe('guest pricing', () => {
       requiresCode: false,
       visibility: 'public',
       code: null,
+      limits: { totalUses: null, perCustomer: null },
     };
     const offers = [
       { ...base, id: 'members', audience: 'signedIn' },
       { ...base, id: 'everyone', audience: 'everyone' },
+      { ...base, id: 'once', audience: 'everyone', limits: { totalUses: null, perCustomer: 1 } },
     ] as unknown as Parameters<typeof liveOffers>[0];
     const now = new Date('2026-11-10T12:00:00Z');
     const guest = liveOffers(offers, { now, signedIn: false, codes: [] }).map((offer) => offer.id);
     const account = liveOffers(offers, { now, signedIn: true, codes: [] }).map((offer) => offer.id);
     assert.deepEqual(guest, ['everyone']);
-    assert.deepEqual(account, ['members', 'everyone']);
+    assert.deepEqual(account, ['members', 'everyone', 'once']);
   });
 });
 

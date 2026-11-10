@@ -23,6 +23,9 @@ export function liveOffers(offers: readonly Offer[], ctx: PricingContext): Offer
     if (offer.schedule.startsAt && nowMs < offer.schedule.startsAt.getTime()) return false;
     if (offer.schedule.endsAt && nowMs >= offer.schedule.endsAt.getTime()) return false;
     if (offer.audience === 'signedIn' && !ctx.signedIn) return false;
+    // A once-per-customer limit needs a real account to count against: a guest's typed email
+    // proves nothing, so these offers are only for signed-in shoppers.
+    if (offer.limits.perCustomer !== null && !ctx.signedIn) return false;
     if (offer.requiresCode || offer.visibility === 'code') {
       const code = offer.code?.trim().toUpperCase();
       if (!code || !normalizedCodes.has(code)) return false;

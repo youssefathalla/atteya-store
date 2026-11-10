@@ -735,6 +735,16 @@ describe('C: liveOffers schedule', () => {
 });
 
 describe('D: audience', () => {
+  it('a once-per-customer offer is only for signed-in shoppers, even when it is for everyone', () => {
+    const offer = mk('a', pct(10), { limits: { totalUses: null, perCustomer: 1 } });
+    assert.equal(liveOffers([offer] as never, VISITOR as never).length, 0);
+    assert.equal(liveOffers([offer] as never, SHOPPER as never).length, 1);
+    assert.equal(price([offer], P1, null, VISITOR).effectivePrice, 1000);
+    assert.equal(price([offer], P1, null, SHOPPER).effectivePrice, 900);
+    const totalOnly = mk('b', pct(10), { limits: { totalUses: 5, perCustomer: null } });
+    assert.equal(liveOffers([totalOnly] as never, VISITOR as never).length, 1);
+  });
+
   it('D1: an offer for everyone is live for visitors and signed-in shoppers', () => {
     const offer = mk('a', pct(10));
     assert.equal(liveOffers([offer] as never, VISITOR as never).length, 1);
