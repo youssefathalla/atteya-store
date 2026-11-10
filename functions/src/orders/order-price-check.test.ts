@@ -319,6 +319,7 @@ describe('order line with Buy X Get Y groups', () => {
   it('leaves a line with no piece in a group as it was', () => {
     const none = {
       deals: [],
+      earns: [],
       discount: 0,
       discountedUnits: 0,
       giftUnits: 4,

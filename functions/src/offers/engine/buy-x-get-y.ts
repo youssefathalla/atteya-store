@@ -39,9 +39,25 @@ export interface BagLineOfferDeal {
   readonly discount: number;
 }
 
+/**
+ * Pieces of one line bought (at the price before per-item offers) in a Buy X Get Y group that
+ * won, whose free or discounted pieces are on other lines: "Gets you the free grip".
+ */
+export interface BagLineEarned {
+  readonly offerId: string;
+  /** Paid pieces of this line in such groups. */
+  readonly units: number;
+  /** 100 = free, 50 = half price. */
+  readonly percent: number;
+  /** The other bag lines holding the group's discounted pieces, in bag order. */
+  readonly freeLines: readonly number[];
+}
+
 export interface BagLineDeals {
   /** Usually zero or one entry; two offers can each discount some pieces of one line. */
   readonly deals: readonly BagLineOfferDeal[];
+  /** What this line's paid pieces earn on other lines (empty when nothing). */
+  readonly earns: readonly BagLineEarned[];
   /** Whole EGP Buy X Get Y takes off the line, from the price before per-item offers. */
   readonly discount: number;
   /** Pieces with a discount (they get no free gifts). */
@@ -136,6 +152,7 @@ export function priceBagDeals(
   });
 
   const deals: BagLineOfferDeal[][] = lines.map(() => []);
+  const earns: BagLineEarned[][] = lines.map(() => []);
   const dealUnits = lines.map(() => 0);
   const offerIds: string[] = [];
   const hints: BagDealHint[] = [];
@@ -178,6 +195,7 @@ export function priceBagDeals(
         dealUnits[unit.line]! += 1;
       }
       discounted.push(...group.discounted);
+      addEarned(earns, offer.id, percent, group.paid, group.discounted);
     }
     if (discounted.length > 0) {
       addDeals(deals, offer.id, percent, discounted);
@@ -207,6 +225,7 @@ export function priceBagDeals(
     const before = inDeals * base + offerUnits * offer;
     return {
       deals: entries,
+      earns: earns[index]!,
       discount,
       discountedUnits,
       giftUnits: Math.max(0, quantity - discountedUnits),
@@ -284,6 +303,24 @@ export function canBeFreeItem(offer: Offer, product: ProductFacts, onSale: boole
     onSale,
     giftWorth: 0,
   });
+}
+
+/**
+ * True when adding `item` to the bag would really get it a discount from the Buy X Get Y offer
+ * `offerId`: the bag is priced again with the item as one more line, so the one-discount-per-item
+ * rule is applied (a free grip worth less than 10% off the racket is not free). The bag lists
+ * only such products as free choices.
+ */
+export function freeItemWins(
+  lines: readonly BagLineFacts[],
+  offers: readonly Offer[],
+  ctx: PricingContext,
+  offerId: string,
+  item: BagLineFacts,
+): boolean {
+  const priced = priceBagDeals([...lines, item], offers, ctx);
+  const added = priced.lines[lines.length];
+  return added?.deals.some((deal) => deal.offerId === offerId && deal.units > 0) ?? false;
 }
 
 /** Only per-item offers with no spend or quantity minimum give Buy X Get Y discounts. */
@@ -384,6 +421,36 @@ function dealWins(paid: readonly Unit[], discounted: readonly Unit[], percent: n
   return dealSaving > itemSaving;
 }
 
+/** Records, on each line with paid pieces in a group that won, the other lines it made cheaper. */
+function addEarned(
+  earns: BagLineEarned[][],
+  offerId: string,
+  percent: number,
+  paid: readonly Unit[],
+  discounted: readonly Unit[],
+): void {
+  const paidByLine = new Map<number, number>();
+  for (const unit of paid) paidByLine.set(unit.line, (paidByLine.get(unit.line) ?? 0) + 1);
+  for (const [line, units] of paidByLine) {
+    const freeLines = [...new Set(discounted.map((unit) => unit.line))]
+      .filter((other) => other !== line)
+      .sort((a, b) => a - b);
+    if (freeLines.length === 0) continue;
+    const entries = earns[line]!;
+    const index = entries.findIndex((entry) => entry.offerId === offerId && entry.percent === percent);
+    const existing = entries[index];
+    if (existing) {
+      entries[index] = {
+        ...existing,
+        units: existing.units + units,
+        freeLines: [...new Set([...existing.freeLines, ...freeLines])].sort((a, b) => a - b),
+      };
+    } else {
+      entries.push({ offerId, units, percent, freeLines });
+    }
+  }
+}
+
 function addDeals(
   deals: BagLineOfferDeal[][],
   offerId: string,
@@ -410,6 +477,11 @@ function addDeals(
  * When the free pieces come from the same items and the group would still lose to the pieces'
  * per-item offers (more of the same item, priced like the line the hint sits under), there is no
  * hint: adding them would not get the shopper anything free.
+ * When the free piece must be another product, the bought pieces give up their per-item offers
+ * for it. With a product list (`choose-free`) the bag checks each choice with `freeItemWins`; with
+ * a category or brand (`add-more`) the free item isn't known, so there is no hint while the
+ * bought pieces' per-item offers save anything: the bag never promises a free item the order
+ * might not give.
  */
 function nextGroupHint(
   offer: Offer,
@@ -444,6 +516,7 @@ function nextGroupHint(
     if (!group || !dealWins(group.paid, group.discounted, c.percent)) return null;
   }
   const productIds = samePool ? null : freeItemProductIds(offer.reward.getConditions);
+  if (!samePool && !productIds && otherItemMustBeat(c, missing) > 0) return null;
   return {
     kind: productIds ? 'choose-free' : 'add-more',
     offerId: offer.id,
@@ -455,6 +528,37 @@ function nextGroupHint(
     samePool,
     productIds: productIds ?? [],
   };
+}
+
+/**
+ * What the missing free pieces (another product, price unknown) would have to save for the next
+ * group to win: the per-item offers its paid pieces and its free pieces already in the bag give
+ * up, minus what those free pieces would save. Above 0 means it depends on the free item.
+ */
+function otherItemMustBeat(
+  c: {
+    readonly buy: number;
+    readonly get: number;
+    readonly percent: number;
+    readonly buyPool: readonly Unit[];
+    readonly getPool: readonly Unit[];
+  },
+  missing: number,
+): number {
+  // Placeholders priced above everything, so the real pieces are picked first, as in pricing.
+  const placeholders: Unit[] = Array.from({ length: missing }, () => ({
+    line: -1,
+    price: Number.MAX_SAFE_INTEGER,
+    itemSaving: 0,
+    giftWorth: 0,
+    used: false,
+  }));
+  const group = takeGroup(c.buyPool, [...c.getPool, ...placeholders], c.buy, c.get, 1);
+  if (!group) return Number.POSITIVE_INFINITY;
+  const real = group.discounted.filter((unit) => unit.line >= 0);
+  const givenUp = [...group.paid, ...real].reduce((sum, unit) => sum + unit.itemSaving, 0);
+  const saved = real.reduce((sum, unit) => sum + unitDiscount(unit.price, c.percent), 0);
+  return givenUp - saved;
 }
 
 function compareOffers(a: Offer, b: Offer): number {

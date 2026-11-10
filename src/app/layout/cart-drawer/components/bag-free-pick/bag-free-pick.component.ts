@@ -6,7 +6,7 @@ import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { dealPickTitle } from '@core/services/cart/cart-deals';
 import { toGiftChoice, type GiftChoiceView } from '@core/services/cart/cart-gifts';
 import { CartService } from '@core/services/cart/cart.service';
-import { canBeFreeItem, type BagDealHint } from '@core/services/offers/engine';
+import { canBeFreeItem, type BagDealHint, type PricedProduct } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import type { Product } from '@core/services/products/product.model';
@@ -27,7 +27,8 @@ interface FreePickChoice extends GiftChoiceView {
  * "You've earned a free grip": shown under the item when a Buy X Get Y group is complete but the
  * free piece must be one of a list of products and none is in the bag. Each choice is a photo
  * tile; tapping one (then its size, when it has sizes) adds it to the bag, where the offer makes
- * it free. Only published, in-stock products with no choice besides size are offered.
+ * it free. Only published, in-stock products with no choice besides size, that adding would
+ * really make free (`wouldDiscount`), are offered; with none, nothing shows.
  */
 @Component({
   selector: 'app-bag-free-pick',
@@ -37,6 +38,13 @@ interface FreePickChoice extends GiftChoiceView {
 })
 export class BagFreePickComponent {
   readonly hint = input.required<BagDealHint>();
+  /**
+   * True when adding this product would really get it the offer's discount, with the pieces
+   * already in the bag (one discount per item: a free grip worth less than 10% off the racket
+   * is not free). From the bag's `priceBag().wouldDiscount`.
+   */
+  readonly wouldDiscount =
+    input.required<(offerId: string, product: PricedProduct, quantity: number) => boolean>();
 
   readonly #cart = inject(CartService);
   readonly #offers = inject(OffersService);
@@ -62,15 +70,20 @@ export class BagFreePickComponent {
   readonly loading = computed(() => this.#choices.isLoading() && !this.#choices.hasValue());
   /**
    * Only products the offer would really discount: a sale item when the offer leaves sale items
-   * out, or a product the offer excludes, would be added at full price, so it isn't offered.
+   * out, a product the offer excludes, or one whose discount is worth less than the per-item
+   * offers the bought pieces give up for it would be added at full price, so it isn't offered.
    */
   readonly choices = computed((): readonly FreePickChoice[] => {
     if (!this.#choices.hasValue()) return [];
-    const offer = this.#offers.all().find((entry) => entry.id === this.hint().offerId);
+    const hint = this.hint();
+    const offer = this.#offers.all().find((entry) => entry.id === hint.offerId);
     if (!offer) return [];
+    const wouldDiscount = this.wouldDiscount();
     return this.#choices.value().flatMap(([product, choice]) => {
+      const priced = toPricedProduct(product);
       const onSale = product.compareAtPrice !== null && product.compareAtPrice > product.price;
-      return canBeFreeItem(offer, toPricedProduct(product), onSale) ? [choice] : [];
+      const free = canBeFreeItem(offer, priced, onSale) && wouldDiscount(hint.offerId, priced, hint.missing);
+      return free ? [choice] : [];
     });
   });
   readonly title = computed(() => {
