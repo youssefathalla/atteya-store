@@ -783,6 +783,35 @@ jobs:
             exit 0
           fi
 
+          # Format the code files Claude changed with the root-owned Prettier and config in $G
+          # (the same version and options as the repo), so a fix round can't turn CI red on
+          # formatting. Nothing from the pull request runs here: no npm install, no repo config
+          # file, no plugins; .prettierignore and .gitignore are read as plain patterns. A file
+          # Prettier can't parse means Claude left broken code: nothing is pushed. This runs before
+          # the copy below, so the generated copies get the formatted source.
+          fmt_files=()
+          while IFS= read -r -d '' p; do
+            case "$p" in
+              .github/*|.claude/*|.husky/*) continue ;;
+              *.ts|*.html|*.scss|*.css|*.js|*.mjs|*.cjs)
+                if [ -f "$p" ] && [ ! -L "$p" ]; then fmt_files+=("$p"); fi
+                ;;
+            esac
+          done < <(git diff --name-only -z; git ls-files --others --exclude-standard -z)
+          if [ "${#fmt_files[@]}" -gt 0 ]; then
+            fmt_out=$(mktemp)
+            if ! node "$G/prettier/node_modules/prettier/bin/prettier.cjs" --config "$G/prettierrc.json" --no-editorconfig \
+                --ignore-path .prettierignore --ignore-path .gitignore --ignore-unknown --log-level warn \
+                --write -- "${fmt_files[@]}" >"$fmt_out" 2>&1; then
+              put format-errors.txt "$(head -c 1500 "$fmt_out")"
+              git reset --hard "$expected" >/dev/null 2>&1 || true
+              git clean -fd >/dev/null 2>&1 || true
+              write_result false format-failed ""
+              exit 0
+            fi
+            put formatted-count "${#fmt_files[@]}"
+          fi
+
           # Copy the shared code from functions/src into its generated copies, as
           # npm run sync:engine does, so a fix to the engine or store info reaches both.
           # The script is root-owned in $G, not the pull request's own copy.
@@ -839,7 +868,7 @@ jobs:
             write_result false remote-moved ""
             exit 0
           fi
-          if ! git commit -m "${issue:+$issue }Fix Bugbot findings from review ${review}" -m "bugbot-claude-fix: review ${review}. Automated pass for one Bugbot review. Tests were not run here; CI runs on this push."; then
+          if ! git commit -m "${issue:+$issue }Fix Bugbot findings from review ${review}" -m "bugbot-claude-fix: review ${review}. Automated pass for one Bugbot review. Changed code files were formatted with Prettier; tests were not run here, CI runs on this push."; then
             git reset --hard "$expected" >/dev/null 2>&1 || true
             write_result false commit-failed ""
             exit 0
@@ -924,10 +953,32 @@ jobs:
           }
           EOF
 
+          # Prettier for the push hook: the exact version from the lock file, installed outside the
+          # checkout with install scripts off and the public registry (no .npmrc from the pull
+          # request), plus a fixed copy of .prettierrc (keep the two the same; no plugins).
+          prettier_version=$(jq -r '.packages["node_modules/prettier"].version // empty' package-lock.json)
+          printf '%s' "$prettier_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
+          (cd "$stage" && npm install --prefix "$stage/prettier" --userconfig /dev/null \
+            --registry=https://registry.npmjs.org/ --ignore-scripts --no-audit --no-fund --no-save \
+            "prettier@$prettier_version" >/dev/null)
+          test -f "$stage/prettier/node_modules/prettier/bin/prettier.cjs"
+          cat > "$stage/prettierrc.json" << 'EOF'
+          {
+            "printWidth": 110,
+            "singleQuote": true,
+            "endOfLine": "auto",
+            "overrides": [{ "files": "*.html", "options": { "parser": "angular" } }]
+          }
+          EOF
+
           sudo -n rm -rf /opt/bugbot-guard
           sudo -n install -d -o root -g root -m 0755 /opt/bugbot-guard /opt/bugbot-guard/hooks /opt/bugbot-guard/out
           sudo -n install -o root -g root -m 0644 "$stage/workspace" "$stage/expected-sha" "$stage/head-ref" "$stage/review-id" "$stage/issue-id" "$stage/sync-engine.mjs" /opt/bugbot-guard/
           sudo -n install -o root -g root -m 0755 "$stage/pre-tool.sh" "$stage/safe-push.sh" /opt/bugbot-guard/
+          sudo -n install -o root -g root -m 0644 "$stage/prettierrc.json" /opt/bugbot-guard/
+          sudo -n cp -R "$stage/prettier" /opt/bugbot-guard/prettier
+          sudo -n chown -R root:root /opt/bugbot-guard/prettier
+          sudo -n chmod -R go-w /opt/bugbot-guard/prettier
           rm -rf "$stage"
 
       # A step that hits its own timeout ends as "failure", the same as an error, so the report
@@ -1056,6 +1107,7 @@ jobs:
               'token-skipped': 'Claude did not run because a GitHub App token was refused.',
               'commit-failed': 'The commit was not created. Nothing was pushed.',
               'sync-failed': 'The shared code in functions/src could not be copied into its generated copies under src/app, so nothing was pushed.',
+              'format-failed': 'Prettier could not format a file Claude changed (usually broken code), so nothing was pushed.',
               'claude-timed-out': 'Claude ran out of time before it finished, so its edits were not pushed.',
               'claude-failed': 'Claude stopped with an error before it finished (for example an expired sign-in token or a usage limit). Nothing was pushed. The workflow run has the details.',
               'workflow-changed': 'Claude did not run: this pull request changes .github/workflows/bugbot-claude-fix.yml, and the Claude action only runs when that file matches the copy on the default branch (a safety check). Fix this one by hand.',
@@ -1225,6 +1277,10 @@ jobs:
               `Pushed commit: ${pushed ? push.sha : 'none'}`,
               ...(pushNote ? [pushNote] : []),
               ...(voided ? ['This round did not count toward the round limit, because Claude did not get to work.'] : []),
+              ...(push.reason === 'format-failed' ? [`Prettier said: ${safe(read('/opt/bugbot-guard/out/format-errors.txt')) || 'no message'}`] : []),
+              ...(pushed && /^[0-9]+$/.test(read('/opt/bugbot-guard/out/formatted-count').trim())
+                ? [`Prettier formatted the ${read('/opt/bugbot-guard/out/formatted-count').trim()} code file(s) Claude changed before the push.`]
+                : []),
               'Tests were not run.',
               'Branch protection is unknown. It was not readable when this workflow was added, and this pass does not guess.',
               ...needsYou,
