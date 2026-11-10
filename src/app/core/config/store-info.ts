@@ -67,7 +67,7 @@ export const STORE_INFO: StoreInfo = {
   contact: {
     whatsapp: '+20 120 565 8954',
     phone: '',
-    email: '',
+    email: 'support@atteyastore.com',
   },
   address: {
     line1: '',
