@@ -151,6 +151,28 @@ const BAGS = [
     },
   },
   {
+    // Added Nov 2026: missed by the first run (the white Multigame bag still had its "Free shirt" and "Free
+    // socks" options on dev). Listed by its slug after the slug clean-up. Matched by photo: its
+    // second "BABOLAT" choice is the Bullpadel pair (Bullpadel logo), so that one is keyed by its
+    // value id.
+    slug: 'adidas-multigame-racket-bag-white',
+    gifts: {
+      'Free shirt': {
+        'ADIDAS WHITE': 'adidas-ale-galan-t-shirt-white',
+        'ADIDAS BLACK': 'adidas-ale-galan-t-shirt-black',
+        'ADIDAS POLO GRAY': 'adidas-simple-polo-black-grey',
+        'POLO WHITE': 'adidas-simple-polo-white-black',
+        ORANGE: 'adidas-ale-galan-t-shirt-orange',
+      },
+      'Free socks': {
+        'ON BLACK': 'on-cloud-socks-black',
+        'ON WHITE': 'on-cloud-socks-white',
+        BABOLAT: 'babolat-socks',
+        '9550fbde-20b6-4d5c-9139-3d4f96fed0a7': 'bullpadel-socks',
+      },
+    },
+  },
+  {
     slug: 'siux-edge-bag',
     gifts: {
       'Free shirt': {
@@ -397,7 +419,9 @@ for (const bag of BAGS) {
       console.log(`  ${optionLabel} choices today:`);
       for (const value of asList(option.values)) {
         const label = trimmed(value?.label);
-        const key = labelKey(label);
+        // A choice can be keyed by its value id when two choices share a label.
+        const valueId = trimmed(value?.id);
+        const key = valueId && valueId in matches ? valueId : labelKey(label);
         const where = !(key in matches)
           ? 'NOT IN THE LIST: add it to BAGS in this script, or it is not given'
           : matches[key] === null
