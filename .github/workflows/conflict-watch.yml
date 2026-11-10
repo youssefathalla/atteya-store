@@ -9,6 +9,12 @@
 # (workflow_dispatch) after each merge. Scheduled routine runs also fix conflicts first,
 # as a fallback.
 #
+# Also runs when a PR into develop is opened, reopened or marked ready, so a PR that already
+# conflicts when it opens is not missed until the next push to develop (PR 219 sat 15 minutes
+# that way). That uses pull_request_target, because GitHub runs no pull_request workflow while a
+# PR conflicts. pull_request_target runs this file from develop and nothing here checks out or
+# runs the PR's code, so the token and secret never meet PR code.
+#
 # Each PR head is sent once per develop commit (marker comment), so a failed fix is not
 # retried until develop moves again. A PR the routine marked "needs a person" for its
 # current head is left alone.
@@ -21,6 +27,10 @@ name: Conflict Watch
 on:
   push:
     branches: [develop]
+  # Never check out or run the PR's code in this workflow (see above).
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+    branches: [develop]
   workflow_dispatch:
 
 permissions: {}
@@ -32,7 +42,16 @@ concurrency:
 jobs:
   watch:
     name: Fix Conflicting PRs
-    if: vars.CONFLICT_FIX == 'enabled'
+    # A PR event only matters for the owner's own non-draft PRs from this repo (the script skips
+    # every other PR anyway); checking here keeps the job from starting and billing a minute.
+    if: >-
+      vars.CONFLICT_FIX == 'enabled' && (
+        github.event_name != 'pull_request_target' || (
+          github.event.pull_request.user.login == github.repository_owner &&
+          github.event.pull_request.draft == false &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
