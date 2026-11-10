@@ -60,9 +60,7 @@ export async function identifyOrderCustomer(request: CallableRequest): Promise<O
   if (!guest) {
     throw new HttpsError('unauthenticated', 'Enter your email to place your order.');
   }
-  // Express `req.ip` (the runtime trusts the Google front end's X-Forwarded-For). It can be faked,
-  // so the store-wide guest cap is what bounds a script.
-  const ip = request.rawRequest?.ip || 'unknown';
+  const ip = guestCallerIp(request);
   return {
     kind: 'guest',
     email: guest.email,
@@ -71,6 +69,26 @@ export async function identifyOrderCustomer(request: CallableRequest): Promise<O
     signedIn: false,
     offerKey: guestOfferCustomerKey(guest.email),
   };
+}
+
+/**
+ * The caller IP for the guest rate limit. The Google front end appends the real client IP to the
+ * end of X-Forwarded-For; earlier entries come from the caller and can be faked, and Express
+ * `req.ip` (with `trust proxy`) returns the left-most one. So take the last entry.
+ */
+function guestCallerIp(request: CallableRequest): string {
+  const raw = request.rawRequest;
+  const header = raw?.headers?.['x-forwarded-for'];
+  const value = Array.isArray(header) ? header.join(',') : header;
+  if (typeof value === 'string') {
+    const entries = value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+    const last = entries[entries.length - 1];
+    if (last) return last;
+  }
+  return raw?.socket?.remoteAddress || raw?.ip || 'unknown';
 }
 
 /**
