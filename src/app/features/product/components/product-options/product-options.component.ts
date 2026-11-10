@@ -46,7 +46,8 @@ export class ProductOptionsComponent {
   constructor() {
     effect(() => {
       const prompt = this.prompt();
-      if (!prompt) return;
+      // Gift steps share the page prompt; the Gift Box moves focus for those, not the options.
+      if (!prompt || !untracked(() => this.#ownsPrompt(prompt.key))) return;
       untracked(() => {
         if (prompt.key === 'size') this.sizeOpen.set(true);
         afterNextRender({ write: () => this.#focusFirstChoice(prompt.key) }, { injector: this.#injector });
@@ -108,6 +109,11 @@ export class ProductOptionsComponent {
         { injector: this.#injector },
       );
     }
+  }
+
+  /** True when the prompt names one of this product's options (gift step keys do not). */
+  #ownsPrompt(key: string): boolean {
+    return this.product().options.some((option) => option.key === key);
   }
 
   #focusFirstChoice(key: string): void {
