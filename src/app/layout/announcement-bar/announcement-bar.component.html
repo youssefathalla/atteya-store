@@ -39,7 +39,8 @@
             >
               <span class="truncate">{{ slide.text }}</span>
               @if (slide.countdown) {
-                <span class="announcement-bar__countdown">· {{ slide.countdown }}</span>
+                <!-- Ticks every second: kept out of the track's live region so it isn't re-announced. -->
+                <span class="announcement-bar__countdown" aria-live="off">· {{ slide.countdown }}</span>
               }
             </a>
           } @else {
