@@ -27,6 +27,8 @@ import { OfferCodeDocSchema, OfferDocSchema } from '@core/services/offers/offer.
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { withoutStackSaleItems } from '../models/offer-admin.model';
 
+const COPY_SUFFIX = ' (copy)';
+
 @Service()
 export class OffersAdminService {
   readonly #firestore = injectFirestore();
@@ -156,7 +158,8 @@ export class OffersAdminService {
     const copyDraft: OfferDraft = {
       ...source,
       id: undefined,
-      name: `${source.name} (copy)`.slice(0, 80),
+      // The name is at most 80 characters, so shorten the original first to keep the " (copy)" ending.
+      name: `${source.name.slice(0, 80 - COPY_SUFFIX.length)}${COPY_SUFFIX}`,
       active: false,
       archived: false,
       visibility: 'public',

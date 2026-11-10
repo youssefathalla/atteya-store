@@ -123,20 +123,23 @@ export class RewardEditorComponent {
   onBuyXGetYChange(field: 'buyQty' | 'getQty' | 'getPercent' | 'maxApps', event: Event): void {
     const r = this.reward();
     if (r.kind !== 'buyXGetY') return;
-    const raw = (event.target as HTMLInputElement).value.trim();
-    const num = Number.parseInt(raw, 10);
+    const input = event.target as HTMLInputElement;
+    const num = Number.parseInt(input.value.trim(), 10);
+    // Buy, Get and Get % keep exactly what was typed (an empty field counts as 0), so a wrong
+    // value shows the form's error instead of being changed behind the person's back.
+    const typed = Number.isFinite(num) ? num : 0;
+    // Max times: 0 or empty means no limit, and the field is shown empty.
+    const maxApplications = Number.isFinite(num) && num > 0 ? num : null;
+    if (field === 'maxApps' && maxApplications === null) input.value = '';
 
     this.reward.set({
       ...r,
-      buy: { quantity: field === 'buyQty' ? Math.max(1, num || 1) : r.buy.quantity },
+      buy: { quantity: field === 'buyQty' ? typed : r.buy.quantity },
       get: {
-        quantity: field === 'getQty' ? Math.max(1, num || 1) : r.get.quantity,
-        // 0 or an empty field stays 0, so the form shows its error instead of giving the item away.
-        percent:
-          field === 'getPercent' ? Math.min(100, Math.max(0, Number.isFinite(num) ? num : 0)) : r.get.percent,
+        quantity: field === 'getQty' ? typed : r.get.quantity,
+        percent: field === 'getPercent' ? typed : r.get.percent,
       },
-      maxApplications:
-        field === 'maxApps' ? (Number.isFinite(num) && num > 0 ? num : null) : r.maxApplications,
+      maxApplications: field === 'maxApps' ? maxApplications : r.maxApplications,
     });
   }
 
