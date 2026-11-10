@@ -22,7 +22,7 @@ import {
   type VariantFacts,
 } from '../offers/engine/index.js';
 import { parseCheckoutShippingConfig, SHIPPING_DOC_PATH } from '../shipping/shipping-settings.js';
-import { confirmedEndedOfferIds, offerFullError, type UsedOffer, type UsedOfferKind } from './offer-usage.js';
+import { confirmedEndedOfferIds, offerFullError, type OfferCustomerKeys, type UsedOffer, type UsedOfferKind } from './offer-usage.js';
 import { giftProductIds, resolveLineGifts, stockDemandKey, type ResolvedGift } from './order-gifts.js';
 import type { CreateStoreOrderRequest, OrderLineInput, StorePaymentMethod } from './order-request.js';
 import { assertCurrentSelection } from './order-selection.js';
@@ -142,7 +142,7 @@ export async function priceStoreOrder(
   db: Firestore,
   input: CreateStoreOrderRequest,
   signedIn: boolean,
-  uid: string,
+  uid: OfferCustomerKeys,
 ): Promise<PricedStoreOrder> {
   const [shippingSnap, giftDocs] = await Promise.all([
     db.doc(SHIPPING_DOC_PATH).get(),
@@ -424,7 +424,7 @@ async function priceWithOffers(
   db: Firestore,
   input: CreateStoreOrderRequest,
   signedIn: boolean,
-  uid: string,
+  uid: OfferCustomerKeys,
   allOffers: readonly Offer[],
   shippingConfig: ReturnType<typeof parseCheckoutShippingConfig>,
   giftDocs: ReadonlyMap<string, DocumentData | undefined>,

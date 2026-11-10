@@ -63,7 +63,7 @@ async function createManualOrder<M extends ManualPaymentMethod>(
   }
 
   const db = getFirestore();
-  const priced = await priceStoreOrder(db, input, customer.signedIn, customer.offerKey);
+  const priced = await priceStoreOrder(db, input, customer.signedIn, customer.offerKeys);
   const orderRef = db.collection('orders').doc();
   const viewKey = customer.kind === 'guest' ? newOrderViewKey() : null;
   const day = utcDayKey();
@@ -74,7 +74,7 @@ async function createManualOrder<M extends ManualPaymentMethod>(
     const rateLimits = await readOrderRateLimits(tx, db, customer, day);
     filledGuestStoreCap = rateLimits.filledGuestStoreCap;
     // Offer limits (every offer type with a limit): an order counts once per offer, however many items it has.
-    const addOfferUses = await readOfferUses(tx, db, customer.offerKey, priced.usedOffers);
+    const addOfferUses = await readOfferUses(tx, db, customer.offerKeys, priced.usedOffers);
     const now = FieldValue.serverTimestamp();
     addOfferUses();
     rateLimits.write();

@@ -64,7 +64,7 @@ export const createPaymobOrder = onCall(
     }
 
     const db = getFirestore();
-    const priced = await priceStoreOrder(db, input, customer.signedIn, customer.offerKey);
+    const priced = await priceStoreOrder(db, input, customer.signedIn, customer.offerKeys);
     if (priced.pricing.totalEgp < 1) {
       throw new HttpsError('failed-precondition', 'Your order total is too low to pay online.');
     }
@@ -131,7 +131,7 @@ export const createPaymobOrder = onCall(
         console.error('Failed to release order rate-limit slot after Paymob error', releaseError);
       }
       try {
-        await releaseOfferUses(db, customer.offerKey, priced.usedOffers, endedOfferIds);
+        await releaseOfferUses(db, customer.offerKeys, priced.usedOffers, endedOfferIds);
       } catch (releaseError: unknown) {
         console.error('Failed to give back offer uses', releaseError);
       }
@@ -179,7 +179,7 @@ export const createPaymobOrder = onCall(
         console.error('Failed to release order rate-limit slot after write error', releaseError);
       }
       try {
-        await releaseOfferUses(db, customer.offerKey, priced.usedOffers, endedOfferIds);
+        await releaseOfferUses(db, customer.offerKeys, priced.usedOffers, endedOfferIds);
       } catch (releaseError: unknown) {
         console.error('Failed to give back offer uses', releaseError);
       }
@@ -205,7 +205,7 @@ async function reserveDailyOrderSlot(
 ): Promise<{ readonly endedOfferIds: readonly string[]; readonly filledGuestStoreCap: boolean }> {
   return db.runTransaction(async (tx) => {
     const rateLimits = await readOrderRateLimits(tx, db, customer, day);
-    const addOfferUses = await readOfferUses(tx, db, customer.offerKey, usedOffers);
+    const addOfferUses = await readOfferUses(tx, db, customer.offerKeys, usedOffers);
     const endedOfferIds = addOfferUses();
     rateLimits.write();
     return { endedOfferIds, filledGuestStoreCap: rateLimits.filledGuestStoreCap };

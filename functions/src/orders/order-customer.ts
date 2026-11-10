@@ -15,8 +15,11 @@ export interface AccountOrderCustomer {
   readonly email: string | null;
   /** Priced with `signedIn = true`. */
   readonly signedIn: true;
-  /** The id `perCustomer` offer uses are counted under: the uid. */
-  readonly offerKey: string;
+  /**
+   * The ids `perCustomer` offer uses are counted under: the uid, plus the guest key of the account
+   * email when there is one, so a guest order with the same email shares the count.
+   */
+  readonly offerKeys: readonly string[];
 }
 
 /** A shopper ordering without signing in, known only by the email they typed. */
@@ -29,8 +32,8 @@ export interface GuestOrderCustomer {
   readonly ipHash: string;
   /** Priced with `signedIn = false`, so offers for signed-in shoppers never apply. */
   readonly signedIn: false;
-  /** `guest_<sha256 of the email>`. */
-  readonly offerKey: string;
+  /** `[guest_<sha256 of the email>]`. */
+  readonly offerKeys: readonly string[];
 }
 
 export type OrderCustomer = AccountOrderCustomer | GuestOrderCustomer;
@@ -48,7 +51,7 @@ export async function identifyOrderCustomer(request: CallableRequest): Promise<O
       uid: caller.uid,
       email: caller.email ?? null,
       signedIn: true,
-      offerKey: caller.uid,
+      offerKeys: caller.email ? [caller.uid, guestOfferCustomerKey(caller.email)] : [caller.uid],
     };
   }
   requireAppCheck(request);
@@ -67,7 +70,7 @@ export async function identifyOrderCustomer(request: CallableRequest): Promise<O
     emailHash: hashGuestEmail(guest.email),
     ipHash: hashGuestOrderIp(ip),
     signedIn: false,
-    offerKey: guestOfferCustomerKey(guest.email),
+    offerKeys: [guestOfferCustomerKey(guest.email)],
   };
 }
 
