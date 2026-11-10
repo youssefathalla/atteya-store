@@ -19,7 +19,8 @@
  *          the old store's quantity when stock tracking is on there.
  * It never changes names, descriptions, photos, colours, slugs or options, never touches a product made in
  * our admin, and never creates a product: products on the old store that we don't have are only listed.
- * A stock change that can't be matched size by size is listed as CHECK and left alone.
+ * A stock change that can't be matched size by size is listed as CHECK and left alone, and so is one where
+ * an old store row has another choice (colour, pair, gift) that our product no longer offers.
  * Each write is checked against the document's `updateTime`; "changed meanwhile" means run it again.
  * After applying, run "Rebuild search" in Catalogue tools.
  */
@@ -90,6 +91,20 @@ const sizeValues = (data) => {
   return Array.isArray(option?.values) ? option.values.filter((value) => typeof value?.id === 'string') : [];
 };
 
+const choiceKey = (label) =>
+  String(label ?? '')
+    .trim()
+    .toUpperCase();
+
+/** Every choice name our product still offers outside its size option ("BLACK", "WHITE", ...). */
+const otherChoiceNames = (data) =>
+  new Set(
+    (Array.isArray(data.options) ? data.options : [])
+      .filter((option) => option?.key !== 'size' && Array.isArray(option?.values))
+      .flatMap((option) => option.values.map((value) => choiceKey(value?.label)))
+      .filter(Boolean),
+  );
+
 /**
  * The stock the old store really holds for this product, in our shape, or a reason it can't be used.
  * Returns null when the old store has no stock numbers for it (left alone).
@@ -111,6 +126,7 @@ function oldStock(old, data) {
   const ours = new Map(sizes.map((value) => [sizeKey(value.label), value.id]));
   if (ours.size !== sizes.length) return { check: 'two of our sizes have the same name' };
   const counts = Object.fromEntries(sizes.map((value) => [value.id, null]));
+  const otherChoices = otherChoiceNames(data);
   for (const variant of variants) {
     const count = wholeNumber(variant?.quantity);
     if (count === null) return { check: 'an old store size count is not a whole number' };
@@ -119,6 +135,18 @@ function oldStock(old, data) {
     if (matched.length !== 1) {
       const names = props.map((prop) => prop?.variation_prop).join(' + ') || '(no name)';
       return { check: `old store size "${names}" has no single match in our sizes` };
+    }
+    // The row's other choices (colour, pair, gift) must still be offered on ours; otherwise adding this
+    // row into the size would count stock for a choice we removed (ATS-94, ATS-113).
+    const removed = props.filter(
+      (prop) =>
+        !ours.has(sizeKey(prop?.variation_prop)) && !otherChoices.has(choiceKey(prop?.variation_prop)),
+    );
+    if (removed.length > 0) {
+      const names = removed
+        .map((prop) => `${prop?.variation ?? 'choice'} "${prop?.variation_prop ?? '(no name)'}"`)
+        .join(', ');
+      return { check: `old store row has ${names}, which our product no longer offers` };
     }
     counts[matched[0]] = (counts[matched[0]] ?? 0) + count;
   }
