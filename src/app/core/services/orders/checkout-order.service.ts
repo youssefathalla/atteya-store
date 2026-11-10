@@ -79,6 +79,8 @@ export interface CreatePaymobOrderResult {
   readonly paymentMethod: 'paymob';
   readonly pricing: OrderPricingSnapshot;
   readonly checkoutUrl: string;
+  /** A guest order's secret view key (its order link carries it); null when signed in. */
+  readonly viewKey?: string | null;
 }
 
 export interface CreateManualOrderResult<
@@ -88,6 +90,13 @@ export interface CreateManualOrderResult<
   readonly status: 'pending';
   readonly paymentMethod: M;
   readonly pricing: OrderPricingSnapshot;
+  /** A guest order's secret view key (its order link carries it); null when signed in. */
+  readonly viewKey?: string | null;
+}
+
+/** Ordering without signing in: the email the order is placed with. */
+export interface GuestCheckoutInput {
+  readonly email: string;
 }
 
 @Service()
@@ -104,6 +113,8 @@ export class CheckoutOrderService {
     readonly shownPrices: readonly ShownLinePrice[];
     /** The shipping fee and total the summary showed; the server refuses rather than charge more. */
     readonly shownTotals: ShownOrderTotals;
+    /** Set only when nobody is signed in; a signed-in call never sends it. */
+    readonly guest: GuestCheckoutInput | null;
   }): Promise<CreatePaymobOrderResult> {
     const call = await callableFrom<
       {
@@ -114,6 +125,7 @@ export class CheckoutOrderService {
         dealOfferIds: readonly string[];
         shownShippingEgp: number | null;
         shownTotalEgp: number | null;
+        guest?: GuestCheckoutInput;
       },
       CreatePaymobOrderResult
     >(this.#functions(), 'createPaymobOrder');
@@ -125,6 +137,7 @@ export class CheckoutOrderService {
       dealOfferIds: args.dealOfferIds,
       shownShippingEgp: args.shownTotals.shippingEgp,
       shownTotalEgp: args.shownTotals.totalEgp,
+      ...(args.guest ? { guest: { email: args.guest.email } } : {}),
     });
     return response.data;
   }
@@ -141,6 +154,8 @@ export class CheckoutOrderService {
     readonly shownPrices: readonly ShownLinePrice[];
     /** The shipping fee and total the summary showed; the server refuses rather than charge more. */
     readonly shownTotals: ShownOrderTotals;
+    /** Set only when nobody is signed in; a signed-in call never sends it. */
+    readonly guest: GuestCheckoutInput | null;
   }): Promise<CreateManualOrderResult<M>> {
     const call = await callableFrom<
       {
@@ -151,6 +166,7 @@ export class CheckoutOrderService {
         dealOfferIds: readonly string[];
         shownShippingEgp: number | null;
         shownTotalEgp: number | null;
+        guest?: GuestCheckoutInput;
       },
       CreateManualOrderResult<M>
     >(this.#functions(), args.method === 'instapay' ? 'createInstapayOrder' : 'createCodOrder');
@@ -162,7 +178,20 @@ export class CheckoutOrderService {
       dealOfferIds: args.dealOfferIds,
       shownShippingEgp: args.shownTotals.shippingEgp,
       shownTotalEgp: args.shownTotals.totalEgp,
+      ...(args.guest ? { guest: { email: args.guest.email } } : {}),
     });
     return response.data;
+  }
+
+  /**
+   * Links a guest order to the signed-in account (`claimOrder`). The server needs the order's view
+   * key and a confirmed account email equal to the order's email; anything else is refused.
+   */
+  async claimOrder(orderId: string, viewKey: string): Promise<void> {
+    const call = await callableFrom<{ orderId: string; viewKey: string }, { orderId: string; claimed: true }>(
+      this.#functions(),
+      'claimOrder',
+    );
+    await call({ orderId, viewKey });
   }
 }

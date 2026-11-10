@@ -202,9 +202,36 @@
       }
 
       <section class="space-y-4" aria-labelledby="delivery-heading">
-        <h2 id="delivery-heading" class="font-title-lg font-bold!">Delivery</h2>
+        <div class="elements-between items-baseline! gap-4">
+          <h2 id="delivery-heading" class="font-title-lg font-bold!">Delivery</h2>
+          @if (isGuest()) {
+            <p class="font-body-sm">
+              Have an account?
+              <a
+                routerLink="/login"
+                [queryParams]="{ returnUrl: '/checkout' }"
+                class="underline underline-offset-2"
+                >Sign In</a
+              >
+            </p>
+          }
+        </div>
 
         <div class="grid gap-4">
+          @if (isGuest()) {
+            <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+              <mat-label>Email</mat-label>
+              <input
+                matInput
+                type="email"
+                inputmode="email"
+                required
+                [value]="guestEmailInput()"
+                (input)="guestEmailInput.set($any($event.target).value)"
+                autocomplete="email"
+              />
+            </mat-form-field>
+          }
           <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
             <mat-label>Full name</mat-label>
             <input
@@ -484,6 +511,14 @@
             }
           </button>
         }
+        <p class="font-body-sm text-on-surface-variant text-center">
+          By placing your order, you agree to our
+          <a routerLink="/terms" target="_blank" rel="noopener" class="underline underline-offset-2">Terms</a>
+          and
+          <a routerLink="/privacy" target="_blank" rel="noopener" class="underline underline-offset-2"
+            >Privacy Policy</a
+          >.
+        </p>
         <a matButton="text" routerLink="/">Keep Shopping</a>
       </div>
     </form>

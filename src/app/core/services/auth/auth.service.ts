@@ -11,6 +11,7 @@ import {
   getRedirectResult,
   linkWithCredential,
   onIdTokenChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -231,6 +232,31 @@ export class AuthService {
     }
     // A failed write still settles: `#applyUser` awaits it, fails closed and sets the flag.
     await this.#writeConsent(result.user.uid, consent);
+  }
+
+  /**
+   * Emails the signed-in account a link that confirms its address. No-op when signed out.
+   * `continueUrl` (absolute, on this site) is where the confirmation page sends the person next.
+   */
+  async sendVerificationEmail(continueUrl?: string): Promise<void> {
+    const user = this.#auth.currentUser;
+    if (!user || user.emailVerified) return;
+    await sendEmailVerification(user, continueUrl ? { url: continueUrl } : undefined);
+  }
+
+  /**
+   * Reloads the signed-in account so a just-confirmed email shows as confirmed and, when the
+   * ID token was minted before that, gets a fresh one so callables see `email_verified`.
+   * Returns whether the email is confirmed (false when signed out).
+   */
+  async refreshEmailVerified(): Promise<boolean> {
+    const user = this.#auth.currentUser;
+    if (!user) return false;
+    await user.reload();
+    if (!user.emailVerified) return false;
+    const token = await user.getIdTokenResult();
+    if (token.claims['email_verified'] !== true) await user.getIdToken(true);
+    return true;
   }
 
   /**

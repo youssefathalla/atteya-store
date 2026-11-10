@@ -156,3 +156,72 @@ export type OrderDoc = v.InferOutput<typeof OrderSchema>;
 export type StoreOrderDoc = v.InferOutput<typeof StoreOrderSchema>;
 
 export const ORDERS_COLLECTION = 'orders';
+
+/**
+ * `orderViews/{viewKey}`: the public read-by-key copy of a guest order, written by the
+ * `syncOrderView` trigger (`orderViewFields()` in `functions/src/orders/order-view.ts`). It holds
+ * only what the order page reads: never the email, the uid, staff fields or the key.
+ */
+export const OrderViewSchema = v.object({
+  id: v.string(),
+  status: v.picklist(['pending', 'confirmed', 'cancelled', 'failed']),
+  paymentMethod: v.picklist(['paymob', 'cash-on-delivery', 'instapay']),
+  shipping: OrderShippingSchema,
+  pricing: OrderPricingSnapshotSchema,
+  paymob: v.optional(
+    v.nullable(
+      v.object({
+        amountCents: v.optional(v.nullable(v.number()), null),
+        paidAt: v.optional(v.nullable(timestampSchema), null),
+      }),
+    ),
+    null,
+  ),
+  needsReview: v.optional(v.boolean(), false),
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+  confirmedAt: v.optional(v.nullable(timestampSchema), null),
+  cancelledAt: v.optional(v.nullable(timestampSchema), null),
+});
+
+export type OrderViewDoc = v.InferOutput<typeof OrderViewSchema>;
+
+export const ORDER_VIEWS_COLLECTION = 'orderViews';
+
+/** True for a string shaped like a guest order's view key (base64url, 43 characters). */
+export function isOrderViewKey(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
+}
+
+/**
+ * A guest order's view → the order shape the order page reads. The fields the view leaves out
+ * (owner, email, staff ids, Paymob intention ids) are empty: the page never shows them.
+ */
+export function orderFromView(view: OrderViewDoc): StoreOrderDoc {
+  return {
+    id: view.id,
+    status: view.status,
+    customerId: null,
+    customerEmail: null,
+    shipping: view.shipping,
+    pricing: view.pricing,
+    confirmedAt: view.confirmedAt,
+    confirmedBy: null,
+    createdAt: view.createdAt,
+    updatedAt: view.updatedAt,
+    paymentMethod: view.paymentMethod,
+    paymob: view.paymob
+      ? {
+          intentionId: '',
+          intentionOrderId: null,
+          amountCents: view.paymob.amountCents ?? 0,
+          currency: 'EGP',
+          transactionId: null,
+          paidAt: view.paymob.paidAt,
+        }
+      : null,
+    needsReview: view.needsReview,
+    cancelledAt: view.cancelledAt,
+    cancelledBy: null,
+  };
+}

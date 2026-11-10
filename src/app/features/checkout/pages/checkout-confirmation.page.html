@@ -159,6 +159,10 @@
           }
         </ol>
       }
+      <!-- Guest order: offer an account after the order (never before), or save it to the signed-in one. -->
+      @if (viewKey(); as key) {
+        <app-guest-account-card [orderId]="orderId()" [viewKey]="key" [email]="guestEmail()" />
+      }
     </section>
 
     <div
