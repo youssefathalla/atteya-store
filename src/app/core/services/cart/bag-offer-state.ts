@@ -53,33 +53,60 @@ export function bagOfferLook(args: {
   });
   for (const offerId of args.extraOfferIds ?? []) add(offerId);
 
+  // Pieces the order takes from stock, by `giftStockKey`, counted like the order callables do:
+  // every paid line first, then each line's gifts in bag order.
+  const demand = new Map<string, number>();
+  for (const line of lines) {
+    const info = products.get(line.productId);
+    if (!info) continue;
+    const key = giftStockKey(line.productId, info, line.selection['size']);
+    demand.set(key, (demand.get(key) ?? 0) + line.quantity);
+  }
+
   const gifts = new Map<string, BagGiftState>();
   lines.forEach((line, index) => {
     const picks = line.gifts ?? [];
     const product = products.get(line.productId);
     if (picks.length === 0 || !product) return;
-    // A piece with a Buy X Get Y discount comes without its free gifts: none are given here.
+    // A piece with a Buy X Get Y discount comes without its free gifts. When every piece has one,
+    // no gifts are given right now, but they are not lost either: they are still checked (for one
+    // set) so a deal winning over them never reads as the gift being no longer available.
     const pricedLine = priced[index];
-    if (pricedLine && pricedLine.deals.giftUnits <= 0) return;
+    const units = pricedLine ? pricedLine.deals.giftUnits : line.quantity;
+    const wanted = Math.max(units, 1);
     const lineKey = cartLineKey(line);
-    const choices = picks.map((pick) => {
+    const added = new Map<string, number>();
+    const pickInStock = picks.map((pick) => {
       const info = products.get(pick.productId);
-      return { productId: pick.productId, published: Boolean(info), inStock: giftInStock(info, pick.sizeId) };
+      if (!info) return false;
+      const key = giftStockKey(pick.productId, info, pick.sizeId);
+      const taken = (added.get(key) ?? 0) + wanted;
+      added.set(key, taken);
+      return giftInStock(info, pick.sizeId, (demand.get(key) ?? 0) + taken);
     });
+    const choices = picks.map((pick, i) => ({
+      productId: pick.productId,
+      published: Boolean(products.get(pick.productId)),
+      inStock: pickInStock[i]!,
+    }));
     const offerId = picks[0]!.offerId;
     const variant = bagLineVariant(product, line);
     // The same checks as the order callables: offer live for this item, the pick still one of its
-    // choices, and the gift product published with stock in the chosen size.
+    // choices, and the gift product published with enough stock in the chosen size for this
+    // line's gifts on top of everything else the bag takes from it.
     const giftOffer = giftOfferById(offerId, product.priced, variant, offers, ctx, choices);
-    for (const pick of picks) {
+    picks.forEach((pick, i) => {
       const allowed = giftOffer?.gifts.some(
         (gift) => gift.id === pick.giftId && gift.productIds.includes(pick.productId),
       );
-      if (!allowed || pick.offerId !== offerId) continue;
+      if (!allowed || !pickInStock[i] || pick.offerId !== offerId) return;
       gifts.set(bagGiftKey(lineKey, pick.offerId, pick.giftId), {
         lineKey,
         name: giftNameFor(offers, pick.offerId, pick.giftId),
       });
+    });
+    if (units > 0) {
+      for (const [key, taken] of added) demand.set(key, (demand.get(key) ?? 0) + taken);
     }
   });
 
@@ -89,10 +116,20 @@ export function bagOfferLook(args: {
   };
 }
 
-function giftInStock(info: BagNotesProduct | null | undefined, sizeId: string | null | undefined): boolean {
+/** Which stock count a piece comes out of (as `stockDemandKey` in the order callables). */
+function giftStockKey(productId: string, info: BagNotesProduct, sizeId: string | null | undefined): string {
+  return info.stockBySize ? `${productId}\u0000size\u0000${sizeId ?? ''}` : `${productId}\u0000all`;
+}
+
+/** Whether the product has `needed` pieces in stock (in `sizeId` when it keeps stock by size). */
+function giftInStock(
+  info: BagNotesProduct | null | undefined,
+  sizeId: string | null | undefined,
+  needed: number,
+): boolean {
   if (!info) return false;
-  const inStock = typeof info.stock === 'number' ? info.stock > 0 : info.inStock;
+  const inStock = typeof info.stock === 'number' ? info.stock >= needed : info.inStock;
   if (!inStock) return false;
-  if (info.stockBySize && sizeId) return (info.stockBySize[sizeId] ?? 0) > 0;
+  if (info.stockBySize && sizeId) return (info.stockBySize[sizeId] ?? 0) >= needed;
   return true;
 }

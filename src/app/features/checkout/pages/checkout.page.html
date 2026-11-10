@@ -38,7 +38,7 @@
         >
           <h2 id="summary-heading" class="font-title-md font-bold!">Order Summary</h2>
 
-          @if (productsResource.isLoading()) {
+          @if (productsResource.isLoading() && !productsResource.hasValue()) {
             <ul class="space-y-4" aria-hidden="true">
               @for (line of lines(); track $index) {
                 <li class="elements-start gap-4">
