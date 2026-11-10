@@ -1,10 +1,23 @@
-import { NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject, input, linkedSignal, resource, untracked } from '@angular/core';
+import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  PLATFORM_ID,
+  resource,
+  untracked,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { doc, getDoc } from 'firebase/firestore';
 import { canCheckout, lineDisplayAmount } from '@core/services/cart/cart-pricing';
-import { priceBag, type BagPricingProduct, type PricedBagLine } from '@core/services/cart/cart-deals';
+import { priceBag, type PricedBagLine } from '@core/services/cart/cart-deals';
+import { bagGiftKey, giftNoteText } from '@core/services/cart/bag-offer-notes';
+import { BagOfferNotesService } from '@core/services/cart/bag-offer-notes.service';
+import { bagOfferLook, type BagNotesProduct } from '@core/services/cart/bag-offer-state';
 import {
   dealHintAction,
   dealHintText,
@@ -48,8 +61,9 @@ import {
   pickBagRecommendations,
 } from './utils/bag-extras';
 import { BagFreePickComponent } from './components/bag-free-pick/bag-free-pick.component';
+import { BagOfferNotesComponent } from '@shared/components/bag-offer-notes/bag-offer-notes.component';
 
-interface CartProductInfo extends BagPricingProduct {
+interface CartProductInfo extends BagNotesProduct {
   readonly name: string;
   readonly slug: string;
   readonly price: number;
@@ -144,6 +158,7 @@ interface BagRecommendationHits {
     RowScrollNavComponent,
     PaymentMarkComponent,
     BagFreePickComponent,
+    BagOfferNotesComponent,
   ],
   templateUrl: './cart-drawer.component.html',
   host: {
@@ -169,6 +184,8 @@ export class CartDrawerComponent {
   readonly #auth = inject(AuthService);
   readonly #firestore = injectFirestore();
   readonly #isDesktop = useBreakpoint(1024);
+  readonly #notes = inject(BagOfferNotesService);
+  readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly lines = this.#cart.lines;
   readonly isEmpty = this.#cart.isEmpty;
@@ -286,6 +303,9 @@ export class CartDrawerComponent {
         options: data.options,
         variants: data.variants,
         priced: toPricedProduct(data),
+        stock: typeof data.stock === 'number' ? data.stock : null,
+        inStock: data.inStock,
+        stockBySize: data.stockBySize ?? null,
       };
     } catch (error) {
       return isPermissionDenied(error) ? null : undefined;
@@ -302,6 +322,45 @@ export class CartDrawerComponent {
     const ctx = { now: this.#offers.now(), signedIn: Boolean(this.#auth.user()), codes: [] };
     return priceBag(this.lines(), this.#products(), offers, ctx);
   });
+
+  /**
+   * What the bag gets from offers right now, for the notes that say when an offer stops applying
+   * (`BagOfferNotesService`); null until the live offers and every product have loaded.
+   */
+  readonly #offerLook = computed(() => {
+    if (!this.#offers.ready() || this.#offers.failed()) return null;
+    const offers = this.#offers.all();
+    const ctx = { now: this.#offers.now(), signedIn: Boolean(this.#auth.user()), codes: [] };
+    return bagOfferLook({
+      bagKey: this.#notes.bagKey(),
+      lines: this.lines(),
+      products: this.#products(),
+      priced: this.#pricedBag().lines,
+      offers,
+      ctx,
+    });
+  });
+
+  /** Gifts under their item that can no longer be given ("Your free shirt is no longer available."). */
+  readonly #giftNotes = computed(() => new Map(this.#notes.giftNotes().map((note) => [note.key, note])));
+
+  constructor() {
+    effect(() => {
+      const look = this.#offerLook();
+      if (this.#isBrowser && look) untracked(() => this.#notes.observe('bag', look));
+    });
+  }
+
+  /** The notes under one line for its free gifts that can no longer be given. */
+  giftNotes(line: CartLineDraft): readonly string[] {
+    const notes = this.#giftNotes();
+    if (notes.size === 0) return [];
+    const lineKey = cartLineKey(line);
+    return (line.gifts ?? []).flatMap((gift) => {
+      const note = notes.get(bagGiftKey(lineKey, gift.offerId, gift.giftId));
+      return note ? [giftNoteText(note.name)] : [];
+    });
+  }
 
   /** Each line's price in the visitor's currency, in bag order; null while it loads or is gone. */
   readonly linePrices = computed((): readonly (CartLinePrice | null)[] => {
@@ -516,7 +575,11 @@ export class CartDrawerComponent {
     // Every piece has a Buy X Get Y discount instead, so none comes with gifts.
     if (gifts.length === 0 || this.linePrices()[index]?.giftUnits === 0) return [];
     const offers = this.#offers.all();
-    return gifts.map((gift) => {
+    const notes = this.#giftNotes();
+    const lineKey = cartLineKey(line);
+    // A gift that can no longer be given shows its note instead (`giftNotes`).
+    const given = gifts.filter((gift) => !notes.has(bagGiftKey(lineKey, gift.offerId, gift.giftId)));
+    return given.map((gift) => {
       const name = giftNameFor(offers, gift.offerId, gift.giftId);
       const info = this.productInfo(gift.productId);
       const size = info?.options

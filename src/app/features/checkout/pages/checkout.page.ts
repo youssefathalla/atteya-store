@@ -28,6 +28,10 @@ import {
   type PricedBagLine,
 } from '@core/services/cart/cart-deals';
 import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
+import { bagGiftKey, giftNoteText } from '@core/services/cart/bag-offer-notes';
+import { BagOfferNotesService } from '@core/services/cart/bag-offer-notes.service';
+import { bagOfferLook } from '@core/services/cart/bag-offer-state';
+import { cartLineKey } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
@@ -47,6 +51,7 @@ import {
   type PricingContext,
 } from '@core/services/offers/engine';
 import {
+  isFailedPrecondition,
   offerToLeaveOut,
   priceChangedFrom,
   serverClockFrom,
@@ -81,6 +86,7 @@ import {
 import { selectionLabel } from '../utils/checkout-line';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { PaymentMarkComponent } from '@shared/ui/payment-mark';
+import { BagOfferNotesComponent } from '@shared/components/bag-offer-notes/bag-offer-notes.component';
 
 const TOO_HEAVY_MESSAGE = 'This order is too heavy to send abroad. Remove an item or message us.';
 const ABROAD_COMING_SOON_MESSAGE =
@@ -104,6 +110,10 @@ interface CheckoutProductInfo {
   /** Palette colour ids, so a free gift can be named with its colour. */
   readonly colors: readonly string[];
   readonly variants: readonly ProductVariant[];
+  /** Stock, to tell when a free gift can no longer be given. */
+  readonly stock: number | null;
+  readonly inStock: boolean;
+  readonly stockBySize: Readonly<Record<string, number>> | null;
 }
 
 /** The bag priced in EGP and in the visitor's currency, before shipping. */
@@ -145,6 +155,8 @@ interface CheckoutSummaryItem {
   readonly deal: string;
   /** Free gifts picked with the item, each as "Free shirt: Adidas Simple Polo White, L". */
   readonly gifts: readonly { readonly key: string; readonly label: string }[];
+  /** Free gifts that can no longer be given: "Your free shirt is no longer available." */
+  readonly giftNotes: readonly string[];
 }
 
 type CheckoutSummary =
@@ -174,6 +186,8 @@ type CheckoutSummary =
        * server refuses rather than charge more. Null while the fee is to be agreed.
        */
       readonly shown: ShownOrderTotals;
+      /** The Free shipping offer that made shipping free, or null (for the bag's notes). */
+      readonly freeShippingOfferId: string | null;
     };
 
 @Component({
@@ -191,6 +205,7 @@ type CheckoutSummary =
     MatRadioModule,
     SharedIconModule,
     PaymentMarkComponent,
+    BagOfferNotesComponent,
   ],
   templateUrl: './checkout.page.html',
 })
@@ -207,6 +222,7 @@ export class CheckoutPageComponent implements OnInit {
   readonly #snackbar = inject(SnackbarService);
   readonly #profiles = inject(UserProfileService);
   readonly #platformId = inject(PLATFORM_ID);
+  readonly #notes = inject(BagOfferNotesService);
 
   readonly isSubmitting = signal(false);
   /** Phone only: the order summary folds into a bar above the form until tapped. */
@@ -328,6 +344,9 @@ export class CheckoutPageComponent implements OnInit {
       options: data.options,
       colors: data.colors,
       variants: data.variants,
+      stock: typeof data.stock === 'number' ? data.stock : null,
+      inStock: data.inStock,
+      stockBySize: data.stockBySize ?? null,
     };
   }
 
@@ -424,6 +443,7 @@ export class CheckoutPageComponent implements OnInit {
     const entry = this.#currency.entry();
     const decimals = displayDecimals(entry.code);
     const offers = this.#offers.all();
+    const giftNotes = new Map(this.#notes.giftNotes().map((note) => [note.key, note]));
     return this.lines().map((line, index) => {
       const info = products?.get(line.productId);
       if (info === null) {
@@ -439,6 +459,7 @@ export class CheckoutPageComponent implements OnInit {
           was: '',
           deal: '',
           gifts: [],
+          giftNotes: [],
         };
       }
       const display = bag.state === 'ready' ? bag.lineDisplay[index] : null;
@@ -446,6 +467,11 @@ export class CheckoutPageComponent implements OnInit {
       const deal = priced && priced.deals.discount > 0 ? priced : null;
       // A piece with a Buy X Get Y discount comes without its free gifts.
       const giftUnits = priced ? priced.deals.giftUnits : line.quantity;
+      // A gift that can no longer be given shows its note instead of its row.
+      const lineKey = cartLineKey(line);
+      const noted = (gift: { offerId: string; giftId: string }): boolean =>
+        giftNotes.has(bagGiftKey(lineKey, gift.offerId, gift.giftId));
+      const lineGifts = (giftUnits > 0 ? (line.gifts ?? []) : []).filter((gift) => !noted(gift));
       return {
         unavailable: false,
         name: info?.name ?? 'Item',
@@ -458,7 +484,10 @@ export class CheckoutPageComponent implements OnInit {
         // The line before its Buy X Get Y discount: pieces in a group at the price before per-item offers.
         was: deal ? formatMoney(toDisplayAmount(deal.fullEgp, entry), entry.code, decimals) : '',
         deal: deal ? dealTag(deal.deals.deals, line.quantity) : '',
-        gifts: (giftUnits > 0 ? (line.gifts ?? []) : []).map((gift) => {
+        giftNotes: (line.gifts ?? [])
+          .filter(noted)
+          .map((gift) => giftNoteText(giftNotes.get(bagGiftKey(lineKey, gift.offerId, gift.giftId))!.name)),
+        gifts: lineGifts.map((gift) => {
           const name = giftNameFor(offers, gift.offerId, gift.giftId);
           const giftInfo = products?.get(gift.productId);
           const size = giftInfo?.options
@@ -506,12 +535,14 @@ export class CheckoutPageComponent implements OnInit {
         codShipping: '',
         codCash: formatMoney(subtotalEgp, 'EGP', 0),
         shown: { shippingEgp: null, totalEgp: null },
+        freeShippingOfferId: null,
       };
     }
 
     let feeEgp: number;
+    let freeShippingOfferId: string | null;
     try {
-      feeEgp = shippingQuote(
+      const quote = shippingQuote(
         settings,
         {
           region,
@@ -522,7 +553,11 @@ export class CheckoutPageComponent implements OnInit {
         },
         offers,
         ctx,
-      ).fee;
+      );
+      feeEgp = quote.fee;
+      // Same test as the order callables (`freeShippingOfferIdOf`): the offer made shipping free.
+      const madeItFree = quote.reason === 'offer' && quote.fee === 0 && Math.round(quote.box.feeEgp) > 0;
+      freeShippingOfferId = madeItFree ? (quote.offerId ?? null) : null;
     } catch {
       return { state: 'unavailable' };
     }
@@ -545,6 +580,7 @@ export class CheckoutPageComponent implements OnInit {
         codShipping: formatMoney(server.shippingEgp, 'EGP', 0),
         codCash: formatMoney(serverSubtotalEgp, 'EGP', 0),
         shown: { shippingEgp: server.shippingEgp, totalEgp: server.totalEgp },
+        freeShippingOfferId,
       };
     }
 
@@ -560,7 +596,30 @@ export class CheckoutPageComponent implements OnInit {
       codShipping: formatMoney(feeEgp, 'EGP', 0),
       codCash: formatMoney(subtotalEgp, 'EGP', 0),
       shown: { shippingEgp: feeEgp, totalEgp: subtotalEgp + feeEgp },
+      freeShippingOfferId,
     };
+  });
+
+  /**
+   * What the bag gets from offers right now (item offers, Buy X Get Y and Free shipping), for the
+   * notes that say when one stops applying (`BagOfferNotesService`); null while anything loads.
+   */
+  readonly #offerLook = computed(() => {
+    const bag = this.#pricedBag();
+    if (bag.state !== 'ready' || this.#offers.failed()) return null;
+    const products = this.productsResource.value();
+    if (!products) return null;
+    const summary = this.orderSummary();
+    const freeShippingOfferId = summary.state === 'ready' ? summary.freeShippingOfferId : null;
+    return bagOfferLook({
+      bagKey: this.#notes.bagKey(),
+      lines: this.lines(),
+      products,
+      priced: bag.lines,
+      offers: bag.offers,
+      ctx: bag.ctx,
+      extraOfferIds: freeShippingOfferId ? [freeShippingOfferId] : [],
+    });
   });
 
   /** What the phone summary bar shows: the total once shipping is known, else the subtotal. */
@@ -586,6 +645,12 @@ export class CheckoutPageComponent implements OnInit {
   });
 
   constructor() {
+    // Tell the shopper when an offer stops applying to their bag (notes above the summary).
+    effect(() => {
+      const look = this.#offerLook();
+      if (look && isPlatformBrowser(this.#platformId)) untracked(() => this.#notes.observe('checkout', look));
+    });
+
     // Prefill from AS-21 visitor geo when the code is on the checkout list.
     // Localhost has no CDN headers and a private IP, so /api/visitor-location
     // returns null — fall back to EG (store home market) once currency has settled.
@@ -899,8 +964,10 @@ export class CheckoutPageComponent implements OnInit {
       // price itself went up: read the products again so the summary shows the new price.
       const next = offerToLeaveOut(error, this.#lastChangedOfferId);
       this.#lastChangedOfferId = next.lastChangedOfferId;
-      if (next.leaveOut) this.#offers.markEnded(next.leaveOut);
-      if (priceChangedFrom(error)) this.productsResource.reload();
+      if (next.leaveOut) this.#offers.markEnded(next.leaveOut, next.reason);
+      // Read the products again after any refusal about the bag (a price went up, or a free gift
+      // sold out), so the summary and its notes show what changed.
+      if (priceChangedFrom(error) || isFailedPrecondition(error)) this.productsResource.reload();
       // The shipping fee or total came out higher than this summary showed (a lower price dropped
       // the bag under free shipping, a Buy X Get Y discount shrank): price offers on the server's
       // clock from now on and read the products again (above). When the same server totals come

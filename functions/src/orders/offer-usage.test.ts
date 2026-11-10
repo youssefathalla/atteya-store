@@ -114,7 +114,7 @@ describe('offer limits', () => {
     const { db, tx } = fakeDb({ 'offerUsage/deal-1_shopper-1': { count: 1 } });
     await assert.rejects(readOfferUses(tx, db, 'shopper-1', [perCustomer]), (error: unknown) => {
       const err = error as { message: string; details: unknown };
-      assert.deepEqual(err.details, { endedOfferId: 'deal-1' });
+      assert.deepEqual(err.details, { endedOfferId: 'deal-1', reason: 'used' });
       assert.match(err.message, /^You've already used the Buy 2, get 1 free offer/);
       return true;
     });
@@ -206,7 +206,7 @@ describe('Percent off offer limits', () => {
     const { db, tx } = fakeDb({ 'offerUsage/pct-1_shopper-1': { count: 1 } });
     await assert.rejects(readOfferUses(tx, db, 'shopper-1', [perCustomer]), (error: unknown) => {
       const err = error as { message: string; details: unknown };
-      assert.deepEqual(err.details, { endedOfferId: 'pct-1' });
+      assert.deepEqual(err.details, { endedOfferId: 'pct-1', reason: 'used' });
       assert.equal(
         err.message,
         "You've already used the 20% off offer, so this order's total changed. Check your bag and place your order again.",

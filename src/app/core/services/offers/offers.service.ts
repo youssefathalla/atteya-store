@@ -25,6 +25,8 @@ export class OffersService {
    * of every price on this visit, so the bag and checkout show the total the server will charge.
    */
   readonly #ended = signal<ReadonlySet<string>>(new Set());
+  /** Of `#ended`, the offers this shopper has already used up (`details.reason: 'used'`). */
+  readonly #usedUp = signal<ReadonlySet<string>>(new Set());
 
   readonly #offersCollection = collection(this.#firestore, OFFERS_COLLECTION).withConverter(
     createValibotConverter(OfferDocSchema),
@@ -57,6 +59,8 @@ export class OffersService {
 
   /** Ids of the offers left out with `markEnded`, sent with each order so the server agrees. */
   readonly endedIds = computed<readonly string[]>(() => Array.from(this.#ended()));
+  /** Ids of the offers left out because this shopper already used them up (the bag's notes say so). */
+  readonly usedUpIds = computed<readonly string[]>(() => Array.from(this.#usedUp()));
 
   readonly live = computed<readonly Offer[]>(() =>
     liveOffers(this.all(), {
@@ -65,8 +69,14 @@ export class OffersService {
     }),
   );
 
-  /** Leaves an offer out of every price for the rest of this visit (it has ended for this shopper). */
-  markEnded(offerId: string): void {
+  /**
+   * Leaves an offer out of every price for the rest of this visit (it has ended for this shopper).
+   * `used`: this shopper already used it up (rather than the offer ending for everyone).
+   */
+  markEnded(offerId: string, reason: 'ended' | 'used' = 'ended'): void {
+    if (reason === 'used' && !this.#usedUp().has(offerId)) {
+      this.#usedUp.update((usedUp) => new Set([...usedUp, offerId]));
+    }
     if (this.#ended().has(offerId)) return;
     this.#ended.update((ended) => new Set([...ended, offerId]));
   }

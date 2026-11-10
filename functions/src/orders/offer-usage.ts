@@ -60,9 +60,10 @@ export function offerFullReason(
 
 /**
  * The refusal for an order whose offer is full. Every offer type except Free gift names itself and
- * puts its id in `details.endedOfferId`, so checkout can leave it out of its own pricing and show
- * the new total; the order is never charged more than the shopper saw. A full Free gift offer
- * asks the shopper to add the item again, since its gifts are saved on the bag line.
+ * puts its id in `details.endedOfferId` (plus `reason: 'used'` when this shopper used it up), so
+ * checkout can leave it out of its own pricing and show the new total; the order is never charged
+ * more than the shopper saw. A full Free gift offer asks the shopper to add the item again, since
+ * its gifts are saved on the bag line.
  */
 export function offerFullError(offer: UsedOffer, reason: OfferFullReason): HttpsError {
   if (offer.kind === 'gift') return new HttpsError('failed-precondition', GIFT_OFFER_FULL);
@@ -75,7 +76,10 @@ export function offerFullError(offer: UsedOffer, reason: OfferFullReason): Https
       : title
         ? `The ${title} offer has ended, so this order's total changed. Check your bag and place your order again.`
         : "An offer in your bag has ended, so this order's total changed. Check your bag and place your order again.";
-  return new HttpsError('failed-precondition', message, { endedOfferId: offer.offerId });
+  // `reason: 'used'` lets checkout say "You've already used the … offer" in the bag's note too.
+  const details =
+    reason === 'used' ? { endedOfferId: offer.offerId, reason } : { endedOfferId: offer.offerId };
+  return new HttpsError('failed-precondition', message, details);
 }
 
 /**
