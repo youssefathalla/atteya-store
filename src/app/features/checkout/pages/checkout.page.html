@@ -75,57 +75,80 @@
                     </div>
                   </li>
                 } @else {
-                  <li class="elements-start gap-4">
-                    <div class="relative shrink-0">
-                      <div
-                        class="size-16 overflow-hidden bg-surface border border-outline-variant border-shape"
-                      >
-                        @if (item.imagePath; as path) {
-                          <img
-                            [ngSrc]="item.imageSrc"
-                            [appImageFallback]="path"
-                            [alt]="item.imageAlt"
-                            width="64"
-                            height="64"
-                            class="size-full object-contain p-1"
-                          />
+                  <li>
+                    <div class="elements-start gap-4">
+                      <div class="relative shrink-0">
+                        <div
+                          class="size-16 overflow-hidden bg-surface border border-outline-variant border-shape"
+                        >
+                          @if (item.imagePath; as path) {
+                            <img
+                              [ngSrc]="item.imageSrc"
+                              [appImageFallback]="path"
+                              [alt]="item.imageAlt"
+                              width="64"
+                              height="64"
+                              class="size-full object-contain p-1"
+                            />
+                          }
+                        </div>
+                        <span
+                          class="absolute -top-2 -right-2 size-5 elements-center rounded-full bg-primary text-on-primary font-label-sm"
+                          aria-hidden="true"
+                        >
+                          {{ item.quantity }}
+                        </span>
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <p class="font-title-sm font-bold! line-clamp-2">{{ item.name }}</p>
+                        @if (item.options) {
+                          <p class="font-label-md text-on-surface-variant">{{ item.options }}</p>
+                        }
+                        <p class="sr-only">Quantity {{ item.quantity }}</p>
+                        @if (item.deal) {
+                          <span class="deal-tag">{{ item.deal }}</span>
+                        }
+                        @for (note of item.giftNotes; track $index) {
+                          <p class="gift-note mt-1">
+                            <mat-icon name="info" size="base" />
+                            <span>{{ note }}</span>
+                          </p>
                         }
                       </div>
-                      <span
-                        class="absolute -top-2 -right-2 size-5 elements-center rounded-full bg-primary text-on-primary font-label-sm"
-                        aria-hidden="true"
-                      >
-                        {{ item.quantity }}
-                      </span>
+                      <div class="shrink-0 elements-end-col text-end">
+                        <p class="font-body-md">{{ item.price }}</p>
+                        @if (item.was) {
+                          <p class="font-body-sm text-on-surface-variant line-through">{{ item.was }}</p>
+                        }
+                      </div>
                     </div>
-                    <div class="min-w-0 flex-1">
-                      <p class="font-title-sm font-bold! line-clamp-2">{{ item.name }}</p>
-                      @if (item.options) {
-                        <p class="font-label-md text-on-surface-variant">{{ item.options }}</p>
-                      }
-                      <p class="sr-only">Quantity {{ item.quantity }}</p>
-                      @if (item.deal) {
-                        <span class="deal-tag">{{ item.deal }}</span>
-                      }
-                      @for (gift of item.gifts; track gift.key) {
-                        <p class="elements-between items-start! gap-3 font-label-md text-on-surface-variant">
-                          <span class="min-w-0">{{ gift.label }}</span>
-                          <span class="shrink-0">Free</span>
-                        </p>
-                      }
-                      @for (note of item.giftNotes; track $index) {
-                        <p class="gift-note mt-1">
-                          <mat-icon name="info" size="base" />
-                          <span>{{ note }}</span>
-                        </p>
-                      }
-                    </div>
-                    <div class="shrink-0 elements-end-col text-end">
-                      <p class="font-body-md">{{ item.price }}</p>
-                      @if (item.was) {
-                        <p class="font-body-sm text-on-surface-variant line-through">{{ item.was }}</p>
-                      }
-                    </div>
+                    @if (item.gifts.length) {
+                      <ul class="gift-tree" aria-label="Free gifts with this item">
+                        @for (gift of item.gifts; track gift.key) {
+                          <li class="gift-tree__item">
+                            <div class="gift-tree__photo" aria-hidden="true">
+                              @if (gift.imagePath; as giftPath) {
+                                <img
+                                  [ngSrc]="gift.imageSrc"
+                                  [appImageFallback]="giftPath"
+                                  alt=""
+                                  width="40"
+                                  height="40"
+                                  class="size-full object-contain p-0.5"
+                                />
+                              }
+                            </div>
+                            <div class="min-w-0 flex-1">
+                              <p class="font-label-lg break-words">{{ gift.name }}</p>
+                              @if (gift.details) {
+                                <p class="font-label-md text-on-surface-variant">{{ gift.details }}</p>
+                              }
+                            </div>
+                            <span class="gift-tree__tag" [title]="gift.tag">{{ gift.tag }}</span>
+                          </li>
+                        }
+                      </ul>
+                    }
                   </li>
                 }
               }

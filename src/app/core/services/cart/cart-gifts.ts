@@ -1,3 +1,4 @@
+import { giftCardColours, giftCardName, type GiftCardColour } from './gift-card-label';
 import type { Offer } from '@core/services/offers/engine';
 import { COLOR_PALETTE } from '@core/services/products/catalog-taxonomy';
 import type { Product } from '@core/services/products/product.model';
@@ -46,11 +47,13 @@ export interface GiftChoiceView {
   readonly productId: string;
   /** Full name plus colour. Used for the card's `aria-label` and the chosen name. */
   readonly label: string;
-  /** The product's own name and colours, the input of the short card line. */
+  /** The product's own name and colours. */
   readonly name: string;
   readonly colors: readonly string[];
-  /** The one short line under the card's photo. Set per gift by `buildGiftBox`. */
-  readonly cardLabel: string;
+  /** The name under the card's photo (full name, colour words at its end left out). */
+  readonly cardName: string;
+  /** The colour line under that name: a dot and the colour's name for each colour. */
+  readonly cardColours: readonly GiftCardColour[];
   /** Main photo path (empty when the product has none yet). Shown on the choice's tile. */
   readonly imagePath: string;
   readonly sizes: readonly GiftSizeView[] | null;
@@ -81,7 +84,8 @@ export function toGiftChoice(product: Product): GiftChoiceView | null {
     label: giftProductLabel(product),
     name: product.name,
     colors: product.colors,
-    cardLabel: product.name,
+    cardName: giftCardName(product.name, giftCardColours(product.colors)),
+    cardColours: giftCardColours(product.colors),
     imagePath: product.images[0]?.path ?? '',
     sizes,
   };

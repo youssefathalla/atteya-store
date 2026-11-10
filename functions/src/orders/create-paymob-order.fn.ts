@@ -87,7 +87,7 @@ export const createPaymobOrder = onCall(
     const amountCents = priced.pricing.totalEgp * 100;
     const name = splitPersonName(input.shipping.fullName);
     const viewKey = customer.kind === 'guest' ? newOrderViewKey() : null;
-    const email = customer.email && customer.email.includes('@') ? customer.email : 'orders@atteyastore.com';
+    const email = customer.email && customer.email.includes('@') ? customer.email : 'support@atteyastore.com';
 
     let intention;
     try {

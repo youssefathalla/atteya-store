@@ -105,8 +105,8 @@
 
   /**
    * Gift choice as a big card in one sideways row (`.pdp-gift-row`, built on `.scroll-row`):
-   * 156px wide, 4:5 photo, one short line under it. Selected = aria-pressed: 1px black border and
-   * the caption turns black with white text and a ✓ before the label.
+   * 156px wide, 4:5 photo, the full name and a colour line under it. Selected = aria-pressed: 2px
+   * black border and a black "Picked" tag on the photo.
    */
   .pdp-gift-row {
     --scroll-gap: 0.75rem;
@@ -135,17 +135,27 @@
     @apply relative block w-full aspect-4/5 overflow-hidden;
   }
 
-  .pdp-gift-card__label {
-    @apply block w-full h-8 px-2 leading-8 text-center truncate bg-surface font-label-md font-bold!;
+  /* Under the photo: the full name on up to two lines (the same height on every card, so the row stays even), then
+     the colour dot and the colour's name in grey. */
+  .pdp-gift-card__caption {
+    @apply elements-start-col items-stretch! gap-1 px-2.5 pt-2 pb-2.5 text-start;
   }
 
-  .pdp-gift-card[aria-pressed='true'] .pdp-gift-card__label {
-    @apply bg-primary text-on-primary;
+  .pdp-gift-card__name {
+    @apply font-label-lg font-bold! line-clamp-2 min-h-[2lh];
   }
 
-  .pdp-gift-card[aria-pressed='true'] .pdp-gift-card__label::before {
-    content: '✓ ';
-    white-space: pre;
+  .pdp-gift-card__colour {
+    @apply elements-start gap-1.5 min-w-0 font-label-md text-on-surface-variant;
+  }
+
+  /* The chosen card: a 2px black border (1px border + 1px inset ring) and a black "Picked" tag on its photo. */
+  .pdp-gift-card[aria-pressed='true'] {
+    @apply ring-1 ring-inset ring-primary;
+  }
+
+  .pdp-gift-card__picked {
+    @apply absolute top-2 start-2 elements-start gap-1 px-2 py-0.5 bg-primary text-on-primary border-shape font-label-sm font-bold!;
   }
 
   /** Thin progress line under a gift row. */

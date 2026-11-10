@@ -14,6 +14,9 @@ import {
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll/horizontal-scroll.directive';
 import { RowScrollNavComponent } from '@shared/ui/row-scroll-nav';
+import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
+import { SharedIconModule } from '@shared/ui/mat-icon';
+import type { GiftCardColour } from '@core/services/cart/gift-card-label';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import type { ChoicePrompt } from '../../models/product-page.model';
 import { type GiftBoxView, type GiftPicks, giftSteps } from '../../utils/product-gifts';
@@ -24,7 +27,14 @@ import { type GiftBoxView, type GiftPicks, giftSteps } from '../../utils/product
  */
 @Component({
   selector: 'app-product-gift-box',
-  imports: [NgOptimizedImage, AppImageFallbackDirective, HorizontalScrollDirective, RowScrollNavComponent],
+  imports: [
+    NgOptimizedImage,
+    AppImageFallbackDirective,
+    HorizontalScrollDirective,
+    RowScrollNavComponent,
+    ColorSwatchComponent,
+    SharedIconModule,
+  ],
   templateUrl: './product-gift-box.component.html',
   host: { class: 'block w-full' },
 })
@@ -58,6 +68,13 @@ export class ProductGiftBoxComponent {
 
   isProductPicked(giftId: string, productId: string): boolean {
     return this.picks()[giftId]?.productId === productId;
+  }
+
+  /** "White", "Black and Grey", "Red, White and Blue". */
+  colourNames(colours: readonly GiftCardColour[]): string {
+    const names = colours.map((colour) => colour.label);
+    if (names.length <= 1) return names[0] ?? '';
+    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
   }
 
   isSizePicked(giftId: string, sizeId: string): boolean {

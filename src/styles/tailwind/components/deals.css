@@ -13,4 +13,52 @@
   .gift-note {
     @apply elements-start items-start! gap-2 font-label-md text-on-surface-variant;
   }
+
+  /*
+   * Free gifts under the item that gives them (checkout summary, order page): a thin line runs down
+   * from the middle of the item's photo (`--gift-tree-indent`) and branches to each gift's row.
+   */
+  .gift-tree {
+    margin-inline-start: var(--gift-tree-indent, 2rem);
+  }
+
+  .gift-tree__item {
+    @apply relative elements-start items-center! gap-3 pt-2.5 ps-5;
+  }
+
+  .gift-tree__item::before,
+  .gift-tree__item::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 0;
+    border-color: var(--color-outline);
+  }
+
+  /* The trunk: full height between gifts, stopping at the last gift's branch. */
+  .gift-tree__item::before {
+    top: 0;
+    bottom: 0;
+    border-inline-start-width: 1px;
+  }
+
+  .gift-tree__item:last-child::before {
+    bottom: auto;
+    height: calc(50% + 0.3125rem);
+  }
+
+  /* The branch, level with the middle of the gift's photo. */
+  .gift-tree__item::after {
+    top: calc(50% + 0.3125rem);
+    width: 0.875rem;
+    border-top-width: 1px;
+  }
+
+  .gift-tree__photo {
+    @apply size-10 shrink-0 overflow-hidden bg-surface border border-outline-variant border-shape;
+  }
+
+  /* "Free shirt": the gift's name from its offer, on the right of the row. */
+  .gift-tree__tag {
+    @apply shrink-0 max-w-28 px-1.5 border border-outline border-shape font-label-sm truncate;
+  }
 }
