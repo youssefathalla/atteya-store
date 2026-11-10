@@ -16,3 +16,9 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Hosts the server-rendered site answers for (angular.json allowedHosts is empty). Keep the
+  # hosted.app address so the site still works there; www and the bare name are the store's domain.
+  - variable: NG_ALLOWED_HOSTS
+    value: www.atteyastore.com,atteyastore.com,atteya-store--attiya-store.europe-west4.hosted.app
+    availability:
+      - RUNTIME

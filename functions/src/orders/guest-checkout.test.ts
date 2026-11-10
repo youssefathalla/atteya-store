@@ -53,11 +53,11 @@ describe('guest payload', () => {
 });
 
 describe('guest rate limits', () => {
-  it('per connection: 5 a day', () => {
-    assert.equal(MAX_GUEST_ORDERS_PER_IP_PER_UTC_DAY, 5);
+  it('per connection: 50 a day', () => {
+    assert.equal(MAX_GUEST_ORDERS_PER_IP_PER_UTC_DAY, 50);
     assert.equal(nextGuestIpOrderCount(undefined), 1);
-    assert.equal(nextGuestIpOrderCount(4), 5);
-    assert.throws(() => nextGuestIpOrderCount(5), GUEST_LIMIT);
+    assert.equal(nextGuestIpOrderCount(49), 50);
+    assert.throws(() => nextGuestIpOrderCount(50), GUEST_LIMIT);
   });
 
   it('per email: 5 a day', () => {
@@ -67,11 +67,11 @@ describe('guest rate limits', () => {
     assert.throws(() => nextGuestEmailOrderCount(5), GUEST_LIMIT);
   });
 
-  it('whole store: 200 a day', () => {
-    assert.equal(MAX_GUEST_ORDERS_PER_UTC_DAY, 200);
+  it('whole store: 500 a day', () => {
+    assert.equal(MAX_GUEST_ORDERS_PER_UTC_DAY, 500);
     assert.equal(nextGuestStoreOrderCount('junk'), 1);
-    assert.equal(nextGuestStoreOrderCount(199), 200);
-    assert.throws(() => nextGuestStoreOrderCount(200), GUEST_LIMIT);
+    assert.equal(nextGuestStoreOrderCount(499), 500);
+    assert.throws(() => nextGuestStoreOrderCount(500), GUEST_LIMIT);
   });
 
   it('signed-in limit is unchanged (20 a day)', () => {

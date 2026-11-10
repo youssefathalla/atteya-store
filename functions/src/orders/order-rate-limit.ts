@@ -4,8 +4,12 @@ import { HttpsError } from 'firebase-functions/v2/https';
 /** Orders one shopper can place per UTC day (all payment methods together). */
 export const MAX_ORDERS_PER_UID_PER_UTC_DAY = 20;
 
-/** Guest orders (no sign-in) one connection (hashed caller IP) can place per UTC day. */
-export const MAX_GUEST_ORDERS_PER_IP_PER_UTC_DAY = 5;
+/**
+ * Guest orders (no sign-in) one connection (hashed caller IP) can place per UTC day. High on purpose:
+ * many shoppers can share one mobile-network or venue address, and the email and store-wide caps
+ * still bound a script.
+ */
+export const MAX_GUEST_ORDERS_PER_IP_PER_UTC_DAY = 50;
 
 /** Guest orders one email address can place per UTC day. */
 export const MAX_GUEST_ORDERS_PER_EMAIL_PER_UTC_DAY = 5;
@@ -14,7 +18,7 @@ export const MAX_GUEST_ORDERS_PER_EMAIL_PER_UTC_DAY = 5;
  * Guest orders the whole store accepts per UTC day. The caller IP can be faked and anyone can type
  * a new email, so this store-wide cap is what bounds a script. Signed-in orders never count here.
  */
-export const MAX_GUEST_ORDERS_PER_UTC_DAY = 200;
+export const MAX_GUEST_ORDERS_PER_UTC_DAY = 500;
 
 const GUEST_LIMIT_MESSAGE =
   'Too many orders were placed today. Please try again tomorrow or message us on WhatsApp.';

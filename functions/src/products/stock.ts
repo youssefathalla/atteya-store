@@ -2,19 +2,23 @@ import { currentProjectId } from '../project-id.js';
 
 export const DEV_PROJECT_ID = 'atteya-store-dev';
 
+/** Starting count for an untracked product (per size, or flat), on dev and prod alike. */
+export const UNTRACKED_DEFAULT_STOCK = 10;
+
 /**
- * Dev seeds untracked products at 10. Any other resolved project, including prod
- * `attiya-store`, stays at 0. Throws when the project id cannot be resolved so a
- * missing id cannot silently write 0.
+ * Untracked products start at {@link UNTRACKED_DEFAULT_STOCK} on every project (prod included,
+ * decided Nov 11, 2026: the old store counted stock for only a few products, and 0 would hide the
+ * rest; staff correct counts in the admin). Throws when the project id cannot be resolved, so a
+ * run against an unknown project never writes stock.
  */
 export function untrackedDefaultStock(projectId?: string): number {
   const resolved = (projectId ?? currentProjectId()).trim();
   if (!resolved) {
     throw new Error(
-      'Could not resolve the Firebase project id from GCLOUD_PROJECT or FIREBASE_CONFIG. Refusing to default untracked stock to 0.',
+      'Could not resolve the Firebase project id from GCLOUD_PROJECT or FIREBASE_CONFIG. Refusing to write a default stock.',
     );
   }
-  return resolved === DEV_PROJECT_ID ? 10 : 0;
+  return UNTRACKED_DEFAULT_STOCK;
 }
 
 export interface StockFields {
