@@ -1617,11 +1617,11 @@ describe('displayPrice: From price and partial offers', () => {
     assert.equal(price([offer], tee, { id: 'l', size: 'L' }).appliedOfferId, null);
   });
 
-  it('E9: a colour offer on a two-colour product: "10% off in Black", From 900, partial', () => {
+  it('E9: a colour offer on a two-colour product: "10% off · Black only", From 900, partial', () => {
     const card = shown([mk('a', pct(10), { conditions: only(inList('colors', 'black')) })], twoColour);
     assert.equal(card.fromPrice, 900);
     assert.equal(card.partial, true);
-    assert.equal(card.badges[0].text, '10% off in Black');
+    assert.equal(card.badges[0].text, '10% off · Black only');
     assert.equal(card.badges[0].partial, true);
   });
 
@@ -1779,10 +1779,10 @@ describe('labels: describeOfferReward and badges', () => {
     const lightBlue = product({ colors: ['light-blue', 'white'] });
     assert.equal(
       formatAppliedOfferBadge(offer as never, 10, lightBlue as never, true).text,
-      '10% off in Light blue',
+      '10% off · Light blue only',
     );
     const black = mk('a', pct(10), { conditions: only(inList('colors', 'black')) });
-    assert.equal(formatAppliedOfferBadge(black as never, 10, p5 as never, true).text, '10% off in Black');
+    assert.equal(formatAppliedOfferBadge(black as never, 10, p5 as never, true).text, '10% off · Black only');
     assert.equal(formatAppliedOfferBadge(black as never, 10, p5 as never, false).text, '10% off');
   });
 

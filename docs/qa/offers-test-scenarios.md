@@ -147,7 +147,7 @@ Pick real dev products and write their names here before starting. Prices are ex
 | E6 | Tag | Tag is one of [a tag] | — | Only tagged products | Shop | |
 | E7 | Model group | Model group is one of [P1's model] | — | Every colour of that model; products with no model group don't match | Shop | |
 | E8 | Size | Size is one of [M] | Open P1 | Card/product page show "From 900"; choosing M shows 900, L shows 1,000; bag line M discounted, L not | Shop, Bag | |
-| E9 | Colour on a 2-colour product | Colour is one of [black] on P5 (black+white) | — | Badge "10% off in Black", price "From"; only black is discounted | Shop, Bag | |
+| E9 | Colour on a 2-colour product | Colour is one of [black] on P5 (black+white) | — | Badge "10% off · Black only", price "From"; only black is discounted | Shop, Bag | |
 | E10 | Price range | Price (EGP) min 500 max 1,500 | — | P1 (1,000) matches, P3 (200) doesn't; P2 matches on its **sale** price (800), not the old price | Shop | |
 | E11 | Price min > max | Min 2,000 max 500 | — | No products match; warning "No current products match…" | Admin | |
 | E12 | "is not one of" | Brand is not one of [P1's brand] | — | Everything except that brand | Shop | |
