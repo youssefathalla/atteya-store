@@ -21,6 +21,8 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { normalizeImageKitPath } from '@shared/utils/image';
+import { CatalogService } from '@core/services/products/catalog.service';
+import { catalogPathIsEmpty } from '@core/services/products/utils/catalog-path';
 import { NAV_LIST_MAX_ITEMS } from '../../data/home.data';
 import { HomeNavList, HomeNavListItem } from '../../models/home.model';
 import {
@@ -58,6 +60,7 @@ let nextTitleId = 0;
 })
 export class NavigationListSectionComponent {
   readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly #catalog = inject(CatalogService);
   readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly navList = input.required<HomeNavList>();
@@ -69,7 +72,29 @@ export class NavigationListSectionComponent {
 
   readonly titleId = `nav-list-title-${++nextTitleId}`;
 
-  readonly items = computed(() => this.navList().items.slice(0, NAV_LIST_MAX_ITEMS));
+  /** False on the server and through the hydration render; true after the first browser render. */
+  readonly #rendered = signal(false);
+
+  /**
+   * The saved list as staff entered it (admin preview), or for shoppers the same
+   * list without links to a category or brand that has nothing published. The
+   * check is the one the menus use (`CatalogService.isEmpty`), which keeps every
+   * link while the catalogue counts are missing or still loading.
+   *
+   * Until the first browser render finishes, only the seed taxonomy counts as
+   * known (the live category and brand lists are empty during SSR), so the
+   * hydration render matches the server HTML. The live lists apply afterwards.
+   */
+  readonly items = computed(() => {
+    const saved = this.navList().items.slice(0, NAV_LIST_MAX_ITEMS);
+    if (this.previewMode()) return saved;
+    if (!this.#rendered()) {
+      const summary = this.#catalog.summary();
+      if (!summary) return saved;
+      return saved.filter((item) => !catalogPathIsEmpty(summary, item.link));
+    }
+    return saved.filter((item) => !this.#catalog.isEmpty(item.link));
+  });
   readonly title = computed(() => this.navList().title.trim() || 'Shop by category');
 
   readonly #activeIndex = linkedSignal<number | null, number>({
@@ -106,7 +131,10 @@ export class NavigationListSectionComponent {
   #cancelPhotoWait: (() => void) | null = null;
 
   constructor() {
-    afterNextRender(() => this.#bootBrowser());
+    afterNextRender(() => {
+      this.#rendered.set(true);
+      this.#bootBrowser();
+    });
 
     afterRenderEffect(() => {
       const index = this.activeIndex();
@@ -176,7 +204,7 @@ export class NavigationListSectionComponent {
   }
 
   #clamp(index: number): number {
-    const count = this.navList().items.length;
+    const count = this.items().length;
     if (count <= 0) return 0;
     if (index < 0) return 0;
     if (index >= count) return count - 1;
