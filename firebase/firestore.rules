@@ -109,7 +109,14 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    // Per-uid daily checkout counters. Admin SDK only.
+    // Public read-by-key copy of a guest order (only the fields the order page reads), written by
+    // the syncOrderView trigger. The 43-character random key is the secret; listing is denied.
+    match /orderViews/{viewKey} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    // Per-uid and guest daily checkout counters. Admin SDK only.
     match /orderRateLimits/{id} {
       allow read, write: if false;
     }
@@ -287,7 +294,7 @@ service cloud.firestore {
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits']);
     }
   }
 }

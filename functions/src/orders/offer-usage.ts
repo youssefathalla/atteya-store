@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { FieldValue, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { OfferLimits } from '../offers/engine/index.js';
@@ -17,6 +18,16 @@ export interface UsedOffer {
 }
 
 export type UsedOfferKind = 'gift' | 'deal' | 'item' | 'shipping';
+
+/**
+ * The key a guest's `perCustomer` offer uses are counted under, in place of a uid:
+ * `guest_<sha256 of the lower-cased, trimmed email>`, so `offerUsage/{offerId}_guest_<hash>`.
+ * The same email gives the same key on every guest order.
+ */
+export function guestOfferCustomerKey(email: string): string {
+  const normalized = email.trim().toLowerCase();
+  return `guest_${createHash('sha256').update(normalized).digest('hex')}`;
+}
 
 /**
  * `updatedBy` on an offer an order switched off at its last use, so a failed Paymob start can
@@ -121,7 +132,8 @@ export async function confirmedEndedOfferIds(
  * read in `tx`); when that use is the last one `totalUses` allows, it also switches the offer off
  * (`active: false`) in the same transaction, so the live offers listener takes it out of every
  * bag, product page and checkout. The function returns the ids it switched off.
- * Counts live in `offerUsage/{offerId}` and `offerUsage/{offerId}_{uid}` (Admin SDK only).
+ * Counts live in `offerUsage/{offerId}` and `offerUsage/{offerId}_{uid}` (Admin SDK only). For a
+ * guest, `uid` is `guestOfferCustomerKey(email)`.
  */
 export async function readOfferUses(
   tx: Transaction,

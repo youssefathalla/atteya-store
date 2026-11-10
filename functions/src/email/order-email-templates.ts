@@ -8,7 +8,7 @@ import {
 } from '../store/order-messages.js';
 import { whatsappChatUrl } from '../store/store-info.js';
 import type { OrderEmailKind } from './order-email-events.js';
-import type { OrderEmailLine, OrderEmailOrder } from './order-email-model.js';
+import { orderConfirmationUrl, type OrderEmailLine, type OrderEmailOrder } from './order-email-model.js';
 
 /**
  * Order email copy. Agreed wording lives on the "Order emails with Resend" Linear issue (ATS-10);
@@ -511,7 +511,7 @@ function orderButton(order: OrderEmailOrder, ctx: OrderEmailContext): EmailButto
   if (!ctx.storefrontUrl) return null;
   return {
     label: 'View Your Order',
-    url: `${ctx.storefrontUrl}/checkout/confirmation/${encodeURIComponent(order.id)}`,
+    url: orderConfirmationUrl(ctx.storefrontUrl, order.id, order.viewKey),
   };
 }
 
