@@ -510,7 +510,10 @@ describe('bag notes when an offer stops applying (ATS-143)', () => {
   it('shows a new note even when another one goes in the same look', () => {
     const otherKey = bagGiftKey(lineKey, 'gift-offer', 'gift-2');
     const notes = step({ previous: state([], [shirtKey]), next: state([]) });
-    assert.deepEqual(notes.gifts.map((note) => note.key), [shirtKey]);
+    assert.deepEqual(
+      notes.gifts.map((note) => note.key),
+      [shirtKey],
+    );
     const after = nextBagNotes({
       notes,
       previous: state([], [otherKey]),
@@ -518,7 +521,10 @@ describe('bag notes when an offer stops applying (ATS-143)', () => {
       isLive: () => false,
       usedUp: new Set(),
     });
-    assert.deepEqual(after.gifts.map((note) => note.key), [otherKey]);
+    assert.deepEqual(
+      after.gifts.map((note) => note.key),
+      [otherKey],
+    );
   });
 
   it('keeps the same notes object when nothing changed', () => {
