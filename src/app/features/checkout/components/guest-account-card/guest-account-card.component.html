@@ -85,13 +85,14 @@
         <h2 id="guest-verify-heading" class="font-title-md font-bold!">Confirm Your Email</h2>
         @if (verificationSent()) {
           <p class="font-body-md text-on-surface-variant" role="status">
-            We sent a confirmation link to <span class="break-all">{{ accountEmail() }}</span>. Open it,
-            then select Save to My Account to save this order.
+            We sent a confirmation link to <span class="break-all">{{ accountEmail() }}</span
+            >. Open it, then select Save to My Account to save this order.
           </p>
         } @else {
           <p class="font-body-md text-on-surface-variant">
             To save this order to your account, first confirm
-            <span class="break-all">{{ accountEmail() }}</span>.
+            <span class="break-all">{{ accountEmail() }}</span
+            >.
           </p>
         }
       </div>

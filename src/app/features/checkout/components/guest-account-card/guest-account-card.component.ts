@@ -272,9 +272,14 @@ export class GuestAccountCardComponent implements OnInit {
     }
   }
 
-  /** Absolute link back to this order, for the confirmation email's continue button. */
+  /**
+   * Absolute link back to this order, for the confirmation email's continue button. It carries the
+   * view key so the page opens on another device too; the email only goes to the order's own address,
+   * which already gets the keyed order link, and the page removes the key from the address bar.
+   */
   #continueUrl(): string | undefined {
     const origin = globalThis.location?.origin;
-    return origin ? `${origin}${this.returnUrl()}` : undefined;
+    if (!origin) return undefined;
+    return `${origin}${this.returnUrl()}?key=${encodeURIComponent(this.viewKey())}`;
   }
 }
