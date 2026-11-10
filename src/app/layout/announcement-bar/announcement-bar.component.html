@@ -2,8 +2,8 @@
   <section
     class="announcement-bar"
     aria-label="Announcements"
-    (mouseenter)="onPointerEnter()"
-    (mouseleave)="onPointerLeave()"
+    (pointerenter)="onPointerEnter($event)"
+    (pointerleave)="onPointerLeave()"
     (focusin)="onFocusIn()"
     (focusout)="onFocusOut($event)"
     (touchstart)="onTouchStart($event)"

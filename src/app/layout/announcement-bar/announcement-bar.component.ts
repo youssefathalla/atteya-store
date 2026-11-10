@@ -131,8 +131,12 @@ export class AnnouncementBarComponent {
     if (count > 1) this.#index.set((this.activeIndex() - 1 + count) % count);
   }
 
-  onPointerEnter(): void {
-    this.#hovered.set(true);
+  /**
+   * Only a real mouse pauses on hover: a tap fires compatibility mouse events with no matching
+   * leave (iOS Safari), which would otherwise pause rotation for the rest of the visit.
+   */
+  onPointerEnter(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') this.#hovered.set(true);
   }
 
   onPointerLeave(): void {
