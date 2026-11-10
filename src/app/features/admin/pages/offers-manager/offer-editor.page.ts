@@ -39,6 +39,8 @@ import { RewardEditorComponent } from './components/reward-editor/reward-editor.
 import { ScheduleEditorComponent } from './components/schedule-editor/schedule-editor.component';
 import {
   createEmptyOfferDraft,
+  isUnavailableDeal,
+  UNAVAILABLE_DEAL_MESSAGE,
   withoutEmptyFreeItemRules,
   withoutStackSaleItems,
 } from './models/offer-admin.model';
@@ -116,6 +118,9 @@ export class OfferEditorPageComponent implements OnInit {
   /** Top banner settings; an offer saved before the banner existed starts switched off. */
   readonly banner = computed(() => this.draft().banner ?? DEFAULT_OFFER_BANNER);
 
+  /** True for an old offer of a deal type hidden for launch: it opens but Save Offer stays off. */
+  readonly isUnavailableDeal = computed(() => isUnavailableDeal(this.draft().reward, this.draft().scope));
+
   readonly pageHeading = computed(() => (this.offerId() ? 'Edit offer' : 'Create offer'));
 
   constructor() {
@@ -174,6 +179,10 @@ export class OfferEditorPageComponent implements OnInit {
 
   async save(): Promise<void> {
     if (this.isSaving()) return;
+    if (this.isUnavailableDeal()) {
+      this.#snackbar.error(UNAVAILABLE_DEAL_MESSAGE);
+      return;
+    }
     if (this.validation().errors.length > 0) {
       this.#snackbar.error(this.validation().errors[0].message);
       return;

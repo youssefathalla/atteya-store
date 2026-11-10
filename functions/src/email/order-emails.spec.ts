@@ -327,6 +327,18 @@ describe('order email Buy X Get Y', () => {
     assert.ok(email.html.includes('>1 free<'));
     assert.ok(email.text.includes(`${formatEgp(1000)} (1 free)`));
   });
+
+  it('reads the line before the discount from fullEgp when group pieces lost their per-item offer', () => {
+    const doc = orderDoc({});
+    const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
+    // 3 pieces with 10% off (900) in a Buy 2 get 1 free group: they pay 1,000 each, one free.
+    pricing.lines[0]!['quantity'] = 3;
+    pricing.lines[0]!['unitEgp'] = 900;
+    pricing.lines[0]!['fullEgp'] = 3000;
+    pricing.lines[0]!['discountEgp'] = 1000;
+    pricing.lines[0]!['deals'] = [{ offerId: 'b2g1', units: 1, percent: 100, discountEgp: 1000 }];
+    assert.equal(read(doc).lines[0]!.lineEgp, 2000);
+  });
 });
 
 describe('order email help line', () => {

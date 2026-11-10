@@ -41,6 +41,11 @@ export interface OrderLinePrice {
   readonly discountEgp?: number;
   /** The Buy X Get Y offers behind `discountEgp`. */
   readonly deals?: readonly OrderLineDeal[];
+  /**
+   * The line before its Buy X Get Y discount (pieces in a group pay the price before per-item
+   * offers, so it can differ from `unitEgp × quantity`). Missing on older orders and other lines.
+   */
+  readonly fullEgp?: number;
 }
 
 /** One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100). */

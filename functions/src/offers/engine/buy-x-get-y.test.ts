@@ -40,7 +40,8 @@ function line(facts, quantity = 1, extra = {}) {
     product: facts,
     variant: null,
     quantity,
-    unitPrice: facts.price,
+    basePrice: facts.price,
+    offerPrice: facts.price,
     onSale: false,
     giftWorth: 0,
     ...extra,
@@ -255,6 +256,115 @@ describe('buy x get y in the bag', () => {
     assert.equal(dealTag([{ units: 1, percent: 100 }], 3), '1 free');
     assert.equal(dealTag([{ units: 2, percent: 50 }], 2), '\u221250%');
     assert.equal(dealTag([{ units: 1, percent: 50 }], 2), '1 at \u221250%');
+  });
+});
+
+describe('one discount per item: Buy X Get Y or the per-item offer, the bigger saving wins', () => {
+  const TEE = product('tee-1000', ['apparel', 't-shirts'], 1000);
+  const OTHER = product('tee-other', ['apparel', 't-shirts'], 1000);
+  // A per-item offer is passed in as the piece's price after it (`offerPrice`).
+  const withOffer = (facts, quantity, offerPrice) => line(facts, quantity, { offerPrice });
+
+  it('example A: 10% off and Buy 2 get 1 free on three 1,000 items pays 2,000', () => {
+    const result = priceBagDeals([withOffer(TEE, 3, 900)], [bxgy('b2g1', {})], CTX);
+    const [only] = result.lines;
+    assert.equal(only.total, 2000);
+    assert.equal(only.before, 3000);
+    assert.equal(only.discount, 1000);
+    assert.equal(only.dealUnits, 3);
+    assert.equal(only.offerUnits, 0);
+    assert.equal(dealTag(only.deals, 3), '1 free');
+    assert.deepEqual(result.offerIds, ['b2g1']);
+  });
+
+  it('example B: 50% off and Buy 2 get 1 free pays 1,500, with no deal and nothing counted', () => {
+    const result = priceBagDeals([withOffer(TEE, 3, 500)], [bxgy('b2g1', {})], CTX);
+    const [only] = result.lines;
+    assert.equal(only.total, 1500);
+    assert.equal(only.discount, 0);
+    assert.equal(only.dealUnits, 0);
+    assert.equal(only.offerUnits, 3);
+    assert.deepEqual(only.deals, []);
+    assert.equal(only.giftUnits, 3);
+    assert.deepEqual(result.offerIds, []);
+    assert.deepEqual(result.hints, []);
+  });
+
+  it('a tie keeps the per-item offer', () => {
+    const b1g1 = bxgy('b1g1', { buy: { quantity: 1 } }, { title: 'Buy 1, get 1 free' });
+    const result = priceBagDeals([withOffer(TEE, 2, 500)], [b1g1], CTX);
+    assert.equal(result.lines[0].total, 1000);
+    assert.deepEqual(result.offerIds, []);
+  });
+
+  it('pieces outside every group keep their per-item offer', () => {
+    const result = priceBagDeals([withOffer(TEE, 4, 900)], [bxgy('b2g1', {})], CTX);
+    const [only] = result.lines;
+    // Three pieces in the group pay 1,000 with one free; the fourth keeps 10% off.
+    assert.equal(only.dealUnits, 3);
+    assert.equal(only.offerUnits, 1);
+    assert.equal(only.before, 3900);
+    assert.equal(only.total, 2900);
+  });
+
+  it('mixed bag: each group is compared on its own pieces', () => {
+    const result = priceBagDeals(
+      [withOffer(TEE, 3, 500), withOffer(OTHER, 3, 1000)],
+      [bxgy('b2g1', {})],
+      CTX,
+    );
+    // The pieces without an offer make the winning group; the half-price ones keep half price.
+    assert.deepEqual(
+      result.lines.map((entry) => entry.total),
+      [1500, 2000],
+    );
+    assert.deepEqual(
+      result.lines.map((entry) => entry.dealUnits),
+      [0, 3],
+    );
+    assert.equal(result.discount, 1000);
+    assert.deepEqual(result.offerIds, ['b2g1']);
+  });
+
+  it('a free grip loses to 10% off the racket, so the racket keeps its offer', () => {
+    const result = priceBagDeals([withOffer(RACKET, 1, 5400), line(GRIP_1)], [RACKET_GRIP], CTX);
+    assert.deepEqual(
+      result.lines.map((entry) => entry.total),
+      [5400, 150],
+    );
+    assert.deepEqual(result.offerIds, []);
+  });
+
+  it('a racket that pays full price in a group that won is priced before its offer', () => {
+    // 10 off the racket (saves 10) loses to a free 150 grip: the racket pays 6,000.
+    const result = priceBagDeals([withOffer(RACKET, 1, 5990), line(GRIP_1)], [RACKET_GRIP], CTX);
+    assert.deepEqual(
+      result.lines.map((entry) => [entry.dealUnits, entry.discount, entry.total]),
+      [
+        [1, 0, 6000],
+        [1, 150, 0],
+      ],
+    );
+  });
+
+  it('a group one offer loses can still be used by another', () => {
+    const tenPercent = bxgy(
+      'b2g1-10',
+      { get: { quantity: 1, percent: 10 } },
+      { title: 'Buy 2, get 1 at 10% off', priority: 2 },
+    );
+    const free = bxgy('b2g1-free', {}, { priority: 1 });
+    const result = priceBagDeals([withOffer(TEE, 3, 800)], [tenPercent, free], CTX);
+    assert.equal(result.lines[0].total, 2000);
+    assert.deepEqual(result.offerIds, ['b2g1-free']);
+  });
+
+  it('no "add more" nudge when the next group would lose to the per-item offer', () => {
+    const halfPrice = priceBagDeals([withOffer(TEE, 1, 500)], [bxgy('b2g1', {})], CTX);
+    assert.deepEqual(halfPrice.hints, []);
+    const tenOff = priceBagDeals([withOffer(TEE, 1, 900)], [bxgy('b2g1', {})], CTX);
+    assert.equal(tenOff.hints.length, 1);
+    assert.equal(tenOff.hints[0].missing, 2);
   });
 });
 

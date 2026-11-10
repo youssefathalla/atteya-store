@@ -20,7 +20,7 @@
       <button
         matButton="filled"
         type="button"
-        [disabled]="isSaving() || validation().errors.length > 0"
+        [disabled]="isSaving() || isUnavailableDeal() || validation().errors.length > 0"
         [attr.aria-label]="isSaving() ? 'Saving offer' : null"
         (click)="save()"
       >

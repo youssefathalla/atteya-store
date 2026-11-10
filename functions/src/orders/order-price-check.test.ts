@@ -2,11 +2,15 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 // Runs against the compiled code (`npm test` builds first).
 import { parseOfferDoc } from '../../lib/offers/offer-schema.js';
-import { liveOffers, priceItem } from '../../lib/offers/engine/index.js';
+import { liveOffers, priceBagDeals, priceItem } from '../../lib/offers/engine/index.js';
 import {
+  costsMoreThanStacked,
+  missedBasePrice,
   missedLinePrice,
+  outdatedPageError,
   priceChangedError,
   priceWithFreshOffersOnMiss,
+  withDeals,
 } from '../../lib/orders/order-pricing.server.js';
 import { parseShownOfferId, parseShownUnitEgp } from '../../lib/orders/order-request.js';
 
@@ -187,5 +191,142 @@ describe('a line that costs more than checkout showed', () => {
     });
     assert.equal(err.message, CHANGED);
     assert.deepEqual(err.details, { priceChanged: true, productId: 'tee-1' });
+  });
+});
+
+describe('price before per-item offers on pieces in a Buy X Get Y group', () => {
+  const line = (extra) => ({ productId: 'tee-1', shownBaseEgp: 1000, baseEgp: 1000, dealUnits: 3, ...extra });
+
+  it('refuses when that price went up on a line with pieces in a group', () => {
+    const missed = missedBasePrice([line({ baseEgp: 1200 })]);
+    assert.ok(missed);
+    const err = priceChangedError(missed);
+    assert.equal(err.message, CHANGED);
+    assert.deepEqual(err.details, { priceChanged: true, productId: 'tee-1' });
+  });
+
+  it('ignores lines with no piece in a group, an older page, and a lower or equal price', () => {
+    assert.equal(missedBasePrice([line({ baseEgp: 1200, dealUnits: 0 })]), null);
+    assert.equal(missedBasePrice([line({ baseEgp: 1200, shownBaseEgp: null })]), null);
+    assert.equal(missedBasePrice([line({ baseEgp: 900 })]), null);
+    assert.equal(missedBasePrice([line({})]), null);
+  });
+});
+
+describe('pages from before one discount per item', () => {
+  const b2g1 = parseOfferDoc('b2g1', {
+    name: 'b2g1',
+    title: 'Buy 2, get 1 free',
+    active: true,
+    scope: 'item',
+    conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['t-shirts'] }] }] },
+    reward: {
+      kind: 'buyXGetY',
+      buy: { quantity: 2 },
+      get: { quantity: 1, percent: 100 },
+      getConditions: null,
+      cheapestFree: true,
+      repeat: true,
+      maxApplications: null,
+    },
+  });
+  const facts = (offerPrice) => [
+    {
+      product: { ...TEE, price: 1000 },
+      variant: null,
+      quantity: 3,
+      basePrice: 1000,
+      offerPrice,
+      onSale: false,
+      giftWorth: 0,
+    },
+  ];
+
+  it('is refused with a refresh message when the old page showed Buy X Get Y on top', () => {
+    // Old page: 3 × 900 − 900 = 1,800. Now: 2,000.
+    assert.equal(costsMoreThanStacked(facts(900), [b2g1], CTX), true);
+    const err = outdatedPageError();
+    assert.equal(err.message, 'Prices in your bag changed. Refresh the page and place your order again.');
+    assert.deepEqual(err.details, { outdatedPage: true });
+  });
+
+  it('goes through when the old page showed the same total', () => {
+    assert.equal(costsMoreThanStacked(facts(1000), [b2g1], CTX), false);
+    assert.equal(costsMoreThanStacked(facts(900), [], CTX), false);
+  });
+
+  it('is refused when the per-item offer now wins but the old page stacked both', () => {
+    // 50% off: 1,500 now; the old page showed 3 × 500 − 500 = 1,000.
+    assert.equal(costsMoreThanStacked(facts(500), [b2g1], CTX), true);
+  });
+});
+
+describe('order line with Buy X Get Y groups', () => {
+  const priced = {
+    productId: 'tee-1',
+    variantId: null,
+    selection: {},
+    quantity: 4,
+    unitEgp: 900,
+    unitDisplay: 900,
+    lineDisplay: 3600,
+    name: 'Tee',
+    optionLabels: [],
+    imagePath: null,
+  };
+
+  it('saves the line before and after the discount, group pieces at the price before offers', () => {
+    const result = priceBagDeals(
+      [
+        {
+          product: { ...TEE, price: 1000 },
+          variant: null,
+          quantity: 4,
+          basePrice: 1000,
+          offerPrice: 900,
+          onSale: false,
+          giftWorth: 0,
+        },
+      ],
+      [
+        parseOfferDoc('b2g1', {
+          name: 'b2g1',
+          title: 'Buy 2, get 1 free',
+          active: true,
+          scope: 'item',
+          conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['t-shirts'] }] }] },
+          reward: {
+            kind: 'buyXGetY',
+            buy: { quantity: 2 },
+            get: { quantity: 1, percent: 100 },
+            getConditions: null,
+            cheapestFree: true,
+            repeat: true,
+            maxApplications: null,
+          },
+        }),
+      ],
+      CTX,
+    );
+    const line = withDeals(priced, result.lines[0]);
+    assert.equal(line.unitEgp, 900);
+    assert.equal(line.fullEgp, 3900);
+    assert.equal(line.discountEgp, 1000);
+    assert.equal(line.lineDisplay, 2900);
+    assert.deepEqual(line.deals, [{ offerId: 'b2g1', units: 1, percent: 100, discountEgp: 1000 }]);
+  });
+
+  it('leaves a line with no piece in a group as it was', () => {
+    const none = {
+      deals: [],
+      discount: 0,
+      discountedUnits: 0,
+      giftUnits: 4,
+      dealUnits: 0,
+      offerUnits: 4,
+      before: 3600,
+      total: 3600,
+    };
+    assert.equal(withDeals(priced, none), priced);
   });
 });

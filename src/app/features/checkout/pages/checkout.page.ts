@@ -381,7 +381,7 @@ export class CheckoutPageComponent implements OnInit {
         });
       }
       const display =
-        priced.deals.discount > 0
+        priced.deals.dealUnits > 0
           ? toDisplayAmount(priced.lineEgp, entry)
           : lineDisplayAmount(toDisplayAmount(priced.unitEgp, entry), line.quantity);
       subtotalEgp += priced.lineEgp;
@@ -443,13 +443,8 @@ export class CheckoutPageComponent implements OnInit {
         options: info ? selectionLabel(info.options, line.selection) : '',
         quantity: line.quantity,
         price: display == null ? '' : formatMoney(display, entry.code, decimals),
-        was: deal
-          ? formatMoney(
-              lineDisplayAmount(toDisplayAmount(deal.unitEgp, entry), line.quantity),
-              entry.code,
-              decimals,
-            )
-          : '',
+        // The line before its Buy X Get Y discount: pieces in a group at the price before per-item offers.
+        was: deal ? formatMoney(toDisplayAmount(deal.fullEgp, entry), entry.code, decimals) : '',
         deal: deal ? dealTag(deal.deals.deals, line.quantity) : '',
         gifts: (giftUnits > 0 ? (line.gifts ?? []) : []).map((gift) => {
           const name = giftNameFor(offers, gift.offerId, gift.giftId);

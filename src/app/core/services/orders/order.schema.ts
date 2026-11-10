@@ -46,6 +46,11 @@ export const OrderLinePriceSchema = v.object({
   ),
   /** Whole EGP a Buy X Get Y offer took off the line (`lineDisplay` is already after it). */
   discountEgp: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  /**
+   * The line before its Buy X Get Y discount: pieces in a group at the price before per-item
+   * offers. Only on lines with pieces in a group; missing on older orders.
+   */
+  fullEgp: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   deals: v.optional(
     v.array(
       v.object({

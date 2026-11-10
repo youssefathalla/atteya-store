@@ -24,12 +24,20 @@ export interface BagPricingProduct {
 export interface PricedBagLine {
   /** One piece after per-item offers. */
   readonly unitEgp: number;
-  /** The line before Buy X Get Y (`unitEgp × quantity`). */
+  /** One piece before per-item offers (the product's price; pieces in a Buy X Get Y group pay it). */
+  readonly baseEgp: number;
+  /**
+   * The line before Buy X Get Y: pieces in a Buy X Get Y group at `baseEgp`, the others at
+   * `unitEgp` (`unitEgp × quantity` when no piece is in a group).
+   */
   readonly fullEgp: number;
   /** The line after Buy X Get Y. */
   readonly lineEgp: number;
   readonly deals: BagLineDeals;
-  /** The per-item offer that set `unitEgp`, or null (shown on the bag card's offer strip). */
+  /**
+   * The per-item offer that set `unitEgp`, or null. It applies only to `deals.offerUnits` pieces:
+   * pieces in a Buy X Get Y group that won don't get it (one discount per item).
+   */
   readonly appliedOfferId: string | null;
 }
 
@@ -42,7 +50,8 @@ export interface PricedBagDeals {
 
 /**
  * Prices the bag the way the order callables do (`priceStoreOrder`): per-item offers on each
- * piece, then Buy X Get Y over the whole bag. A piece a Buy X Get Y offer discounts gets no free
+ * piece, then Buy X Get Y over the whole bag on the prices before per-item offers, each group
+ * keeping whichever saves more (one discount per item). A piece a Buy X Get Y offer discounts gets no free
  * gifts; the gift wins when it is worth more (gift worth = the gift products' prices). Lines
  * whose product is missing (`null` or not loaded) are left out. Display only: the server always
  * prices again.
@@ -56,6 +65,7 @@ export function priceBag(
   const facts: BagLineFacts[] = [];
   const bagIndex: number[] = [];
   const units: number[] = [];
+  const bases: number[] = [];
   const itemOffers: (string | null)[] = [];
   lines.forEach((line, index) => {
     const product = products.get(line.productId);
@@ -69,23 +79,25 @@ export function priceBag(
       product: product.priced,
       variant,
       quantity: line.quantity,
-      unitPrice: unitEgp,
+      basePrice: item.basePrice,
+      offerPrice: unitEgp,
       onSale: compareAt !== null && compareAt > product.priced.price,
       giftWorth: lineGiftWorth(line, products),
     });
     bagIndex.push(index);
     units.push(unitEgp);
+    bases.push(item.basePrice);
   });
 
   const deals = priceBagDeals(facts, offers, ctx);
   const priced: (PricedBagLine | null)[] = lines.map(() => null);
   deals.lines.forEach((lineDeals, n) => {
     const index = bagIndex[n]!;
-    const fullEgp = units[n]! * lines[index]!.quantity;
     priced[index] = {
       unitEgp: units[n]!,
-      fullEgp,
-      lineEgp: Math.max(0, fullEgp - lineDeals.discount),
+      baseEgp: bases[n]!,
+      fullEgp: lineDeals.before,
+      lineEgp: lineDeals.total,
       deals: lineDeals,
       appliedOfferId: itemOffers[n] ?? null,
     };
@@ -122,22 +134,28 @@ export function dealOfferIdsOf(lines: readonly (PricedBagLine | null)[]): string
   return Array.from(ids);
 }
 
-/** What checkout showed for one bag line, sent with the order (`shownUnitEgp`, `shownOfferId`). */
+/**
+ * What checkout showed for one bag line, sent with the order (`shownUnitEgp`, `shownOfferId`,
+ * `shownBaseEgp`).
+ */
 export interface ShownLinePrice {
   /** One piece after per-item offers, before Buy X Get Y; null when the line wasn't priced. */
   readonly shownUnitEgp: number | null;
   /** The per-item offer behind that price, or null. */
   readonly shownOfferId: string | null;
+  /** One piece before per-item offers (what pieces in a Buy X Get Y group pay); null when not priced. */
+  readonly shownBaseEgp: number | null;
 }
 
 /**
- * The per-piece price and per-item offer checkout showed for each bag line (same order as the
+ * The per-piece prices and per-item offer checkout showed for each bag line (same order as the
  * bag). The server refuses the order instead of charging more than this; it never lowers a price.
  */
 export function shownLinePrices(lines: readonly (PricedBagLine | null)[]): ShownLinePrice[] {
   return lines.map((line) => ({
     shownUnitEgp: line?.unitEgp ?? null,
     shownOfferId: line?.appliedOfferId ?? null,
+    shownBaseEgp: line?.baseEgp ?? null,
   }));
 }
 
