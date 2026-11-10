@@ -7,12 +7,14 @@ import {
   costsMoreThanStacked,
   missedBasePrice,
   missedLinePrice,
+  missedOrderTotal,
   outdatedPageError,
   priceChangedError,
   priceWithFreshOffersOnMiss,
+  totalChangedError,
   withDeals,
 } from '../../lib/orders/order-pricing.server.js';
-import { parseShownOfferId, parseShownUnitEgp } from '../../lib/orders/order-request.js';
+import { parseShownAmountEgp, parseShownOfferId, parseShownUnitEgp } from '../../lib/orders/order-request.js';
 
 const CHANGED = 'Prices in your bag changed. Check your bag and place your order again.';
 const CTX = { now: new Date('2026-11-09T12:00:00Z'), signedIn: true, codes: [] };
@@ -191,6 +193,103 @@ describe('a line that costs more than checkout showed', () => {
     });
     assert.equal(err.message, CHANGED);
     assert.deepEqual(err.details, { priceChanged: true, productId: 'tee-1' });
+  });
+});
+
+describe('shipping fee and order total checkout showed', () => {
+  const BOX = { kind: 'domestic-box' as const, priceEgp: 115 };
+  const FREE = { kind: 'domestic-box' as const, priceEgp: 0 };
+
+  it('reads a shown shipping fee or total, rounding down, and ignores anything unusable', () => {
+    assert.equal(parseShownAmountEgp(2050), 2050);
+    assert.equal(parseShownAmountEgp(0), 0);
+    assert.equal(parseShownAmountEgp(2049.9), 2049);
+    assert.equal(parseShownAmountEgp(-1), null);
+    assert.equal(parseShownAmountEgp('2050'), null);
+    assert.equal(parseShownAmountEgp(Number.NaN), null);
+    assert.equal(parseShownAmountEgp(undefined), null);
+    assert.equal(parseShownAmountEgp(2_000_000_000), null);
+  });
+
+  it('refuses when a lower price drops the bag under free shipping and the total goes up', () => {
+    // Free shipping over 2,000 EGP: checkout showed 2,050 with free shipping; the racket is now
+    // 1,990, so the server adds the 115 box: 2,105.
+    assert.deepEqual(missedOrderTotal({ shownShippingEgp: 0, shownTotalEgp: 2050 }, BOX, 2105), {
+      missedTotalEgp: 2105,
+      shippingEgp: 115,
+    });
+  });
+
+  it('refuses when only the total is higher (a Buy X Get Y discount shrank)', () => {
+    assert.deepEqual(missedOrderTotal({ shownShippingEgp: 0, shownTotalEgp: 1000 }, FREE, 1080), {
+      missedTotalEgp: 1080,
+      shippingEgp: 0,
+    });
+  });
+
+  it('refuses when only the shipping fee is higher, even with a lower total', () => {
+    assert.deepEqual(missedOrderTotal({ shownShippingEgp: 0, shownTotalEgp: 2050 }, BOX, 1615), {
+      missedTotalEgp: 1615,
+      shippingEgp: 115,
+    });
+  });
+
+  it('lets the order through at the server total when it is lower or equal', () => {
+    assert.equal(missedOrderTotal({ shownShippingEgp: 115, shownTotalEgp: 2105 }, BOX, 2105), null);
+    assert.equal(missedOrderTotal({ shownShippingEgp: 115, shownTotalEgp: 2105 }, FREE, 2000), null);
+    assert.equal(missedOrderTotal({ shownShippingEgp: 115, shownTotalEgp: 2105 }, BOX, 1500), null);
+  });
+
+  it('skips a fee to be agreed later, and a page that sent nothing', () => {
+    const agreed = { kind: 'domestic-agreed' as const, priceEgp: 0 };
+    assert.equal(missedOrderTotal({ shownShippingEgp: 0, shownTotalEgp: 100 }, agreed, 5000), null);
+    assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: null }, BOX, 2105), null);
+    assert.deepEqual(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 2050 }, BOX, 2105), {
+      missedTotalEgp: 2105,
+      shippingEgp: 115,
+    });
+  });
+
+  it('reads the offers again, then refuses with "Prices in your bag changed" and the server totals', async () => {
+    const loads: boolean[] = [];
+    await assert.rejects(
+      priceWithFreshOffersOnMiss(
+        async (fresh: boolean) => {
+          loads.push(fresh);
+          return [] as never;
+        },
+        async () => ({ missedTotalEgp: 2105, shippingEgp: 115 }) as never,
+      ),
+      (error: unknown) => {
+        const err = error as { code: string; message: string; details: Record<string, unknown> };
+        assert.equal(err.code, 'failed-precondition');
+        assert.equal(err.message, CHANGED);
+        assert.equal(err.details['priceChanged'], true);
+        assert.deepEqual(err.details['totalChanged'], { shippingEgp: 115, totalEgp: 2105 });
+        assert.equal(typeof err.details['nowMs'], 'number');
+        return true;
+      },
+    );
+    assert.deepEqual(loads, [false, true]);
+  });
+
+  it('goes through when the fresh offers bring the total back down', async () => {
+    const result = await priceWithFreshOffersOnMiss(
+      async (fresh: boolean) => (fresh ? [{ id: 'amount-off' }] : []) as never,
+      async (offers: readonly unknown[]) =>
+        (offers.length > 0 ? { totalEgp: 2050 } : { missedTotalEgp: 2105, shippingEgp: 115 }) as never,
+    );
+    assert.deepEqual(result, { totalEgp: 2050 });
+  });
+
+  it('gives the server clock and totals in the refusal', () => {
+    const err = totalChangedError({ missedTotalEgp: 2105, shippingEgp: 115 }, 1_700_000_000_000);
+    assert.equal(err.message, CHANGED);
+    assert.deepEqual(err.details, {
+      priceChanged: true,
+      totalChanged: { shippingEgp: 115, totalEgp: 2105 },
+      nowMs: 1_700_000_000_000,
+    });
   });
 });
 

@@ -17,6 +17,8 @@ export class OffersService {
   readonly #destroyRef = inject(DestroyRef);
 
   readonly #now = signal<Date>(new Date());
+  /** How far the server's clock is ahead of this device (ms), from `syncClock`; 0 until then. */
+  #clockOffsetMs = 0;
   readonly #failed = signal(false);
   /**
    * Offers the order callables said have ended for this shopper (`details.endedOfferId`): left out
@@ -69,10 +71,21 @@ export class OffersService {
     this.#ended.update((ended) => new Set([...ended, offerId]));
   }
 
+  /**
+   * Moves the offer clock to the server's time (`nowMs` from a refused order), so a device whose
+   * clock is off prices offers on the same clock as the order callables. The clock also ticks at
+   * once (it otherwise moves once a minute); a difference under 10 seconds keeps the old offset.
+   */
+  syncClock(serverNowMs: number): void {
+    const offset = serverNowMs - Date.now();
+    if (Math.abs(offset - this.#clockOffsetMs) >= 10_000) this.#clockOffsetMs = offset;
+    this.#now.set(new Date(Date.now() + this.#clockOffsetMs));
+  }
+
   constructor() {
     if (isPlatformBrowser(this.#platformId)) {
       const interval = setInterval(() => {
-        this.#now.set(new Date());
+        this.#now.set(new Date(Date.now() + this.#clockOffsetMs));
       }, 60_000);
       this.#destroyRef.onDestroy(() => clearInterval(interval));
     }

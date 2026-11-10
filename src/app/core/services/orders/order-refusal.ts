@@ -50,3 +50,56 @@ export function offerToLeaveOut(
   if (changed && changed === lastChangedOfferId) return { leaveOut: changed, lastChangedOfferId: null };
   return { leaveOut: null, lastChangedOfferId: changed };
 }
+
+/** The shipping fee and total (whole EGP) the server would charge, from a refused order. */
+export interface ServerTotals {
+  readonly shippingEgp: number;
+  readonly totalEgp: number;
+}
+
+/**
+ * The server's shipping fee and total from a "Prices in your bag changed" refusal where the
+ * order's shipping or total was higher than checkout showed (`details.totalChanged`), or null.
+ */
+export function totalChangedFrom(error: unknown): ServerTotals | null {
+  if (typeof error !== 'object' || error === null || !('details' in error)) return null;
+  const details = (error as { details?: unknown }).details;
+  if (typeof details !== 'object' || details === null) return null;
+  const totals = (details as { totalChanged?: unknown }).totalChanged;
+  if (typeof totals !== 'object' || totals === null) return null;
+  const { shippingEgp, totalEgp } = totals as { shippingEgp?: unknown; totalEgp?: unknown };
+  if (!isWholeEgp(shippingEgp) || !isWholeEgp(totalEgp)) return null;
+  return { shippingEgp, totalEgp };
+}
+
+/** The server's clock (epoch ms) sent with a refusal (`details.nowMs`), or null. */
+export function serverClockFrom(error: unknown): number | null {
+  if (typeof error !== 'object' || error === null || !('details' in error)) return null;
+  const details = (error as { details?: unknown }).details;
+  if (typeof details !== 'object' || details === null) return null;
+  const nowMs = (details as { nowMs?: unknown }).nowMs;
+  return typeof nowMs === 'number' && Number.isFinite(nowMs) && nowMs > 0 ? nowMs : null;
+}
+
+/**
+ * Which server totals checkout shows in its summary after a refused order, and the totals to
+ * remember for the next try. The first refusal shows nothing new (checkout reads the products
+ * again and prices on the server's clock, which normally brings the summary in line). When the
+ * same totals come back twice in a row, checkout shows them, so the shopper sees what the order
+ * costs and Place Order can never fail forever.
+ */
+export function serverTotalsToShow(
+  error: unknown,
+  last: ServerTotals | null,
+): { readonly show: ServerTotals | null; readonly last: ServerTotals | null } {
+  const totals = totalChangedFrom(error);
+  if (totals === null) return { show: null, last: null };
+  if (last !== null && last.shippingEgp === totals.shippingEgp && last.totalEgp === totals.totalEgp) {
+    return { show: totals, last: null };
+  }
+  return { show: null, last: totals };
+}
+
+function isWholeEgp(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
