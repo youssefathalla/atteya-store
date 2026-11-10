@@ -67,6 +67,10 @@
                           {{ options }}
                         </p>
                       }
+                      @if (earnedLabels()[$index]; as earned) {
+                        <!-- Pays full price because it gets another item free or cheaper (its own offer saves less). -->
+                        <p class="bag-card__earned">{{ earned }}</p>
+                      }
                     </div>
                     <button
                       matIconButton
@@ -165,7 +169,7 @@
                   </div>
                 } @else {
                   <div class="bag-card__pick">
-                    <app-bag-free-pick [hint]="nudge.hint" />
+                    <app-bag-free-pick [hint]="nudge.hint" [wouldDiscount]="wouldDiscount()" />
                   </div>
                 }
               }
