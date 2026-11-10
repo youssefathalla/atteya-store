@@ -151,24 +151,25 @@ const BAGS = [
     },
   },
   {
-    // Added Nov 2026: missed by the first run (the white Multigame bag still had its "Free shirt" and "Free
-    // socks" options on dev). Listed by its slug after the slug clean-up. Matched by photo: its
-    // second "BABOLAT" choice is the Bullpadel pair (Bullpadel logo), so that one is keyed by its
-    // value id.
-    slug: 'adidas-multigame-racket-bag-white',
+    // Added Nov 2026: missed by the first run (the white Multigame bag, `adidas-ofwhite` on prod,
+    // `adidas-multigame-racket-bag-white` on dev after the slug clean-up). Its slug differs between
+    // projects, so it and its gifts are named by document id (`id:`), which is the same on both.
+    // Matched by photo: its second "BABOLAT" choice is the Bullpadel pair (Bullpadel logo), so that
+    // one is keyed by its value id.
+    slug: 'id:eo-1e19afe4-4c6d-4eda-95ec-c3d3f123fa38',
     gifts: {
       'Free shirt': {
-        'ADIDAS WHITE': 'adidas-ale-galan-t-shirt-white',
-        'ADIDAS BLACK': 'adidas-ale-galan-t-shirt-black',
-        'ADIDAS POLO GRAY': 'adidas-simple-polo-black-grey',
-        'POLO WHITE': 'adidas-simple-polo-white-black',
-        ORANGE: 'adidas-ale-galan-t-shirt-orange',
+        'ADIDAS WHITE': 'id:eo-fc62ec11-6cac-4516-9bf3-53ec9d989236',
+        'ADIDAS BLACK': 'id:eo-da3c8d5a-8e43-4295-9b36-1e7dab4091d2',
+        'ADIDAS POLO GRAY': 'id:eo-325839fb-5572-4cf5-9c63-ef42c445207d',
+        'POLO WHITE': 'id:eo-5812cfbe-840e-42fa-8a40-007445107e8d',
+        ORANGE: 'id:eo-5bdbcf3a-4d9a-4d8a-8d18-1f50ee540c08',
       },
       'Free socks': {
-        'ON BLACK': 'on-cloud-socks-black',
-        'ON WHITE': 'on-cloud-socks-white',
-        BABOLAT: 'babolat-socks',
-        '9550fbde-20b6-4d5c-9139-3d4f96fed0a7': 'bullpadel-socks',
+        'ON BLACK': 'id:eo-e8bb355b-8089-4446-8f0a-5139becce1e0',
+        'ON WHITE': 'id:eo-618666e6-0bdc-4564-b53a-ac06b827d424',
+        BABOLAT: 'id:eo-98eee1ee-1fe5-4100-afb4-68d42b3bd869',
+        '9550fbde-20b6-4d5c-9139-3d4f96fed0a7': 'id:eo-7804d7ac-0526-4e17-9975-0ed422d3970c',
       },
     },
   },
@@ -286,8 +287,12 @@ function withoutArabicDescription(html) {
   return { html: paragraphsToHtml(kept), removed };
 }
 
-/** A product doc by slug (published or not), or null. */
+/** A product doc by slug, or by document id when written as `id:<doc id>` (published or not), or null. */
 async function productBySlug(slug) {
+  if (slug.startsWith('id:')) {
+    const snap = await db.doc(`products/${slug.slice(3)}`).get();
+    return snap.exists ? snap : null;
+  }
   const page = await db.collection('products').where('slug', '==', slug).limit(2).get();
   if (page.size > 1)
     console.log(`NOTE     more than one product has the slug "${slug}"; using ${page.docs[0].id}`);
