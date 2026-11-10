@@ -8,14 +8,13 @@
     Deal type
     <select
       class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-      [value]="selectedPickerKind()"
       (change)="onKindChange($event)"
     >
       @for (opt of pickerOptions; track opt.id) {
-        <option [value]="opt.id">{{ opt.label }}</option>
+        <option [value]="opt.id" [selected]="opt.id === selectedPickerKind()">{{ opt.label }}</option>
       }
       @if (isUnavailableDeal()) {
-        <option [value]="selectedPickerKind()" disabled>Not available yet</option>
+        <option [value]="selectedPickerKind()" disabled selected>Not available yet</option>
       }
     </select>
   </label>
@@ -30,9 +29,7 @@
   }
 
   @if (selectedPickerKind() === 'freeShipping') {
-    <p class="font-body-sm text-on-surface-variant">
-      Applies to orders shipped anywhere, in Egypt and abroad.
-    </p>
+    <p class="font-body-sm text-on-surface-variant">Applies to orders shipped in Egypt only.</p>
   }
 
   @let r = reward();

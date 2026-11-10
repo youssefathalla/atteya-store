@@ -15,12 +15,10 @@
         <span>View as</span>
         <select
           class="border-shape border border-outline bg-surface px-2.5 py-1.5 font-body-sm"
-          [value]="viewMode()"
           (change)="onViewModeChange($event)"
         >
-          <option value="visitor">Visitor</option>
-          <option value="signedIn">Signed-in shopper</option>
-          <option value="withCode">With coupon code</option>
+          <option value="visitor" [selected]="viewMode() === 'visitor'">Visitor</option>
+          <option value="signedIn" [selected]="viewMode() === 'signedIn'">Signed-in shopper</option>
         </select>
       </label>
 

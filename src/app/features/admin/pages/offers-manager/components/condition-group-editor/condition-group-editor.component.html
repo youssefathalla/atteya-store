@@ -36,11 +36,10 @@
             <select
               class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm"
               aria-label="Condition field"
-              [value]="atom.field"
               (change)="onFieldChange(gIdx, aIdx, $event)"
             >
               @for (f of fieldOptions; track f.id) {
-                <option [value]="f.id">{{ f.label }}</option>
+                <option [value]="f.id" [selected]="f.id === atom.field">{{ f.label }}</option>
               }
             </select>
 
@@ -48,11 +47,10 @@
               <select
                 class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm"
                 aria-label="Condition operator"
-                [value]="atomMode(atom)"
                 (change)="onModeChange(gIdx, aIdx, atom, $event)"
               >
-                <option value="in">is one of</option>
-                <option value="notIn">is not one of</option>
+                <option value="in" [selected]="atomMode(atom) === 'in'">is one of</option>
+                <option value="notIn" [selected]="atomMode(atom) === 'notIn'">is not one of</option>
               </select>
             }
 
