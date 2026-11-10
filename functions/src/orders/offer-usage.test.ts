@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 // Runs against the compiled code (`npm test` builds first).
 import { parseOfferDoc } from '../../lib/offers/offer-schema.js';
-import { liveOffers, priceBagDeals } from '../../lib/offers/engine/index.js';
+import { liveOffers, priceBagDeals, priceItem } from '../../lib/offers/engine/index.js';
 import {
   OFFER_LIMIT_ACTOR,
   confirmedEndedOfferIds,
@@ -12,6 +12,8 @@ import {
   releaseOfferUses,
 } from '../../lib/orders/offer-usage.js';
 import {
+  addUsedOffer,
+  freeShippingOfferIdOf,
   giftWorth,
   missedDealOfferId,
   priceWithFreshOffersOnMiss,
@@ -168,6 +170,131 @@ describe('offer limits', () => {
     });
     await releaseOfferUses(db, 'shopper-1', [DEAL], ['deal-1']);
     assert.equal(store.get('offers/deal-1')?.['active'], false);
+  });
+});
+
+describe('Percent off offer limits', () => {
+  const PERCENT = {
+    offerId: 'pct-1',
+    title: '20% off',
+    limits: { totalUses: 1, perCustomer: null },
+    kind: 'item' as const,
+  };
+
+  it('counts the first order, switches the offer off at its last use and refuses the next one', async () => {
+    const { db, tx, store } = fakeDb({ 'offers/pct-1': { active: true, title: PERCENT.title } });
+    const ended = (await readOfferUses(tx, db, 'shopper-1', [PERCENT]))();
+    assert.deepEqual(ended, ['pct-1']);
+    assert.equal(store.get('offers/pct-1')?.['active'], false);
+    assert.equal(store.get('offers/pct-1')?.['updatedBy'], OFFER_LIMIT_ACTOR);
+    assert.equal(store.get('offerUsage/pct-1')?.['count'], 1);
+
+    await assert.rejects(readOfferUses(tx, db, 'shopper-2', [PERCENT]), (error: unknown) => {
+      const err = error as { code: string; message: string; details: unknown };
+      assert.equal(err.code, 'failed-precondition');
+      assert.deepEqual(err.details, { endedOfferId: 'pct-1' });
+      assert.equal(
+        err.message,
+        "The 20% off offer has ended, so this order's total changed. Check your bag and place your order again.",
+      );
+      return true;
+    });
+  });
+
+  it("refuses when the shopper's own uses are gone, with the offer's id", async () => {
+    const perCustomer = { ...PERCENT, limits: { totalUses: null, perCustomer: 1 } };
+    const { db, tx } = fakeDb({ 'offerUsage/pct-1_shopper-1': { count: 1 } });
+    await assert.rejects(readOfferUses(tx, db, 'shopper-1', [perCustomer]), (error: unknown) => {
+      const err = error as { message: string; details: unknown };
+      assert.deepEqual(err.details, { endedOfferId: 'pct-1' });
+      assert.equal(
+        err.message,
+        "You've already used the 20% off offer, so this order's total changed. Check your bag and place your order again.",
+      );
+      return true;
+    });
+    // Another shopper still gets it.
+    const { db: db2, tx: tx2, store } = fakeDb({ 'offerUsage/pct-1_shopper-1': { count: 1 } });
+    (await readOfferUses(tx2, db2, 'shopper-2', [perCustomer]))();
+    assert.equal(store.get('offerUsage/pct-1_shopper-2')?.['count'], 1);
+  });
+
+  it('gives the use back and switches it on again when a Paymob start fails', async () => {
+    const { db, tx, store } = fakeDb({ 'offers/pct-1': { active: true } });
+    const ended = (await readOfferUses(tx, db, 'shopper-1', [PERCENT]))();
+    await releaseOfferUses(db, 'shopper-1', [PERCENT], ended);
+    assert.equal(store.get('offers/pct-1')?.['active'], true);
+    assert.equal(store.get('offerUsage/pct-1')?.['count'], 0);
+  });
+
+  it('confirms an ended Percent off id from checkout, and the item then costs its full price', async () => {
+    const offer = parseOfferDoc('pct-1', {
+      name: 'Tees 20%',
+      title: '20% off',
+      active: true,
+      scope: 'item',
+      conditions: { anyOf: [{ allOf: [{ field: 'categoryIds', in: ['t-shirts'] }] }] },
+      reward: { kind: 'percentOff', percent: 20 },
+      limits: { totalUses: null, perCustomer: 1 },
+    });
+    assert.ok(offer);
+    const ctx = { now: new Date('2026-11-09T12:00:00Z'), signedIn: true, codes: [] };
+    const tee = {
+      productId: 'tee-1',
+      brandId: 'adidas',
+      categoryIds: ['apparel', 't-shirts'],
+      type: 'tshirt',
+      modelGroup: null,
+      colors: ['black'],
+      sizes: [],
+      tags: [],
+      price: 500,
+      compareAtPrice: null,
+    };
+    const before = priceItem(tee as never, null, [offer], ctx);
+    assert.equal(before.effectivePrice, 400);
+    assert.equal(before.appliedOfferId, 'pct-1');
+
+    const { db } = fakeDb({ 'offerUsage/pct-1_shopper-1': { count: 1 } });
+    const ended = await confirmedEndedOfferIds(db, 'shopper-1', [offer], ['pct-1']);
+    assert.deepEqual([...ended], ['pct-1']);
+    const after = priceItem(
+      tee as never,
+      null,
+      [offer].filter((entry) => !ended.has(entry.id)),
+      ctx,
+    );
+    assert.equal(after.effectivePrice, 500);
+
+    // Another shopper with uses left: the id is not confirmed, so the price stays.
+    const other = await confirmedEndedOfferIds(db, 'shopper-2', [offer], ['pct-1']);
+    assert.equal(other.size, 0);
+  });
+
+  it('counts each offer once per order, whatever it gives', () => {
+    const offers = [
+      { id: 'pct-1', title: '20% off', limits: { totalUses: 5, perCustomer: null } },
+      { id: 'ship-1', title: 'Free shipping', limits: { totalUses: null, perCustomer: 1 } },
+    ];
+    const used = new Map();
+    addUsedOffer(used, offers as never, 'pct-1', 'item');
+    addUsedOffer(used, offers as never, 'pct-1', 'item');
+    addUsedOffer(used, offers as never, 'ship-1', 'shipping');
+    addUsedOffer(used, offers as never, 'gone', 'item');
+    assert.deepEqual(
+      [...used.values()].map((offer) => [offer.offerId, offer.kind]),
+      [
+        ['pct-1', 'item'],
+        ['ship-1', 'shipping'],
+      ],
+    );
+  });
+
+  it('counts a Free shipping offer only when it made the shipping free', () => {
+    assert.equal(freeShippingOfferIdOf({ fee: 0, reason: 'offer', offerId: 'ship-1' }), 'ship-1');
+    assert.equal(freeShippingOfferIdOf({ fee: 0, reason: 'freeOver' }), null);
+    assert.equal(freeShippingOfferIdOf({ fee: 0, reason: 'promo' }), null);
+    assert.equal(freeShippingOfferIdOf({ fee: 115, reason: 'box' }), null);
   });
 });
 
