@@ -83,7 +83,9 @@ export function bagGiftKey(lineKey: string, offerId: string, giftId: string): st
  *   full. One that just lost to a better offer is not mentioned. `usedUp` names the offers this
  *   shopper has already used up ("You've already used…"); the rest have ended.
  * - A gift in `previous.gifts` that is gone from `next.gifts` gets a note under its item.
- * - A note whose offer or gift applies again is dropped, and a bag that changed drops them all.
+ * - A note whose offer applies again is dropped; a gift note is dropped once this look shows the
+ *   gift again after `previous` did not (a look that never lost it may be from older stock).
+ *   A bag that changed drops them all.
  * - One note per offer and per gift; a dismissed note stays away (`dismissed`) until the bag
  *   changes or the offer applies again.
  */
@@ -96,27 +98,36 @@ export function nextBagNotes(args: {
 }): BagNotes {
   const { previous, next, isLive, usedUp } = args;
   const kept = args.notes.bagKey === next.bagKey ? args.notes : { ...NO_BAG_NOTES, bagKey: next.bagKey };
+  // This source's last look, when it priced this same bag.
+  const last: BagOfferState | null = previous && previous.bagKey === next.bagKey ? previous : null;
   const offers = kept.offers.filter((note) => !next.offers.has(note.offerId));
-  const gifts = kept.gifts.filter((note) => !next.gifts.has(note.key));
+  // A gift note goes only when this source sees the gift come back (its own last look lacked it).
+  // A source that still had the gift in its last look may be pricing from older stock (the bag
+  // drawer keeps its products while checkout reloads them), so its look can't clear the note.
+  const gifts = kept.gifts.filter(
+    (note) => !(next.gifts.has(note.key) && last !== null && !last.gifts.has(note.key)),
+  );
   const dismissed = kept.dismissed.filter((offerId) => !next.offers.has(offerId));
 
-  if (previous && previous.bagKey === next.bagKey) {
-    for (const [offerId, title] of previous.offers) {
+  if (last) {
+    for (const [offerId, title] of last.offers) {
       if (next.offers.has(offerId) || isLive(offerId)) continue;
       if (dismissed.includes(offerId) || offers.some((note) => note.offerId === offerId)) continue;
       offers.push({ offerId, kind: usedUp.has(offerId) ? 'used' : 'ended', title });
     }
-    for (const [key, gift] of previous.gifts) {
+    for (const [key, gift] of last.gifts) {
       if (next.gifts.has(key) || gifts.some((note) => note.key === key)) continue;
       gifts.push({ key, lineKey: gift.lineKey, name: gift.name });
     }
   }
 
+  const sameList = <T>(a: readonly T[], b: readonly T[]): boolean =>
+    a.length === b.length && a.every((item, i) => item === b[i]);
   const same =
     kept === args.notes &&
-    offers.length === kept.offers.length &&
-    gifts.length === kept.gifts.length &&
-    dismissed.length === kept.dismissed.length;
+    sameList(offers, kept.offers) &&
+    sameList(gifts, kept.gifts) &&
+    sameList(dismissed, kept.dismissed);
   return same ? args.notes : { bagKey: next.bagKey, offers, gifts, dismissed };
 }
 

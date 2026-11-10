@@ -494,6 +494,33 @@ describe('bag notes when an offer stops applying (ATS-143)', () => {
     assert.deepEqual(back.gifts, []);
   });
 
+  it('keeps a gift note when another look still had the gift (older stock)', () => {
+    // Checkout reloaded stock and lost the gift; the bag drawer still prices from its older look.
+    const notes = step({ previous: before, next: state([['autumn', 'Autumn Sale']]) });
+    const drawer = nextBagNotes({
+      notes,
+      previous: before,
+      next: before,
+      isLive: () => true,
+      usedUp: new Set(),
+    });
+    assert.deepEqual(drawer.gifts, [{ key: shirtKey, lineKey, name: 'Free shirt' }]);
+  });
+
+  it('shows a new note even when another one goes in the same look', () => {
+    const otherKey = bagGiftKey(lineKey, 'gift-offer', 'gift-2');
+    const notes = step({ previous: state([], [shirtKey]), next: state([]) });
+    assert.deepEqual(notes.gifts.map((note) => note.key), [shirtKey]);
+    const after = nextBagNotes({
+      notes,
+      previous: state([], [otherKey]),
+      next: state([], [shirtKey]),
+      isLive: () => false,
+      usedUp: new Set(),
+    });
+    assert.deepEqual(after.gifts.map((note) => note.key), [otherKey]);
+  });
+
   it('keeps the same notes object when nothing changed', () => {
     const notes = step({ previous: before, next: state([]) });
     assert.equal(
