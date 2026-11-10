@@ -24,6 +24,12 @@ export interface BagOfferState {
   readonly offers: ReadonlyMap<string, string>;
   /** Free gifts that can still be given, by `bagGiftKey`. */
   readonly gifts: ReadonlyMap<string, BagGiftState>;
+  /**
+   * Free gifts the shopper picked whose product is gone or sold out right now, by `bagGiftKey`.
+   * These get a note on every look, the first one included: a gift that sold out before the bag
+   * or checkout opened is never shown as given.
+   */
+  readonly unavailableGifts?: ReadonlyMap<string, BagGiftState>;
 }
 
 /** Why an offer stopped applying: it ended (or was paused), or this shopper used it up. */
@@ -83,6 +89,8 @@ export function bagGiftKey(lineKey: string, offerId: string, giftId: string): st
  *   full. One that just lost to a better offer is not mentioned. `usedUp` names the offers this
  *   shopper has already used up ("You've already used…"); the rest have ended.
  * - A gift in `previous.gifts` that is gone from `next.gifts` gets a note under its item.
+ * - A gift in `next.unavailableGifts` (its product is gone or sold out) gets a note under its item
+ *   on any look, the first one included.
  * - A note whose offer applies again is dropped; a gift note is dropped once this look shows the
  *   gift again after `previous` did not (a look that never lost it may be from older stock).
  *   A bag that changed drops them all.
@@ -119,6 +127,10 @@ export function nextBagNotes(args: {
       if (next.gifts.has(key) || gifts.some((note) => note.key === key)) continue;
       gifts.push({ key, lineKey: gift.lineKey, name: gift.name });
     }
+  }
+  for (const [key, gift] of next.unavailableGifts ?? []) {
+    if (next.gifts.has(key) || gifts.some((note) => note.key === key)) continue;
+    gifts.push({ key, lineKey: gift.lineKey, name: gift.name });
   }
 
   const sameList = <T>(a: readonly T[], b: readonly T[]): boolean =>
@@ -160,9 +172,32 @@ export function offerNoteText(note: Pick<BagOfferNote, 'kind' | 'title'>): strin
     : 'An offer in your bag has ended, so your total changed.';
 }
 
-/** "Your free shirt is no longer available." (the gift's name starts lower case mid-sentence). */
+/**
+ * "Your free shirt is no longer available." or "Your free socks are no longer available." (the
+ * gift's name starts lower case mid-sentence; a name ending in a plural word takes "are").
+ */
 export function giftNoteText(giftName: string): string {
   const name = giftName.trim() || 'free gift';
   const inSentence = /^[A-Z][a-z]/.test(name) ? name[0]!.toLowerCase() + name.slice(1) : name;
-  return `Your ${inSentence} is no longer available.`;
+  return `Your ${inSentence} ${isPluralName(name) ? 'are' : 'is'} no longer available.`;
+}
+
+/**
+ * Whether a gift name reads as plural ("Free socks", "Free shorts", "Free grips"): its last word
+ * ends in "s" but not "ss", "us" or "is" ("Free glass", "Free bonus" stay singular).
+ */
+export function isPluralName(name: string): boolean {
+  const last = name.trim().split(/\s+/).pop()?.toLowerCase() ?? '';
+  return last.length > 2 && last.endsWith('s') && !/(ss|us|is)$/.test(last);
+}
+
+/**
+ * The Place Order refusal for free gifts that can no longer be given, counted (`count` gifts):
+ * one uses the order callables' own wording.
+ */
+export function unavailableGiftsMessage(count: number): string | null {
+  if (count <= 0) return null;
+  return count === 1
+    ? 'One free gift in your bag is no longer available. Remove the item and choose another gift.'
+    : `${count} free gifts in your bag are no longer available. Remove those items and choose other gifts.`;
 }

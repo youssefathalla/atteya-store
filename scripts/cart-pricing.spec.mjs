@@ -21,6 +21,7 @@ import {
   nextBagNotes,
   NO_BAG_NOTES,
   offerNoteText,
+  unavailableGiftsMessage,
 } from '../src/app/core/services/cart/bag-offer-notes.ts';
 import {
   endedOfferIdFrom,
@@ -624,6 +625,50 @@ describe('bag notes when an offer stops applying (ATS-143)', () => {
     assert.equal(
       nextBagNotes({ notes, previous: state([]), next: state([]), isLive: () => false, usedUp: new Set() }),
       notes,
+    );
+  });
+
+  it('notes a gift that was already sold out on the first look (ATS-164)', () => {
+    const soldOut = {
+      ...state([['autumn', 'Autumn Sale']]),
+      unavailableGifts: new Map([[shirtKey, { lineKey, name: 'Free shirt' }]]),
+    };
+    const notes = step({ previous: null, next: soldOut });
+    assert.deepEqual(notes.gifts, [{ key: shirtKey, lineKey, name: 'Free shirt' }]);
+    // Still sold out: one note, same object.
+    assert.equal(
+      nextBagNotes({ notes, previous: soldOut, next: soldOut, isLive: () => true, usedUp: new Set() }),
+      notes,
+    );
+    // Back in stock: the note goes.
+    const back = nextBagNotes({
+      notes,
+      previous: soldOut,
+      next: before,
+      isLive: () => true,
+      usedUp: new Set(),
+    });
+    assert.deepEqual(back.gifts, []);
+    // Offer notes keep the "never on the first look" rule.
+    assert.deepEqual(notes.offers, []);
+  });
+
+  it('reads plural gift names correctly', () => {
+    assert.equal(giftNoteText('Free socks'), 'Your free socks are no longer available.');
+    assert.equal(giftNoteText('Free shorts'), 'Your free shorts are no longer available.');
+    assert.equal(giftNoteText('Free glass'), 'Your free glass is no longer available.');
+    assert.equal(giftNoteText('Free shirt'), 'Your free shirt is no longer available.');
+  });
+
+  it('counts the free gifts in the Place Order refusal', () => {
+    assert.equal(unavailableGiftsMessage(0), null);
+    assert.equal(
+      unavailableGiftsMessage(1),
+      'One free gift in your bag is no longer available. Remove the item and choose another gift.',
+    );
+    assert.equal(
+      unavailableGiftsMessage(2),
+      '2 free gifts in your bag are no longer available. Remove those items and choose other gifts.',
     );
   });
 

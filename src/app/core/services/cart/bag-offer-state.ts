@@ -64,6 +64,7 @@ export function bagOfferLook(args: {
   }
 
   const gifts = new Map<string, BagGiftState>();
+  const unavailableGifts = new Map<string, BagGiftState>();
   lines.forEach((line, index) => {
     const picks = line.gifts ?? [];
     const product = products.get(line.productId);
@@ -99,6 +100,14 @@ export function bagOfferLook(args: {
     // out or no longer allowed must not make a later line's gift look sold out.
     const given = new Map<string, number>();
     picks.forEach((pick, i) => {
+      // Gone or sold out (only when this line's pieces come with gifts right now): never given,
+      // and noted under the item from the first look on.
+      if (!pickInStock[i] && units > 0 && pick.offerId === offerId) {
+        unavailableGifts.set(bagGiftKey(lineKey, pick.offerId, pick.giftId), {
+          lineKey,
+          name: giftNameFor(offers, pick.offerId, pick.giftId),
+        });
+      }
       const allowed = giftOffer?.gifts.some(
         (gift) => gift.id === pick.giftId && gift.productIds.includes(pick.productId),
       );
@@ -118,7 +127,7 @@ export function bagOfferLook(args: {
   });
 
   return {
-    state: { bagKey: args.bagKey, offers: offerTitles, gifts },
+    state: { bagKey: args.bagKey, offers: offerTitles, gifts, unavailableGifts },
     liveIds: new Set(liveOffers(offers, ctx).map((offer) => offer.id)),
   };
 }
