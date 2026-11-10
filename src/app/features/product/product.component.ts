@@ -14,6 +14,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { Router, RouterLink } from '@angular/router';
 import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
+import { bagLineVariant } from '@core/services/cart/cart-deals';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { offerTitleVisible } from '@core/services/offers/offer-shop';
@@ -40,7 +41,6 @@ import {
   type Product,
   productDetailsTitle,
   ProductService,
-  toVariantFacts,
 } from '@core/services/products';
 import { SeoService } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
@@ -210,6 +210,18 @@ export class ProductComponent {
     return p ? findVariant(p, this.selection()) : null;
   });
 
+  /**
+   * The size and colour facts offers see for the chosen options, built exactly as the bag builds
+   * them (`bagLineVariant`), so a size-only offer prices the same here, in the bag and at checkout.
+   * Products with sizes but no variant rows still get the chosen size. Null until every option is chosen.
+   */
+  readonly variantFacts = computed(() => {
+    const p = this.product();
+    const sel = this.selection();
+    if (!p || p.options.some((option) => !sel[option.key])) return null;
+    return bagLineVariant(p, { selection: sel, variantId: null });
+  });
+
   readonly colourImage = computed(() => {
     const p = this.product();
     const id = this.selection()['colour'];
@@ -288,9 +300,9 @@ export class ProductComponent {
     const priced = toPricedProduct(p);
     const ctx = this.#pricingCtx();
     const offers = this.#offers();
-    const v = this.variant();
+    const v = this.variantFacts();
     if (v) {
-      const r = priceItem(priced, toVariantFacts(p, v), offers, ctx);
+      const r = priceItem(priced, v, offers, ctx);
       return {
         price: r.effectivePrice,
         fromPrice: null,
@@ -387,10 +399,9 @@ export class ProductComponent {
     if (!p || !this.inStock() || this.#giftChoiceIds().length === 0) return null;
     if (!this.#giftChoices.hasValue()) return null;
     const choices = this.#giftChoices.value();
-    const v = this.variant();
     const offer = giftOfferForProduct(
       toPricedProduct(p),
-      v ? toVariantFacts(p, v) : null,
+      this.variantFacts(),
       this.#offers(),
       this.#pricingCtx(),
       giftChoiceFacts(choices),

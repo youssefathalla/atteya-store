@@ -61,6 +61,7 @@ The rules for offers, moved here from one long AGENTS.md paragraph so offers PRs
 ## Offer lines on the product page
 
 - One design per offer type on the product page: percent off, amount off and fixed price stay price badges; Buy X get Y, tiered and free shipping show one line under the price with the offer's title; Free gift never shows as a badge.
+- Once every option is chosen, the product page prices (and picks the Gift Box for) the variant facts the bag uses: `variantFacts()` in `product.component.ts` calls `bagLineVariant()` (`@core/services/cart/cart-deals`), so a product with sizes but no variant rows still passes the chosen size and colour, and a size-only offer shows the same price and badge as the bag and checkout (<KEY>-162). Before a size is chosen it still shows "From <lowest>".
 
 ## Buy X Get Y: which item is free
 
