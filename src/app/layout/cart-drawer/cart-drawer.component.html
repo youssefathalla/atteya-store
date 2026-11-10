@@ -26,6 +26,8 @@
         <a matButton="filled" routerLink="/shop" (click)="drawerService.close()"> Start Shopping </a>
       </div>
     } @else {
+      <!-- An offer that stopped applying during this visit: one note each, closed with ✕. -->
+      <app-bag-offer-notes class="px-5" spacing="pt-4" />
       <ul class="px-5 pt-4 pb-1 border-b border-outline-variant">
         @for (line of lines(); track lineKey(line)) {
           @let info = productInfo(line.productId);
@@ -135,6 +137,13 @@
                   <span class="min-w-0 flex-1">{{ gift.label }}</span>
                   <span class="shrink-0 font-bold!">Free</span>
                 </div>
+              }
+
+              @for (note of giftNotes(line); track $index) {
+                <p class="gift-note px-4 py-2.5 border-t border-outline-variant">
+                  <mat-icon name="info" size="base" />
+                  <span>{{ note }}</span>
+                </p>
               }
 
               @for (nudge of dealHints($index); track nudge.hint.offerId) {

@@ -14,6 +14,27 @@ export function endedOfferIdFrom(error: unknown): string | null {
   return typeof id === 'string' && id.length > 0 ? id : null;
 }
 
+/**
+ * True for a refusal about the bag itself (`failed-precondition`: an offer ended, a price went up,
+ * a free gift sold out), after which checkout reads the products again to show what changed.
+ */
+export function isFailedPrecondition(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+  const code = (error as { code?: unknown }).code;
+  return code === 'functions/failed-precondition' || code === 'failed-precondition';
+}
+
+/**
+ * Why an order callable left an offer out (`details.reason`): `used` when this shopper has already
+ * used it up ("You've already used the … offer"), otherwise `ended`.
+ */
+export function endedOfferReasonFrom(error: unknown): 'ended' | 'used' {
+  if (typeof error !== 'object' || error === null || !('details' in error)) return 'ended';
+  const details = (error as { details?: unknown }).details;
+  if (typeof details !== 'object' || details === null) return 'ended';
+  return (details as { reason?: unknown }).reason === 'used' ? 'used' : 'ended';
+}
+
 /** The offer of a "Prices in your bag changed" refusal (`details.changedOfferId`), or null. */
 export function changedOfferIdFrom(error: unknown): string | null {
   if (typeof error !== 'object' || error === null || !('details' in error)) return null;
@@ -43,12 +64,19 @@ export function priceChangedFrom(error: unknown): boolean {
 export function offerToLeaveOut(
   error: unknown,
   lastChangedOfferId: string | null,
-): { readonly leaveOut: string | null; readonly lastChangedOfferId: string | null } {
+): {
+  readonly leaveOut: string | null;
+  /** Why `leaveOut` is left out: `used` when this shopper already used it up. */
+  readonly reason: 'ended' | 'used';
+  readonly lastChangedOfferId: string | null;
+} {
   const ended = endedOfferIdFrom(error);
-  if (ended) return { leaveOut: ended, lastChangedOfferId: null };
+  if (ended) return { leaveOut: ended, reason: endedOfferReasonFrom(error), lastChangedOfferId: null };
   const changed = changedOfferIdFrom(error);
-  if (changed && changed === lastChangedOfferId) return { leaveOut: changed, lastChangedOfferId: null };
-  return { leaveOut: null, lastChangedOfferId: changed };
+  if (changed && changed === lastChangedOfferId) {
+    return { leaveOut: changed, reason: 'ended', lastChangedOfferId: null };
+  }
+  return { leaveOut: null, reason: 'ended', lastChangedOfferId: changed };
 }
 
 /** The shipping fee and total (whole EGP) the server would charge, from a refused order. */

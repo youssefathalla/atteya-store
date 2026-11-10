@@ -7,13 +7,25 @@ import {
 } from '../src/app/core/services/cart/cart-pricing.ts';
 import {
   addCartLine,
+  cartLineKey,
   clampLineQuantity,
   MAX_CART_LINES,
   MAX_LINE_QUANTITY,
   mergeCartLines,
 } from '../src/app/core/services/cart/cart.model.ts';
 import {
+  bagGiftKey,
+  bagKeyOf,
+  dismissOfferNote,
+  giftNoteText,
+  nextBagNotes,
+  NO_BAG_NOTES,
+  offerNoteText,
+} from '../src/app/core/services/cart/bag-offer-notes.ts';
+import {
   endedOfferIdFrom,
+  endedOfferReasonFrom,
+  isFailedPrecondition,
   offerToLeaveOut,
   priceChangedFrom,
   serverClockFrom,
@@ -140,23 +152,43 @@ describe('order refusals (ATS-108)', () => {
   it('leaves out a changed offer only when the same one is refused twice in a row', () => {
     const changed = { details: { changedOfferId: 'deal-1' } };
     const first = offerToLeaveOut(changed, null);
-    assert.deepEqual(first, { leaveOut: null, lastChangedOfferId: 'deal-1' });
+    assert.deepEqual(first, { leaveOut: null, reason: 'ended', lastChangedOfferId: 'deal-1' });
     assert.deepEqual(offerToLeaveOut(changed, first.lastChangedOfferId), {
       leaveOut: 'deal-1',
+      reason: 'ended',
       lastChangedOfferId: null,
     });
     assert.deepEqual(offerToLeaveOut({ details: { changedOfferId: 'deal-2' } }, 'deal-1'), {
       leaveOut: null,
+      reason: 'ended',
       lastChangedOfferId: 'deal-2',
     });
     assert.deepEqual(offerToLeaveOut({ details: { endedOfferId: 'deal-3' } }, 'deal-1'), {
       leaveOut: 'deal-3',
+      reason: 'ended',
       lastChangedOfferId: null,
     });
     assert.deepEqual(offerToLeaveOut(new Error('offline'), 'deal-1'), {
       leaveOut: null,
+      reason: 'ended',
       lastChangedOfferId: null,
     });
+  });
+
+  it('reads the products again after a refusal about the bag (failed-precondition)', () => {
+    assert.equal(isFailedPrecondition({ code: 'functions/failed-precondition' }), true);
+    assert.equal(isFailedPrecondition({ code: 'functions/unavailable' }), false);
+    assert.equal(isFailedPrecondition(new Error('offline')), false);
+  });
+
+  it("says when the shopper already used the offer up (details.reason 'used')", () => {
+    assert.equal(endedOfferReasonFrom({ details: { endedOfferId: 'deal-1', reason: 'used' } }), 'used');
+    assert.equal(endedOfferReasonFrom({ details: { endedOfferId: 'deal-1' } }), 'ended');
+    assert.equal(endedOfferReasonFrom(new Error('offline')), 'ended');
+    assert.equal(
+      offerToLeaveOut({ details: { endedOfferId: 'deal-4', reason: 'used' } }, null).reason,
+      'used',
+    );
   });
 });
 
@@ -172,6 +204,7 @@ describe('price offer refusals (ATS-139)', () => {
     // Paused or ended on the server: left out at once.
     assert.deepEqual(offerToLeaveOut({ details: { endedOfferId: 'off-20' } }, null), {
       leaveOut: 'off-20',
+      reason: 'ended',
       lastChangedOfferId: null,
     });
     // Still live but no longer gives that price: only after the second refusal in a row.
@@ -437,5 +470,171 @@ describe("bag label for an item that earns another item's deal (ATS-148)", () =>
     for (const label of [earnedItemLabel(100, 'tracksuit'), earnedItemLabel(99, 'bottle')]) {
       assert.ok(label.length <= EARNED_LABEL_MAX, label);
     }
+  });
+});
+
+describe('bag notes when an offer stops applying (ATS-143)', () => {
+  const line = { productId: 'tee', variantId: null, selection: { size: 'm' }, quantity: 1 };
+  const bagKey = bagKeyOf([line], 'uid-1', cartLineKey);
+  const lineKey = cartLineKey(line);
+  const shirtKey = bagGiftKey(lineKey, 'gift-offer', 'gift-1');
+  const state = (offers, gifts = []) => ({
+    bagKey,
+    offers: new Map(offers),
+    gifts: new Map(gifts.map((key) => [key, { lineKey, name: 'Free shirt' }])),
+  });
+  const before = state([['autumn', 'Autumn Sale']], [shirtKey]);
+  const step = (args) =>
+    nextBagNotes({ notes: NO_BAG_NOTES, isLive: () => false, usedUp: new Set(), ...args });
+
+  it('says nothing on the first look (first load, sign-in, sign-out)', () => {
+    const notes = step({ previous: null, next: state([]) });
+    assert.deepEqual(notes.offers, []);
+    assert.deepEqual(notes.gifts, []);
+  });
+
+  it('notes an offer that was giving the bag something and has ended', () => {
+    const notes = step({ previous: before, next: state([], [shirtKey]) });
+    assert.deepEqual(notes.offers, [{ offerId: 'autumn', kind: 'ended', title: 'Autumn Sale' }]);
+    assert.equal(offerNoteText(notes.offers[0]), 'The Autumn Sale offer has ended, so your total changed.');
+  });
+
+  it('says the shopper already used it when checkout was told so', () => {
+    const notes = step({ previous: before, next: state([], [shirtKey]), usedUp: new Set(['autumn']) });
+    assert.equal(notes.offers[0].kind, 'used');
+    assert.equal(
+      offerNoteText(notes.offers[0]),
+      "You've already used the Autumn Sale offer, so your total changed.",
+    );
+  });
+
+  it('says nothing for an offer that is still live (it only lost to a better one)', () => {
+    const notes = step({
+      previous: before,
+      next: state([['bigger', 'Big Sale']], [shirtKey]),
+      isLive: () => true,
+    });
+    assert.deepEqual(notes.offers, []);
+  });
+
+  it('never notes an offer that was never in the bag', () => {
+    const notes = step({ previous: state([]), next: state([]) });
+    assert.deepEqual(notes.offers, []);
+  });
+
+  it('says nothing when the bag itself changed', () => {
+    const other = { ...state([]), bagKey: bagKeyOf([{ ...line, quantity: 2 }], 'uid-1', cartLineKey) };
+    assert.deepEqual(step({ previous: before, next: other }).offers, []);
+    // Signing out is a different bag too.
+    assert.notEqual(bagKeyOf([line], null, cartLineKey), bagKey);
+  });
+
+  it('drops every note once the bag changes', () => {
+    const notes = step({ previous: before, next: state([]) });
+    const other = { ...state([]), bagKey: 'another-bag' };
+    const after = nextBagNotes({
+      notes,
+      previous: state([]),
+      next: other,
+      isLive: () => false,
+      usedUp: new Set(),
+    });
+    assert.deepEqual(after.offers, []);
+    assert.deepEqual(after.gifts, []);
+  });
+
+  it('notes a free gift that can no longer be given, under its item', () => {
+    const notes = step({ previous: before, next: state([['autumn', 'Autumn Sale']]) });
+    assert.deepEqual(notes.gifts, [{ key: shirtKey, lineKey, name: 'Free shirt' }]);
+    assert.equal(giftNoteText('Free shirt'), 'Your free shirt is no longer available.');
+    assert.equal(giftNoteText(''), 'Your free gift is no longer available.');
+  });
+
+  it('keeps one note per offer and leaves a dismissed note away', () => {
+    const notes = step({ previous: before, next: state([]) });
+    const again = nextBagNotes({
+      notes,
+      previous: before,
+      next: state([]),
+      isLive: () => false,
+      usedUp: new Set(),
+    });
+    assert.equal(again.offers.length, 1);
+    const closed = dismissOfferNote(again, 'autumn');
+    assert.deepEqual(closed.offers, []);
+    // Checkout compares with its own (older) look: the closed note still stays away.
+    const later = nextBagNotes({
+      notes: closed,
+      previous: before,
+      next: state([]),
+      isLive: () => false,
+      usedUp: new Set(),
+    });
+    assert.deepEqual(later.offers, []);
+  });
+
+  it('drops a note when its offer applies again', () => {
+    const notes = step({ previous: before, next: state([]) });
+    const back = nextBagNotes({
+      notes,
+      previous: state([]),
+      next: before,
+      isLive: () => true,
+      usedUp: new Set(),
+    });
+    assert.deepEqual(back.offers, []);
+    assert.deepEqual(back.gifts, []);
+  });
+
+  it('keeps a gift note when another look still had the gift (older stock)', () => {
+    // Checkout reloaded stock and lost the gift; the bag drawer still prices from its older look.
+    const notes = step({ previous: before, next: state([['autumn', 'Autumn Sale']]) });
+    const drawer = nextBagNotes({
+      notes,
+      previous: before,
+      next: before,
+      isLive: () => true,
+      usedUp: new Set(),
+    });
+    assert.deepEqual(drawer.gifts, [{ key: shirtKey, lineKey, name: 'Free shirt' }]);
+  });
+
+  it('shows a new note even when another one goes in the same look', () => {
+    const otherKey = bagGiftKey(lineKey, 'gift-offer', 'gift-2');
+    const notes = step({ previous: state([], [shirtKey]), next: state([]) });
+    assert.deepEqual(
+      notes.gifts.map((note) => note.key),
+      [shirtKey],
+    );
+    const after = nextBagNotes({
+      notes,
+      previous: state([], [otherKey]),
+      next: state([], [shirtKey]),
+      isLive: () => false,
+      usedUp: new Set(),
+    });
+    assert.deepEqual(
+      after.gifts.map((note) => note.key),
+      [otherKey],
+    );
+  });
+
+  it('keeps the same notes object when nothing changed', () => {
+    const notes = step({ previous: before, next: state([]) });
+    assert.equal(
+      nextBagNotes({ notes, previous: state([]), next: state([]), isLive: () => false, usedUp: new Set() }),
+      notes,
+    );
+  });
+
+  it('names an offer with no title in general words', () => {
+    assert.equal(
+      offerNoteText({ kind: 'ended', title: ' ' }),
+      'An offer in your bag has ended, so your total changed.',
+    );
+    assert.equal(
+      offerNoteText({ kind: 'used', title: '' }),
+      "You've already used an offer in your bag, so your total changed.",
+    );
   });
 });

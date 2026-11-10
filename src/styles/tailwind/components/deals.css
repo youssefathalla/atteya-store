@@ -3,4 +3,14 @@
   .deal-tag {
     @apply inline-block px-1.5 border border-primary border-shape font-label-sm whitespace-nowrap;
   }
+
+  /* "The Autumn Sale offer has ended, so your total changed." above the bag's items and checkout's summary. */
+  .offer-note {
+    @apply elements-between items-start! gap-3 py-2 ps-4 pe-1 border border-primary border-shape bg-surface-container-lowest font-body-md;
+  }
+
+  /* "Your free shirt is no longer available." under the item whose gift can't be given any more. */
+  .gift-note {
+    @apply elements-start items-start! gap-2 font-label-md text-on-surface-variant;
+  }
 }

@@ -1,6 +1,9 @@
 <section class="container-content max-w-6xl mx-auto">
   <h1 class="font-headline-sm font-bold! mb-6">Checkout</h1>
 
+  <!-- An offer that stopped applying during this visit (above the summary, also on phones where it folds). -->
+  <app-bag-offer-notes spacing="mb-6" />
+
   <div class="grid gap-6 lg:grid-cols-2 lg:gap-12 items-start">
     <!-- Order summary: a folding bar above the form on phones, the right half on desktop. -->
     <aside class="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-6" aria-labelledby="summary-heading">
@@ -35,7 +38,7 @@
         >
           <h2 id="summary-heading" class="font-title-md font-bold!">Order Summary</h2>
 
-          @if (productsResource.isLoading()) {
+          @if (productsResource.isLoading() && !productsResource.hasValue()) {
             <ul class="space-y-4" aria-hidden="true">
               @for (line of lines(); track $index) {
                 <li class="elements-start gap-4">
@@ -108,6 +111,12 @@
                         <p class="elements-between items-start! gap-3 font-label-md text-on-surface-variant">
                           <span class="min-w-0">{{ gift.label }}</span>
                           <span class="shrink-0">Free</span>
+                        </p>
+                      }
+                      @for (note of item.giftNotes; track $index) {
+                        <p class="gift-note mt-1">
+                          <mat-icon name="info" size="base" />
+                          <span>{{ note }}</span>
                         </p>
                       }
                     </div>
