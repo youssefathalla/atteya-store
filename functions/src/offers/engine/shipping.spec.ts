@@ -233,3 +233,40 @@ describe('free shipping offers are for Egypt orders only', () => {
     assert.equal(quote('international', 3_000, [freeShippingOffer()], settings).reason, 'freeOver');
   });
 });
+
+describe('free shipping offers respect Except rules', () => {
+  const BRAND_X_LINE: PricedProduct = { ...TEE_LINE, productId: 'x-1', brandId: 'brand-x' };
+  const exceptBrandX = freeShippingOffer({
+    exclude: { anyOf: [{ allOf: [{ field: 'brandId', in: ['brand-x'] }] }] },
+  });
+
+  function quoteLines(lines: readonly PricedProduct[], offers: readonly Offer[]) {
+    return shippingQuote(
+      SETTINGS,
+      { region: 'egypt', totalWeightGrams: 250, goodsSubtotal: 1_000, lines },
+      offers,
+      CTX,
+    );
+  }
+
+  it('"all except Brand X" with a Brand X-only bag pays the box fee', () => {
+    const result = quoteLines([BRAND_X_LINE], [exceptBrandX]);
+    assert.equal(result.fee, 115);
+    assert.equal(result.reason, 'box');
+    assert.equal(result.offerId, undefined);
+  });
+
+  it('"all except Brand X" with a mixed bag ships free', () => {
+    const result = quoteLines([BRAND_X_LINE, TEE_LINE], [exceptBrandX]);
+    assert.equal(result.fee, 0);
+    assert.equal(result.reason, 'offer');
+    assert.equal(result.offerId, 'free-ship');
+  });
+
+  it('no lines: only an offer with no product rules and no Except rules applies', () => {
+    const noLines = (offers: readonly Offer[]) =>
+      shippingQuote(SETTINGS, { region: 'egypt', totalWeightGrams: 250, goodsSubtotal: 1_000 }, offers, CTX);
+    assert.equal(noLines([freeShippingOffer()]).fee, 0);
+    assert.equal(noLines([exceptBrandX]).fee, 115);
+  });
+});
