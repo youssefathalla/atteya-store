@@ -12,7 +12,9 @@
   </div>
 
   @if (!canShow()) {
-    <p class="font-body-sm text-on-surface-variant">Only offers for everyone can show in the top banner.</p>
+    <p class="font-body-sm text-on-surface-variant">
+      Only offers for everyone without a coupon code can show in the top banner.
+    </p>
   }
 
   @if (showing()) {

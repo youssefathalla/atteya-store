@@ -82,6 +82,7 @@
     <app-banner-editor
       [banner]="banner()"
       [audience]="draft().audience"
+      [requiresCode]="draft().requiresCode && !!draft().code?.trim()"
       [title]="draft().title"
       [hasEndDate]="draft().schedule.endsAt !== null"
       (bannerChange)="updateBanner($event)"

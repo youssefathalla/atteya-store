@@ -424,7 +424,7 @@ function maxOfferPercent(draft: OfferDraft): number | null {
   return null;
 }
 
-/** Top banner: short text, 1 to 30 days, and only offers for everyone (Shop lists only those). */
+/** Top banner: short text, 1 to 30 days, and only offers for everyone without a code (Shop lists only those). */
 function validateBanner(draft: OfferDraft, errors: OfferIssue[]): void {
   const banner = draft.banner;
   if (!banner) return;
@@ -449,6 +449,12 @@ function validateBanner(draft: OfferDraft, errors: OfferIssue[]): void {
     errors.push({
       code: 'banner.audience',
       message: 'Only offers for everyone can show in the top banner.',
+    });
+  }
+  if (banner.show && draft.requiresCode && draft.code?.trim()) {
+    errors.push({
+      code: 'banner.code',
+      message: 'Coupon-code offers cannot show in the top banner.',
     });
   }
 }

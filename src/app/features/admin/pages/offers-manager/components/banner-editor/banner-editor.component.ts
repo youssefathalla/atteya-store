@@ -21,6 +21,8 @@ export class BannerEditorComponent {
   readonly banner = model.required<OfferBanner>();
   /** Only offers for everyone can show in the bar (Shop lists only those). */
   readonly audience = input.required<OfferAudience>();
+  /** Coupon-code offers are hidden from Shop, so they cannot show in the bar either. */
+  readonly requiresCode = input(false);
   /** The customer title, shown as the placeholder of an empty banner text. */
   readonly title = input('');
   readonly hasEndDate = input(false);
@@ -29,7 +31,7 @@ export class BannerEditorComponent {
   readonly minDays = MIN_BANNER_COUNTDOWN_DAYS;
   readonly maxDays = MAX_BANNER_COUNTDOWN_DAYS;
 
-  readonly canShow = computed(() => this.audience() === 'everyone');
+  readonly canShow = computed(() => this.audience() === 'everyone' && !this.requiresCode());
   readonly showing = computed(() => this.canShow() && this.banner().show);
   readonly textPlaceholder = computed(() => this.title().trim() || 'Leave blank to use the customer title');
 
