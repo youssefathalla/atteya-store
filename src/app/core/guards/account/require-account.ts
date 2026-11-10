@@ -23,3 +23,22 @@ export async function requireAgreedAccount(url: string): Promise<true> {
     router.createUrlTree(['/login'], { queryParams: { returnUrl: safeReturnUrl(url) } }),
   );
 }
+
+/**
+ * Body of the checkout guards: a visitor may stay (guest checkout), and so may a signed-in person
+ * who agreed to the terms. A signed-in person who has not agreed yet goes back to `/login`, which
+ * shows the "Almost done" step and then returns them to `url`. Call from a guard.
+ */
+export async function requireConsentIfSignedIn(url: string): Promise<true> {
+  if (!isPlatformBrowser(inject(PLATFORM_ID))) return true;
+
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  await auth.waitForAccountReady();
+
+  if (!auth.isAuthenticated() || !auth.needsConsent()) return true;
+
+  throw new RedirectCommand(
+    router.createUrlTree(['/login'], { queryParams: { returnUrl: safeReturnUrl(url) } }),
+  );
+}

@@ -16,7 +16,8 @@
  *   - a request to our own server fails or answers 4xx/5xx,
  *   - the main area is empty, the store loader never goes away, or what the page is for is
  *     missing (no product cards on Shop, no bag line in the bag, no email field on Sign In).
- * Signed-out access: the pages that need an account (/checkout, /account, /favorites, /admin)
+ * Guest checkout: /checkout with the product in the bag opens signed out and shows the Email field.
+ * Signed-out access: the pages that need an account (/account, /favorites, /admin)
  * are opened as a signed-out visitor and must send them to /login with `returnUrl` pointing back
  * at that page. One that opens instead fails with "<page> opened without signing in".
  * Each failed page is tried once more before it counts.
@@ -97,7 +98,6 @@ const PERFORMANCE_HINTS = [
  * after the child redirect, so its `returnUrl` is a page inside /admin (`/admin/navigation`).
  */
 const SIGNED_OUT_PAGES = [
-  { id: 'checkout', label: 'Checkout', path: '/checkout' },
   { id: 'account', label: 'Account', path: '/account' },
   { id: 'favorites', label: 'Favorites', path: '/favorites' },
   { id: 'admin', label: 'Admin', path: '/admin' },
@@ -213,6 +213,17 @@ function pages() {
       seedBag: true,
       ready: null,
       action: openBag,
+    },
+    {
+      // Guest checkout (ATS-170): opens signed out with the bag, the email goes in Delivery.
+      id: 'checkout-guest',
+      label: 'Checkout as a guest',
+      path: '/checkout',
+      skipWhy: 'No product id to put in the bag.',
+      needs: () => Boolean(productId),
+      seedBag: true,
+      ready: 'input[type="email"][autocomplete="email"]',
+      readyWhy: 'The Email field never showed on checkout.',
     },
     {
       id: 'login',

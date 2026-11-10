@@ -1,7 +1,7 @@
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -22,7 +22,15 @@ import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
 import { orderStatusName } from '@core/services/orders/order-status-name';
 import { orderDate } from '@core/services/orders/shopper-orders.service';
-import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
+import {
+  isOrderViewKey,
+  orderFromView,
+  OrderSchema,
+  ORDER_VIEWS_COLLECTION,
+  ORDERS_COLLECTION,
+  OrderViewSchema,
+  type OrderDoc,
+} from '@core/services/orders/order.schema';
 import { dealTag, displayDecimals } from '@core/services/offers/engine';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
@@ -35,6 +43,14 @@ import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
 import { confirmationSteps } from '../utils/confirmation-steps';
 import { paymentParts as buildPaymentParts, paymentTagTone } from '../utils/confirmation-payment';
+import { readGuestOrder, rememberGuestOrder } from '../utils/guest-order-storage';
+import { GuestAccountCardComponent } from '../components/guest-account-card/guest-account-card.component';
+
+/**
+ * How long a guest's order page waits for `orderViews/{key}` to appear (the `syncOrderView`
+ * trigger writes it a moment after the order) before it says the order could not be found.
+ */
+const VIEW_WAIT_MS = 20_000;
 
 /**
  * Order status after checkout. The order is read live, so the page changes by itself when
@@ -55,12 +71,16 @@ import { paymentParts as buildPaymentParts, paymentTagTone } from '../utils/conf
     MatButtonToggleModule,
     SharedIconModule,
     PaymentMarkComponent,
+    GuestAccountCardComponent,
   ],
   templateUrl: './checkout-confirmation.page.html',
 })
 export class CheckoutConfirmationPageComponent implements OnInit {
   readonly orderId = input.required<string>();
+  /** A guest order's view key from the order link (`?key=`); saved and taken out of the address bar. */
+  readonly key = input<string>();
 
+  readonly #router = inject(Router);
   readonly #firestore = injectFirestore();
   readonly #seo = inject(SeoService);
   readonly #snackbar = inject(SnackbarService);
@@ -69,9 +89,25 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   /** Result handed over by checkout; only used for the heading until the live order arrives. */
   readonly seed = signal<CreateManualOrderResult | null>(readNavigationSeed());
 
+  /** The key this browser saved for the order (checkout, or an earlier visit from the link). */
+  readonly #savedKey = signal<string | null>(null);
+
+  /**
+   * The guest order's view key: from the link, else saved on this device. Null = read the order
+   * as its signed-in owner, as before guest checkout.
+   */
+  readonly viewKey = computed(() => {
+    const fromLink = this.key();
+    return isOrderViewKey(fromLink) ? fromLink : this.#savedKey();
+  });
+
+  /** The email this device placed the guest order with (shown in the account card), if known. */
+  readonly guestEmail = signal<string | null>(null);
+
   readonly orderResource = rxResource({
-    params: () => this.orderId(),
-    stream: ({ params: id }) => this.#watchOrder(id),
+    params: () => ({ id: this.orderId(), key: this.viewKey() }),
+    stream: ({ params }) =>
+      params.key ? this.#watchView(params.id, params.key) : this.#watchOrder(params.id),
   });
 
   /** undefined = still loading; null = not found (or not this shopper's order). */
@@ -376,6 +412,24 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    if (isPlatformBrowser(this.#platformId)) {
+      const id = this.orderId();
+      const memory = readGuestOrder(id);
+      const fromLink = this.key();
+      if (isOrderViewKey(fromLink)) {
+        rememberGuestOrder(id, { key: fromLink });
+        this.#savedKey.set(fromLink);
+        // The key opens the order: keep it out of the address bar (and of anything copied from it).
+        void this.#router.navigate([], {
+          queryParams: { key: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        });
+      } else {
+        this.#savedKey.set(memory.key);
+      }
+      this.guestEmail.set(memory.email);
+    }
     this.#seo.setPageMetadata({
       title: 'Order status | Atteya Store',
       description: 'Your Atteya Store order status.',
@@ -390,6 +444,46 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     } catch {
       this.#snackbar.info(`Couldn't copy. Please copy the ${what.toLowerCase()} by hand.`);
     }
+  }
+
+  /**
+   * A guest order, read live by its key. The view is written a moment after the order, so a
+   * missing doc keeps the page loading for up to `VIEW_WAIT_MS` before it counts as not found.
+   */
+  #watchView(id: string, key: string): Observable<OrderDoc | null | undefined> {
+    if (!isPlatformBrowser(this.#platformId)) return of(null);
+    const ref = doc(this.#firestore, ORDER_VIEWS_COLLECTION, key).withConverter(
+      createValibotConverter(OrderViewSchema),
+    );
+    return new Observable<OrderDoc | null | undefined>((subscriber) => {
+      let found = false;
+      const timer = setTimeout(() => {
+        if (!found) subscriber.next(null);
+      }, VIEW_WAIT_MS);
+      const unsubscribe = onSnapshot(
+        ref,
+        (snap) => {
+          if (!snap.exists()) {
+            // Once seen, a view that goes away means the order was deleted.
+            if (found) subscriber.next(null);
+            return;
+          }
+          const view = snap.data();
+          if (view.id !== id) {
+            subscriber.next(null);
+            return;
+          }
+          found = true;
+          subscriber.next(orderFromView(view));
+        },
+        // Unreadable or a bad key: show "could not find".
+        () => subscriber.next(null),
+      );
+      return () => {
+        clearTimeout(timer);
+        unsubscribe();
+      };
+    });
   }
 
   #watchOrder(id: string): Observable<OrderDoc | null> {

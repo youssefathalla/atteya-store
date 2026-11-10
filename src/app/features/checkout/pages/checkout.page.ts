@@ -85,6 +85,8 @@ import {
   type CheckoutCountryCode,
 } from '../utils/checkout-countries';
 import { selectionLabel } from '../utils/checkout-line';
+import { guestEmail } from '../utils/guest-email';
+import { rememberGuestOrder } from '../utils/guest-order-storage';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { PaymentMarkComponent } from '@shared/ui/payment-mark';
 import { BagOfferNotesComponent } from '@shared/components/bag-offer-notes/bag-offer-notes.component';
@@ -231,8 +233,12 @@ export class CheckoutPageComponent implements OnInit {
   readonly isSubmitting = signal(false);
   /** Phone only: the order summary folds into a bar above the form until tapped. */
   readonly summaryOpen = signal(false);
-  /** The signed-in shopper's email (checkout is behind sign-in). */
+  /** The signed-in shopper's email; empty for a guest. */
   readonly accountEmail = computed(() => this.#auth.user()?.email ?? '');
+  /** Nobody is signed in: the shopper orders as a guest with the email they type. */
+  readonly isGuest = computed(() => !this.#auth.isAuthenticated());
+  /** The guest's email as typed (Delivery → Email). */
+  readonly guestEmailInput = signal('');
   /**
    * Card can be picked (`STORE_INFO.payments.cardOrWallet`). While it is
    * `'coming-soon'` it is listed greyed out and visitors outside Egypt order on WhatsApp.
@@ -393,7 +399,12 @@ export class CheckoutPageComponent implements OnInit {
 
     const offers = this.#offers.all();
     // The offer clock moves every minute, so an offer whose time is up stops discounting here too.
-    const ctx: PricingContext = { now: this.#offers.now(), signedIn: true, codes: [] };
+    // A guest is priced as signed out, like the server: no signed-in-only or once-per-customer offers.
+    const ctx: PricingContext = {
+      now: this.#offers.now(),
+      signedIn: this.#auth.isAuthenticated(),
+      codes: [],
+    };
     const entry = this.#currency.entry();
     // Per-item offers on each piece, then Buy X Get Y over the whole bag, like the server.
     const bag = priceBag(lines, products, offers, ctx);
@@ -879,6 +890,14 @@ export class CheckoutPageComponent implements OnInit {
       this.#snackbar.error(ABROAD_COMING_SOON_MESSAGE);
       return;
     }
+    // A guest orders with an email (the order emails and the order link go there).
+    const guest = this.isGuest() ? guestEmail(this.guestEmailInput()) : null;
+    if (this.isGuest() && !guest) {
+      this.#snackbar.error(
+        this.guestEmailInput().trim() ? 'Check your email address.' : 'Enter your email to place your order.',
+      );
+      return;
+    }
     const draft = this.shipping();
     if (!draft.fullName.trim() || !draft.line1.trim() || !draft.city.trim()) {
       this.#snackbar.error('Fill in your delivery address to continue.');
@@ -963,7 +982,9 @@ export class CheckoutPageComponent implements OnInit {
           dealOfferIds,
           shownPrices,
           shownTotals,
+          guest: guest ? { email: guest } : null,
         });
+        if (guest) rememberGuestOrder(result.orderId, { key: result.viewKey ?? null, email: guest });
         // Wait for the account bag to save before the full-page redirect to Paymob.
         await this.#cart.clear();
         if (isPlatformBrowser(this.#platformId)) {
@@ -982,10 +1003,15 @@ export class CheckoutPageComponent implements OnInit {
         dealOfferIds,
         shownPrices,
         shownTotals,
+        guest: guest ? { email: guest } : null,
       });
+      const viewKey = guest ? (result.viewKey ?? null) : null;
+      if (guest) rememberGuestOrder(result.orderId, { key: viewKey, email: guest });
       void this.#cart.clear();
+      // A guest's order page reads the order by its key (`?key=`); the page keeps it and hides it.
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {
         state: { checkoutResult: result },
+        ...(viewKey ? { queryParams: { key: viewKey } } : {}),
       });
     } catch (error: unknown) {
       // An offer in the bag has ended for this shopper (`endedOfferId`): leave it out of the bag and
