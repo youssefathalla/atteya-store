@@ -281,6 +281,13 @@ describe('Percent off offer limits', () => {
     addUsedOffer(used, offers as never, 'pct-1', 'item');
     addUsedOffer(used, offers as never, 'ship-1', 'shipping');
     addUsedOffer(used, offers as never, 'gone', 'item');
+    // No limits: nothing to count, so no shared counter to write on every order.
+    addUsedOffer(
+      used,
+      [{ id: 'open', title: '10% off', limits: { totalUses: null, perCustomer: null } }] as never,
+      'open',
+      'item',
+    );
     assert.deepEqual(
       [...used.values()].map((offer) => [offer.offerId, offer.kind]),
       [
@@ -291,10 +298,16 @@ describe('Percent off offer limits', () => {
   });
 
   it('counts a Free shipping offer only when it made the shipping free', () => {
-    assert.equal(freeShippingOfferIdOf({ fee: 0, reason: 'offer', offerId: 'ship-1' }), 'ship-1');
-    assert.equal(freeShippingOfferIdOf({ fee: 0, reason: 'freeOver' }), null);
-    assert.equal(freeShippingOfferIdOf({ fee: 0, reason: 'promo' }), null);
-    assert.equal(freeShippingOfferIdOf({ fee: 115, reason: 'box' }), null);
+    const box = { feeEgp: 115 };
+    assert.equal(freeShippingOfferIdOf({ fee: 0, reason: 'offer', offerId: 'ship-1', box }), 'ship-1');
+    assert.equal(freeShippingOfferIdOf({ fee: 0, reason: 'freeOver', box }), null);
+    assert.equal(freeShippingOfferIdOf({ fee: 0, reason: 'promo', box }), null);
+    assert.equal(freeShippingOfferIdOf({ fee: 115, reason: 'box', box }), null);
+    // The box already costs nothing: the offer saved the shopper nothing, so it isn't counted.
+    assert.equal(
+      freeShippingOfferIdOf({ fee: 0, reason: 'offer', offerId: 'ship-1', box: { feeEgp: 0 } }),
+      null,
+    );
   });
 });
 

@@ -628,7 +628,8 @@ async function priceWithOffers(
 
 /**
  * Adds an offer the order uses (once; the first kind seen wins). An id that isn't among `offers`
- * is skipped.
+ * is skipped, and so is an offer with no limits: nothing reads its counts, and a store-wide offer
+ * would otherwise make every order write the same `offerUsage` document.
  */
 export function addUsedOffer(
   used: Map<string, UsedOffer>,
@@ -638,7 +639,7 @@ export function addUsedOffer(
 ): void {
   if (used.has(offerId)) return;
   const offer = offers.find((entry) => entry.id === offerId);
-  if (!offer) return;
+  if (!offer || (offer.limits.totalUses === null && offer.limits.perCustomer === null)) return;
   used.set(offer.id, { offerId: offer.id, title: offer.title, limits: offer.limits, kind });
 }
 
@@ -855,11 +856,15 @@ function quoteShippingLine(
   };
 }
 
-/** The Free shipping offer that made the shipping free in this quote, or null. */
+/**
+ * The Free shipping offer that made the shipping free in this quote, or null (also when the box
+ * itself already costs 0: the offer saved nothing).
+ */
 export function freeShippingOfferIdOf(
-  quote: Pick<ShippingQuote, 'fee' | 'reason' | 'offerId'>,
+  quote: Pick<ShippingQuote, 'fee' | 'reason' | 'offerId'> & { readonly box: { readonly feeEgp: number } },
 ): string | null {
-  return quote.reason === 'offer' && quote.fee === 0 && quote.offerId ? quote.offerId : null;
+  const madeItFree = quote.reason === 'offer' && quote.fee === 0 && Math.round(quote.box.feeEgp) > 0;
+  return madeItFree && quote.offerId ? quote.offerId : null;
 }
 
 async function priceLine(
