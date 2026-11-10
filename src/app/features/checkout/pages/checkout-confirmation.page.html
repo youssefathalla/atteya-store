@@ -1,5 +1,7 @@
 <section class="order-band" aria-labelledby="order-heading">
-  <div class="container-content max-w-6xl mx-auto elements-between items-end! flex-wrap gap-x-12 gap-y-6">
+  <div
+    class="container-content order-section max-w-6xl mx-auto elements-between items-end! flex-wrap gap-x-12 gap-y-6"
+  >
     <div class="elements-start-col gap-2">
       @if (order()) {
         <p class="elements-start gap-2 font-body-md opacity-85">
@@ -37,17 +39,17 @@
 </section>
 
 @if (order() === undefined) {
-  <div class="container-content max-w-6xl mx-auto">
+  <div class="container-content order-section max-w-6xl mx-auto">
     <p class="font-body-md opacity-70">Loading your order…</p>
   </div>
 } @else if (order() === null) {
-  <div class="container-content max-w-6xl mx-auto elements-start-col gap-4">
+  <div class="container-content order-section max-w-6xl mx-auto elements-start-col gap-4">
     <p class="font-body-md opacity-80">We could not find this order.</p>
     <a matButton="filled" routerLink="/">Back to the Store</a>
   </div>
 } @else {
   <div
-    class="container-content max-w-6xl mx-auto grid gap-10 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] @4xl:grid-rows-[auto_1fr] items-start"
+    class="container-content order-section max-w-6xl mx-auto grid gap-10 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] @4xl:grid-rows-[auto_1fr] items-start"
   >
     <section class="elements-start-col items-stretch! gap-5 min-w-0" aria-labelledby="next-heading">
       @if (steps().length > 0) {
