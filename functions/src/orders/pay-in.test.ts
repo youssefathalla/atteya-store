@@ -19,9 +19,24 @@ describe('payInEntry', () => {
   });
 
   it('falls back to USD for a missing, unknown, unusable or EGP currency', () => {
-    for (const requested of [null, 'XYZ', 'GBP', 'LBP', 'EGP']) {
+    for (const requested of [null, 'XYZ', 'GBP', 'LBP']) {
       assert.deepEqual(payInEntry(requested, currencies), USD, String(requested));
     }
+  });
+
+  it('keeps EGP when checkout showed pounds, with no conversion', () => {
+    assert.deepEqual(payInEntry('EGP', {}), { code: 'EGP', factor: 1 });
+    assert.deepEqual(
+      payInFor(
+        [{ unitEgp: 1000, quantity: 2, lineDisplay: 2000 }],
+        { priceEgp: 900 },
+        { code: 'EGP', factor: 1 },
+      ),
+      {
+        currency: 'EGP',
+        amount: 2900,
+      },
+    );
   });
 
   it('is null when not even USD has a factor', () => {

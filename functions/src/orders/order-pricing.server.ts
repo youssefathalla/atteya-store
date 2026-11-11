@@ -835,13 +835,6 @@ function quoteShippingLine(
 ): { line: OrderShippingLine; freeShippingOfferId: string | null } {
   switch (plan.kind) {
     case 'to-be-agreed':
-      if (c.paymentMethod === 'bank-transfer') {
-        // Only Egypt orders can have the fee agreed later, and Bank Transfer is for abroad only.
-        throw new HttpsError(
-          'failed-precondition',
-          'This order is too heavy to send abroad. Remove an item or message us.',
-        );
-      }
       if (c.paymentMethod === 'paymob') {
         throw new HttpsError(
           'failed-precondition',

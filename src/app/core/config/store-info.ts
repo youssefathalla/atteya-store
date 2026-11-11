@@ -115,9 +115,14 @@ export function isCardOrWalletLive(info: StoreInfo = STORE_INFO): boolean {
   return info.payments.cardOrWallet === 'live';
 }
 
+/** True when a bank account has an IBAN set. */
+export function hasIban(bank: StoreInfo['payments']['bankTransfer']): boolean {
+  return bank.iban.replace(/\s/g, '') !== '';
+}
+
 /** True when Bank Transfer can be offered (an IBAN is set). Orders shipped outside Egypt only. */
 export function isBankTransferLive(info: StoreInfo = STORE_INFO): boolean {
-  return info.payments.bankTransfer.iban.replace(/\s/g, '') !== '';
+  return hasIban(info.payments.bankTransfer);
 }
 
 /** `EG52 0003 0233 …`: an IBAN in groups of 4 for reading (copy it without spaces). */

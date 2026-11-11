@@ -17,8 +17,8 @@ export interface PayStepAmounts {
 
 /** What a Bank Transfer sends: the total in the currency checkout shows. */
 export interface BankTransferAmounts {
-  /** The total as checkout shows it ("$205"), or null when it can't be shown in a foreign currency. */
-  readonly total: string | null;
+  /** The total as checkout shows it ("$205"). */
+  readonly total: string;
   /** The currency's name in the plural, "US dollars". */
   readonly currencyName: string;
 }

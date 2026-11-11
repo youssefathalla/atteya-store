@@ -164,18 +164,15 @@ export function orderActions(
 
 /**
  * What staff look for in the bank before confirming: the EGP amount for InstaPay, or for a Bank
- * Transfer the amount sent in the shopper's currency with the EGP we expect (the bank's rate can
- * make it differ a little).
+ * Transfer the amount sent in the shopper's currency (prices abroad include the markup, so the
+ * pounds that arrive are more than the EGP order total and are not compared).
  */
 function amountDueLabel(due: ReturnType<typeof paymentDue>): string | null {
   if (!due) return null;
   const egp = due.amountEgp != null ? formatMoney(due.amountEgp, 'EGP', 0) : null;
   if (due.reason !== 'bank-transfer') return egp;
-  const sent = due.payIn
-    ? formatMoney(due.payIn.amount, due.payIn.currency, displayDecimals(due.payIn.currency))
-    : null;
-  if (sent && egp) return `the transfer of ${sent} (about ${egp})`;
-  return sent ? `the transfer of ${sent}` : egp;
+  if (!due.payIn) return egp;
+  return `the transfer of ${formatMoney(due.payIn.amount, due.payIn.currency, displayDecimals(due.payIn.currency))}`;
 }
 
 /**

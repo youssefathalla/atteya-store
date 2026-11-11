@@ -215,6 +215,7 @@ function bankTransferPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): Ren
     heading: `Thanks for your order, ${firstName(order)}`,
     intro: [
       `We've received your order ${order.ref}. Send the total from your bank to finish your order. We'll confirm it as soon as the money arrives.`,
+      ...egpPricesNote(order),
     ],
     highlight: null,
     payment: payBox(order, ctx),
@@ -231,13 +232,24 @@ function bankTransferConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): 
     heading: 'Payment received',
     intro: [
       `Thanks, ${firstName(order)}. We've received your bank transfer${amount} and your order ${order.ref} is confirmed. We're getting it ready.`,
+      ...egpPricesNote(order),
     ],
     highlight: null,
     showTotals: true,
-    totalLabel: 'Total paid',
     showAddress: true,
     button: orderButton(order, ctx),
   });
+}
+
+/**
+ * A Bank Transfer is sent in the shopper's own currency, while the items and totals below are in
+ * Egyptian pounds: say so once, so the two amounts don't look like a mismatch.
+ */
+function egpPricesNote(order: OrderEmailOrder): string[] {
+  if (!order.payIn || order.payIn.currency === 'EGP') return [];
+  return [
+    `The prices below are in Egyptian pounds (EGP). You send ${formatPayIn(order.payIn)}, the same total in your currency.`,
+  ];
 }
 
 /**
@@ -501,9 +513,9 @@ function storePayment(order: OrderEmailOrder): StorePayment {
         method: 'Bank Transfer',
         rows: [
           ['Customer Sends', order.payIn ? formatPayIn(order.payIn) : 'The Total'],
-          ['Expected in EGP', total],
+          ['Order Total in EGP', total],
         ],
-        note: "Confirm the order in the dashboard once the money is in the account. The pounds that arrive can differ a little with the bank's rate; check the receipt shows the full amount in the customer's currency.",
+        note: "Confirm the order in the dashboard once the money is in the account and the receipt shows the full amount in the customer's currency. Prices abroad include the international markup, so more pounds than the order total usually arrive.",
       };
     default:
       return { method: 'Card', rows: [['Paid', total]], note: null };
@@ -613,8 +625,8 @@ function bankPayBox(
   input: OrderMessageInput,
   payIn: PayIn | null,
 ): PayBox {
-  const waUrl = whatsappChatUrl(ctx.whatsappNumber, shopperWhatsappText(stage, input));
   const bank = ctx.bankTransfer;
+  const waUrl = whatsappChatUrl(ctx.whatsappNumber, shopperWhatsappText(stage, input, ctx.instapay, bank));
   const lines: string[] = [`Send ${payIn ? formatPayIn(payIn) : 'the total'} from your bank to:`];
   if (hasBankTransferDetails(bank)) {
     if (bank.accountName.trim()) lines.push(`Account name: ${bank.accountName.trim()}`);

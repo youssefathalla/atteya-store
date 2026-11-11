@@ -12,7 +12,7 @@
  * WhatsApp messages are Arabic with English digits (`1,500 EGP`, `#A1B2C3`) so amounts and
  * order numbers read the same for everyone. The person still taps send in WhatsApp.
  */
-import { STORE_INFO, type StoreInfo } from './store-info.js';
+import { hasIban, STORE_INFO, type StoreInfo } from './store-info.js';
 
 /** The fields of a saved order that decide its stage. */
 export interface OrderMessageInput {
@@ -188,7 +188,7 @@ export function hasInstapayDetails(info: InstapayInfo = STORE_INFO.payments.inst
 }
 
 export function hasBankTransferDetails(info: BankTransferInfo = STORE_INFO.payments.bankTransfer): boolean {
-  return info.iban.replace(/\s/g, '') !== '';
+  return hasIban(info);
 }
 
 /** `205 USD`, `12.345 KWD` (English digits). For WhatsApp messages. */
@@ -202,7 +202,7 @@ export function readPayIn(value: unknown): PayIn | null {
   const raw = value as Record<string, unknown>;
   const currency = raw['currency'];
   const amount = raw['amount'];
-  if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency) || currency === 'EGP') return null;
+  if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) return null;
   if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return null;
   return { currency, amount };
 }
@@ -220,11 +220,15 @@ export function shopperWhatsappText(
   stage: OrderStage,
   order: OrderMessageInput,
   info: InstapayInfo = STORE_INFO.payments.instapay,
+  bank: BankTransferInfo = STORE_INFO.payments.bankTransfer,
 ): string | null {
   const ref = order.ref;
   const due = paymentDue(stage, order);
   if (due?.reason === 'bank-transfer') {
     const amount = due.payIn ? `${formatPayInPlain(due.payIn)} ` : '';
+    if (!hasBankTransferDetails(bank)) {
+      return `مرحباً، طلبي رقم ${ref}. محتاج بيانات الحساب البنكي علشان أحوّل ${amount}من البنك.`;
+    }
     return `مرحباً، طلبي رقم ${ref}. حوّلت ${amount}من البنك، ودي صورة إيصال التحويل.`;
   }
   if (due) {

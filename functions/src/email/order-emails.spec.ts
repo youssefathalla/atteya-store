@@ -597,7 +597,7 @@ describe('Bank Transfer emails', () => {
   it('store alert shows the method, the amount in the shopper currency and the EGP total', () => {
     const email = renderOrderEmail('store-new-order', read(bankDoc()), withBank);
     assert.match(email.subject, /Bank Transfer – Waiting for Transfer/);
-    assert.match(email.text, /Bank Transfer\nCustomer Sends: \$205\nExpected in EGP: /);
+    assert.match(email.text, /Bank Transfer\nCustomer Sends: \$205\nOrder Total in EGP: /);
     assert.ok(email.text.includes(formatEgp(2450)));
   });
 });

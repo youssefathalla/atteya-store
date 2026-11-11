@@ -49,7 +49,7 @@ All payment wording comes from `orderStage()` / `paymentDue()` in `functions/src
 - InstaPay order = the shopper pays the **full total**. Cash on Delivery = the **shipping fee** by InstaPay first, the rest in cash at the door. Free shipping = nothing to pay now.
 - A paid order never asks for money or a screenshot. It gets a confirmation.
 - Abroad orders never mention InstaPay, a deposit, cash or EGP amounts in WhatsApp texts.
-- Bank Transfer (abroad only) = the shopper sends the **full total in the currency checkout showed them** ("$205") from their bank; say "Send $205 from your bank" and **Send Receipt on WhatsApp**, never an EGP amount to the shopper.
+- Bank Transfer (abroad only) = the shopper sends the **full total in the currency checkout showed them** ("$205") from their bank; say "Send $205 from your bank" and **Send Receipt on WhatsApp**, with the amount in that currency (`pricing.payIn`), never the EGP order total in its place.
 - While a card payment is still confirming, show no WhatsApp button.
 
 ## 6. Languages

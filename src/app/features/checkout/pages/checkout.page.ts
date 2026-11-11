@@ -709,18 +709,13 @@ export class CheckoutPageComponent implements OnInit {
   });
 
   /**
-   * What a Bank Transfer sends: the total in the currency checkout shows. A visitor whose prices
-   * show in EGP pays in US dollars (the server's fallback), so no amount is shown before ordering.
+   * What a Bank Transfer sends: the total in the currency checkout shows (the server works out the
+   * same amount from that currency, `pricing.payIn`).
    */
   readonly bankTransfer = computed(() => {
     const ready = this.readySummary();
     if (!ready) return null;
-    const code = this.#currency.entry().code;
-    const foreign = code !== 'EGP';
-    return {
-      total: foreign ? ready.total : null,
-      currencyName: currencyPluralName(foreign ? code : 'USD'),
-    };
+    return { total: ready.total, currencyName: currencyPluralName(this.#currency.entry().code) };
   });
 
   readonly bankTransferSteps = computed(() => {

@@ -298,7 +298,9 @@ describe('Bank Transfer', () => {
   it('drops an unreadable amount to send but still asks', () => {
     const input = order({ ...BANK, payIn: { currency: 'egp', amount: -1 } });
     assert.equal(paymentDue(orderStage(input), input)?.payIn, null);
-    assert.equal(readPayIn({ currency: 'EGP', amount: 10 }), null);
+    // A visitor whose prices showed in pounds sends pounds.
+    assert.deepEqual(readPayIn({ currency: 'EGP', amount: 10 }), { currency: 'EGP', amount: 10 });
+    assert.equal(readPayIn({ currency: 'usd', amount: 10 }), null);
     assert.deepEqual(readPayIn({ currency: 'KWD', amount: 12.345 }), { currency: 'KWD', amount: 12.345 });
   });
 

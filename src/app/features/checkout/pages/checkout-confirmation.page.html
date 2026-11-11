@@ -91,25 +91,26 @@
                       @if (bank.hasDetails) {
                         <dl class="elements-start-col items-stretch! gap-3">
                           @for (row of bank.rows; track row.label) {
-                            <div class="elements-between gap-3">
-                              <div class="min-w-0">
-                                <dt class="font-label-md text-on-surface-variant">{{ row.label }}</dt>
-                                <dd
-                                  class="font-title-sm font-bold! break-all"
-                                  [class.tracking-wide]="row.mono"
-                                >
-                                  {{ row.value }}
-                                </dd>
-                              </div>
+                            <!-- One label and its value per row; the Copy button sits on the right of both. -->
+                            <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3">
+                              <dt class="font-label-md text-on-surface-variant">{{ row.label }}</dt>
+                              <dd
+                                class="col-start-1 font-title-sm font-bold! break-all"
+                                [class.tracking-wide]="row.mono"
+                              >
+                                {{ row.value }}
+                              </dd>
                               @if (row.copy; as value) {
-                                <button
-                                  matButton="outlined"
-                                  type="button"
-                                  [attr.aria-label]="'Copy ' + row.label"
-                                  (click)="copy(value, row.label)"
-                                >
-                                  Copy
-                                </button>
+                                <dd class="col-start-2 row-start-1 row-span-2">
+                                  <button
+                                    matButton="outlined"
+                                    type="button"
+                                    [attr.aria-label]="'Copy ' + row.label"
+                                    (click)="copy(value, row.label)"
+                                  >
+                                    Copy
+                                  </button>
+                                </dd>
                               }
                             </div>
                           }
@@ -319,6 +320,13 @@
               <dt class="font-title-md font-bold!">Total</dt>
               <dd class="font-title-lg font-bold!">{{ displayTotal() }}</dd>
             </div>
+            @if (bankSendTotal(); as send) {
+              <!-- Bank Transfer: the same total in the currency the shopper sends. -->
+              <div class="elements-between gap-4">
+                <dt class="font-body-md text-on-surface-variant">You send by bank</dt>
+                <dd class="font-body-md font-bold!">{{ send }}</dd>
+              </div>
+            }
           </dl>
         </section>
       }

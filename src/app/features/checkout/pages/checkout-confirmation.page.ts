@@ -191,6 +191,12 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     return payIn ? formatMoney(payIn.amount, payIn.currency, displayDecimals(payIn.currency)) : null;
   });
 
+  /** The "You send by bank" row under the order total: a Bank Transfer in a currency other than EGP. */
+  readonly bankSendTotal = computed(() => {
+    const payIn = this.order()?.pricing.payIn;
+    return payIn && payIn.currency !== 'EGP' ? this.#payInTotal() : null;
+  });
+
   /**
    * "Questions? Message us" button. While InstaPay is due the Send on WhatsApp button already
    * carries the payment message, so this one opens a plain chat. Hidden while a card payment is
