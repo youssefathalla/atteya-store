@@ -149,7 +149,7 @@ export interface OrderDetails {
   readonly shippingBox: string | null;
   readonly payment: { readonly method: string; readonly rows: readonly OrderDetailRow[] };
   readonly items: readonly OrderDetailItem[];
-  /** Up to 3 items with a photo, for the list row. */
+  /** Up to 2 items with a photo, for the list row (one on a phone). */
   readonly thumbs: readonly OrderDetailItem[];
   /** "3 items" (pieces, gifts left out). */
   readonly pieces: string;

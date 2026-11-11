@@ -1,5 +1,16 @@
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject, OnInit, PLATFORM_ID, resource, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  Injector,
+  OnInit,
+  PLATFORM_ID,
+  resource,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import type { OrderDoc } from '@core/services/orders/order.schema';
@@ -49,6 +60,8 @@ export class OrdersManagerPageComponent implements OnInit {
   readonly #ordersAdmin = inject(OrdersAdminService);
   readonly #seo = inject(SeoService);
   readonly #platformId = inject(PLATFORM_ID);
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly #injector = inject(Injector);
 
   readonly statusFilter = signal<OrderStatusFilter>('all');
   readonly filterTabs = FILTER_TABS;
@@ -106,8 +119,41 @@ export class OrdersManagerPageComponent implements OnInit {
     this.openOrderId.set(null);
   }
 
+  /** "Waiting for Payment" for the black bar (the badge colours don't work on black). */
+  statusLabel(status: string): string {
+    return this.orderStatusConfig[status]?.label ?? status;
+  }
+
+  /**
+   * Open or close one order (one at a time). Opening scrolls its bar to the top of the screen;
+   * closing scrolls back to its row only when the row went above the screen.
+   */
   toggle(orderId: string): void {
-    this.openOrderId.update((open) => (open === orderId ? null : orderId));
+    const opening = this.openOrderId() !== orderId;
+    this.openOrderId.set(opening ? orderId : null);
+    this.#scrollToOrder(orderId, opening);
+  }
+
+  /** The bar's ‹ › buttons: open the order before or after the open one. */
+  openAt(index: number): void {
+    const card = this.cards()[index];
+    if (!card) return;
+    this.openOrderId.set(card.orderId);
+    this.#scrollToOrder(card.orderId, true);
+  }
+
+  #scrollToOrder(orderId: string, always: boolean): void {
+    afterNextRender(
+      () => {
+        const item = this.#host.nativeElement.querySelector<HTMLElement>(
+          `[data-order-id="${CSS.escape(orderId)}"]`,
+        );
+        if (!item || (!always && item.getBoundingClientRect().top >= 0)) return;
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        item.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+      },
+      { injector: this.#injector },
+    );
   }
 
   /** Passed to `app-order-actions`, which calls it after a save. */
