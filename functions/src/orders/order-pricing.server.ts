@@ -37,7 +37,20 @@ import { assertCurrentSelection } from './order-selection.js';
 export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
 export type OrderPaymentMethod = StorePaymentMethod;
 export type OrderFulfilment =
-  'domestic-cod' | 'domestic-instapay' | 'domestic-paymob' | 'international-paymob';
+  | 'domestic-cod'
+  | 'domestic-instapay'
+  | 'domestic-paymob'
+  | 'international-paymob'
+  | 'international-bank-transfer';
+
+/**
+ * Bank Transfer: what the shopper sends from their bank, in the currency checkout showed them
+ * (e.g. `{ currency: 'USD', amount: 205 }`), worked out on the server with `payInFor()`.
+ */
+export interface OrderPayIn {
+  readonly currency: string;
+  readonly amount: number;
+}
 
 /** One chosen option, saved as the shopper saw it (e.g. `Size` → `M`). */
 export interface OrderLineOptionLabel {
@@ -129,6 +142,8 @@ export interface OrderPricingSnapshot {
   /** Whole EGP pounds charged (Paymob amount_cents = totalEgp * 100). */
   readonly totalEgp: number;
   readonly fulfilment: OrderFulfilment;
+  /** Bank Transfer only: the amount to send in the shopper's currency. `totalEgp` stays what we expect. */
+  readonly payIn?: OrderPayIn;
 }
 
 export interface PricedStoreOrder {
@@ -793,6 +808,7 @@ function giftOrderLine(gift: ResolvedGift, quantity: number, forLine: number): O
 function resolveFulfilment(method: StorePaymentMethod, isInternational: boolean): OrderFulfilment {
   if (method === 'cash-on-delivery') return 'domestic-cod';
   if (method === 'instapay') return 'domestic-instapay';
+  if (method === 'bank-transfer') return 'international-bank-transfer';
   return isInternational ? 'international-paymob' : 'domestic-paymob';
 }
 
@@ -819,6 +835,13 @@ function quoteShippingLine(
 ): { line: OrderShippingLine; freeShippingOfferId: string | null } {
   switch (plan.kind) {
     case 'to-be-agreed':
+      if (c.paymentMethod === 'bank-transfer') {
+        // Only Egypt orders can have the fee agreed later, and Bank Transfer is for abroad only.
+        throw new HttpsError(
+          'failed-precondition',
+          'This order is too heavy to send abroad. Remove an item or message us.',
+        );
+      }
       if (c.paymentMethod === 'paymob') {
         throw new HttpsError(
           'failed-precondition',

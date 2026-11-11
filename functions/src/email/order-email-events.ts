@@ -13,6 +13,10 @@ export type OrderEmailKind =
   | 'instapay-placed'
   /** Admin confirmed an InstaPay order (transfer seen in the bank app). */
   | 'instapay-confirmed'
+  /** Bank Transfer placed (abroad): send the total in your currency from your bank, then the receipt on WhatsApp. */
+  | 'bank-transfer-placed'
+  /** Admin confirmed a Bank Transfer order (money arrived in the account). */
+  | 'bank-transfer-confirmed'
   /** Large Egypt order (InstaPay or cash on delivery): staff saved the agreed delivery fee. */
   | 'delivery-fee-set'
   /**
@@ -28,7 +32,10 @@ export type OrderEmailKind =
   | 'order-shipped'
   /** Staff marked the order as Delivered (first time only). */
   | 'order-delivered'
-  /** Store-owner alert: a cash-on-delivery or InstaPay order was placed, or a card payment cleared. */
+  /**
+   * Store-owner alert: a cash-on-delivery, InstaPay or Bank Transfer order was placed, or a card
+   * payment cleared.
+   */
   | 'store-new-order';
 
 /**
@@ -95,6 +102,16 @@ export function orderEmailsForWrite(
     if (feeChanged) kinds.push('delivery-fee-changed');
     if (becameConfirmed && statusBefore === 'pending') {
       kinds.push('instapay-confirmed');
+    }
+    return kinds;
+  }
+
+  if (after.paymentMethod === 'bank-transfer') {
+    if (before === null && after.status === 'pending') {
+      kinds.push('bank-transfer-placed', 'store-new-order');
+    }
+    if (becameConfirmed && statusBefore === 'pending') {
+      kinds.push('bank-transfer-confirmed');
     }
     return kinds;
   }

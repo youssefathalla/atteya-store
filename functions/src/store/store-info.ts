@@ -49,6 +49,20 @@ export interface StoreInfo {
       /** Mobile number linked to InstaPay, as people read it, e.g. `010 1234 5678`. */
       readonly number: string;
     };
+    /**
+     * Bank Transfer for orders shipped outside Egypt: the shopper sends the total in the currency
+     * checkout showed them to this IBAN and sends the receipt on WhatsApp. Empty `iban` = Bank
+     * Transfer is hidden everywhere and `createBankTransferOrder` refuses.
+     */
+    readonly bankTransfer: {
+      /** Account holder's name exactly as the bank has it. */
+      readonly accountName: string;
+      readonly bankName: string;
+      /** IBAN without spaces, e.g. `EG52…`. Shown in groups of 4 (`formatIban()`). */
+      readonly iban: string;
+      /** SWIFT / BIC code. */
+      readonly swift: string;
+    };
   };
   /** Full profile URLs (`https://instagram.com/…`). */
   readonly social: {
@@ -79,6 +93,12 @@ export const STORE_INFO: StoreInfo = {
       address: 'youseifatteya@instapay',
       number: '01280035035',
     },
+    bankTransfer: {
+      accountName: 'Youseif Tamer Elsayed Ibrahim Atteya',
+      bankName: 'National Bank of Egypt',
+      iban: 'EG520003023350016856630000150',
+      swift: 'NBEGEGCXXXX',
+    },
   },
   social: {
     instagram: '',
@@ -92,6 +112,18 @@ export const STORE_INFO: StoreInfo = {
 /** True once Card can be chosen at checkout and `createPaymobOrder` accepts orders. */
 export function isCardOrWalletLive(info: StoreInfo = STORE_INFO): boolean {
   return info.payments.cardOrWallet === 'live';
+}
+
+/** True when Bank Transfer can be offered (an IBAN is set). Orders shipped outside Egypt only. */
+export function isBankTransferLive(info: StoreInfo = STORE_INFO): boolean {
+  return info.payments.bankTransfer.iban.replace(/\s/g, '') !== '';
+}
+
+/** `EG52 0003 0233 …`: an IBAN in groups of 4 for reading (copy it without spaces). */
+export function formatIban(iban: string): string {
+  return iban
+    .replace(/\s/g, '')
+    .replace(/(.{4})(?=.)/g, '$1 ');
 }
 
 /**

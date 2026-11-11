@@ -104,6 +104,7 @@ function emailContext(): OrderEmailContext {
     storeName: STORE_INFO.name,
     whatsappNumber: STORE_INFO.contact.whatsapp,
     instapay: STORE_INFO.payments.instapay,
+    bankTransfer: STORE_INFO.payments.bankTransfer,
   };
 }
 

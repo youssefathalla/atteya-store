@@ -5,8 +5,8 @@
  * Edit ONLY this file (functions/src/store/order-messages.ts), then run `npm run sync:engine`,
  * which copies it to src/app/core/config/order-messages.ts.
  *
- * The rule that matters: InstaPay details and "send the screenshot" appear only while money is
- * actually owed (`paymentDue()` is not null). A paid, failed, cancelled or abroad order never
+ * The rule that matters: InstaPay or bank details and "send the screenshot / receipt" appear only
+ * while money is actually owed (`paymentDue()` is not null). A paid, failed, cancelled or abroad order never
  * asks for money. Amounts come only from the saved order, never from live prices.
  *
  * WhatsApp messages are Arabic with English digits (`1,500 EGP`, `#A1B2C3`) so amounts and
@@ -18,7 +18,7 @@ import { STORE_INFO, type StoreInfo } from './store-info.js';
 export interface OrderMessageInput {
   /** `#A1B2C3` (`shortOrderRef()`). */
   readonly ref: string;
-  /** `paymob` | `cash-on-delivery` | `instapay` (anything else = legacy). */
+  /** `paymob` | `cash-on-delivery` | `instapay` | `bank-transfer` (anything else = legacy). */
   readonly paymentMethod: string;
   /** `pending` | `confirmed` | `shipped` | `delivered` | `failed` | `cancelled`. */
   readonly status: string;
@@ -36,6 +36,17 @@ export interface OrderMessageInput {
    * While true, `shippingEgp` and `totalEgp` should be null: neither amount is known.
    */
   readonly feeToBeAgreed?: boolean;
+  /**
+   * Bank Transfer only: the saved amount to send in the shopper's currency (`pricing.payIn`).
+   * Missing or null = unknown.
+   */
+  readonly payIn?: PayIn | null;
+}
+
+/** An amount in the shopper's own currency, e.g. `{ currency: 'USD', amount: 205 }`. */
+export interface PayIn {
+  readonly currency: string;
+  readonly amount: number;
 }
 
 export type OrderStage =
@@ -45,11 +56,13 @@ export type OrderStage =
   | 'instapay-total-due'
   /** Cash on delivery waiting for the shipping fee (above 0) by InstaPay. */
   | 'instapay-fee-due'
+  /** Bank Transfer (outside Egypt) waiting for the total in the shopper's currency. */
+  | 'bank-transfer-due'
   /** Cash on delivery with free shipping, not confirmed yet. Nothing to pay now. */
   | 'cod-free-pending'
   /** Cash on delivery confirmed; the rest is paid in cash on delivery. */
   | 'cod-confirmed'
-  /** Paid in full (InstaPay or card/wallet) and confirmed. */
+  /** Paid in full (InstaPay, Bank Transfer or card/wallet) and confirmed. */
   | 'paid'
   /** Paid in full, but an item ran short. Staff explain; no ready-made "getting it ready". */
   | 'paid-needs-review'
@@ -66,10 +79,18 @@ export type OrderStage =
 
 export type InstapayInfo = StoreInfo['payments']['instapay'];
 
+export type BankTransferInfo = StoreInfo['payments']['bankTransfer'];
+
 export interface PaymentDue {
-  /** What the shopper transfers by InstaPay, in whole EGP. Null when the saved amount is unreadable. */
+  /**
+   * What the shopper owes, in whole EGP. Null when the saved amount is unreadable. For Bank
+   * Transfer this is what we expect to receive; the shopper sends `payIn` instead.
+   */
   readonly amountEgp: number | null;
-  readonly reason: 'total' | 'shipping-fee';
+  /** `total` / `shipping-fee`: by InstaPay. `bank-transfer`: the total from their bank, in `payIn`. */
+  readonly reason: 'total' | 'shipping-fee' | 'bank-transfer';
+  /** Bank Transfer only: the amount to send in the shopper's currency, or null when unreadable. */
+  readonly payIn?: PayIn | null;
 }
 
 /**
@@ -87,7 +108,10 @@ export function orderStage(order: OrderMessageInput): OrderStage {
   if (status === 'cancelled') return 'cancelled';
   if (status === 'failed') return 'failed';
   const known =
-    paymentMethod === 'instapay' || paymentMethod === 'cash-on-delivery' || paymentMethod === 'paymob';
+    paymentMethod === 'instapay' ||
+    paymentMethod === 'cash-on-delivery' ||
+    paymentMethod === 'paymob' ||
+    paymentMethod === 'bank-transfer';
   if (status === 'shipped') return known ? 'shipped' : 'unknown';
   if (status === 'delivered') return known ? 'delivered' : 'unknown';
   const confirmed = status === 'confirmed';
@@ -104,6 +128,14 @@ export function orderStage(order: OrderMessageInput): OrderStage {
     // InstaPay is Egypt-only; anything else is not ours to explain.
     if (order.country !== 'EG') return 'unknown';
     if (pending) return 'instapay-total-due';
+    if (confirmed) return paidStage;
+    return 'unknown';
+  }
+
+  if (paymentMethod === 'bank-transfer') {
+    // Bank Transfer is for orders shipped outside Egypt only.
+    if (order.country === 'EG') return 'unknown';
+    if (pending) return 'bank-transfer-due';
     if (confirmed) return paidStage;
     return 'unknown';
   }
@@ -126,8 +158,14 @@ export function orderStage(order: OrderMessageInput): OrderStage {
   return 'unknown';
 }
 
-/** Money the shopper still owes by InstaPay. Null for every stage that must not ask for money. */
+/**
+ * Money the shopper still owes (by InstaPay, or by Bank Transfer from abroad). Null for every stage
+ * that must not ask for money.
+ */
 export function paymentDue(stage: OrderStage, order: OrderMessageInput): PaymentDue | null {
+  if (stage === 'bank-transfer-due') {
+    return { amountEgp: positiveEgp(order.totalEgp), reason: 'bank-transfer', payIn: readPayIn(order.payIn) };
+  }
   if (stage === 'instapay-total-due') {
     return { amountEgp: positiveEgp(order.totalEgp), reason: 'total' };
   }
@@ -149,6 +187,26 @@ export function hasInstapayDetails(info: InstapayInfo = STORE_INFO.payments.inst
   return info.address.trim() !== '' || info.number.trim() !== '';
 }
 
+export function hasBankTransferDetails(info: BankTransferInfo = STORE_INFO.payments.bankTransfer): boolean {
+  return info.iban.replace(/\s/g, '') !== '';
+}
+
+/** `205 USD`, `12.345 KWD` (English digits). For WhatsApp messages. */
+export function formatPayInPlain(payIn: PayIn): string {
+  return `${payIn.amount.toLocaleString('en-US', { maximumFractionDigits: 3 })} ${payIn.currency}`;
+}
+
+/** A saved `pricing.payIn` that can be shown, or null (missing, not a positive amount, bad code). */
+export function readPayIn(value: unknown): PayIn | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  const currency = raw['currency'];
+  const amount = raw['amount'];
+  if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency) || currency === 'EGP') return null;
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return null;
+  return { currency, amount };
+}
+
 /** `1,500 EGP` (English digits, no decimals). */
 export function formatEgpPlain(amount: number): string {
   return `${Math.round(amount).toLocaleString('en-US')} EGP`;
@@ -165,6 +223,10 @@ export function shopperWhatsappText(
 ): string | null {
   const ref = order.ref;
   const due = paymentDue(stage, order);
+  if (due?.reason === 'bank-transfer') {
+    const amount = due.payIn ? `${formatPayInPlain(due.payIn)} ` : '';
+    return `مرحباً، طلبي رقم ${ref}. حوّلت ${amount}من البنك، ودي صورة إيصال التحويل.`;
+  }
   if (due) {
     const amount = due.amountEgp !== null ? ` ${formatEgpPlain(due.amountEgp)}` : '';
     const what = due.reason === 'shipping-fee' ? `مصاريف الشحن${amount}` : amount ? amount.trim() : 'المبلغ';
@@ -195,6 +257,7 @@ export function staffWhatsappText(
   shopperName: string,
   info: InstapayInfo = STORE_INFO.payments.instapay,
   storeName: string = STORE_INFO.name,
+  bank: BankTransferInfo = STORE_INFO.payments.bankTransfer,
 ): string | null {
   if (stage === 'paymob-pending' || stage === 'unknown') return null;
 
@@ -208,6 +271,14 @@ export function staffWhatsappText(
     case 'fee-to-be-agreed':
       // Staff add the fee they quote, then save it in the dashboard (Set delivery fee).
       return `${greeting}\nطلبك وصلنا، ولأنه طلب كبير هنتفق معاك على مصاريف الشحن قبل ما نشحنه.`;
+    case 'bank-transfer-due': {
+      const payIn = readPayIn(order.payIn);
+      const amount = payIn ? formatPayInPlain(payIn) : 'إجمالي الطلب';
+      const where = bankWhere(bank);
+      return where
+        ? `${greeting}\nعلشان نأكد الطلب ونشحنه، محتاجين تحوّل ${amount} من البنك على حسابنا:\n${where}\nاكتب ${order.ref.replace(/^#/, '')} في ملاحظة التحويل، وابعتلنا إيصال التحويل هنا.`
+        : `${greeting}\nعلشان نأكد الطلب ونشحنه، محتاجين تحوّل ${amount} من البنك. هنبعتلك بيانات الحساب هنا.`;
+    }
     case 'instapay-total-due': {
       const total = positiveEgp(order.totalEgp);
       const amount = total !== null ? formatEgpPlain(total) : 'إجمالي الطلب';
@@ -306,6 +377,19 @@ const DIALLING_CODES: Readonly<Record<string, string>> = {
   SA: '966',
   US: '1',
 };
+
+/** Account name, IBAN, SWIFT and bank, one per line, or null when no IBAN is set. */
+function bankWhere(bank: BankTransferInfo): string | null {
+  if (!hasBankTransferDetails(bank)) return null;
+  return [
+    bank.accountName.trim() ? `Account name: ${bank.accountName.trim()}` : '',
+    `IBAN: ${bank.iban.replace(/\s/g, '')}`,
+    bank.swift.trim() ? `SWIFT / BIC: ${bank.swift.trim()}` : '',
+    bank.bankName.trim() ? `Bank: ${bank.bankName.trim()}` : '',
+  ]
+    .filter((line) => line !== '')
+    .join('\n');
+}
 
 /** `على InstaPay: name@instapay أو رقم 010…`, or null when no details are set. */
 function instapayWhere(info: InstapayInfo): string | null {
