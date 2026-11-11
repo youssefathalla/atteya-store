@@ -202,7 +202,8 @@
         [ngTemplateOutletContext]="{ $implicit: row.liveCount === 1 }"
       />
     } @else {
-      <span class="font-body-md whitespace-nowrap" [class.text-on-surface-variant]="row.liveCount === 0">
+      <span class="products-status font-body-md" [class.products-status--live]="row.liveCount > 0">
+        <mat-icon [name]="row.liveCount > 0 ? 'visibility' : 'visibility_off'" size="lg" />
         {{ row.liveCount }} of {{ row.colours.length }} live
       </span>
     }
@@ -220,12 +221,8 @@
 </ng-template>
 
 <ng-template #statusDot let-live>
-  <span class="elements-start gap-2 font-body-md" [class.text-on-surface-variant]="!live">
-    <span
-      class="size-2 rounded-full border-[1.5px] border-current"
-      [class.bg-current]="live"
-      aria-hidden="true"
-    ></span>
+  <span class="products-status font-body-md" [class.products-status--live]="live">
+    <mat-icon [name]="live ? 'visibility' : 'visibility_off'" size="lg" />
     {{ live ? 'Live' : 'Hidden' }}
   </span>
 </ng-template>

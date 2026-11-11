@@ -1,7 +1,10 @@
 import { Component, input, model, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 import { PRODUCT_BRANDS, PRODUCT_TYPES } from '@core/services/products/product.constants';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import type { ProductListCounts, ProductListView } from '../../models/product-admin.model';
@@ -9,7 +12,15 @@ import type { ProductListCounts, ProductListView } from '../../models/product-ad
 @Component({
   selector: 'app-products-toolbar',
   host: { class: 'block w-full' },
-  imports: [MatButtonModule, MatMenuModule, MatProgressSpinnerModule, SharedIconModule],
+  imports: [
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatMenuModule,
+    MatProgressSpinnerModule,
+    MatSelectModule,
+    SharedIconModule,
+  ],
   templateUrl: './products-toolbar.component.html',
   styleUrl: './products-toolbar.component.css',
 })
@@ -43,17 +54,5 @@ export class ProductsToolbarComponent {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
     this.search.set(target.value);
-  }
-
-  onType(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    this.typeId.set(target.value);
-  }
-
-  onBrand(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    this.brandId.set(target.value);
   }
 }

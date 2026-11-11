@@ -1,6 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 import type { Product } from '@core/services/products/product.model';
 import type { StockChange } from '../../models/product-admin.model';
 
@@ -29,8 +32,9 @@ interface StockFormState {
 
 @Component({
   selector: 'app-product-stock-dialog',
-  imports: [MatDialogModule, MatButtonModule],
+  imports: [MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, SharedIconModule],
   templateUrl: './product-stock-dialog.component.html',
+  styleUrl: './product-stock-dialog.component.css',
 })
 export class ProductStockDialogComponent {
   readonly #dialogRef = inject(MatDialogRef<ProductStockDialogComponent, StockChange | null>);
