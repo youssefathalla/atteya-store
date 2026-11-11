@@ -237,11 +237,16 @@ export class RewardEditorComponent {
     this.#updateBundleRows((rows) => rows.map((row, at) => (at === index ? { ...row, quantity } : row)));
   }
 
-  /** Sorts the rows by pieces once focus has left the whole list (not when it moves between rows). */
+  /**
+   * Sorts the rows by pieces once focus has moved to something else outside the list (not when it
+   * moves between rows). With no next target (a click on a button in Safari, or on empty space) it
+   * waits, because sorting then would move a row from under the pointer before the click lands;
+   * the pricing engine sorts the rows itself, so the saved order never matters.
+   */
   onBundleRowsFocusOut(event: FocusEvent): void {
     const list = event.currentTarget as HTMLElement;
     const next = event.relatedTarget;
-    if (next instanceof Node && list.contains(next)) return;
+    if (!(next instanceof Node) || list.contains(next)) return;
     this.#updateBundleRows((rows) => {
       const sorted = [...rows].sort((a, b) => a.quantity - b.quantity);
       return sorted.every((row, at) => row === rows[at]) ? rows : sorted;
