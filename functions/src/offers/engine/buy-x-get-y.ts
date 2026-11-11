@@ -57,7 +57,10 @@ export interface BagBundle {
   readonly total: number;
   /** Whole EGP saved against those pieces' own prices (before per-item offers). */
   readonly saving: number;
-  /** Bag line the strip and nudge sit under: the last line that counts toward the offer. */
+  /**
+   * Bag line the strip and nudge sit under: the last line with pieces in the bundle, or the last
+   * line that counts toward the offer while no row applies yet.
+   */
   readonly lineIndex: number;
   /** The next bigger row and how many more pieces reach it; null at the top row. */
   readonly next: { readonly missing: number; readonly quantity: number; readonly price: number } | null;
@@ -327,13 +330,15 @@ function priceBundle(
     .filter((unit) => !unit.used && inOffer[unit.line])
     .sort((a, b) => offerPriceOf(b) - offerPriceOf(a) || a.line - b.line);
   if (pool.length === 0) return null;
-  const lineIndex = Math.max(...pool.map((unit) => unit.line));
 
   const { pieces, cover } = bestBundle(
     rows,
     pool.map((unit) => offerPriceOf(unit)),
   );
   const bundled = pool.slice(0, pieces).sort((a, b) => a.line - b.line);
+  // The strip sits under the last line with pieces in the bundle, not under a leftover piece
+  // that pays its own price; with no bundle yet, under the last line that counts toward it.
+  const lineIndex = Math.max(...(bundled.length > 0 ? bundled : pool).map((unit) => unit.line));
   let saving = 0;
   if (bundled.length > 0) {
     // Fill the rows biggest first with the pieces in bag order, and split each row's total.
