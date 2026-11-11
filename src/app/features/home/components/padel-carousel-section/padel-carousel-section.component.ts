@@ -60,12 +60,13 @@ export class PadelCarouselSectionComponent {
 
   readonly #list = resource({
     loader: async () => {
+      // Over-fetch so colour variants dropped by `onePerModel` don't leave the row short.
       const products = onePerModel(
         await this.#products.listPublished({
           categoryId: 'rackets',
-          limit: PADEL_CAROUSEL_LIMIT,
+          limit: PADEL_CAROUSEL_LIMIT * 3,
         }),
-      );
+      ).slice(0, PADEL_CAROUSEL_LIMIT);
       putHomeRowSeed(this.#transfer, HOME_PADEL_ROW_KEY, products, this.isBrowser);
       return products;
     },
