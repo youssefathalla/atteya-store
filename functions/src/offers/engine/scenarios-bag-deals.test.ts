@@ -873,7 +873,12 @@ describe('ATS-137 / J27: one discount per item, the bigger saving wins', () => {
         subtotal,
         quote: shippingQuote(
           settings,
-          { region: 'egypt', totalWeightGrams: 750, goodsSubtotal: subtotal, lines: [P1] },
+          {
+            region: 'egypt',
+            totalWeightGrams: 750,
+            goodsSubtotal: subtotal,
+            lines: [{ product: P1, variant: null }],
+          },
           [freeShipping],
           CTX,
         ),

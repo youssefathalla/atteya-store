@@ -8,7 +8,7 @@ import {
   type ShippingBox,
   type ShippingSettings,
 } from './shipping.js';
-import type { Offer, PricedProduct, PricingContext } from './types.js';
+import type { Offer, PricedProduct, PricingContext, VariantFacts } from './types.js';
 
 /** Client's Egypt rates (Nov 2026): up to 1 kg = 115, up to 3 kg = 135, heavier = agreed. */
 const EGYPT: readonly ShippingBox[] = [
@@ -188,7 +188,7 @@ function quote(
 ) {
   return shippingQuote(
     settings,
-    { region, totalWeightGrams: 250, goodsSubtotal, lines: [TEE_LINE] },
+    { region, totalWeightGrams: 250, goodsSubtotal, lines: [{ product: TEE_LINE, variant: null }] },
     offers,
     CTX,
   );
@@ -243,7 +243,12 @@ describe('free shipping offers respect Except rules', () => {
   function quoteLines(lines: readonly PricedProduct[], offers: readonly Offer[]) {
     return shippingQuote(
       SETTINGS,
-      { region: 'egypt', totalWeightGrams: 250, goodsSubtotal: 1_000, lines },
+      {
+        region: 'egypt',
+        totalWeightGrams: 250,
+        goodsSubtotal: 1_000,
+        lines: lines.map((product) => ({ product, variant: null })),
+      },
       offers,
       CTX,
     );
@@ -268,5 +273,44 @@ describe('free shipping offers respect Except rules', () => {
       shippingQuote(SETTINGS, { region: 'egypt', totalWeightGrams: 250, goodsSubtotal: 1_000 }, offers, CTX);
     assert.equal(noLines([freeShippingOffer()]).fee, 0);
     assert.equal(noLines([exceptBrandX]).fee, 115);
+  });
+});
+
+describe('free shipping offers respect size and colour Except rules (chosen option)', () => {
+  const MULTI_COLOUR: PricedProduct = { ...TEE_LINE, productId: 'multi-1', colors: ['black', 'white'] };
+  const exceptBlack = freeShippingOffer({
+    exclude: { anyOf: [{ allOf: [{ field: 'colors', in: ['black'] }] }] },
+  });
+  const exceptSizeL = freeShippingOffer({
+    exclude: { anyOf: [{ allOf: [{ field: 'sizes', in: ['L'] }] }] },
+  });
+
+  function quoteVariant(variant: VariantFacts | null, offers: readonly Offer[], product = MULTI_COLOUR) {
+    return shippingQuote(
+      SETTINGS,
+      { region: 'egypt', totalWeightGrams: 250, goodsSubtotal: 1_000, lines: [{ product, variant }] },
+      offers,
+      CTX,
+    );
+  }
+
+  it('"all except Black": a bag of only the multi-colour product in Black pays the box fee', () => {
+    const result = quoteVariant({ id: 'v-black', color: 'black', size: null }, [exceptBlack]);
+    assert.equal(result.fee, 115);
+    assert.equal(result.reason, 'box');
+    assert.equal(result.offerId, undefined);
+  });
+
+  it('"all except Black": the same product in White ships free', () => {
+    const result = quoteVariant({ id: 'v-white', color: 'white', size: null }, [exceptBlack]);
+    assert.equal(result.fee, 0);
+    assert.equal(result.reason, 'offer');
+    assert.equal(result.offerId, 'free-ship');
+  });
+
+  it('"all except size L": size L pays the box fee, size M ships free', () => {
+    const sized: PricedProduct = { ...TEE_LINE, productId: 'sized-1', sizes: ['M', 'L'] };
+    assert.equal(quoteVariant({ id: 'v-l', size: 'L', color: null }, [exceptSizeL], sized).fee, 115);
+    assert.equal(quoteVariant({ id: 'v-m', size: 'M', color: null }, [exceptSizeL], sized).fee, 0);
   });
 });
