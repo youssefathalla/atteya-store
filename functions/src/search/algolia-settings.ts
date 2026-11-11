@@ -45,6 +45,10 @@ export function primaryIndexSettings(indexName: string): IndexSettings {
     searchableAttributes: [...SEARCHABLE_ATTRIBUTES],
     attributesForFaceting: [...ATTRIBUTES_FOR_FACETING],
     customRanking: [...CUSTOM_RANKING],
+    // One result per model (`distinctKey`): the best-ranked colour of each model is shown, so an
+    // in-stock colour wins (`desc(inStock)`), and a Colour filter shows the matching colour.
+    attributeForDistinct: 'distinctKey',
+    distinct: 1,
     replicas: [...replicas.all],
     queryLanguages: ['en'],
     ignorePlurals: true,

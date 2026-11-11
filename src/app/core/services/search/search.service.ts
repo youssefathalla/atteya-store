@@ -88,6 +88,8 @@ export class SearchService {
           page,
           hitsPerPage,
           filters,
+          // One result per model (index `distinct` on `distinctKey`).
+          distinct: true,
         },
       ],
     });
@@ -147,6 +149,8 @@ export class SearchService {
       numericFilters?: string[];
       facets?: string[];
       maxValuesPerFacet?: number;
+      distinct: boolean;
+      facetingAfterDistinct: boolean;
     }
 
     const mainRequest: HitRequest = {
@@ -159,24 +163,46 @@ export class SearchService {
       numericFilters,
       facets,
       maxValuesPerFacet,
+      // One card per model (index `distinct` on `distinctKey`), and filter counts count models.
+      distinct: true,
+      facetingAfterDistinct: true,
     };
 
     const requests: HitRequest[] = [mainRequest];
-    const disjunctiveAttrs: string[] = [];
+    const companionAttrs: string[] = [];
 
     for (const attr of disjunctive) {
       if (!facetFilterTouchesAttr(facetFilters, attr)) continue;
-      disjunctiveAttrs.push(attr);
+      companionAttrs.push(attr);
+    }
+    // Variant-level facets (each colour variant is its own record) must be counted before
+    // `distinct`, otherwise only the representative variant's values are counted and other
+    // colours of a model never show up as options. Each variant of a model has its own colour,
+    // so counting records still counts models per value.
+    for (const attr of facets ?? []) {
+      if (VARIANT_LEVEL_FACETS.has(attr) && !companionAttrs.includes(attr)) {
+        companionAttrs.push(attr);
+      }
+    }
+
+    for (const attr of companionAttrs) {
+      const isDisjunctive = disjunctive.includes(attr) && facetFilterTouchesAttr(facetFilters, attr);
       requests.push({
         indexName,
         query: '',
         page: 0,
         hitsPerPage: 0,
         filters: options.filters,
-        facetFilters: withoutAttrFacetFilters(facetFilters, attr),
+        facetFilters: isDisjunctive
+          ? withoutAttrFacetFilters(facetFilters, attr)
+          : facetFilters.length > 0
+            ? facetFilters
+            : undefined,
         numericFilters,
         facets: [attr],
         maxValuesPerFacet,
+        distinct: true,
+        facetingAfterDistinct: !VARIANT_LEVEL_FACETS.has(attr),
       });
     }
 
@@ -200,8 +226,8 @@ export class SearchService {
     const mergedFacets: Record<string, Readonly<Record<string, number>>> = {
       ...normalizeFacets(first.facets),
     };
-    for (let i = 0; i < disjunctiveAttrs.length; i++) {
-      const attr = disjunctiveAttrs[i]!;
+    for (let i = 0; i < companionAttrs.length; i++) {
+      const attr = companionAttrs[i]!;
       const companion = response.results[i + 1];
       if (!companion) continue;
       const companionFacets = normalizeFacets(companion.facets);
@@ -250,6 +276,9 @@ export class SearchService {
     return this.#clientPromise;
   }
 }
+
+/** Facets whose values differ between colour variants of one model; counted before `distinct`. */
+const VARIANT_LEVEL_FACETS: ReadonlySet<string> = new Set(['colors']);
 
 function emptyResult(configured: boolean): SearchResultPage {
   return {

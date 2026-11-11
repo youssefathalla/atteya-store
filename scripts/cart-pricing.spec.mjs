@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
   canCheckout,
   cartSubtotalDisplay,
@@ -686,5 +687,44 @@ describe('bag notes when an offer stops applying (ATS-143)', () => {
       offerNoteText({ kind: 'used', title: '' }),
       "You've already used an offer in your bag, so your total changed.",
     );
+  });
+});
+
+describe('onePerModel (one card per model in product lists)', () => {
+  const p = (id, modelGroup, extra = {}) => ({ id, modelGroup, ...extra });
+
+  it('keeps one product per model, where its first colour was', () => {
+    const out = onePerModel([
+      p('a-black', 'a'),
+      p('b', null),
+      p('a-red', 'a'),
+      p('c-white', 'c'),
+      p('c-black', 'c'),
+    ]);
+    assert.deepEqual(
+      out.map((x) => x.id),
+      ['a-black', 'b', 'c-white'],
+    );
+  });
+
+  it('keeps every product without a model, blank models included', () => {
+    const out = onePerModel([p('x', null), p('y', ''), p('z', '  ')]);
+    assert.equal(out.length, 3);
+  });
+
+  it('shows an in-stock colour instead of an out-of-stock first colour', () => {
+    const out = onePerModel([p('a-black', 'a', { stock: 0 }), p('b', null), p('a-red', 'a', { stock: 4 })]);
+    assert.deepEqual(
+      out.map((x) => x.id),
+      ['a-red', 'b'],
+    );
+  });
+
+  it('reads the inStock flag when there is no stock count, and keeps the first when none are in stock', () => {
+    assert.equal(
+      onePerModel([p('a1', 'a', { inStock: false }), p('a2', 'a', { inStock: true })])[0].id,
+      'a2',
+    );
+    assert.equal(onePerModel([p('a1', 'a', { stock: 0 }), p('a2', 'a', { stock: 0 })])[0].id, 'a1');
   });
 });
