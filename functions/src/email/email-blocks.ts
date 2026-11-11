@@ -1,5 +1,6 @@
 /**
- * Building blocks for the shopper emails ("Bold Black" design, <KEY>-221): a black header with a
+ * Building blocks for the shopper emails ("Bold Black" design, <KEY>-221), plus the staff new-order alert
+ * blocks at the end (<KEY>-222): a black header with a
  * huge status, a big amount block, numbered steps, a full-width black button, item photos, totals
  * under a 3px black rule, grey info boxes and a black footer.
  *
@@ -59,6 +60,8 @@ export function emailDocument(title: string, rows: readonly string[]): string {
 .px{padding-left:24px!important;padding-right:24px!important;}
 .status{font-size:38px!important;}
 .amount{font-size:32px!important;}
+.stat{font-size:18px!important;}
+.statcell{padding-left:12px!important;padding-right:12px!important;}
 }
 </style>
 </head>
@@ -352,13 +355,15 @@ export function itemGrid(cards: readonly ItemCard[], perRow: 2 | 3, compactAfter
   const gap = perRow === 2 ? 16 : 12;
   const cellWidth = Math.floor((CONTENT_WIDTH - gap * (perRow - 1)) / perRow);
   const photoHeight = Math.round(cellWidth * (perRow === 2 ? 0.85 : 1));
+  // Percent widths so the row shrinks on phones; the photo keeps its pixel width for Outlook.
+  const cellPercent = `${Math.floor(100 / perRow)}%`;
   const rows: string[] = [];
   for (let start = 0; start < cards.length; start += perRow) {
     const slice = cards.slice(start, start + perRow);
     const tds = Array.from({ length: perRow }, (_, index) => {
       const card = slice[index];
       const pad = index < perRow - 1 ? `padding-right:${gap}px;` : '';
-      if (!card) return `<td width="${cellWidth}" valign="top" style="${pad}">&nbsp;</td>`;
+      if (!card) return `<td width="${cellPercent}" valign="top" style="${pad}">&nbsp;</td>`;
       const price = card.price
         ? `<p style="margin:6px 0 0;${FONT}font-size:15px;font-weight:700;color:${INK};">${escapeHtml(card.price)}</p>`
         : '';
@@ -366,7 +371,7 @@ export function itemGrid(cards: readonly ItemCard[], perRow: 2 | 3, compactAfter
         ? `<p style="margin:3px 0 0;${FONT}font-size:13px;color:${TEXT_SOFT};">${escapeHtml(card.details)}</p>`
         : '';
       const tags = card.tags.length ? `<div style="margin:0 0 2px;">${tagHtml(card.tags)}</div>` : '';
-      return `<td width="${cellWidth}" valign="top" style="${pad}padding-bottom:24px;">
+      return `<td width="${cellPercent}" valign="top" style="${pad}padding-bottom:24px;">
 ${tags}${photo(card.imageSrc, cellWidth, photoHeight)}
 <p style="margin:12px 0 0;${FONT}font-size:15px;font-weight:700;line-height:1.35;color:${INK};">${escapeHtml(card.name)}</p>
 ${details}${price}
@@ -534,4 +539,84 @@ export function siteLabel(url: string): string {
   } catch {
     return '';
   }
+}
+
+// ── Staff alert blocks (<KEY>-222) ──────────────────────────────────────────
+
+export interface StaffHeaderParts {
+  readonly storeName: string;
+  /** `NEW ORDER · 12 NOV · 14:32`, or the warning (`CHECK THIS ORDER`). */
+  readonly kicker: string;
+  /** The order total, very large (`EGP 11,315`). */
+  readonly amount: string;
+  /** A smaller line under the amount (the EGP total of a Bank Transfer order), or null. */
+  readonly amountNote: string | null;
+  /** `#A1B2C3 · Cash on Delivery`. */
+  readonly refLine: string;
+  /** The warning sentence under the ref, or null. */
+  readonly sentence: string | null;
+}
+
+/** Black header of the staff alert: wordmark with an outlined STAFF tag, then the order's worth. */
+export function staffHeader(parts: StaffHeaderParts): string {
+  const note = parts.amountNote
+    ? `<p style="margin:8px 0 0;${FONT}font-size:16px;font-weight:600;color:${ON_INK};">${escapeHtml(parts.amountNote)}</p>`
+    : '';
+  const sentence = parts.sentence
+    ? `<p style="margin:16px 0 0;${FONT}font-size:16px;line-height:1.55;font-weight:600;color:${WHITE};">${escapeHtml(parts.sentence)}</p>`
+    : '';
+  return `<tr><td class="px" style="background:${INK};padding:28px ${SIDE}px 36px;${FONT}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="${FONT}font-size:14px;font-weight:800;letter-spacing:4px;color:${WHITE};">${escapeHtml(parts.storeName.toUpperCase())}</td>
+<td align="right"><table role="presentation" cellpadding="0" cellspacing="0" align="right"><tr><td style="padding:4px 10px;border:1.5px solid ${WHITE};${FONT}font-size:12px;font-weight:800;letter-spacing:2px;color:${WHITE};">STAFF</td></tr></table></td>
+</tr></table>
+<p style="margin:44px 0 10px;${FONT}font-size:12px;font-weight:600;letter-spacing:2px;color:${ON_INK_SOFT};">${escapeHtml(parts.kicker.toUpperCase())}</p>
+<h1 class="status" style="margin:0;${FONT}font-size:52px;line-height:1.05;font-weight:800;letter-spacing:-1.5px;color:${WHITE};">${escapeHtml(parts.amount)}</h1>
+${note}
+<p style="margin:16px 0 0;${FONT}font-size:18px;font-weight:700;color:${WHITE};">${escapeHtml(parts.refLine)}</p>
+${sentence}
+</td></tr>`;
+}
+
+/** Two or three amounts side by side under the staff header (ITEMS / FEE BY INSTAPAY / CASH AT DOOR). */
+export function statStrip(cells: readonly AmountCell[]): string {
+  const width = `${Math.floor(100 / Math.max(1, cells.length))}%`;
+  const tds = cells
+    .map((cell, index) => {
+      const first = index === 0;
+      const last = index === cells.length - 1;
+      const divider = first ? '' : `border-left:1px solid ${GREY_LINE};`;
+      const pad = `padding:24px ${last ? SIDE : 16}px 24px ${first ? SIDE : 20}px;`;
+      return `<td class="${first ? 'px' : 'statcell'}" valign="top" width="${width}" style="${pad}${divider}">
+<p style="margin:0 0 6px;${FONT}font-size:11px;font-weight:600;letter-spacing:2px;color:${TEXT_MUTED};">${escapeHtml(cell.label.toUpperCase())}</p>
+<p class="stat" style="margin:0;${FONT}font-size:24px;line-height:1.15;font-weight:800;letter-spacing:-0.5px;color:${INK};">${escapeHtml(cell.amount)}</p>
+</td>`;
+    })
+    .join('\n');
+  return `<tr><td style="padding:0;border-bottom:1px solid ${GREY_LINE};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;"><tr>
+${tds}
+</tr></table>
+</td></tr>`;
+}
+
+/** Grey "next step" box with a black number circle, the action in bold and a note under it. */
+export function nextStepBox(action: string, note: string | null): string {
+  const noteHtml = note
+    ? `<p style="margin:4px 0 0;${FONT}font-size:14px;line-height:1.5;color:${TEXT_MUTED};">${escapeHtml(note)}</p>`
+    : '';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${GREY_BOX};"><tr>
+<td width="24" valign="top" style="width:24px;padding:18px 0 18px 18px;">${circle('1', 'filled')}</td>
+<td valign="top" style="padding:20px 18px 18px 14px;">
+<p style="margin:0;${FONT}font-size:15px;font-weight:700;line-height:1.4;color:${INK};">${escapeHtml(action)}</p>
+${noteHtml}
+</td>
+</tr></table>`;
+}
+
+/** Outlined black button sized to its label (Message Customer on WhatsApp). */
+export function outlinedButton(button: EmailButton): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border:2px solid ${INK};">
+<a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 22px;${FONT}font-size:15px;font-weight:700;color:${INK};text-decoration:none;">${escapeHtml(button.label)}</a>
+</td></tr></table>`;
 }

@@ -69,6 +69,12 @@ export interface OrderEmailOrder {
   readonly viewKey: string | null;
   /** Bank Transfer: the amount to send in the shopper's currency (`pricing.payIn`), or null. */
   readonly payIn: PayIn | null;
+  /** When the order was placed (`createdAt`, epoch ms), or null. */
+  readonly createdAtMs: number | null;
+  /** True when the order has no account (`customerId` empty): a guest checkout. */
+  readonly guestCheckout: boolean;
+  /** The shipping box the server picked (`pricing.shipping.boxId`, e.g. `box1`), or null. */
+  readonly boxId: string | null;
 }
 
 /**
@@ -200,6 +206,9 @@ export function readOrderForEmail(
     deliveredAtMs: timestampMs(data['deliveredAt']),
     viewKey: text(data['viewKey']) || null,
     payIn: readPayIn(pricing['payIn']),
+    createdAtMs: timestampMs(data['createdAt']),
+    guestCheckout: !text(data['customerId']),
+    boxId: (shipping && text(shipping['boxId'])) || null,
   };
 }
 

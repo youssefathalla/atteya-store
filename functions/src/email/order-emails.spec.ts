@@ -264,7 +264,8 @@ describe('InstaPay emails', () => {
   it('store alert says InstaPay is waiting for the transfer', () => {
     const email = renderOrderEmail('store-new-order', read(orderDoc({ paymentMethod: 'instapay' })), ctx);
     assert.match(email.subject, /InstaPay – Waiting for Transfer/);
-    assert.ok(email.text.includes(`InstaPay\nWaiting for Transfer: ${formatEgp(2450)}`));
+    assert.ok(email.text.includes(`Waiting for Transfer: ${formatEgp(2450)}`));
+    assert.ok(email.text.includes(`Next step: Wait for ${formatEgp(2450)} on InstaPay`));
     assert.match(email.text, /once you see it in your bank app/);
   });
 });
@@ -292,8 +293,9 @@ describe('order email wording and amounts', () => {
     const confirmed = renderOrderEmail('cod-confirmed', order, ctx);
     assert.ok(!confirmed.text.includes('received your shipping fee'));
     const alert = renderOrderEmail('store-new-order', order, ctx);
-    assert.ok(alert.text.includes(`Shipping Fee: Free\nCash at the Door: ${formatEgp(2370)}`));
+    assert.ok(alert.text.includes(`Fee by InstaPay: Free\nCash at Door: ${formatEgp(2370)}`));
     assert.ok(!alert.text.includes('arrives on InstaPay'), 'no fee to wait for');
+    assert.ok(!alert.text.includes('Next step'), 'no next-step box without a note');
   });
 
   it('cash on delivery confirmed: fee received, cash amount is total minus shipping', () => {
@@ -340,14 +342,10 @@ describe('order email wording and amounts', () => {
     const cod = renderOrderEmail('store-new-order', read(orderDoc({})), ctx);
     assert.equal(cod.subject, `New Order #ABCDEF – ${formatEgp(2450)} – Cash on Delivery`);
     assert.ok(
-      cod.text.includes(
-        `Cash on Delivery\nShipping Fee: ${formatEgp(80)}\nCash at the Door: ${formatEgp(2370)}`,
-      ),
+      cod.text.includes(`Items: 2\nFee by InstaPay: ${formatEgp(80)}\nCash at Door: ${formatEgp(2370)}`),
     );
-    assert.match(cod.text, /Customer:\n.+\n01012345678\n/);
-    assert.ok(cod.html.includes('<strong>Customer</strong><br>'));
-    assert.ok(!cod.html.includes(' · 01012345678'), 'customer details are one per line');
-    assert.ok(cod.html.includes('background:#e8e8e8'), 'dashboard button is tonal');
+    assert.ok(cod.text.includes('Phone: 01012345678'));
+    assert.ok(cod.html.includes('href="tel:01012345678"'));
 
     const paid = renderOrderEmail(
       'store-new-order',
@@ -355,7 +353,7 @@ describe('order email wording and amounts', () => {
       ctx,
     );
     assert.match(paid.subject, /Paid Online$/);
-    assert.ok(paid.text.includes(`Card\nPaid: ${formatEgp(2450)}`));
+    assert.ok(paid.text.includes(`Paid: ${formatEgp(2450)}`));
     assert.match(paid.text, /sold out before this payment/);
   });
 
@@ -382,12 +380,12 @@ describe('order email photos', () => {
     assert.ok(email.html.includes('Padel Racket &lt;Pro&gt;'));
   });
 
-  it('shows each item as a card with its quantity and price, and counts every unit', () => {
+  it('lists every item in the Pack List with its quantity and price, and counts every unit', () => {
     const email = renderOrderEmail('store-new-order', read(orderDoc({})), ctx);
-    assert.match(email.html, /ITEMS \(\d+\)/);
-    assert.ok(email.html.includes('Qty '));
-    assert.ok(email.html.includes('background:#fafafa'), 'quantity and price strip');
-    assert.ok(email.html.includes('View Your Order') || email.html.includes('Open Orders in the Dashboard'));
+    assert.ok(email.html.includes('>Pack List<'));
+    assert.ok(email.html.includes('>×2<'));
+    assert.ok(email.text.includes(`- ×2 Padel Racket <Pro> (Size M): ${formatEgp(2370)}`));
+    assert.ok(email.text.includes('Items: 2'));
   });
 });
 
@@ -627,7 +625,9 @@ describe('Bank Transfer emails', () => {
   it('store alert shows the method, the amount in the shopper currency and the EGP total', () => {
     const email = renderOrderEmail('store-new-order', read(bankDoc()), withBank);
     assert.match(email.subject, /Bank Transfer – Waiting for Transfer/);
-    assert.match(email.text, /Bank Transfer\nCustomer Sends: \$205\nOrder Total in EGP: /);
+    assert.match(email.text, /#ABCDEF · Bank Transfer/);
+    assert.match(email.text, /Customer Sends: \$205\nOrder Total in EGP: /);
+    assert.match(email.text, /Next step: Wait for \$205 by bank transfer/);
     assert.ok(email.text.includes(formatEgp(2450)));
   });
 });
@@ -773,10 +773,176 @@ describe('Bold Black shopper emails (<KEY>-221)', () => {
     assert.match(email.text, /Still Want These\?/);
     assert.match(email.text, /Trouble paying\? We can help on WhatsApp\./);
   });
+});
 
-  it('keeps the store alert in its own look', () => {
-    const email = renderOrderEmail('store-new-order', read(orderDoc({})), full);
-    assert.doesNotMatch(email.html, /class="status"/);
-    assert.match(email.html, /ITEMS \(\d+\)/);
+describe('Bold Black staff alert (<KEY>-222)', () => {
+  const BANK = {
+    accountName: 'Atteya Store',
+    bankName: 'National Bank of Egypt',
+    iban: 'EG520003023350016856630000150',
+    swift: 'NBEGEGCXXXX',
+  };
+  const full: OrderEmailContext = { ...withPay, bankTransfer: BANK };
+  const alert = (doc: Record<string, unknown>, context: OrderEmailContext = full) =>
+    renderOrderEmail('store-new-order', read(doc), context);
+  const bank = () =>
+    orderDoc({ paymentMethod: 'bank-transfer', country: 'US', payIn: { currency: 'USD', amount: 205 } });
+  const cases = {
+    codPaid: orderDoc({}),
+    codFree: orderDoc({ shippingEgp: 0 }),
+    instapay: orderDoc({ paymentMethod: 'instapay' }),
+    bank: bank(),
+    card: orderDoc({ paymentMethod: 'paymob', status: 'confirmed' }),
+    large: orderDoc({ feeAgreed: false }),
+    review: orderDoc({ paymentMethod: 'paymob', status: 'confirmed', needsReview: true }),
+  };
+
+  it('renders every case with the black header, STAFF tag, footer and email-safe HTML', () => {
+    for (const [name, doc] of Object.entries(cases)) {
+      const email = alert(doc);
+      assert.ok(email.html.includes('ATTEYA STORE'), name);
+      assert.ok(email.html.includes('>STAFF<'), name);
+      assert.ok(email.html.includes('Sent to the store team for every new order.'), name);
+      assert.ok(email.text.includes('Sent to the store team for every new order.'), name);
+      assert.ok(email.html.includes('>Pack List<'), name);
+      assert.ok(email.html.includes('border-top:3px solid #111111'), name);
+      assert.ok(email.html.includes('href="https://shop.example/admin/orders/abcdef123456"'), name);
+      assert.ok(email.text.includes('Open This Order: https://shop.example/admin/orders/abcdef123456'), name);
+      assert.doesNotMatch(email.html, /display:\s*(flex|grid)|position:\s*(absolute|relative|fixed)/, name);
+      assert.doesNotMatch(email.html, /<button/, name);
+      assert.ok(email.html.includes('max-width:600px'), name);
+      assert.ok(email.text.endsWith('\n'), name);
+    }
+  });
+
+  it('keeps the subject lines as before', () => {
+    assert.equal(alert(cases.codPaid).subject, `New Order #ABCDEF – ${formatEgp(2450)} – Cash on Delivery`);
+    assert.equal(
+      alert(cases.instapay).subject,
+      `New Order #ABCDEF – ${formatEgp(2450)} – InstaPay – Waiting for Transfer`,
+    );
+    assert.equal(
+      alert(cases.bank).subject,
+      `New Order #ABCDEF – $205 (${formatEgp(2450)}) – Bank Transfer – Waiting for Transfer`,
+    );
+    assert.equal(alert(cases.card).subject, `New Order #ABCDEF – ${formatEgp(2450)} – Paid Online`);
+    assert.equal(
+      alert(cases.large).subject,
+      `New Order #ABCDEF – ${formatEgp(2370)} + Delivery – Agree Delivery Fee`,
+    );
+  });
+
+  it('header: date and time in Cairo, the total and the ref with the method', () => {
+    const doc = orderDoc({});
+    // 12:32 UTC on 12 Nov 2026 is 14:32 in Cairo.
+    doc['createdAt'] = Date.UTC(2026, 10, 12, 12, 32);
+    const email = alert(doc);
+    assert.ok(email.html.includes('>NEW ORDER · 12 NOV · 14:32<'));
+    assert.ok(email.html.includes(`>${formatEgp(2450)}</h1>`));
+    assert.ok(email.html.includes('>#ABCDEF · Cash on Delivery<'));
+    assert.ok(
+      email.text.startsWith(`New order · 12 Nov · 14:32\n${formatEgp(2450)}\n#ABCDEF · Cash on Delivery`),
+    );
+  });
+
+  it('Cash on Delivery with a fee: three amounts and the InstaPay next step', () => {
+    const email = alert(cases.codPaid);
+    assert.ok(email.html.includes('>FEE BY INSTAPAY<'));
+    assert.ok(email.html.includes('>CASH AT DOOR<'));
+    assert.ok(email.text.includes(`Next step: Wait for ${formatEgp(80)} on InstaPay`));
+    assert.ok(email.text.includes('Send the order once the shipping fee arrives on InstaPay.'));
+  });
+
+  it('Cash on Delivery with free shipping: Free, and no next-step box', () => {
+    const email = alert(cases.codFree);
+    assert.ok(email.text.includes('Fee by InstaPay: Free'));
+    assert.ok(!email.text.includes('Next step'));
+    assert.ok(!email.html.includes('>1</td>'), 'no number circle');
+  });
+
+  it('InstaPay: waiting for the transfer', () => {
+    const email = alert(cases.instapay);
+    assert.ok(email.html.includes('>WAITING FOR TRANSFER<'));
+    assert.match(email.text, /once you see it in your bank app/);
+  });
+
+  it('Bank Transfer: the amount sent is the big number, the EGP total under it', () => {
+    const email = alert(cases.bank);
+    assert.ok(email.html.includes('>$205</h1>'));
+    assert.ok(email.html.includes(`${formatEgp(2450)} order total`));
+    assert.ok(email.html.includes('>CUSTOMER SENDS<'));
+    assert.ok(email.html.includes('>ORDER TOTAL IN EGP<'));
+    assert.ok(email.text.includes('United States'), 'country on the address line');
+  });
+
+  it('Card: paid, no next-step box', () => {
+    const email = alert(cases.card);
+    assert.ok(email.text.includes(`Paid: ${formatEgp(2450)}`));
+    assert.ok(!email.text.includes('Next step'));
+  });
+
+  it('large order: the header asks to agree the fee and the strip says To Be Agreed', () => {
+    const email = alert(cases.large);
+    assert.ok(email.html.includes('>AGREE THE DELIVERY FEE<'));
+    assert.ok(email.html.includes(`>${formatEgp(2370)} + Delivery</h1>`));
+    assert.ok(email.text.includes('Delivery Fee: To Be Agreed'));
+    assert.ok(email.text.includes('Next step: Agree the delivery fee on WhatsApp'));
+    // The note is said once, in the header.
+    assert.equal(email.html.split('heavier than the biggest box').length - 1, 1);
+  });
+
+  it('needs a look: the header becomes the warning', () => {
+    const email = alert(cases.review);
+    assert.ok(email.html.includes('>CHECK THIS ORDER<'));
+    assert.ok(email.html.includes('One item sold out before this payment came in. Please check this order.'));
+    assert.ok(!email.html.includes('NEW ORDER ·'));
+  });
+
+  it('customer block: phone link, email, guest or account, the box and the WhatsApp button', () => {
+    const guest = alert(cases.codPaid);
+    assert.ok(guest.html.includes('href="tel:01012345678"'));
+    assert.ok(guest.html.includes('shopper@example.com'));
+    assert.ok(guest.text.includes('12 Nile St, Cairo · Guest checkout · Box 1'));
+    assert.ok(guest.html.includes('>Message Customer on WhatsApp<'));
+    assert.ok(guest.html.includes('href="https://wa.me/201012345678?text='));
+
+    const signedIn = orderDoc({});
+    signedIn['customerId'] = 'uid-1';
+    assert.ok(alert(signedIn).text.includes('12 Nile St, Cairo · Account · Box 1'));
+
+    const noNumber = orderDoc({});
+    (noNumber['shipping'] as Record<string, unknown>)['phone'] = '123';
+    assert.ok(!alert(noNumber).html.includes('Message Customer on WhatsApp'));
+  });
+
+  it('Pack List: 3 per row with ×n tags, gifts say Free gift, 7 or more lines are a compact list', () => {
+    const doc = orderDoc({});
+    const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
+    pricing.lines.push({
+      productId: 'g',
+      quantity: 1,
+      unitEgp: 0,
+      name: 'Socks',
+      gift: { giftName: 'Free socks' },
+    });
+    const email = alert(doc);
+    assert.ok(email.html.includes('>×2<'));
+    assert.ok(email.html.includes('>×1<'));
+    assert.ok(email.html.includes('?tr=w-360,'), '3 per row photos');
+    assert.ok(email.text.includes('- ×1 Socks: Free gift'));
+    assert.ok(email.text.includes('Items: 3'));
+
+    const many = orderDoc({});
+    const manyPricing = many['pricing'] as { lines: Record<string, unknown>[] };
+    const base = manyPricing.lines[0]!;
+    manyPricing.lines = Array.from({ length: 7 }, (_, i) => ({ ...base, productId: `p${i}`, quantity: 1 }));
+    assert.ok(alert(many).html.includes('width="64"'), 'compact list');
+    manyPricing.lines = manyPricing.lines.slice(0, 6);
+    assert.ok(!alert(many).html.includes('width="64"'));
+  });
+
+  it('leaves links out when the storefront address is not set', () => {
+    const email = alert(cases.codPaid, { ...full, storefrontUrl: '' });
+    assert.ok(!email.html.includes('Open This Order'));
   });
 });
