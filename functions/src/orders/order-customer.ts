@@ -4,6 +4,7 @@ import { CURRENT_TERMS_VERSION } from '../auth/accepted-terms.js';
 import { requireAppCheck } from '../auth/callable-options.js';
 import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
 import { requireRole } from '../auth/require-role.js';
+import { offerPricingSignedIn } from './guest-order-claim.js';
 import { guestOfferCustomerKey } from './offer-usage.js';
 import { parseGuestCheckout } from './order-request.js';
 import { hashGuestEmail, hashGuestOrderIp } from './order-rate-limit.js';
@@ -13,8 +14,11 @@ export interface AccountOrderCustomer {
   readonly kind: 'account';
   readonly uid: string;
   readonly email: string | null;
-  /** Priced with `signedIn = true`. */
-  readonly signedIn: true;
+  /**
+   * Priced with `signedIn = true` only when the account email is confirmed (`offerPricingSignedIn`);
+   * an unconfirmed account is priced like a guest.
+   */
+  readonly signedIn: boolean;
   /**
    * The ids `perCustomer` offer uses are counted under: the uid. Once-per-customer offers are only
    * for signed-in shoppers (`liveOffers`), so guests never share or use up these counts.
@@ -50,7 +54,7 @@ export async function identifyOrderCustomer(request: CallableRequest): Promise<O
       kind: 'account',
       uid: caller.uid,
       email: caller.email ?? null,
-      signedIn: true,
+      signedIn: offerPricingSignedIn(caller),
       offerKeys: [caller.uid],
     };
   }

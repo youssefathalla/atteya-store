@@ -291,7 +291,7 @@ export class ProductComponent {
   /** Offer clock and sign-in state shared by the price and the Gift Box. */
   readonly #pricingCtx = computed(() => ({
     now: new Date(this.#nowMs()),
-    signedIn: this.#hydrated() && Boolean(this.#auth.user()),
+    signedIn: this.#hydrated() && this.#auth.offerSignedIn(),
   }));
 
   readonly price = computed(() => {

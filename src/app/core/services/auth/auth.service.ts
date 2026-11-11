@@ -24,6 +24,7 @@ import {
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, filter, firstValueFrom, map, of } from 'rxjs';
 import { injectAuth, injectFirestore } from '@core/firebase';
+import { CheckoutOrderService } from '@core/services/orders/checkout-order.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { UserProfileService, type SignupConsent } from '@core/services/user-profile';
 import { notifyNotAdmin } from '@features/auth/utils/login-exit';
@@ -63,8 +64,11 @@ export class AuthService {
   readonly #platformId = inject(PLATFORM_ID);
   readonly #router = inject(Router);
   readonly #snackbar = inject(SnackbarService);
+  readonly #orders = inject(CheckoutOrderService);
 
   readonly #user = signal<User | null>(null);
+  /** Whether the signed-in account's email is confirmed (ID token `email_verified`; Google counts). */
+  readonly #emailVerified = signal(false);
   readonly #role = signal<AppRole>('anon');
   readonly #isAuthReady = signal(false);
   readonly #needsGoogleLink = signal(false);
@@ -97,6 +101,12 @@ export class AuthService {
   readonly isAuthReady = this.#isAuthReady.asReadonly();
   readonly isAuthenticated = computed(() => this.#user() !== null);
   readonly isAdmin = computed(() => this.#role() === 'admin');
+  /**
+   * The `signedIn` flag for offer pricing: signed in **and** the email is confirmed (Google, or a
+   * confirmed email/password account). Matches the order callables, which price an unconfirmed
+   * account like a guest, so offers for signed-in shoppers never show where they won't apply.
+   */
+  readonly offerSignedIn = computed(() => this.#user() !== null && this.#emailVerified());
   readonly needsGoogleLink = this.#needsGoogleLink.asReadonly();
   readonly pendingGoogleEmail = this.#pendingGoogleEmail.asReadonly();
   readonly redirectError = this.#redirectError.asReadonly();
@@ -147,7 +157,44 @@ export class AuthService {
       this.#roleMirror.value();
     });
 
-    if (isPlatformBrowser(this.#platformId)) this.#holdUntilConsent();
+    if (isPlatformBrowser(this.#platformId)) {
+      this.#holdUntilConsent();
+      this.#claimGuestOrdersOnSignIn();
+    }
+  }
+
+  /**
+   * Once per sign-in (per account, per page load), after the account's email is known to be
+   * confirmed, links that email's earlier guest orders to the account (`claimGuestOrdersByEmail`)
+   * and says how many were added. An unconfirmed email waits until it is confirmed (the server
+   * would link nothing). Browser only; a failure is silent.
+   */
+  #claimGuestOrdersOnSignIn(): void {
+    const claimed = new Set<string>();
+    effect(() => {
+      const uid = this.#user()?.uid;
+      if (!uid) {
+        claimed.clear();
+        return;
+      }
+      if (!this.#emailVerified() || claimed.has(uid)) return;
+      claimed.add(uid);
+      untracked(() => void this.#claimGuestOrders(uid));
+    });
+  }
+
+  async #claimGuestOrders(uid: string): Promise<void> {
+    try {
+      const linked = await this.#orders.claimGuestOrdersByEmail();
+      if (linked <= 0 || this.#auth.currentUser?.uid !== uid) return;
+      this.#snackbar.success(
+        linked === 1
+          ? 'We added 1 earlier order to your account.'
+          : `We added ${linked} earlier orders to your account.`,
+      );
+    } catch {
+      // Silent: the orders stay as guest orders and the next sign-in tries again.
+    }
   }
 
   /**
@@ -256,6 +303,7 @@ export class AuthService {
     if (!user.emailVerified) return false;
     const token = await user.getIdTokenResult();
     if (token.claims['email_verified'] !== true) await user.getIdToken(true);
+    if (this.#auth.currentUser?.uid === user.uid) this.#emailVerified.set(true);
     return true;
   }
 
@@ -465,6 +513,7 @@ export class AuthService {
         const result = await firebaseUser.getIdTokenResult();
         if (generation !== this.#generation) return;
         this.#role.set(roleFromClaims(result.claims));
+        this.#emailVerified.set(result.claims['email_verified'] === true);
         this.#user.set(firebaseUser);
         this.#markReady();
       } catch (error) {
@@ -479,6 +528,7 @@ export class AuthService {
           return;
         }
         this.#role.set('user');
+        this.#emailVerified.set(firebaseUser.emailVerified);
         this.#user.set(firebaseUser);
         this.#markReady();
       }
@@ -515,6 +565,7 @@ export class AuthService {
       if (this.#auth.currentUser?.uid !== current.uid) return this.#role();
       const role = roleFromClaims(result.claims);
       this.#role.set(role);
+      this.#emailVerified.set(result.claims['email_verified'] === true);
       this.#user.set(current);
       return role;
     } catch (error) {

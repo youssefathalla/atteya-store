@@ -121,7 +121,7 @@ export class SearchComponent implements OnInit {
     const offers = liveMode ? this.#offers.all() : [];
     const ctx = {
       now: new Date(this.#nowMs()),
-      signedIn: this.#hydrated() && Boolean(this.#auth.user()),
+      signedIn: this.#hydrated() && this.#auth.offerSignedIn(),
     };
 
     const map = new Map<string, ProductCardPrice>();

@@ -319,7 +319,7 @@ export class CartDrawerComponent {
   readonly #pricedBag = computed(() => {
     const liveMode = this.#offers.ready() && !this.#offers.failed();
     const offers = liveMode ? this.#offers.all() : [];
-    const ctx = { now: this.#offers.now(), signedIn: Boolean(this.#auth.user()), codes: [] };
+    const ctx = { now: this.#offers.now(), signedIn: this.#auth.offerSignedIn(), codes: [] };
     return priceBag(this.lines(), this.#products(), offers, ctx);
   });
 
@@ -330,7 +330,7 @@ export class CartDrawerComponent {
   readonly #offerLook = computed(() => {
     if (!this.#offers.ready() || this.#offers.failed()) return null;
     const offers = this.#offers.all();
-    const ctx = { now: this.#offers.now(), signedIn: Boolean(this.#auth.user()), codes: [] };
+    const ctx = { now: this.#offers.now(), signedIn: this.#auth.offerSignedIn(), codes: [] };
     return bagOfferLook({
       bagKey: this.#notes.bagKey(),
       lines: this.lines(),
@@ -654,7 +654,7 @@ export class CartDrawerComponent {
     const hits = pickBagRecommendations(loaded.hits, inBag);
     const liveMode = this.#offers.ready() && !this.#offers.failed();
     const offers = liveMode ? this.#offers.all() : null;
-    const ctx = { now: new Date(loaded.readAtMs), signedIn: Boolean(this.#auth.user()) };
+    const ctx = { now: new Date(loaded.readAtMs), signedIn: this.#auth.offerSignedIn() };
     return hits.map((hit) => searchHitToCardData(hit, searchHitCardPrice(hit, offers, ctx)));
   });
 

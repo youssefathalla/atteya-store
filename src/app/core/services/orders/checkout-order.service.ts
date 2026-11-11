@@ -194,4 +194,19 @@ export class CheckoutOrderService {
     );
     await call({ orderId, viewKey });
   }
+
+  /**
+   * Links every earlier guest order placed with the signed-in account's confirmed email
+   * (`claimGuestOrdersByEmail`, at most 50 per call). Returns how many were linked; an unconfirmed
+   * email links nothing.
+   */
+  async claimGuestOrdersByEmail(): Promise<number> {
+    const call = await callableFrom<Record<string, never>, { linked: number }>(
+      this.#functions(),
+      'claimGuestOrdersByEmail',
+    );
+    const response = await call({});
+    const linked = response.data?.linked;
+    return typeof linked === 'number' && Number.isFinite(linked) ? linked : 0;
+  }
 }

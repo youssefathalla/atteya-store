@@ -56,7 +56,7 @@ export class FavoritesPageComponent implements OnInit {
     const offers = liveMode ? this.#offers.all() : [];
     const ctx = {
       now: new Date(),
-      signedIn: Boolean(this.#auth.user()),
+      signedIn: this.#auth.offerSignedIn(),
     };
 
     return products.map((product) => {
