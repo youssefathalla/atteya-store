@@ -1,14 +1,10 @@
-<section class="surface-card p-5 w-full elements-start-col gap-4" aria-label="Product tools">
+<section class="surface-card p-5 w-full elements-start-col gap-5" aria-label="Product tools">
   <div class="elements-between flex-wrap gap-3 w-full">
-    <div>
-      <h1 class="font-title-lg font-bold!">Products</h1>
-      <p class="font-body-md">Add and edit products here.</p>
+    <div class="elements-start-col gap-1">
+      <h1 class="font-headline-sm font-bold!">Products</h1>
+      <p class="font-body-md text-on-surface-variant">Each row is one product with all its colours.</p>
     </div>
     <div class="elements-end flex-wrap gap-2">
-      <button matButton="filled" type="button" [disabled]="activity() !== null" (click)="addProduct.emit()">
-        <mat-icon name="add" />
-        <span>Add Product</span>
-      </button>
       <button
         matButton="outlined"
         type="button"
@@ -39,15 +35,20 @@
           <span>Shipping Weights</span>
         </button>
       </mat-menu>
+      <button matButton="filled" type="button" [disabled]="activity() !== null" (click)="addProduct.emit()">
+        <mat-icon name="add" />
+        <span>Add Product</span>
+      </button>
     </div>
   </div>
 
   <div class="elements-end flex-wrap gap-3 w-full">
-    <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
+    <label class="elements-start-col gap-1 font-label-md grow basis-64">
       Search
       <input
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
+        class="w-full border-shape border border-outline bg-surface px-3 py-2 font-body-md"
         type="search"
+        placeholder="Name, brand or model group"
         aria-label="Search products"
         [value]="search()"
         (input)="onSearch($event)"
@@ -79,5 +80,22 @@
         }
       </select>
     </label>
+  </div>
+
+  <div class="elements-start flex-wrap gap-2" role="group" aria-label="Show products">
+    @for (item of views; track item.id) {
+      <button
+        type="button"
+        class="products-view-chip font-label-lg"
+        [class.products-view-chip--active]="view() === item.id"
+        [attr.aria-pressed]="view() === item.id"
+        (click)="view.set(item.id)"
+      >
+        {{ item.label }}
+        @if (countsReady()) {
+          <span class="tabular-nums">{{ counts()[item.id] }}</span>
+        }
+      </button>
+    }
   </div>
 </section>

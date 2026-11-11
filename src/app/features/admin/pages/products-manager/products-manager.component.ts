@@ -1,14 +1,4 @@
-import {
-  Component,
-  computed,
-  effect,
-  inject,
-  OnInit,
-  PLATFORM_ID,
-  resource,
-  signal,
-  untracked,
-} from '@angular/core';
+import { Component, computed, effect, inject, OnInit, PLATFORM_ID, resource, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 import { SeoService } from '@core/services/seo';
@@ -17,27 +7,24 @@ import type { Product } from '@core/services/products/product.model';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { ProductsTableComponent } from './components/products-table/products-table.component';
 import { ProductsToolbarComponent } from './components/products-toolbar/products-toolbar.component';
-import type { MigratePass } from './models/product-admin.model';
+import type { MigratePass, ProductListView } from './models/product-admin.model';
 import { CatalogToolsService } from './services/catalog-tools.service';
 import { ProductsAdminService } from './services/products-admin.service';
 import { ProductsDialogService } from './services/products-dialog.service';
-import { ProductsPaginationService } from './services/products-pagination.service';
 import { importActionError } from './utils/import-error';
-import { isSearchTooShort, searchWordsFromTerm } from '@core/services/products/search-tokens';
 import { filterProductRows, toProductTableRow } from './utils/product-admin.utils';
+import { countListViews, groupProductRows, matchesListView } from './utils/product-groups.utils';
 
 @Component({
   selector: 'app-products-manager',
   host: { class: 'block w-full' },
   imports: [ProductsToolbarComponent, ProductsTableComponent],
-  providers: [ProductsPaginationService],
   templateUrl: './products-manager.component.html',
 })
 export class ProductsManagerComponent implements OnInit {
   readonly #seo = inject(SeoService);
   readonly #router = inject(Router);
   readonly #admin = inject(ProductsAdminService);
-  readonly pagination = inject(ProductsPaginationService);
   readonly #dialogs = inject(ProductsDialogService);
   readonly #tools = inject(CatalogToolsService);
   readonly #snackbar = inject(SnackbarService);
@@ -48,110 +35,71 @@ export class ProductsManagerComponent implements OnInit {
   readonly debouncedSearch = signal('');
   readonly typeId = signal('all');
   readonly brandId = signal('all');
+  readonly view = signal<ProductListView>('all');
   readonly searchSyncErrors = signal(0);
 
-  readonly productsResource = resource({
+  /** The whole catalogue, so every colour of a model lands in the same row. */
+  readonly catalogResource = resource({
     loader: async () => {
       if (!isPlatformBrowser(this.#platformId)) {
-        return { categories: [], brands: [] };
+        return { products: [], categories: [], brands: [] };
       }
-      const [categories, brands] = await Promise.all([
+      const [products, categories, brands] = await Promise.all([
+        this.#admin.listAllProducts(),
         this.#admin.listAllCategories(),
         this.#admin.listAllBrands(),
       ]);
-      return { categories, brands };
+      return { products, categories, brands };
     },
   });
 
-  readonly searchResource = resource({
-    params: () => ({
-      term: this.debouncedSearch().trim(),
-      typeId: this.typeId(),
-      brandId: this.brandId(),
-      ready: isPlatformBrowser(this.#platformId) && this.productsResource.hasValue(),
-    }),
-    loader: async ({ params }) => {
-      if (!params.ready || !params.term) {
-        return { rows: [], truncated: false };
-      }
-      const data = this.productsResource.value();
-      const categoryNames = new Map((data?.categories ?? []).map((cat) => [cat.id, cat.name]));
-      const brandNames = new Map((data?.brands ?? []).map((brand) => [brand.id, brand.name]));
-      const { products, truncated } = await this.#admin.searchProducts(params.term);
-      const rows = filterProductRows(
-        products.map((product) => toProductTableRow(product, categoryNames, brandNames)),
-        '',
-        params.typeId,
-        params.brandId,
-      );
-      return { rows, truncated };
-    },
+  readonly #allRows = computed(() => {
+    const data = this.catalogResource.value();
+    if (!data) return [];
+    const categoryNames = new Map(data.categories.map((cat) => [cat.id, cat.name]));
+    const brandNames = new Map(data.brands.map((brand) => [brand.id, brand.name]));
+    return data.products.map((product) => toProductTableRow(product, categoryNames, brandNames));
   });
 
-  readonly isSearchMode = computed(() => this.debouncedSearch().trim().length > 0);
+  readonly #filteredRows = computed(() =>
+    filterProductRows(this.#allRows(), this.debouncedSearch(), this.typeId(), this.brandId()),
+  );
 
-  readonly searchTooShort = computed(() => isSearchTooShort(searchWordsFromTerm(this.debouncedSearch())));
+  readonly counts = computed(() => countListViews(this.#filteredRows()));
+
+  readonly groups = computed(() => {
+    const view = this.view();
+    return groupProductRows(this.#filteredRows().filter((row) => matchesListView(row, view)));
+  });
 
   readonly activity = computed<'tools' | null>(() => (this.#tools.busy() ? 'tools' : null));
 
-  readonly rows = computed(() =>
-    this.isSearchMode() ? (this.searchResource.value()?.rows ?? []) : this.pagination.items(),
-  );
-
-  readonly searchTruncated = computed(
-    () => this.isSearchMode() && (this.searchResource.value()?.truncated ?? false),
-  );
-
   readonly hasActiveFilters = computed(
-    () => this.typeId() !== 'all' || this.brandId() !== 'all' || this.isSearchMode(),
+    () =>
+      this.typeId() !== 'all' ||
+      this.brandId() !== 'all' ||
+      this.view() !== 'all' ||
+      this.debouncedSearch().trim().length > 0,
   );
 
-  readonly catalogueEmpty = computed(() => !this.isSearchMode() && this.pagination.total() === 0);
+  readonly catalogueEmpty = computed(() => this.catalogResource.hasValue() && this.#allRows().length === 0);
 
   readonly loadError = computed(() => {
-    const metaError = this.productsResource.error();
-    if (metaError) return importActionError(metaError);
-    const browseError = this.pagination.error();
-    if (!this.isSearchMode() && browseError) return browseError;
-    const searchError = this.searchResource.error();
-    if (this.isSearchMode() && searchError) return importActionError(searchError);
-    return '';
+    const error = this.catalogResource.error();
+    return error ? importActionError(error) : '';
   });
 
-  readonly showSkeleton = computed(() => {
-    if (this.productsResource.isLoading() && !this.productsResource.hasValue()) return true;
-    if (this.isSearchMode()) {
-      return this.searchResource.isLoading() && !this.searchResource.hasValue();
-    }
-    return this.pagination.isLoading() && this.pagination.items().length === 0;
-  });
+  readonly showSkeleton = computed(
+    () => this.catalogResource.isLoading() && !this.catalogResource.hasValue(),
+  );
 
-  readonly tableLoading = computed(() => {
-    if (this.isSearchMode()) return this.searchResource.isLoading();
-    return this.pagination.isLoading();
-  });
+  readonly tableLoading = computed(() => this.catalogResource.isLoading());
 
   constructor() {
     effect((onCleanup) => {
       const term = this.search();
       const handle = setTimeout(() => this.debouncedSearch.set(term), 300);
       onCleanup(() => clearTimeout(handle));
-    });
-
-    effect(() => {
-      if (!isPlatformBrowser(this.#platformId)) return;
-      const data = this.productsResource.value();
-      if (!data) return;
-      const typeId = this.typeId();
-      const brandId = this.brandId();
-      const searchActive = this.debouncedSearch().trim().length > 0;
-      untracked(() => {
-        const categoryNames = new Map(data.categories.map((cat) => [cat.id, cat.name]));
-        const brandNames = new Map(data.brands.map((brand) => [brand.id, brand.name]));
-        this.pagination.setNameMaps(categoryNames, brandNames);
-        if (searchActive) return;
-        void this.pagination.setBrowseFilters(typeId, brandId);
-      });
     });
   }
 
@@ -244,11 +192,7 @@ export class ProductsManagerComponent implements OnInit {
   }
 
   private async reloadCatalogue(): Promise<void> {
-    this.productsResource.reload();
-    await this.pagination.refresh();
-    if (this.isSearchMode()) {
-      this.searchResource.reload();
-    }
+    this.catalogResource.reload();
     await this.reloadSearchSyncErrors();
   }
 

@@ -19,8 +19,37 @@ export interface ProductTableRow {
   readonly imagePath: string | null;
   readonly status: 'live' | 'hidden';
   readonly stock: number | null;
-  readonly stockStatus: 'in' | 'out' | 'unset';
+  readonly stockStatus: ProductStockStatus;
+  readonly colourLabel: string;
 }
+
+export type ProductStockStatus = 'in' | 'low' | 'out' | 'unset';
+
+/** One row of the admin list: every colour of a model, or a product without a model group. */
+export interface ProductGroupRow {
+  /** `model:<modelGroup>` or the product id; unique per row. */
+  readonly id: string;
+  /** The colour the editor opens on (it shows every colour of the model). */
+  readonly anchorId: string;
+  readonly name: string;
+  readonly categoryLabel: string;
+  readonly details: string;
+  readonly imagePath: string | null;
+  /** Lowest price across colours (sort key). */
+  readonly price: number;
+  readonly priceMax: number;
+  /** Shown only when every colour has the same price and old price. */
+  readonly compareAtPrice: number | null;
+  /** Sum of the colours that have a count; null when none has one. */
+  readonly stock: number | null;
+  readonly stockStatus: ProductStockStatus;
+  readonly liveCount: number;
+  readonly colours: readonly ProductTableRow[];
+}
+
+export type ProductListView = 'all' | 'live' | 'hidden' | 'low' | 'out';
+
+export type ProductListCounts = Readonly<Record<ProductListView, number>>;
 
 export type StockChange =
   { readonly stockBySize: Readonly<Record<string, number>> } | { readonly stock: number };

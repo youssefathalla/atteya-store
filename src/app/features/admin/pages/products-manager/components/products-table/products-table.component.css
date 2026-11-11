@@ -1,0 +1,50 @@
+/* Every cell stacks the same lines, so the colour lines line up across columns. */
+.products-line {
+  height: 4rem;
+}
+
+.products-sub-line {
+  height: 3rem;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+.products-toggle {
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 150ms;
+}
+
+.products-toggle:hover {
+  background-color: var(--mat-sys-surface-container-high);
+}
+
+.products-toggle:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+}
+
+.products-toggle--open {
+  transform: rotate(90deg);
+}
+
+.products-link {
+  cursor: pointer;
+  text-align: start;
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+  white-space: nowrap;
+}
+
+.products-link:hover,
+.products-link:focus-visible {
+  text-decoration-style: solid;
+}
+
+.products-link--strong {
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .products-toggle {
+    transition: none;
+  }
+}
