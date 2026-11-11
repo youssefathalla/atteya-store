@@ -199,7 +199,7 @@ export class GuestAccountCardComponent implements OnInit {
       // the shopper opens the confirmation link sent here and then saves the order.
       this.#outcome.set('created');
       try {
-        await this.#auth.sendVerificationEmail(this.#continueUrl());
+        await this.#auth.sendVerificationEmail(this.#continuePath());
         this.verificationSent.set(true);
       } catch {
         this.message.set(
@@ -252,11 +252,10 @@ export class GuestAccountCardComponent implements OnInit {
     this.message.set('');
     this.busy.set('verify');
     try {
-      await this.#auth.sendVerificationEmail(this.#continueUrl());
+      await this.#auth.sendVerificationEmail(this.#continuePath());
       this.verificationSent.set(true);
     } catch (error) {
-      const code = authErrorCode(error);
-      this.message.set(code ? this.#auth.mapFirebaseError(error) : VERIFY_SEND_FAILED);
+      this.message.set(callableMessage(error) ?? VERIFY_SEND_FAILED);
     } finally {
       this.busy.set(null);
     }
@@ -286,13 +285,12 @@ export class GuestAccountCardComponent implements OnInit {
   }
 
   /**
-   * Absolute link back to this order, for the confirmation email's continue button. It carries the
-   * view key so the page opens on another device too; the email only goes to the order's own address,
-   * which already gets the keyed order link, and the page removes the key from the address bar.
+   * Path back to this order, for the confirmation email's continue link (the server puts it on the
+   * store's own address). It carries the view key so the page opens on another device too; the email
+   * only goes to the order's own address, which already gets the keyed order link, and the page
+   * removes the key from the address bar.
    */
-  #continueUrl(): string | undefined {
-    const origin = globalThis.location?.origin;
-    if (!origin) return undefined;
-    return `${origin}${this.#orderPath()}?key=${encodeURIComponent(this.viewKey())}`;
+  #continuePath(): string {
+    return `${this.#orderPath()}?key=${encodeURIComponent(this.viewKey())}`;
   }
 }

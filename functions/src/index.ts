@@ -26,6 +26,7 @@ export { setDeliveryFee } from './orders/set-delivery-fee.fn.js';
 export { paymobWebhook } from './orders/paymob-webhook.fn.js';
 export { claimOrder } from './orders/claim-order.fn.js';
 export { claimGuestOrdersByEmail } from './orders/claim-guest-orders.fn.js';
+export { sendVerificationEmail } from './auth/send-verification-email.fn.js';
 export { syncOrderView } from './orders/order-view.trigger.js';
 export { sendOrderEmails } from './email/send-order-emails.trigger.js';
 export { subscribeToEmails } from './marketing/subscribe-to-emails.fn.js';

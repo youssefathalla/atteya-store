@@ -151,6 +151,9 @@ export class LoginComponent implements OnInit {
         }
         if (this.isCreateIntent()) {
           await this.#auth.register(draft.email, draft.password, this.#consentDraft());
+          // Our own "Confirm Your Email" message. Silent on failure: the account panel and
+          // `/account` keep a Resend Email button until the email is confirmed.
+          void this.#auth.sendVerificationEmail().catch(() => null);
           this.#snackbar.success('Account created');
           return;
         }

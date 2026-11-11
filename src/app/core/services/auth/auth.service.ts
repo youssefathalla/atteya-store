@@ -11,7 +11,6 @@ import {
   getRedirectResult,
   linkWithCredential,
   onIdTokenChanged,
-  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -23,7 +22,7 @@ import {
 } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, filter, firstValueFrom, map, of } from 'rxjs';
-import { injectAuth, injectFirestore } from '@core/firebase';
+import { callableFrom, injectAuth, injectFirestore, injectFunctionsAsync } from '@core/firebase';
 import { CheckoutOrderService } from '@core/services/orders/checkout-order.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { UserProfileService, type SignupConsent } from '@core/services/user-profile';
@@ -67,6 +66,7 @@ export class AuthService {
   readonly #router = inject(Router);
   readonly #snackbar = inject(SnackbarService);
   readonly #orders = inject(CheckoutOrderService);
+  readonly #functions = injectFunctionsAsync();
 
   readonly #user = signal<User | null>(null);
   /** Whether the signed-in account's email is confirmed (ID token `email_verified`; Google counts). */
@@ -92,6 +92,7 @@ export class AuthService {
   readonly #guestOrdersLinked = signal(0);
 
   #pendingCredential: AuthCredential | null = null;
+  #emailRefreshInFlight: Promise<boolean> | null = null;
   #generation = 0;
   #refreshInFlight: Promise<AppRole> | null = null;
   /** In-flight `users/{uid}` consent write so `#applyUser` does not race ahead. */
@@ -111,6 +112,15 @@ export class AuthService {
    * account like a guest, so offers for signed-in shoppers never show where they won't apply.
    */
   readonly offerSignedIn = computed(() => this.#user() !== null && this.#emailVerified());
+  /**
+   * A signed-in email/password account whose email isn't confirmed yet: the account panel and
+   * `/account` show "Confirm your email" with Resend Email. Google sign-ins count as confirmed.
+   */
+  readonly emailNeedsConfirming = computed(() => {
+    const user = this.#user();
+    if (!user || this.#emailVerified()) return false;
+    return user.providerData.some((provider) => provider.providerId === 'password');
+  });
   readonly needsGoogleLink = this.#needsGoogleLink.asReadonly();
   readonly pendingGoogleEmail = this.#pendingGoogleEmail.asReadonly();
   readonly redirectError = this.#redirectError.asReadonly();
@@ -169,6 +179,7 @@ export class AuthService {
     if (isPlatformBrowser(this.#platformId)) {
       this.#holdUntilConsent();
       this.#claimGuestOrdersOnSignIn();
+      this.#watchEmailConfirmation();
     }
   }
 
@@ -304,21 +315,38 @@ export class AuthService {
   }
 
   /**
-   * Emails the signed-in account a link that confirms its address. No-op when signed out.
-   * `continueUrl` (absolute, on this site) is where the confirmation page sends the person next.
+   * Emails the signed-in account our own "Confirm Your Email" message (`sendVerificationEmail`
+   * callable, sent through Resend; 3 per account per day). The link returns to `returnPath` (a path
+   * on this site, default `/account`). Resolves with the address it went to, or null when signed
+   * out, already confirmed, or on the server. Throws the callable's error (show it with
+   * `callableMessage()`).
    */
-  async sendVerificationEmail(continueUrl?: string): Promise<void> {
+  async sendVerificationEmail(returnPath?: string): Promise<string | null> {
+    if (!isPlatformBrowser(this.#platformId)) return null;
     const user = this.#auth.currentUser;
-    if (!user || user.emailVerified) return;
-    await sendEmailVerification(user, continueUrl ? { url: continueUrl } : undefined);
+    if (!user || user.emailVerified) return null;
+    const call = await callableFrom<{ returnPath?: string }, { sent: true; email: string }>(
+      this.#functions(),
+      'sendVerificationEmail',
+    );
+    const response = await call(returnPath ? { returnPath } : {});
+    return response.data?.email ?? user.email ?? null;
   }
 
   /**
    * Reloads the signed-in account so a just-confirmed email shows as confirmed and, when the
    * ID token was minted before that, gets a fresh one so callables see `email_verified`.
-   * Returns whether the email is confirmed (false when signed out).
+   * Returns whether the email is confirmed (false when signed out). Calls made while one is
+   * running share it.
    */
   async refreshEmailVerified(): Promise<boolean> {
+    this.#emailRefreshInFlight ??= this.#refreshEmailVerified().finally(() => {
+      this.#emailRefreshInFlight = null;
+    });
+    return this.#emailRefreshInFlight;
+  }
+
+  async #refreshEmailVerified(): Promise<boolean> {
     const user = this.#auth.currentUser;
     if (!user) return false;
     await user.reload();
@@ -327,6 +355,30 @@ export class AuthService {
     if (token.claims['email_verified'] !== true) await user.getIdToken(true);
     if (this.#auth.currentUser?.uid === user.uid) this.#emailVerified.set(true);
     return true;
+  }
+
+  /**
+   * While an email/password account is unconfirmed, checks again when the page opens (the
+   * confirmation link lands on `/account`) and whenever the tab comes back into view, so the
+   * "Confirm your email" prompt goes away and the ID token carries `email_verified`. Browser only;
+   * a failed check (offline) is silent and the next one tries again.
+   */
+  #watchEmailConfirmation(): void {
+    const check = (): void => {
+      if (!untracked(this.emailNeedsConfirming)) return;
+      void this.refreshEmailVerified().catch(() => false);
+    };
+    let checkedUid: string | null = null;
+    effect(() => {
+      const uid = this.emailNeedsConfirming() ? (this.#user()?.uid ?? null) : null;
+      if (!uid || uid === checkedUid) return;
+      checkedUid = uid;
+      untracked(check);
+    });
+    globalThis.document?.addEventListener('visibilitychange', () => {
+      if (globalThis.document.visibilityState === 'visible') check();
+    });
+    globalThis.addEventListener?.('focus', check);
   }
 
   /**
