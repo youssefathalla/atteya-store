@@ -149,7 +149,7 @@ export const updateProduct = onCall(adminCallableOptions(), async (request): Pro
   });
 });
 
-async function assertImportIdle(tx: Transaction, db: Firestore): Promise<void> {
+export async function assertImportIdle(tx: Transaction, db: Firestore): Promise<void> {
   const snap = await tx.get(db.doc('settings/catalog'));
   if (!snap.exists) return;
   const run = snap.get('importRun');
@@ -161,9 +161,15 @@ async function assertImportIdle(tx: Transaction, db: Firestore): Promise<void> {
   }
 }
 
-async function claimSlug(tx: Transaction, db: Firestore, base: string): Promise<string> {
-  const taken = new Set<string>();
-  let candidate = base;
+/** A free slug from `base` (`-2`, `-3`, …); `claimed` holds slugs this save already took. */
+export async function claimSlug(
+  tx: Transaction,
+  db: Firestore,
+  base: string,
+  claimed: ReadonlySet<string> = new Set(),
+): Promise<string> {
+  const taken = new Set(claimed);
+  let candidate = nextSlug(base, taken);
   for (let attempt = 0; attempt < SLUG_ATTEMPTS; attempt += 1) {
     const snap = await tx.get(db.collection('products').where('slug', '==', candidate).limit(1));
     if (snap.empty) return candidate;
@@ -194,7 +200,7 @@ async function readCatalogue(
 }
 
 /** Every chosen player must still be in `settings/players`, so the Player filter never splits. */
-async function assertKnownPlayers(
+export async function assertKnownPlayers(
   tx: Transaction,
   db: Firestore,
   players: readonly string[] | undefined,
@@ -210,7 +216,7 @@ async function assertKnownPlayers(
   }
 }
 
-function categoryIdsFrom(data: DocumentData, categoryId: string): string[] {
+export function categoryIdsFrom(data: DocumentData, categoryId: string): string[] {
   const ancestors = data['ancestorIds'];
   const ids: string[] = [];
   if (ancestors === undefined) {

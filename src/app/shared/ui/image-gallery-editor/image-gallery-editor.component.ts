@@ -54,6 +54,8 @@ export class ImageGalleryEditorComponent {
 
   readonly imagesChange = output<ImageAsset[]>();
   readonly uploaded = output<string>();
+  /** True while a file upload or web-link import is in flight; false once it settles. */
+  readonly busyChange = output<boolean>();
 
   readonly #isUploadingFiles = signal(false);
   readonly #isImportingUrl = signal(false);
@@ -76,6 +78,16 @@ export class ImageGalleryEditorComponent {
     const target = looksLikeDomainUrl(raw) ? `https://${raw}` : raw;
     return isExternalUrl(target);
   });
+
+  #setUploadingFiles(value: boolean): void {
+    this.#isUploadingFiles.set(value);
+    this.busyChange.emit(this.#isUploadingFiles() || this.#isImportingUrl());
+  }
+
+  #setImportingUrl(value: boolean): void {
+    this.#isImportingUrl.set(value);
+    this.busyChange.emit(this.#isUploadingFiles() || this.#isImportingUrl());
+  }
 
   protected getDisplayPath(asset: ImageAsset): string {
     return normalizeImageKitPath(asset.path);
@@ -140,7 +152,7 @@ export class ImageGalleryEditorComponent {
       this.#snackbar.info(`Only the first ${available} image(s) were added (limit ${this.maxImages()}).`);
     }
 
-    this.#isUploadingFiles.set(true);
+    this.#setUploadingFiles(true);
     const added: ImageAsset[] = [];
 
     try {
@@ -171,7 +183,7 @@ export class ImageGalleryEditorComponent {
           : 'Unable to upload one or more images. Please try again.';
       this.#snackbar.error(message);
     } finally {
-      this.#isUploadingFiles.set(false);
+      this.#setUploadingFiles(false);
       inputEl.value = '';
     }
   }
@@ -180,7 +192,7 @@ export class ImageGalleryEditorComponent {
     const raw = this.#webLinkInput().trim();
     if (!raw || this.isFull()) return;
 
-    this.#isImportingUrl.set(true);
+    this.#setImportingUrl(true);
     try {
       const resolved = await this.#imageSource.resolveInput(raw, this.folder());
       if (resolved.wasUploaded) {
@@ -207,7 +219,7 @@ export class ImageGalleryEditorComponent {
           : 'Unable to add image from that link. Please check the URL and try again.';
       this.#snackbar.error(message);
     } finally {
-      this.#isImportingUrl.set(false);
+      this.#setImportingUrl(false);
     }
   }
 }
