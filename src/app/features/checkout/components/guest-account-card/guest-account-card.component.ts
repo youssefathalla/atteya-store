@@ -98,12 +98,14 @@ export class GuestAccountCardComponent implements OnInit {
 
   /**
    * True when the signed-in person can already read the order as its owner (saved before), so
-   * there is nothing to offer. A refused read means it isn't theirs.
+   * there is nothing to offer. A refused read means it isn't theirs. Read again after the sign-in
+   * claim links guest orders, which may have linked this one in the background.
    */
   readonly #owned = resource({
     params: () => {
       const uid = this.#auth.user()?.uid;
-      return uid ? { uid, id: this.orderId() } : undefined;
+      const linked = this.#auth.guestOrdersLinked();
+      return uid ? { uid, id: this.orderId(), linked } : undefined;
     },
     loader: async ({ params }) => {
       try {

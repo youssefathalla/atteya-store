@@ -415,10 +415,11 @@ export class CheckoutPageComponent implements OnInit {
 
     const offers = this.#offers.all();
     // The offer clock moves every minute, so an offer whose time is up stops discounting here too.
-    // A guest is priced as signed out, like the server: no signed-in-only or once-per-customer offers.
+    // A guest, or an account whose email is not confirmed, is priced as signed out, like the server:
+    // no signed-in-only or once-per-customer offers.
     const ctx: PricingContext = {
       now: this.#offers.now(),
-      signedIn: this.#auth.isAuthenticated(),
+      signedIn: this.#auth.offerSignedIn(),
       codes: [],
     };
     const entry = this.#currency.entry();

@@ -111,7 +111,7 @@ export class NewArrivalsSectionComponent {
     const prices = listingCardPrices(products, live ? this.#offers.all() : [], {
       live,
       now: new Date(this.#nowMs()),
-      signedIn: this.#hydrated() && Boolean(this.#auth.user()),
+      signedIn: this.#hydrated() && this.#auth.offerSignedIn(),
     });
     return products.flatMap((product) => {
       const price = prices.get(product.id);

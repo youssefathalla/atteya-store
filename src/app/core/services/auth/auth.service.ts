@@ -24,6 +24,7 @@ import {
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, filter, firstValueFrom, map, of } from 'rxjs';
 import { injectAuth, injectFirestore } from '@core/firebase';
+import { CheckoutOrderService } from '@core/services/orders/checkout-order.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { UserProfileService, type SignupConsent } from '@core/services/user-profile';
 import { notifyNotAdmin } from '@features/auth/utils/login-exit';
@@ -44,6 +45,8 @@ const PASSWORD_RESET_HIDDEN_CODES = new Set(['auth/user-not-found', 'auth/invali
 const REDIRECT_PENDING_KEY = 'atteya-auth-redirect';
 /** Pages an account that still needs to agree may stay on: the terms step and what it links to. */
 const CONSENT_STEP_PATHS = new Set(['/login', '/terms', '/privacy']);
+/** The order confirmation page, whose Save card reports its own save. */
+const ORDER_CONFIRMATION_PATH = '/checkout/confirmation/';
 
 /** Consent chosen on Create account before a Google redirect completes. */
 const REDIRECT_CONSENT_KEY = 'atteya-auth-redirect-consent';
@@ -63,8 +66,11 @@ export class AuthService {
   readonly #platformId = inject(PLATFORM_ID);
   readonly #router = inject(Router);
   readonly #snackbar = inject(SnackbarService);
+  readonly #orders = inject(CheckoutOrderService);
 
   readonly #user = signal<User | null>(null);
+  /** Whether the signed-in account's email is confirmed (ID token `email_verified`; Google counts). */
+  readonly #emailVerified = signal(false);
   readonly #role = signal<AppRole>('anon');
   readonly #isAuthReady = signal(false);
   readonly #needsGoogleLink = signal(false);
@@ -82,6 +88,8 @@ export class AuthService {
   readonly #consentReady$ = toObservable(this.#consentReady);
   /** The `users/{uid}` terms read failed, so `needsConsent` is a fail-closed guess. */
   readonly #consentCheckFailed = signal(false);
+  /** Bumped each time the sign-in claim links guest orders to the account. */
+  readonly #guestOrdersLinked = signal(0);
 
   #pendingCredential: AuthCredential | null = null;
   #generation = 0;
@@ -97,12 +105,23 @@ export class AuthService {
   readonly isAuthReady = this.#isAuthReady.asReadonly();
   readonly isAuthenticated = computed(() => this.#user() !== null);
   readonly isAdmin = computed(() => this.#role() === 'admin');
+  /**
+   * The `signedIn` flag for offer pricing: signed in **and** the email is confirmed (Google, or a
+   * confirmed email/password account). Matches the order callables, which price an unconfirmed
+   * account like a guest, so offers for signed-in shoppers never show where they won't apply.
+   */
+  readonly offerSignedIn = computed(() => this.#user() !== null && this.#emailVerified());
   readonly needsGoogleLink = this.#needsGoogleLink.asReadonly();
   readonly pendingGoogleEmail = this.#pendingGoogleEmail.asReadonly();
   readonly redirectError = this.#redirectError.asReadonly();
   readonly linkingGoogle = this.#linkingGoogle.asReadonly();
   readonly needsConsent = this.#needsConsent.asReadonly();
   readonly consentReady = this.#consentReady.asReadonly();
+  /**
+   * Changes after the sign-in claim (`claimGuestOrdersByEmail`) links at least one guest order,
+   * so views that read an order's owner can read it again.
+   */
+  readonly guestOrdersLinked = this.#guestOrdersLinked.asReadonly();
 
   /**
    * Subscribes for the signed-in user's role mirror. Reading `value()` in the
@@ -147,7 +166,57 @@ export class AuthService {
       this.#roleMirror.value();
     });
 
-    if (isPlatformBrowser(this.#platformId)) this.#holdUntilConsent();
+    if (isPlatformBrowser(this.#platformId)) {
+      this.#holdUntilConsent();
+      this.#claimGuestOrdersOnSignIn();
+    }
+  }
+
+  /**
+   * Once per sign-in (per account, per browser tab session), after the account has agreed to the
+   * terms and its email is known to be confirmed, links that email's earlier guest orders to the
+   * account (`claimGuestOrdersByEmail`) and says how many were added (not on the order confirmation
+   * page, whose Save card reports the save itself). An unconfirmed email waits
+   * until it is confirmed (the server would link nothing). Browser only; a failure is silent and
+   * the next change of account state, or the next page load, tries again.
+   */
+  #claimGuestOrdersOnSignIn(): void {
+    const claimed = new Set<string>();
+    effect(() => {
+      const uid = this.#user()?.uid;
+      if (!uid) {
+        claimed.clear();
+        // Signed out for real (not the first load before auth answers): a later sign-in in this
+        // tab may follow a guest order, so it asks again.
+        if (this.#isAuthReady()) clearGuestClaimStamps();
+        return;
+      }
+      if (!this.#emailVerified() || !this.#consentReady() || this.#needsConsent()) return;
+      if (claimed.has(uid) || readGuestClaimStamp(uid)) return;
+      claimed.add(uid);
+      untracked(() => void this.#claimGuestOrders(uid, claimed));
+    });
+  }
+
+  async #claimGuestOrders(uid: string, claimed: Set<string>): Promise<void> {
+    try {
+      const linked = await this.#orders.claimGuestOrdersByEmail();
+      writeGuestClaimStamp(uid);
+      if (linked <= 0 || this.#auth.currentUser?.uid !== uid) return;
+      // Pages that show whether an order is linked (the order page's Save card) check again.
+      this.#guestOrdersLinked.update((n) => n + 1);
+      // The order page's Save card already says "Saved to your account" after its own claim, so a
+      // second message there would repeat it.
+      const path = this.#router.url.split(/[?#]/, 1)[0] ?? '';
+      if (path.startsWith(ORDER_CONFIRMATION_PATH)) return;
+      this.#snackbar.success(
+        linked === 1
+          ? 'We added 1 earlier order to your account.'
+          : `We added ${linked} earlier orders to your account.`,
+      );
+    } catch {
+      claimed.delete(uid);
+    }
   }
 
   /**
@@ -256,6 +325,7 @@ export class AuthService {
     if (!user.emailVerified) return false;
     const token = await user.getIdTokenResult();
     if (token.claims['email_verified'] !== true) await user.getIdToken(true);
+    if (this.#auth.currentUser?.uid === user.uid) this.#emailVerified.set(true);
     return true;
   }
 
@@ -465,6 +535,7 @@ export class AuthService {
         const result = await firebaseUser.getIdTokenResult();
         if (generation !== this.#generation) return;
         this.#role.set(roleFromClaims(result.claims));
+        this.#emailVerified.set(result.claims['email_verified'] === true);
         this.#user.set(firebaseUser);
         this.#markReady();
       } catch (error) {
@@ -479,6 +550,8 @@ export class AuthService {
           return;
         }
         this.#role.set('user');
+        // The server reads `email_verified` from the token only; unknown here, so price like a guest.
+        this.#emailVerified.set(false);
         this.#user.set(firebaseUser);
         this.#markReady();
       }
@@ -515,6 +588,7 @@ export class AuthService {
       if (this.#auth.currentUser?.uid !== current.uid) return this.#role();
       const role = roleFromClaims(result.claims);
       this.#role.set(role);
+      this.#emailVerified.set(result.claims['email_verified'] === true);
       this.#user.set(current);
       return role;
     } catch (error) {
@@ -639,5 +713,35 @@ export class AuthService {
     const waiters = this.#readyWaiters;
     this.#readyWaiters = [];
     for (const resolve of waiters) resolve();
+  }
+}
+
+/** `sessionStorage` key saying this tab already linked the account's guest orders. */
+const GUEST_CLAIM_STAMP = 'atteya-guest-orders-claimed:';
+
+function readGuestClaimStamp(uid: string): boolean {
+  try {
+    return sessionStorage.getItem(GUEST_CLAIM_STAMP + uid) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeGuestClaimStamp(uid: string): void {
+  try {
+    sessionStorage.setItem(GUEST_CLAIM_STAMP + uid, '1');
+  } catch {
+    // Storage blocked: the next page load asks again, which is harmless.
+  }
+}
+
+function clearGuestClaimStamps(): void {
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(GUEST_CLAIM_STAMP)) sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Storage blocked: nothing was stamped.
   }
 }
