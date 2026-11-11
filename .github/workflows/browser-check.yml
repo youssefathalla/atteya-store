@@ -85,7 +85,30 @@ jobs:
       - name: Install Playwright and Chromium
         run: |
           npm install --no-save --no-audit --no-fund --ignore-scripts "playwright@${PLAYWRIGHT_VERSION}"
-          npx playwright install --with-deps chromium
+          # The browser comes from Playwright's own download servers: try 3 times.
+          for try in 1 2 3; do
+            npx playwright install chromium && break
+            if [ "$try" = 3 ]; then echo "::error::Chromium could not be downloaded."; exit 1; fi
+            sleep 15
+          done
+          # The runner image already has every library Chromium needs, so start Chromium once first and
+          # skip Ubuntu's servers entirely when it works. Those servers are sometimes unreachable from
+          # GitHub runners, and apt alone then takes minutes per try, which ran into the job's time limit.
+          launch() {
+            node -e "require('playwright').chromium.launch().then((b) => b.close()).catch((e) => { console.error(e.message); process.exit(1); })"
+          }
+          if launch; then
+            echo "Chromium starts with the libraries already on the runner; no system packages needed."
+            exit 0
+          fi
+          # Only when Chromium can't start: get its system libraries from Ubuntu's servers (2 tries,
+          # 3 minutes each), then fail here with Chromium's own error if it still can't start.
+          for try in 1 2; do
+            if timeout 180 npx playwright install-deps chromium; then break; fi
+            echo "::warning::Ubuntu's servers could not be reached (try ${try} of 2)."
+            sleep 15
+          done
+          launch
 
       - name: App build (development)
         run: npx ng build --configuration development
