@@ -71,7 +71,9 @@ import {
   missingGiftPrompt,
   toGiftChoice,
 } from './utils/product-gifts';
+import { SizeGuideComponent } from './components/size-guide/size-guide.component';
 import { watchProductDoc } from './utils/product-live';
+import { sizeGuidesFor } from './utils/size-guide';
 import {
   findVariant,
   initialSelection,
@@ -92,6 +94,7 @@ import {
     ProductGiftBoxComponent,
     SkeletonComponent,
     AddToBagButtonComponent,
+    SizeGuideComponent,
   ],
   templateUrl: './product.component.html',
   host: { class: 'block w-full' },
@@ -253,6 +256,12 @@ export class ProductComponent {
 
   /** Section title for `details`: Materials for clothing, socks and supports, Specifications for gear. */
   readonly detailsTitle = computed(() => productDetailsTitle(this.product()?.categoryIds ?? []));
+
+  /** Size & Fit charts (adult clothing with sizes); empty hides the section. */
+  readonly sizeGuides = computed(() => {
+    const p = this.product();
+    return p ? sizeGuidesFor(p) : [];
+  });
 
   /** Description with real words in it (some imported products only have `<p></p>`). */
   readonly hasDescription = computed(() => {
