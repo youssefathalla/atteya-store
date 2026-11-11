@@ -19,7 +19,8 @@
   }
 
   .account-panel__link {
-    @apply w-full elements-start gap-3 px-2 py-3 border-b border-outline-variant font-label-lg no-underline;
+    /* text-start + cursor-pointer: the Sign Out row is a native <button> styled like the link rows. */
+    @apply w-full elements-start gap-3 px-2 py-3 border-b border-outline-variant font-label-lg no-underline text-start cursor-pointer;
   }
 
   .account-panel__card {
