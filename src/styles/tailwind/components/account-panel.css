@@ -89,12 +89,19 @@
     @apply bg-on-primary/10 border-on-primary;
   }
 
-  /* Dashboard grid: Orders left, the smaller cards right; one column below the @4xl container width. */
+  /* Dashboard grid: Orders | Delivery Address | Profile, Favorites, Emails.
+     Three columns from @6xl; two from @3xl (Orders left, Address over the rest on the right,
+     extra height goes to the second row so they stay together); one column below. */
   .account-grid {
-    @apply w-full grid gap-6 items-start @4xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)];
+    @apply w-full grid gap-6 items-start @3xl:grid-cols-2 @3xl:grid-rows-[auto_1fr] @6xl:grid-cols-3 @6xl:grid-rows-none;
+  }
+
+  .account-grid__main {
+    @apply @3xl:row-span-2 @6xl:row-span-1;
   }
 
   .account-grid__main,
+  .account-grid__middle,
   .account-grid__side {
     @apply min-w-0 elements-start-col gap-6;
   }
