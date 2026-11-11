@@ -264,6 +264,7 @@ Activate the dedicated skills from `.agents/skills/` on demand. `sync-docs`, `as
 ## Learned User Preferences
 
 - Develops with Cursor, Antigravity, and Claude Code; expects `.cursor`, `.agents`, and `.claude` agent docs to stay aligned—run `npm run sync:agents` after editing mirrored contract or workflow sources.
+- Dropdowns and text fields use Angular Material (`mat-form-field` + `mat-select` / `matInput`), never native `<select>` or bare `<input>`; on phone every form control and toolbar button takes the full width.
 - Develops on Windows; when the GitHub CLI is unavailable, authenticating to the GitHub REST API via `git credential fill` (bearer token) is acceptable.
 
 ## Learned Workspace Facts
