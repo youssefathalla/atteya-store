@@ -4,10 +4,10 @@ import { describe, it } from 'node:test';
 import {
   colourSizes,
   colourSlugBase,
+  contentVersion,
   modelGroupFromName,
   parseSaveProductModelRequest,
   sharedSizeIds,
-  versionOf,
 } from '../../lib/products/product-model.js';
 
 const shared = {
@@ -73,7 +73,7 @@ describe('product model request', () => {
         parseSaveProductModelRequest({
           anchorId: null,
           shared,
-          colours: [colour({ version: '1700000000.000000001', productId: 'eo-123' })],
+          colours: [colour({ version: 'a'.repeat(64), productId: 'eo-123' })],
         }),
       /Reload the page/,
     );
@@ -85,10 +85,21 @@ describe('product model request', () => {
         parseSaveProductModelRequest({
           anchorId: 'other',
           shared,
-          colours: [colour({ version: '1700000000.000000001', productId: 'eo-123' })],
+          colours: [colour({ version: 'a'.repeat(64), productId: 'eo-123' })],
         }),
       /Reload the page/,
     );
+  });
+
+  it('keeps a saved colour with no colour or the same colour as another', () => {
+    const saved = (productId: string, colors: string[]) =>
+      colour({ productId, version: 'b'.repeat(64), colors });
+    const request = parseSaveProductModelRequest({
+      anchorId: 'eo-1',
+      shared,
+      colours: [saved('eo-1', []), saved('eo-2', ['black']), saved('eo-3', ['black'])],
+    });
+    assert.equal(request.colours.length, 3);
   });
 
   it('refuses the same colour twice', () => {
@@ -124,8 +135,17 @@ describe('product model request', () => {
 });
 
 describe('product model helpers', () => {
-  it('writes versions with nanoseconds', () => {
-    assert.equal(versionOf({ seconds: 1700000000, nanoseconds: 1200 }), '1700000000.000001200');
+  it('changes the version on any saved field but not on the colour list', () => {
+    const base = { name: 'Shorts', stock: 3, colorSiblings: [{ id: 'a' }] };
+    const version = contentVersion(base);
+    assert.match(version, /^[a-f0-9]{64}$/);
+    assert.equal(contentVersion({ colorSiblings: [{ id: 'b' }], stock: 3, name: 'Shorts' }), version);
+    assert.notEqual(contentVersion({ ...base, stock: 2 }), version);
+  });
+
+  it('reads timestamps to the nanosecond', () => {
+    const time = (nanoseconds: number) => ({ seconds: 1, nanoseconds, toMillis: () => 1000 });
+    assert.notEqual(contentVersion({ updatedAt: time(1) }), contentVersion({ updatedAt: time(2) }));
   });
 
   it('makes a model name like link-colour-models.mjs', () => {

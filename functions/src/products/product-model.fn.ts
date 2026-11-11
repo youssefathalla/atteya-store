@@ -12,7 +12,8 @@ import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
 import { LOCKABLE_FIELDS, type LockableField } from './lockable-fields.js';
 import { descriptionToHtml } from './product-form.js';
-import { assertImportIdle, assertKnownPlayers, categoryIdsFrom } from './product-form.fn.js';
+import { assertImportIdle, assertKnownPlayers, categoryIdsFrom, claimSlug } from './product-form.fn.js';
+import { readModelGroup as modelGroupOf } from './color-siblings.js';
 import {
   colourSizes,
   colourSlugBase,
@@ -22,7 +23,7 @@ import {
   parseProductModelRequest,
   parseSaveProductModelRequest,
   sharedSizeIds,
-  versionOf,
+  contentVersion,
   type ModelColourInput,
   type ProductModelResponse,
   type SaveProductModelResponse,
@@ -41,12 +42,12 @@ export const getProductModel = onCall(
     const { productId } = parseProductModelRequest(request.data);
     const db = getFirestore();
     const snap = await db.collection('products').doc(productId).get();
-    if (!snap.exists || !snap.updateTime) {
+    if (!snap.exists) {
       throw new HttpsError('not-found', 'This product no longer exists.');
     }
     const group = modelGroupOf(snap.data());
     if (group === null) {
-      return { modelGroup: null, colours: [{ id: snap.id, version: versionOf(snap.updateTime) }] };
+      return { modelGroup: null, colours: [{ id: snap.id, version: contentVersion(snap.data() ?? {}) }] };
     }
     const members = await db
       .collection('products')
@@ -57,8 +58,7 @@ export const getProductModel = onCall(
       throw new HttpsError('failed-precondition', 'This product has more than 12 colours. Ask for help.');
     }
     const colours = members.docs
-      .filter((doc) => doc.updateTime)
-      .map((doc) => ({ id: doc.id, version: versionOf(doc.updateTime) }))
+      .map((doc) => ({ id: doc.id, version: contentVersion(doc.data()) }))
       .sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
     return { modelGroup: group, colours };
   },
@@ -86,19 +86,19 @@ export const saveProductModel = onCall(
 
       // Reads first: saved colours, the model's members, new ids, catalogue, players.
       const live = new Map<string, DocumentSnapshot>();
-      for (const colour of savedColours) {
-        const snap = await tx.get(products.doc(colour.productId));
-        if (!snap.exists || !snap.updateTime || versionOf(snap.updateTime) !== colour.version) {
-          modelChanged();
+      const refs = input.colours.map((colour) => products.doc(colour.productId));
+      const snaps = await tx.getAll(...refs);
+      input.colours.forEach((colour, index) => {
+        const snap = snaps[index];
+        if (colour.version === null) {
+          if (snap?.exists) {
+            throw new HttpsError('already-exists', 'This product was already saved. Reload the page.');
+          }
+          return;
         }
+        if (!snap?.exists || contentVersion(snap.data() ?? {}) !== colour.version) modelChanged();
         live.set(colour.productId, snap);
-      }
-      for (const colour of newColours) {
-        const snap = await tx.get(products.doc(colour.productId));
-        if (snap.exists) {
-          throw new HttpsError('already-exists', 'This product was already saved. Reload the page.');
-        }
-      }
+      });
 
       const liveGroups = new Set([...live.values()].map((snap) => modelGroupOf(snap.data())));
       if (liveGroups.size > 1) modelChanged();
@@ -239,23 +239,6 @@ async function claimModelGroup(tx: Transaction, db: Firestore, name: string): Pr
   throw new HttpsError('failed-precondition', 'Give this product a more specific name and try again.');
 }
 
-async function claimSlug(
-  tx: Transaction,
-  db: Firestore,
-  base: string,
-  claimed: ReadonlySet<string>,
-): Promise<string> {
-  const taken = new Set(claimed);
-  let candidate = nextSlug(base, taken);
-  for (let attempt = 0; attempt < SLUG_ATTEMPTS; attempt += 1) {
-    const snap = await tx.get(db.collection('products').where('slug', '==', candidate).limit(1));
-    if (snap.empty) return candidate;
-    taken.add(candidate);
-    candidate = nextSlug(base, taken);
-  }
-  return `${base}-${Date.now().toString(36)}`;
-}
-
 function changedLocks(
   live: DocumentData,
   colour: ModelColourInput,
@@ -271,11 +254,6 @@ function changedLocks(
   if (!sameList(stringList(live['colors']), colour.colors)) locks.push('colors');
   if (!sameList(stringList(live['tags']), stringList(next['tags']))) locks.push('tags');
   return locks;
-}
-
-function modelGroupOf(data: DocumentData | undefined): string | null {
-  const group = data?.['modelGroup'];
-  return typeof group === 'string' && group.trim().length > 0 ? group : null;
 }
 
 function stringList(value: unknown): string[] {

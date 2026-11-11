@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { ProductTypeId } from './catalog-mapping.js';
 import { COLOR_PALETTE, type ColorId } from './catalog-taxonomy.js';
@@ -40,7 +41,9 @@ export const MAX_MODEL_COLOURS = 12;
 export const MAX_MODEL_GROUP = 80;
 const MAX_COUNT = 100_000;
 const MAX_OPTIONS = 8;
-const VERSION_PATTERN = /^\d{1,12}\.\d{9}$/;
+const VERSION_PATTERN = /^[a-f0-9]{64}$/;
+/** Written by the `onProductColorSiblingsChange` trigger after every save, so never part of a version. */
+const VERSION_IGNORED_FIELDS = new Set(['colorSiblings']);
 
 /** Shown when a colour changed (or a colour joined the product) after the page loaded it. */
 export const MODEL_CHANGED_MESSAGE = 'Someone changed this product while you were editing. Reload to see it.';
@@ -75,7 +78,7 @@ export interface ModelSharedInput {
 
 export interface ModelColourInput {
   readonly productId: string;
-  /** `updateTime` of the document when the page loaded it (`versionOf`); null = a new colour. */
+  /** `contentVersion` of the document when the page loaded it; null = a new colour. */
   readonly version: string | null;
   /** The colour first; extra palette ids (an accent colour) stay as they were saved. */
   readonly colors: readonly ColorId[];
@@ -129,9 +132,36 @@ export function parseSaveProductModelRequest(raw: unknown): SaveProductModelRequ
   return { anchorId, shared, colours };
 }
 
-/** A Firestore `updateTime` as an exact string: seconds, a dot, then nanoseconds (9 digits). */
-export function versionOf(time: { readonly seconds: number; readonly nanoseconds: number }): string {
-  return `${time.seconds}.${String(time.nanoseconds).padStart(9, '0')}`;
+/**
+ * A fingerprint of a product document's saved fields. Any write changes it, except the colour list
+ * the colour-siblings trigger keeps on every colour after a save, so the next save isn't refused.
+ */
+export function contentVersion(data: Record<string, unknown>): string {
+  const fields: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (!VERSION_IGNORED_FIELDS.has(key)) fields[key] = value;
+  }
+  return createHash('sha256').update(canonical(fields)).digest('hex');
+}
+
+/** JSON with sorted keys; Firestore timestamps as seconds and nanoseconds. */
+function canonical(value: unknown): string {
+  if (value === null || value === undefined) return 'null';
+  if (Array.isArray(value)) return `[${value.map((item) => canonical(item)).join(',')}]`;
+  if (typeof value === 'object') {
+    const time = value as { seconds?: unknown; nanoseconds?: unknown; toMillis?: unknown };
+    if (
+      typeof time.toMillis === 'function' &&
+      typeof time.seconds === 'number' &&
+      typeof time.nanoseconds === 'number'
+    ) {
+      return JSON.stringify({ $time: `${time.seconds}.${time.nanoseconds}` });
+    }
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
 }
 
 /** Same rule as `functions/scripts/link-colour-models.mjs`: folded name, dashes, at most 80 characters. */
@@ -281,8 +311,14 @@ function readColours(raw: unknown, sizeCount: number, creating: boolean): ModelC
   const colours = raw.map((entry) => readColour(entry, sizeCount, creating));
   const ids = new Set(colours.map((colour) => colour.productId));
   if (ids.size !== colours.length) invalid('Reload the page and try again.');
-  const firsts = new Set(colours.map((colour) => colour.colors.join('+')));
-  if (firsts.size !== colours.length) invalid('Each colour can only be added once.');
+  // A new colour can't repeat a colour the product has. Saved colours stay as they were saved.
+  for (const colour of colours) {
+    if (colour.version !== null) continue;
+    const first = colour.colors[0];
+    if (colours.some((other) => other !== colour && other.colors[0] === first)) {
+      invalid('Each colour can only be added once.');
+    }
+  }
   return colours;
 }
 
@@ -292,7 +328,7 @@ function readColour(raw: unknown, sizeCount: number, creating: boolean): ModelCo
   if (creating && version !== null) invalid('Reload the page and try again.');
   const productId = version === null ? readCreateId(raw['productId']) : readUpdateId(raw['productId']);
   const colors = readColors(raw['colors']);
-  if (colors.length === 0) invalid('Choose a colour.');
+  if (version === null && colors.length === 0) invalid('Choose a colour.');
   const images = readImages(raw['images']);
   const published = readPublished(raw['published'], images.length);
   const ownPrice = readOwnPrice(raw['ownPrice']);

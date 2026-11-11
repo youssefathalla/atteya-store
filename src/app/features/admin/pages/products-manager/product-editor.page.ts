@@ -1062,8 +1062,11 @@ function emptyFields(): SharedFields {
 /** Offers that cover this product: every colour, or the colours they cover. */
 function offerRowsFor(offers: readonly Offer[], products: readonly Product[]): OfferRow[] {
   const rows: OfferRow[] = [];
+  const nowMs = Date.now();
   for (const offer of offers) {
     if (offer.archived || !offer.active) continue;
+    if (offer.schedule.startsAt && nowMs < offer.schedule.startsAt.getTime()) continue;
+    if (offer.schedule.endsAt && nowMs >= offer.schedule.endsAt.getTime()) continue;
     const covered = products.filter(
       (product) => matchProduct(offer.conditions, offer.exclude, toPricedProduct(product)) !== 'none',
     );

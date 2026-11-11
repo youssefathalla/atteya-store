@@ -1,5 +1,6 @@
 import { COLOR_PALETTE, type ColorId } from '@core/services/products/catalog-taxonomy';
 import type { Product } from '@core/services/products/product.model';
+import { isActiveNewArrival, timestampToMs } from '@core/services/products/utils/new-arrival';
 import type { ImageAsset } from '@shared/schemas';
 import type { ColourDraft, ModelSizeDraft } from '../models/product-admin.model';
 
@@ -105,7 +106,7 @@ export function newColourDraft(productId: string, color: ColorId): ColourDraft {
   };
 }
 
-/** True when the colours were saved with different shared details. */
+/** True when the colours were saved with different shared details (everything a save writes to every colour). */
 export function sharedDetailsDiffer(colours: readonly Product[]): boolean {
   if (colours.length < 2) return false;
   const fingerprint = (product: Product): string =>
@@ -122,6 +123,10 @@ export function sharedDetailsDiffer(colours: readonly Product[]): boolean {
       sizeValues(product)
         .map((value) => labelKey(value.label))
         .sort(),
+      product.type,
+      [...(product.tags ?? [])].sort(),
+      product.marketingBadge ?? null,
+      isActiveNewArrival(product.newArrivalUntil) ? timestampToMs(product.newArrivalUntil) : null,
     ]);
   const first = fingerprint(colours[0]!);
   return colours.some((product) => fingerprint(product) !== first);
