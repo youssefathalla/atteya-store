@@ -212,10 +212,11 @@ jobs:
             const claudeVerdict = async (prNumber, commit) => (await claudeReview(prNumber, commit)).verdict;
 
             // While checking other PRs after a merge (the sweep below), stay quiet: those PRs get
-            // their own ✋ / ⏳ notes from their own events.
+            // their own ✋ / ⏳ notes from their own events. `always` notes are posted anyway: a PR
+            // whose merge kept being refused has no event left to post them.
             let quiet = false;
-            const commentOnce = async (prNumber, marker, text) => {
-              if (quiet) return;
+            const commentOnce = async (prNumber, marker, text, always = false) => {
+              if (quiet && !always) return;
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner, repo, issue_number: prNumber, per_page: 100,
               });
@@ -450,7 +451,7 @@ jobs:
                   }
                   if (attempt === 3) {
                     await commentOnce(n, `<!-- auto-merge-base-moved ${sha} -->`,
-                      `**✋ Auto-merge** · waiting for you\n\n\`${sha.slice(0, 7)}\` is clean, but \`${BASE}\` kept moving while it tried to merge (3 tries). Run Actions → Auto-merge → Run workflow with PR number ${n} to try again, or merge it yourself.`);
+                      `**✋ Auto-merge** · waiting for you\n\n\`${sha.slice(0, 7)}\` is clean, but \`${BASE}\` kept moving while it tried to merge (3 tries). Run Actions → Auto-merge → Run workflow with PR number ${n} to try again, or merge it yourself.`, true);
                     stop(`${BASE} kept moving (3 tries): ${error.message}`);
                     return false;
                   }
