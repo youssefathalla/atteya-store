@@ -4,7 +4,7 @@ import { adminCallableOptions } from '../auth/callable-options.js';
 import { identifyOrderCustomer, orderCustomerFields, requireCustomerTerms } from './order-customer.js';
 import { parseCreateStoreOrderRequest } from './order-request.js';
 import { priceStoreOrder, type OrderPricingSnapshot } from './order-pricing.server.js';
-import { readOfferUses } from './offer-usage.js';
+import { readOfferUses, savedOfferUses } from './offer-usage.js';
 import { utcDayKey } from './order-rate-limit.js';
 import { logGuestStoreCapReached, readOrderRateLimits } from './order-rate-limit-docs.js';
 import { newOrderViewKey } from './order-view.js';
@@ -76,7 +76,7 @@ async function createManualOrder<M extends ManualPaymentMethod>(
     // Offer limits (every offer type with a limit): an order counts once per offer, however many items it has.
     const addOfferUses = await readOfferUses(tx, db, customer.offerKeys, priced.usedOffers);
     const now = FieldValue.serverTimestamp();
-    addOfferUses();
+    const switchedOffIds = addOfferUses();
     rateLimits.write();
 
     tx.set(orderRef, {
@@ -89,6 +89,8 @@ async function createManualOrder<M extends ManualPaymentMethod>(
         boxId: priced.pricing.shipping?.boxId ?? null,
       },
       pricing: priced.pricing,
+      // What cancelOrder gives back if staff cancel this order (null: no offer counted).
+      offerUses: savedOfferUses(customer.offerKeys, priced.usedOffers, switchedOffIds),
       paymob: null,
       confirmedAt: null,
       confirmedBy: null,

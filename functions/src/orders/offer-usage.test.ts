@@ -8,8 +8,11 @@ import {
   confirmedEndedOfferIds,
   isLastOfferUse,
   offerFullReason,
+  parseSavedOfferUses,
+  readOfferGiveBack,
   readOfferUses,
   releaseOfferUses,
+  savedOfferUses,
 } from '../../lib/orders/offer-usage.js';
 import {
   addUsedOffer,
@@ -543,5 +546,94 @@ describe('gift worth', () => {
       ['socks-1', { published: false, price: 150 }],
     ]);
     assert.equal(giftWorth(picks, docs), 400);
+  });
+});
+
+describe('giving offer uses back when an order is cancelled', () => {
+  const ONCE = {
+    offerId: 'once-1',
+    title: '10% off',
+    limits: { totalUses: null, perCustomer: 1 },
+    kind: 'item' as const,
+  };
+
+  /** Places an order (counts its uses), then cancels it the way `cancelOrder` does. */
+  async function cancel(fake: ReturnType<typeof fakeDb>, raw: unknown) {
+    const saved = parseSavedOfferUses(raw);
+    if (!saved) return false;
+    const giveBack = await readOfferGiveBack(fake.tx, fake.db, saved);
+    giveBack();
+    return true;
+  }
+
+  it('gives back one use per counted offer, total and per customer', async () => {
+    const fake = fakeDb({ 'offers/deal-1': { active: true }, 'offerUsage/deal-1': { count: 1 } });
+    const switchedOff = (await readOfferUses(fake.tx, fake.db, 'shopper-1', [DEAL, ONCE]))();
+    const saved = savedOfferUses('shopper-1', [DEAL, ONCE], switchedOff);
+    assert.deepEqual(saved, {
+      offerIds: ['deal-1', 'once-1'],
+      customerKeys: ['shopper-1'],
+      switchedOffIds: [],
+    });
+    assert.equal(fake.store.get('offerUsage/once-1_shopper-1')?.['count'], 1);
+
+    assert.equal(await cancel(fake, saved), true);
+    assert.equal(fake.store.get('offerUsage/deal-1')?.['count'], 1);
+    assert.equal(fake.store.get('offerUsage/deal-1_shopper-1')?.['count'], 0);
+    assert.equal(fake.store.get('offerUsage/once-1')?.['count'], 0);
+    assert.equal(fake.store.get('offerUsage/once-1_shopper-1')?.['count'], 0);
+    // The same shopper can use the once-per-customer offer again.
+    await readOfferUses(fake.tx, fake.db, 'shopper-1', [ONCE]);
+  });
+
+  it('never goes below 0 and leaves a missing count alone', async () => {
+    const fake = fakeDb({ 'offerUsage/deal-1': { count: 0 } });
+    await cancel(fake, { offerIds: ['deal-1'], customerKeys: ['shopper-1'], switchedOffIds: [] });
+    assert.equal(fake.store.get('offerUsage/deal-1')?.['count'], 0);
+    assert.equal(fake.store.has('offerUsage/deal-1_shopper-1'), false);
+  });
+
+  it('switches back on an offer the order switched off at its last use', async () => {
+    const fake = fakeDb({ 'offers/deal-1': { active: true }, 'offerUsage/deal-1': { count: 2 } });
+    const switchedOff = (await readOfferUses(fake.tx, fake.db, 'shopper-1', [DEAL]))();
+    assert.deepEqual(switchedOff, ['deal-1']);
+    await cancel(fake, savedOfferUses('shopper-1', [DEAL], switchedOff));
+    assert.equal(fake.store.get('offers/deal-1')?.['active'], true);
+    assert.equal(fake.store.get('offerUsage/deal-1')?.['count'], 2);
+  });
+
+  it('leaves an offer staff switched off alone', async () => {
+    const fake = fakeDb({
+      'offers/deal-1': { active: false, updatedBy: 'admin-uid' },
+      'offerUsage/deal-1': { count: 3 },
+    });
+    await cancel(fake, { offerIds: ['deal-1'], customerKeys: ['shopper-1'], switchedOffIds: ['deal-1'] });
+    assert.equal(fake.store.get('offers/deal-1')?.['active'], false);
+    assert.equal(fake.store.get('offers/deal-1')?.['updatedBy'], 'admin-uid');
+    assert.equal(fake.store.get('offerUsage/deal-1')?.['count'], 2);
+  });
+
+  it('gives nothing back for an order placed before offer uses were saved', async () => {
+    assert.equal(parseSavedOfferUses(undefined), null);
+    assert.equal(parseSavedOfferUses(null), null);
+    assert.equal(parseSavedOfferUses({ offerIds: [], customerKeys: [], switchedOffIds: [] }), null);
+    assert.equal(parseSavedOfferUses({ offerIds: ['a/b'], customerKeys: ['x'], switchedOffIds: [] }), null);
+    assert.equal(savedOfferUses('shopper-1', [], []), null);
+  });
+
+  it('gives nothing back on a second cancel', async () => {
+    const fake = fakeDb({ 'offerUsage/deal-1': { count: 2 }, 'offerUsage/deal-1_shopper-1': { count: 1 } });
+    const order: Record<string, unknown> = {
+      offerUses: { offerIds: ['deal-1'], customerKeys: ['shopper-1'], switchedOffIds: [] },
+    };
+    // Same guard as cancelOrder: once given back, `offerUsesReturnedAt` is set.
+    const cancelOnce = async () => {
+      if (order['offerUsesReturnedAt']) return;
+      if (await cancel(fake, order['offerUses'])) order['offerUsesReturnedAt'] = 'now';
+    };
+    await cancelOnce();
+    await cancelOnce();
+    assert.equal(fake.store.get('offerUsage/deal-1')?.['count'], 1);
+    assert.equal(fake.store.get('offerUsage/deal-1_shopper-1')?.['count'], 0);
   });
 });

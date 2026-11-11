@@ -2,6 +2,7 @@ import { FieldValue, getFirestore, type DocumentData } from 'firebase-admin/fire
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
+import { parseSavedOfferUses, readOfferGiveBack } from './offer-usage.js';
 
 export interface CancelOrderResponse {
   readonly orderId: string;
@@ -13,7 +14,9 @@ export interface CancelOrderResponse {
 /**
  * Admin cancel for open orders that were never paid: cash on delivery (shipping fee not
  * received) and InstaPay (transfer never arrived). Stock is only taken when an order is
- * confirmed, so nothing goes back into stock.
+ * confirmed, so nothing goes back into stock. The offer uses the order took (`offerUses`, saved
+ * when it was placed) are given back in the same transaction, once: `offerUsesReturnedAt` marks
+ * it, and orders placed before `offerUses` existed give nothing back.
  *
  * Card (Paymob) orders are refused: `paymobWebhook` treats `cancelled` as final and would
  * ignore a payment that clears later. Confirmed orders are refused too (money was received).
@@ -47,12 +50,17 @@ export const cancelOrder = onCall(adminCallableOptions(), async (request): Promi
       );
     }
 
+    const saved = order['offerUsesReturnedAt'] ? null : parseSavedOfferUses(order['offerUses']);
+    const giveBack = saved ? await readOfferGiveBack(tx, db, saved) : null;
+
     const now = FieldValue.serverTimestamp();
+    giveBack?.();
     tx.update(orderRef, {
       status: 'cancelled',
       cancelledAt: now,
       cancelledBy: actor.uid,
       updatedAt: now,
+      ...(giveBack ? { offerUsesReturnedAt: now } : {}),
     });
     return { orderId, status: 'cancelled' as const, changed: true };
   });
