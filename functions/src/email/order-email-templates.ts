@@ -160,6 +160,8 @@ const FEE_TO_AGREE =
 interface Block {
   readonly html: string;
   readonly text: string | null;
+  /** True when this block already holds a Message Us on WhatsApp button (the footer then skips its own). */
+  readonly whatsappButton?: boolean;
 }
 
 interface ShopperEmail {
@@ -174,13 +176,14 @@ interface ShopperEmail {
   readonly blocks: readonly (Block | null)[];
   /** Footer line while WhatsApp is set; default "Questions? We answer on WhatsApp." */
   readonly footerLine?: string;
-  /** False leaves the footer's WhatsApp button out (the email already has one). */
-  readonly footerButton?: boolean;
+  /** Footer line shown whether or not WhatsApp is set, with no footer button (Delivered). */
+  readonly footerNote?: string;
 }
 
 function renderShopper(order: OrderEmailOrder, ctx: OrderEmailContext, email: ShopperEmail): RenderedEmail {
   const blocks = email.blocks.filter((block): block is Block => block !== null);
-  const help = footerHelp(ctx, email.footerLine, email.footerButton ?? true);
+  const hasWhatsappButton = blocks.some((block) => block.whatsappButton === true);
+  const help = footerHelp(ctx, email, !hasWhatsappButton);
   const site = siteLabel(ctx.storefrontUrl);
   const html = emailDocument(email.subject, [
     header({
@@ -219,13 +222,14 @@ const SPACER = '<tr><td style="height:40px;font-size:0;line-height:0;">&nbsp;</t
  */
 function footerHelp(
   ctx: OrderEmailContext,
-  line: string | undefined,
+  email: ShopperEmail,
   withButton: boolean,
 ): { line: string | null; button: EmailButton | null; text: string | null } {
+  if (email.footerNote) return { line: email.footerNote, button: null, text: email.footerNote };
   const waNumber = ctx.whatsappNumber.trim();
   const waLink = whatsappChatUrl(waNumber);
   if (waLink) {
-    const said = line ?? 'Questions? We answer on WhatsApp.';
+    const said = email.footerLine ?? 'Questions? We answer on WhatsApp.';
     return {
       line: said,
       button: withButton ? { label: 'Message Us on WhatsApp', url: waLink } : null,
@@ -233,8 +237,7 @@ function footerHelp(
     };
   }
   const reply = ctx.canReply ? 'Questions? Just reply to this email.' : null;
-  const said = line && !/whatsapp/i.test(line) ? line : reply;
-  return { line: said, button: null, text: said };
+  return { line: reply, button: null, text: reply };
 }
 
 function codPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
@@ -275,15 +278,18 @@ function codPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmai
     status: ['Order', 'Placed'],
     sentence: `Thanks, ${firstName(order)}. We've received your order ${order.ref}. We'll contact you to confirm it.`,
     blocks: [
-      amountRow([
-        {
-          label: 'At your door',
-          amount: cash,
-          note: "In cash when it arrives. Shipping is free on this order, so there's nothing to pay now.",
-        },
-      ]),
+      // Free shipping: nothing to pay now. A fee that `paymentDue()` can't read never says "free".
+      order.shippingEgp > 0
+        ? amountRow([{ label: 'At your door', amount: cash, note: 'In cash when it arrives' }])
+        : amountRow([
+            {
+              label: 'At your door',
+              amount: cash,
+              note: "In cash when it arrives. Shipping is free on this order, so there's nothing to pay now.",
+            },
+          ]),
       ...orderSummary(order, ctx, {
-        payment: ['Cash on Delivery', 'Free shipping'],
+        payment: ['Cash on Delivery', order.shippingEgp > 0 ? 'Fee first by InstaPay' : 'Free shipping'],
         viewAsButton: true,
       }),
     ],
@@ -567,8 +573,11 @@ function orderShipped(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedE
 function orderDelivered(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
   const date = shortDate(order.deliveredAtMs);
   const waLink = whatsappChatUrl(ctx.whatsappNumber.trim());
-  const cards = itemCards(order.lines, ctx, false, 400);
-  const names = order.lines.map((line) => lineTitle(line));
+  const shown = order.lines.slice(0, 3);
+  // Edge to edge across 600px: ask ImageKit for twice the shown width.
+  const cards = itemCards(shown, ctx, false, Math.min(1200, Math.ceil(1200 / shown.length)));
+  const more = order.lines.length - shown.length;
+  const names = [...shown.map((line) => lineTitle(line)), ...(more > 0 ? [`+ ${more} more`] : [])];
   const help = waLink
     ? fullWidthLink({ label: 'Message Us on WhatsApp', url: waLink }, 'outlined')
     : ctx.canReply
@@ -587,8 +596,7 @@ function orderDelivered(order: OrderEmailOrder, ctx: OrderEmailContext): Rendere
     status: ["It's", 'Here'],
     sentence: `Hi ${firstName(order)}, your order ${order.ref} was delivered. Thanks for shopping with us. We hope you enjoy it.`,
     progress: 3,
-    footerLine: 'Thanks for shopping with us.',
-    footerButton: false,
+    footerNote: 'Thanks for shopping with us.',
     blocks: [
       {
         html: photoStrip(cards, names.join(' · ')),
@@ -600,6 +608,7 @@ function orderDelivered(order: OrderEmailOrder, ctx: OrderEmailContext): Rendere
           36,
         ),
         text: joinParts(['Something Not Right?', notRight, helpText]),
+        whatsappButton: Boolean(waLink),
       },
       ctx.storefrontUrl
         ? buttonRow({ label: 'Shop New Arrivals', url: `${ctx.storefrontUrl}/shop?newArrivals=1` }, 32)
@@ -669,7 +678,9 @@ function instapaySteps(
   const stage = orderStage(input);
   const amount = due.amountEgp !== null ? formatEgp(due.amountEgp) : null;
   const waUrl = whatsappChatUrl(ctx.whatsappNumber, shopperWhatsappText(stage, input, ctx.instapay));
-  const title = kind === 'fee' ? 'Send the delivery fee by InstaPay' : 'Send the total by InstaPay';
+  // Large orders agree a "delivery fee" with us; every other order pays its "shipping fee".
+  const feeName = order.deliveryFeeAgreed ? 'delivery fee' : 'shipping fee';
+  const title = kind === 'fee' ? `Send the ${feeName} by InstaPay` : 'Send the total by InstaPay';
 
   if (!hasInstapayDetails(ctx.instapay)) {
     return {
@@ -803,7 +814,11 @@ function stepsRow(list: readonly EmailStepWithText[]): Block {
 }
 
 function buttonRow(button: EmailButton, padTop = 28): Block {
-  return { html: mainButton(button, padTop), text: `${button.label}: ${button.url}` };
+  return {
+    html: mainButton(button, padTop),
+    text: `${button.label}: ${button.url}`,
+    whatsappButton: button.label === 'Message Us on WhatsApp',
+  };
 }
 
 function linkRow(button: EmailButton): Block {
@@ -830,8 +845,10 @@ function itemsRow(
   ctx: OrderEmailContext,
   opts: { perRow: 2 | 3; prices: boolean },
 ): Block {
-  const width = opts.perRow === 2 ? 520 : 360;
-  const grid = itemGrid(itemCards(lines, ctx, opts.prices, width), opts.perRow, opts.perRow === 2 ? 4 : 6);
+  const compactAfter = opts.perRow === 2 ? 4 : 6;
+  // Twice the shown width: big photos in the grid, 64px thumbnails in the compact list.
+  const width = lines.length > compactAfter ? 128 : opts.perRow === 2 ? 520 : 360;
+  const grid = itemGrid(itemCards(lines, ctx, opts.prices, width), opts.perRow, compactAfter);
   return {
     html: section(`${sectionTitle(title)}${grid}`, 40),
     text: `${title}:\n${itemsText(lines, opts.prices)}`,

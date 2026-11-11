@@ -229,7 +229,7 @@ describe('InstaPay emails', () => {
 
   it('cash on delivery placed asks for the fee only by InstaPay', () => {
     const email = renderOrderEmail('cod-placed', read(orderDoc({})), withPay);
-    assert.ok(email.text.includes(`2. Send the delivery fee by InstaPay: ${formatEgp(80)}`));
+    assert.ok(email.text.includes(`2. Send the shipping fee by InstaPay: ${formatEgp(80)}`));
     assert.ok(email.text.includes(`Pay now: ${formatEgp(80)}`));
     assert.ok(email.text.includes(`At your door: ${formatEgp(2370)}`));
     assert.ok(!email.text.includes('Send the total by InstaPay'));
@@ -420,10 +420,7 @@ describe('order email Buy X Get Y', () => {
 
 describe('order email help line', () => {
   it('shows the business WhatsApp number with a chat link when set', () => {
-    const email = renderOrderEmail('cod-placed', read(orderDoc({})), {
-      ...ctx,
-      whatsappNumber: '+20 120 565 8954',
-    });
+    const email = renderOrderEmail('cod-placed', read(orderDoc({})), withPay);
     assert.ok(email.text.includes('Questions? We answer on WhatsApp.'));
     assert.ok(email.text.includes('Message Us on WhatsApp: +20 120 565 8954 (https://wa.me/201205658954)'));
     assert.ok(email.html.includes('href="https://wa.me/201205658954"'));
@@ -742,6 +739,20 @@ describe('Bold Black shopper emails (<KEY>-221)', () => {
     const email = renderOrderEmail('cod-placed', read(doc), full);
     assert.ok(email.html.includes('>FREE GIFT<'));
     assert.ok(email.text.includes('Free socks: Socks (Qty 1): Free'));
+  });
+
+  it('never shows two Message Us on WhatsApp buttons', () => {
+    // No InstaPay details: the main button is Message Us on WhatsApp, so the footer skips its own.
+    const email = renderOrderEmail('instapay-placed', read(orderDoc({ paymentMethod: 'instapay' })), {
+      ...ctx,
+      whatsappNumber: WA,
+    });
+    assert.equal(email.html.split('>Message Us on WhatsApp<').length - 1, 1);
+  });
+
+  it('a cash on delivery fee that paymentDue() cannot read is never called free', () => {
+    const email = renderOrderEmail('cod-placed', read(orderDoc({ country: 'GB' })), full);
+    assert.doesNotMatch(email.text, /Shipping is free/);
   });
 
   it('leaves every WhatsApp button out when no number is set', () => {
