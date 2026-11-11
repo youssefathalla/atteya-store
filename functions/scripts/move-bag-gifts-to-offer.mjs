@@ -37,6 +37,11 @@
  * the bag, the gifts); staff changes to active, archived, priority, schedule, badge, description
  * and limits are kept, and an offer that already matches is not written.
  *
+ * The offer's name stays within the admin's 80-character limit: when two bags share a name the slug
+ * saved on the product (never the `id:` reference from BAGS) follows it, and a long bag name is cut
+ * with "…". A bag is written only after its offer passes the engine's check, so a bag whose offer
+ * can't be created keeps its gift options (it is listed under "Not changed").
+ *
  * Skipped and only listed (no offer either): a bag that isn't found, or has `variants` rows (they
  * point at the options being removed). Each bag write is checked against the document's last
  * update time, so a bag edited while the script runs is skipped instead of overwritten; run it
@@ -198,6 +203,18 @@ const GIFT_IDS = { 'Free shirt': 'gift-1', 'Free socks': 'gift-2' };
 /** Each bag's offer lives at a fixed id, so running again updates it instead of adding another. */
 const OFFER_ID_PREFIX = 'bag-gifts-';
 const UPDATED_BY = 'script:move-bag-gifts-to-offer';
+
+/** Admin -> Offers (`validateOffer()`) accepts an internal name of at most 80 characters. */
+const MAX_OFFER_NAME = 80;
+
+/** `prefix + name + suffix`, with the bag's name cut (ending in "…") when it would pass 80 characters. */
+function fitOfferName(prefix, name, suffix) {
+  const full = `${prefix}${name}${suffix}`;
+  if (full.length <= MAX_OFFER_NAME) return full;
+  const room = MAX_OFFER_NAME - prefix.length - suffix.length - 1;
+  if (room < 1) return full.slice(0, MAX_OFFER_NAME).trimEnd();
+  return `${prefix}${name.slice(0, room).trimEnd()}…${suffix}`;
+}
 
 const ARABIC = /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/;
 
@@ -486,23 +503,12 @@ for (const bag of BAGS) {
     left.push(`LEFT     ${slug} has Arabic text in its name or summary; change it in the product form`);
   }
 
-  if (Object.keys(patch).length > 0) {
-    console.log(`  bag: ${apply ? 'WRITE' : 'WOULD WRITE'}`);
-    if (apply) {
-      try {
-        await snap.ref.update(
-          { ...patch, updatedAt: FieldValue.serverTimestamp() },
-          { lastUpdateTime: snap.updateTime },
-        );
-      } catch (error) {
-        raced += 1;
-        left.push(`LEFT     ${slug} changed while the script ran; run again (no offer either)`);
-        console.log(`  SKIP: changed while the script ran (${error.message}); run again`);
-        continue;
-      }
-    }
-    changed += 1;
-  }
+  // The bag is written only after its offer passes validation (step 3), so a bag never loses its
+  // gift options while its offer can't be created.
+  const bagChanges = Object.keys(patch).length > 0;
+  const leaveBag = (why) => {
+    if (bagChanges) console.log(`  bag: left as it is (${why})`);
+  };
 
   // 2. The bag's gift list: every product it maps to, with its status.
   const gifts = [];
@@ -534,15 +540,22 @@ for (const bag of BAGS) {
 
   // 3. The bag's own offer, written the way Admin -> Offers saves one.
   if (gifts.length === 0) {
-    left.push(`LEFT     ${slug} has no gift products, so no offer`);
+    left.push(`LEFT     ${slug} has no gift products, so no offer and the bag is left as it is`);
     console.log('  offer: none (no gift products)');
+    leaveBag('no offer');
     continue;
   }
   const hasShirt = gifts.some((gift) => gift.name === 'Free shirt');
   const hasSocks = gifts.some((gift) => gift.name === 'Free socks');
   const title = hasShirt && hasSocks ? 'Free shirt and socks' : gifts[0].name;
-  // Two bags share a name (Multigame black and red), so the slug tells their offers apart.
-  const offerName = `${title} with ${name}${(bagNames.get(name) ?? 0) > 1 ? ` (${slug})` : ''}`;
+  // Two bags share a name (Multigame black and red), so the slug tells their offers apart. It is
+  // the slug saved on the product (a bag found by document id has no readable slug in BAGS).
+  const savedSlug = trimmed(data.slug) || snap.id;
+  const offerName = fitOfferName(
+    `${title} with `,
+    name,
+    (bagNames.get(name) ?? 0) > 1 ? ` (${savedSlug})` : '',
+  );
   const offerId = `${OFFER_ID_PREFIX}${snap.id}`;
   const conditions = { anyOf: [{ allOf: [{ field: 'productId', in: [snap.id] }] }] };
   const reward = { kind: 'freeGift', gifts };
@@ -591,8 +604,30 @@ for (const bag of BAGS) {
   for (const warning of warnings) console.log(`    note: ${warning.message}`);
   if (errors.length > 0) {
     for (const error of errors) console.log(`    ERROR: ${error.message}`);
-    left.push(`LEFT     ${slug} offer not written: ${errors.map((error) => error.message).join(' ')}`);
+    left.push(
+      `LEFT     ${slug} offer not written, so the bag is left as it is: ${errors.map((error) => error.message).join(' ')}`,
+    );
+    leaveBag('its offer did not pass validation');
     continue;
+  }
+
+  // The offer is valid: now the bag's own document.
+  if (bagChanges) {
+    console.log(`  bag: ${apply ? 'WRITE' : 'WOULD WRITE'}`);
+    if (apply) {
+      try {
+        await snap.ref.update(
+          { ...patch, updatedAt: FieldValue.serverTimestamp() },
+          { lastUpdateTime: snap.updateTime },
+        );
+      } catch (error) {
+        raced += 1;
+        left.push(`LEFT     ${slug} changed while the script ran; run again (no offer either)`);
+        console.log(`  SKIP: changed while the script ran (${error.message}); run again`);
+        continue;
+      }
+    }
+    changed += 1;
   }
 
   // The fields the script owns. Staff settings (active, priority, schedule, …) stay as they are.
