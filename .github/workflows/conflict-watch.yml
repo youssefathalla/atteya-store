@@ -9,8 +9,8 @@
 # (workflow_dispatch) after each merge. Scheduled routine runs also fix conflicts first,
 # as a fallback.
 #
-# Also runs when a PR into develop is opened, reopened or marked ready, so a PR that already
-# conflicts when it opens is not missed until the next push to develop (PR 219 sat 15 minutes
+# Also runs when a PR into develop is opened, reopened, marked ready or gets a new push, so a PR
+# that already conflicts when it opens (or after a push) is not missed until the next push to develop (PR 219 sat 15 minutes
 # that way). That uses pull_request_target, because GitHub runs no pull_request workflow while a
 # PR conflicts. pull_request_target runs this file from develop and nothing here checks out or
 # runs the PR's code, so the token and secret never meet PR code.
@@ -29,7 +29,7 @@ on:
     branches: [develop]
   # Never check out or run the PR's code in this workflow (see above).
   pull_request_target:
-    types: [opened, reopened, ready_for_review]
+    types: [opened, reopened, ready_for_review, synchronize]
     branches: [develop]
   workflow_dispatch:
 
