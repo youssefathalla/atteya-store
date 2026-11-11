@@ -109,6 +109,13 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Staff-only side of an order (status history with staff emails, cancel reason), kept off
+    // orders/{id} because the owner can read that doc. Written by the Admin SDK only.
+    match /orderStaffNotes/{orderId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Public read-by-key copy of a guest order (only the fields the order page reads), written by
     // the syncOrderView trigger. The 43-character random key is the secret; listing is denied.
     match /orderViews/{viewKey} {
@@ -294,7 +301,7 @@ service cloud.firestore {
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits']);
     }
   }
 }

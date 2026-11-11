@@ -10,7 +10,7 @@ export interface ProductCardPrice {
   readonly badges: readonly string[];
 }
 
-/** One colour in the card's colour row (always includes the card's own product). */
+/** One colour in the card's colour row (always includes the card's own product, even when it is the only colour). */
 export interface ProductCardColorway {
   readonly productId: string;
   readonly slug: string;

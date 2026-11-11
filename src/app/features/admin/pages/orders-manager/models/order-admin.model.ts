@@ -1,7 +1,24 @@
 import type { OrderStage } from '@core/config/order-messages';
+import type { StaffOrderStatus } from '@core/config/order-status';
 import type { OrderDoc } from '@core/services/orders/order.schema';
 
-export type OrderStatusFilter = 'pending' | 'confirmed' | 'failed' | 'cancelled' | 'all';
+export type OrderStatusFilter = OrderDoc['status'] | 'all';
+
+/** One choice in the status dropdown. */
+export interface OrderStatusMove {
+  readonly status: StaffOrderStatus;
+  /** "Shipped", or "Back to Confirmed" for a step back. */
+  readonly label: string;
+}
+
+/** One saved status change, ready to show. */
+export interface OrderHistoryEntry {
+  readonly label: string;
+  readonly when: string;
+  /** Staff email, else uid. */
+  readonly by: string;
+  readonly reason: string | null;
+}
 
 export type OrderLineStockStatus = 'in' | 'out' | 'unset' | 'missing';
 
@@ -48,10 +65,16 @@ export interface OrderLineAdminRow {
   readonly isFirstLine: boolean;
   /** WhatsApp chat with the shopper, message already written for this stage. Null = copy the number instead. */
   readonly whatsappUrl: string | null;
-  /** Pending cash on delivery ("Confirm order") or InstaPay ("Confirm payment"). */
+  /** Pending InstaPay: Confirmed asks staff to check the bank app first. */
   readonly confirmAction: 'confirm-order' | 'confirm-payment' | null;
-  /** Pending cash on delivery or InstaPay: never paid, safe to cancel. */
-  readonly canCancel: boolean;
+  /** The status dropdown: only the moves allowed from the current status (empty = no dropdown). */
+  readonly statusMoves: readonly OrderStatusMove[];
+  /** Items are out of stock for this order right now (a cancel puts them back). */
+  readonly stockTaken: boolean;
+  /** Every status change, oldest first (staff-only). */
+  readonly history: readonly OrderHistoryEntry[];
+  /** Staff-only note saved when the order was cancelled. */
+  readonly cancelReason: string | null;
   /**
    * Large Egypt order: `set` while the delivery fee is still to be agreed, `change` once saved
    * and the order is still open. Null for every other order.

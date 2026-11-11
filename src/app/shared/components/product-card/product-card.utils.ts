@@ -4,6 +4,7 @@ import {
   type PricedProduct,
   type PricingContext,
 } from '@core/services/offers/engine';
+import { toPricedProduct } from '@core/services/offers/offer.model';
 import { marketingBadgeLabel, type MarketingBadge } from '@core/services/products/marketing-badge';
 import { PRODUCT_GENDERS } from '@core/services/products/product.constants';
 import type { Product, ProductGenderId } from '@core/services/products/product.model';
@@ -41,16 +42,16 @@ export function marketingBadgeFromSearchHit(
 
 /**
  * The card's colour row from the model's stored `colorSiblings` list (no extra read).
- * Same rules as the product page's colour row: the list's fixed order, the card's own colour
- * in its place (underlined), other colours only while in stock, and nothing at all when there
- * is no other colour to show.
+ * The list's fixed order, the card's own colour in its place (underlined), other colours only
+ * while in stock. A product with one colour still gets a row with just its own picture, so every
+ * card in a grid has the same height and the names and prices line up.
  */
 export function colorwaysFromSiblings(
   self: ProductCardColorway,
   siblings: readonly ColorSibling[],
 ): readonly ProductCardColorway[] {
   const shown = siblings.filter((item) => item.id === self.productId || item.inStock);
-  if (!shown.some((item) => item.id !== self.productId)) return [];
+  if (!shown.some((item) => item.id !== self.productId)) return self.imagePath ? [self] : [];
   const row = shown.map((item) => (item.id === self.productId ? self : toColorway(item)));
   return row.some((item) => item.productId === self.productId) ? row : [self, ...row];
 }
@@ -83,6 +84,36 @@ export function genderCategoryLine(
   const label = PRODUCT_GENDERS.find((entry) => entry.id === gender)?.label ?? null;
   if (!label) return null;
   return categoryName ? `${label} – ${categoryName}` : label;
+}
+
+/**
+ * Listing price for one Firestore product. With live `offers` it prices through the shared engine;
+ * with `null` (offers not loaded or failed) it shows the price and the old (compare-at) price only.
+ */
+export function productCardPrice(
+  product: Product,
+  offers: readonly Offer[] | null,
+  ctx: PricingContext,
+): ProductCardPrice {
+  if (offers) {
+    const d = displayPrice(toPricedProduct(product), offers, ctx);
+    return {
+      price: d.partial ? product.price : d.fromPrice,
+      fromPrice: d.partial ? d.fromPrice : null,
+      listPrice: d.listPrice,
+      partial: d.partial,
+      badges: [],
+    };
+  }
+  const list = product.compareAtPrice;
+  const onSale = list !== null && list > product.price;
+  return {
+    price: product.price,
+    fromPrice: null,
+    listPrice: onSale ? list : null,
+    partial: false,
+    badges: [],
+  };
 }
 
 export function productToCardData(product: Product, price: ProductCardPrice): ProductCardData {

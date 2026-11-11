@@ -75,7 +75,7 @@ export class SearchPanelComponent {
     const page = this.shownPage();
     if (!page) return [];
     const liveOffers = this.#offers.ready() && !this.#offers.failed() ? this.#offers.all() : null;
-    const ctx = { now: new Date(this.#openedAtMs), signedIn: Boolean(this.#auth.user()) };
+    const ctx = { now: new Date(this.#openedAtMs), signedIn: this.#auth.offerSignedIn() };
     return page.hits.slice(0, SEARCH_PANEL_MAX_RESULTS).map((hit) => ({
       id: hit.objectID,
       slug: hit.slug,

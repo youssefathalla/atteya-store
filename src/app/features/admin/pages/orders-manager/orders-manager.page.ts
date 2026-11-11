@@ -13,8 +13,10 @@ import {
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { firstValueFrom } from 'rxjs';
+import { orderStatusLabel as statusName } from '@core/config/order-status';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { TemplateTypeDirective } from '@shared/directives/template-type/template-type.directive';
@@ -29,24 +31,43 @@ import { SkeletonComponent } from '@shared/ui/skeleton';
 import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.component';
 import type { StatusConfig } from '@shared/ui/status-badge/status.model';
 import {
+  CancelOrderDialogComponent,
+  type CancelOrderDialogData,
+  type CancelOrderDialogResult,
+} from './dialogs/cancel-order-dialog/cancel-order-dialog.component';
+import {
   DeliveryFeeDialogComponent,
   type DeliveryFeeDialogData,
 } from './dialogs/delivery-fee-dialog/delivery-fee-dialog.component';
-import type { OrderLineAdminRow, OrderStatusFilter } from './models/order-admin.model';
+import type { OrderLineAdminRow, OrderStatusFilter, OrderStatusMove } from './models/order-admin.model';
 import { OrdersAdminService } from './services/orders-admin.service';
 import { orderActionError } from './utils/order-action-error';
 import { toOrderLineAdminRows } from './utils/order-admin.utils';
 import { orderListError } from './utils/order-list-error';
 
-type OrderAction = 'confirm' | 'cancel' | 'fee';
+type OrderAction = 'status' | 'fee';
 
 const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: string }[] = [
-  { id: 'pending', label: 'Open' },
+  { id: 'pending', label: 'Waiting for Payment' },
   { id: 'confirmed', label: 'Confirmed' },
-  { id: 'failed', label: 'Failed' },
+  { id: 'shipped', label: 'Shipped' },
+  { id: 'delivered', label: 'Delivered' },
+  { id: 'failed', label: 'Payment Failed' },
   { id: 'cancelled', label: 'Cancelled' },
-  { id: 'all', label: 'All recent' },
+  { id: 'all', label: 'All Recent' },
 ];
+
+/** What a step back does, said before staff confirm it. */
+function stepBackMessage(status: string): string {
+  switch (status) {
+    case 'pending':
+      return "The items go back into stock and the shopper's order page asks for payment again. Only do this if the payment didn't actually arrive.";
+    case 'confirmed':
+      return "The shopper's order page shows the order as not sent yet.";
+    default:
+      return "The shopper's order page shows the order as not delivered yet.";
+  }
+}
 
 @Component({
   selector: 'app-orders-manager-page',
@@ -54,6 +75,7 @@ const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: st
   imports: [
     RouterLink,
     MatButtonModule,
+    MatMenuModule,
     MatProgressSpinnerModule,
     TemplateTypeDirective,
     ReusableTable,
@@ -107,16 +129,21 @@ export class OrdersManagerPageComponent implements OnInit {
     isFirstLine: false,
     whatsappUrl: null,
     confirmAction: null,
-    canCancel: false,
+    statusMoves: [],
+    stockTaken: false,
+    history: [],
+    cancelReason: null,
     amountDueLabel: null,
     deliveryFeeAction: null,
     deliveryFeeEgp: null,
   };
 
   readonly orderStatusConfig: Record<string, StatusConfig> = {
-    pending: { label: 'Open', color: 'yellow' },
-    confirmed: { label: 'Confirmed', color: 'green' },
-    failed: { label: 'Failed', color: 'red' },
+    pending: { label: 'Waiting for Payment', color: 'yellow' },
+    confirmed: { label: 'Confirmed', color: 'blue' },
+    shipped: { label: 'Shipped', color: 'primary' },
+    delivered: { label: 'Delivered', color: 'green' },
+    failed: { label: 'Payment Failed', color: 'red' },
     cancelled: { label: 'Cancelled', color: 'gray' },
   };
 
@@ -131,12 +158,15 @@ export class OrdersManagerPageComponent implements OnInit {
     params: () => ({ status: this.statusFilter() }),
     loader: async ({ params }) => {
       if (!isPlatformBrowser(this.#platformId)) {
-        return { orders: [], productsById: new Map() };
+        return { orders: [], productsById: new Map(), notesById: new Map() };
       }
       try {
         const orders = await this.#ordersAdmin.listOrders(params.status);
-        const productsById = await this.#ordersAdmin.loadProductStock(orders);
-        return { orders, productsById };
+        const [productsById, notesById] = await Promise.all([
+          this.#ordersAdmin.loadProductStock(orders),
+          this.#ordersAdmin.loadStaffNotes(orders),
+        ]);
+        return { orders, productsById, notesById };
       } catch (error: unknown) {
         console.error('[admin/orders] load failed', error);
         throw error;
@@ -152,7 +182,7 @@ export class OrdersManagerPageComponent implements OnInit {
   readonly rows = computed((): OrderLineAdminRow[] => {
     const data = this.dataResource.value();
     if (!data) return [];
-    return [...toOrderLineAdminRows(data.orders, data.productsById)];
+    return [...toOrderLineAdminRows(data.orders, data.productsById, data.notesById)];
   });
 
   readonly columns = computed((): TableColumn<OrderLineAdminRow>[] => [
@@ -184,13 +214,14 @@ export class OrdersManagerPageComponent implements OnInit {
   }
 
   /**
-   * Cash on delivery: "Confirm order" (shipping fee received, or free shipping).
-   * InstaPay: "Confirm payment" after a check that the money arrived in the bank app.
-   * Both take the items out of stock on the server.
+   * The status dropdown. Confirmed on a pending InstaPay order first asks staff to check the bank
+   * app; Cancelled asks for an optional reason. The server checks the move again and takes or
+   * returns stock.
    */
-  async confirm(row: OrderLineAdminRow): Promise<void> {
-    if (!row.isFirstLine || !row.confirmAction || this.busyOrderId()) return;
-    if (row.confirmAction === 'confirm-payment') {
+  async changeStatus(row: OrderLineAdminRow, move: OrderStatusMove): Promise<void> {
+    if (!row.isFirstLine || this.busyOrderId()) return;
+    let reason: string | null = null;
+    if (move.status === 'confirmed' && row.confirmAction === 'confirm-payment') {
       const ok = await this.#ask({
         title: `Confirm payment for ${row.orderRef}?`,
         message: `Only confirm after you see ${row.amountDueLabel ?? 'the full amount'} arrive in your bank app. A screenshot alone isn't proof. This takes the items out of stock and emails the shopper.`,
@@ -200,13 +231,43 @@ export class OrdersManagerPageComponent implements OnInit {
       });
       if (!ok) return;
     }
-    await this.#run(row, 'confirm', async () => {
-      await this.#ordersAdmin.confirmCodOrder(row.orderId);
-      this.#snackbar.success(
-        row.confirmAction === 'confirm-payment'
-          ? 'Payment confirmed. Stock updated.'
-          : 'Order confirmed. Stock updated.',
-      );
+    if (move.status === 'cancelled') {
+      const ref = this.#dialog.open<
+        CancelOrderDialogComponent,
+        CancelOrderDialogData,
+        CancelOrderDialogResult
+      >(CancelOrderDialogComponent, {
+        data: { orderRef: row.orderRef, stockTaken: row.stockTaken, confirmed: row.status === 'confirmed' },
+        width: '440px',
+      });
+      const result = await firstValueFrom(ref.afterClosed());
+      if (!result) return;
+      reason = result.reason || null;
+    }
+    if (move.label.startsWith('Back to')) {
+      const ok = await this.#ask({
+        title: `Move ${row.orderRef} back to ${statusName(move.status)}?`,
+        message: stepBackMessage(move.status),
+        confirmText: move.label,
+        cancelText: 'Keep Status',
+        theme: 'primary',
+      });
+      if (!ok) return;
+    }
+    await this.#run(row, 'status', async () => {
+      const result = await this.#ordersAdmin.setOrderStatus(row.orderId, move.status, reason);
+      const done =
+        move.status === 'cancelled' ? 'Order cancelled.' : `Order marked as ${statusName(move.status)}.`;
+      const missed = result.notReturned ?? 0;
+      if (missed > 0) {
+        this.#snackbar.info(
+          `${done} ${missed === 1 ? '1 item' : `${missed} items`} couldn't go back into stock because the size or product is gone. Check the product's stock.`,
+          'Close',
+          8000,
+        );
+      } else {
+        this.#snackbar.success(done);
+      }
     });
   }
 
@@ -225,24 +286,6 @@ export class OrdersManagerPageComponent implements OnInit {
     await this.#run(row, 'fee', async () => {
       await this.#ordersAdmin.setDeliveryFee(row.orderId, fee);
       this.#snackbar.success('Delivery fee saved.');
-    });
-  }
-
-  /** Cancel an open order that was never paid. Nothing was taken out of stock. */
-  async cancel(row: OrderLineAdminRow): Promise<void> {
-    if (!row.isFirstLine || !row.canCancel || this.busyOrderId()) return;
-    const ok = await this.#ask({
-      title: `Cancel order ${row.orderRef}?`,
-      message:
-        "The shopper won't be able to pay for it after this. Nothing was taken out of stock, so there's nothing to put back. No email is sent; message the shopper on WhatsApp if needed.",
-      confirmText: 'Cancel Order',
-      cancelText: 'Keep Order',
-      theme: 'error',
-    });
-    if (!ok) return;
-    await this.#run(row, 'cancel', async () => {
-      await this.#ordersAdmin.cancelOrder(row.orderId);
-      this.#snackbar.success('Order cancelled.');
     });
   }
 

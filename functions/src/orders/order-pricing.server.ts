@@ -17,6 +17,7 @@ import {
   type PricedProduct,
   type PricingContext,
   type ShippingQuote,
+  type ShippingQuoteLine,
   type ShippingRegion,
   type ShippingSettings,
   type VariantFacts,
@@ -33,7 +34,7 @@ import { giftProductIds, resolveLineGifts, stockDemandKey, type ResolvedGift } f
 import type { CreateStoreOrderRequest, OrderLineInput, StorePaymentMethod } from './order-request.js';
 import { assertCurrentSelection } from './order-selection.js';
 
-export type OrderStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
+export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
 export type OrderPaymentMethod = StorePaymentMethod;
 export type OrderFulfilment =
   'domestic-cod' | 'domestic-instapay' | 'domestic-paymob' | 'international-paymob';
@@ -229,18 +230,27 @@ export type PricingMiss = MissedDeal | MissedPrice | MissedTotal;
 
 /**
  * The server's totals when its shipping fee or order total is higher than checkout showed, or
- * null. A fee to be agreed later (`domestic-agreed`) is never compared: it is 0 until staff set it.
- * A value checkout didn't send (null, older pages) is not compared. A lower or equal server
+ * null. A value checkout didn't send (null, older pages) is not compared. A lower or equal server
  * amount is never a miss: the order goes through at the server's total.
+ *
+ * A large order whose fee is agreed later (`domestic-agreed`, fee 0 until staff set it) compares
+ * only its items total (`totalEgp`) with `shownTotalEgp`, which checkout sends as the items total
+ * with no shipping fee (`shownShippingEgp` null). When checkout showed a fee to be agreed (no
+ * shipping fee, a total) but the server fits a box with a fee, that fee was never shown: a miss.
  */
 export function missedOrderTotal(
   shown: { readonly shownShippingEgp: number | null; readonly shownTotalEgp: number | null },
   shipping: Pick<OrderShippingLine, 'kind' | 'priceEgp'>,
   totalEgp: number,
 ): MissedTotal | null {
-  if (shipping.kind === 'domestic-agreed') return null;
-  const shippingHigher = shown.shownShippingEgp !== null && shipping.priceEgp > shown.shownShippingEgp;
   const totalHigher = shown.shownTotalEgp !== null && totalEgp > shown.shownTotalEgp;
+  if (shipping.kind === 'domestic-agreed') {
+    return totalHigher ? { missedTotalEgp: totalEgp, shippingEgp: shipping.priceEgp } : null;
+  }
+  const shownFeeToBeAgreed = shown.shownShippingEgp === null && shown.shownTotalEgp !== null;
+  const shippingHigher = shownFeeToBeAgreed
+    ? shipping.priceEgp > 0
+    : shown.shownShippingEgp !== null && shipping.priceEgp > shown.shownShippingEgp;
   if (!shippingHigher && !totalHigher) return null;
   return { missedTotalEgp: totalEgp, shippingEgp: shipping.priceEgp };
 }
@@ -448,7 +458,9 @@ async function priceWithOffers(
       : await confirmedEndedOfferIds(db, uid, allOffers, input.endedOfferIds);
   const offers = ended.size === 0 ? allOffers : allOffers.filter((offer) => !ended.has(offer.id));
   const pricedLines: OrderLinePrice[] = [];
-  const cartProducts: PricedProduct[] = [];
+  // Paid lines with their chosen size and colour, so a Free shipping offer's Except rules apply to
+  // the option picked (as item prices, Buy X Get Y and gifts do).
+  const cartProducts: ShippingQuoteLine[] = [];
   let subtotalEgp = 0;
   const parcelLines: ParcelLine[] = [];
 
@@ -561,7 +573,7 @@ async function priceWithOffers(
       addUsedOffer(usedOffers, offers, itemOfferId, 'item');
     const forLine = pricedLines.length;
     pricedLines.push(priced);
-    cartProducts.push(product);
+    cartProducts.push({ product, variant });
     subtotalEgp += priced.lineDisplay;
     parcelLines.push({ weightGrams, quantity: line.quantity });
 
@@ -790,7 +802,7 @@ interface ShippingLineContext {
   readonly isInternational: boolean;
   readonly paymentMethod: StorePaymentMethod;
   readonly subtotalEgp: number;
-  readonly cartProducts: readonly PricedProduct[];
+  readonly cartProducts: readonly ShippingQuoteLine[];
   readonly offers: readonly Offer[];
   readonly ctx: PricingContext;
 }

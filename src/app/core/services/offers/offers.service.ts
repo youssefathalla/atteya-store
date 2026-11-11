@@ -65,7 +65,7 @@ export class OffersService {
   readonly live = computed<readonly Offer[]>(() =>
     liveOffers(this.all(), {
       now: this.#now(),
-      signedIn: Boolean(this.#auth.user()),
+      signedIn: this.#auth.offerSignedIn(),
     }),
   );
 

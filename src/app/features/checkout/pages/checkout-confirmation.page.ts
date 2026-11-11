@@ -181,6 +181,10 @@ export class CheckoutConfirmationPageComponent implements OnInit {
         return 'Order Placed';
       case 'cod-confirmed':
         return 'Order Confirmed';
+      case 'shipped':
+        return 'Order Shipped';
+      case 'delivered':
+        return 'Order Delivered';
       case 'paid':
       case 'paid-needs-review':
         return 'Payment Received';
@@ -208,6 +212,12 @@ export class CheckoutConfirmationPageComponent implements OnInit {
         return "Nothing to pay now. We'll message you to confirm your order.";
       case 'cod-confirmed':
         return "We're getting your order ready.";
+      case 'shipped':
+        return this.order()?.paymentMethod === 'cash-on-delivery'
+          ? 'Your order is on its way. Please have the cash ready.'
+          : 'Your order is on its way.';
+      case 'delivered':
+        return 'Your order was delivered. Thanks for shopping with us.';
       case 'paid':
         return "Thanks, your payment is confirmed and we're getting your order ready.";
       case 'paid-needs-review':
@@ -253,8 +263,13 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       // The whole total is due now, so one box says it.
       case 'instapay-total-due':
         return [payNow ? box('Pay now', payNow, true) : box('Order total', total)];
+      case 'shipped':
       case 'cod-free-pending':
       case 'cod-confirmed':
+        // Shipped card and InstaPay orders are paid; Cash on Delivery still pays at the door.
+        if (stage === 'shipped' && this.order()?.paymentMethod !== 'cash-on-delivery') {
+          return [box('Paid', total)];
+        }
         // With free shipping the cash at the door is the total: one box.
         return cash && cash !== total
           ? [box('Order total', total), box('At your door', cash)]
@@ -269,6 +284,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
         ];
       case 'paid':
       case 'paid-needs-review':
+      case 'delivered':
         return [box('Paid', total)];
       default:
         return [box('Order total', total)];
@@ -276,13 +292,15 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   });
 
   readonly steps = computed(() => {
-    const date = this.#placed();
+    const order = this.order();
     return confirmationSteps(this.stage(), {
-      placedAt: date ? `${TIME_FORMAT.format(date).toLowerCase()}, ${DAY_FORMAT.format(date)}` : '',
+      placedAt: stepTime(this.#placed()),
       payNow: this.payBox()?.amount ?? null,
       cash: this.#cash(),
       paymentMethod: this.paymentLabel(),
-      cashOnDelivery: this.order()?.paymentMethod === 'cash-on-delivery',
+      cashOnDelivery: order?.paymentMethod === 'cash-on-delivery',
+      shippedAt: order && 'shippedAt' in order ? stepTime(orderDate(order.shippedAt)) : '',
+      deliveredAt: order && 'deliveredAt' in order ? stepTime(orderDate(order.deliveredAt)) : '',
     });
   });
 
@@ -543,6 +561,11 @@ interface ConfirmationGift {
 }
 
 const DAY_FORMAT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+/** "2:14 pm, 9 Nov 2026", or empty when the saved date is unreadable. */
+function stepTime(date: Date | null | undefined): string {
+  return date ? `${TIME_FORMAT.format(date).toLowerCase()}, ${DAY_FORMAT.format(date)}` : '';
+}
+
 const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
 
 function countryName(code: string): string {

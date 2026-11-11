@@ -1,7 +1,7 @@
 // GENERATED — edit functions/src/offers/engine
 import { liveOffers } from './item-price';
-import { matchProduct } from './match';
-import type { Offer, PricedProduct, PricingContext } from './types';
+import { matchVariant } from './match';
+import type { Offer, PricedProduct, PricingContext, VariantFacts } from './types';
 
 /** Up to three parcel sizes per region (a region may use fewer, e.g. Egypt uses box1 and box2). */
 export type ShippingBoxId = 'box1' | 'box2' | 'box3';
@@ -50,13 +50,20 @@ export interface ShippingQuote {
   readonly offerId?: string;
 }
 
+/** One paid bag line for a Free shipping offer: the product and the size and colour chosen. */
+export interface ShippingQuoteLine {
+  readonly product: PricedProduct;
+  /** The chosen size and colour (null when the product has no choice or none matched). */
+  readonly variant: VariantFacts | null;
+}
+
 export interface ShippingQuoteInput {
   readonly region: ShippingRegion;
   /** When null/undefined, auto-pick the smallest fitting box. */
   readonly boxId?: ShippingBoxId | null;
   readonly totalWeightGrams: number;
   readonly goodsSubtotal: number;
-  readonly lines?: readonly PricedProduct[];
+  readonly lines?: readonly ShippingQuoteLine[];
 }
 
 export type SelectShippingBoxResult =
@@ -236,11 +243,13 @@ export function shippingQuote(
     if (offer.minimum?.subtotal !== undefined && input.goodsSubtotal < offer.minimum.subtotal) {
       continue;
     }
-    // With lines, every line goes through `matchProduct`, so Except rules always apply (an
-    // "all except Brand X" offer never frees a bag of only Brand X). Without lines, only an
-    // offer with no product rules and no Except rules can qualify.
+    // With lines, every line goes through `matchVariant` with its chosen size and colour, so
+    // Except rules always apply (an "all except Brand X" offer never frees a bag of only Brand X,
+    // and "all except Black" never frees a bag of only a multi-colour product in Black), the same
+    // way item prices, Buy X Get Y and gifts match. Without lines, only an offer with no product
+    // rules and no Except rules can qualify.
     const qualifies = input.lines
-      ? input.lines.some((line) => matchProduct(offer.conditions, offer.exclude, line) !== 'none')
+      ? input.lines.some((line) => matchVariant(offer.conditions, offer.exclude, line.product, line.variant))
       : offer.conditions.anyOf.length === 0 && offer.exclude.anyOf.length === 0;
     if (qualifies) candidates.push({ fee: 0, reason: 'offer', offerId: offer.id });
   }

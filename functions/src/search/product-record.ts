@@ -49,6 +49,11 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly type: string;
   readonly typeLabel: string;
   readonly modelGroup: string | null;
+  /**
+   * Groups the colours of one model, so Shop and search show one card per model
+   * (`attributeForDistinct`): the model, or the product's own id when it has no model.
+   */
+  readonly distinctKey: string;
   /** Main (leaf) category, for the card's "Men – T-shirts" line. */
   readonly categoryId: string | null;
   readonly categoryIds: readonly string[];
@@ -168,6 +173,7 @@ export function toSearchRecord(
     type,
     typeLabel,
     modelGroup,
+    distinctKey: distinctKeyFor(productId, modelGroup),
     categoryId,
     categoryIds,
     hierarchicalCategories,
@@ -191,6 +197,11 @@ export function toSearchRecord(
     newArrivalUntilMs,
     ...offerFields,
   };
+}
+
+/** The group a product belongs to in search: its model, or itself when it has no model. */
+export function distinctKeyFor(productId: string, modelGroup: string | null): string {
+  return modelGroup ? `model:${modelGroup}` : `product:${productId}`;
 }
 
 export function computeProductOfferFields(

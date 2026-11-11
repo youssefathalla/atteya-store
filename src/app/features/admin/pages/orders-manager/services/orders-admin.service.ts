@@ -1,8 +1,16 @@
 import { Service } from '@angular/core';
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import * as v from 'valibot';
+import type { StaffOrderStatus } from '@core/config/order-status';
 import { callableFrom, injectFirestore, injectFunctionsAsync } from '@core/firebase';
-import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
+import {
+  ORDER_STAFF_NOTES_COLLECTION,
+  OrderSchema,
+  ORDERS_COLLECTION,
+  OrderStaffNotesSchema,
+  type OrderDoc,
+  type OrderStaffNotes,
+} from '@core/services/orders/order.schema';
 import { PRODUCTS_COLLECTION } from '@core/services/products/product.constants';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import type { OrderStatusFilter, ProductStockLookup } from '../models/order-admin.model';
@@ -36,22 +44,19 @@ const ProductStockLookupSchema = v.object({
 const ORDERS_PAGE_SIZE = 50;
 const PRODUCT_LOOKUP_CHUNK = 20;
 
-export interface CancelOrderResult {
+export interface SetOrderStatusResult {
   readonly orderId: string;
-  readonly status: 'cancelled';
+  readonly status: StaffOrderStatus;
   readonly changed: boolean;
+  readonly stock: 'take' | 'return' | 'none';
+  /** Pieces that couldn't go back into stock (size or product gone). */
+  readonly notReturned?: number;
 }
 
 export interface SetDeliveryFeeResult {
   readonly orderId: string;
   readonly feeEgp: number;
   readonly totalEgp: number;
-}
-
-export interface ConfirmCodOrderResult {
-  readonly orderId: string;
-  readonly status: 'confirmed';
-  readonly stockDecremented: boolean;
 }
 
 @Service()
@@ -105,15 +110,39 @@ export class OrdersAdminService {
   }
 
   /**
-   * Confirm a pending Egypt cash-on-delivery (fee received) or InstaPay (transfer received)
-   * order and decrement stock (server transaction).
+   * Staff-only notes (status history, cancel reason) for the loaded orders, from
+   * `orderStaffNotes/{orderId}`. A missing or unreadable doc just means no notes.
    */
-  async confirmCodOrder(orderId: string): Promise<ConfirmCodOrderResult> {
-    const call = await callableFrom<{ orderId: string }, ConfirmCodOrderResult>(
-      this.#functions(),
-      'confirmCodOrder',
-    );
-    const response = await call({ orderId });
+  async loadStaffNotes(orders: readonly OrderDoc[]): Promise<ReadonlyMap<string, OrderStaffNotes>> {
+    const byId = new Map<string, OrderStaffNotes>();
+    for (let i = 0; i < orders.length; i += PRODUCT_LOOKUP_CHUNK) {
+      const chunk = orders.slice(i, i + PRODUCT_LOOKUP_CHUNK);
+      const snaps = await Promise.all(
+        chunk.map((order) => getDoc(doc(this.#firestore, ORDER_STAFF_NOTES_COLLECTION, order.id))),
+      );
+      for (const snap of snaps) {
+        if (!snap.exists()) continue;
+        const parsed = v.safeParse(OrderStaffNotesSchema, snap.data());
+        if (parsed.success) byId.set(snap.id, parsed.output);
+      }
+    }
+    return byId;
+  }
+
+  /**
+   * Move an order in the status dropdown. The server checks the move against the live order and
+   * takes or returns stock in the same transaction. `reason` is only kept for Cancelled.
+   */
+  async setOrderStatus(
+    orderId: string,
+    status: StaffOrderStatus,
+    reason: string | null = null,
+  ): Promise<SetOrderStatusResult> {
+    const call = await callableFrom<
+      { orderId: string; status: StaffOrderStatus; reason: string | null },
+      SetOrderStatusResult
+    >(this.#functions(), 'setOrderStatus');
+    const response = await call({ orderId, status, reason });
     return response.data;
   }
 
@@ -124,13 +153,6 @@ export class OrdersAdminService {
       'setDeliveryFee',
     );
     const response = await call({ orderId, feeEgp });
-    return response.data;
-  }
-
-  /** Cancel an open cash-on-delivery or InstaPay order that was never paid. */
-  async cancelOrder(orderId: string): Promise<CancelOrderResult> {
-    const call = await callableFrom<{ orderId: string }, CancelOrderResult>(this.#functions(), 'cancelOrder');
-    const response = await call({ orderId });
     return response.data;
   }
 }

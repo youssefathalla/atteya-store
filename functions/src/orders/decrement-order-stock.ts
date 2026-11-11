@@ -147,6 +147,54 @@ export function applyStockDemand(
   return { next: stockFields(null, live - qty), short };
 }
 
+export interface StockReturnResult {
+  readonly next: StockFields;
+  /** Pieces that could not go back (the size is no longer on the product). */
+  readonly skipped: number;
+}
+
+/**
+ * The stock fields after putting an order's items back (cancel, or back to Waiting for Payment).
+ * Never throws: a cancel must not be blocked by a product that changed since. Sized demand goes
+ * back on each size the product still has; a size it no longer has is counted in `skipped`.
+ * A product with only a flat count gets the whole quantity back on `stock`. Returns null when the
+ * product has no stock set up at all (nothing to put back onto).
+ */
+export function applyStockReturn(
+  product: ProductStockSnapshot,
+  demand: ProductStockDemand,
+): StockReturnResult | null {
+  const sizeIds = readSizeValueIds(product.options);
+  const liveMap = isPlainObject(product.stockBySize) ? product.stockBySize : null;
+
+  if (liveMap !== null) {
+    const hasSizeOption = sizeIds.length > 0;
+    const knownIds = hasSizeOption ? sizeIds : Object.keys(liveMap);
+    const nextMap: Record<string, number> = {};
+    for (const id of knownIds) {
+      const raw = liveMap[id];
+      nextMap[id] = typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0;
+    }
+    let skipped = 0;
+    if (demand.kind === 'sized') {
+      for (const [sizeId, qty] of Object.entries(demand.bySize)) {
+        if (!Object.hasOwn(nextMap, sizeId)) {
+          skipped += qty;
+          continue;
+        }
+        nextMap[sizeId]! += qty;
+      }
+    } else {
+      skipped += demand.quantity;
+    }
+    return { next: stockFields(nextMap), skipped };
+  }
+
+  if (typeof product.stock !== 'number' || !Number.isFinite(product.stock)) return null;
+  const live = Math.max(0, Math.floor(product.stock));
+  return { next: stockFields(null, live + demandQuantity(demand)), skipped: 0 };
+}
+
 /** Read `pricing.lines` from a stored order into stock lines (COD confirm and Paymob webhook). */
 export function parseOrderStockLines(order: Readonly<Record<string, unknown>>): OrderLineForStock[] {
   const pricing = isPlainObject(order['pricing']) ? order['pricing'] : null;

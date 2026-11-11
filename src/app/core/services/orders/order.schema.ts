@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import { ORDER_STATUSES } from '@core/config/order-status';
 import { timestampSchema } from '@shared/schemas';
 
 const country = v.pipe(v.string(), v.trim(), v.length(2));
@@ -115,9 +116,39 @@ export const OrderBankTransferSchema = v.object({
   whatsAppProofUrl: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(8)), null),
 });
 
+/** Every status an order can have (shared list; staff move them with `setOrderStatus`). */
+const orderStatus = v.picklist(ORDER_STATUSES);
+
+/** One saved status change (`orderStaffNotes/{id}.statusHistory`, appended by the server). */
+export const OrderStatusChangeSchema = v.object({
+  status: v.picklist(ORDER_STATUSES),
+  from: v.optional(v.nullable(v.picklist(ORDER_STATUSES)), null),
+  at: v.optional(v.nullable(timestampSchema), null),
+  by: v.optional(v.nullable(v.string()), null),
+  byEmail: v.optional(v.nullable(v.string()), null),
+  reason: v.optional(v.nullable(v.string()), null),
+});
+
+export type OrderStatusChange = v.InferOutput<typeof OrderStatusChangeSchema>;
+
+/**
+ * `orderStaffNotes/{orderId}`: the staff-only side of an order (admin read, Admin SDK write), kept
+ * off `orders/{id}` because the shopper who owns the order can read that doc.
+ */
+export const OrderStaffNotesSchema = v.object({
+  /** Every status change with who and when. A bad entry drops the list, not the notes. */
+  statusHistory: v.optional(v.fallback(v.array(OrderStatusChangeSchema), []), []),
+  /** Typed when cancelling; never shown to the shopper. */
+  cancelReason: v.optional(v.nullable(v.string()), null),
+});
+
+export type OrderStaffNotes = v.InferOutput<typeof OrderStaffNotesSchema>;
+
+export const ORDER_STAFF_NOTES_COLLECTION = 'orderStaffNotes';
+
 const OrderBaseFields = {
   id: v.string(),
-  status: v.picklist(['pending', 'confirmed', 'cancelled', 'failed']),
+  status: orderStatus,
   /** `null` on guest orders (placed without signing in). */
   customerId: v.nullable(v.string(), null),
   customerEmail: v.nullable(v.string(), null),
@@ -137,6 +168,10 @@ export const StoreOrderSchema = v.object({
   needsReview: v.optional(v.boolean(), false),
   cancelledAt: v.optional(v.nullable(timestampSchema), null),
   cancelledBy: v.optional(v.nullable(v.string()), null),
+  shippedAt: v.optional(v.nullable(timestampSchema), null),
+  deliveredAt: v.optional(v.nullable(timestampSchema), null),
+  /** Set when the items left stock, null once they went back; missing on older orders. */
+  stockDecrementedAt: v.optional(v.nullable(timestampSchema)),
 });
 
 export const LegacyBankTransferOrderSchema = v.object({
@@ -146,7 +181,7 @@ export const LegacyBankTransferOrderSchema = v.object({
   bankTransfer: OrderBankTransferSchema,
   paymentProofPath: v.nullable(v.string(), null),
   // Soften status: legacy docs never used `failed`.
-  status: v.picklist(['pending', 'confirmed', 'cancelled', 'failed']),
+  status: orderStatus,
 });
 
 /** Accepts Paymob/COD orders and leftover bank-transfer docs so admin lists do not throw. */
@@ -164,7 +199,7 @@ export const ORDERS_COLLECTION = 'orders';
  */
 export const OrderViewSchema = v.object({
   id: v.string(),
-  status: v.picklist(['pending', 'confirmed', 'cancelled', 'failed']),
+  status: orderStatus,
   paymentMethod: v.picklist(['paymob', 'cash-on-delivery', 'instapay']),
   shipping: OrderShippingSchema,
   pricing: OrderPricingSnapshotSchema,
@@ -182,6 +217,8 @@ export const OrderViewSchema = v.object({
   updatedAt: timestampSchema,
   confirmedAt: v.optional(v.nullable(timestampSchema), null),
   cancelledAt: v.optional(v.nullable(timestampSchema), null),
+  shippedAt: v.optional(v.nullable(timestampSchema), null),
+  deliveredAt: v.optional(v.nullable(timestampSchema), null),
 });
 
 export type OrderViewDoc = v.InferOutput<typeof OrderViewSchema>;
@@ -223,5 +260,7 @@ export function orderFromView(view: OrderViewDoc): StoreOrderDoc {
     needsReview: view.needsReview,
     cancelledAt: view.cancelledAt,
     cancelledBy: null,
+    shippedAt: view.shippedAt,
+    deliveredAt: view.deliveredAt,
   };
 }

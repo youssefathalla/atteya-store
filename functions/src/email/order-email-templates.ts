@@ -80,6 +80,10 @@ export function renderOrderEmail(
       return paidConfirmed(order, ctx);
     case 'payment-failed':
       return paymentFailed(order, ctx);
+    case 'order-shipped':
+      return orderShipped(order, ctx);
+    case 'order-delivered':
+      return orderDelivered(order, ctx);
     case 'store-new-order':
       return storeNewOrder(order, ctx);
   }
@@ -233,6 +237,35 @@ function paidConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
     showTotals: true,
     totalLabel: 'Total paid',
     showAddress: true,
+    button: orderButton(order, ctx),
+  });
+}
+
+function orderShipped(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+  const cod = order.paymentMethod === 'cash-on-delivery';
+  return shopperEmail(order, ctx, {
+    subject: `Your order ${order.ref} is on its way`,
+    heading: 'Your order is on its way',
+    intro: [`Good news, ${firstName(order)}: we've sent your order ${order.ref}.`],
+    highlight: cod
+      ? `Please have ${formatEgp(cashOnDeliveryEgp(order))} in cash ready when it arrives.`
+      : null,
+    showTotals: false,
+    showAddress: true,
+    button: orderButton(order, ctx),
+  });
+}
+
+function orderDelivered(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+  return shopperEmail(order, ctx, {
+    subject: `Your order ${order.ref} was delivered`,
+    heading: 'Your order was delivered',
+    intro: [
+      `Hi ${firstName(order)}, your order ${order.ref} was delivered. Thanks for shopping with us. We hope you enjoy it.`,
+    ],
+    highlight: null,
+    showTotals: false,
+    showAddress: false,
     button: orderButton(order, ctx),
   });
 }
