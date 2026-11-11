@@ -4,7 +4,7 @@ import { CURRENT_TERMS_VERSION } from '../auth/accepted-terms.js';
 import { requireAppCheck } from '../auth/callable-options.js';
 import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
 import { requireRole } from '../auth/require-role.js';
-import { offerPricingSignedIn } from './guest-order-claim.js';
+import { offerPricingSignedIn } from './offer-signed-in.js';
 import { guestOfferCustomerKey } from './offer-usage.js';
 import { parseGuestCheckout } from './order-request.js';
 import { hashGuestEmail, hashGuestOrderIp } from './order-rate-limit.js';

@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
+import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
 import { requireRole } from '../auth/require-role.js';
 import {
   confirmedClaimEmail,
@@ -16,7 +17,7 @@ export interface ClaimGuestOrdersResponse {
 /**
  * Links the caller's earlier guest orders to their account: every order with no owner whose
  * `customerEmail` is the caller's confirmed email (at most 50 per call) gets `customerId` and
- * `claimedAt`. Signed-in callers only (App Check through `requireRole`). An unconfirmed email links
+ * `claimedAt`. Signed-in callers who accepted the terms only (App Check through `requireRole`). An unconfirmed email links
  * nothing and returns 0, because anyone can type any address when they create an account. Orders
  * that already belong to an account are never moved. The website calls it once per sign-in.
  */
@@ -26,6 +27,8 @@ export const claimGuestOrdersByEmail = onCall(
     const caller = await requireRole(request, 'user');
     const email = confirmedClaimEmail(caller);
     if (!email) return { linked: 0 };
+    // Like placing an order, owning orders needs an account that agreed to the terms.
+    await requireAcceptedTerms(caller.uid);
 
     const db = getFirestore();
     const query = db

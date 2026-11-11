@@ -164,10 +164,11 @@ export class AuthService {
   }
 
   /**
-   * Once per sign-in (per account, per page load), after the account's email is known to be
-   * confirmed, links that email's earlier guest orders to the account (`claimGuestOrdersByEmail`)
-   * and says how many were added. An unconfirmed email waits until it is confirmed (the server
-   * would link nothing). Browser only; a failure is silent.
+   * Once per sign-in (per account, per browser tab session), after the account has agreed to the
+   * terms and its email is known to be confirmed, links that email's earlier guest orders to the
+   * account (`claimGuestOrdersByEmail`) and says how many were added. An unconfirmed email waits
+   * until it is confirmed (the server would link nothing). Browser only; a failure is silent and
+   * the next change of account state, or the next page load, tries again.
    */
   #claimGuestOrdersOnSignIn(): void {
     const claimed = new Set<string>();
@@ -175,25 +176,32 @@ export class AuthService {
       const uid = this.#user()?.uid;
       if (!uid) {
         claimed.clear();
+        // Signed out for real (not the first load before auth answers): a later sign-in in this
+        // tab may follow a guest order, so it asks again.
+        if (this.#isAuthReady()) clearGuestClaimStamps();
         return;
       }
-      if (!this.#emailVerified() || claimed.has(uid)) return;
+      if (!this.#emailVerified() || !this.#consentReady() || this.#needsConsent()) return;
+      if (claimed.has(uid) || readGuestClaimStamp(uid)) return;
       claimed.add(uid);
-      untracked(() => void this.#claimGuestOrders(uid));
+      untracked(() => void this.#claimGuestOrders(uid, claimed));
     });
   }
 
-  async #claimGuestOrders(uid: string): Promise<void> {
+  async #claimGuestOrders(uid: string, claimed: Set<string>): Promise<void> {
     try {
       const linked = await this.#orders.claimGuestOrdersByEmail();
+      writeGuestClaimStamp(uid);
       if (linked <= 0 || this.#auth.currentUser?.uid !== uid) return;
+      // The order page's own "Save to My Account" card already says the order was saved.
+      if (this.#router.url.startsWith('/checkout/confirmation/')) return;
       this.#snackbar.success(
         linked === 1
           ? 'We added 1 earlier order to your account.'
           : `We added ${linked} earlier orders to your account.`,
       );
     } catch {
-      // Silent: the orders stay as guest orders and the next sign-in tries again.
+      claimed.delete(uid);
     }
   }
 
@@ -528,7 +536,8 @@ export class AuthService {
           return;
         }
         this.#role.set('user');
-        this.#emailVerified.set(firebaseUser.emailVerified);
+        // The server reads `email_verified` from the token only; unknown here, so price like a guest.
+        this.#emailVerified.set(false);
         this.#user.set(firebaseUser);
         this.#markReady();
       }
@@ -690,5 +699,35 @@ export class AuthService {
     const waiters = this.#readyWaiters;
     this.#readyWaiters = [];
     for (const resolve of waiters) resolve();
+  }
+}
+
+/** `sessionStorage` key saying this tab already linked the account's guest orders. */
+const GUEST_CLAIM_STAMP = 'atteya-guest-orders-claimed:';
+
+function readGuestClaimStamp(uid: string): boolean {
+  try {
+    return sessionStorage.getItem(GUEST_CLAIM_STAMP + uid) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeGuestClaimStamp(uid: string): void {
+  try {
+    sessionStorage.setItem(GUEST_CLAIM_STAMP + uid, '1');
+  } catch {
+    // Storage blocked: the next page load asks again, which is harmless.
+  }
+}
+
+function clearGuestClaimStamps(): void {
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(GUEST_CLAIM_STAMP)) sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Storage blocked: nothing was stamped.
   }
 }

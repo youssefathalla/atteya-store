@@ -6,8 +6,8 @@ import {
   confirmedClaimEmail,
   isClaimableGuestOrder,
   MAX_GUEST_ORDERS_PER_CLAIM,
-  offerPricingSignedIn,
 } from '../../lib/orders/guest-order-claim.js';
+import { offerPricingSignedIn } from '../../lib/orders/offer-signed-in.js';
 
 describe('claiming guest orders by email', () => {
   it('uses the token email only when it is confirmed, trimmed and lower-cased', () => {
@@ -20,29 +20,35 @@ describe('claiming guest orders by email', () => {
     assert.equal(confirmedClaimEmail({ email: '  ', emailVerified: true }), null);
   });
 
-  it('links only orders with no owner and the same email', () => {
+  it('links only guest orders with no owner and the same email', () => {
     const email = 'shopper@example.com';
-    assert.equal(
-      isClaimableGuestOrder({ customerId: null, customerEmail: 'shopper@example.com' }, email),
-      true,
-    );
-    assert.equal(
-      isClaimableGuestOrder({ customerId: null, customerEmail: ' Shopper@Example.com' }, email),
-      true,
-    );
-    assert.equal(isClaimableGuestOrder({ customerEmail: 'shopper@example.com' }, email), true);
+    const guest = { termsVersion: '2026-11', termsAcceptedAt: 'x' };
+    assert.equal(isClaimableGuestOrder({ customerId: null, customerEmail: email, guest }, email), true);
   });
 
   it('never moves an order that already belongs to an account, or one with another email', () => {
     const email = 'shopper@example.com';
-    assert.equal(isClaimableGuestOrder({ customerId: 'other-uid', customerEmail: email }, email), false);
-    assert.equal(isClaimableGuestOrder({ customerId: 'same-uid', customerEmail: email }, email), false);
+    const guest = { termsVersion: '2026-11', termsAcceptedAt: 'x' };
     assert.equal(
-      isClaimableGuestOrder({ customerId: null, customerEmail: 'someone@example.com' }, email),
+      isClaimableGuestOrder({ customerId: 'other-uid', customerEmail: email, guest }, email),
       false,
     );
-    assert.equal(isClaimableGuestOrder({ customerId: null }, email), false);
+    assert.equal(
+      isClaimableGuestOrder({ customerId: 'same-uid', customerEmail: email, guest }, email),
+      false,
+    );
+    assert.equal(
+      isClaimableGuestOrder({ customerId: null, customerEmail: 'someone@example.com', guest }, email),
+      false,
+    );
+    assert.equal(isClaimableGuestOrder({ customerId: null, guest }, email), false);
     assert.equal(isClaimableGuestOrder(undefined, email), false);
+  });
+
+  it('never takes an order that was not placed as a guest', () => {
+    const email = 'shopper@example.com';
+    assert.equal(isClaimableGuestOrder({ customerId: null, customerEmail: email }, email), false);
+    assert.equal(isClaimableGuestOrder({ customerEmail: email, guest: {} }, email), false);
   });
 
   it('links at most 50 orders per call', () => {
