@@ -266,13 +266,18 @@ export class OfferEditorPageComponent implements OnInit {
       : offerSentence(this.offer(), this.names(), Math.max(this.step(), this.furthest()), new Date()),
   );
 
+  /** Products the offer reaches; recomputed only when the product rules change. */
+  readonly #matched = computed(() => {
+    const { conditions, exclude } = this.draft();
+    return this.pricedEntries().filter((entry) => matchProduct(conditions, exclude, entry.priced) !== 'none');
+  });
+
   readonly sample = computed<SampleProduct | null>(() => {
     const draft = this.offer();
     const offer: Offer = { ...draft, id: draft.id ?? 'preview-offer', active: true, archived: false };
     const ctx = { now: draft.schedule.startsAt ?? new Date(), signedIn: true };
     let fallback: SampleProduct | null = null;
-    for (const { product, priced, inStock } of this.pricedEntries()) {
-      if (matchProduct(draft.conditions, draft.exclude, priced) === 'none') continue;
+    for (const { product, priced, inStock } of this.#matched()) {
       const res = displayPrice(priced, [offer], ctx);
       const rawImage = product.images[0]?.path;
       const sample: SampleProduct = {
@@ -292,11 +297,14 @@ export class OfferEditorPageComponent implements OnInit {
   readonly bannerText = computed(() => {
     const draft = this.offer();
     const banner = this.banner();
-    if (!banner.show || draft.audience !== 'everyone' || draft.limits.perCustomer !== null) return null;
+    const hasCode = draft.requiresCode && !!draft.code?.trim();
+    if (!banner.show || draft.audience !== 'everyone' || draft.limits.perCustomer !== null || hasCode) {
+      return null;
+    }
     return banner.text?.trim() || draft.title;
   });
 
-  readonly stats = computed(() => affectedStats(this.offer(), this.pricedEntries()));
+  readonly stats = computed(() => affectedStats(this.#matched()));
   readonly affectedLabel = computed(() => productCountLabel(this.stats().total));
 
   readonly overlapWarnings = computed(() =>
@@ -408,7 +416,12 @@ export class OfferEditorPageComponent implements OnInit {
           this.nameEdited.set(false);
           this.productsMode.set('all');
           this.wasActive.set(false);
+          this.limitOpen.set(false);
         }
+        this.#savedInclude.set({ anyOf: [] });
+        this.showAdvanced.set(false);
+        this.showProducts.set(false);
+        this.moreOpen.set(false);
       });
     });
   }
@@ -436,8 +449,9 @@ export class OfferEditorPageComponent implements OnInit {
     if (step > 1) this.#goTo((step - 1) as OfferEditorStep);
   }
 
+  /** Step bar links and step 4's Change links: any step already reached. */
   goTo(step: OfferEditorStep): void {
-    if (this.doneSteps().includes(step)) this.#goTo(step);
+    if (step !== this.step() && step <= this.furthest()) this.#goTo(step);
   }
 
   #goTo(step: OfferEditorStep): void {
@@ -527,7 +541,14 @@ export class OfferEditorPageComponent implements OnInit {
   onLimitChange(bound: 'totalUses' | 'perCustomer', event: Event): void {
     const parsed = Number.parseInt((event.target as HTMLInputElement).value, 10);
     const value = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-    this.draft.update((prev) => ({ ...prev, limits: { ...prev.limits, [bound]: value } }));
+    this.draft.update((prev) => ({
+      ...prev,
+      limits: { ...prev.limits, [bound]: value },
+      // A per-customer limit makes the offer signed-in only, so it leaves the top banner.
+      ...(bound === 'perCustomer' && value !== null && prev.banner?.show
+        ? { banner: { ...prev.banner, show: false } }
+        : {}),
+    }));
   }
 
   // ---------------------------------------------------------------------------------------------

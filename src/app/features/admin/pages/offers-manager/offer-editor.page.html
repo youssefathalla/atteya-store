@@ -215,7 +215,12 @@
                 </p>
                 @if (stats().onSale > 0) {
                   <p>
-                    {{ stats().onSale.toLocaleString('en-US') }} already on sale: they get the bigger saving
+                    {{ stats().onSale.toLocaleString('en-US') }} already on sale:
+                    {{
+                      draft().saleItems === 'exclude'
+                        ? 'they keep their sale price'
+                        : 'they get the bigger saving'
+                    }}
                   </p>
                 }
               </div>

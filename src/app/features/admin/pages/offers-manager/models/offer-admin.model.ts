@@ -692,7 +692,8 @@ export function writeTargets(view: TargetView): OfferConditions {
   for (const field of TARGET_FIELDS) {
     const values = view.tags.filter((tag) => tag.field === field).map((tag) => tag.value);
     if (values.length > 0) {
-      groups.push({ allOf: [{ field, in: values.slice(0, MAX_FREE_ITEM_VALUES) }] });
+      // More than 200 values is refused by validateOffer ("Each rule can pick up to 200 values.").
+      groups.push({ allOf: [{ field, in: values }] });
     }
   }
   return { anyOf: [...groups, ...view.advanced] };
@@ -1058,18 +1059,15 @@ export interface AffectedStats {
   readonly onSale: number;
 }
 
+/** Counts for the products a draft reaches (already matched): in stock, sold out, already on sale. */
 export function affectedStats(
-  draft: OfferDraft,
-  products: readonly { readonly priced: PricedProduct; readonly inStock: boolean }[],
+  matched: readonly { readonly priced: PricedProduct; readonly inStock: boolean }[],
 ): AffectedStats {
-  let total = 0;
   let inStock = 0;
   let onSale = 0;
-  for (const { priced, inStock: available } of products) {
-    if (matchProduct(draft.conditions, draft.exclude, priced) === 'none') continue;
-    total += 1;
+  for (const { priced, inStock: available } of matched) {
     if (available) inStock += 1;
     if (priced.compareAtPrice !== null && priced.compareAtPrice > priced.price) onSale += 1;
   }
-  return { total, inStock, soldOut: total - inStock, onSale };
+  return { total: matched.length, inStock, soldOut: matched.length - inStock, onSale };
 }

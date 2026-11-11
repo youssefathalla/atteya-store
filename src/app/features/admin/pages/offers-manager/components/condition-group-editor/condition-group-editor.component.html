@@ -33,7 +33,7 @@
       @for (atom of group.allOf; track $index; let aIdx = $index) {
         <div class="w-full border-t border-outline-variant pt-3 elements-start-col gap-2">
           <div class="elements-center flex-wrap gap-2 w-full">
-            <mat-form-field class="w-44" appearance="outline" subscriptSizing="dynamic">
+            <mat-form-field class="w-full sm:w-44" appearance="outline" subscriptSizing="dynamic">
               <mat-label>Rule on</mat-label>
               <mat-select [value]="atom.field" (selectionChange)="onFieldChange(gIdx, aIdx, $event.value)">
                 @for (f of fieldOptions; track f.id) {
@@ -43,7 +43,7 @@
             </mat-form-field>
 
             @if (atom.field !== 'price') {
-              <mat-form-field class="w-44" appearance="outline" subscriptSizing="dynamic">
+              <mat-form-field class="w-full sm:w-44" appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Match</mat-label>
                 <mat-select
                   [value]="atomMode(atom)"
@@ -62,7 +62,7 @@
 
           @if (atom.field === 'price') {
             <div class="elements-center flex-wrap gap-3">
-              <mat-form-field class="w-36" appearance="outline" subscriptSizing="dynamic">
+              <mat-form-field class="w-full sm:w-36" appearance="outline" subscriptSizing="dynamic">
                 <mat-label>From</mat-label>
                 <span matTextPrefix>EGP&nbsp;</span>
                 <input
@@ -73,7 +73,7 @@
                   (input)="onPriceChange(gIdx, aIdx, atom, 'min', $event)"
                 />
               </mat-form-field>
-              <mat-form-field class="w-36" appearance="outline" subscriptSizing="dynamic">
+              <mat-form-field class="w-full sm:w-36" appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Up to</mat-label>
                 <span matTextPrefix>EGP&nbsp;</span>
                 <input

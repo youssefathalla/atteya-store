@@ -13,7 +13,7 @@
     <div class="elements-start-col items-stretch! gap-2">
       <span class="font-title-sm font-bold!">How much off?</span>
       <div class="elements-start items-center! flex-wrap gap-2">
-        <mat-form-field class="w-32" appearance="outline" subscriptSizing="dynamic">
+        <mat-form-field class="w-full sm:w-32" appearance="outline" subscriptSizing="dynamic">
           <mat-label>Percent off</mat-label>
           <input
             matInput
@@ -59,7 +59,7 @@
       <ul class="w-full elements-start-col items-stretch! gap-2" (focusout)="onBundleRowsFocusOut($event)">
         @for (row of r.rows; track $index) {
           <li class="elements-start items-center! flex-wrap gap-3">
-            <mat-form-field class="w-28" appearance="outline" subscriptSizing="dynamic">
+            <mat-form-field class="w-full sm:w-28" appearance="outline" subscriptSizing="dynamic">
               <mat-label>Pieces</mat-label>
               <input
                 matInput
@@ -70,7 +70,7 @@
                 (change)="onBundlePiecesChange($index, $event)"
               />
             </mat-form-field>
-            <mat-form-field class="w-44" appearance="outline" subscriptSizing="dynamic">
+            <mat-form-field class="w-full sm:w-44" appearance="outline" subscriptSizing="dynamic">
               <mat-label>Total price</mat-label>
               <span matTextPrefix>EGP&nbsp;</span>
               <input
@@ -104,7 +104,7 @@
     </fieldset>
   } @else if (selectedPickerKind() === 'buyXGetY' && r.kind === 'buyXGetY') {
     <div class="elements-start items-center! flex-wrap gap-3">
-      <mat-form-field class="w-28" appearance="outline" subscriptSizing="dynamic">
+      <mat-form-field class="w-full sm:w-28" appearance="outline" subscriptSizing="dynamic">
         <mat-label>Buy</mat-label>
         <input
           matInput
@@ -114,7 +114,7 @@
           (input)="onBuyXGetYChange('buyQty', $event)"
         />
       </mat-form-field>
-      <mat-form-field class="w-28" appearance="outline" subscriptSizing="dynamic">
+      <mat-form-field class="w-full sm:w-28" appearance="outline" subscriptSizing="dynamic">
         <mat-label>Get</mat-label>
         <input
           matInput
@@ -124,7 +124,7 @@
           (input)="onBuyXGetYChange('getQty', $event)"
         />
       </mat-form-field>
-      <mat-form-field class="w-40" appearance="outline" subscriptSizing="dynamic">
+      <mat-form-field class="w-full sm:w-40" appearance="outline" subscriptSizing="dynamic">
         <mat-label>Off what they get</mat-label>
         <input
           matInput
@@ -136,7 +136,7 @@
         />
         <span matTextSuffix>%</span>
       </mat-form-field>
-      <mat-form-field class="w-48" appearance="outline" subscriptSizing="dynamic">
+      <mat-form-field class="w-full sm:w-48" appearance="outline" subscriptSizing="dynamic">
         <mat-label>Most times per order</mat-label>
         <input
           matInput
