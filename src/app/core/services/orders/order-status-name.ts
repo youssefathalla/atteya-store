@@ -21,6 +21,10 @@ export function orderStatusName(stage: OrderStage | null, fallback = '—'): str
       return 'Confirming Payment';
     case 'failed':
       return 'Payment Failed';
+    case 'shipped':
+      return 'Shipped';
+    case 'delivered':
+      return 'Delivered';
     case 'cancelled':
       return 'Cancelled';
     default:

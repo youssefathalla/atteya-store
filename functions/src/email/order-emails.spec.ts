@@ -102,6 +102,51 @@ describe('orderEmailsForWrite', () => {
     assert.deepEqual(orderEmailsForWrite(before, after), ['cod-confirmed']);
   });
 
+  it('shipped and delivered send one shopper email each, for every payment method', () => {
+    for (const paymentMethod of ['cash-on-delivery', 'instapay', 'paymob']) {
+      const confirmed = read(orderDoc({ paymentMethod, status: 'confirmed' }));
+      const shipped = read(orderDoc({ paymentMethod, status: 'shipped' }));
+      const delivered = read(orderDoc({ paymentMethod, status: 'delivered' }));
+      assert.deepEqual(orderEmailsForWrite(confirmed, shipped), ['order-shipped'], paymentMethod);
+      assert.deepEqual(orderEmailsForWrite(shipped, delivered), ['order-delivered'], paymentMethod);
+    }
+  });
+
+  it('a step back sends nothing, and never a second confirmation', () => {
+    const confirmed = read(orderDoc({ paymentMethod: 'paymob', status: 'confirmed' }));
+    const shipped = read(orderDoc({ paymentMethod: 'paymob', status: 'shipped' }));
+    const delivered = read(orderDoc({ paymentMethod: 'paymob', status: 'delivered' }));
+    assert.deepEqual(orderEmailsForWrite(shipped, confirmed), []);
+    assert.deepEqual(orderEmailsForWrite(delivered, shipped), []);
+    const codShipped = read(orderDoc({ status: 'shipped' }));
+    assert.deepEqual(orderEmailsForWrite(codShipped, read(orderDoc({ status: 'confirmed' }))), []);
+  });
+
+  it('shipped and delivered are claimed once per order', () => {
+    const order = read(orderDoc({ status: 'shipped' }));
+    assert.equal(claimId('order-shipped', order), `${order.id}_order-shipped`);
+    assert.equal(claimId('order-delivered', order), `${order.id}_order-delivered`);
+  });
+
+  it('shipped email reminds Cash on Delivery of the cash and links a guest with its key', () => {
+    const cod = renderOrderEmail('order-shipped', read(orderDoc({ status: 'shipped' })), ctx);
+    assert.match(cod.subject, /is on its way/);
+    assert.match(cod.text, /in cash ready/);
+    const card = renderOrderEmail(
+      'order-shipped',
+      read(orderDoc({ paymentMethod: 'paymob', status: 'shipped' })),
+      ctx,
+    );
+    assert.doesNotMatch(card.text, /in cash/);
+    const guest = renderOrderEmail(
+      'order-delivered',
+      read({ ...orderDoc({ status: 'delivered' }), viewKey: 'k'.repeat(43) }),
+      ctx,
+    );
+    assert.match(guest.subject, /was delivered/);
+    assert.match(guest.html, /\?key=k{43}/);
+  });
+
   it('cash on delivery edit without a status change sends nothing', () => {
     const before = read(orderDoc({ status: 'confirmed' }));
     const after = read(orderDoc({ status: 'confirmed' }));

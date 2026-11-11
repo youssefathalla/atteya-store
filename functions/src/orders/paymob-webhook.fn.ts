@@ -157,7 +157,13 @@ export const paymobWebhook = onRequest(
           return;
         }
 
-        const isFinal = data['status'] === 'confirmed' || data['status'] === 'cancelled';
+        // Confirmed, shipped, delivered and cancelled are final for Paymob: a late event never
+        // re-confirms an order staff already moved on (and never takes stock twice).
+        const isFinal =
+          data['status'] === 'confirmed' ||
+          data['status'] === 'shipped' ||
+          data['status'] === 'delivered' ||
+          data['status'] === 'cancelled';
         const willConfirm = isCleanCapture && !isFinal;
 
         // Firestore transactions need every read before any write: load the products

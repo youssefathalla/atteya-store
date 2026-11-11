@@ -22,6 +22,10 @@ export interface ConfirmationStepAmounts {
   /** Payment method name, e.g. "InstaPay". */
   readonly paymentMethod: string;
   readonly cashOnDelivery: boolean;
+  /** "2:14 pm, 10 Nov 2026" when the order was sent (`shippedAt`), or empty. */
+  readonly shippedAt?: string;
+  /** "2:14 pm, 12 Nov 2026" when the order arrived (`deliveredAt`), or empty. */
+  readonly deliveredAt?: string;
 }
 
 /** The "What happens next" list for each order stage. Empty for an order we can't explain. */
@@ -101,16 +105,40 @@ export function confirmationSteps(
       return [
         placed,
         step('confirmed', 'Order confirmed', '', 'done'),
-        step('ready', "We're getting your order ready", '', 'current'),
+        step('send', 'We send your order', "We're getting your order ready.", 'current'),
         { ...atDoor, note: 'Please have it ready when your order arrives.' },
       ];
     case 'paid':
       return [
         placed,
         step('paid', 'Payment received', amounts.paymentMethod, 'done'),
-        step('ready', "We're getting your order ready", '', 'current'),
-        step('send', 'We send your order', '', 'next'),
+        step('send', 'We send your order', "We're getting your order ready.", 'current'),
+        step('delivered', 'Delivered', '', 'next'),
       ];
+    case 'shipped': {
+      const second = amounts.cashOnDelivery
+        ? step('confirmed', 'Order confirmed', '', 'done')
+        : step('paid', 'Payment received', amounts.paymentMethod, 'done');
+      return [
+        placed,
+        second,
+        step('send', 'Shipped', amounts.shippedAt ?? '', 'done'),
+        amounts.cashOnDelivery
+          ? { ...atDoor, note: 'Your order is on its way. Please have the cash ready.', state: 'current' }
+          : step('delivered', 'Delivered', 'Your order is on its way.', 'current'),
+      ];
+    }
+    case 'delivered': {
+      const second = amounts.cashOnDelivery
+        ? step('confirmed', 'Order confirmed', '', 'done')
+        : step('paid', 'Payment received', amounts.paymentMethod, 'done');
+      return [
+        placed,
+        second,
+        step('send', 'Shipped', amounts.shippedAt ?? '', 'done'),
+        step('delivered', 'Delivered', amounts.deliveredAt ?? '', 'done'),
+      ];
+    }
     case 'paid-needs-review':
       return [
         placed,

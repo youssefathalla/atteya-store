@@ -10,7 +10,7 @@ import { dealTag } from '../offers/engine/buy-x-get-y.js';
 import { isDeliveryFeeToBeAgreed } from '../store/order-messages.js';
 
 export type OrderEmailPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
-export type OrderEmailStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
+export type OrderEmailStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
 
 export interface OrderEmailLine {
   readonly productId: string;
@@ -105,7 +105,14 @@ export function readOrderForEmail(
     return null;
   }
   const status = data['status'];
-  if (status !== 'pending' && status !== 'confirmed' && status !== 'cancelled' && status !== 'failed') {
+  if (
+    status !== 'pending' &&
+    status !== 'confirmed' &&
+    status !== 'shipped' &&
+    status !== 'delivered' &&
+    status !== 'cancelled' &&
+    status !== 'failed'
+  ) {
     return null;
   }
 

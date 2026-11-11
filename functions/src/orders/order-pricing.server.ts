@@ -34,7 +34,7 @@ import { giftProductIds, resolveLineGifts, stockDemandKey, type ResolvedGift } f
 import type { CreateStoreOrderRequest, OrderLineInput, StorePaymentMethod } from './order-request.js';
 import { assertCurrentSelection } from './order-selection.js';
 
-export type OrderStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
+export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
 export type OrderPaymentMethod = StorePaymentMethod;
 export type OrderFulfilment =
   'domestic-cod' | 'domestic-instapay' | 'domestic-paymob' | 'international-paymob';

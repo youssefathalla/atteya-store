@@ -37,6 +37,8 @@ export function paymentTagTone(stage: OrderStage | null): PaymentTagTone {
     case 'cod-confirmed':
     case 'paid':
     case 'paid-needs-review':
+    case 'shipped':
+    case 'delivered':
       return 'done';
     case 'failed':
     case 'cancelled':
@@ -83,6 +85,25 @@ export function paymentParts(stage: OrderStage | null, input: PaymentPartsInput)
       ];
     case 'cod-free-pending':
       return [part('total', 'cash-on-delivery', 'Order total', 'In cash at your door', cash)];
+    case 'shipped':
+    case 'delivered':
+      if (method !== 'cash-on-delivery') {
+        return [part('total', method, 'Order total', 'Paid', input.total, { paid: true })];
+      }
+      if (stage === 'delivered') {
+        return input.fee
+          ? [
+              part('fee', 'instapay', 'Delivery fee', 'Paid', input.fee, { paid: true }),
+              part('rest', 'cash-on-delivery', 'The rest', 'Paid in cash', cash, { paid: true }),
+            ]
+          : [part('total', 'cash-on-delivery', 'Order total', 'Paid in cash', cash, { paid: true })];
+      }
+      return input.fee
+        ? [
+            part('fee', 'instapay', 'Delivery fee', 'Paid', input.fee, { paid: true }),
+            part('rest', 'cash-on-delivery', 'The rest', 'In cash at your door', cash),
+          ]
+        : [part('total', 'cash-on-delivery', 'Order total', 'In cash at your door', cash)];
     case 'cod-confirmed':
       return input.fee
         ? [

@@ -5,14 +5,23 @@ import {
   shopperWhatsappNumber,
   staffWhatsappText,
 } from '@core/config/order-messages';
+import {
+  allowedStatusMoves,
+  orderStatusLabel,
+  orderStockTaken,
+  type StaffOrderStatus,
+} from '@core/config/order-status';
 import { whatsappChatUrl } from '@core/config/store-info';
 import { dealTag, displayDecimals } from '@core/services/offers/engine';
 import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
 import type { OrderDoc } from '@core/services/orders/order.schema';
 import { formatMoney } from '@shared/utils/money';
+import { orderDate } from '@core/services/orders/shopper-orders.service';
 import type {
+  OrderHistoryEntry,
   OrderLineAdminRow,
+  OrderStatusMove,
   OrderLineStockStatus,
   ProductStockLookup,
 } from '../models/order-admin.model';
@@ -112,7 +121,10 @@ export function orderActions(
   | 'stage'
   | 'whatsappUrl'
   | 'confirmAction'
-  | 'canCancel'
+  | 'statusMoves'
+  | 'stockTaken'
+  | 'history'
+  | 'cancelReason'
   | 'amountDueLabel'
   | 'deliveryFeeAction'
   | 'deliveryFeeEgp'
@@ -137,11 +149,66 @@ export function orderActions(
         : canConfirm && order.paymentMethod === 'instapay'
           ? 'confirm-payment'
           : null,
-    canCancel: open && manual,
+    statusMoves: statusMoves(order, stage === 'fee-to-be-agreed'),
+    stockTaken: stockTaken(order),
+    history: statusHistory(order),
+    cancelReason: 'cancelReason' in order ? (order.cancelReason ?? null) : null,
     amountDueLabel: due?.amountEgp != null ? formatMoney(due.amountEgp, 'EGP', 0) : null,
     deliveryFeeAction: agreedLine ? (isDeliveryFeeToBeAgreed(shipping) ? 'set' : 'change') : null,
     deliveryFeeEgp: agreedLine && !isDeliveryFeeToBeAgreed(shipping) ? (shipping?.priceEgp ?? null) : null,
   };
+}
+
+/**
+ * The status dropdown's choices: the shared move table (`@core/config/order-status`, the same
+ * one `setOrderStatus` checks), minus Confirmed while a large order's delivery fee is still to be
+ * agreed. A step back reads "Back to …".
+ */
+export function statusMoves(order: OrderDoc, feeToBeAgreed: boolean): OrderStatusMove[] {
+  return allowedStatusMoves({ status: order.status, paymentMethod: order.paymentMethod })
+    .filter((status) => !(status === 'confirmed' && order.status === 'pending' && feeToBeAgreed))
+    .map((status) => ({
+      status,
+      label: isStepBack(order.status, status)
+        ? `Back to ${orderStatusLabel(status)}`
+        : orderStatusLabel(status),
+    }));
+}
+
+const STEP_ORDER: readonly OrderDoc['status'][] = ['pending', 'confirmed', 'shipped', 'delivered'];
+
+function isStepBack(from: OrderDoc['status'], to: StaffOrderStatus): boolean {
+  const a = STEP_ORDER.indexOf(from);
+  const b = STEP_ORDER.indexOf(to);
+  return a >= 0 && b >= 0 && b < a;
+}
+
+function stockTaken(order: OrderDoc): boolean {
+  const stamp = 'stockDecrementedAt' in order ? order.stockDecrementedAt : undefined;
+  return orderStockTaken(
+    stamp === undefined ? { status: order.status } : { status: order.status, stockDecrementedAt: stamp },
+  );
+}
+
+const HISTORY_FORMAT = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+});
+
+function statusHistory(order: OrderDoc): OrderHistoryEntry[] {
+  if (!('statusHistory' in order)) return [];
+  return order.statusHistory.map((entry) => {
+    const date = orderDate(entry.at);
+    return {
+      label: orderStatusLabel(entry.status),
+      when: date ? HISTORY_FORMAT.format(date) : '',
+      by: entry.byEmail || entry.by || '',
+      reason: entry.reason?.trim() || null,
+    };
+  });
 }
 
 /** One table row per order line, with live stock from product docs. */

@@ -24,6 +24,10 @@ export type OrderEmailKind =
   | 'paid-confirmed'
   /** Paymob reported a failed, voided or refunded payment. */
   | 'payment-failed'
+  /** Staff marked the order as Shipped (first time only; a step back and forward again sends nothing). */
+  | 'order-shipped'
+  /** Staff marked the order as Delivered (first time only). */
+  | 'order-delivered'
   /** Store-owner alert: a cash-on-delivery or InstaPay order was placed, or a card payment cleared. */
   | 'store-new-order';
 
@@ -42,6 +46,9 @@ export function claimId(kind: OrderEmailKind, order: OrderEmailOrder): string {
  * Decide which emails one order write should send, from the state before and after.
  * Pending Paymob orders send nothing: the shopper may never finish paying.
  * Cancelling sends nothing: staff talk to the shopper on WhatsApp.
+ * Shipped and Delivered each send one email the first time the order reaches them (any payment
+ * method); the `orderEmails/{orderId}_{kind}` claim stops a resend after a step back.
+ * A step back to Confirmed (from Shipped) never sends a confirmation again.
  */
 export function orderEmailsForWrite(
   before: OrderEmailOrder | null,
@@ -50,6 +57,13 @@ export function orderEmailsForWrite(
   if (!after) return [];
   const kinds: OrderEmailKind[] = [];
   const statusBefore = before?.status ?? null;
+  if (after.status === 'shipped' && statusBefore !== 'shipped' && statusBefore !== 'delivered') {
+    return ['order-shipped'];
+  }
+  if (after.status === 'delivered' && statusBefore !== 'delivered') {
+    return ['order-delivered'];
+  }
+  if (statusBefore === 'shipped' || statusBefore === 'delivered') return [];
   const becameConfirmed = after.status === 'confirmed' && statusBefore !== 'confirmed';
   const open = after.status === 'pending';
   const feeJustSet = before !== null && before.feeToBeAgreed && !after.feeToBeAgreed && open;
