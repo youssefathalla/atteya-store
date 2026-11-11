@@ -1,156 +1,132 @@
 import type { Product } from '@core/services/products';
 
-export type SizeGuideId = 'shirt' | 'shirt-weight' | 'hoodie-weight' | 'men' | 'women';
-export type SizeUnit = 'cm' | 'in' | 'kg';
+export type SizeGuideId = 'men' | 'women';
+export type SizeUnit = 'cm' | 'in';
+
+type SizeValues = Readonly<Record<string, string>>;
 
 export interface SizeGuideRow {
   readonly label: string;
-  /** One cell per size, in the same order as `sizes`, for every unit the chart offers. */
-  readonly values: Readonly<Partial<Record<SizeUnit, readonly string[]>>>;
+  /** Value per size name; a size with no value shows a dash. */
+  readonly cm: SizeValues;
+  readonly in: SizeValues;
 }
 
 export interface SizeGuide {
   readonly id: SizeGuideId;
-  /** Switch label when a product shows more than one chart. */
+  /** Switch label when a product shows both charts. */
   readonly label: string;
-  /** Start of the line above the table: "<intro> in centimetres." */
-  readonly intro: string;
-  /** Units the chart can show, first one by default. */
-  readonly units: readonly SizeUnit[];
+  /** Columns, in size order, only those with at least one value. */
   readonly sizes: readonly string[];
   readonly rows: readonly SizeGuideRow[];
+  /** True when shirt or weight rows were added to the body rows. */
+  readonly hasExtraRows: boolean;
 }
 
-/** Switch label and the word used in "… in centimetres." */
-export const SIZE_UNIT_NAMES: Readonly<Record<SizeUnit, { readonly label: string; readonly word: string }>> =
-  {
-    cm: { label: 'Centimetres', word: 'centimetres' },
-    in: { label: 'Inches', word: 'inches' },
-    kg: { label: 'Kilograms', word: 'kilograms' },
-  };
+/** Column order. Same names as the size buttons on our products (2XL, not XXL). */
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'] as const;
 
-const BODY_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
-/** Same names as the size buttons on our t-shirts. */
+function bySize(values: readonly string[], sizes: readonly string[] = SIZE_ORDER): SizeValues {
+  return Object.fromEntries(sizes.map((size, index) => [size, values[index]]));
+}
+
+/** A row in centimetres and inches (inches given by the client). */
+function lengthRow(label: string, cm: readonly string[], inches: readonly string[]): SizeGuideRow {
+  const sizes = SIZE_ORDER.slice(0, 6);
+  return { label, cm: bySize(cm, sizes), in: bySize(inches, sizes) };
+}
+
+/** Body measurements, copied as the client gave them (inches rounded by hand, not cm ÷ 2.54). */
+const BODY_ROWS: Readonly<Record<SizeGuideId, readonly SizeGuideRow[]>> = {
+  men: [
+    lengthRow(
+      'Chest',
+      ['90', '91 – 96', '97 – 102', '103 – 108', '109 – 117', '118 – 126'],
+      ['35.4', '35.8 – 37.8', '38.2 – 40.2', '40.6 – 42.5', '42.9 – 46.1', '46.5 – 49.6'],
+    ),
+    lengthRow(
+      'Waist',
+      ['75', '76 – 82', '83 – 89', '90 – 96', '97 – 105', '106 – 114'],
+      ['29.5', '29.9 – 32.3', '32.7 – 35', '35.4 – 37.8', '38.2 – 41.3', '41.7 – 44.9'],
+    ),
+    lengthRow(
+      'Hip',
+      ['89', '90 – 95', '96 – 101', '102 – 107', '108 – 113', '114 – 119'],
+      ['35', '35.4 – 37.4', '37.8 – 39.8', '40.2 – 42.1', '42.5 – 44.5', '44.9 – 46.9'],
+    ),
+  ],
+  women: [
+    lengthRow(
+      'Waist',
+      ['67', '68 – 73', '74 – 79', '80 – 85', '86 – 95', '96 – 105'],
+      ['26.4', '26.8 – 28.7', '29.1 – 31.1', '31.5 – 33.5', '33.9 – 37.4', '37.8 – 41.3'],
+    ),
+    lengthRow(
+      'Hip',
+      ['90', '91 – 96', '97 – 102', '103 – 108', '109 – 115', '116 – 122'],
+      ['35.4', '35.8 – 37.8', '38.2 – 40.2', '40.6 – 42.5', '42.9 – 45.3', '45.7 – 48'],
+    ),
+    lengthRow('Thigh', ['53', '55', '57', '59', '62', '65'], ['21', '21.5', '22.5', '23', '24.5', '25.5']),
+  ],
+};
+
 const SHIRT_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'] as const;
 
+/** Weight is the same in both unit views; the label says kilograms. */
+function weightRow(values: readonly string[], sizes: readonly string[]): SizeGuideRow {
+  const kg = bySize(values, sizes);
+  return { label: 'Weight (kg)', cm: kg, in: kg };
+}
+
+/** Extra rows for a kind of clothing: the weight row goes first in the table, the others last. */
+interface ExtraRows {
+  readonly weight: SizeGuideRow | null;
+  readonly after: readonly SizeGuideRow[];
+}
+
+const NO_EXTRA: ExtraRows = { weight: null, after: [] };
+
 /**
- * Every chart, copied as the client gave it. Body chart inches are the client's own (rounded by
- * hand); the shirt chart was given in centimetres only, so its inches are cm ÷ 2.54 to one decimal.
+ * The client's t-shirt chart: size by body weight, and the shirt's own width and length
+ * (cm; inches are cm ÷ 2.54 to one decimal).
  */
-export const SIZE_GUIDES: Readonly<Record<SizeGuideId, SizeGuide>> = {
-  shirt: {
-    id: 'shirt',
-    label: 'Shirt Size',
-    intro: 'Shirt measurements',
-    units: ['cm', 'in'],
-    sizes: SHIRT_SIZES,
-    rows: [
-      {
-        label: 'Width',
-        values: {
-          cm: ['49', '52', '54', '56', '58', '60'],
-          in: ['19.3', '20.5', '21.3', '22', '22.8', '23.6'],
-        },
-      },
-      {
-        label: 'Length',
-        values: {
-          cm: ['60', '70', '71', '72', '73', '74'],
-          in: ['23.6', '27.6', '28', '28.3', '28.7', '29.1'],
-        },
-      },
-    ],
-  },
-  'shirt-weight': {
-    id: 'shirt-weight',
-    label: 'By Weight',
-    intro: 'Your weight',
-    units: ['kg'],
-    sizes: SHIRT_SIZES,
-    rows: [
-      {
-        label: 'Weight',
-        values: { kg: ['40 – 50', '50 – 70', '70 – 80', '80 – 90', '90 – 100', '100 – 115'] },
-      },
-    ],
-  },
-  'hoodie-weight': {
-    id: 'hoodie-weight',
-    label: 'By Weight',
-    intro: 'Your weight',
-    units: ['kg'],
-    sizes: ['S', 'M', 'L'],
-    rows: [{ label: 'Weight', values: { kg: ['50 – 70', '70 – 90', '90 – 110'] } }],
-  },
-  men: {
-    id: 'men',
-    label: "Men's Body",
-    intro: 'Your body measurements',
-    units: ['cm', 'in'],
-    sizes: BODY_SIZES,
-    rows: [
-      {
-        label: 'Chest',
-        values: {
-          cm: ['90', '91 – 96', '97 – 102', '103 – 108', '109 – 117', '118 – 126'],
-          in: ['35.4', '35.8 – 37.8', '38.2 – 40.2', '40.6 – 42.5', '42.9 – 46.1', '46.5 – 49.6'],
-        },
-      },
-      {
-        label: 'Waist',
-        values: {
-          cm: ['75', '76 – 82', '83 – 89', '90 – 96', '97 – 105', '106 – 114'],
-          in: ['29.5', '29.9 – 32.3', '32.7 – 35', '35.4 – 37.8', '38.2 – 41.3', '41.7 – 44.9'],
-        },
-      },
-      {
-        label: 'Hip',
-        values: {
-          cm: ['89', '90 – 95', '96 – 101', '102 – 107', '108 – 113', '114 – 119'],
-          in: ['35', '35.4 – 37.4', '37.8 – 39.8', '40.2 – 42.1', '42.5 – 44.5', '44.9 – 46.9'],
-        },
-      },
-    ],
-  },
-  women: {
-    id: 'women',
-    label: "Women's Body",
-    intro: 'Your body measurements',
-    units: ['cm', 'in'],
-    sizes: BODY_SIZES,
-    rows: [
-      {
-        label: 'Waist',
-        values: {
-          cm: ['67', '68 – 73', '74 – 79', '80 – 85', '86 – 95', '96 – 105'],
-          in: ['26.4', '26.8 – 28.7', '29.1 – 31.1', '31.5 – 33.5', '33.9 – 37.4', '37.8 – 41.3'],
-        },
-      },
-      {
-        label: 'Hip',
-        values: {
-          cm: ['90', '91 – 96', '97 – 102', '103 – 108', '109 – 115', '116 – 122'],
-          in: ['35.4', '35.8 – 37.8', '38.2 – 40.2', '40.6 – 42.5', '42.9 – 45.3', '45.7 – 48'],
-        },
-      },
-      {
-        label: 'Thigh',
-        values: {
-          cm: ['53', '55', '57', '59', '62', '65'],
-          in: ['21', '21.5', '22.5', '23', '24.5', '25.5'],
-        },
-      },
-    ],
-  },
+const SHIRT_EXTRA: ExtraRows = {
+  weight: weightRow(['40 – 50', '50 – 70', '70 – 80', '80 – 90', '90 – 100', '100 – 115'], SHIRT_SIZES),
+  after: [
+    {
+      label: 'Shirt Width',
+      cm: bySize(['49', '52', '54', '56', '58', '60'], SHIRT_SIZES),
+      in: bySize(['19.3', '20.5', '21.3', '22', '22.8', '23.6'], SHIRT_SIZES),
+    },
+    {
+      label: 'Shirt Length',
+      cm: bySize(['60', '70', '71', '72', '73', '74'], SHIRT_SIZES),
+      in: bySize(['23.6', '27.6', '28', '28.3', '28.7', '29.1'], SHIRT_SIZES),
+    },
+  ],
 };
+
+/** The client's hoodie chart: size by body weight. */
+const HOODIE_EXTRA: ExtraRows = {
+  weight: weightRow(['50 – 70', '70 – 90', '90 – 110'], ['S', 'M', 'L']),
+  after: [],
+};
+
+const LABELS: Readonly<Record<SizeGuideId, string>> = { men: 'Men', women: 'Women' };
+
+function buildGuide(id: SizeGuideId, extra: ExtraRows): SizeGuide {
+  const rows = [...(extra.weight ? [extra.weight] : []), ...BODY_ROWS[id], ...extra.after];
+  const sizes = SIZE_ORDER.filter((size) => rows.some((row) => row.cm[size] !== undefined));
+  return { id, label: LABELS[id], sizes, rows, hasExtraRows: rows.length > BODY_ROWS[id].length };
+}
 
 /** Clothing that has no letter sizes on these charts. */
 const NO_GUIDE_CATEGORY_IDS: ReadonlySet<string> = new Set(['socks']);
 
 /**
  * Charts for the product page's Size & Fit section: adult clothing with a size choice.
- * T-shirts get the shirt measurements and the size by weight first, hoodies the size by weight.
- * Then the body chart: women's or men's for that gender, both for unisex or unset.
+ * Women's or men's clothing gets its own chart; unisex or unset gets both, men's first.
+ * T-shirts add a weight row first and shirt width and length rows last; hoodies add a weight row first.
  * Socks, kids' clothing and everything else get none.
  */
 export function sizeGuidesFor(
@@ -160,17 +136,12 @@ export function sizeGuidesFor(
   if (product.categoryIds.some((id) => NO_GUIDE_CATEGORY_IDS.has(id))) return [];
   if (!product.options.some((option) => option.key === 'size')) return [];
   if (product.gender === 'kids') return [];
-  const own: SizeGuide[] = product.categoryIds.includes('t-shirts')
-    ? [SIZE_GUIDES.shirt, SIZE_GUIDES['shirt-weight']]
+  const extra = product.categoryIds.includes('t-shirts')
+    ? SHIRT_EXTRA
     : product.categoryIds.includes('hoodies')
-      ? [SIZE_GUIDES['hoodie-weight']]
-      : [];
-  switch (product.gender) {
-    case 'women':
-      return [...own, SIZE_GUIDES.women];
-    case 'men':
-      return [...own, SIZE_GUIDES.men];
-    default:
-      return [...own, SIZE_GUIDES.men, SIZE_GUIDES.women];
-  }
+      ? HOODIE_EXTRA
+      : NO_EXTRA;
+  const ids: readonly SizeGuideId[] =
+    product.gender === 'women' ? ['women'] : product.gender === 'men' ? ['men'] : ['men', 'women'];
+  return ids.map((id) => buildGuide(id, extra));
 }

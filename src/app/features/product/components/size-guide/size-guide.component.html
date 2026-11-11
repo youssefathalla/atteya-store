@@ -14,34 +14,30 @@
         }
       </mat-button-toggle-group>
     }
-    @if (g.units.length > 1) {
-      <div class="ms-auto">
-        <mat-button-toggle-group
-          class="pill-switch"
-          aria-label="Measurement unit"
-          hideSingleSelectionIndicator
-          [value]="unit()"
-          (change)="pickUnit($event.value)"
-        >
-          @for (option of g.units; track option) {
-            <mat-button-toggle [value]="option">{{ unitNames[option].label }}</mat-button-toggle>
-          }
-        </mat-button-toggle-group>
-      </div>
-    }
+    <div class="ms-auto">
+      <mat-button-toggle-group
+        class="pill-switch"
+        aria-label="Measurement unit"
+        hideSingleSelectionIndicator
+        [value]="unit()"
+        (change)="unit.set($event.value)"
+      >
+        <mat-button-toggle value="cm">Centimetres</mat-button-toggle>
+        <mat-button-toggle value="in">Inches</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
   </div>
 
-  <p class="mt-4 font-body-md">{{ g.intro }} in {{ unitWord() }}.</p>
+  <p class="mt-4 font-body-md">{{ intro() }}</p>
 
   <section class="size-guide" tabindex="0" [attr.aria-label]="g.label + ' size chart'">
     <table class="size-guide__table">
       <caption class="sr-only">
         {{
-          g.intro
-        }}
-        in
+          g.label
+        }}'s size chart.
         {{
-          unitWord()
+          intro()
         }}
       </caption>
       <thead>
@@ -56,8 +52,8 @@
         @for (row of g.rows; track row.label) {
           <tr>
             <th scope="row">{{ row.label }}</th>
-            @for (cell of row.values[unit()] ?? []; track $index) {
-              <td>{{ cell }}</td>
+            @for (size of g.sizes; track size) {
+              <td>{{ row[unit()][size] ?? '–' }}</td>
             }
           </tr>
         }
