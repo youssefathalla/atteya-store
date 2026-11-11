@@ -7,7 +7,7 @@
  *   node scripts/set-product-genders.mjs --project atteya-store-dev --apply                  (writes)
  *   node scripts/set-product-genders.mjs --project attiya-store --apply --confirm-prod       (prod)
  *
- * The list comes from `scripts/data/product-genders.json` (`{ "<slug>": "women" | "men" | "kids" | "unisex" }`),
+ * The list comes from `scripts/data/product-genders.json` (`{ "<slug>": "women" | "men" | "unisex" }`),
  * approved by Youssef on Nov 9, 2026. On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety).
  * - Each product is found by `slug`. Only `gender`, `updatedAt` and `updatedBy` are written.
  * - Products not in the list are never read or touched, and a gender is never cleared.
@@ -20,7 +20,7 @@ import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 /** Same ids as `PRODUCT_GENDER_IDS` in `src/products/product-form.ts`. */
-const GENDERS = new Set(['women', 'men', 'kids', 'unisex']);
+const GENDERS = new Set(['women', 'men', 'unisex']);
 
 const arg = (name) => {
   const index = process.argv.indexOf(`--${name}`);

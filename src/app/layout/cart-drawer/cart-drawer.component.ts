@@ -76,7 +76,7 @@ interface CartProductInfo extends BagNotesProduct {
   readonly options: Product['options'];
   /** Palette colour ids, so a free gift can be named with its colour. */
   readonly colors: readonly string[];
-  /** "Men", "Women", "Kids" or "Unisex"; null when the product has no gender set. */
+  /** "Men", "Women" or "Unisex"; null when the product has no gender set. */
   readonly genderLabel: string | null;
   /** Main (leaf) category, used to pick the "Recommended for You" products. */
   readonly categoryId: string;

@@ -127,7 +127,7 @@ const NO_GUIDE_CATEGORY_IDS: ReadonlySet<string> = new Set(['socks']);
  * Charts for the product page's Size & Fit section: adult clothing with a size choice.
  * Women's or men's clothing gets its own chart; unisex or unset gets both, men's first.
  * T-shirts add a weight row first and shirt width and length rows last; hoodies add a weight row first.
- * Socks, kids' clothing and everything else get none.
+ * Socks and everything else get none.
  */
 export function sizeGuidesFor(
   product: Pick<Product, 'categoryIds' | 'options' | 'gender'>,
@@ -135,7 +135,6 @@ export function sizeGuidesFor(
   if (!product.categoryIds.includes('apparel')) return [];
   if (product.categoryIds.some((id) => NO_GUIDE_CATEGORY_IDS.has(id))) return [];
   if (!product.options.some((option) => option.key === 'size')) return [];
-  if (product.gender === 'kids') return [];
   const extra = product.categoryIds.includes('t-shirts')
     ? SHIRT_EXTRA
     : product.categoryIds.includes('hoodies')
