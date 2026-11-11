@@ -9,9 +9,9 @@
     </span>
     @if (c.hasSwitch) {
       <mat-slide-toggle
-        [checked]="c.allOn"
+        [checked]="c.on"
         [disabled]="busy()"
-        [attr.aria-label]="(c.allOn ? 'Turn off ' : 'Turn on ') + (c.name || c.headline)"
+        [attr.aria-label]="(c.on ? 'Turn off ' : 'Turn on ') + (c.name || c.headline)"
         (change)="switched.emit($event)"
       />
     }
@@ -20,8 +20,19 @@
   <p class="offer-card__deal" [attr.title]="c.headline">{{ c.headline }}</p>
 
   <div class="elements-start-col items-stretch! gap-0.5 min-w-0">
-    <p class="font-body-md font-bold! truncate" [attr.title]="c.name">{{ c.name || 'No internal name' }}</p>
-    <p class="offer-card__muted truncate">Shoppers see “{{ c.title }}”</p>
+    <p class="font-body-md font-bold! truncate" [attr.title]="c.name">
+      {{ c.name || 'No internal name' }}
+      @if (code()) {
+        · Code: {{ code() }}
+      }
+    </p>
+    <p class="offer-card__muted truncate">
+      @if (c.title) {
+        Shoppers see “{{ c.title }}”
+      } @else {
+        Shoppers see no title
+      }
+    </p>
   </div>
 
   <dl class="offer-card__facts">

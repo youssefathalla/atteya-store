@@ -1,5 +1,14 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, computed, inject, OnInit, PLATFORM_ID, resource, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  OnInit,
+  PLATFORM_ID,
+  resource,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule, type MatChipListboxChange } from '@angular/material/chips';
 import { MatDialog } from '@angular/material/dialog';
@@ -25,6 +34,7 @@ import {
   type OfferGroupDialogData,
 } from './dialogs/offer-group-dialog/offer-group-dialog.component';
 import {
+  affectedProductIds,
   groupOfferCards,
   isUnavailableDeal,
   matchesDealFilter,
@@ -64,6 +74,10 @@ export class OffersManagerPageComponent implements OnInit {
   readonly #seo = inject(SeoService);
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
+  readonly #destroyRef = inject(DestroyRef);
+
+  /** The time the cards are worked out for; moves every minute so "Ends in …" and the boxes stay right. */
+  readonly #now = signal(new Date());
 
   readonly buckets = OFFER_LIST_BUCKETS;
   readonly dealFilters = OFFER_DEAL_FILTERS;
@@ -89,12 +103,19 @@ export class OffersManagerPageComponent implements OnInit {
 
   readonly #productCount = computed(() => this.dataResource.value()?.products.length ?? 0);
 
-  /** Every offer with its card text, worked out once per load. */
-  readonly #items = computed<readonly OfferCardItem[]>(() => {
+  /** The products each offer reaches, worked out once per load. */
+  readonly #reach = computed(() => {
     const data = this.dataResource.value();
     const priced = (data?.products ?? []).map((p) => toPricedProduct(p));
-    const now = new Date();
-    return (data?.offers ?? []).map((offer) => toOfferCardItem(offer, priced, now));
+    return new Map((data?.offers ?? []).map((offer) => [offer.id, affectedProductIds(offer, priced)]));
+  });
+
+  /** Every offer with its card text. */
+  readonly #items = computed<readonly OfferCardItem[]>(() => {
+    const offers = this.dataResource.value()?.offers ?? [];
+    const reach = this.#reach();
+    const now = this.#now();
+    return offers.map((offer) => toOfferCardItem(offer, reach.get(offer.id) ?? new Set<string>(), now));
   });
 
   /** Offers that pass the search box and the deal-type chip (the count boxes count these). */
@@ -104,7 +125,9 @@ export class OffersManagerPageComponent implements OnInit {
     return this.#items().filter((item) => {
       if (!matchesDealFilter(item.offer, deal)) return false;
       if (!query) return true;
-      return item.offer.name.toLowerCase().includes(query) || item.offer.title.toLowerCase().includes(query);
+      return [item.offer.name, item.offer.title, item.offer.code ?? ''].some((text) =>
+        text.toLowerCase().includes(query),
+      );
     });
   });
 
@@ -143,6 +166,13 @@ export class OffersManagerPageComponent implements OnInit {
     remove: (card) => void this.deleteArchived(card.items[0].offer),
   };
 
+  constructor() {
+    if (isPlatformBrowser(this.#platformId)) {
+      const timer = setInterval(() => this.#now.set(new Date()), 60_000);
+      this.#destroyRef.onDestroy(() => clearInterval(timer));
+    }
+  }
+
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Offers | Atteya Admin',
@@ -152,8 +182,13 @@ export class OffersManagerPageComponent implements OnInit {
   }
 
   setDealFilter(event: MatChipListboxChange): void {
-    // Tapping the chosen chip again clears the listbox; fall back to All deal types.
-    this.dealFilter.set((event.value as OfferDealFilter | undefined) ?? 'all');
+    // Tapping the chosen chip again clears the listbox: keep that chip chosen.
+    const value = event.value as OfferDealFilter | undefined;
+    if (!value) {
+      event.source.value = this.dealFilter();
+      return;
+    }
+    this.dealFilter.set(value);
   }
 
   openGroup(card: OfferCardView): void {
@@ -179,13 +214,13 @@ export class OffersManagerPageComponent implements OnInit {
     const offers = card.items.map((item) => item.offer).filter((offer) => offer.active !== on);
     // Turning on an offer of a hidden deal type isn't allowed (same rule as Resume).
     if (on && offers.some((offer) => isUnavailableDeal(offer.reward, offer.scope))) {
-      event.source.checked = card.allOn;
+      event.source.checked = card.on;
       this.#snackbar.error(UNAVAILABLE_DEAL_MESSAGE);
       return;
     }
     const ok = await this.#run(offers, (offer) => this.#offersAdmin.setOfferActive(offer.id, on));
     if (!ok) {
-      event.source.checked = card.allOn;
+      event.source.checked = card.on;
       this.#snackbar.error("We couldn't update this offer.");
       return;
     }
@@ -206,12 +241,16 @@ export class OffersManagerPageComponent implements OnInit {
       this.#snackbar.error(UNAVAILABLE_DEAL_MESSAGE);
       return;
     }
+    if (this.#busyIds().has(source.id)) return;
+    this.#busyIds.update((set) => new Set([...set, source.id]));
     try {
       const nextId = await this.#offersAdmin.duplicateOffer(source);
       this.#snackbar.success('Offer duplicated as paused.');
       await this.#router.navigate(['/admin/offers', nextId]);
     } catch {
       this.#snackbar.error("We couldn't duplicate this offer.");
+    } finally {
+      this.#busyIds.update((set) => new Set([...set].filter((id) => id !== source.id)));
     }
   }
 

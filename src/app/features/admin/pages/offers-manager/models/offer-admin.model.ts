@@ -396,13 +396,17 @@ export interface OfferCardView {
   readonly affected: string;
   readonly who: string;
   readonly when: string;
-  /** Every offer in the card is on. */
-  readonly allOn: boolean;
+  /** At least one offer in the card is on (the switch shows on; turning it off turns them all off). */
+  readonly on: boolean;
   /** Running and Starting later cards have the on/off switch; Ended and Archived don't. */
   readonly hasSwitch: boolean;
 }
 
-export function toOfferCardItem(offer: Offer, products: readonly PricedProduct[], now: Date): OfferCardItem {
+/**
+ * One offer's card text. `productIds` comes from `affectedProductIds()`, worked out once per load
+ * (the time-based text is worked out again as the clock moves).
+ */
+export function toOfferCardItem(offer: Offer, productIds: ReadonlySet<string>, now: Date): OfferCardItem {
   return {
     offer,
     bucket: offerListBucket(offer, now),
@@ -410,8 +414,8 @@ export function toOfferCardItem(offer: Offer, products: readonly PricedProduct[]
     headline: offerDealHeadline(offer),
     when: offerWhenLine(offer, now),
     who: offerAudienceLabel(offer),
-    productIds: affectedProductIds(offer, products),
-    coversAll: offer.conditions.anyOf.length === 0,
+    productIds,
+    coversAll: offer.conditions.anyOf.length === 0 && offer.exclude.anyOf.length === 0,
   };
 }
 
@@ -420,6 +424,19 @@ function affectedText(items: readonly OfferCardItem[], productCount: number): st
   const ids = new Set<string>();
   for (const item of items) for (const id of item.productIds) ids.add(id);
   return String(ids.size);
+}
+
+/** A grouped card's status when its offers' own statuses differ. */
+const GROUP_STATUS: Readonly<Record<OfferListBucket, string>> = {
+  running: 'Paused',
+  later: 'Starting later',
+  ended: 'Ended',
+  archived: 'Archived',
+};
+
+/** The value when every entry is the same, else `fallback`. */
+function sameOr(values: readonly string[], fallback: string): string {
+  return values.every((value) => value === values[0]) ? values[0] : fallback;
 }
 
 function groupKey(item: OfferCardItem): string {
@@ -442,7 +459,7 @@ export function groupOfferCards(items: readonly OfferCardItem[], productCount: n
 
   return [...groups.values()].map((list) => {
     const first = list[0];
-    const allOn = list.every((item) => item.offer.active);
+    const on = list.some((item) => item.offer.active);
     const hasSwitch = first.bucket === 'running' || first.bucket === 'later';
     const whoValues = [...new Set(list.map((item) => item.who))];
     if (list.length === 1) {
@@ -458,25 +475,36 @@ export function groupOfferCards(items: readonly OfferCardItem[], productCount: n
         affected: affectedText(list, productCount),
         who: first.who,
         when: first.when,
-        allOn,
+        on,
         hasSwitch,
       };
     }
     const liveItem = list.find((item) => item.status.live);
-    const lead = liveItem ? 'Live' : first.status.text;
+    const lead = liveItem
+      ? 'Live'
+      : sameOr(
+          list.map((item) => item.status.text),
+          GROUP_STATUS[first.bucket],
+        );
     return {
       key: `group:${list.map((item) => item.offer.id).join(',')}`,
       items: list,
       bucket: first.bucket,
       statusText: `${lead} · ${list.length} offers`,
       live: !!liveItem,
-      headline: first.headline,
+      headline: [...new Set(list.map((item) => item.headline))].join(' · '),
       name: first.offer.name,
-      title: first.offer.title,
+      title: sameOr(
+        list.map((item) => item.offer.title),
+        first.offer.title,
+      ),
       affected: affectedText(list, productCount),
       who: whoValues.join(' / '),
-      when: first.when,
-      allOn,
+      when: sameOr(
+        list.map((item) => item.when),
+        'Different dates',
+      ),
+      on,
       hasSwitch,
     };
   });

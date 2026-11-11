@@ -34,4 +34,6 @@ export class OfferCardComponent {
   readonly offer = computed(() => this.card().items[0].offer);
   readonly ended = computed(() => this.card().bucket === 'ended');
   readonly archived = computed(() => this.card().bucket === 'archived');
+  /** A single offer's coupon code, shown after the name. */
+  readonly code = computed(() => (this.isGroup() ? null : (this.offer().code ?? null)));
 }
