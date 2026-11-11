@@ -85,17 +85,35 @@
     @apply elements-between flex-wrap gap-3 w-full border-t border-outline-variant pt-5;
   }
 
-  /* Step bar: wraps on phone. */
+  /*
+   * Step bar as a timeline: 4 equal columns, a circle per step with its name under it, and a
+   * line joining each circle to the next (black after a finished step, grey otherwise). One row
+   * at every width, so it never wraps.
+   */
   .offer-steps {
-    @apply flex flex-wrap items-center justify-center gap-x-6 gap-y-3 font-body-md;
+    @apply grid grid-cols-4 items-start w-full max-w-3xl mx-auto font-label-md;
   }
 
   .offer-steps__item {
-    @apply elements-start items-center! gap-2;
+    @apply relative elements-start-col items-center! gap-2 px-1 text-center min-w-0;
+  }
+
+  .offer-steps__item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: calc(1rem - 1px);
+    left: calc(50% + 1.25rem);
+    right: calc(-50% + 1.25rem);
+    height: 2px;
+    background: var(--mat-sys-outline-variant);
+  }
+
+  .offer-steps__item--done:not(:last-child)::after {
+    background: var(--mat-sys-primary);
   }
 
   .offer-steps__circle {
-    @apply size-8 shrink-0 elements-center rounded-full border border-outline font-label-lg text-on-surface-variant;
+    @apply size-8 shrink-0 elements-center rounded-full border border-outline bg-surface-container-lowest font-label-lg text-on-surface-variant;
   }
 
   .offer-steps__circle--on {
@@ -103,7 +121,7 @@
   }
 
   .offer-steps__link {
-    @apply elements-start items-center! gap-2 cursor-pointer;
+    @apply elements-start-col items-center! gap-2 cursor-pointer;
   }
 
   /* A choice card: the border is a wrapper around a Material radio; the hit span makes the whole card clickable. */
