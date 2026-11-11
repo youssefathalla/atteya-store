@@ -439,19 +439,25 @@ function sameOr(values: readonly string[], fallback: string): string {
   return values.every((value) => value === values[0]) ? values[0] : fallback;
 }
 
+/** What shoppers read, trimmed, lower case, with runs of spaces as one. */
+function titleKey(item: OfferCardItem): string {
+  return item.offer.title.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 function groupKey(item: OfferCardItem): string {
-  const name = item.offer.name.trim().toLowerCase();
-  return `${item.bucket}|${rewardPickerKind(item.offer.reward, item.offer.scope)}|${name}`;
+  return `${item.bucket}|${rewardPickerKind(item.offer.reward, item.offer.scope)}|${titleKey(item)}`;
 }
 
 /**
- * Builds the cards in list order. Offers in the same count box with the same internal name
+ * Builds the cards in list order. Offers in the same count box with the same customer title
  * (case and spaces ignored) and the same deal type become one card; the rest stay one card each.
+ * The title, not the internal name, is what they share: the 6 "Free shirt and socks" offers each
+ * name their own bag internally.
  */
 export function groupOfferCards(items: readonly OfferCardItem[], productCount: number): OfferCardView[] {
   const groups = new Map<string, OfferCardItem[]>();
   for (const item of items) {
-    const key = items.length > 1 && item.offer.name.trim() ? groupKey(item) : `single|${item.offer.id}`;
+    const key = items.length > 1 && titleKey(item) ? groupKey(item) : `single|${item.offer.id}`;
     const list = groups.get(key);
     if (list) list.push(item);
     else groups.set(key, [item]);
@@ -493,11 +499,9 @@ export function groupOfferCards(items: readonly OfferCardItem[], productCount: n
       statusText: `${lead} · ${list.length} offers`,
       live: !!liveItem,
       headline: [...new Set(list.map((item) => item.headline))].join(' · '),
-      name: first.offer.name,
-      title: sameOr(
-        list.map((item) => item.offer.title),
-        first.offer.title,
-      ),
+      // Each offer has its own internal name; the shared title names the group.
+      name: first.offer.title.trim(),
+      title: first.offer.title,
       affected: affectedText(list, productCount),
       who: whoValues.join(' / '),
       when: sameOr(
