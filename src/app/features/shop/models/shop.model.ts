@@ -6,7 +6,7 @@ export type ShopTabId = 'all' | 'apparel' | 'accessories' | 'rackets';
 
 export type ShopCategoryFilterId = 'apparel' | 'accessories' | 'rackets' | 'bags';
 
-export type ShopGenderFilterId = 'women' | 'men' | 'kids';
+export type ShopGenderFilterId = 'women' | 'men';
 
 export interface ShopTab {
   readonly id: ShopTabId;
@@ -114,7 +114,6 @@ export const SHOP_GENDER_OPTIONS: readonly {
 }[] = [
   { id: 'women', label: 'Women' },
   { id: 'men', label: 'Men' },
-  { id: 'kids', label: 'Kids' },
 ] as const;
 
 export const DEFAULT_SHOP_FILTERS: ShopFilterState = {

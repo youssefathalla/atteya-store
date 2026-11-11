@@ -32,7 +32,7 @@ const MAX_OPTIONS = 8;
 
 const TYPE_IDS = new Set<string>(PRODUCT_TYPES.map((type) => type.id));
 const COLOR_ID_SET = new Set<string>(COLOR_IDS);
-export const PRODUCT_GENDER_IDS = ['women', 'men', 'kids', 'unisex'] as const;
+export const PRODUCT_GENDER_IDS = ['women', 'men', 'unisex'] as const;
 export type ProductGenderId = (typeof PRODUCT_GENDER_IDS)[number];
 const GENDER_ID_SET = new Set<string>(PRODUCT_GENDER_IDS);
 
@@ -375,12 +375,12 @@ function readModelGroup(value: unknown): string | null {
 export function readGender(value: unknown): ProductGenderId | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== 'string') {
-    invalid('Choose Women, Men, Kids, or Unisex — or leave gender unset.');
+    invalid('Choose Women, Men, or Unisex — or leave gender unset.');
   }
   const gender = value.trim();
   if (gender.length === 0) return null;
   if (!GENDER_ID_SET.has(gender)) {
-    invalid('Choose Women, Men, Kids, or Unisex — or leave gender unset.');
+    invalid('Choose Women, Men, or Unisex — or leave gender unset.');
   }
   return gender as ProductGenderId;
 }

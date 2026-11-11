@@ -18,7 +18,7 @@ import {
 
 const COLOR_ID_SET = new Set<string>(SHOP_COLOR_IDS);
 const CATEGORY_ID_SET = new Set<string>(SHOP_CATEGORY_OPTIONS.map((o) => o.id));
-const GENDER_ID_SET = new Set<string>(['women', 'men', 'kids']);
+const GENDER_ID_SET = new Set<string>(['women', 'men']);
 const LETTER_SIZE_SET = new Set<string>(APPAREL_LETTER_SIZES);
 
 /** Route scope for a shop tab (always applied, not toggled in the panel). */

@@ -33,7 +33,8 @@ export const SearchHitSchema = v.object({
   colors: v.optional(v.array(v.string()), []),
   sizes: v.optional(v.array(v.string()), []),
   tags: v.optional(v.array(v.string()), []),
-  gender: v.optional(v.picklist(['women', 'men', 'kids', 'unisex'])),
+  /** An unknown indexed gender (e.g. a retired 'kids') reads as not set; it never drops the hit. */
+  gender: v.optional(v.fallback(v.optional(v.picklist(['women', 'men', 'unisex'])), undefined)),
   marketingBadgeKind: v.optional(v.nullable(v.picklist(MARKETING_BADGE_KINDS)), null),
   marketingBadgeStyle: v.optional(v.nullable(v.picklist(MARKETING_BADGE_STYLES)), null),
   summary: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(300))), null),
