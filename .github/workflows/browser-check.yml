@@ -85,7 +85,23 @@ jobs:
       - name: Install Playwright and Chromium
         run: |
           npm install --no-save --no-audit --no-fund --ignore-scripts "playwright@${PLAYWRIGHT_VERSION}"
-          npx playwright install --with-deps chromium
+          # The browser comes from Playwright's own download servers: try 3 times.
+          for try in 1 2 3; do
+            npx playwright install chromium && break
+            if [ "$try" = 3 ]; then echo "::error::Chromium could not be downloaded."; exit 1; fi
+            sleep 15
+          done
+          # System libraries and fonts come from Ubuntu's servers, which the runner sometimes can't reach.
+          # The runner image already has Chromium's libraries, so a failure here is a warning, not a stop;
+          # if something is really missing, the page check itself fails with Chromium's own error.
+          for try in 1 2 3; do
+            if timeout 300 npx playwright install-deps chromium; then break; fi
+            if [ "$try" = 3 ]; then
+              echo "::warning::Ubuntu's servers could not be reached, so Chromium's system packages were not updated. Carrying on with what the runner has."
+              break
+            fi
+            sleep 20
+          done
 
       - name: App build (development)
         run: npx ng build --configuration development
