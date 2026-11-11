@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { email, form, required, submit } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TextInputComponent } from '@shared/ui/forms/text-input/text-input.component';
 import { EmailSignupService } from '../../services/email-signup.service';
 import { SIGNUP_MESSAGES, signupErrorMessage } from '../../utils/signup-message';
@@ -23,7 +23,7 @@ interface SignupFeedback {
 @Component({
   selector: 'app-footer-signup',
   host: { class: 'block w-full' },
-  imports: [MatButtonModule, MatProgressSpinnerModule, TextInputComponent],
+  imports: [MatButtonModule, MatProgressSpinnerModule, RouterLink, TextInputComponent],
   templateUrl: './footer-signup.component.html',
 })
 export class FooterSignupComponent {
