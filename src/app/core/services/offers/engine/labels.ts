@@ -1,4 +1,5 @@
 // GENERATED — edit functions/src/offers/engine
+import { bundleRows, bundleRowsText } from './bundle-price';
 import { partialColorSummary } from './match';
 import type { Offer, OfferBadge, OfferDraft, OfferTier, ProductFacts } from './types';
 
@@ -71,6 +72,8 @@ export function describeOfferReward(offer: OfferDraft): string {
       return r.get.percent >= 100
         ? `Buy ${r.buy.quantity}, get ${r.get.quantity} free`
         : `Buy ${r.buy.quantity}, get ${r.get.quantity} at ${r.get.percent}% off`;
+    case 'bundlePrice':
+      return bundleRowsText(bundleRows(r)) || 'Bundle price';
     case 'freeGift':
       return r.gifts.map((gift) => gift.name).join(' + ') || 'Free gift';
     case 'freeShipping':
@@ -100,6 +103,8 @@ function defaultLabelOnlyText(offer: Offer): string {
       return formatTierRangeBadge(r.tiers) || offer.title;
     case 'freeShipping':
       return 'Free shipping';
+    case 'bundlePrice':
+      return offer.title;
     case 'freeGift':
       return 'Free gift';
     case 'percentOff':

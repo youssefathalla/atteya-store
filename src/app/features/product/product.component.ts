@@ -17,7 +17,7 @@ import { AuthService } from '@core/services/auth/auth.service';
 import { bagLineVariant } from '@core/services/cart/cart-deals';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CurrencyService } from '@core/services/currency/currency.service';
-import { offerTitleVisible } from '@core/services/offers/offer-shop';
+import { canShopOffer, offerTitleVisible } from '@core/services/offers/offer-shop';
 import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
 import {
   displayPrice,
@@ -78,6 +78,12 @@ import {
   isProductInStock,
   isValueAvailable,
 } from './utils/product-stock.utils';
+
+/** One offer line under the price; `shopOfferId` makes it a link to that offer's Shop page. */
+interface ProductOfferLine {
+  readonly text: string;
+  readonly shopOfferId: string | null;
+}
 
 @Component({
   selector: 'app-product',
@@ -323,15 +329,15 @@ export class ProductComponent {
 
   /**
    * One design per offer type. Price offers (percent off, amount off, fixed price) stay badges
-   * next to the price. Buy X get Y, tiered and free shipping become one short line with the
+   * next to the price. Buy X get Y, Bundle price, tiered and free shipping become one short line with the
    * offer's title. Free gift offers show as the Gift Box, never as a badge.
    */
   #splitBadges(
     badges: readonly OfferBadge[],
     offers: readonly Offer[],
-  ): { badges: string[]; offerLines: string[] } {
+  ): { badges: string[]; offerLines: ProductOfferLine[] } {
     const shown: string[] = [];
-    const lines: string[] = [];
+    const lines: ProductOfferLine[] = [];
     // An amount in EGP means nothing to a visitor paying in another currency.
     const hideEgp = this.#currency.selected() !== 'EGP';
     const country = this.#currency.visitorCountry();
@@ -340,12 +346,15 @@ export class ProductComponent {
         ? offers.find((offer) => offer.id === badge.offerId)?.reward.kind
         : undefined;
       if (kind === 'freeGift') continue;
-      if (kind === 'buyXGetY' || kind === 'tiered' || kind === 'freeShipping') {
+      if (kind === 'buyXGetY' || kind === 'bundlePrice' || kind === 'tiered' || kind === 'freeShipping') {
         const offer = offers.find((candidate) => candidate.id === badge.offerId);
         // Free shipping applies to Egypt orders only, so it is never promised abroad.
         if (offer && !offerTitleVisible(offer, country)) continue;
         const title = offer?.title.trim() || badge.text;
-        if (!lines.includes(title) && !(hideEgp && /\bEGP\b/.test(title))) lines.push(title);
+        if (lines.some((line) => line.text === title) || (hideEgp && /\bEGP\b/.test(title))) continue;
+        // A Bundle price line opens the offer's Shop page, where the shopper picks the other pieces.
+        const shopOfferId = offer && kind === 'bundlePrice' && canShopOffer(offer) ? offer.id : null;
+        lines.push({ text: title, shopOfferId });
         continue;
       }
       shown.push(badge.text);

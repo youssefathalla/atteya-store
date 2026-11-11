@@ -2,9 +2,11 @@ import * as v from 'valibot';
 import { idSchema, timestampSchema } from '@shared/schemas';
 import {
   DEFAULT_OFFER_BANNER,
+  MAX_BUNDLE_ROWS,
   MAX_GIFT_CHOICES,
   MAX_GIFT_NAME,
   MAX_OFFER_GIFTS,
+  bundleRows,
   parseOfferBanner,
   type OfferReward,
 } from './engine';
@@ -94,6 +96,13 @@ const RewardVariantSchema = v.variant('kind', [
     maxApplications: v.nullable(positiveInt, null),
   }),
   v.object({
+    kind: v.literal('bundlePrice'),
+    rows: v.pipe(
+      v.array(v.object({ quantity: positiveInt, price: positiveInt })),
+      v.maxLength(MAX_BUNDLE_ROWS),
+    ),
+  }),
+  v.object({
     kind: v.literal('freeGift'),
     gifts: v.optional(v.pipe(v.array(OfferGiftSchema), v.maxLength(MAX_OFFER_GIFTS))),
     /** Old shape: one fixed gift product. Read as one gift with one choice. */
@@ -112,6 +121,7 @@ const RewardVariantSchema = v.variant('kind', [
 export const OfferRewardSchema = v.pipe(
   RewardVariantSchema,
   v.transform((reward): OfferReward => {
+    if (reward.kind === 'bundlePrice') return { kind: 'bundlePrice', rows: bundleRows(reward) };
     if (reward.kind !== 'freeGift') return reward;
     if (reward.gifts) {
       return {

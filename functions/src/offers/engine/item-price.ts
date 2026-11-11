@@ -1,3 +1,4 @@
+import { bundleOneRowPrice } from './bundle-price.js';
 import { formatAppliedOfferBadge, formatLabelOnlyOfferBadge } from './labels.js';
 import { matchProduct, matchVariant } from './match.js';
 import type {
@@ -149,6 +150,16 @@ export function displayPrice(
     matchingOfferIds.push(offer.id);
   }
 
+  // A Bundle price offer with a 1-piece row ("1 for 125") is the lowest a single piece costs, so
+  // the card says "From 125". Only priced in the bag: the product page keeps its own price.
+  for (const offer of active) {
+    if (offer.scope !== 'item' || hasMinimum(offer)) continue;
+    const one = bundleOneRowPrice(offer);
+    if (one === null || one >= fromPrice || !matchingOfferIds.includes(offer.id)) continue;
+    fromPrice = one;
+    partial = true;
+  }
+
   const listPrice = productLevel.listPrice;
   const maxDiscountPercent =
     listPrice > 0 && fromPrice < listPrice ? Math.round(((listPrice - fromPrice) / listPrice) * 100) : 0;
@@ -201,6 +212,7 @@ function computeCandidateUnitPrice(
       break;
     }
     case 'buyXGetY':
+    case 'bundlePrice':
     case 'freeGift':
     case 'freeShipping':
       return null;
@@ -208,6 +220,11 @@ function computeCandidateUnitPrice(
 
   if (rawDiscounted === null) return null;
   return Math.min(basePrice, Math.max(0, rawDiscounted));
+}
+
+function hasMinimum(offer: Offer): boolean {
+  const minimum = offer.minimum;
+  return !!minimum && ((minimum.subtotal ?? 0) > 0 || (minimum.quantity ?? 0) > 0);
 }
 
 function findSingleUnitTier(tiers: readonly OfferTier[]): OfferTier | null {
@@ -225,7 +242,9 @@ function findSingleUnitTier(tiers: readonly OfferTier[]): OfferTier | null {
 function isLabelOnlyOffer(offer: Offer): boolean {
   if (offer.scope === 'cart') return true;
   const kind = offer.reward.kind;
-  if (kind === 'buyXGetY' || kind === 'freeGift' || kind === 'freeShipping') return true;
+  if (kind === 'buyXGetY' || kind === 'bundlePrice' || kind === 'freeGift' || kind === 'freeShipping') {
+    return true;
+  }
   if (kind === 'tiered') return true;
   return false;
 }

@@ -67,6 +67,55 @@
         (input)="onFixedPriceChange($event)"
       />
     </label>
+  } @else if (selectedPickerKind() === 'bundlePrice' && r.kind === 'bundlePrice') {
+    <fieldset class="w-full elements-start-col gap-3">
+      <legend class="font-label-md">Price per quantity</legend>
+      <p class="font-body-sm text-on-surface-variant">
+        Shoppers can mix any of the matching products. The bag uses the cheapest mix of rows, and rows repeat.
+      </p>
+      <ul class="w-full elements-start-col gap-2">
+        @for (row of r.rows; track $index) {
+          <li class="elements-start items-end! flex-wrap gap-3">
+            <label class="elements-start-col gap-1 font-label-md">
+              Pieces
+              <input
+                type="number"
+                min="1"
+                [max]="maxBundlePieces"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-24"
+                [value]="row.quantity"
+                (change)="onBundlePiecesChange($index, $event)"
+              />
+            </label>
+            <label class="elements-start-col gap-1 font-label-md">
+              Total price (EGP)
+              <input
+                type="number"
+                min="1"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+                [value]="row.price || ''"
+                (input)="onBundlePriceChange($index, $event)"
+              />
+            </label>
+            <button
+              matIconButton
+              type="button"
+              (click)="removeBundleRow($index)"
+              [disabled]="r.rows.length <= 1"
+              [attr.aria-label]="'Remove the ' + row.quantity + '-piece row'"
+            >
+              <mat-icon name="delete" />
+            </button>
+          </li>
+        }
+      </ul>
+      @if (r.rows.length < maxBundleRows) {
+        <button matButton="outlined" type="button" (click)="addBundleRow()">
+          <mat-icon name="add" />
+          <span>Add Row</span>
+        </button>
+      }
+    </fieldset>
   } @else if (selectedPickerKind() === 'buyXGetY' && r.kind === 'buyXGetY') {
     <div class="elements-center flex-wrap gap-3">
       <label class="elements-start-col gap-1 font-label-md">

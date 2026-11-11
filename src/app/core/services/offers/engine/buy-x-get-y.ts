@@ -1,4 +1,5 @@
 // GENERATED — edit functions/src/offers/engine
+import { bestBundle, bundleRows, splitBundleTotal, type BundleRowUse } from './bundle-price';
 import { liveOffers } from './item-price';
 import { matchProduct, matchVariant } from './match';
 import type { Offer, OfferConditions, PricingContext, ProductFacts, VariantFacts } from './types';
@@ -29,15 +30,38 @@ export interface BagLineFacts {
   readonly giftWorth: number;
 }
 
-/** One Buy X Get Y offer's discount on one line. */
+/** One Buy X Get Y or Bundle price offer's discount on one line. */
 export interface BagLineOfferDeal {
   readonly offerId: string;
-  /** Pieces of the line this offer discounts. */
+  /** Pieces of the line this offer discounts (for a bundle: the line's pieces in the bundle). */
   readonly units: number;
-  /** 100 = free, 50 = half price. */
+  /** 100 = free, 50 = half price; 0 for a bundle. */
   readonly percent: number;
   /** Whole EGP taken off the line by this offer. */
   readonly discount: number;
+  /** Set on a Bundle price offer's share: the pieces pay their part of the bundle total. */
+  readonly bundle?: true;
+}
+
+/**
+ * One Bundle price offer in the bag: the pieces it covers and what they cost, plus the next row
+ * the shopper could reach ("Add 1 more to get 3 for 275 EGP").
+ */
+export interface BagBundle {
+  readonly offerId: string;
+  readonly title: string;
+  /** Rows used, biggest first; empty when no row applies yet. */
+  readonly rows: readonly BundleRowUse[];
+  /** Pieces in the bundle (0 when none yet). */
+  readonly units: number;
+  /** Whole EGP those pieces cost together. */
+  readonly total: number;
+  /** Whole EGP saved against those pieces' own prices (before per-item offers). */
+  readonly saving: number;
+  /** Bag line the strip and nudge sit under: the last line that counts toward the offer. */
+  readonly lineIndex: number;
+  /** The next bigger row and how many more pieces reach it; null at the top row. */
+  readonly next: { readonly missing: number; readonly quantity: number; readonly price: number } | null;
 }
 
 /**
@@ -109,6 +133,8 @@ export interface BagDeals {
   /** Buy X Get Y offers that gave a discount (each counts once towards its limits). */
   readonly offerIds: readonly string[];
   readonly hints: readonly BagDealHint[];
+  /** Bundle price offers the bag's pieces count toward, in the order they were worked out. */
+  readonly bundles: readonly BagBundle[];
 }
 
 interface Unit {
@@ -141,6 +167,31 @@ export function priceBagDeals(
   offers: readonly Offer[],
   ctx: PricingContext,
 ): BagDeals {
+  const candidates = liveOffers(offers, ctx).filter(appliesToBag).sort(compareOffers);
+  const first = priceInOrder(lines, candidates);
+  const hasBundle = candidates.some((offer) => offer.reward.kind === 'bundlePrice');
+  const hasDeal = candidates.some((offer) => offer.reward.kind === 'buyXGetY');
+  if (!hasBundle || !hasDeal) return first;
+  // One discount per item between a Bundle price and a Buy X Get Y offer: whichever saves the
+  // shopper more. Try each kind first too, and keep the cheapest bag (a tie keeps priority order).
+  const isBundle = (offer: Offer): boolean => offer.reward.kind === 'bundlePrice';
+  let best = first;
+  for (const order of [
+    [...candidates.filter(isBundle), ...candidates.filter((offer) => !isBundle(offer))],
+    [...candidates.filter((offer) => !isBundle(offer)), ...candidates.filter(isBundle)],
+  ]) {
+    const priced = priceInOrder(lines, order);
+    if (bagTotal(priced) < bagTotal(best)) best = priced;
+  }
+  return best;
+}
+
+function bagTotal(deals: BagDeals): number {
+  return deals.lines.reduce((sum, line) => sum + line.total, 0);
+}
+
+/** `priceBagDeals` with the offers worked out in this order (each piece used by one offer only). */
+function priceInOrder(lines: readonly BagLineFacts[], candidates: readonly Offer[]): BagDeals {
   const units: Unit[] = [];
   const prices = lines.map(linePrices);
   lines.forEach((line, index) => {
@@ -157,9 +208,15 @@ export function priceBagDeals(
   const dealUnits = lines.map(() => 0);
   const offerIds: string[] = [];
   const hints: BagDealHint[] = [];
+  const bundles: BagBundle[] = [];
 
-  const candidates = liveOffers(offers, ctx).filter(appliesToBag).sort(compareOffers);
   for (const offer of candidates) {
+    if (offer.reward.kind === 'bundlePrice') {
+      const bundle = priceBundle(offer, lines, units, deals, dealUnits);
+      if (bundle) bundles.push(bundle);
+      if (bundle && bundle.units > 0) offerIds.push(offer.id);
+      continue;
+    }
     if (offer.reward.kind !== 'buyXGetY') continue;
     const r = offer.reward;
     const buy = Math.max(1, Math.floor(r.buy.quantity));
@@ -219,7 +276,10 @@ export function priceBagDeals(
     const entries = deals[index]!;
     const quantity = Math.max(0, Math.floor(line.quantity));
     const discount = entries.reduce((sum, entry) => sum + entry.discount, 0);
-    const discountedUnits = entries.reduce((sum, entry) => sum + entry.units, 0);
+    // Pieces in a bundle keep their free gifts, like pieces with a per-item offer.
+    const discountedUnits = entries
+      .filter((entry) => !entry.bundle)
+      .reduce((sum, entry) => sum + entry.units, 0);
     const inDeals = Math.min(quantity, dealUnits[index]!);
     const offerUnits = quantity - inDeals;
     const { base, offer } = prices[index]!;
@@ -242,7 +302,111 @@ export function priceBagDeals(
     discount: lineDeals.reduce((sum, line) => sum + line.discount, 0),
     offerIds,
     hints,
+    bundles,
   };
+}
+
+/**
+ * Prices one Bundle price offer over the pieces no other offer used yet: the qualifying pieces,
+ * most expensive first (after per-item offers), go into the cheapest mix of rows for the shopper;
+ * the rest keep their own price. A piece in the bundle pays its share of the bundle total (split
+ * by the pieces' own prices) and gets no per-item offer. Returns null when no piece qualifies.
+ */
+function priceBundle(
+  offer: Offer,
+  lines: readonly BagLineFacts[],
+  units: readonly Unit[],
+  deals: BagLineOfferDeal[][],
+  dealUnits: number[],
+): BagBundle | null {
+  const rows = bundleRows(offer.reward);
+  if (rows.length === 0) return null;
+  const inOffer = lines.map((line) => qualifies(offer, offer.conditions, line));
+  const pool = units
+    .filter((unit) => !unit.used && inOffer[unit.line])
+    .sort((a, b) => offerPriceOf(b) - offerPriceOf(a) || a.line - b.line);
+  if (pool.length === 0) return null;
+  const lineIndex = Math.max(...pool.map((unit) => unit.line));
+
+  const { pieces, cover } = bestBundle(
+    rows,
+    pool.map((unit) => offerPriceOf(unit)),
+  );
+  const bundled = pool.slice(0, pieces).sort((a, b) => a.line - b.line);
+  let saving = 0;
+  if (bundled.length > 0) {
+    // Fill the rows biggest first with the pieces in bag order, and split each row's total.
+    const share = new Map<Unit, number>();
+    let at = 0;
+    for (const row of cover.rows) {
+      for (let n = 0; n < row.count; n++) {
+        const group = bundled.slice(at, at + row.quantity);
+        at += row.quantity;
+        const parts = splitBundleTotal(
+          row.price,
+          group.map((unit) => unit.price),
+        );
+        group.forEach((unit, index) => share.set(unit, parts[index]!));
+      }
+    }
+    const byLine = new Map<number, { units: number; discount: number }>();
+    for (const unit of bundled) {
+      unit.used = true;
+      dealUnits[unit.line]! += 1;
+      const entry = byLine.get(unit.line) ?? { units: 0, discount: 0 };
+      entry.units += 1;
+      entry.discount += Math.max(0, unit.price - (share.get(unit) ?? unit.price));
+      byLine.set(unit.line, entry);
+    }
+    for (const [line, entry] of [...byLine.entries()].sort((a, b) => a[0] - b[0])) {
+      deals[line]!.push({
+        offerId: offer.id,
+        units: entry.units,
+        percent: 0,
+        discount: entry.discount,
+        bundle: true,
+      });
+      saving += entry.discount;
+    }
+  }
+
+  return {
+    offerId: offer.id,
+    title: offer.title,
+    rows: cover.rows,
+    units: bundled.length,
+    total: bundled.length > 0 ? cover.total : 0,
+    saving,
+    lineIndex,
+    next: nextBundleRow(rows, pool, lineIndex, bundled.length),
+  };
+}
+
+/**
+ * The next bigger row the shopper can reach by adding more of the last line's item, when adding
+ * them really puts more pieces in the bundle; null once the pieces reach the top row.
+ */
+function nextBundleRow(
+  rows: ReturnType<typeof bundleRows>,
+  pool: readonly Unit[],
+  lineIndex: number,
+  bundledNow: number,
+): BagBundle['next'] {
+  const row = rows.find((candidate) => candidate.quantity > pool.length);
+  if (!row) return null;
+  const missing = row.quantity - pool.length;
+  const like = pool.find((unit) => unit.line === lineIndex)!;
+  const prices = [...pool, ...Array.from({ length: missing }, () => like)]
+    .map((unit) => offerPriceOf(unit))
+    .sort((a, b) => b - a);
+  const after = bestBundle(rows, prices);
+  if (after.pieces <= bundledNow || after.pieces < row.quantity) return null;
+  return { missing, quantity: row.quantity, price: row.price };
+}
+
+/** A piece's price after per-item offers. */
+function offerPriceOf(unit: Unit): number {
+  return unit.price - unit.itemSaving;
 }
 
 /**
@@ -250,12 +414,13 @@ export function priceBagDeals(
  * "1 at −50%" when only some do. Several offers on one line are joined with " · ".
  */
 export function dealTag(
-  deals: readonly { readonly units: number; readonly percent: number }[],
+  deals: readonly { readonly units: number; readonly percent: number; readonly bundle?: boolean }[],
   quantity: number,
 ): string {
   return deals
     .filter((deal) => deal.units > 0)
     .map((deal) => {
+      if (deal.bundle) return 'Bundle price';
       const all = deal.units >= quantity;
       if (deal.percent >= 100) return all ? 'Free' : `${deal.units} free`;
       return all ? `\u2212${deal.percent}%` : `${deal.units} at \u2212${deal.percent}%`;
@@ -324,9 +489,10 @@ export function freeItemWins(
   return added?.deals.some((deal) => deal.offerId === offerId && deal.units > 0) ?? false;
 }
 
-/** Only per-item offers with no spend or quantity minimum give Buy X Get Y discounts. */
+/** Only per-item offers with no spend or quantity minimum give Buy X Get Y or bundle prices. */
 function appliesToBag(offer: Offer): boolean {
-  if (offer.reward.kind !== 'buyXGetY' || offer.scope !== 'item') return false;
+  const kind = offer.reward.kind;
+  if ((kind !== 'buyXGetY' && kind !== 'bundlePrice') || offer.scope !== 'item') return false;
   const minimum = offer.minimum;
   return !minimum || ((minimum.subtotal ?? 0) <= 0 && (minimum.quantity ?? 0) <= 0);
 }

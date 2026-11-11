@@ -79,14 +79,18 @@ export interface OrderLinePrice {
   readonly fullEgp?: number;
 }
 
-/** One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100). */
+/**
+ * One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100), or a Bundle price
+ * offer's share of it (`bundle: true`, `percent` 0: `units` pieces pay their part of the bundle).
+ */
 export interface OrderLineDeal {
   readonly offerId: string;
-  /** Pieces of the line discounted. */
+  /** Pieces of the line discounted (in the bundle). */
   readonly units: number;
-  /** 100 = free, 50 = half price. */
+  /** 100 = free, 50 = half price; 0 for a bundle. */
   readonly percent: number;
   readonly discountEgp: number;
+  readonly bundle?: true;
 }
 
 /** Marks an order line as a free gift. Gift lines follow the line they belong to. */
@@ -519,7 +523,10 @@ async function priceWithOffers(
   ) {
     throw outdatedPageError();
   }
-  for (const offerId of deals.offerIds) addUsedOffer(usedOffers, offers, offerId, 'deal');
+  for (const offerId of deals.offerIds) {
+    const bundle = offers.find((offer) => offer.id === offerId)?.reward.kind === 'bundlePrice';
+    addUsedOffer(usedOffers, offers, offerId, bundle ? 'bundle' : 'deal');
+  }
   // A Buy X Get Y offer the bag showed (`dealOfferIds`) that this order doesn't get (it ended, was
   // switched off, the bag's clock was behind, or this server's offer cache is) would make the order
   // cost more than the shopper saw: `priceWithFreshOffersOnMiss` reads the offers again and refuses
@@ -757,6 +764,7 @@ export function withDeals(priced: OrderLinePrice, lineDeals: BagLineDeals): Orde
       units: deal.units,
       percent: deal.percent,
       discountEgp: deal.discount,
+      ...(deal.bundle ? { bundle: true as const } : {}),
     })),
   };
 }

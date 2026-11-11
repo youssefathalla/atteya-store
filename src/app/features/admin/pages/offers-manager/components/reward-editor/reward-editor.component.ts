@@ -2,9 +2,12 @@ import { Component, computed, input, model } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
+  MAX_BUNDLE_PIECES,
+  MAX_BUNDLE_ROWS,
   MAX_GIFT_CHOICES,
   MAX_GIFT_NAME,
   MAX_OFFER_GIFTS,
+  type OfferBundleRow,
   type OfferGift,
   type OfferMinimum,
   type OfferReward,
@@ -82,6 +85,12 @@ export class RewardEditorComponent {
           repeat: true,
           maxApplications: null,
         });
+        break;
+      case 'bundlePrice':
+        // An item offer with no minimum: the bag groups the qualifying pieces into the rows.
+        this.scope.set('item');
+        this.minimum.set(null);
+        this.reward.set({ kind: 'bundlePrice', rows: [{ quantity: 2, price: 200 }] });
         break;
       case 'freeGift':
         // One set of gifts per qualifying item bought, so it is an item offer with no minimum.
@@ -194,6 +203,57 @@ export class RewardEditorComponent {
     this.reward.set(
       withFreeItem(r, current.mode, { ...current.selection, [kind]: change(current.selection[kind]) }),
     );
+  }
+
+  readonly maxBundleRows = MAX_BUNDLE_ROWS;
+  readonly maxBundlePieces = MAX_BUNDLE_PIECES;
+
+  /** + Add Row: the next number of pieces after the biggest row, total left empty to type. */
+  addBundleRow(): void {
+    this.#updateBundleRows((rows) => {
+      if (rows.length >= MAX_BUNDLE_ROWS) return rows;
+      const used = new Set(rows.map((row) => row.quantity));
+      let quantity = Math.max(0, ...rows.map((row) => row.quantity)) + 1;
+      while (used.has(quantity)) quantity++;
+      if (quantity > MAX_BUNDLE_PIECES) {
+        quantity = 1;
+        while (used.has(quantity) && quantity < MAX_BUNDLE_PIECES) quantity++;
+      }
+      return [...rows, { quantity, price: 0 }];
+    });
+  }
+
+  removeBundleRow(index: number): void {
+    this.#updateBundleRows((rows) => rows.filter((_, at) => at !== index));
+  }
+
+  /**
+   * Pieces keep exactly what was typed (empty counts as 0), so a wrong value shows the form's
+   * error. The rows are sorted by pieces once the field is left (`change`), not while typing.
+   */
+  onBundlePiecesChange(index: number, event: Event): void {
+    const quantity = this.#readTyped(event);
+    this.#updateBundleRows((rows) =>
+      rows
+        .map((row, at) => (at === index ? { ...row, quantity } : row))
+        .sort((a, b) => a.quantity - b.quantity),
+    );
+  }
+
+  onBundlePriceChange(index: number, event: Event): void {
+    const price = this.#readTyped(event);
+    this.#updateBundleRows((rows) => rows.map((row, at) => (at === index ? { ...row, price } : row)));
+  }
+
+  #updateBundleRows(change: (rows: readonly OfferBundleRow[]) => readonly OfferBundleRow[]): void {
+    const r = this.reward();
+    if (r.kind !== 'bundlePrice') return;
+    this.reward.set({ ...r, rows: change(r.rows) });
+  }
+
+  #readTyped(event: Event): number {
+    const parsed = Number.parseInt((event.target as HTMLInputElement).value.trim(), 10);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   readonly maxGifts = MAX_OFFER_GIFTS;

@@ -196,6 +196,47 @@
                   }
                 </div>
               }
+
+              <!-- Bundle price: one strip for all its pieces, then the nudge to the next row. -->
+              @for (box of bundleBoxes($index); track box.offerId) {
+                @if (box.strip; as stripTitle) {
+                  <div class="bag-card__strip">
+                    <span class="min-w-0">{{ stripTitle }}</span>
+                    @if (box.saving) {
+                      <span class="shrink-0 font-bold!">{{ box.saving }}</span>
+                    }
+                  </div>
+                }
+                @if (box.nudge; as nudgeText) {
+                  <div class="bag-card__strip bag-card__strip--hint bag-card__strip--wrap">
+                    <span class="min-w-0">{{ nudgeText }}</span>
+                    <span class="bag-card__strip-actions">
+                      <button
+                        matButton="filled"
+                        type="button"
+                        (click)="addMore($index, box.missing)"
+                        [attr.aria-label]="'Add ' + box.missing + ' more ' + product.name"
+                      >
+                        Add {{ box.missing }}
+                      </button>
+                      @if (box.shopQuery; as query) {
+                        <a
+                          matButton="outlined"
+                          routerLink="/shop"
+                          [queryParams]="query"
+                          (click)="drawerService.close()"
+                        >
+                          Choose Another
+                        </a>
+                      } @else {
+                        <a matButton="outlined" routerLink="/shop" (click)="drawerService.close()">
+                          Choose Another
+                        </a>
+                      }
+                    </span>
+                  </div>
+                }
+              }
             } @else {
               <div class="bag-card__body">
                 <div class="bag-card__photo" aria-hidden="true"></div>

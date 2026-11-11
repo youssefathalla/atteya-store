@@ -48,12 +48,16 @@ export interface OrderLinePrice {
   readonly fullEgp?: number;
 }
 
-/** One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100). */
+/**
+ * One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100), or a Bundle price
+ * share (`bundle: true`, `percent` 0).
+ */
 export interface OrderLineDeal {
   readonly offerId: string;
   readonly units: number;
   readonly percent: number;
   readonly discountEgp: number;
+  readonly bundle?: true;
 }
 
 /** Marks an order line as a free gift of an offer, given with the line at index `forLine`. */

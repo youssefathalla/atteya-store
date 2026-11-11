@@ -57,8 +57,10 @@ export const OrderLinePriceSchema = v.object({
       v.object({
         offerId: v.string(),
         units: v.pipe(v.number(), v.integer(), v.minValue(1)),
-        percent: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
+        /** 0 on a Bundle price share (`bundle: true`). */
+        percent: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
         discountEgp: v.pipe(v.number(), v.integer(), v.minValue(0)),
+        bundle: v.optional(v.literal(true)),
       }),
     ),
   ),
