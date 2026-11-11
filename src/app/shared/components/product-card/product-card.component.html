@@ -18,6 +18,7 @@
           class="product-card__photo"
           [class.product-card__photo--incoming]="last && count > 1"
           (load)="onPhotoLoad(layer.path)"
+          (animationend)="onPhotoShown(layer.path, $event)"
         />
       }
     </div>

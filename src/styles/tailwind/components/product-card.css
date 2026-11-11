@@ -21,6 +21,11 @@
     --product-card-details: 12.5rem;
   }
 
+  /* The badge line above the name adds about 1.5rem of details. */
+  .product-card--badged {
+    --product-card-details: 14rem;
+  }
+
   .product-card__media-wrap {
     @apply relative w-full;
   }

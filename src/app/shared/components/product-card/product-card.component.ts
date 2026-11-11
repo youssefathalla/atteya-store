@@ -21,7 +21,11 @@ interface PhotoLayer {
 
 @Component({
   selector: 'app-product-card',
-  host: { class: 'product-card block w-full' },
+  host: {
+    class: 'product-card block w-full',
+    // A badge line makes the details taller, so the photo cap leaves room for it.
+    '[class.product-card--badged]': '!!product().marketingBadge',
+  },
   imports: [
     NgOptimizedImage,
     RouterLink,
@@ -98,7 +102,10 @@ export class ProductCardComponent {
       // Picked again before the top photo finished loading: keep the photo underneath it, which is
       // already on screen, so the card never flashes the loading shimmer.
       const base = this.#loadedPaths.has(top.path) ? top : (previous.value[0] ?? top);
-      return base.path === current.path ? [base] : [base, current];
+      // A photo still mounted keeps its layer (and its `initial` flag), so NgOptimizedImage inputs
+      // never change after the image was created.
+      const next = previous.value.find((layer) => layer.path === current.path) ?? current;
+      return base.path === next.path ? [base] : [base, next];
     },
   });
 
@@ -107,6 +114,22 @@ export class ProductCardComponent {
 
   onPhotoLoad(path: string): void {
     this.#loadedPaths.add(path);
+    // No fade with reduced motion: the old photo can go as soon as the new one is ready.
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.#dropPhotosUnder(path);
+    }
+  }
+
+  /** The new photo has faded in: unmount the photo underneath it. */
+  onPhotoShown(path: string, event: AnimationEvent): void {
+    // Only the fade-in counts (not the loading shimmer).
+    if (event.animationName === 'product-card-photo-in') this.#dropPhotosUnder(path);
+  }
+
+  #dropPhotosUnder(path: string): void {
+    const layers = this.photoLayers();
+    const top = layers.at(-1);
+    if (layers.length > 1 && top?.path === path) this.photoLayers.set([top]);
   }
 
   readonly isFavorite = computed(() => {
