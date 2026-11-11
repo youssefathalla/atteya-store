@@ -71,17 +71,25 @@ export class OrdersAdminService {
 
     const snap =
       status === 'all'
-        ? await getDocs(query(ordersCol, orderBy('createdAt', 'desc'), limit(ORDERS_PAGE_SIZE)))
+        ? await getDocs(query(ordersCol, orderBy('updatedAt', 'desc'), limit(ORDERS_PAGE_SIZE)))
         : await getDocs(
             query(
               ordersCol,
               where('status', '==', status),
-              orderBy('createdAt', 'desc'),
+              orderBy('updatedAt', 'desc'),
               limit(ORDERS_PAGE_SIZE),
             ),
           );
 
     return snap.docs.map((item) => item.data());
+  }
+
+  /** One order by id for the tracking page; null when it doesn't exist. */
+  async getOrder(orderId: string): Promise<OrderDoc | null> {
+    const snap = await getDoc(
+      doc(this.#firestore, ORDERS_COLLECTION, orderId).withConverter(createValibotConverter(OrderSchema)),
+    );
+    return snap.exists() ? snap.data() : null;
   }
 
   /**

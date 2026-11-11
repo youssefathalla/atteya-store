@@ -1,0 +1,92 @@
+<div class="elements-start-col gap-6 w-full">
+  <a matButton="text" routerLink="/admin/orders">
+    <mat-icon name="arrow_back" />
+    <span>Back to Orders</span>
+  </a>
+
+  @if (dataResource.isLoading() && !dataResource.hasValue()) {
+    <div class="elements-start-col gap-4 w-full" aria-hidden="true">
+      <app-skeleton class="h-32 w-full" />
+      <app-skeleton class="h-64 w-full" />
+    </div>
+  } @else if (loadErrorMessage(); as message) {
+    <p class="surface-card p-5 font-body-md break-words" role="alert">{{ message }}</p>
+  } @else if (first(); as row) {
+    <section class="surface-card p-5 w-full elements-between gap-3 flex-wrap" aria-label="Order summary">
+      <div class="elements-start-col gap-0.5">
+        <h1 class="font-title-lg font-bold! break-all">{{ row.orderRef }}</h1>
+        <span class="font-body-md">{{ row.customerName }} · {{ row.country }} · {{ row.phone }}</span>
+        <span class="font-label-md text-on-surface-variant">
+          {{ row.paymentLabel }} · {{ row.orderTotalLabel }}
+        </span>
+        <span class="font-label-md text-on-surface-variant">Updated {{ row.updatedAtLabel }}</span>
+      </div>
+      <app-status-badge [value]="row.status" [statusConfig]="orderStatusConfig" />
+    </section>
+
+    <section class="surface-card p-5 w-full elements-start-col gap-4" aria-label="Order progress">
+      <h2 class="font-title-md font-bold!">Order Progress</h2>
+      <ol class="elements-start-col w-full">
+        @for (step of steps(); track step.key; let last = $last) {
+          <li class="flex gap-3 w-full" [attr.aria-current]="step.current ? 'step' : null">
+            <div class="elements-start-col items-center">
+              <span
+                class="size-6 elements-center border-shape border"
+                [class.bg-primary]="step.done"
+                [class.text-on-primary]="step.done"
+                [class.border-primary]="step.done"
+                [class.border-outline-variant]="!step.done"
+              >
+                @if (step.done) {
+                  <mat-icon name="check" />
+                }
+              </span>
+              @if (!last) {
+                <span class="w-px grow min-h-8 bg-outline-variant"></span>
+              }
+            </div>
+            <div class="elements-start-col pb-4">
+              <span class="font-body-md" [class.font-bold!]="step.current">{{ step.label }}</span>
+              <span class="font-label-md text-on-surface-variant">{{ step.when ?? 'Not yet' }}</span>
+            </div>
+          </li>
+        }
+      </ol>
+    </section>
+
+    @if (row.history.length) {
+      <section class="surface-card p-5 w-full elements-start-col gap-3" aria-label="Status history">
+        <h2 class="font-title-md font-bold!">Every Change</h2>
+        <ol class="elements-start-col w-full">
+          @for (entry of row.history; track $index) {
+            <li class="w-full border-t border-outline-variant py-2 elements-start-col">
+              <span class="font-body-md">{{ entry.label }}</span>
+              <span class="font-label-md text-on-surface-variant">
+                {{ entry.when }}{{ entry.by ? ' · ' + entry.by : '' }}
+              </span>
+              @if (entry.reason) {
+                <span class="font-label-md">Reason: {{ entry.reason }}</span>
+              }
+            </li>
+          }
+        </ol>
+      </section>
+    }
+
+    <section class="surface-card p-5 w-full elements-start-col gap-1" aria-label="Items in this order">
+      <h2 class="font-title-md font-bold!">Items</h2>
+      @for (line of rows(); track line.id) {
+        <div class="w-full border-t border-outline-variant py-3 elements-start-col">
+          <a matButton="text" [routerLink]="['/admin/products', line.productId]">
+            <span class="font-body-md">{{ line.productName }}</span>
+          </a>
+          <span class="px-3 font-label-md text-on-surface-variant">
+            {{ line.selectionLabel }} · Qty {{ line.quantity }}
+          </span>
+        </div>
+      }
+    </section>
+  } @else {
+    <p class="surface-card p-5 font-body-md">We couldn't find this order. It may have been removed.</p>
+  }
+</div>
