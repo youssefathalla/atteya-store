@@ -119,7 +119,7 @@ export const OrderBankTransferSchema = v.object({
 /** Every status an order can have (shared list; staff move them with `setOrderStatus`). */
 const orderStatus = v.picklist(ORDER_STATUSES);
 
-/** One saved status change (`statusHistory`, appended by the server). */
+/** One saved status change (`orderStaffNotes/{id}.statusHistory`, appended by the server). */
 export const OrderStatusChangeSchema = v.object({
   status: v.picklist(ORDER_STATUSES),
   from: v.optional(v.nullable(v.picklist(ORDER_STATUSES)), null),
@@ -130,6 +130,21 @@ export const OrderStatusChangeSchema = v.object({
 });
 
 export type OrderStatusChange = v.InferOutput<typeof OrderStatusChangeSchema>;
+
+/**
+ * `orderStaffNotes/{orderId}`: the staff-only side of an order (admin read, Admin SDK write), kept
+ * off `orders/{id}` because the shopper who owns the order can read that doc.
+ */
+export const OrderStaffNotesSchema = v.object({
+  /** Every status change with who and when. A bad entry drops the list, not the notes. */
+  statusHistory: v.optional(v.fallback(v.array(OrderStatusChangeSchema), []), []),
+  /** Typed when cancelling; never shown to the shopper. */
+  cancelReason: v.optional(v.nullable(v.string()), null),
+});
+
+export type OrderStaffNotes = v.InferOutput<typeof OrderStaffNotesSchema>;
+
+export const ORDER_STAFF_NOTES_COLLECTION = 'orderStaffNotes';
 
 const OrderBaseFields = {
   id: v.string(),
@@ -157,10 +172,6 @@ export const StoreOrderSchema = v.object({
   deliveredAt: v.optional(v.nullable(timestampSchema), null),
   /** Set when the items left stock, null once they went back; missing on older orders. */
   stockDecrementedAt: v.optional(v.nullable(timestampSchema)),
-  /** Staff-only note typed when cancelling (never shown to the shopper). */
-  cancelReason: v.optional(v.nullable(v.string()), null),
-  /** Every status change with who and when (staff-only). A bad entry drops the list, not the order. */
-  statusHistory: v.optional(v.fallback(v.array(OrderStatusChangeSchema), []), []),
 });
 
 export const LegacyBankTransferOrderSchema = v.object({
@@ -251,7 +262,5 @@ export function orderFromView(view: OrderViewDoc): StoreOrderDoc {
     cancelledBy: null,
     shippedAt: view.shippedAt,
     deliveredAt: view.deliveredAt,
-    cancelReason: null,
-    statusHistory: [],
   };
 }

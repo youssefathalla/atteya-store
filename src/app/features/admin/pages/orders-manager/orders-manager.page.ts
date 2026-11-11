@@ -158,12 +158,15 @@ export class OrdersManagerPageComponent implements OnInit {
     params: () => ({ status: this.statusFilter() }),
     loader: async ({ params }) => {
       if (!isPlatformBrowser(this.#platformId)) {
-        return { orders: [], productsById: new Map() };
+        return { orders: [], productsById: new Map(), notesById: new Map() };
       }
       try {
         const orders = await this.#ordersAdmin.listOrders(params.status);
-        const productsById = await this.#ordersAdmin.loadProductStock(orders);
-        return { orders, productsById };
+        const [productsById, notesById] = await Promise.all([
+          this.#ordersAdmin.loadProductStock(orders),
+          this.#ordersAdmin.loadStaffNotes(orders),
+        ]);
+        return { orders, productsById, notesById };
       } catch (error: unknown) {
         console.error('[admin/orders] load failed', error);
         throw error;
@@ -179,7 +182,7 @@ export class OrdersManagerPageComponent implements OnInit {
   readonly rows = computed((): OrderLineAdminRow[] => {
     const data = this.dataResource.value();
     if (!data) return [];
-    return [...toOrderLineAdminRows(data.orders, data.productsById)];
+    return [...toOrderLineAdminRows(data.orders, data.productsById, data.notesById)];
   });
 
   readonly columns = computed((): TableColumn<OrderLineAdminRow>[] => [

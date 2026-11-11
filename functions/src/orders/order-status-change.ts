@@ -17,6 +17,7 @@ import {
   type ProductStockDemand,
 } from './decrement-order-stock.js';
 import { parseSavedOfferUses, readOfferGiveBack } from './offer-usage.js';
+import { orderStaffNotesRef, staffNotesPatch } from './order-staff-notes.js';
 import {
   canMoveStatus,
   isManualPayment,
@@ -57,7 +58,7 @@ export interface OrderStatusChangeOptions {
  * (`allowedStatusMoves`), takes stock on Confirmed once (`stockDecrementedAt`), puts it back on
  * Cancelled or back to Waiting for Payment, gives offer uses back on Cancelled (once,
  * `offerUsesReturnedAt`), stamps `confirmedAt` / `shippedAt` / `deliveredAt` / `cancelledAt`,
- * and appends `statusHistory`. Used by `setOrderStatus`, `confirmCodOrder` and `cancelOrder`.
+ * and appends `statusHistory` to the admin-only `orderStaffNotes/{orderId}` (with `cancelReason`). Used by `setOrderStatus`, `confirmCodOrder` and `cancelOrder`.
  */
 export async function changeOrderStatus(
   db: Firestore,
@@ -125,17 +126,25 @@ export async function changeOrderStatus(
     }
     giveBack?.();
 
+    // Who and why stay staff-only: the owner can read `orders/{id}`, so they go to orderStaffNotes.
+    tx.set(
+      orderStaffNotesRef(db, orderId),
+      staffNotesPatch(
+        {
+          status: target,
+          from: current,
+          at: Timestamp.now(),
+          by: actor.uid,
+          ...(actor.email ? { byEmail: actor.email } : {}),
+          ...(target === 'cancelled' && opts.reason ? { reason: opts.reason } : {}),
+        },
+        target === 'cancelled' ? (opts.reason ?? null) : undefined,
+      ),
+      { merge: true },
+    );
     const patch: DocumentData = {
       status: target,
       updatedAt: now,
-      statusHistory: FieldValue.arrayUnion({
-        status: target,
-        from: current,
-        at: Timestamp.now(),
-        by: actor.uid,
-        ...(actor.email ? { byEmail: actor.email } : {}),
-        ...(target === 'cancelled' && opts.reason ? { reason: opts.reason } : {}),
-      }),
     };
     const stamp = statusStampField(target);
     if (stamp) patch[stamp] = now;
@@ -144,7 +153,6 @@ export async function changeOrderStatus(
     if (target === 'confirmed' && current === 'pending') patch['confirmedBy'] = actor.uid;
     if (target === 'cancelled') {
       patch['cancelledBy'] = actor.uid;
-      patch['cancelReason'] = opts.reason ?? null;
       if (giveBack) patch['offerUsesReturnedAt'] = now;
     }
     if (stockMove === 'take') patch['stockDecrementedAt'] = now;

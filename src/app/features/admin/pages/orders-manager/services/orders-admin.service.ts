@@ -3,7 +3,14 @@ import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from '
 import * as v from 'valibot';
 import type { StaffOrderStatus } from '@core/config/order-status';
 import { callableFrom, injectFirestore, injectFunctionsAsync } from '@core/firebase';
-import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
+import {
+  ORDER_STAFF_NOTES_COLLECTION,
+  OrderSchema,
+  ORDERS_COLLECTION,
+  OrderStaffNotesSchema,
+  type OrderDoc,
+  type OrderStaffNotes,
+} from '@core/services/orders/order.schema';
 import { PRODUCTS_COLLECTION } from '@core/services/products/product.constants';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import type { OrderStatusFilter, ProductStockLookup } from '../models/order-admin.model';
@@ -99,6 +106,26 @@ export class OrdersAdminService {
       }
     }
 
+    return byId;
+  }
+
+  /**
+   * Staff-only notes (status history, cancel reason) for the loaded orders, from
+   * `orderStaffNotes/{orderId}`. A missing or unreadable doc just means no notes.
+   */
+  async loadStaffNotes(orders: readonly OrderDoc[]): Promise<ReadonlyMap<string, OrderStaffNotes>> {
+    const byId = new Map<string, OrderStaffNotes>();
+    for (let i = 0; i < orders.length; i += PRODUCT_LOOKUP_CHUNK) {
+      const chunk = orders.slice(i, i + PRODUCT_LOOKUP_CHUNK);
+      const snaps = await Promise.all(
+        chunk.map((order) => getDoc(doc(this.#firestore, ORDER_STAFF_NOTES_COLLECTION, order.id))),
+      );
+      for (const snap of snaps) {
+        if (!snap.exists()) continue;
+        const parsed = v.safeParse(OrderStaffNotesSchema, snap.data());
+        if (parsed.success) byId.set(snap.id, parsed.output);
+      }
+    }
     return byId;
   }
 

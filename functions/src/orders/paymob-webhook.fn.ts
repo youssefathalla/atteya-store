@@ -18,6 +18,7 @@ import {
   applyStockDemand,
   parseOrderStockLines,
 } from './decrement-order-stock.js';
+import { orderStaffNotesRef, staffNotesPatch } from './order-staff-notes.js';
 
 /**
  * Paymob Transaction Processed callback (notification_url).
@@ -211,8 +212,12 @@ export const paymobWebhook = onRequest(
             stockIssues: stockPlan.issues,
             needsReview,
             updatedAt: now,
-            statusHistory: FieldValue.arrayUnion(webhookHistoryEntry('confirmed', data['status'])),
           });
+          tx.set(
+            orderStaffNotesRef(db, orderId),
+            staffNotesPatch(webhookHistoryEntry('confirmed', data['status'])),
+            { merge: true },
+          );
           if (needsReview) {
             console.warn('Paymob order confirmed with stock issues', {
               orderId,
@@ -230,10 +235,14 @@ export const paymobWebhook = onRequest(
             updatedAt: now,
           };
           // Only record a real change (a repeat failure on a failed order adds no row).
-          if (data['status'] !== 'failed') {
-            failPatch['statusHistory'] = FieldValue.arrayUnion(webhookHistoryEntry('failed', data['status']));
-          }
           tx.update(orderRef, failPatch);
+          if (data['status'] !== 'failed') {
+            tx.set(
+              orderStaffNotesRef(db, orderId),
+              staffNotesPatch(webhookHistoryEntry('failed', data['status'])),
+              { merge: true },
+            );
+          }
         }
       });
     } catch (error: unknown) {

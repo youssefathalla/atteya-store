@@ -26,7 +26,7 @@ export function claimEmailMatches(orderEmail: unknown, callerEmail: string | und
 
 /**
  * What `orderViews/{viewKey}` holds for a guest order: only the fields the confirmation page reads.
- * Never staff-only fields (`confirmedBy`, `cancelledBy`, `cancelReason`, `statusHistory`, `stockNotReturned`,
+ * Never staff-only fields (`confirmedBy`, `cancelledBy`, `stockNotReturned`,
  * `deliveryFeeSetBy`, `stockIssues`, Paymob intention ids), the customer's email or uid, or the key itself.
  */
 export function orderViewFields(

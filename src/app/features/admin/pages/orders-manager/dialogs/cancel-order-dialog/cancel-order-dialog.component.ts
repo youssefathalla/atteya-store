@@ -50,10 +50,7 @@ export interface CancelOrderDialogResult {
             [value]="reason()"
             (input)="reason.set($any($event.target).value)"
           ></textarea>
-          <mat-hint
-            >Shown in the dashboard, not on the shopper's order page or emails. {{ length() }} /
-            {{ max }}</mat-hint
-          >
+          <mat-hint>Only staff see this. {{ length() }} / {{ max }}</mat-hint>
         </mat-form-field>
       </mat-dialog-content>
       <mat-dialog-actions align="end" class="gap-2 px-6 pb-4">

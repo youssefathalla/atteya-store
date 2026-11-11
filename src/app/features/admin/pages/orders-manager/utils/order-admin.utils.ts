@@ -15,7 +15,7 @@ import { whatsappChatUrl } from '@core/config/store-info';
 import { dealTag, displayDecimals } from '@core/services/offers/engine';
 import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
-import type { OrderDoc } from '@core/services/orders/order.schema';
+import type { OrderDoc, OrderStaffNotes } from '@core/services/orders/order.schema';
 import { formatMoney } from '@shared/utils/money';
 import { orderDate } from '@core/services/orders/shopper-orders.service';
 import type {
@@ -116,6 +116,7 @@ export function selectionLabel(
  */
 export function orderActions(
   order: OrderDoc,
+  notes: OrderStaffNotes | null = null,
 ): Pick<
   OrderLineAdminRow,
   | 'stage'
@@ -151,8 +152,8 @@ export function orderActions(
           : null,
     statusMoves: statusMoves(order, stage === 'fee-to-be-agreed'),
     stockTaken: stockTaken(order),
-    history: statusHistory(order),
-    cancelReason: 'cancelReason' in order ? (order.cancelReason ?? null) : null,
+    history: statusHistory(notes),
+    cancelReason: notes?.cancelReason?.trim() || null,
     amountDueLabel: due?.amountEgp != null ? formatMoney(due.amountEgp, 'EGP', 0) : null,
     deliveryFeeAction: agreedLine ? (isDeliveryFeeToBeAgreed(shipping) ? 'set' : 'change') : null,
     deliveryFeeEgp: agreedLine && !isDeliveryFeeToBeAgreed(shipping) ? (shipping?.priceEgp ?? null) : null,
@@ -198,9 +199,9 @@ const HISTORY_FORMAT = new Intl.DateTimeFormat('en-GB', {
   hour12: true,
 });
 
-function statusHistory(order: OrderDoc): OrderHistoryEntry[] {
-  if (!('statusHistory' in order)) return [];
-  return order.statusHistory.map((entry) => {
+function statusHistory(notes: OrderStaffNotes | null): OrderHistoryEntry[] {
+  if (!notes) return [];
+  return notes.statusHistory.map((entry) => {
     const date = orderDate(entry.at);
     return {
       label: orderStatusLabel(entry.status),
@@ -215,6 +216,7 @@ function statusHistory(order: OrderDoc): OrderHistoryEntry[] {
 export function toOrderLineAdminRows(
   orders: readonly OrderDoc[],
   productsById: ReadonlyMap<string, ProductStockLookup>,
+  notesById: ReadonlyMap<string, OrderStaffNotes> = new Map(),
 ): readonly OrderLineAdminRow[] {
   const rows: OrderLineAdminRow[] = [];
 
@@ -222,7 +224,7 @@ export function toOrderLineAdminRows(
     const placedAtLabel = formatPlacedAt(order);
     const payLabel = paymentLabel(order);
     const orderTotalLabel = formatOrderTotal(order);
-    const actions = orderActions(order);
+    const actions = orderActions(order, notesById.get(order.id) ?? null);
 
     order.pricing.lines.forEach((line, index) => {
       const product = productsById.get(line.productId) ?? null;
