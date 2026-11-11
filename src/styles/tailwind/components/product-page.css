@@ -352,6 +352,44 @@
     @apply pb-6 font-body-md max-w-prose;
   }
 
+  /** Size & Fit chart: scrolls sideways on a phone with the measurement names kept in view. */
+  .size-guide {
+    @apply mt-4 w-full overflow-x-auto overscroll-x-contain;
+  }
+
+  .size-guide:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  .size-guide__table {
+    @apply w-full min-w-xl border-collapse font-label-md font-mono text-center tabular-nums;
+  }
+
+  .size-guide__table th,
+  .size-guide__table td {
+    @apply px-3 py-4 whitespace-nowrap;
+  }
+
+  .size-guide__table thead :is(th, td) {
+    @apply bg-surface-container-high uppercase;
+  }
+
+  .size-guide__table tbody tr:nth-child(odd) :is(th, td) {
+    @apply bg-surface-container-low;
+  }
+
+  .size-guide__table tbody tr:nth-child(even) :is(th, td) {
+    @apply bg-surface;
+  }
+
+  .size-guide__table :is(thead td, tbody th) {
+    @apply sticky left-0 z-1 uppercase tracking-wider border-r border-outline-variant;
+  }
+
+  .size-guide__table :is(th, td) + :is(th, td) {
+    @apply border-l border-outline-variant;
+  }
+
   /** One line per fact (details, shipping notes). */
   .pdp-section__list {
     @apply elements-start-col gap-1 list-none m-0 p-0;
