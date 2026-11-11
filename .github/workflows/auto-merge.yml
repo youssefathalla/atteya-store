@@ -492,40 +492,50 @@ jobs:
               return true;
             };
 
+            // Merges made with the workflow token start no push workflow on develop, so Conflict
+            // Watch is started directly: right after the first merge (so a timeout in the check of
+            // other PRs below can never drop it), and once more if that check merged more PRs.
+            const startConflictWatch = async () => {
+              try {
+                await github.rest.actions.createWorkflowDispatch({ owner, repo, workflow_id: 'conflict-watch.yml', ref: BASE });
+              } catch (error) {
+                core.info(`Could not start Conflict Watch: ${error.message}`);
+              }
+            };
+
+            const startedAt = Date.now();
             let mergedAny = false;
             const checked = new Set();
             for (const candidate of candidates) {
               checked.add(candidate.number);
               if (await checkAndMerge(candidate.number, sha, true)) mergedAny = true;
             }
+            if (mergedAny) await startConflictWatch();
 
             // A PR that lost a race (or whose last check ended while develop was moving) has no
             // event left to start it. After a merge, check every other open owner PR into develop
-            // once, quietly, and merge the ones that are clean.
+            // once, quietly, and merge the ones that are clean. Stops after 6 minutes so the job
+            // (10-minute timeout) always ends on its own; a PR left over keeps its own events.
             if (mergedAny) {
               quiet = true;
+              let sweptMerge = false;
               const open = await github.paginate(github.rest.pulls.list, {
                 owner, repo, state: 'open', base: BASE, sort: 'created', direction: 'asc', per_page: 100,
               });
               for (const other of open) {
+                if (Date.now() - startedAt > 6 * 60 * 1000) {
+                  core.info('Stopped checking other pull requests after 6 minutes.');
+                  break;
+                }
                 if (checked.has(other.number)) continue;
                 if (other.draft || other.user?.login !== owner) continue;
                 if (other.head?.repo?.full_name !== `${owner}/${repo}`) continue;
                 checked.add(other.number);
                 try {
-                  if (await checkAndMerge(other.number, other.head.sha, false)) mergedAny = true;
+                  if (await checkAndMerge(other.number, other.head.sha, false)) sweptMerge = true;
                 } catch (error) {
                   core.info(`#${other.number}: could not check it (${error.message}).`);
                 }
               }
-            }
-
-            // These merges used the workflow token, so no push workflow starts on develop.
-            // Start Conflict Watch directly: other open PRs may conflict now.
-            if (mergedAny) {
-              try {
-                await github.rest.actions.createWorkflowDispatch({ owner, repo, workflow_id: 'conflict-watch.yml', ref: BASE });
-              } catch (error) {
-                core.info(`Could not start Conflict Watch: ${error.message}`);
-              }
+              if (sweptMerge) await startConflictWatch();
             }
