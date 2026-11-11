@@ -10,6 +10,8 @@ export interface CancelOrderDialogData {
   readonly orderRef: string;
   /** True when the items were taken out of stock (they go back on cancel). */
   readonly stockTaken: boolean;
+  /** Confirmed already: the payment or delivery fee may have been received. */
+  readonly confirmed: boolean;
 }
 
 /** What Cancel Order closes with: the reason, trimmed ('' = none). Keep Order closes with nothing. */
@@ -33,6 +35,12 @@ export interface CancelOrderDialogResult {
           }}
           No email is sent; message the shopper on WhatsApp if needed.
         </p>
+        @if (data.confirmed) {
+          <p class="font-body-md">
+            This order is confirmed, so the shopper may have paid already. Send their money back yourself; the
+            dashboard doesn't refund it.
+          </p>
+        }
         <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
           <mat-label>Reason (optional)</mat-label>
           <textarea
@@ -42,7 +50,10 @@ export interface CancelOrderDialogResult {
             [value]="reason()"
             (input)="reason.set($any($event.target).value)"
           ></textarea>
-          <mat-hint>Only staff see this. {{ length() }} / {{ max }}</mat-hint>
+          <mat-hint
+            >Shown in the dashboard, not on the shopper's order page or emails. {{ length() }} /
+            {{ max }}</mat-hint
+          >
         </mat-form-field>
       </mat-dialog-content>
       <mat-dialog-actions align="end" class="gap-2 px-6 pb-4">

@@ -24,6 +24,8 @@ export const setOrderStatus = onCall(
     }
     return changeOrderStatus(getFirestore(), parsed.orderId, parsed.status, actor, {
       reason: parsed.reason,
+      // A retry after a lost response (already in that status) is not an error.
+      idempotent: true,
     });
   },
 );

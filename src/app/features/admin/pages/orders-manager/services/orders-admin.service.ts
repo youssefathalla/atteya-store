@@ -42,6 +42,8 @@ export interface SetOrderStatusResult {
   readonly status: StaffOrderStatus;
   readonly changed: boolean;
   readonly stock: 'take' | 'return' | 'none';
+  /** Pieces that couldn't go back into stock (size or product gone). */
+  readonly notReturned?: number;
 }
 
 export interface SetDeliveryFeeResult {

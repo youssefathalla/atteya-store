@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import { ORDER_STATUSES } from '@core/config/order-status';
 import { timestampSchema } from '@shared/schemas';
 
 const country = v.pipe(v.string(), v.trim(), v.length(2));
@@ -115,15 +116,7 @@ export const OrderBankTransferSchema = v.object({
   whatsAppProofUrl: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(8)), null),
 });
 
-/** Every status an order can have. Staff move them in the admin (`setOrderStatus`). */
-export const ORDER_STATUSES = [
-  'pending',
-  'confirmed',
-  'shipped',
-  'delivered',
-  'cancelled',
-  'failed',
-] as const;
+/** Every status an order can have (shared list; staff move them with `setOrderStatus`). */
 const orderStatus = v.picklist(ORDER_STATUSES);
 
 /** One saved status change (`statusHistory`, appended by the server). */

@@ -37,6 +37,8 @@ export interface OrderStatusChangeResult {
   readonly changed: boolean;
   /** `take`: items left stock; `return`: they went back; `none`: stock untouched. */
   readonly stock: 'take' | 'return' | 'none';
+  /** Pieces that couldn't go back into stock (the size or product is gone). Staff check by hand. */
+  readonly notReturned: number;
 }
 
 export interface OrderStatusChangeOptions {
@@ -77,7 +79,7 @@ export async function changeOrderStatus(
       throw new HttpsError('failed-precondition', "This order's status can't be changed here.");
     }
     if (current === target && opts.idempotent) {
-      return { orderId, status: target, changed: false, stock: 'none' as const };
+      return { orderId, status: target, changed: false, stock: 'none' as const, notReturned: 0 };
     }
     if (opts.onlyFrom && !opts.onlyFrom.includes(current)) {
       throw new HttpsError('failed-precondition', opts.onlyFromMessage ?? moveRefusal(order, target));
@@ -92,22 +94,25 @@ export async function changeOrderStatus(
     const stockMove = stockMoveFor(target, orderStockTaken(order));
     const stockPlan = stockMove === 'none' ? null : await readStockPlan(tx, db, order);
 
-    const giveBack =
+    const saved =
       target === 'cancelled' && !order['offerUsesReturnedAt']
-        ? await (async () => {
-            const saved = parseSavedOfferUses(order['offerUses']);
-            return saved ? readOfferGiveBack(tx, db, saved) : null;
-          })()
+        ? parseSavedOfferUses(order['offerUses'])
         : null;
+    const giveBack = saved ? await readOfferGiveBack(tx, db, saved) : null;
 
     // Every read is done; writes from here on.
     const now = FieldValue.serverTimestamp();
+    let notReturned = 0;
     if (stockPlan) {
       for (const item of stockPlan) {
-        const next =
-          stockMove === 'take'
-            ? takeStock(item.data, item.demand)
-            : applyStockReturn(stockSnapshot(item.data), item.demand)?.next;
+        let next;
+        if (stockMove === 'take') {
+          next = takeStock(item.data, item.demand);
+        } else {
+          const back = item.data ? applyStockReturn(stockSnapshot(item.data), item.demand) : null;
+          notReturned += back ? back.skipped : demandPieces(item.demand);
+          next = back?.next;
+        }
         if (!next) continue;
         tx.update(item.ref, {
           stock: next.stock,
@@ -135,6 +140,7 @@ export async function changeOrderStatus(
     const stamp = statusStampField(target);
     if (stamp) patch[stamp] = now;
     for (const field of stampsClearedBy(current, target)) patch[field] = null;
+    if (target === 'pending') patch['confirmedBy'] = null;
     if (target === 'confirmed' && current === 'pending') patch['confirmedBy'] = actor.uid;
     if (target === 'cancelled') {
       patch['cancelledBy'] = actor.uid;
@@ -145,10 +151,15 @@ export async function changeOrderStatus(
     if (stockMove === 'return') {
       patch['stockDecrementedAt'] = null;
       patch['stockReturnedAt'] = now;
+      // Pieces that had nowhere to go back to (size removed, product deleted): staff check them.
+      patch['stockNotReturned'] = notReturned;
+      if (notReturned > 0) {
+        console.warn('Order stock could not all go back', { orderId, notReturned });
+      }
     }
     tx.update(orderRef, patch);
 
-    return { orderId, status: target, changed: true, stock: stockMove };
+    return { orderId, status: target, changed: true, stock: stockMove, notReturned };
   });
 }
 
@@ -218,17 +229,22 @@ function moveRefusal(order: DocumentData, target: StaffOrderStatus): string {
     return `This order is ${orderStatusLabel(current).toLowerCase()}, so its status can't change.`;
   }
   if (order['paymentMethod'] === 'paymob') {
-    if (target === 'cancelled') {
-      return "Card orders can't be cancelled here. Refund the payment first, then message the shopper.";
-    }
     if (current === 'pending' || target === 'pending') {
-      return 'Card payments are confirmed on their own when the payment clears.';
+      return "Card orders can't be changed while the payment is open. They update on their own when the payment clears or fails.";
+    }
+    if (target === 'cancelled') {
+      return "Paid card orders can't be cancelled here, because the payment can't be refunded from the dashboard yet.";
     }
   }
   if (isOrderStatus(current)) {
     return `An order that is ${orderStatusLabel(current)} can't be marked as ${orderStatusLabel(target)}. Refresh the list and try again.`;
   }
   return "This order's status can't be changed here.";
+}
+
+function demandPieces(demand: ProductStockDemand): number {
+  if (demand.kind === 'flat') return demand.quantity;
+  return Object.values(demand.bySize).reduce((sum, qty) => sum + qty, 0);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

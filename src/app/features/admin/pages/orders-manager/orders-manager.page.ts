@@ -57,6 +57,18 @@ const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: st
   { id: 'all', label: 'All Recent' },
 ];
 
+/** What a step back does, said before staff confirm it. */
+function stepBackMessage(status: string): string {
+  switch (status) {
+    case 'pending':
+      return "The items go back into stock and the shopper's order page asks for payment again. Only do this if the payment didn't actually arrive.";
+    case 'confirmed':
+      return "The shopper's order page shows the order as not sent yet.";
+    default:
+      return "The shopper's order page shows the order as not delivered yet.";
+  }
+}
+
 @Component({
   selector: 'app-orders-manager-page',
   host: { class: 'block w-full' },
@@ -222,18 +234,37 @@ export class OrdersManagerPageComponent implements OnInit {
         CancelOrderDialogData,
         CancelOrderDialogResult
       >(CancelOrderDialogComponent, {
-        data: { orderRef: row.orderRef, stockTaken: row.stockTaken },
+        data: { orderRef: row.orderRef, stockTaken: row.stockTaken, confirmed: row.status === 'confirmed' },
         width: '440px',
       });
       const result = await firstValueFrom(ref.afterClosed());
       if (!result) return;
       reason = result.reason || null;
     }
+    if (move.label.startsWith('Back to')) {
+      const ok = await this.#ask({
+        title: `Move ${row.orderRef} back to ${statusName(move.status)}?`,
+        message: stepBackMessage(move.status),
+        confirmText: move.label,
+        cancelText: 'Keep Status',
+        theme: 'primary',
+      });
+      if (!ok) return;
+    }
     await this.#run(row, 'status', async () => {
-      await this.#ordersAdmin.setOrderStatus(row.orderId, move.status, reason);
-      this.#snackbar.success(
-        move.status === 'cancelled' ? 'Order cancelled.' : `Order marked as ${statusName(move.status)}.`,
-      );
+      const result = await this.#ordersAdmin.setOrderStatus(row.orderId, move.status, reason);
+      const done =
+        move.status === 'cancelled' ? 'Order cancelled.' : `Order marked as ${statusName(move.status)}.`;
+      const missed = result.notReturned ?? 0;
+      if (missed > 0) {
+        this.#snackbar.info(
+          `${done} ${missed === 1 ? '1 item' : `${missed} items`} couldn't go back into stock because the size or product is gone. Check the product's stock.`,
+          'Close',
+          8000,
+        );
+      } else {
+        this.#snackbar.success(done);
+      }
     });
   }
 
