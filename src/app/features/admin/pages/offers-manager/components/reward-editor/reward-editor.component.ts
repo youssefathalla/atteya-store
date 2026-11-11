@@ -251,8 +251,10 @@ export class RewardEditorComponent {
     this.reward.set({ ...r, rows: change(r.rows) });
   }
 
+  /** What was typed, decimals kept (empty or not a number = 0), so a wrong value shows the form's error. */
   #readTyped(event: Event): number {
-    const parsed = Number.parseInt((event.target as HTMLInputElement).value.trim(), 10);
+    const value = (event.target as HTMLInputElement).value.trim();
+    const parsed = value === '' ? 0 : Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
   }
 

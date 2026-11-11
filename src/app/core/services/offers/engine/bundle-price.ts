@@ -51,8 +51,42 @@ export function bundleOneRowPrice(offer: Pick<Offer, 'reward'>): number | null {
  */
 export function bundleCover(rows: readonly OfferBundleRow[], pieces: number): BundleCover | null {
   const n = Math.max(0, Math.floor(pieces));
-  if (n === 0) return { total: 0, rows: [] };
-  // best[k] = cheapest total for k pieces; last[k] = the row used last to get there.
+  return coverTable(rows, n).cover(n);
+}
+
+/**
+ * How many of the pieces go into bundles, and what they cost: the pieces are given most expensive
+ * first (`prices`, each piece's price without the bundle, after per-item offers); the first `pieces`
+ * of them pay the bundle total, the rest their own price. The cheapest for the shopper wins; a tie
+ * keeps fewer pieces in the bundle (their own offers), so the bundle never costs the shopper more.
+ */
+export function bestBundle(
+  rows: readonly OfferBundleRow[],
+  prices: readonly number[],
+): { readonly pieces: number; readonly cover: BundleCover } {
+  const table = coverTable(rows, prices.length);
+  let pieces = 0;
+  let best = prices.reduce((sum, price) => sum + price, 0);
+  let rest = best;
+  for (let k = 1; k <= prices.length; k++) {
+    rest -= prices[k - 1]!;
+    const total = table.total(k);
+    if (total + rest < best) {
+      best = total + rest;
+      pieces = k;
+    }
+  }
+  return { pieces, cover: table.cover(pieces) ?? { total: 0, rows: [] } };
+}
+
+/**
+ * One pass for every piece count up to `n`: the cheapest total (`Infinity` when no mix of rows
+ * adds up to it) and the mix of rows behind it.
+ */
+function coverTable(
+  rows: readonly OfferBundleRow[],
+  n: number,
+): { total: (k: number) => number; cover: (k: number) => BundleCover | null } {
   const best: number[] = [0];
   const count: number[] = [0];
   const last: (OfferBundleRow | null)[] = [null];
@@ -71,45 +105,20 @@ export function bundleCover(rows: readonly OfferBundleRow[], pieces: number): Bu
       }
     }
   }
-  if (!Number.isFinite(best[n]!)) return null;
-  const uses = new Map<number, BundleRowUse>();
-  for (let k = n; k > 0;) {
-    const row = last[k]!;
-    const seen = uses.get(row.quantity);
-    uses.set(row.quantity, { ...row, count: (seen?.count ?? 0) + 1 });
-    k -= row.quantity;
-  }
   return {
-    total: best[n]!,
-    rows: [...uses.values()].sort((a, b) => b.quantity - a.quantity),
+    total: (k) => best[k] ?? Number.POSITIVE_INFINITY,
+    cover: (k) => {
+      if (!Number.isFinite(best[k] ?? Number.POSITIVE_INFINITY)) return null;
+      const uses = new Map<number, BundleRowUse>();
+      for (let left = k; left > 0;) {
+        const row = last[left]!;
+        const seen = uses.get(row.quantity);
+        uses.set(row.quantity, { ...row, count: (seen?.count ?? 0) + 1 });
+        left -= row.quantity;
+      }
+      return { total: best[k]!, rows: [...uses.values()].sort((a, b) => b.quantity - a.quantity) };
+    },
   };
-}
-
-/**
- * How many of the pieces go into bundles, and what they cost: the pieces are given most expensive
- * first (`prices`, each piece's price without the bundle, after per-item offers); the first `pieces`
- * of them pay the bundle total, the rest their own price. The cheapest for the shopper wins; a tie
- * keeps fewer pieces in the bundle (their own offers), so the bundle never costs the shopper more.
- */
-export function bestBundle(
-  rows: readonly OfferBundleRow[],
-  prices: readonly number[],
-): { readonly pieces: number; readonly cover: BundleCover } {
-  let pieces = 0;
-  let cover: BundleCover = { total: 0, rows: [] };
-  let best = prices.reduce((sum, price) => sum + price, 0);
-  let rest = best;
-  for (let k = 1; k <= prices.length; k++) {
-    rest -= prices[k - 1]!;
-    const candidate = bundleCover(rows, k);
-    if (!candidate) continue;
-    if (candidate.total + rest < best) {
-      best = candidate.total + rest;
-      pieces = k;
-      cover = candidate;
-    }
-  }
-  return { pieces, cover };
 }
 
 /**

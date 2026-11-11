@@ -258,6 +258,23 @@ describe('Bundle price in the bag', () => {
     assert.equal(deals.bundles.length, 0);
   });
 
+  it('counts the free gifts a Buy X Get Y piece gives up when choosing', () => {
+    // Money alone: Buy 2 get 1 free = 442, bundle 2 for 265 + 221 = 486. But the free piece loses
+    // its 97 gift, and the bundle keeps all three: 442 - 2 x 97 = 248 vs 486 - 3 x 97 = 195.
+    const socks = product('socks-g', ['apparel', 'socks'], 221);
+    const b2g1 = offer('b2g1-gift', {
+      kind: 'buyXGetY',
+      buy: { quantity: 2 },
+      get: { quantity: 1, percent: 100 },
+      getConditions: null,
+      repeat: true,
+    });
+    const pair = bundle('pair', [{ quantity: 2, price: 265 }]);
+    const deals = priceBagDeals([line(socks, 3, { giftWorth: 97 })], [b2g1, pair], CTX);
+    assert.deepEqual(deals.offerIds, ['pair']);
+    assert.equal(deals.lines[0].giftUnits, 3);
+  });
+
   it('skips sale items when the offer leaves them out', () => {
     const exclude = bundle('ex', [{ quantity: 2, price: 200 }], { saleItems: 'exclude' });
     const deals = priceBagDeals([line(SOCKS_A, 2, { onSale: true })], [exclude], CTX);

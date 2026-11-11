@@ -2,7 +2,6 @@ import * as v from 'valibot';
 import { idSchema, timestampSchema } from '@shared/schemas';
 import {
   DEFAULT_OFFER_BANNER,
-  MAX_BUNDLE_ROWS,
   MAX_GIFT_CHOICES,
   MAX_GIFT_NAME,
   MAX_OFFER_GIFTS,
@@ -97,10 +96,8 @@ const RewardVariantSchema = v.variant('kind', [
   }),
   v.object({
     kind: v.literal('bundlePrice'),
-    rows: v.pipe(
-      v.array(v.object({ quantity: positiveInt, price: positiveInt })),
-      v.maxLength(MAX_BUNDLE_ROWS),
-    ),
+    // Bad rows are dropped by `bundleRows` below, as the server's reader does, so both price the same rows.
+    rows: v.array(v.object({ quantity: v.number(), price: v.number() })),
   }),
   v.object({
     kind: v.literal('freeGift'),

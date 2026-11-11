@@ -317,7 +317,8 @@ export class ProductComponent {
         ...this.#splitBadges(r.badges, offers),
       };
     }
-    const d = displayPrice(priced, offers, ctx);
+    // A Bundle price "From" is for cards only: this page prices the size the shopper picks.
+    const d = displayPrice(priced, offers, ctx, { bundleFrom: false });
     return {
       price: d.partial ? p.price : d.fromPrice,
       fromPrice: d.partial ? d.fromPrice : null,

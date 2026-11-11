@@ -31,6 +31,7 @@
       <ul class="px-5 pt-4 pb-1 border-b border-outline-variant">
         @for (line of lines(); track lineKey(line)) {
           @let info = productInfo(line.productId);
+          @let lineIndex = $index;
           <li class="bag-card" [class.bag-card--gone]="!info">
             @if (info; as product) {
               <div class="bag-card__body">
@@ -198,7 +199,7 @@
               }
 
               <!-- Bundle price: one strip for all its pieces, then the nudge to the next row. -->
-              @for (box of bundleBoxes($index); track box.offerId) {
+              @for (box of bundleBoxes(lineIndex); track box.offerId) {
                 @if (box.strip; as stripTitle) {
                   <div class="bag-card__strip">
                     <span class="min-w-0">{{ stripTitle }}</span>
@@ -214,7 +215,7 @@
                       <button
                         matButton="filled"
                         type="button"
-                        (click)="addMore($index, box.missing)"
+                        (click)="addMore(lineIndex, box.missing)"
                         [attr.aria-label]="'Add ' + box.missing + ' more ' + product.name"
                       >
                         Add {{ box.missing }}

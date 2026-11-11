@@ -546,7 +546,9 @@ async function priceWithOffers(
       productId: line.productId,
       shownBaseEgp: line.shownBaseEgp,
       baseEgp: Math.max(0, Math.round(lineResults[index]!.product.price)),
-      dealUnits: deals.lines[index]!.dealUnits,
+      // Bundle pieces pay their share of the bundle total, whatever the base price; a rise that
+      // changes the bag's total is still caught by `baseRiseCostsMore` below.
+      dealUnits: dealUnitsOutsideBundles(deals.lines[index]!),
     })),
   );
   if (missedBase !== null) return missedBase;
@@ -745,6 +747,12 @@ export function giftWorth(
     if (Number.isFinite(price) && price > 0) worth += Math.round(price);
   }
   return worth;
+}
+
+/** Pieces of a line in a Buy X Get Y group (they pay the price before per-item offers), bundles left out. */
+export function dealUnitsOutsideBundles(lineDeals: BagLineDeals): number {
+  const bundled = lineDeals.deals.filter((deal) => deal.bundle).reduce((sum, deal) => sum + deal.units, 0);
+  return Math.max(0, lineDeals.dealUnits - bundled);
 }
 
 /**

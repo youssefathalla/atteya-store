@@ -113,10 +113,15 @@ export function priceItem(
   };
 }
 
+/**
+ * The card price. `bundleFrom` (on by default) lets a Bundle price offer's 1-piece row lower the
+ * "From" price; the product page turns it off, since it prices the chosen size like the bag.
+ */
 export function displayPrice(
   product: PricedProduct,
   offers: readonly Offer[],
   ctx: PricingContext,
+  options: { readonly bundleFrom?: boolean } = {},
 ): DisplayPriceResult {
   const active = liveOffers(offers, ctx);
   const synthesizedVariants = buildTestableVariants(product);
@@ -152,7 +157,7 @@ export function displayPrice(
 
   // A Bundle price offer with a 1-piece row ("1 for 125") is the lowest a single piece costs, so
   // the card says "From 125". Only priced in the bag: the product page keeps its own price.
-  for (const offer of active) {
+  for (const offer of options.bundleFrom === false ? [] : active) {
     if (offer.scope !== 'item' || hasMinimum(offer)) continue;
     const one = bundleOneRowPrice(offer);
     if (one === null || one >= fromPrice || !matchingOfferIds.includes(offer.id)) continue;

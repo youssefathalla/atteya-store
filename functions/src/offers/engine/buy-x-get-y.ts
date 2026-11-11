@@ -174,19 +174,21 @@ export function priceBagDeals(
   // One discount per item between a Bundle price and a Buy X Get Y offer: whichever saves the
   // shopper more. Try each kind first too, and keep the cheapest bag (a tie keeps priority order).
   const isBundle = (offer: Offer): boolean => offer.reward.kind === 'bundlePrice';
+  // A Buy X Get Y discounted piece gives up its free gifts, so the gifts kept count for the shopper.
+  const cost = (deals: BagDeals): number =>
+    deals.lines.reduce((sum, line, index) => {
+      const giftWorth = Math.max(0, Math.round(lines[index]!.giftWorth));
+      return sum + line.total - (Number.isFinite(giftWorth) ? line.giftUnits * giftWorth : 0);
+    }, 0);
   let best = first;
   for (const order of [
     [...candidates.filter(isBundle), ...candidates.filter((offer) => !isBundle(offer))],
     [...candidates.filter((offer) => !isBundle(offer)), ...candidates.filter(isBundle)],
   ]) {
     const priced = priceInOrder(lines, order);
-    if (bagTotal(priced) < bagTotal(best)) best = priced;
+    if (cost(priced) < cost(best)) best = priced;
   }
   return best;
-}
-
-function bagTotal(deals: BagDeals): number {
-  return deals.lines.reduce((sum, line) => sum + line.total, 0);
 }
 
 /** `priceBagDeals` with the offers worked out in this order (each piece used by one offer only). */
