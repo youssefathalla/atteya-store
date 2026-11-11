@@ -30,7 +30,18 @@
 
   <p class="mt-4 font-body-md">{{ intro() }}</p>
 
-  <section class="size-guide" tabindex="0" [attr.aria-label]="g.label + ' size chart'">
+  <!-- Mouse drag only while the table is wider than its box; the wheel stays on the page, and touch and trackpads scroll natively. -->
+  <section
+    class="size-guide"
+    tabindex="0"
+    [attr.aria-label]="g.label + ' size chart'"
+    appHorizontalScroll
+    #scroller="horizontalScroll"
+    [trackScroll]="true"
+    [snapToItems]="false"
+    [enableWheel]="false"
+    [enableDrag]="scroller.canPrev() || scroller.canNext()"
+  >
     <table class="size-guide__table">
       <caption class="sr-only">
         {{

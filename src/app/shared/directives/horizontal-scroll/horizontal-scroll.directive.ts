@@ -132,10 +132,21 @@ export class HorizontalScrollDirective {
     };
     sync();
     el.addEventListener('scroll', sync, { passive: true });
-    // Size changes (drawer opening, window resize) and cards added or removed.
+    // Size changes of the row (drawer opening, window resize) and of each direct child (a table whose
+    // cells change width), and cards added or removed.
     const resize = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null;
     resize?.observe(el);
-    const children = typeof MutationObserver !== 'undefined' ? new MutationObserver(sync) : null;
+    for (const child of Array.from(el.children)) resize?.observe(child);
+    const children =
+      typeof MutationObserver !== 'undefined'
+        ? new MutationObserver((records) => {
+            for (const record of records) {
+              record.addedNodes.forEach((node) => node instanceof Element && resize?.observe(node));
+              record.removedNodes.forEach((node) => node instanceof Element && resize?.unobserve(node));
+            }
+            sync();
+          })
+        : null;
     children?.observe(el, { childList: true });
     return () => {
       el.removeEventListener('scroll', sync);

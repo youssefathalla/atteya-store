@@ -1,11 +1,12 @@
 import { Component, computed, input, linkedSignal, signal } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
 import type { SizeGuide, SizeGuideId, SizeUnit } from '../../utils/size-guide';
 
 /** Size chart for the product page's Size & Fit section. */
 @Component({
   selector: 'app-size-guide',
-  imports: [MatButtonToggleModule],
+  imports: [MatButtonToggleModule, HorizontalScrollDirective],
   templateUrl: './size-guide.component.html',
   host: { class: 'block w-full' },
 })
