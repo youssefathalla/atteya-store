@@ -86,6 +86,8 @@ export class AuthService {
   readonly #consentReady$ = toObservable(this.#consentReady);
   /** The `users/{uid}` terms read failed, so `needsConsent` is a fail-closed guess. */
   readonly #consentCheckFailed = signal(false);
+  /** Bumped each time the sign-in claim links guest orders to the account. */
+  readonly #guestOrdersLinked = signal(0);
 
   #pendingCredential: AuthCredential | null = null;
   #generation = 0;
@@ -113,6 +115,11 @@ export class AuthService {
   readonly linkingGoogle = this.#linkingGoogle.asReadonly();
   readonly needsConsent = this.#needsConsent.asReadonly();
   readonly consentReady = this.#consentReady.asReadonly();
+  /**
+   * Changes after the sign-in claim (`claimGuestOrdersByEmail`) links at least one guest order,
+   * so views that read an order's owner can read it again.
+   */
+  readonly guestOrdersLinked = this.#guestOrdersLinked.asReadonly();
 
   /**
    * Subscribes for the signed-in user's role mirror. Reading `value()` in the
@@ -193,8 +200,8 @@ export class AuthService {
       const linked = await this.#orders.claimGuestOrdersByEmail();
       writeGuestClaimStamp(uid);
       if (linked <= 0 || this.#auth.currentUser?.uid !== uid) return;
-      // The order page's own "Save to My Account" card already says the order was saved.
-      if (this.#router.url.startsWith('/checkout/confirmation/')) return;
+      // Pages that show whether an order is linked (the order page's Save card) check again.
+      this.#guestOrdersLinked.update((n) => n + 1);
       this.#snackbar.success(
         linked === 1
           ? 'We added 1 earlier order to your account.'
