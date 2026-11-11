@@ -62,7 +62,7 @@ Do NOT build, and stop after this step, when any of these is true:
    - `npm run test:cart`
    - `npm test --prefix functions`
    - `npx ng build --configuration development`
-5. Review your own change before it leaves this session, so Bugbot, the Claude review and Claude Fix find little or nothing:
+5. Review your own change before it leaves this session, so the Claude code review, the Claude security review and Claude Fix find little or nothing:
    - Commit your work first (the reviews read the branch against `origin/develop`), then run `git remote set-head origin develop` once. Without it `/security-review` fails with "ambiguous argument 'origin/HEAD...'".
    - Run `/code-review` on the branch against `origin/develop`: at `high` when the change touches money, stock, sign-in, Firestore or Storage rules, `functions/` or checkout; at `medium` otherwise (the `preflight-gate` skill's rule).
    - Run `/security-review` on the same branch.
@@ -76,7 +76,7 @@ Do NOT build, and stop after this step, when any of these is true:
 - Base `develop`. Title starts with the issue id: `<id> <plain summary>`.
 - Body: first line `Linear: [<id>](https://linear.app/<workspace>/issue/<id>)`, a clickable link to the issue (`workspace` from `linear.config.json`). Then what changed and why, how to check it on the dev site, and any deploy step it needs (for example `fb:rules:dev` or `fb:fn:dev`) for the person who deploys. Never write closing words like "Fixes <id>" or "Closes <id>".
 - Add a short "Self-review" section to the body: the `/code-review` level used, that `/security-review` ran, what each found and you fixed, and any finding left on purpose with its one-line reason. "Nothing found" is a fine answer.
-- If every check in step 4.4 passed after the self-review in step 4.5, open it as a normal (ready) PR. The Claude review and the Claude fix workflow review it, and it merges into `develop` by itself when clean.
+- If every check in step 4.4 passed after the self-review in step 4.5, open it as a normal (ready) PR. The Claude code and security reviews and the Claude Fix workflow review it, and it merges into `develop` by itself when clean.
 - If a check still fails and you could not fix it, open it as a **draft** and say in the body exactly what fails and why. Drafts are never merged automatically.
 - Use `gh pr create` if it is available. Otherwise use whatever GitHub tool this session has.
 
