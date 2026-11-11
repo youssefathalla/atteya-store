@@ -5,6 +5,7 @@ import {
   MAX_GIFT_CHOICES,
   MAX_GIFT_NAME,
   MAX_OFFER_GIFTS,
+  bundleRows,
   parseOfferBanner,
   type OfferReward,
 } from './engine';
@@ -94,6 +95,11 @@ const RewardVariantSchema = v.variant('kind', [
     maxApplications: v.nullable(positiveInt, null),
   }),
   v.object({
+    kind: v.literal('bundlePrice'),
+    // Bad rows are dropped by `bundleRows` below, as the server's reader does, so both price the same rows.
+    rows: v.array(v.object({ quantity: v.number(), price: v.number() })),
+  }),
+  v.object({
     kind: v.literal('freeGift'),
     gifts: v.optional(v.pipe(v.array(OfferGiftSchema), v.maxLength(MAX_OFFER_GIFTS))),
     /** Old shape: one fixed gift product. Read as one gift with one choice. */
@@ -112,6 +118,7 @@ const RewardVariantSchema = v.variant('kind', [
 export const OfferRewardSchema = v.pipe(
   RewardVariantSchema,
   v.transform((reward): OfferReward => {
+    if (reward.kind === 'bundlePrice') return { kind: 'bundlePrice', rows: bundleRows(reward) };
     if (reward.kind !== 'freeGift') return reward;
     if (reward.gifts) {
       return {

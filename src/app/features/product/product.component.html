@@ -72,8 +72,18 @@
               [partial]="pr.partial"
               [badges]="pr.badges"
             />
-            @for (line of pr.offerLines; track line) {
-              <p class="font-label-lg">{{ line }}</p>
+            @for (line of pr.offerLines; track line.text) {
+              @if (line.shopOfferId; as offerId) {
+                <a
+                  class="block w-fit font-label-lg underline underline-offset-2"
+                  routerLink="/shop"
+                  [queryParams]="{ offer: offerId }"
+                >
+                  {{ line.text }}
+                </a>
+              } @else {
+                <p class="font-label-lg">{{ line.text }}</p>
+              }
             }
           }
 

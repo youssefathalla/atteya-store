@@ -1,4 +1,4 @@
-import { MAX_GIFT_CHOICES, MAX_OFFER_GIFTS, parseOfferBanner } from './engine/index.js';
+import { MAX_GIFT_CHOICES, MAX_OFFER_GIFTS, bundleRows, parseOfferBanner } from './engine/index.js';
 import type {
   Offer,
   OfferGift,
@@ -251,6 +251,18 @@ function parseReward(raw: unknown): OfferReward | null {
         repeat: obj['repeat'] !== false,
         maxApplications: readNumber(obj['maxApplications']),
       };
+    }
+    case 'bundlePrice': {
+      // Bad rows are dropped (`bundleRows`); an offer left with none gives nothing.
+      const rawRows = Array.isArray(obj['rows']) ? obj['rows'] : [];
+      const rows = rawRows.flatMap((raw) => {
+        if (typeof raw !== 'object' || raw === null) return [];
+        const row = raw as Record<string, unknown>;
+        const quantity = readNumber(row['quantity']);
+        const price = readNumber(row['price']);
+        return quantity === null || price === null ? [] : [{ quantity, price }];
+      });
+      return { kind: 'bundlePrice', rows: bundleRows({ kind: 'bundlePrice', rows }) };
     }
     case 'freeGift':
       return { kind: 'freeGift', gifts: parseGifts(obj) };

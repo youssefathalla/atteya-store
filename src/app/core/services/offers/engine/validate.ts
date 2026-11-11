@@ -1,10 +1,12 @@
 // GENERATED — edit functions/src/offers/engine
+import { MAX_BUNDLE_PIECES, MAX_BUNDLE_ROWS } from './bundle-price';
 import { MAX_BANNER_COUNTDOWN_DAYS, MAX_BANNER_TEXT, MIN_BANNER_COUNTDOWN_DAYS } from './banner';
 import { MAX_GIFT_CHOICES, MAX_GIFT_NAME, MAX_OFFER_GIFTS } from './gifts';
 import { formatCairoDate } from './cairo-time';
 import { matchProduct } from './match';
 import type {
   Offer,
+  OfferBundleRow,
   OfferConditions,
   OfferDraft,
   OfferGift,
@@ -261,6 +263,9 @@ function validateRewardErrors(
       }
       validateFreeItem(r.getConditions, errors);
       break;
+    case 'bundlePrice':
+      validateBundleRows(r.rows, errors);
+      break;
     case 'freeGift':
       validateGifts(r.gifts, products, errors);
       break;
@@ -299,6 +304,40 @@ function validateFreeItem(getConditions: OfferConditions | null, errors: OfferIs
     errors.push({
       code: 'reward.freeItemGroup',
       message: 'Pick at least one category or brand for the free item.',
+    });
+  }
+}
+
+/** Price per quantity of a Bundle price offer: 1 to 10 rows, 1–20 pieces each, all different, whole EGP above 0. */
+function validateBundleRows(rows: readonly OfferBundleRow[], errors: OfferIssue[]): void {
+  if (rows.length === 0) {
+    errors.push({ code: 'reward.bundleRows', message: 'Add at least one price per quantity.' });
+    return;
+  }
+  if (rows.length > MAX_BUNDLE_ROWS) {
+    errors.push({ code: 'reward.bundleRowsCount', message: `Add up to ${MAX_BUNDLE_ROWS} rows.` });
+  }
+  if (
+    rows.some(
+      (row) => !Number.isInteger(row.quantity) || row.quantity < 1 || row.quantity > MAX_BUNDLE_PIECES,
+    )
+  ) {
+    errors.push({
+      code: 'reward.bundlePieces',
+      message: `Each row needs between 1 and ${MAX_BUNDLE_PIECES} pieces.`,
+    });
+  }
+  const quantities = rows.map((row) => row.quantity);
+  if (new Set(quantities).size !== quantities.length) {
+    errors.push({
+      code: 'reward.bundleDuplicate',
+      message: 'Each row needs a different number of pieces.',
+    });
+  }
+  if (rows.some((row) => !Number.isInteger(row.price) || row.price < 1)) {
+    errors.push({
+      code: 'reward.bundlePrice',
+      message: 'Enter each total price in whole EGP, above 0.',
     });
   }
 }
@@ -468,7 +507,7 @@ function validateBanner(draft: OfferDraft, errors: OfferIssue[]): void {
 }
 
 /** What an offer does to an item when it overlaps another: null = it can always come on top. */
-type OverlapRole = 'price' | 'deal' | 'gift';
+type OverlapRole = 'price' | 'deal' | 'bundle' | 'gift';
 
 /**
  * Other offers that are on now or scheduled to start later (on, not archived, not ended), whatever
@@ -497,6 +536,8 @@ function overlapRole(offer: OfferDraft): OverlapRole | null {
       return 'price';
     case 'buyXGetY':
       return hasMinimum(offer) ? null : 'deal';
+    case 'bundlePrice':
+      return hasMinimum(offer) ? null : 'bundle';
     case 'freeGift':
       return hasMinimum(offer) ? null : 'gift';
     default:
@@ -531,10 +572,13 @@ function overlapMessage(draft: OfferDraft, other: Offer, count: number): string 
       ? `${alsoHave} Each item gets either the free gift or the Buy X get Y discount, whichever is worth more.`
       : `${alsoHave} Shoppers get both: the discount and the free gift.`;
   }
+  if (mine === 'bundle' && theirs === 'bundle') {
+    return `${alsoIn} Each item counts toward one Bundle price offer only, the higher-priority one first.`;
+  }
   if (mine === 'deal' && theirs === 'deal') {
     return `${alsoIn} Each item counts toward one Buy X get Y offer only, the higher-priority one first.`;
   }
-  if (roles.has('deal')) {
+  if (roles.has('deal') || roles.has('bundle')) {
     return `${alsoIn} Shoppers get whichever saves them more, never both.`;
   }
   return `${alsoIn} Shoppers get whichever is cheaper.`;

@@ -53,6 +53,7 @@ export type RewardPickerKind =
   | 'amountOff'
   | 'fixedPrice'
   | 'buyXGetY'
+  | 'bundlePrice'
   | 'tiered'
   | 'freeGift'
   | 'freeShipping'
@@ -68,6 +69,7 @@ export const REWARD_PICKER_OPTIONS: readonly RewardPickerOption[] = [
   { id: 'amountOff', label: 'Amount off' },
   { id: 'fixedPrice', label: 'Set price' },
   { id: 'buyXGetY', label: 'Buy X get Y' },
+  { id: 'bundlePrice', label: 'Bundle price' },
   { id: 'freeGift', label: 'Free gift' },
   { id: 'freeShipping', label: 'Free shipping' },
 ];

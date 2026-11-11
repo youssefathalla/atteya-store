@@ -69,6 +69,14 @@ export type OfferReward =
       readonly maxApplications: number | null;
     }
   | {
+      /**
+       * Bundle price: a whole-EGP total per number of pieces ("2 for 200", "3 for 275"). Any mix of
+       * the offer's products counts; rows repeat, and the bag uses the cheapest mix for the shopper.
+       */
+      readonly kind: 'bundlePrice';
+      readonly rows: readonly OfferBundleRow[];
+    }
+  | {
       readonly kind: 'freeGift';
       /**
        * One set of these gifts per qualifying item bought. The shopper picks one product from
@@ -80,6 +88,12 @@ export type OfferReward =
   | {
       readonly kind: 'freeShipping';
     };
+
+/** One row of a Bundle price offer: `quantity` pieces for `price` whole EGP in total. */
+export interface OfferBundleRow {
+  readonly quantity: number;
+  readonly price: number;
+}
 
 /** One free gift of a Free gift offer, e.g. "Free shirt" with 4 shirts to choose from. */
 export interface OfferGift {
