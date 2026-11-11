@@ -149,7 +149,7 @@ export const updateProduct = onCall(adminCallableOptions(), async (request): Pro
   });
 });
 
-async function assertImportIdle(tx: Transaction, db: Firestore): Promise<void> {
+export async function assertImportIdle(tx: Transaction, db: Firestore): Promise<void> {
   const snap = await tx.get(db.doc('settings/catalog'));
   if (!snap.exists) return;
   const run = snap.get('importRun');
@@ -194,7 +194,7 @@ async function readCatalogue(
 }
 
 /** Every chosen player must still be in `settings/players`, so the Player filter never splits. */
-async function assertKnownPlayers(
+export async function assertKnownPlayers(
   tx: Transaction,
   db: Firestore,
   players: readonly string[] | undefined,
@@ -210,7 +210,7 @@ async function assertKnownPlayers(
   }
 }
 
-function categoryIdsFrom(data: DocumentData, categoryId: string): string[] {
+export function categoryIdsFrom(data: DocumentData, categoryId: string): string[] {
   const ancestors = data['ancestorIds'];
   const ids: string[] = [];
   if (ancestors === undefined) {

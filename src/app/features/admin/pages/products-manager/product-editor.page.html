@@ -1,10 +1,11 @@
 <div class="elements-start-col gap-6 w-full">
   <header class="surface-card p-5 w-full elements-between flex-wrap gap-3 sticky top-0 z-10">
-    <div class="elements-start-col gap-1">
-      <h1 class="font-title-lg font-bold!">{{ pageHeading() }}</h1>
-      <p class="font-body-md text-on-surface-variant">
-        Photos, price, sizes and whether shoppers can see it.
-      </p>
+    <div class="elements-start-col gap-1 min-w-0">
+      <span class="font-label-md text-on-surface-variant">{{ crumb() }}</span>
+      <h1 class="font-title-lg font-bold!">{{ heading() }}</h1>
+      @if (showForm()) {
+        <p class="font-body-md text-on-surface-variant">{{ overview() }}</p>
+      }
     </div>
     <div class="elements-center gap-2">
       <button matButton="text" type="button" [disabled]="isSaving()" (click)="cancel()">
@@ -23,7 +24,7 @@
           <mat-icon name="check" />
         }
         @if (!isSaving()) {
-          <span>Save</span>
+          <span>{{ saveLabel() }}</span>
         }
       </button>
     </div>
@@ -42,377 +43,398 @@
       <app-skeleton class="h-44 w-full" />
     </div>
   } @else {
+    @if (detailsDiffer()) {
+      <p class="surface-card p-3 w-full font-body-sm" role="status">
+        Some colours had different details. Saving uses what you see here.
+      </p>
+    }
+
     <form
       id="product-editor-form"
-      class="elements-start-col gap-6 w-full"
+      class="w-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_22rem] gap-6 items-start"
       novalidate
       autocomplete="off"
       (submit)="save($event)"
     >
-      <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-basics">
-        <h2 id="product-basics" class="font-title-md font-bold!">Basics</h2>
-        <app-text-input [formField]="editForm.name" label="Name" />
-        @if (isCreate()) {
-          <app-text-input [formField]="editForm.slug" label="Web address" placeholder="test-form-tee" />
-          <p class="font-body-sm text-on-surface-variant">
-            Leave blank to make one from the name. You can't change it later.
-          </p>
-        } @else {
+      <div class="elements-start-col gap-6 w-full min-w-0">
+        <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-basics">
           <div class="elements-start-col gap-1">
-            <span class="font-label-md">Web address</span>
-            <p class="font-body-md">/product/{{ savedSlug() }}</p>
+            <h2 id="product-basics" class="font-title-md font-bold!">Product</h2>
+            <p class="font-body-sm text-on-surface-variant">Shared by every colour</p>
           </div>
-        }
-        <app-text-field-input [formField]="editForm.summary" label="Short summary" />
-        <p class="font-body-sm text-on-surface-variant">Up to 300 characters.</p>
-        <app-text-field-input [formField]="editForm.description" label="Description" [minRows]="3" />
-        <p class="font-body-sm text-on-surface-variant">
-          One or two sentences, shown under the price. Leave a blank line between paragraphs.
-        </p>
-        @if (easyOrdersDescription()) {
-          <p class="font-body-sm text-on-surface-variant">
-            This description came from the old store with formatting. If you change it here, it's saved as
-            plain text.
+          <app-text-input [formField]="editForm.name" label="Name" />
+          <app-text-input [formField]="editForm.summary" label="Short summary" />
+          <p
+            class="font-body-sm"
+            [class.text-error]="summaryCount() > summaryWords"
+            [class.text-on-surface-variant]="summaryCount() <= summaryWords"
+          >
+            {{ summaryHint() }}
           </p>
-        }
-        <app-text-field-input [formField]="editForm.details" label="Details" [minRows]="5" />
-        <p class="font-body-sm text-on-surface-variant">
-          One fact per line, such as "63% cotton, 37% polyester" or "Shape: Diamond". Shown under Materials
-          for clothing and Specifications for gear. Up to 20 lines.
-        </p>
-      </section>
-
-      <app-image-gallery-editor
-        [folder]="photoFolder()"
-        [images]="images()"
-        [maxImages]="8"
-        title="Photos"
-        subtitle="Add up to 8 photos. Drag to reorder — the first photo is the one shoppers see first."
-        [defaultAlt]="model().name"
-        (imagesChange)="images.set($event)"
-        (uploaded)="registerUpload($event)"
-      />
-
-      <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-price">
-        <h2 id="product-price" class="font-title-md font-bold!">Price</h2>
-        <app-text-input [formField]="editForm.price" label="Price (EGP)" type="number" inputMode="numeric" />
-        <app-text-input
-          [formField]="editForm.compareAtPrice"
-          label="Original price"
-          type="number"
-          inputMode="numeric"
-        />
-        <p class="font-body-sm text-on-surface-variant">Shown crossed out when it's higher than the price.</p>
-      </section>
-
-      <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-weight">
-        <h2 id="product-weight" class="font-title-md font-bold!">Shipping weight</h2>
-        <label class="elements-start-col gap-1 font-label-md" for="product-weight-grams">
-          Weight (g)
-          <input
-            id="product-weight-grams"
-            class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
-            [class.border-outline]="!weightError()"
-            [class.border-error]="!!weightError()"
-            type="text"
-            inputmode="numeric"
-            autocomplete="off"
-            [attr.aria-invalid]="weightError() ? 'true' : null"
-            [attr.aria-describedby]="weightError() ? 'product-weight-error' : 'product-weight-hint'"
-            [value]="weight()"
-            (input)="onWeight($event)"
-            (change)="onWeight($event)"
-          />
-          @if (weightError()) {
-            <p id="product-weight-error" class="font-body-sm" role="alert">{{ weightError() }}</p>
-          }
-        </label>
-        <p id="product-weight-hint" class="font-body-sm text-on-surface-variant">
-          Sets the delivery fee at checkout. Use 0 for small items like socks that don't add to the parcel.
-          Left empty, each one counts as 500 g at checkout. Shoppers don't see it.
-        </p>
-      </section>
-
-      <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-where">
-        <h2 id="product-where" class="font-title-md font-bold!">Where it shows</h2>
-        <app-select-input
-          [formField]="editForm.type"
-          label="Type"
-          [options]="types"
-          valueKey="id"
-          labelKey="label"
-        />
-        <app-select-input
-          [formField]="editForm.categoryId"
-          label="Category"
-          [options]="categoryOptions()"
-          valueKey="id"
-          labelKey="label"
-          groupKey="group"
-        />
-        <app-select-input
-          [formField]="editForm.brandId"
-          label="Brand"
-          [options]="brandOptions()"
-          valueKey="id"
-          labelKey="label"
-        />
-        <app-text-input [formField]="editForm.modelGroup" label="Model group" placeholder="on-cloud-short" />
-        <p class="font-body-sm text-on-surface-variant">{{ groupHint() }}</p>
-        <app-select-input
-          [formField]="editForm.gender"
-          label="Gender"
-          [options]="genderOptions"
-          valueKey="id"
-          labelKey="label"
-        />
-        <p class="font-body-sm text-on-surface-variant">
-          Optional. Leave unset when the product suits everyone. Used for shop filters later.
-        </p>
-
-        <div class="w-full elements-start-col gap-2">
-          <span class="font-label-md">Colours</span>
+          <app-text-field-input [formField]="editForm.description" label="Description" [minRows]="3" />
           <p class="font-body-sm text-on-surface-variant">
-            Colours are used by offers and filters. Pick every colour this product comes in.
+            One or two sentences. Shown on the product page under the price. Leave a blank line between
+            paragraphs.
           </p>
-          <div class="flex flex-wrap gap-2" role="group" aria-label="Product colours">
-            @for (color of colorPalette; track color.id) {
+          <app-text-field-input [formField]="editForm.details" label="Details" [minRows]="5" />
+          <p class="font-body-sm text-on-surface-variant">
+            One fact per line, such as "63% cotton, 37% polyester" or "Shape: Diamond". Shown as Materials or
+            Specifications. Up to 20 lines.
+          </p>
+        </section>
+
+        <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-colours">
+          <div class="elements-start-col gap-1">
+            <h2 id="product-colours" class="font-title-md font-bold!">Colours</h2>
+            <p class="font-body-sm text-on-surface-variant">
+              Each colour has its own photos and stock, and can have its own price.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap gap-2 w-full" role="group" aria-label="Colours of this product">
+            @for (colour of colours(); track colour.productId) {
               <button
                 type="button"
-                class="toggle-pill"
-                [attr.aria-pressed]="hasColor(color.id)"
-                (click)="toggleColor(color.id)"
+                class="colour-tab"
+                [class.colour-tab--active]="$index === activeIndex()"
+                [class.colour-tab--off]="!isOffered(colour)"
+                [attr.aria-pressed]="$index === activeIndex()"
+                (click)="selectColour($index)"
               >
-                <app-color-swatch class="size-3" [colorId]="color.id" [swatch]="color.swatch" />
-                <span>{{ color.label }}</span>
+                <span class="elements-center gap-2 font-label-lg font-bold!">
+                  <app-color-swatch
+                    class="size-3.5"
+                    [colorId]="colour.colors[0] ?? null"
+                    [swatch]="colourSwatch(colour)"
+                  />
+                  {{ colourName(colour) }}
+                </span>
+                <span class="font-label-sm text-on-surface-variant">{{ tabLine(colour) }}</span>
               </button>
             }
+            @if (canAddColour()) {
+              <button
+                matButton="outlined"
+                type="button"
+                [attr.aria-expanded]="picking()"
+                (click)="togglePicking()"
+              >
+                <mat-icon name="add" />
+                <span>{{ addColourLabel() }}</span>
+              </button>
+            } @else {
+              <p class="font-body-sm text-on-surface-variant self-center">
+                A product can have up to {{ maxColours }} colours.
+              </p>
+            }
           </div>
-          @if (colorError()) {
-            <p class="font-body-sm" role="alert">{{ colorError() }}</p>
-          }
-        </div>
 
-        <div class="w-full elements-start-col gap-2">
-          <span class="font-label-md">Players</span>
-          <p class="font-body-sm text-on-surface-variant">
-            Pick the pro players this product belongs to. Shoppers can filter Shop by player.
-          </p>
-          @if (playersLoading() && playerOptions().length === 0) {
-            <app-skeleton class="h-8 w-full" />
-          } @else if (playerOptions().length === 0) {
-            <p class="font-body-sm">
-              No players yet. Add them in
-              <a routerLink="/admin/settings/players" class="underline">Settings → Players</a>.
-            </p>
-          } @else {
-            <div class="flex flex-wrap gap-2" role="group" aria-label="Product players">
-              @for (player of playerOptions(); track player.id) {
-                <button
-                  type="button"
-                  class="toggle-pill"
-                  [attr.aria-pressed]="hasPlayer(player.id)"
-                  (click)="togglePlayer(player.id)"
-                >
-                  <span>{{ player.name }}</span>
+          @if (picking() && canAddColour()) {
+            <div class="w-full elements-start-col gap-2 border-shape border border-outline-variant p-4">
+              <p class="font-body-sm text-on-surface-variant">
+                Pick a colour. It uses the product name, descriptions, sizes and price. Add its photos and
+                stock.
+              </p>
+              <div class="flex flex-wrap gap-2" role="group" aria-label="Colour to add">
+                @for (color of paletteChoices(); track color.id) {
+                  <button type="button" class="toggle-pill" (click)="addColour(color.id)">
+                    <app-color-swatch class="size-3" [colorId]="color.id" [swatch]="color.swatch" />
+                    <span>{{ color.label }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          @if (activeColour(); as colour) {
+            <div class="w-full elements-start-col gap-5 border-shape border border-outline-variant p-4">
+              <div class="w-full elements-between flex-wrap gap-2">
+                <div class="elements-start-col gap-0.5">
+                  <h3 class="elements-center gap-2 font-title-md font-bold!">
+                    <app-color-swatch
+                      class="size-4"
+                      [colorId]="colour.colors[0] ?? null"
+                      [swatch]="colourSwatch(colour)"
+                    />
+                    {{ activeName() }}
+                  </h3>
+                  @if (colour.slug) {
+                    <p class="font-body-sm text-on-surface-variant">/product/{{ colour.slug }}</p>
+                  } @else {
+                    <p class="font-body-sm text-on-surface-variant">
+                      New colour. Its web address is made when you save.
+                    </p>
+                  }
+                </div>
+                <button matButton="outlined" type="button" (click)="toggleHidden()">
+                  <mat-icon [name]="colour.published ? 'visibility_off' : 'visibility'" />
+                  <span>{{ colour.published ? 'Hide This Colour' : 'Show This Colour' }}</span>
                 </button>
-              }
-            </div>
-          }
-          @if (playerError()) {
-            <p class="font-body-sm" role="alert">{{ playerError() }}</p>
-          }
-        </div>
+              </div>
 
-        <div class="w-full elements-start-col gap-2">
-          <label class="font-label-md" for="product-tags-input">Tags</label>
-          <div class="elements-center gap-2 w-full">
-            <input
-              id="product-tags-input"
-              type="text"
-              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-              placeholder="summer-drop, clearance"
-              [value]="tagInput()"
-              (input)="onTagInput($event)"
-              (keydown)="onTagKeydown($event)"
-            />
-            <button matButton="outlined" type="button" (click)="addPendingTag()">
-              <span>Add</span>
-            </button>
-          </div>
-          @if (tagError()) {
-            <p class="font-body-sm" role="alert">{{ tagError() }}</p>
-          }
-          @if (tags().length > 0) {
-            <div class="flex flex-wrap gap-1.5">
-              @for (tag of tags(); track tag) {
-                <span
-                  class="border-shape border border-outline-variant bg-surface-container px-2.5 py-1 elements-center gap-1 font-label-sm"
-                >
-                  <span>{{ tag }}</span>
-                  <button
-                    type="button"
-                    class="elements-center cursor-pointer"
-                    [attr.aria-label]="'Remove tag ' + tag"
-                    (click)="removeTag(tag)"
-                  >
-                    <mat-icon name="close" />
-                  </button>
-                </span>
-              }
-            </div>
-          }
-        </div>
-
-        <div class="w-full elements-start-col gap-2">
-          <span class="font-label-md">Marketing badge</span>
-          <p class="font-body-sm text-on-surface-variant">
-            Optional storefront tag (NEW, BESTSELLER, or LIMITED EDITION). Separate from freeform tags.
-          </p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-            <label class="elements-start-col gap-1.5 w-full">
-              <span class="font-label-sm">Badge</span>
-              <select
-                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-                [value]="marketingBadgeKind()"
-                (change)="onMarketingBadgeKindChange($event)"
-              >
-                @for (option of marketingBadgeKinds; track option.id) {
-                  <option [value]="option.id">{{ option.label }}</option>
-                }
-              </select>
-            </label>
-            <label class="elements-start-col gap-1.5 w-full">
-              <span class="font-label-sm">Style</span>
-              <select
-                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-                [value]="marketingBadgeStyle()"
-                [disabled]="!marketingBadgeKind()"
-                (change)="onMarketingBadgeStyleChange($event)"
-              >
-                @for (option of marketingBadgeStyles; track option.id) {
-                  <option [value]="option.id">{{ option.label }}</option>
-                }
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <div class="w-full elements-start-col gap-2">
-          <span class="font-label-md">New arrival</span>
-          <p class="font-body-sm text-on-surface-variant">
-            Puts this product at the front of the homepage New Arrivals row until the end date. Separate from
-            the NEW marketing badge.
-          </p>
-          <mat-checkbox [checked]="newArrivalChecked()" (change)="onNewArrivalToggle($event.checked)">
-            Show in New Arrivals
-          </mat-checkbox>
-          @if (newArrivalChecked()) {
-            <label class="elements-start-col gap-1.5 w-full max-w-xs">
-              <span class="font-label-sm">Ends on</span>
-              <input
-                type="date"
-                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-                [value]="newArrivalUntilInput()"
-                (change)="onNewArrivalDateChange($event)"
+              <app-image-gallery-editor
+                class="w-full"
+                [folder]="photoFolder()"
+                [images]="colour.images"
+                [maxImages]="8"
+                title="Photos"
+                subtitle="Add up to 8 photos. Drag to reorder — the first photo is the one shoppers see first."
+                [defaultAlt]="model().name + ' ' + activeName()"
+                (imagesChange)="setActiveImages($event)"
+                (uploaded)="registerUpload($event)"
               />
-            </label>
-            @if (newArrivalCountdown(); as countdown) {
-              <p class="font-body-sm text-on-surface-variant" role="status">{{ countdown }}</p>
-            }
-            @if (newArrivalError()) {
-              <p class="font-body-sm" role="alert">{{ newArrivalError() }}</p>
-            }
-          }
-        </div>
-      </section>
 
-      <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-sizes">
-        <h2 id="product-sizes" class="font-title-md font-bold!">Sizes</h2>
-        @if (sizeEditorDisabled()) {
-          <p class="font-body-sm" role="status">
-            Set stock per size in the Stock dialog before changing sizes.
-          </p>
-        }
-        <fieldset
-          class="w-full min-w-0 elements-start-col gap-3 border-0 p-0"
-          [disabled]="sizeEditorDisabled()"
-        >
-          @if (sizes().length > 0) {
-            <div class="w-full elements-start-col gap-2">
-              @for (size of sizes(); track size.label) {
-                <div class="elements-center flex-wrap gap-2">
-                  <span
-                    class="border-shape border border-outline-variant bg-surface-container px-2.5 py-1 font-label-sm"
-                  >
-                    {{ size.label }}
-                  </span>
-                  <button
-                    matIconButton
-                    type="button"
-                    [attr.aria-label]="'Move size ' + size.label + ' up'"
-                    [disabled]="sizeEditorDisabled() || $index === 0"
-                    (click)="moveSize($index, -1)"
-                  >
-                    <mat-icon name="arrow_upward" />
-                  </button>
-                  <button
-                    matIconButton
-                    type="button"
-                    [attr.aria-label]="'Move size ' + size.label + ' down'"
-                    [disabled]="sizeEditorDisabled() || $index === sizes().length - 1"
-                    (click)="moveSize($index, 1)"
-                  >
-                    <mat-icon name="arrow_downward" />
-                  </button>
-                  <button
-                    matIconButton
-                    type="button"
-                    [attr.aria-label]="'Remove size ' + size.label"
-                    [disabled]="sizeEditorDisabled()"
-                    (click)="removeSize($index)"
-                  >
-                    <mat-icon name="close" />
-                  </button>
-                  @if (sizeStockEditable(size)) {
-                    <label class="elements-start-col gap-1 font-label-md">
-                      {{ sizeStockLabel(size) }}
+              <div class="w-full elements-start-col gap-3">
+                <div class="w-full elements-between gap-2">
+                  <span class="font-label-lg font-bold!">Stock by size</span>
+                  <span class="font-body-sm">Total {{ total(colour) }}</span>
+                </div>
+                @if (sizes().length === 0) {
+                  <label class="elements-start-col gap-1 font-label-md" for="colour-flat-stock">
+                    Stock
+                    <input
+                      id="colour-flat-stock"
+                      class="stock-box"
+                      [class.stock-box--zero]="isZero(colour.flatStock)"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="off"
+                      [attr.aria-invalid]="stockError(colour.flatStock) ? 'true' : null"
+                      [value]="colour.flatStock"
+                      (input)="onFlatStock($event)"
+                    />
+                  </label>
+                  @if (stockError(colour.flatStock); as message) {
+                    <p class="font-body-sm" role="alert">{{ message }}</p>
+                  }
+                  <p class="font-body-sm text-on-surface-variant">
+                    This product has no sizes. Turn sizes on under Sizes.
+                  </p>
+                } @else {
+                  <div class="flex flex-wrap gap-3 w-full">
+                    @for (size of sizes(); track size.key) {
+                      <div class="elements-start-col gap-1">
+                        @if (isMade(colour, size)) {
+                          <label class="elements-start-col gap-1 font-label-md" [for]="'stock-' + size.key">
+                            {{ size.label }}
+                            <input
+                              [id]="'stock-' + size.key"
+                              class="stock-box"
+                              [class.stock-box--zero]="isZero(stockValue(colour, size))"
+                              type="text"
+                              inputmode="numeric"
+                              autocomplete="off"
+                              [attr.aria-label]="activeName() + ' size ' + size.label + ' stock'"
+                              [attr.aria-invalid]="stockError(stockValue(colour, size)) ? 'true' : null"
+                              [value]="stockValue(colour, size)"
+                              (input)="onStock(size, $event)"
+                            />
+                          </label>
+                        } @else {
+                          <span class="font-label-md">{{ size.label }}</span>
+                          <span class="stock-box stock-box--off font-body-sm">Not made</span>
+                        }
+                        <button
+                          type="button"
+                          class="font-label-sm underline cursor-pointer self-start"
+                          [attr.aria-label]="
+                            (isMade(colour, size) ? 'Not made in ' : 'Make it in ') + size.label
+                          "
+                          (click)="toggleMade(size)"
+                        >
+                          {{ isMade(colour, size) ? 'Not Made' : 'Make It' }}
+                        </button>
+                      </div>
+                    }
+                  </div>
+                  @for (size of sizes(); track size.key) {
+                    @if (isMade(colour, size) && stockError(stockValue(colour, size)); as message) {
+                      <p class="font-body-sm" role="alert">{{ size.label }}: {{ message }}</p>
+                    }
+                  }
+                  <p class="font-body-sm text-on-surface-variant">
+                    At 0, shoppers see the size crossed out (sold out). "Not made" hides the size for this
+                    colour only. A colour at 0 in every size is hidden.
+                  </p>
+                }
+              </div>
+
+              <div class="w-full elements-start-col gap-3">
+                <mat-checkbox [checked]="colour.ownPrice" (change)="toggleOwnPrice($event.checked)">
+                  Different price for {{ activeName() }}
+                </mat-checkbox>
+                @if (colour.ownPrice) {
+                  <div class="flex flex-wrap gap-4">
+                    <label class="elements-start-col gap-1 font-label-md" for="colour-price">
+                      Price for {{ activeName() }} (EGP)
                       <input
-                        class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
-                        [class.border-outline]="!sizeStockError(size)"
-                        [class.border-error]="!!sizeStockError(size)"
+                        id="colour-price"
+                        class="stock-box w-32!"
                         type="text"
                         inputmode="numeric"
                         autocomplete="off"
-                        [attr.aria-label]="sizeStockLabel(size)"
-                        [attr.aria-invalid]="sizeStockError(size) ? 'true' : null"
-                        [attr.aria-describedby]="sizeStockError(size) ? 'size-stock-error-' + $index : null"
-                        [value]="size.initialStock"
-                        (input)="onSizeStock($index, $event)"
-                        (change)="onSizeStock($index, $event)"
+                        [attr.aria-invalid]="ownPriceError(colour) ? 'true' : null"
+                        [value]="colour.price"
+                        (input)="onColourPrice('price', $event)"
                       />
-                      @if (sizeStockError(size)) {
-                        <p [id]="'size-stock-error-' + $index" class="font-body-sm" role="alert">
-                          {{ sizeStockError(size) }}
-                        </p>
-                      }
                     </label>
-                  } @else {
-                    <p class="font-body-sm">Current stock: {{ countLabel(size) }}</p>
+                    <label class="elements-start-col gap-1 font-label-md" for="colour-compare">
+                      Old price (EGP)
+                      <input
+                        id="colour-compare"
+                        class="stock-box w-32!"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        placeholder="None"
+                        [attr.aria-invalid]="ownCompareError(colour) ? 'true' : null"
+                        [value]="colour.compareAtPrice"
+                        (input)="onColourPrice('compareAtPrice', $event)"
+                      />
+                    </label>
+                  </div>
+                  @if (ownPriceError(colour) || ownCompareError(colour); as message) {
+                    <p class="font-body-sm" role="alert">{{ message }}</p>
                   }
-                </div>
-              }
+                } @else {
+                  <p class="font-body-sm text-on-surface-variant">
+                    Uses the product price:
+                    {{ sharedPrice() === null ? 'EGP —' : (sharedPrice() | egpPrice) }}.
+                  </p>
+                }
+              </div>
             </div>
+          } @else {
+            <p class="font-body-sm text-on-surface-variant">
+              Add the first colour to give it photos and stock.
+            </p>
           }
-          <div class="elements-center gap-2 w-full">
-            <label class="font-label-md w-full" for="product-size-input">Add a size</label>
+        </section>
+      </div>
+
+      <aside class="elements-start-col gap-6 w-full min-w-0" aria-label="Shared settings">
+        <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-price">
+          <h2 id="product-price" class="font-title-md font-bold!">Price</h2>
+          <app-text-input
+            [formField]="editForm.price"
+            label="Price (EGP)"
+            type="number"
+            inputMode="numeric"
+          />
+          <app-text-input
+            [formField]="editForm.compareAtPrice"
+            label="Old price (EGP)"
+            type="number"
+            inputMode="numeric"
+          />
+          <p class="font-body-sm text-on-surface-variant">
+            Every colour uses this price unless you give it its own.
+          </p>
+        </section>
+
+        <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-organise">
+          <h2 id="product-organise" class="font-title-md font-bold!">Organise</h2>
+          <app-select-input
+            [formField]="editForm.type"
+            label="Type"
+            [options]="types"
+            valueKey="id"
+            labelKey="label"
+          />
+          <app-select-input
+            [formField]="editForm.categoryId"
+            label="Category"
+            [options]="categoryOptions()"
+            valueKey="id"
+            labelKey="label"
+            groupKey="group"
+          />
+          <app-select-input
+            [formField]="editForm.brandId"
+            label="Brand"
+            [options]="brandOptions()"
+            valueKey="id"
+            labelKey="label"
+          />
+          <app-select-input
+            [formField]="editForm.gender"
+            label="Gender"
+            [options]="genderOptions"
+            valueKey="id"
+            labelKey="label"
+          />
+          <label class="elements-start-col gap-1 font-label-md" for="product-weight-grams">
+            Weight (g)
+            <input
+              id="product-weight-grams"
+              class="stock-box w-28!"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              [attr.aria-invalid]="weightError() ? 'true' : null"
+              [attr.aria-describedby]="weightError() ? 'product-weight-error' : 'product-weight-hint'"
+              [value]="weight()"
+              (input)="onWeight($event)"
+            />
+          </label>
+          @if (weightError()) {
+            <p id="product-weight-error" class="font-body-sm" role="alert">{{ weightError() }}</p>
+          }
+          <p id="product-weight-hint" class="font-body-sm text-on-surface-variant">
+            Sets the delivery fee at checkout. Use 0 for small items like socks. Left empty, it counts as 500
+            g.
+          </p>
+
+          <div class="w-full elements-start-col gap-2">
+            <span class="font-label-md">Players</span>
+            @if (playersLoading() && playerOptions().length === 0) {
+              <app-skeleton class="h-8 w-full" />
+            } @else if (playerOptions().length === 0) {
+              <p class="font-body-sm">
+                No players yet. Add them in
+                <a routerLink="/admin/settings/players" class="underline">Settings → Players</a>.
+              </p>
+            } @else {
+              <div class="flex flex-wrap gap-2" role="group" aria-label="Product players">
+                @for (player of playerOptions(); track player.id) {
+                  <button
+                    type="button"
+                    class="toggle-pill"
+                    [attr.aria-pressed]="hasPlayer(player.id)"
+                    (click)="togglePlayer(player.id)"
+                  >
+                    <span>{{ player.name }}</span>
+                  </button>
+                }
+              </div>
+            }
+            @if (playerError()) {
+              <p class="font-body-sm" role="alert">{{ playerError() }}</p>
+            }
           </div>
+        </section>
+
+        <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-sizes">
+          <h2 id="product-sizes" class="font-title-md font-bold!">Sizes</h2>
+          <div class="flex flex-wrap gap-2" role="group" aria-label="Sizes">
+            @for (label of sizeChoices(); track label) {
+              <button
+                type="button"
+                class="toggle-pill"
+                [attr.aria-pressed]="hasSize(label)"
+                (click)="toggleSize(label)"
+              >
+                <span>{{ label }}</span>
+              </button>
+            }
+          </div>
+          <label class="font-label-md w-full" for="product-size-input">Add another size</label>
           <div class="elements-center gap-2 w-full">
             <input
               id="product-size-input"
               type="text"
               class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-              placeholder="M"
+              placeholder="T2 (M)"
               [value]="sizeInput()"
               (input)="onSizeInput($event)"
               (keydown)="onSizeKeydown($event)"
@@ -421,84 +443,148 @@
               <span>Add</span>
             </button>
           </div>
-          <div class="flex flex-wrap gap-2" role="group" aria-label="Common sizes">
-            @for (label of quickSizes; track label) {
-              <button
-                matButton="outlined"
-                type="button"
-                [disabled]="sizeEditorDisabled() || hasSize(label)"
-                (click)="addQuickSize(label)"
-              >
-                <span>{{ label }}</span>
-              </button>
-            }
-          </div>
           @if (sizeError()) {
             <p class="font-body-sm" role="alert">{{ sizeError() }}</p>
           }
-        </fieldset>
-      </section>
+          <p class="font-body-sm text-on-surface-variant">
+            Every colour gets these sizes. Stock is set per colour.
+          </p>
+        </section>
 
-      <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-stock">
-        <h2 id="product-stock" class="font-title-md font-bold!">Stock</h2>
-        @if (showFlatStock()) {
-          <label class="elements-start-col gap-1 font-label-md" for="product-starting-stock">
-            Starting stock
-            <input
-              id="product-starting-stock"
-              class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
-              [class.border-outline]="!flatStockError()"
-              [class.border-error]="!!flatStockError()"
-              type="text"
-              inputmode="numeric"
-              autocomplete="off"
-              [attr.aria-invalid]="flatStockError() ? 'true' : null"
-              [attr.aria-describedby]="flatStockError() ? 'product-stock-error' : null"
-              [value]="flatStock()"
-              (input)="onFlatStock($event)"
-              (change)="onFlatStock($event)"
-            />
-            @if (flatStockError()) {
-              <p id="product-stock-error" class="font-body-sm" role="alert">{{ flatStockError() }}</p>
-            }
-          </label>
-        } @else if (showCollapseStock()) {
-          <label class="elements-start-col gap-1 font-label-md" for="product-flat-stock">
-            Stock
-            <input
-              id="product-flat-stock"
-              class="border-shape border bg-surface px-3 py-2 font-body-md w-28"
-              [class.border-outline]="!flatStockError()"
-              [class.border-error]="!!flatStockError()"
-              type="text"
-              inputmode="numeric"
-              autocomplete="off"
-              [attr.aria-invalid]="flatStockError() ? 'true' : null"
-              [attr.aria-describedby]="flatStockError() ? 'product-stock-error' : null"
-              [value]="flatStock()"
-              (input)="onFlatStock($event)"
-              (change)="onFlatStock($event)"
-            />
-            @if (flatStockError()) {
-              <p id="product-stock-error" class="font-body-sm" role="alert">{{ flatStockError() }}</p>
-            }
-          </label>
-          <p class="font-body-sm text-on-surface-variant">This replaces the size counts with one number.</p>
-        } @else if (replacingFlatStock()) {
-          <p class="font-body-sm text-on-surface-variant">{{ flatReplacementNote() }}</p>
-        } @else if (showStockReadout()) {
-          <p class="font-body-md">{{ stockReadout() }}</p>
-          <p class="font-body-sm text-on-surface-variant">Change counts with Stock on the products list.</p>
-        }
-      </section>
+        <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-offers">
+          <div class="w-full elements-between gap-2">
+            <h2 id="product-offers" class="font-title-md font-bold!">Offers</h2>
+            <a routerLink="/admin/offers" class="font-label-md underline">Open Offers</a>
+          </div>
+          @for (offer of offerRows(); track offer.id) {
+            <div class="w-full elements-between gap-2">
+              <span class="font-body-md">{{ offer.title }}</span>
+              <span class="font-body-sm text-on-surface-variant text-right">{{ offer.scope }}</span>
+            </div>
+          } @empty {
+            <p class="font-body-sm text-on-surface-variant">No running offer covers this product.</p>
+          }
+        </section>
 
-      <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-visibility">
-        <h2 id="product-visibility" class="font-title-md font-bold!">Visibility</h2>
-        <mat-checkbox [formField]="editForm.published">Show on store</mat-checkbox>
-        @if (publishError()) {
-          <p class="font-body-sm" role="alert">{{ publishError() }}</p>
-        }
-      </section>
+        <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-shoppers">
+          <h2 id="product-shoppers" class="font-title-md font-bold!">What shoppers see</h2>
+          @for (colour of colours(); track colour.productId) {
+            <div class="w-full elements-between gap-2">
+              <span class="elements-center gap-2 font-body-md">
+                <app-color-swatch
+                  class="size-3"
+                  [colorId]="colour.colors[0] ?? null"
+                  [swatch]="colourSwatch(colour)"
+                />
+                {{ colourName(colour) }}
+              </span>
+              <span class="font-body-sm" [class.text-on-surface-variant]="!isOffered(colour)">{{
+                shopperLine(colour)
+              }}</span>
+            </div>
+          } @empty {
+            <p class="font-body-sm text-on-surface-variant">Nothing yet. Add the first colour.</p>
+          }
+        </section>
+
+        <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-extras">
+          <h2 id="product-extras" class="font-title-md font-bold!">Tags and badges</h2>
+          <div class="w-full elements-start-col gap-2">
+            <label class="font-label-md" for="product-tags-input">Tags</label>
+            <div class="elements-center gap-2 w-full">
+              <input
+                id="product-tags-input"
+                type="text"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                placeholder="summer-drop, clearance"
+                [value]="tagInput()"
+                (input)="onTagInput($event)"
+                (keydown)="onTagKeydown($event)"
+              />
+              <button matButton="outlined" type="button" (click)="addPendingTag()">
+                <span>Add</span>
+              </button>
+            </div>
+            @if (tagError()) {
+              <p class="font-body-sm" role="alert">{{ tagError() }}</p>
+            }
+            @if (tags().length > 0) {
+              <div class="flex flex-wrap gap-1.5">
+                @for (tag of tags(); track tag) {
+                  <span
+                    class="border-shape border border-outline-variant bg-surface-container px-2.5 py-1 elements-center gap-1 font-label-sm"
+                  >
+                    <span>{{ tag }}</span>
+                    <button
+                      type="button"
+                      class="elements-center cursor-pointer"
+                      [attr.aria-label]="'Remove tag ' + tag"
+                      (click)="removeTag(tag)"
+                    >
+                      <mat-icon name="close" />
+                    </button>
+                  </span>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="w-full elements-start-col gap-2">
+            <span class="font-label-md">Marketing badge</span>
+            <div class="grid grid-cols-2 gap-3 w-full">
+              <label class="elements-start-col gap-1.5 w-full">
+                <span class="font-label-sm">Badge</span>
+                <select
+                  class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                  [value]="marketingBadgeKind()"
+                  (change)="onMarketingBadgeKindChange($event)"
+                >
+                  @for (option of marketingBadgeKinds; track option.id) {
+                    <option [value]="option.id">{{ option.label }}</option>
+                  }
+                </select>
+              </label>
+              <label class="elements-start-col gap-1.5 w-full">
+                <span class="font-label-sm">Style</span>
+                <select
+                  class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                  [value]="marketingBadgeStyle()"
+                  [disabled]="!marketingBadgeKind()"
+                  (change)="onMarketingBadgeStyleChange($event)"
+                >
+                  @for (option of marketingBadgeStyles; track option.id) {
+                    <option [value]="option.id">{{ option.label }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="w-full elements-start-col gap-2">
+            <span class="font-label-md">New arrival</span>
+            <mat-checkbox [checked]="newArrivalChecked()" (change)="onNewArrivalToggle($event.checked)">
+              Show in New Arrivals
+            </mat-checkbox>
+            @if (newArrivalChecked()) {
+              <label class="elements-start-col gap-1.5 w-full">
+                <span class="font-label-sm">Ends on</span>
+                <input
+                  type="date"
+                  class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                  [value]="newArrivalUntilInput()"
+                  (change)="onNewArrivalDateChange($event)"
+                />
+              </label>
+              @if (newArrivalCountdown(); as countdown) {
+                <p class="font-body-sm text-on-surface-variant" role="status">{{ countdown }}</p>
+              }
+              @if (newArrivalError()) {
+                <p class="font-body-sm" role="alert">{{ newArrivalError() }}</p>
+              }
+            }
+          </div>
+        </section>
+      </aside>
     </form>
   }
 </div>
