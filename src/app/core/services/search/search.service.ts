@@ -88,6 +88,8 @@ export class SearchService {
           page,
           hitsPerPage,
           filters,
+          // One result per model (index `distinct` on `distinctKey`).
+          distinct: true,
         },
       ],
     });
@@ -147,6 +149,8 @@ export class SearchService {
       numericFilters?: string[];
       facets?: string[];
       maxValuesPerFacet?: number;
+      distinct: boolean;
+      facetingAfterDistinct: boolean;
     }
 
     const mainRequest: HitRequest = {
@@ -159,6 +163,9 @@ export class SearchService {
       numericFilters,
       facets,
       maxValuesPerFacet,
+      // One card per model (index `distinct` on `distinctKey`), and filter counts count models.
+      distinct: true,
+      facetingAfterDistinct: true,
     };
 
     const requests: HitRequest[] = [mainRequest];
@@ -177,6 +184,8 @@ export class SearchService {
         numericFilters,
         facets: [attr],
         maxValuesPerFacet,
+        distinct: true,
+        facetingAfterDistinct: true,
       });
     }
 

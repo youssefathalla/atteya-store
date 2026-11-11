@@ -12,7 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ProductService } from '@core/services/products';
+import { onePerModel, ProductService } from '@core/services/products';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { PrefetchProductDirective } from '@shared/directives/prefetch-product';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
@@ -60,10 +60,12 @@ export class PadelCarouselSectionComponent {
 
   readonly #list = resource({
     loader: async () => {
-      const products = await this.#products.listPublished({
-        categoryId: 'rackets',
-        limit: PADEL_CAROUSEL_LIMIT,
-      });
+      const products = onePerModel(
+        await this.#products.listPublished({
+          categoryId: 'rackets',
+          limit: PADEL_CAROUSEL_LIMIT,
+        }),
+      );
       putHomeRowSeed(this.#transfer, HOME_PADEL_ROW_KEY, products, this.isBrowser);
       return products;
     },
