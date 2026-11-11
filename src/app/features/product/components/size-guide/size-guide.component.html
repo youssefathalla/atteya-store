@@ -14,16 +14,18 @@
         }
       </mat-button-toggle-group>
     }
-    <mat-button-toggle-group
-      class="pill-switch ms-auto"
-      aria-label="Measurement unit"
-      hideSingleSelectionIndicator
-      [value]="unit()"
-      (change)="unit.set($event.value)"
-    >
-      <mat-button-toggle value="cm">Centimetres</mat-button-toggle>
-      <mat-button-toggle value="in">Inches</mat-button-toggle>
-    </mat-button-toggle-group>
+    <div class="ms-auto">
+      <mat-button-toggle-group
+        class="pill-switch"
+        aria-label="Measurement unit"
+        hideSingleSelectionIndicator
+        [value]="unit()"
+        (change)="unit.set($event.value)"
+      >
+        <mat-button-toggle value="cm">Centimetres</mat-button-toggle>
+        <mat-button-toggle value="in">Inches</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
   </div>
 
   <p class="mt-4 font-body-md">Your body measurements in {{ unitLabel() }}.</p>
