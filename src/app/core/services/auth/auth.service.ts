@@ -45,6 +45,8 @@ const PASSWORD_RESET_HIDDEN_CODES = new Set(['auth/user-not-found', 'auth/invali
 const REDIRECT_PENDING_KEY = 'atteya-auth-redirect';
 /** Pages an account that still needs to agree may stay on: the terms step and what it links to. */
 const CONSENT_STEP_PATHS = new Set(['/login', '/terms', '/privacy']);
+/** The order confirmation page, whose Save card reports its own save. */
+const ORDER_CONFIRMATION_PATH = '/checkout/confirmation/';
 
 /** Consent chosen on Create account before a Google redirect completes. */
 const REDIRECT_CONSENT_KEY = 'atteya-auth-redirect-consent';
@@ -173,7 +175,8 @@ export class AuthService {
   /**
    * Once per sign-in (per account, per browser tab session), after the account has agreed to the
    * terms and its email is known to be confirmed, links that email's earlier guest orders to the
-   * account (`claimGuestOrdersByEmail`) and says how many were added. An unconfirmed email waits
+   * account (`claimGuestOrdersByEmail`) and says how many were added (not on the order confirmation
+   * page, whose Save card reports the save itself). An unconfirmed email waits
    * until it is confirmed (the server would link nothing). Browser only; a failure is silent and
    * the next change of account state, or the next page load, tries again.
    */
@@ -202,6 +205,10 @@ export class AuthService {
       if (linked <= 0 || this.#auth.currentUser?.uid !== uid) return;
       // Pages that show whether an order is linked (the order page's Save card) check again.
       this.#guestOrdersLinked.update((n) => n + 1);
+      // The order page's Save card already says "Saved to your account" after its own claim, so a
+      // second message there would repeat it.
+      const path = this.#router.url.split(/[?#]/, 1)[0] ?? '';
+      if (path.startsWith(ORDER_CONFIRMATION_PATH)) return;
       this.#snackbar.success(
         linked === 1
           ? 'We added 1 earlier order to your account.'
