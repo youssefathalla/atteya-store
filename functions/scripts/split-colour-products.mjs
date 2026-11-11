@@ -29,8 +29,11 @@
  *   - photos come from `scripts/data/colour-split.json` (slug -> colour name -> photo paths, first =
  *     main photo), filled in after a dry run and approved by Youssef. Every path must be in the
  *     product's gallery. A product missing from the file, a colour with no photo, a path not in the
- *     gallery, a colour with no palette colour, or a model name already used by another product is
+ *     gallery, a colour with no palette colour, a colour its model already has, a model name already
+ *     used by another product, or a real stock count (not the placeholder, so no count is lost) is
  *     listed as CHECK and the product is not split.
+ *   - new colours keep the original's `createdAt`, so old products don't jump to the top of "newest".
+ *   - offers that name the original product id are listed (NOTE); add the new colours to them by hand.
  * The original is updated and the new colours are created in one transaction, checked against the
  * original's last update time (a product edited meanwhile is skipped; run again).
  *
@@ -186,6 +189,15 @@ function printPhotos(title, paths) {
   paths.forEach((path, index) => console.log(`      ${index === 0 ? 'main' : `${index + 1}   `} ${path}`));
 }
 
+/** Still the untracked starting count: every size at 10, or flat 10 with no size counts. */
+const isPlaceholder = (data) => {
+  if (isMap(data.stockBySize)) {
+    const counts = Object.values(data.stockBySize);
+    return counts.length > 0 && counts.every((count) => count === UNTRACKED_DEFAULT_STOCK);
+  }
+  return data.stock === UNTRACKED_DEFAULT_STOCK;
+};
+
 // Every product, in document-id order.
 const products = [];
 let cursor = null;
@@ -208,11 +220,22 @@ for (const snap of products) {
   productsByModel.get(model).add(snap.id);
 }
 
+// Offers that name a product id. A split leaves those ids on the first colour only.
+const offers = (await db.collection('offers').get()).docs.map((offer) => ({
+  id: offer.id,
+  title: trimmed(offer.get('title')) || trimmed(offer.get('name')) || offer.id,
+  json: JSON.stringify(offer.data()),
+}));
+/** Palette colours each model already has, by product id. */
+const coloursOf = (id) => asList(products.find((snap) => snap.id === id)?.get('colors'));
+
 const checks = [];
 const splitIds = new Set();
 /** model -> colours created by part 1 (counted for part 2). */
 const createdByModel = new Map();
 let split = 0;
+const RACED = 'raced';
+const failed = [];
 let splitChecks = 0;
 let coloursCreated = 0;
 let raced = 0;
@@ -253,6 +276,9 @@ for (const snap of toSplit) {
   const planByColour = new Map(Object.entries(plan ?? {}).map(([label, paths]) => [colourKey(label), paths]));
   if (plan) {
     const known = new Set(colourValues.map((value) => colourKey(value?.label)));
+    if (planByColour.size !== Object.keys(plan).length) {
+      problems.push('colour-split.json names the same colour twice (in a different case or spelling)');
+    }
     for (const label of Object.keys(plan)) {
       if (!known.has(colourKey(label)))
         problems.push(`colour-split.json names "${label}", which it doesn't have`);
@@ -268,14 +294,36 @@ for (const snap of toSplit) {
       problems.push(`the model "${model}" is already used by ${outsiders.join(', ')}`);
   }
 
+  if (!isPlaceholder(data)) {
+    problems.push(
+      `stock ${describeStock(data.stock, data.stockBySize)} is a real count, not the placeholder; ` +
+        'split it by hand so no count is lost',
+    );
+  }
+  if (trimmed(data.modelGroup)) {
+    const others = [...(productsByModel.get(model) ?? [])].filter((id) => id !== snap.id);
+    const taken = new Set(others.flatMap(coloursOf));
+    const clash = colourValues.map(paletteColour).filter((color) => color && taken.has(color));
+    if (clash.length > 0) {
+      problems.push(`the model "${model}" already has a product in ${[...new Set(clash)].join(', ')}`);
+    }
+  }
+  const namedBy = offers.filter((offer) => offer.json.includes(`"${snap.id}"`));
+  if (namedBy.length > 0) {
+    console.log(
+      `  NOTE: offers that name this product keep only the first colour; add the new colours to: ` +
+        namedBy.map((offer) => `${offer.title} (${offer.id})`).join(', '),
+    );
+  }
+
   const stock = startingStock(keptOptions);
   const colours = [];
   const seenColours = new Set();
   for (const [index, value] of colourValues.entries()) {
     const label = trimmed(value?.label);
     const color = paletteColour(value);
-    if (!label) {
-      problems.push(`colour choice ${index + 1} has no name`);
+    if (!label || !trimmed(value?.id)) {
+      problems.push(`colour choice ${index + 1} has no name or id`);
       continue;
     }
     if (seenColours.has(colourKey(label))) problems.push(`two colour choices are called "${label}"`);
@@ -347,8 +395,6 @@ for (const snap of toSplit) {
     continue;
   }
 
-  splitIds.add(snap.id);
-  createdByModel.set(model, (createdByModel.get(model) ?? 0) + colours.length - 1);
   const searchTokens = [...buildSearchTokens(name, model)];
   const shared = {
     options: keptOptions,
@@ -370,14 +416,14 @@ for (const snap of toSplit) {
       await db.runTransaction(async (tx) => {
         const live = await tx.get(snap.ref);
         if (!live.exists || !live.updateTime.isEqual(snap.updateTime)) {
-          throw new Error('the product changed');
+          throw new Error(RACED);
         }
         const slugReads = await Promise.all(
           colours
             .filter((colour) => !colour.keepsDoc)
             .map((colour) => tx.get(db.collection('products').where('slug', '==', colour.slug).limit(1))),
         );
-        if (slugReads.some((read) => !read.empty)) throw new Error('a new slug was taken');
+        if (slugReads.some((read) => !read.empty)) throw new Error(RACED);
         for (const colour of colours) {
           const own = {
             ...shared,
@@ -398,7 +444,6 @@ for (const snap of toSplit) {
             id: colour.ref.id,
             slug: colour.slug,
             source: null,
-            createdAt: FieldValue.serverTimestamp(),
             createdBy: UPDATED_BY,
           };
           if (stock.stockBySize) created.stockBySize = stock.stockBySize;
@@ -407,24 +452,24 @@ for (const snap of toSplit) {
         }
       });
     } catch (error) {
-      raced += 1;
-      console.log(`  SKIP: changed while the script ran (${error.message}); run again`);
+      if (error.message === RACED) {
+        raced += 1;
+        console.log('  SKIP: changed while the script ran; run again');
+      } else {
+        failed.push(`${slug}: ${error.message}`);
+        console.log(`  FAILED: ${error.message}`);
+      }
       continue;
     }
   }
+  splitIds.add(snap.id);
+  createdByModel.set(model, (createdByModel.get(model) ?? 0) + colours.length - 1);
   split += 1;
   coloursCreated += colours.length - 1;
 }
 
 // ---------- Part 2: starting stock ----------
 console.log('\n=== Starting stock for colours still on the placeholder count ===');
-const isPlaceholder = (data) => {
-  if (isMap(data.stockBySize)) {
-    const counts = Object.values(data.stockBySize);
-    return counts.length > 0 && counts.every((count) => count === UNTRACKED_DEFAULT_STOCK);
-  }
-  return data.stock === UNTRACKED_DEFAULT_STOCK;
-};
 const isStart = (data, next) =>
   data.stock === next.stock &&
   (isMap(data.stockBySize) ? stableJson(data.stockBySize) : 'none') ===
@@ -434,7 +479,8 @@ let setToFive = 0;
 let alreadyFive = 0;
 const leftAlone = [];
 for (const snap of products) {
-  if (splitIds.has(snap.id)) continue;
+  // Split ones already start at 5; ones left as CHECK still share one count across colours.
+  if (splitIds.has(snap.id) || toSplit.includes(snap)) continue;
   const data = snap.data();
   const model = trimmed(data.modelGroup);
   if (!model) continue;
@@ -456,19 +502,33 @@ for (const snap of products) {
   );
   if (apply) {
     try {
-      await snap.ref.update(
-        {
+      // Checked against the stock it had, not the update time: the colour-siblings trigger rewrites
+      // these products right after part 1 creates their new colours.
+      await db.runTransaction(async (tx) => {
+        const live = await tx.get(snap.ref);
+        const now = live.data() ?? {};
+        const same =
+          live.exists &&
+          now.stock === data.stock &&
+          (isMap(now.stockBySize) ? stableJson(now.stockBySize) : 'none') ===
+            (isMap(data.stockBySize) ? stableJson(data.stockBySize) : 'none');
+        if (!same) throw new Error(RACED);
+        tx.update(snap.ref, {
           stock: next.stock,
           inStock: next.inStock,
           stockBySize: next.stockBySize ?? FieldValue.delete(),
           updatedAt: FieldValue.serverTimestamp(),
           updatedBy: UPDATED_BY,
-        },
-        { lastUpdateTime: snap.updateTime },
-      );
+        });
+      });
     } catch (error) {
-      raced += 1;
-      console.log(`  SKIP: changed while the script ran (${error.message}); run again`);
+      if (error.message === RACED) {
+        raced += 1;
+        console.log('  SKIP: its stock changed while the script ran; run again');
+      } else {
+        failed.push(`${slug}: ${error.message}`);
+        console.log(`  FAILED: ${error.message}`);
+      }
       continue;
     }
   }
@@ -477,6 +537,11 @@ for (const snap of products) {
 if (leftAlone.length > 0) {
   console.log('\nKept (real counts, not the placeholder):');
   for (const line of leftAlone) console.log(`  ${line}`);
+}
+
+if (failed.length > 0) {
+  console.log('\nFailed (not a race; read the error):');
+  for (const line of failed) console.log(`  ${line}`);
 }
 
 if (checks.length > 0) {
@@ -490,6 +555,6 @@ console.log(
     `\nColours ${verb}created: ${coloursCreated}.` +
     `\nProducts ${verb}set to ${START_STOCK}: ${setToFive} (already ${START_STOCK}: ${alreadyFive}).` +
     `\nProducts left alone (real counts): ${leftAlone.length}.` +
-    `${apply ? `\nChanged meanwhile: ${raced}.` : ''}` +
+    `${apply ? `\nChanged meanwhile: ${raced}. Failed: ${failed.length}.` : ''}` +
     (apply ? '\nNow run Catalogue Tools -> Rebuild search.' : '\nDry run only; add --apply to write.'),
 );
