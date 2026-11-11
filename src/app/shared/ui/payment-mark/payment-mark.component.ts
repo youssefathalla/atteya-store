@@ -5,7 +5,7 @@ import { PAYMENT_METHODS, type PaymentMethodId } from './payment-method.model';
 
 /**
  * The mark of one payment method: the InstaPay logo in its brand colours, or our black icons
- * (a card for Card, cash for Cash on Delivery). Used by the bag, the checkout
+ * (a card for Card, cash for Cash on Delivery, a bank drawn inline for Bank Transfer). Used by the bag, the checkout
  * payment options and the order confirmation page, so all three match.
  *
  * `md` is about the height of the text (20px); `lg` is the bigger mark of the bag's tiles.
@@ -31,6 +31,23 @@ import { PAYMENT_METHODS, type PaymentMethodId } from './payment-method.model';
           decoding="async"
           [class]="size() === 'lg' ? 'h-11 w-auto' : 'h-5 w-auto'"
         />
+      }
+      @case ('bank-transfer') {
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          [attr.role]="alone() ? 'img' : null"
+          [attr.aria-label]="alone() ? name() : null"
+          [attr.aria-hidden]="alone() ? null : 'true'"
+          [class]="size() === 'lg' ? 'size-8' : 'size-5'"
+        >
+          <path d="M3 10l9-6 9 6" />
+          <path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18" />
+        </svg>
       }
       @default {
         <span

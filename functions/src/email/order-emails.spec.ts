@@ -549,7 +549,12 @@ describe('Bank Transfer emails', () => {
   };
   const withBank: OrderEmailContext = { ...ctx, whatsappNumber: WA, bankTransfer: BANK };
   const bankDoc = (status = 'pending') =>
-    orderDoc({ paymentMethod: 'bank-transfer', country: 'US', status, payIn: { currency: 'USD', amount: 205 } });
+    orderDoc({
+      paymentMethod: 'bank-transfer',
+      country: 'US',
+      status,
+      payIn: { currency: 'USD', amount: 205 },
+    });
 
   it('placed: shopper + store alert; confirmed: shopper only', () => {
     const pending = read(bankDoc());

@@ -223,7 +223,10 @@ function assertConfirmable(order: DocumentData): void {
   if (order['paymentMethod'] === 'bank-transfer') {
     // Bank Transfer is for orders shipped outside Egypt only.
     if (country === 'EG' || fulfilment !== 'international-bank-transfer') {
-      throw new HttpsError('failed-precondition', 'Only Bank Transfer orders shipped abroad are confirmed here.');
+      throw new HttpsError(
+        'failed-precondition',
+        'Only Bank Transfer orders shipped abroad are confirmed here.',
+      );
     }
   } else if (country !== 'EG' && fulfilment !== 'domestic-cod' && fulfilment !== 'domestic-instapay') {
     throw new HttpsError('failed-precondition', 'Only Egypt orders are confirmed here.');

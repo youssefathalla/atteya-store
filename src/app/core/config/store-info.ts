@@ -122,9 +122,7 @@ export function isBankTransferLive(info: StoreInfo = STORE_INFO): boolean {
 
 /** `EG52 0003 0233 …`: an IBAN in groups of 4 for reading (copy it without spaces). */
 export function formatIban(iban: string): string {
-  return iban
-    .replace(/\s/g, '')
-    .replace(/(.{4})(?=.)/g, '$1 ');
+  return iban.replace(/\s/g, '').replace(/(.{4})(?=.)/g, '$1 ');
 }
 
 /**

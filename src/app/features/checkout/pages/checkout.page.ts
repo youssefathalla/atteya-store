@@ -37,7 +37,7 @@ import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { injectFirestore } from '@core/firebase';
 import { isEgyptMobile } from '@core/config/order-messages';
-import { isCardOrWalletLive, STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
+import { isBankTransferLive, isCardOrWalletLive, STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import {
@@ -78,7 +78,12 @@ import { callableMessage } from '@shared/utils/firebase/firebase-errors';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
-import { cashOnDeliverySteps, instapaySteps } from '../utils/checkout-pay-steps';
+import {
+  bankTransferSteps,
+  cashOnDeliverySteps,
+  currencyPluralName,
+  instapaySteps,
+} from '../utils/checkout-pay-steps';
 import {
   countryLabel,
   filterCheckoutCountries,
@@ -262,18 +267,26 @@ export class CheckoutPageComponent implements OnInit {
    * `'coming-soon'` it is listed greyed out and visitors outside Egypt order on WhatsApp.
    */
   readonly cardOrWalletLive = isCardOrWalletLive();
+  /** Bank Transfer can be picked for orders shipped outside Egypt (an IBAN is set in store info). */
+  readonly bankTransferLive = isBankTransferLive();
   /** Business WhatsApp chat for visitors outside Egypt while Card is coming soon. */
   readonly whatsappUrl = whatsappChatUrl(STORE_INFO.contact.whatsapp);
   /** What the shopper picked; null = not chosen yet (Egypt then starts on InstaPay). */
   readonly #chosenMethod = signal<CheckoutPaymentMethod | null>(null);
   /**
    * Egypt: InstaPay (default), card, or cash on delivery.
-   * Abroad: card only, whatever was picked before; null while Card is
-   * coming soon (nothing to pay with, so checkout points to WhatsApp instead).
+   * Abroad: Bank Transfer (default) or Card once it is live; null while neither can be used
+   * (nothing to pay with, so checkout points to WhatsApp instead).
    */
   readonly paymentMethod = computed<CheckoutPaymentMethod | null>(() => {
-    if (!this.isEgypt()) return this.cardOrWalletLive ? 'paymob' : null;
-    const chosen = this.#chosenMethod() ?? 'instapay';
+    if (!this.isEgypt()) {
+      if (this.cardOrWalletLive && (this.#chosenMethod() === 'paymob' || !this.bankTransferLive))
+        return 'paymob';
+      return this.bankTransferLive ? 'bank-transfer' : null;
+    }
+    const picked = this.#chosenMethod() ?? 'instapay';
+    // Bank Transfer is for orders shipped abroad only.
+    const chosen = picked === 'bank-transfer' ? 'instapay' : picked;
     if (chosen !== 'paymob') return chosen;
     // A card can't be charged before the delivery fee of a large order is agreed.
     return this.cardOrWalletLive && !this.feeToBeAgreed() ? 'paymob' : 'instapay';
@@ -320,10 +333,10 @@ export class CheckoutPageComponent implements OnInit {
   readonly isEgypt = computed(() => this.shipping().country === 'EG');
   /** InstaPay and cash on delivery are Egypt-only. */
   readonly localMethodsAvailable = computed(() => this.isEgypt());
-  /** A country outside Egypt is chosen while Card is coming soon: order on WhatsApp. */
+  /** A country outside Egypt is chosen while neither Card nor Bank Transfer can be used: order on WhatsApp. */
   readonly abroadOrderingClosed = computed(() => {
     const country = this.shipping().country;
-    return !this.cardOrWalletLive && isCheckoutCountry(country) && country !== 'EG';
+    return !this.cardOrWalletLive && !this.bankTransferLive && isCheckoutCountry(country) && country !== 'EG';
   });
 
   readonly productsResource = resource({
@@ -695,6 +708,26 @@ export class CheckoutPageComponent implements OnInit {
     return ready ? cashOnDeliverySteps(ready) : [];
   });
 
+  /**
+   * What a Bank Transfer sends: the total in the currency checkout shows. A visitor whose prices
+   * show in EGP pays in US dollars (the server's fallback), so no amount is shown before ordering.
+   */
+  readonly bankTransfer = computed(() => {
+    const ready = this.readySummary();
+    if (!ready) return null;
+    const code = this.#currency.entry().code;
+    const foreign = code !== 'EGP';
+    return {
+      total: foreign ? ready.total : null,
+      currencyName: currencyPluralName(foreign ? code : 'USD'),
+    };
+  });
+
+  readonly bankTransferSteps = computed(() => {
+    const amounts = this.bankTransfer();
+    return amounts ? bankTransferSteps(amounts) : [];
+  });
+
   constructor() {
     // Tell the shopper when an offer stops applying to their bag (notes above the summary).
     effect(() => {
@@ -861,6 +894,11 @@ export class CheckoutPageComponent implements OnInit {
   }
 
   setPaymentMethod(method: CheckoutPaymentMethod): void {
+    if (method === 'bank-transfer') {
+      if (this.isEgypt() || !this.bankTransferLive) return;
+      this.#chosenMethod.set(method);
+      return;
+    }
     if (method !== 'paymob' && !this.localMethodsAvailable()) return;
     if (method === 'paymob' && (!this.cardOrWalletLive || this.feeToBeAgreed())) return;
     this.#chosenMethod.set(method);
@@ -954,7 +992,11 @@ export class CheckoutPageComponent implements OnInit {
       this.#snackbar.error(ABROAD_COMING_SOON_MESSAGE);
       return;
     }
-    if (method !== 'paymob' && draft.country !== 'EG') {
+    if (method === 'bank-transfer' && draft.country === 'EG') {
+      this.#snackbar.error('Bank Transfer is only available for orders delivered outside Egypt.');
+      return;
+    }
+    if ((method === 'instapay' || method === 'cash-on-delivery') && draft.country !== 'EG') {
       this.#snackbar.error('InstaPay and Cash on Delivery are only available for Egypt.');
       return;
     }
@@ -1004,6 +1046,8 @@ export class CheckoutPageComponent implements OnInit {
 
       const result = await this.#checkout.placeManualOrder({
         method,
+        // Bank Transfer: the server works out the amount to send in this currency itself.
+        payInCurrency: this.#currency.entry().code,
         lines: this.lines(),
         shipping,
         endedOfferIds: this.#offers.endedIds(),

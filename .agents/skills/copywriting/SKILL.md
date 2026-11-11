@@ -12,7 +12,7 @@ Every rule here came from a real correction by Youssef. Follow it the first time
 | What | Style | Examples |
 | :--- | :--- | :--- |
 | Buttons, menu items, dialog actions, email buttons | **Title case** | Place Order, Add to Bag, Send on WhatsApp, Message Us on WhatsApp, Back to the Store, Open Orders in the Dashboard |
-| Payment method and order status names (anywhere, also inside sentences) | **Title case** | InstaPay, Card, Cash on Delivery, Waiting for Payment, Confirmed, Shipped, Delivered, Cancelled, Payment Failed |
+| Payment method and order status names (anywhere, also inside sentences) | **Title case** | InstaPay, Card, Cash on Delivery, Bank Transfer, Waiting for Payment, Confirmed, Shipped, Delivered, Cancelled, Payment Failed |
 | Email headings, labels and row names | **Title case** | New Order #A1B2C3, Delivery Address, Customer, Shipping Fee, Cash at the Door |
 | Sentences, hints, snackbars, helper text, aria-labels | Sentence case | "We'll confirm your order as soon as we receive your payment." |
 | Stock badges and table values | Sentence case | In stock, Out of stock, Not set |
@@ -49,6 +49,7 @@ All payment wording comes from `orderStage()` / `paymentDue()` in `functions/src
 - InstaPay order = the shopper pays the **full total**. Cash on Delivery = the **shipping fee** by InstaPay first, the rest in cash at the door. Free shipping = nothing to pay now.
 - A paid order never asks for money or a screenshot. It gets a confirmation.
 - Abroad orders never mention InstaPay, a deposit, cash or EGP amounts in WhatsApp texts.
+- Bank Transfer (abroad only) = the shopper sends the **full total in the currency checkout showed them** ("$205") from their bank; say "Send $205 from your bank" and **Send Receipt on WhatsApp**, never an EGP amount to the shopper.
 - While a card payment is still confirming, show no WhatsApp button.
 
 ## 6. Languages

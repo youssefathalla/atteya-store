@@ -28,5 +28,6 @@ export function orderMessageInput(order: OrderDoc): OrderMessageInput {
     totalEgp,
     needsReview: 'needsReview' in order ? order.needsReview === true : false,
     feeToBeAgreed,
+    payIn: pricing.payIn ?? null,
   };
 }

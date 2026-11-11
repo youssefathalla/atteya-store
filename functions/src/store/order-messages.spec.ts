@@ -149,7 +149,8 @@ describe('paymentDue', () => {
 
   it('asks for nothing in every other stage', () => {
     for (const [stage, input] of ALL_STAGES) {
-      if (stage === 'instapay-total-due' || stage === 'instapay-fee-due' || stage === 'bank-transfer-due') continue;
+      if (stage === 'instapay-total-due' || stage === 'instapay-fee-due' || stage === 'bank-transfer-due')
+        continue;
       assert.equal(paymentDue(stage, input), null, stage);
     }
   });
@@ -314,7 +315,14 @@ describe('Bank Transfer', () => {
   });
 
   it('staff text names the amount, the bank details and the reference, never InstaPay', () => {
-    const text = staffWhatsappText('bank-transfer-due', order(BANK), 'Sam Lee', INSTAPAY, 'Atteya Store', BANK_INFO)!;
+    const text = staffWhatsappText(
+      'bank-transfer-due',
+      order(BANK),
+      'Sam Lee',
+      INSTAPAY,
+      'Atteya Store',
+      BANK_INFO,
+    )!;
     assert.match(text, /205 USD/);
     assert.match(text, /#A1B2C3/);
     assert.match(text, /IBAN: EG520003023350016856630000150/);

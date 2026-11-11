@@ -630,7 +630,10 @@ function bankPayBox(
   return {
     lines,
     whatsapp: waUrl
-      ? { label: hasBankTransferDetails(bank) ? 'Send Receipt on WhatsApp' : 'Message Us on WhatsApp', url: waUrl }
+      ? {
+          label: hasBankTransferDetails(bank) ? 'Send Receipt on WhatsApp' : 'Message Us on WhatsApp',
+          url: waUrl,
+        }
       : null,
   };
 }

@@ -24,6 +24,8 @@ export interface PaymentPartsInput {
   readonly method: PaymentMethodId | null;
   /** Order total in the order's currency ("EGP 865"). */
   readonly total: string;
+  /** Bank Transfer: the total in the shopper's currency ("$205"), or null. Shown instead of `total`. */
+  readonly payIn?: string | null;
   /** Items only, for a large order whose delivery fee is still to be agreed. */
   readonly items: string;
   /** Delivery fee in EGP when it is above 0, else null. */
@@ -74,8 +76,12 @@ export function paymentParts(stage: OrderStage | null, input: PaymentPartsInput)
     soft: flags.soft ?? false,
   });
   const cash = input.cash ?? input.total;
+  // A Bank Transfer is sent in the shopper's own currency.
+  const total = method === 'bank-transfer' && input.payIn ? input.payIn : input.total;
 
   switch (stage) {
+    case 'bank-transfer-due':
+      return [part('total', 'bank-transfer', 'Order total', 'Now, from your bank', total)];
     case 'instapay-total-due':
       return [part('total', 'instapay', 'Order total', 'Now, by InstaPay', input.total)];
     case 'instapay-fee-due':
@@ -88,7 +94,7 @@ export function paymentParts(stage: OrderStage | null, input: PaymentPartsInput)
     case 'shipped':
     case 'delivered':
       if (method !== 'cash-on-delivery') {
-        return [part('total', method, 'Order total', 'Paid', input.total, { paid: true })];
+        return [part('total', method, 'Order total', 'Paid', total, { paid: true })];
       }
       if (stage === 'delivered') {
         return input.fee
@@ -120,13 +126,13 @@ export function paymentParts(stage: OrderStage | null, input: PaymentPartsInput)
       ];
     case 'paid':
     case 'paid-needs-review':
-      return [part('total', method, 'Order total', 'Paid', input.total, { paid: true })];
+      return [part('total', method, 'Order total', 'Paid', total, { paid: true })];
     case 'paymob-pending':
       return [part('total', method, 'Order total', 'Checking with your bank', input.total)];
     case 'failed':
       return [part('total', method, 'Order total', 'Not charged', input.total, { struck: true })];
     case 'cancelled':
-      return [part('total', method, 'Order total', 'Nothing to pay', input.total, { struck: true })];
+      return [part('total', method, 'Order total', 'Nothing to pay', total, { struck: true })];
     default:
       return [];
   }

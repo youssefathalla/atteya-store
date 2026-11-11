@@ -1,4 +1,9 @@
-import { displayDecimals, isUnreliableCurrency, toDisplayAmount, type CurrencyEntry } from '../offers/engine/currency.js';
+import {
+  displayDecimals,
+  isUnreliableCurrency,
+  toDisplayAmount,
+  type CurrencyEntry,
+} from '../offers/engine/currency.js';
 import type { OrderLinePrice, OrderPayIn, OrderShippingLine } from './order-pricing.server.js';
 
 /** The currency a Bank Transfer falls back to when checkout sent none or one we can't use. */

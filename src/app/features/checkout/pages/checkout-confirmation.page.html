@@ -86,7 +86,59 @@
                 }
 
                 @if (step.pay) {
-                  @if (payBox(); as box) {
+                  @if (bankBox(); as bank) {
+                    <div class="order-pay-card">
+                      @if (bank.hasDetails) {
+                        <dl class="elements-start-col items-stretch! gap-3">
+                          @for (row of bank.rows; track row.label) {
+                            <div class="elements-between gap-3">
+                              <div class="min-w-0">
+                                <dt class="font-label-md text-on-surface-variant">{{ row.label }}</dt>
+                                <dd
+                                  class="font-title-sm font-bold! break-all"
+                                  [class.tracking-wide]="row.mono"
+                                >
+                                  {{ row.value }}
+                                </dd>
+                              </div>
+                              @if (row.copy; as value) {
+                                <button
+                                  matButton="outlined"
+                                  type="button"
+                                  [attr.aria-label]="'Copy ' + row.label"
+                                  (click)="copy(value, row.label)"
+                                >
+                                  Copy
+                                </button>
+                              }
+                            </div>
+                          }
+                        </dl>
+                        <p class="font-body-sm text-on-surface-variant">
+                          Choose "I pay all fees" in your bank app so the full amount reaches us.
+                        </p>
+                      } @else {
+                        <p class="font-body-md">We'll send you our bank details on WhatsApp.</p>
+                      }
+
+                      @if (bank.whatsappUrl) {
+                        <div class="elements-start">
+                          <a
+                            matButton="filled"
+                            theme="success"
+                            [href]="bank.whatsappUrl"
+                            target="_blank"
+                            rel="noopener"
+                          >
+                            <mat-icon name="chat_bubble" />
+                            <span>{{
+                              bank.hasDetails ? 'Send Receipt on WhatsApp' : 'Message Us on WhatsApp'
+                            }}</span>
+                          </a>
+                        </div>
+                      }
+                    </div>
+                  } @else if (payBox(); as box) {
                     <div class="order-pay-card">
                       @if (box.hasDetails) {
                         @let both = !!box.number && !!box.address;
