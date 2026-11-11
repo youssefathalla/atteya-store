@@ -29,8 +29,8 @@ import { ProfileSectionComponent } from './components/profile-section/profile-se
 
 /**
  * `/account` (client-rendered, behind `accountAuthGuard`): a black welcome bar (name, email,
- * order and favorite counts, Sign Out) over a grid: Orders on the left, Profile, Delivery
- * Address, Favorites and Emails on the right (one column on phones). `users/{uid}` is read live
+ * order and favorite counts, Sign Out) over a grid: Orders, Delivery Address, then Profile,
+ * Favorites and Emails (three columns on wide screens, two on tablets, one on phones). `users/{uid}` is read live
  * and handed to each section.
  */
 @Component({

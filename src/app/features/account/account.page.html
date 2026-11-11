@@ -1,4 +1,4 @@
-<section class="container-content max-w-6xl mx-auto elements-start-col gap-6">
+<section class="container-content max-w-7xl mx-auto elements-start-col gap-6">
   <header class="account-hero">
     <div class="elements-start gap-4 min-w-0 flex-1">
       <span class="account-avatar account-avatar--inverse" aria-hidden="true">{{ initial() }}</span>
@@ -39,6 +39,9 @@
     <div class="account-grid__main">
       <app-orders-section id="orders" [uid]="uid()" />
     </div>
+    <div class="account-grid__middle">
+      <app-address-section id="address" [uid]="uid()" [profile]="profile()" [loading]="profileLoading()" />
+    </div>
     <div class="account-grid__side">
       <app-profile-section
         id="profile"
@@ -47,7 +50,6 @@
         [profile]="profile()"
         [loading]="profileLoading()"
       />
-      <app-address-section id="address" [uid]="uid()" [profile]="profile()" [loading]="profileLoading()" />
       <section id="favorites" class="account-section w-full" aria-labelledby="account-favorites-title">
         <h2 id="account-favorites-title" class="account-section__title">
           <mat-icon name="favorite" aria-hidden="true" />
