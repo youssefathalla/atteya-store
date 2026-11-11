@@ -86,6 +86,7 @@ import {
   type BundlePicks,
   bundleOfferForProduct,
   bundlePieceLine,
+  bundleQualifyingChoices,
   bundleSavePercent,
   bundleSizeStepKey,
   bundleStepKey,
@@ -538,12 +539,17 @@ export class ProductComponent {
     },
   });
 
-  /** Every product a piece can be: this product (live price and stock), then the offer's others. Null while loading. */
+  /**
+   * Every product a piece can be: this product (live price and stock), then the offer's others,
+   * each with only the sizes the bag would count in the offer. Null while loading.
+   */
   readonly #bundleChoices = computed<readonly BundleChoice[] | null>(() => {
     const p = this.product();
-    if (!p || !this.#bundleOthers.hasValue()) return null;
+    const bundle = this.bundleOffer();
+    if (!p || !bundle || !this.#bundleOthers.hasValue()) return null;
     const view = toGiftChoice({ ...p, published: !this.removed() });
-    return [...(view ? [{ view, product: p }] : []), ...this.#bundleOthers.value()];
+    const all = [...(view ? [{ view, product: p }] : []), ...this.#bundleOthers.value()];
+    return bundleQualifyingChoices(all, bundle.offer, this.#pricingCtx());
   });
 
   /** Space for the picker while its products load (server render included). */

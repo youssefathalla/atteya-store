@@ -1,5 +1,7 @@
+import { bagLineVariant } from '@core/services/cart/cart-deals';
 import type { GiftChoiceView } from '@core/services/cart/cart-gifts';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
+import { toPricedProduct } from '@core/services/offers/offer.model';
 import {
   bundleOffersForItem,
   bundleRows,
@@ -154,6 +156,34 @@ export function bundlePieceLine(choice: BundleChoice, pick: BundlePick): CartLin
     selection,
     quantity: 1,
   };
+}
+
+/**
+ * The choices the bag would really put in `offer`, with only the sizes it would count (the bag's
+ * own rules: product, chosen size or colour, sale items). A product that only partly matches the
+ * offer (say an offer for some sizes) keeps just those sizes; one with none left is dropped.
+ */
+export function bundleQualifyingChoices(
+  choices: readonly BundleChoice[],
+  offer: Offer,
+  ctx: PricingContext,
+): BundleChoice[] {
+  return choices.flatMap((choice) => {
+    const product = choice.product;
+    const priced = toPricedProduct(product);
+    const onSale = product.compareAtPrice !== null && product.compareAtPrice > product.price;
+    const fits = (sizeId: string | null): boolean => {
+      const line = bundlePieceLine(choice, { productId: product.id, sizeId });
+      if (!line) return false;
+      const variant = bagLineVariant(product, line);
+      return bundleOffersForItem([offer], ctx, { product: priced, variant, onSale }).length > 0;
+    };
+    const sizes = choice.view.sizes;
+    if (!sizes) return fits(null) ? [choice] : [];
+    const kept = sizes.filter((size) => fits(size.id));
+    if (kept.length === 0) return [];
+    return [kept.length === sizes.length ? choice : { ...choice, view: { ...choice.view, sizes: kept } }];
+  });
 }
 
 /** How much a row saves against `fullPrice` per piece, as a whole percent; 0 when it saves nothing. */
