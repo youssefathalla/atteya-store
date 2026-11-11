@@ -1,4 +1,12 @@
 @layer components {
+  /*
+   * Product listing grid (category, brand, search, favorites): 2 / 3 / 4 columns with room
+   * between cards. Shop's `.shop-product-grid` keeps its own columns but uses the same gaps.
+   */
+  .product-grid {
+    @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-2 gap-y-8 md:gap-x-4 md:gap-y-12 w-full;
+  }
+
   /**
    * On.com-style listing card chrome (AS-71).
    * No padded frame / radius / shadow on the card shell.
@@ -9,6 +17,13 @@
   .product-card {
     --product-card-media-from: #f3f3f3;
     --product-card-media-to: #e8e8e8;
+    /* Room the colours, name, second line and price need under the photo. */
+    --product-card-details: 12.5rem;
+  }
+
+  /* The badge line above the name adds about 1.5rem of details. */
+  .product-card--badged {
+    --product-card-details: 14rem;
   }
 
   .product-card__media-wrap {
@@ -22,11 +37,34 @@
 
   .product-card__media {
     @apply relative w-full overflow-hidden aspect-4/5;
+    /*
+     * Photo and details fit in one window on wide screens; the photo stays contained.
+     * The 16rem floor only limits how far the cap can shrink on short windows; it is not a
+     * min-height, so narrow (phone) cards keep their true 4:5 ratio.
+     */
+    max-height: max(
+      16rem,
+      calc(100dvh - var(--storefront-top-chrome, 56px) - var(--product-card-details) - 1rem)
+    );
     background: linear-gradient(180deg, var(--product-card-media-from), var(--product-card-media-to));
   }
 
+  /* Plain thin heart in the photo's corner (no circle); the 36px tap area stays, unseen. */
   .product-card__favorite {
-    @apply absolute top-0 end-0 z-10;
+    @apply absolute top-1 end-1 sm:top-1.5 sm:end-1.5 z-10 size-9 elements-center cursor-pointer;
+    @apply transition-transform duration-150;
+  }
+
+  .product-card__favorite:hover:not(:disabled) {
+    @apply scale-110;
+  }
+
+  .product-card__favorite:focus-visible {
+    @apply outline-2 -outline-offset-2 outline-primary;
+  }
+
+  .product-card__favorite:disabled {
+    @apply cursor-default opacity-60;
   }
 
   .product-card__photo {
@@ -34,12 +72,39 @@
     filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.12));
   }
 
+  /* Colour change: the new photo fades in over the old one, only once it has downloaded. */
+  .product-card__photo--incoming {
+    animation: product-card-photo-in 200ms ease-out both;
+  }
+
+  .product-card__photo--incoming.skeleton {
+    animation: none;
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .product-card__photo--incoming {
+      animation: none;
+    }
+  }
+
+  @keyframes product-card-photo-in {
+    from {
+      opacity: 0;
+      transform: scale(1.015);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   .product-card__swatches {
-    @apply w-full pt-2 pb-1 elements-start-col gap-1;
+    @apply w-full pt-3;
   }
 
   .product-card__swatch-row {
-    @apply flex items-end gap-1.5 w-full overflow-x-auto overflow-y-hidden;
+    @apply flex items-start gap-2 w-full overflow-x-auto overflow-y-hidden pb-2.5;
     scrollbar-width: none;
   }
 
@@ -57,23 +122,19 @@
 
   .product-card__swatch--selected::after {
     content: '';
-    @apply absolute left-0 right-0 -bottom-1 h-px bg-primary;
+    @apply absolute left-0 right-0 -bottom-2 h-px bg-primary;
   }
 
   .product-card__swatch-more {
     @apply shrink-0 elements-center size-9 sm:size-10 font-label-sm text-on-surface-variant;
   }
 
-  .product-card__swatch-track {
-    @apply w-full h-px bg-outline-variant;
-  }
-
   .product-card__info {
-    @apply elements-start-col gap-0.5 pt-2;
+    @apply elements-start-col gap-1 pt-3;
   }
 
   .product-card__badge {
-    @apply font-label-sm font-bold! uppercase tracking-wide text-primary;
+    @apply pb-1 font-label-sm font-bold! uppercase tracking-wide text-primary;
   }
 
   .product-card__badge--boxed {
@@ -81,11 +142,17 @@
   }
 
   .product-card__name {
-    @apply font-title-sm font-bold! line-clamp-2;
+    /* One line on every card, so every card in a row has the same height; a long name ends in "…". */
+    @apply font-title-sm font-bold! line-clamp-1;
   }
 
   .product-card__desc {
     @apply font-body-sm line-clamp-1 text-on-surface-variant;
+  }
+
+  /* Same height as the price line while a picked colour's price loads, so nothing jumps. */
+  .product-card__price-loading {
+    @apply block h-6 w-24 mt-0.5 border-shape;
   }
 
   .product-card__price {

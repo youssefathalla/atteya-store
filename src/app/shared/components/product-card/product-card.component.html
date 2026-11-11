@@ -6,36 +6,38 @@
     (click)="onProductLinkClick($event)"
   >
     <div class="product-card__media">
-      @if (displayImagePath(); as path) {
+      @for (layer of photoLayers(); track layer.path; let last = $last; let count = $count) {
         <img
-          [ngSrc]="imagePath(path)"
-          [appImageFallback]="path"
-          [alt]="displayImageAlt()"
+          [ngSrc]="imagePath(layer.path)"
+          [appImageFallback]="layer.path"
+          [alt]="last ? layer.alt : ''"
           fill
-          [priority]="priority()"
+          [priority]="priority() && layer.initial"
+          [loading]="layer.initial ? undefined : 'eager'"
           [sizes]="sizes()"
           class="product-card__photo"
+          [class.product-card__photo--incoming]="last && count > 1"
+          (load)="onPhotoLoad(layer.path)"
+          (animationend)="onPhotoShown(layer.path, $event)"
         />
       }
     </div>
   </a>
 
-  <div class="product-card__favorite">
-    <button
-      matIconButton
-      type="button"
-      [attr.aria-label]="favoriteLabel()"
-      [attr.aria-pressed]="isFavorite() ? true : false"
-      [disabled]="favoriteBusy()"
-      (click)="onFavoriteClick($event)"
-    >
-      <mat-icon name="favorite" [type]="isFavorite() ? 'fill' : 'outline'" />
-    </button>
-  </div>
+  <button
+    type="button"
+    class="product-card__favorite"
+    [attr.aria-label]="favoriteLabel()"
+    [attr.aria-pressed]="isFavorite() ? true : false"
+    [disabled]="favoriteBusy()"
+    (click)="onFavoriteClick($event)"
+  >
+    <mat-icon name="favorite" weight="400" [type]="isFavorite() ? 'fill' : 'outline'" />
+  </button>
 </div>
 
 @if (colorwayRow().shown.length > 0) {
-  <div class="product-card__swatches" role="group" aria-label="Other colours">
+  <div class="product-card__swatches" role="group" aria-label="Colours">
     <div class="product-card__swatch-row" appHorizontalScroll [snapToItems]="false" [enableDrag]="true">
       @for (colorway of colorwayRow().shown; track colorway.productId) {
         <a
@@ -45,11 +47,6 @@
           [appPrefetchProduct]="colorway.slug"
           [attr.aria-label]="colorway.imageAlt"
           [attr.aria-current]="isSelected(colorway) ? 'true' : null"
-          (pointerdown)="onColorPointerDown($event)"
-          (mouseenter)="onColorEnter(colorway)"
-          (mouseleave)="onColorLeave()"
-          (focus)="onColorEnter(colorway)"
-          (blur)="onColorLeave()"
           (click)="onColorClick($event, colorway)"
         >
           @if (colorway.imagePath) {
@@ -68,14 +65,13 @@
         <span class="product-card__swatch-more" aria-hidden="true"> +{{ colorwayRow().overflow }} </span>
       }
     </div>
-    <div class="product-card__swatch-track" aria-hidden="true"></div>
   </div>
 }
 
 <a
   class="product-card__info"
-  [routerLink]="['/product', product().slug]"
-  [appPrefetchProduct]="product().slug"
+  [routerLink]="['/product', photoSlug()]"
+  [appPrefetchProduct]="photoSlug()"
   (click)="onProductLinkClick($event)"
 >
   @if (product().marketingBadge; as badge) {
@@ -83,17 +79,21 @@
       {{ badge.label }}
     </span>
   }
-  <h2 class="product-card__name">{{ product().name }}</h2>
+  <h2 class="product-card__name" [attr.title]="product().name">{{ product().name }}</h2>
   @if (secondLine(); as line) {
     <p class="product-card__desc">{{ line }}</p>
   }
-  <app-product-price
-    class="product-card__price"
-    tone="listing"
-    [price]="product().price.price"
-    [fromPrice]="product().price.fromPrice"
-    [partial]="product().price.partial"
-    [listPrice]="product().price.listPrice"
-    [badges]="product().price.badges"
-  />
+  @if (shownPrice(); as price) {
+    <app-product-price
+      class="product-card__price"
+      tone="listing"
+      [price]="price.price"
+      [fromPrice]="price.fromPrice"
+      [partial]="price.partial"
+      [listPrice]="price.listPrice"
+      [badges]="price.badges"
+    />
+  } @else {
+    <span class="product-card__price-loading skeleton" aria-hidden="true"></span>
+  }
 </a>

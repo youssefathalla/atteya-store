@@ -13,7 +13,7 @@
       </button>
     </div>
   } @else if (showLoading()) {
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full" aria-label="Loading favorites">
+    <div class="product-grid" aria-label="Loading favorites">
       @for (slot of skeletonSlots; track slot) {
         <div class="elements-start-col gap-2">
           <app-skeleton class="aspect-4/5 w-full" />
@@ -34,7 +34,7 @@
       </a>
     </div>
   } @else {
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
+    <div class="product-grid">
       @for (card of cards(); track card.id; let i = $index) {
         <app-product-card [product]="card" [priority]="i < 2" />
       }
