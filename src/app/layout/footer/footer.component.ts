@@ -15,8 +15,9 @@ import { footerLabel, footerSocialLinks } from './utils/footer-links';
 const FIXED_SHOP_PATHS = new Set(['/shop', '/brands', '/category/all', '/category/shop']);
 
 /**
- * Storefront footer: Shop / Help / Account link columns, the email sign-up for visitors who
- * aren't signed in, and the bottom row (copyright, Terms, Privacy, social icons).
+ * Storefront footer: the email sign-up first (hidden only for a signed-in shopper, so the server
+ * render matches and the columns don't jump), then the Shop / Help / Account link columns and
+ * the bottom row (copyright, Terms, Privacy, social icons).
  * `MainLayoutComponent` leaves it out on focus pages (Sign in, Checkout).
  */
 @Component({

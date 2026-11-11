@@ -40,6 +40,16 @@
   );
 }
 
+//- Full width on phone only, content width from `sm` (footer Subscribe)
+.btn-block-phone {
+  width: 100%;
+  flex-shrink: 0;
+
+  @media (min-width: 40rem) {
+    width: auto;
+  }
+}
+
 //-Table buttons
 .table-btn {
   @include mat.button-overrides(
