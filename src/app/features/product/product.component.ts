@@ -576,13 +576,18 @@ export class ProductComponent {
   /**
    * The rows the picker lists: the offer's rows, plus "Get 1" at piece 1's own price when the
    * offer has no 1-piece row, so one piece can still be bought (the bag charges its normal price).
+   * Once the products are read, rows for 2+ pieces are dropped when no product can fill pieces 2+
+   * (this product has a real choice besides size and the offer lists no other product).
    */
   readonly #pickerRows = computed<readonly OfferBundleRow[]>(() => {
     const bundle = this.bundleOffer();
     if (!bundle) return [];
-    if (bundle.rows.some((row) => row.quantity === 1)) return bundle.rows;
+    const choices = this.#bundleChoices();
+    const rows =
+      choices && choices.length === 0 ? bundle.rows.filter((row) => row.quantity <= 1) : bundle.rows;
+    if (rows.some((row) => row.quantity === 1)) return rows;
     const first = this.#bundlePicks()[0]?.productId;
-    return [{ quantity: 1, price: first ? this.#piecePrice(first) : this.#fullPrice() }, ...bundle.rows];
+    return [{ quantity: 1, price: first ? this.#piecePrice(first) : this.#fullPrice() }, ...rows];
   });
 
   readonly bundlePieces = computed(() => {
