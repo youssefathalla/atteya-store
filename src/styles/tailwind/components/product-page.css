@@ -232,6 +232,28 @@
     @apply ps-3 border-s-2 border-error;
   }
 
+  /**
+   * Bundle price row on the product page (`app-product-bundle-picker`): the radio and its title on the left, the
+   * "Save n%" tag and the price per piece (full price struck through under it) on the right. The chosen row has a
+   * 2px black border (1px border + 1px inset ring, so the row doesn't move).
+   */
+  .pdp-bundle-row {
+    @apply relative w-full min-w-0 elements-between gap-3 py-1 pe-3 border border-outline-variant border-shape bg-surface;
+  }
+
+  .pdp-bundle-row--selected {
+    @apply border-primary ring-1 ring-inset ring-primary;
+  }
+
+  /* An empty span inside the radio's label, stretched over the whole row: a click anywhere on it picks the row. */
+  .pdp-bundle-row__hit {
+    @apply absolute inset-0 cursor-pointer;
+  }
+
+  .pdp-bundle-row__price {
+    @apply elements-end shrink-0 gap-2 text-end;
+  }
+
   /** "Select a Size" opener. */
   .pdp-size-toggle {
     @apply w-full min-h-12 px-4 elements-between gap-2 border border-outline border-shape bg-surface font-label-lg cursor-pointer transition-colors;

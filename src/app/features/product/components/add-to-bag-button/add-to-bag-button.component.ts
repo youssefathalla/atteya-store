@@ -8,6 +8,7 @@ import type { CartLineDraft } from '@core/services/cart/cart.model';
 /**
  * Stays pressable while the product can be bought. With a choice still missing
  * (usually the size) it adds nothing and tells the page, which asks the shopper to choose.
+ * `lines` adds several bag lines at once (a Bundle price picker's pieces), all or none.
  */
 @Component({
   selector: 'app-add-to-bag-button',
@@ -20,13 +21,15 @@ import type { CartLineDraft } from '@core/services/cart/cart.model';
       [disabled]="unavailable()"
       (click)="addToBag()"
     >
-      Add to Bag
+      {{ label() }}
     </button>
   `,
   host: { class: 'block w-full' },
 })
 export class AddToBagButtonComponent {
-  readonly line = input<CartLineDraft | null>(null);
+  readonly lines = input<readonly CartLineDraft[] | null>(null);
+  /** "Add to Bag", or with the bundle total ("Add 2 to Bag · EGP 200"). */
+  readonly label = input<string>('Add to Bag');
   /** Out of stock or no longer sold. */
   readonly unavailable = input<boolean>(false);
 
@@ -37,13 +40,18 @@ export class AddToBagButtonComponent {
   readonly #snackbar = inject(SnackbarService);
 
   addToBag(): void {
-    const draft = this.line();
-    if (!draft) {
+    const drafts = this.lines();
+    if (!drafts || drafts.length === 0) {
       this.choiceMissing.emit();
       return;
     }
-    if (!this.#cart.add(draft)) {
-      this.#snackbar.error('Your bag is full. Remove an item to add this one.');
+    const added = drafts.length === 1 ? this.#cart.add(drafts[0]!) : this.#cart.addAll(drafts);
+    if (!added) {
+      this.#snackbar.error(
+        drafts.length === 1
+          ? 'Your bag is full. Remove an item to add this one.'
+          : 'Your bag is full. Remove an item to add these.',
+      );
       return;
     }
     this.#snackbar.success('Added to your bag');

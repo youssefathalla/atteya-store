@@ -138,6 +138,7 @@ export class SearchService {
     const numericFilters = options.numericFilters ? [...options.numericFilters] : undefined;
     const facets = options.facets ? [...options.facets] : undefined;
     const disjunctive = options.disjunctiveFacets ?? [];
+    const distinct = options.distinct ?? true;
 
     interface HitRequest {
       indexName: string;
@@ -164,8 +165,8 @@ export class SearchService {
       facets,
       maxValuesPerFacet,
       // One card per model (index `distinct` on `distinctKey`), and filter counts count models.
-      distinct: true,
-      facetingAfterDistinct: true,
+      distinct,
+      facetingAfterDistinct: distinct,
     };
 
     const requests: HitRequest[] = [mainRequest];
