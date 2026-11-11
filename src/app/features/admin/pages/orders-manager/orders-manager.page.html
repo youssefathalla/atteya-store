@@ -3,10 +3,12 @@
     <div>
       <h1 class="font-title-lg font-bold!">Orders</h1>
       <p class="font-body-md text-on-surface-variant">
-        Review InstaPay, Card, and Cash on Delivery orders. Confirm an InstaPay payment only after the money
-        shows in your bank app. For a large order, agree the delivery fee with the customer on WhatsApp, then
-        use Set Delivery Fee before you confirm it. Current stock comes from each product right now, not from
-        the amounts stored when the order was placed.
+        Review InstaPay, Card, and Cash on Delivery orders, and move each one along with Change Status:
+        Confirmed, Shipped, Delivered, or one step back if something goes wrong. Confirm an InstaPay payment
+        only after the money shows in your bank app. For a large order, agree the delivery fee with the
+        customer on WhatsApp, then use Set Delivery Fee before you confirm it. Confirming takes the items out
+        of stock; cancelling or going back to Waiting for Payment puts them back. Current stock comes from
+        each product right now, not from the amounts stored when the order was placed.
       </p>
     </div>
 
@@ -58,6 +60,21 @@
     <span class="font-label-sm text-on-surface-variant">
       {{ row.paymentLabel }} · {{ row.placedAtLabel }}
     </span>
+    @if (row.isFirstLine && row.cancelReason) {
+      <span class="font-label-sm">Cancel reason: {{ row.cancelReason }}</span>
+    }
+    @if (row.isFirstLine && row.history.length) {
+      <ol class="elements-start-col gap-0.5 pt-1" aria-label="Status history">
+        @for (entry of row.history; track $index) {
+          <li class="font-label-sm text-on-surface-variant">
+            {{ entry.label }} · {{ entry.when }}{{ entry.by ? ' · ' + entry.by : '' }}
+            @if (entry.reason) {
+              <span>· {{ entry.reason }}</span>
+            }
+          </li>
+        }
+      </ol>
+    }
   </div>
 </ng-template>
 
@@ -106,20 +123,27 @@
           }
         </button>
       }
-      @if (row.confirmAction) {
+      @if (row.statusMoves.length) {
         <button
           matButton="filled"
           type="button"
+          [matMenuTriggerFor]="statusMenu"
           [disabled]="busyOrderId() !== null"
-          [attr.aria-label]="isBusy(row, 'confirm') ? 'Confirming…' : null"
-          (click)="confirm(row)"
+          [attr.aria-label]="
+            isBusy(row, 'status') ? 'Saving status…' : 'Change status of order ' + row.orderRef
+          "
         >
-          @if (isBusy(row, 'confirm')) {
+          @if (isBusy(row, 'status')) {
             <mat-progress-spinner mode="indeterminate" diameter="18" />
           } @else {
-            <span>{{ row.confirmAction === 'confirm-payment' ? 'Confirm Payment' : 'Confirm Order' }}</span>
+            <span>Change Status</span>
           }
         </button>
+        <mat-menu #statusMenu="matMenu">
+          @for (move of row.statusMoves; track move.status) {
+            <button mat-menu-item type="button" (click)="changeStatus(row, move)">{{ move.label }}</button>
+          }
+        </mat-menu>
       }
       @if (row.whatsappUrl) {
         <a
@@ -155,21 +179,6 @@
             <mat-progress-spinner mode="indeterminate" diameter="18" />
           } @else {
             <span>Change Delivery Fee</span>
-          }
-        </button>
-      }
-      @if (row.canCancel) {
-        <button
-          matButton="text"
-          type="button"
-          [disabled]="busyOrderId() !== null"
-          [attr.aria-label]="isBusy(row, 'cancel') ? 'Cancelling order…' : null"
-          (click)="cancel(row)"
-        >
-          @if (isBusy(row, 'cancel')) {
-            <mat-progress-spinner mode="indeterminate" diameter="18" />
-          } @else {
-            <span>Cancel Order</span>
           }
         </button>
       }

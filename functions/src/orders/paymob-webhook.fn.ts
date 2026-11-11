@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   FieldValue,
   getFirestore,
+  Timestamp,
   type DocumentData,
   type DocumentReference,
   type Firestore,
@@ -11,11 +12,13 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { verifyPaymobHmac } from '../paymob/hmac.js';
 import { PAYMOB_HMAC_SECRET, paymobSecrets } from '../paymob/paymob-config.js';
 import type { StockFields } from '../products/stock.js';
+import { isOrderStatus, type OrderStatus } from '../store/order-status.js';
 import {
   aggregateOrderStockDemand,
   applyStockDemand,
   parseOrderStockLines,
 } from './decrement-order-stock.js';
+import { orderStaffNotesRef, staffNotesPatch } from './order-staff-notes.js';
 
 /**
  * Paymob Transaction Processed callback (notification_url).
@@ -157,7 +160,13 @@ export const paymobWebhook = onRequest(
           return;
         }
 
-        const isFinal = data['status'] === 'confirmed' || data['status'] === 'cancelled';
+        // Confirmed, shipped, delivered and cancelled are final for Paymob: a late event never
+        // re-confirms an order staff already moved on (and never takes stock twice).
+        const isFinal =
+          data['status'] === 'confirmed' ||
+          data['status'] === 'shipped' ||
+          data['status'] === 'delivered' ||
+          data['status'] === 'cancelled';
         const willConfirm = isCleanCapture && !isFinal;
 
         // Firestore transactions need every read before any write: load the products
@@ -204,6 +213,11 @@ export const paymobWebhook = onRequest(
             needsReview,
             updatedAt: now,
           });
+          tx.set(
+            orderStaffNotesRef(db, orderId),
+            staffNotesPatch(webhookHistoryEntry('confirmed', data['status'])),
+            { merge: true },
+          );
           if (needsReview) {
             console.warn('Paymob order confirmed with stock issues', {
               orderId,
@@ -215,11 +229,20 @@ export const paymobWebhook = onRequest(
 
         // Failed capture, void, refund, or gateway error — do not fulfil.
         if (isVoided || isRefunded || errorOccurred || !success) {
-          tx.update(orderRef, {
+          const failPatch: DocumentData = {
             status: 'failed',
             'paymob.transactionId': transactionId,
             updatedAt: now,
-          });
+          };
+          // Only record a real change (a repeat failure on a failed order adds no row).
+          tx.update(orderRef, failPatch);
+          if (data['status'] !== 'failed') {
+            tx.set(
+              orderStaffNotesRef(db, orderId),
+              staffNotesPatch(webhookHistoryEntry('failed', data['status'])),
+              { merge: true },
+            );
+          }
         }
       });
     } catch (error: unknown) {
@@ -297,6 +320,16 @@ async function planPaidOrderStock(
     }
   }
   return { updates, issues };
+}
+
+/** `statusHistory` row for a Paymob-driven move (same shape `changeOrderStatus` appends). */
+function webhookHistoryEntry(status: OrderStatus, from: unknown): DocumentData {
+  return {
+    status,
+    from: isOrderStatus(from) ? from : null,
+    at: Timestamp.now(),
+    by: 'paymob-webhook',
+  };
 }
 
 function errorMessage(error: unknown): string {

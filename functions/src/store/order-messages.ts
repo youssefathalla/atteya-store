@@ -20,7 +20,7 @@ export interface OrderMessageInput {
   readonly ref: string;
   /** `paymob` | `cash-on-delivery` | `instapay` (anything else = legacy). */
   readonly paymentMethod: string;
-  /** `pending` | `confirmed` | `failed` | `cancelled`. */
+  /** `pending` | `confirmed` | `shipped` | `delivered` | `failed` | `cancelled`. */
   readonly status: string;
   /** Shipping country (ISO alpha-2). */
   readonly country: string;
@@ -55,6 +55,10 @@ export type OrderStage =
   | 'paid-needs-review'
   /** Card/wallet payment still being confirmed by Paymob. */
   | 'paymob-pending'
+  /** Staff sent the order (any payment method). Cash on Delivery still pays the rest at the door. */
+  | 'shipped'
+  /** The order reached the shopper. */
+  | 'delivered'
   | 'failed'
   | 'cancelled'
   /** Legacy or unreadable order: show nothing payment-specific. */
@@ -82,6 +86,10 @@ export function orderStage(order: OrderMessageInput): OrderStage {
   const { paymentMethod, status } = order;
   if (status === 'cancelled') return 'cancelled';
   if (status === 'failed') return 'failed';
+  const known =
+    paymentMethod === 'instapay' || paymentMethod === 'cash-on-delivery' || paymentMethod === 'paymob';
+  if (status === 'shipped') return known ? 'shipped' : 'unknown';
+  if (status === 'delivered') return known ? 'delivered' : 'unknown';
   const confirmed = status === 'confirmed';
   const pending = status === 'pending';
   const paidStage: OrderStage = order.needsReview ? 'paid-needs-review' : 'paid';
@@ -225,6 +233,12 @@ export function staffWhatsappText(
     }
     case 'paid':
       return `${greeting}\nاستلمنا دفع طلبك بالكامل، وطلبك اتأكد وبنجهزه للشحن.`;
+    case 'shipped':
+      return order.paymentMethod === 'cash-on-delivery'
+        ? `${greeting}\nطلبك اتشحن وفي الطريق ليك. جهّز ${cashText} كاش عند الاستلام.`
+        : `${greeting}\nطلبك اتشحن وفي الطريق ليك.`;
+    case 'delivered':
+      return `${greeting}\nطلبك وصلك. شكراً إنك اشتريت مننا!`;
     case 'paid-needs-review':
     case 'failed':
     case 'cancelled':

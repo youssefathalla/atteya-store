@@ -46,6 +46,11 @@ const ALL_STAGES: readonly [OrderStage, OrderMessageInput][] = [
   ['paymob-pending', order({ paymentMethod: 'paymob' })],
   ['failed', order({ paymentMethod: 'paymob', status: 'failed' })],
   ['cancelled', order({ status: 'cancelled' })],
+  ['shipped', order({ status: 'shipped' })],
+  ['shipped', order({ paymentMethod: 'cash-on-delivery', status: 'shipped' })],
+  ['shipped', order({ paymentMethod: 'paymob', status: 'shipped', country: 'AE' })],
+  ['delivered', order({ paymentMethod: 'cash-on-delivery', status: 'delivered' })],
+  ['delivered', order({ paymentMethod: 'paymob', status: 'delivered' })],
   ['unknown', order({ paymentMethod: 'international-bank-transfer' })],
 ];
 
@@ -192,6 +197,14 @@ describe('WhatsApp texts', () => {
       assert.equal(text.includes('\n'), false, stage);
       assert.match(text, /#A1B2C3/);
     }
+  });
+
+  it('staff shipped message reminds a Cash on Delivery shopper of the cash, others not', () => {
+    const cod = order({ paymentMethod: 'cash-on-delivery', status: 'shipped' });
+    assert.match(staffWhatsappText('shipped', cod, 'Sara', INSTAPAY) ?? '', /1,380 EGP كاش/);
+    const card = order({ paymentMethod: 'paymob', status: 'shipped' });
+    assert.doesNotMatch(staffWhatsappText('shipped', card, 'Sara', INSTAPAY) ?? '', /EGP|كاش/);
+    assert.match(staffWhatsappText('delivered', card, 'Sara', INSTAPAY) ?? '', /وصلك/);
   });
 
   it('no staff button while a card payment is pending or the order is unknown', () => {
