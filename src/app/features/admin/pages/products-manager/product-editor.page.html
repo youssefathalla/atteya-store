@@ -15,7 +15,7 @@
         matButton="filled"
         type="submit"
         form="product-editor-form"
-        [disabled]="isSaving() || !showForm()"
+        [disabled]="isSaving() || !showForm() || photosBusy()"
         [attr.aria-label]="isSaving() ? 'Saving product' : null"
       >
         @if (isSaving()) {
@@ -99,6 +99,7 @@
                 [class.colour-tab--active]="$index === activeIndex()"
                 [class.colour-tab--off]="!isOffered(colour)"
                 [attr.aria-pressed]="$index === activeIndex()"
+                [disabled]="photosBusy() && $index !== activeIndex()"
                 (click)="selectColour($index)"
               >
                 <span class="elements-center gap-2 font-label-lg font-bold!">
@@ -117,6 +118,7 @@
                 matButton="outlined"
                 type="button"
                 [attr.aria-expanded]="picking()"
+                [disabled]="photosBusy()"
                 (click)="togglePicking()"
               >
                 <mat-icon name="add" />
@@ -137,7 +139,12 @@
               </p>
               <div class="flex flex-wrap gap-2" role="group" aria-label="Colour to add">
                 @for (color of paletteChoices(); track color.id) {
-                  <button type="button" class="toggle-pill" (click)="addColour(color.id)">
+                  <button
+                    type="button"
+                    class="toggle-pill"
+                    [disabled]="photosBusy()"
+                    (click)="addColour(color.id)"
+                  >
                     <app-color-swatch class="size-3" [colorId]="color.id" [swatch]="color.swatch" />
                     <span>{{ color.label }}</span>
                   </button>
@@ -182,6 +189,7 @@
                 [defaultAlt]="model().name + ' ' + activeName()"
                 (imagesChange)="setActiveImages($event)"
                 (uploaded)="registerUpload($event)"
+                (busyChange)="photosBusy.set($event)"
               />
 
               <div class="w-full elements-start-col gap-3">

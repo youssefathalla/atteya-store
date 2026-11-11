@@ -186,6 +186,8 @@ export class ProductEditorPageComponent implements OnInit {
   readonly colours = signal<readonly ColourDraft[]>([]);
   readonly activeIndex = signal(0);
   readonly picking = signal(false);
+  /** Photos are uploading for the active colour; switching colour or saving waits for them. */
+  readonly photosBusy = signal(false);
   readonly sizeInput = signal('');
   readonly sizeError = signal('');
   readonly weight = signal('');
@@ -464,6 +466,7 @@ export class ProductEditorPageComponent implements OnInit {
   }
 
   selectColour(index: number): void {
+    if (this.photosBusy() && index !== this.activeIndex()) return;
     this.activeIndex.set(index);
     this.picking.set(false);
   }
@@ -473,7 +476,7 @@ export class ProductEditorPageComponent implements OnInit {
   }
 
   addColour(color: ColorId): void {
-    if (!this.canAddColour()) return;
+    if (!this.canAddColour() || this.photosBusy()) return;
     const draft = newColourDraft(this.#admin.newProductId(), color);
     const stock: Record<string, string> = {};
     for (const size of this.sizes()) stock[size.key] = '0';
@@ -769,7 +772,7 @@ export class ProductEditorPageComponent implements OnInit {
 
   async save(event?: Event): Promise<void> {
     event?.preventDefault();
-    if (this.isSaving() || !this.#ready()) return;
+    if (this.isSaving() || !this.#ready() || this.photosBusy()) return;
     this.#saveTried.set(true);
     if (this.tagInput().trim()) {
       this.addPendingTag();
