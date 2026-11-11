@@ -1,25 +1,11 @@
-# Same-PR fixes for each finished Bugbot review that found issues.
-# Bugbot skips pushes made by a bot (Claude's push is claude[bot]) and ignores
-# "bugbot run" when a bot posts it, so after a push the last step posts
-# "bugbot run" as the repo owner with the BUGBOT_TRIGGER_TOKEN secret (a
-# fine-grained token for this repo with only Pull requests: read and write).
-# Only that step gets the token, after Claude has finished. Bugbot then reviews
-# again, so this repeats until Bugbot is clean
-# or 3 rounds have run (then it leaves a "needs a person" comment). A clean
-# Bugbot run plus green checks lets auto-merge.yml merge the PR into develop.
-# The Claude review of a commit (claude-review.yml, workflow_run below) also feeds the same rounds:
-# its findings get ids cr-<comment id>-<n>. When Bugbot could not run on that commit (its check
-# ends with the title "Error", for example the Cursor usage limit) every Claude finding is used and
-# auto-merge.yml uses the Claude verdict instead of Bugbot's. Either way, only the Claude review's
-# high and medium findings start a round (low ones stay as notes and never hold the merge), so a
-# serious bug the Claude review found is not dropped just because Bugbot ran too.
+# Same-PR fixes for each finished Claude review (claude-review.yml, workflow_run below) whose
+# verdict has high or medium findings (ids cr-<comment id>-<n>; low ones stay as notes and never
+# hold the merge). Claude's push starts a new Claude review, so this repeats until the review has
+# no high or medium finding or 3 rounds have run (then it leaves a "needs a person" comment).
+# A clean review plus green checks lets auto-merge.yml merge the PR into develop.
+# Cursor Bugbot and the Cursor Security Agent are no longer part of this loop.
 # A round where Claude never ran (sign-in token or usage limit, the branch moved first, this file
 # changed in the PR) is marked void and does not count toward the 3-round cap.
-# A Bugbot review whose findings are all Low gets one round of its own, outside the 3-round cap.
-# GitHub runs no pull_request workflows while a PR conflicts with its base, so Bugbot findings
-# posted then never reach this workflow. Each round also takes the unresolved Bugbot threads from
-# earlier reviews that never had a round, and a Bugbot review that only says "issues from previous
-# review remain unresolved" starts a round for them.
 # Claude can't edit the generated copies of functions/src code; the push hook copies the sources
 # over them (as npm run sync:engine does) before it commits.
 # Stays inactive until the repository variable BUGBOT_CLAUDE_FIX is exactly "enabled".
@@ -29,68 +15,38 @@
 name: Claude Fix
 
 on:
-  pull_request_review:
-    types: [submitted]
   workflow_run:
     workflows: [Claude Review]
     types: [completed]
 
 permissions: {}
 
-# One round at a time per PR and per review source. A group keeps only one waiting run, and a
-# newer waiting run cancels the older one, so each source (Bugbot findings, security review, Claude
-# Review) has its own group, and events that can never claim a round (a review by a person, a clean
-# Bugbot review, a failed Claude Review run) get a group of their own. Two sources can then run at
-# once on one branch: the second push finds the branch moved, and that round is voided.
+# One round at a time per PR. A group keeps only one waiting run, and a newer waiting run cancels
+# the older one; events that can never claim a round (a failed Claude Review run) get a group of
+# their own so they never push a waiting round out.
 concurrency:
   group: >-
-    ${{ (github.event_name == 'pull_request_review' && github.event.review.user.login == 'cursor[bot]' && contains(github.event.review.body, 'CURSOR_AUTOMATION_ID'))
-      && format('bugbot-claude-pr-{0}-security', github.event.pull_request.number)
-      || ((github.event_name == 'pull_request_review' && github.event.review.user.login == 'cursor[bot]' && (contains(github.event.review.body, 'potential issue') || contains(github.event.review.body, 'from previous review')))
-      && format('bugbot-claude-pr-{0}-bugbot', github.event.pull_request.number)
-      || ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
       && format('bugbot-claude-pr-{0}-claude', github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha)
-      || format('bugbot-claude-noop-{0}', github.run_id))) }}
+      || format('bugbot-claude-noop-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
   gate:
     name: Claim a Fix Round
-    # Each started job bills at least a minute (a skipped one is free), so everything the claim
-    # script would turn down from the event alone is checked here: a Bugbot review only when it
-    # reports issues (the script needs "found <n> potential issue(s)", or "<n> issue(s) from
-    # previous review(s) remain unresolved", which may be findings that never had a round; a
-    # clean Bugbot review never claims a round), a security review, or a successful Claude Review
-    # run of a pull request.
-    # The Claude review's verdict lives in its PR comment, not in the event, so a clean Claude
-    # review still starts this job and the script stops it.
+    # Each started job bills at least a minute (a skipped one is free), so only a successful
+    # Claude Review run of a pull request starts it. The review's verdict lives in its PR comment,
+    # not in the event, so a clean review still starts this job and the script stops it.
     if: >-
-      vars.BUGBOT_CLAUDE_FIX == 'enabled' && ((
-        github.event_name == 'pull_request_review' &&
-        github.event.action == 'submitted' &&
-        github.event.review.user.login == 'cursor[bot]' &&
-        github.event.pull_request.draft == false &&
-        github.event.pull_request.state == 'open' &&
-        github.event.pull_request.base.ref == 'develop' &&
-        github.event.pull_request.user.login == 'youssefathalla' &&
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        ((contains(github.event.review.body, '<!-- BUGBOT_REVIEW -->') &&
-          (contains(github.event.review.body, 'potential issue') ||
-           contains(github.event.review.body, 'from previous review'))) ||
-         contains(github.event.review.body, 'CURSOR_AUTOMATION_ID'))
-      ) || (
-        github.event_name == 'workflow_run' &&
-        github.event.workflow_run.event == 'pull_request' &&
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_repository.full_name == github.repository &&
-        github.event.workflow_run.pull_requests[0].number
-      ))
+      vars.BUGBOT_CLAUDE_FIX == 'enabled' &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.pull_requests[0].number
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      # checks: read lets the claim step see whether Bugbot could run on the commit
-      # (checks.listForRef); without it every Claude Review-triggered round fails with a 403.
-      checks: read
       contents: read
       issues: write
       pull-requests: write
@@ -113,37 +69,13 @@ jobs:
             const repo = context.repo.repo;
             core.setOutput('proceed', 'false');
 
-            // Three reviewers feed this loop: Cursor Bugbot (BUGBOT_REVIEW summary, one
-            // BUGBOT_BUG_ID per finding), the Cursor Security Agent (CURSOR_AUTOMATION_ID
-            // review, one "Agentic Security Review" comment per finding, id sec-<comment id>),
-            // and the Claude review (claude-review.yml verdict comment, ids cr-<comment id>-<n>):
-            // every finding when Bugbot could not run on the commit, otherwise high and medium only.
-            const fromClaude = context.eventName === 'workflow_run';
-            const review = context.payload.review || {};
-            let prNumber;
+            // The Claude review (claude-review.yml verdict comment, ids cr-<comment id>-<n>) feeds
+            // this loop: its high and medium findings only.
+            const run = context.payload.workflow_run || {};
+            const prNumber = run.pull_requests?.[0]?.number;
+            const reviewedSha = String(run.head_sha || '');
+            if (!prNumber || !/^[0-9a-f]{40}$/.test(reviewedSha)) return;
             let reviewId;
-            let reviewedSha;
-            let isSecurity = false;
-            let ownFindings = false;
-            if (fromClaude) {
-              const run = context.payload.workflow_run || {};
-              prNumber = run.pull_requests?.[0]?.number;
-              reviewedSha = String(run.head_sha || '');
-              if (!prNumber || !/^[0-9a-f]{40}$/.test(reviewedSha)) return;
-            } else {
-              prNumber = (context.payload.pull_request || {}).number;
-              if (!prNumber || !review.id || review.user?.login !== 'cursor[bot]') return;
-              if (context.payload.action !== 'submitted') return;
-              const body = typeof review.body === 'string' ? review.body : '';
-              const isBugbot = body.includes('<!-- BUGBOT_REVIEW -->');
-              isSecurity = !isBugbot && body.includes('CURSOR_AUTOMATION_ID');
-              if (!isBugbot && !isSecurity) return;
-              ownFindings = isSecurity || /found\s+[1-9]\d*\s+potential\s+issue/i.test(body);
-              const leftOver = isBugbot && /previous\s+reviews?\s+remains?\s+unresolved/i.test(body);
-              if (isBugbot && !ownFindings && !leftOver) return;
-              reviewId = review.id;
-              reviewedSha = review.commit_id;
-            }
 
             const live = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
             const pr = live.data;
@@ -152,22 +84,6 @@ jobs:
             if (pr.user?.login !== 'youssefathalla') return;
             const sha = pr.head?.sha || '';
             const ref = pr.head?.ref || '';
-            // The Security Agent never reviews Claude's fix commits. When a Bugbot round pushed
-            // while this security review waited its turn, its findings still apply: carry on with
-            // the current head if every commit since the reviewed one is a Claude Fix commit.
-            if (isSecurity && /^[0-9a-f]{40}$/.test(sha) && /^[0-9a-f]{40}$/.test(String(reviewedSha || '')) && sha !== reviewedSha) {
-              try {
-                const { data: cmp } = await github.rest.repos.compareCommits({ owner, repo, base: reviewedSha, head: sha });
-                const onlyFixes = cmp.status === 'ahead' && Array.isArray(cmp.commits) && cmp.commits.length > 0 &&
-                  cmp.commits.every((c) => c.author?.login === 'claude[bot]' || /^bugbot-claude-fix: review /m.test(String(c.commit?.message || '')));
-                if (onlyFixes) {
-                  core.info(`Security review ${reviewId} was on ${reviewedSha}; only Claude Fix commits since, so using ${sha}.`);
-                  reviewedSha = sha;
-                }
-              } catch (error) {
-                core.info(`Could not compare ${reviewedSha}...${sha} (${error.status || 'error'}).`);
-              }
-            }
             if (!/^[0-9a-f]{40}$/.test(sha) || sha !== reviewedSha) return;
             if (!/^[A-Za-z0-9._/-]+$/.test(ref) || ref.includes('..') || ref.startsWith('-') || ref.endsWith('/')) return;
 
@@ -175,8 +91,8 @@ jobs:
             const titleId = String(pr.title || '').match(/(?:^|[^A-Za-z0-9])([A-Z][A-Z0-9]{0,6}-[0-9]{1,6})(?![A-Za-z0-9])/);
             const issueId = titleId ? titleId[1] : '';
 
-            // Each round leaves a `bugbot-claude-pass` marker. Bugbot reviews Claude's push
-            // again, so the loop keeps going until Bugbot is clean or the cap is reached.
+            // Each round leaves a `bugbot-claude-pass` marker. The Claude review checks Claude's
+            // push again, so the loop keeps going until it is clean or the cap is reached.
             const MAX_PASSES = 3;
             const allComments = await github.paginate(github.rest.issues.listComments, {
               owner,
@@ -185,10 +101,6 @@ jobs:
               per_page: 100,
             });
             const passes = allComments.filter((comment) => typeof comment.body === 'string' && comment.body.startsWith('<!-- bugbot-claude-pass ')).length;
-            // A Bugbot review whose findings are all Low gets one round of its own
-            // (`bugbot-claude-pass-low`), so it never uses up the rounds kept for High and Medium.
-            const MAX_LOW_PASSES = 1;
-            const lowPasses = allComments.filter((comment) => typeof comment.body === 'string' && comment.body.startsWith('<!-- bugbot-claude-pass-low ')).length;
 
             const defaultBranch = context.payload.repository?.default_branch;
             if (!defaultBranch || !/^[A-Za-z0-9._/-]+$/.test(defaultBranch)) return;
@@ -203,148 +115,31 @@ jobs:
               core.info(`Workflow file is not confirmed on ${defaultBranch} (${error.status || 'error'}). Not claiming a pass.`);
               return;
             }
-            const bugPattern = /<!--\s*BUGBOT_BUG_ID:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*-->/;
-            const findingId = (comment) => {
-              const raw = typeof comment.body === 'string' ? comment.body : '';
-              const match = raw.match(bugPattern);
-              if (match) return match[1].toLowerCase();
-              if (raw.includes('Agentic Security Review') && Number.isInteger(comment.id)) return `sec-${comment.id}`;
-              return null;
-            };
-            let bugs = [];
-            let claudeSource = '';
-            if (fromClaude) {
-              // Did Bugbot run on this commit? Only used to say where the findings came from:
-              // either way only high and medium findings start a round, the same rule auto-merge
-              // uses to hold. Bugbot fails within seconds of a push and the Claude review takes
-              // minutes, but wait a little in case.
-              let bugbot = null;
-              for (let attempt = 0; attempt < 6; attempt++) {
-                const runs = await github.paginate(github.rest.checks.listForRef, { owner, repo, ref: sha, check_name: 'Cursor Bugbot', per_page: 100 });
-                bugbot = runs.sort((a, b) => new Date(b.started_at) - new Date(a.started_at))[0] || null;
-                if (bugbot?.status === 'completed') break;
-                await new Promise((resolve) => setTimeout(resolve, 20000));
-              }
-              const bugbotOut = bugbot?.status === 'completed' && bugbot.conclusion !== 'success' &&
-                (bugbot.output?.title === 'Error' || /failed to run/i.test(String(bugbot.output?.summary || '')));
-              // The newest Claude review verdict for this commit (a re-run may post a second
-              // comment); only act when that newest one says "issues".
-              const verdictPrefix = `<!-- claude-review-verdict ${sha} `;
-              const verdictComment = allComments
-                .filter((c) => c.user?.login === 'github-actions[bot]' && typeof c.body === 'string' && c.body.includes(verdictPrefix))
-                .sort((a, b) => b.id - a.id)[0];
-              const latestIsIssues = Boolean(verdictComment && verdictComment.body.includes(`${verdictPrefix}issues -->`));
-              const encoded = latestIsIssues ? verdictComment.body.match(/<!-- claude-review-findings ([A-Za-z0-9+/=]+) -->/) : null;
-              let data = [];
-              try { data = encoded ? JSON.parse(Buffer.from(encoded[1], 'base64').toString('utf8')) : []; } catch { data = []; }
-              if (!latestIsIssues || !Array.isArray(data) || data.length === 0) {
-                core.info('The Claude review found nothing to fix on this commit. Not starting.');
-                return;
-              }
-              const serious = (finding) => /^(high|medium)$/i.test(String(finding?.severity || '').trim());
-              const picked = data.slice(0, 20)
-                .map((finding, i) => ({ finding, i }))
-                .filter(({ finding }) => serious(finding));
-              if (picked.length === 0) {
-                core.info('The Claude review found only low findings on this commit. Not starting.');
-                return;
-              }
-              reviewId = verdictComment.id;
-              bugs = picked.map(({ i }) => `cr-${verdictComment.id}-${i}`);
-              claudeSource = bugbotOut ? 'Claude review (high and medium; Bugbot could not run)' : 'Claude review (high and medium)';
-            }
-            // Bugbot marks each finding's severity in bold ("**Low Severity**").
-            const lowIds = new Set();
-            const isLowBugbot = (raw) => bugPattern.test(String(raw || '')) && /\*\*Low Severity\*\*/i.test(String(raw || ''));
-            for (let attempt = 0; !fromClaude && ownFindings && attempt < 4; attempt++) {
-              const comments = await github.paginate(
-                'GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments',
-                { owner, repo, pull_number: prNumber, review_id: review.id, per_page: 100 },
-              );
-              const seen = new Set();
-              bugs = [];
-              for (const comment of comments) {
-                const id = findingId(comment);
-                if (!id) continue;
-                if (seen.has(id)) continue;
-                seen.add(id);
-                bugs.push(id);
-                if (isLowBugbot(comment.body)) lowIds.add(id);
-              }
-              if (bugs.length > 0) break;
-              if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 5000));
-            }
-            // This review's own findings. The marker records this review as covered, so a round must
-            // never start without them (checked below).
-            const ownIds = new Set(bugs);
-
-            // Bugbot findings from earlier reviews that never had a round. GitHub runs no
-            // pull_request workflows while a PR conflicts with its base, so a Bugbot review posted
-            // then never reached this workflow (PR 219: three findings were dropped that way). Any
-            // unresolved Bugbot thread whose review no round covered is fixed with this one. Only a
-            // round that really started (not a void one) covers a review, so a review is never
-            // carried twice and the 3-round cap still bounds the loop.
-            const carriedReviews = new Set();
-            if (!fromClaude && !isSecurity) {
-              const covered = new Set();
-              for (const c of allComments) {
-                if (c.user?.login !== 'github-actions[bot]' || typeof c.body !== 'string') continue;
-                const first = c.body.match(/^<!-- bugbot-claude-pass(?:-low)? ([0-9]+) /);
-                if (!first) continue;
-                covered.add(first[1]);
-                const also = c.body.match(/<!-- bugbot-claude-covers ([0-9 ]+) -->/);
-                if (also) also[1].split(' ').filter(Boolean).forEach((id) => covered.add(id));
-              }
-              let threads = [];
-              try {
-                const data = await github.graphql(
-                  `query($owner: String!, $repo: String!, $n: Int!) {
-                    repository(owner: $owner, name: $repo) {
-                      pullRequest(number: $n) {
-                        reviewThreads(first: 100) {
-                          nodes { isResolved comments(first: 1) { nodes { body author { login } pullRequestReview { databaseId } } } }
-                        }
-                      }
-                    }
-                  }`,
-                  { owner, repo, n: prNumber },
-                );
-                threads = data?.repository?.pullRequest?.reviewThreads?.nodes || [];
-              } catch (error) {
-                core.info(`Could not read the review threads (${error.status || error.message || 'error'}).`);
-              }
-              for (const thread of threads) {
-                if (!thread || thread.isResolved) continue;
-                const first = thread.comments?.nodes?.[0];
-                const author = String(first?.author?.login || '');
-                if (author !== 'cursor' && author !== 'cursor[bot]') continue;
-                const fromReview = first.pullRequestReview?.databaseId;
-                if (!Number.isInteger(fromReview)) continue;
-                // This review's own threads count too: a backup when its comment list came back empty.
-                const own = fromReview === review.id;
-                if (!own && covered.has(String(fromReview))) continue;
-                const match = String(first.body || '').match(bugPattern);
-                if (!match) continue;
-                const id = match[1].toLowerCase();
-                if (own) ownIds.add(id);
-                if (bugs.includes(id)) continue;
-                bugs.push(id);
-                if (!own) carriedReviews.add(String(fromReview));
-                if (isLowBugbot(first.body)) lowIds.add(id);
-              }
-              if (carriedReviews.size > 0) core.info(`Carrying findings from earlier reviews: ${[...carriedReviews].join(', ')}.`);
-            }
-            if (bugs.length === 0) {
-              core.info('No finding comments in this review. Not starting.');
+            // The newest Claude review verdict for this commit (a re-run may post a second
+            // comment); only act when that newest one says "issues".
+            const verdictPrefix = `<!-- claude-review-verdict ${sha} `;
+            const verdictComment = allComments
+              .filter((c) => c.user?.login === 'github-actions[bot]' && typeof c.body === 'string' && c.body.includes(verdictPrefix))
+              .sort((a, b) => b.id - a.id)[0];
+            const latestIsIssues = Boolean(verdictComment && verdictComment.body.includes(`${verdictPrefix}issues -->`));
+            const encoded = latestIsIssues ? verdictComment.body.match(/<!-- claude-review-findings ([A-Za-z0-9+/=]+) -->/) : null;
+            let data = [];
+            try { data = encoded ? JSON.parse(Buffer.from(encoded[1], 'base64').toString('utf8')) : []; } catch { data = []; }
+            if (!latestIsIssues || !Array.isArray(data) || data.length === 0) {
+              core.info('The Claude review found nothing to fix on this commit. Not starting.');
               return;
             }
-            // The review says it found issues but none of them could be read: starting would mark it
-            // covered without its findings, so they would never be fixed. Leave it for a later event.
-            if (!fromClaude && ownFindings && ownIds.size === 0) {
-              core.info("This review's own findings could not be read. Not starting, so it isn't marked as handled.");
+            // Only high and medium findings start a round, the same rule auto-merge uses to hold.
+            const serious = (finding) => /^(high|medium)$/i.test(String(finding?.severity || '').trim());
+            const picked = data.slice(0, 20)
+              .map((finding, i) => ({ finding, i }))
+              .filter(({ finding }) => serious(finding));
+            if (picked.length === 0) {
+              core.info('The Claude review found only low findings on this commit. Not starting.');
               return;
             }
-            const lowOnly = !fromClaude && !isSecurity && bugs.every((id) => lowIds.has(id));
+            reviewId = verdictComment.id;
+            const bugs = picked.map(({ i }) => `cr-${verdictComment.id}-${i}`);
 
             // The Claude action refuses to run when the copy of this workflow file this run uses
             // differs from the default branch's (a review runs the PR merge commit's copy, a Claude
@@ -369,40 +164,23 @@ jobs:
             }
 
             // The round cap only applies when this review really has findings, so a clean
-            // re-review (Bugbot or security) never posts the "stopped" comment.
-            if (lowOnly && lowPasses >= MAX_LOW_PASSES) {
-              const lowMarker = `<!-- bugbot-claude-low-limit ${sha} -->`;
-              if (!allComments.some((comment) => typeof comment.body === 'string' && comment.body.includes(lowMarker))) {
-                await github.rest.issues.createComment({
-                  owner,
-                  repo,
-                  issue_number: prNumber,
-                  body: `${lowMarker}\n**✋ Claude Fix** · Low findings left, needs you · commit \`${sha.slice(0, 7)}\`\n\nBugbot's open findings on \`${sha.slice(0, 7)}\` are all Low. Claude Fix already had its one round for Low findings on this pull request, so it leaves these to you: push a fix, or if they are fine, resolve their threads and comment \`bugbot run\`. No round was used.\n`,
-                });
-              }
-              core.info('Only Low findings, and the Low round is used. Not starting.');
-              return;
-            }
-            if (!lowOnly && passes >= MAX_PASSES) {
+            // re-review never posts the "stopped" comment.
+            if (passes >= MAX_PASSES) {
               const limitMarker = '<!-- bugbot-claude-limit -->';
               if (!allComments.some((comment) => typeof comment.body === 'string' && comment.body.includes(limitMarker))) {
                 await github.rest.issues.createComment({
                   owner,
                   repo,
                   issue_number: prNumber,
-                  body: `${limitMarker}\n**🛑 Claude Fix** · stopped, needs you · commit \`${sha.slice(0, 7)}\`\n\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and the reviewers (Bugbot or the security review) still find issues, so it stops here. This one needs a person. It will not be merged automatically while issues are open.\n`,
+                  body: `${limitMarker}\n**🛑 Claude Fix** · stopped, needs you · commit \`${sha.slice(0, 7)}\`\n\nClaude has had ${MAX_PASSES} rounds of fixes on this pull request and the Claude review still finds high or medium issues, so it stops here. This one needs a person. It will not be merged automatically while issues are open.\n`,
                 });
               }
               core.info(`Reached ${MAX_PASSES} fix rounds. Not starting.`);
               return;
             }
 
-            const marker = `<!-- bugbot-claude-pass${lowOnly ? '-low' : ''} ${reviewId} ${sha} -->`;
-            const coversLine = carriedReviews.size > 0 ? `\n<!-- bugbot-claude-covers ${[...carriedReviews].join(' ')} -->` : '';
-            const carriedNote = carriedReviews.size > 0
-              ? ` It also takes the open findings from earlier review${carriedReviews.size === 1 ? '' : 's'} ${[...carriedReviews].join(', ')}, which never had a round (for example because the branch conflicted with \`develop\` then).`
-              : '';
-            const roundLabel = lowOnly ? 'round for Low findings (1 of 1)' : `round ${passes + 1} of ${MAX_PASSES}`;
+            const marker = `<!-- bugbot-claude-pass ${reviewId} ${sha} -->`;
+            const roundLabel = `round ${passes + 1} of ${MAX_PASSES}`;
             const listMarkers = async () => {
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner,
@@ -424,7 +202,7 @@ jobs:
               owner,
               repo,
               issue_number: prNumber,
-              body: `${marker}${coversLine}\n**🔧 Claude Fix** · ${roundLabel} started\n\nClaude is fixing the ${fromClaude ? claudeSource : (isSecurity ? 'security review' : 'Bugbot')} findings from review ${reviewId} at \`${sha.slice(0, 7)}\` (run ${context.runId}).${carriedNote} A report follows when it is done.\n`,
+              body: `${marker}\n**🔧 Claude Fix** · ${roundLabel} started\n\nClaude is fixing the high and medium Claude review findings from review ${reviewId} at \`${sha.slice(0, 7)}\` (run ${context.runId}). A report follows when it is done.\n`,
             });
             const after = await listMarkers();
             const winner = after[0];
@@ -522,7 +300,7 @@ jobs:
             core.setOutput('reason', 'ok');
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const idOk = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|sec-[0-9]{1,20}|cr-[0-9]{1,20}-[0-9]{1,2})$/;
+            const idOk = /^cr-[0-9]{1,20}-[0-9]{1,2}$/;
             const allowed = new Set(String(process.env.BUG_IDS || '').split(',').map((id) => id.trim()).filter((id) => idOk.test(id)));
             const reviewId = Number(process.env.REVIEW_ID);
             const prNumber = Number(process.env.PR_NUMBER);
@@ -536,73 +314,26 @@ jobs:
             }
             // Claude review findings: read them from that review's
             // comment, posted by this repository's workflow bot.
-            if ([...allowed].every((id) => id.startsWith('cr-'))) {
-              try {
-                const { data: comment } = await github.rest.issues.getComment({ owner, repo, comment_id: reviewId });
-                const encoded = comment.user?.login === 'github-actions[bot]' && typeof comment.body === 'string'
-                  ? comment.body.match(/<!-- claude-review-findings ([A-Za-z0-9+/=]+) -->/)
-                  : null;
-                const data = encoded ? JSON.parse(Buffer.from(encoded[1], 'base64').toString('utf8')) : [];
-                const findings = [];
-                (Array.isArray(data) ? data.slice(0, 20) : []).forEach((f, i) => {
-                  const bugId = `cr-${reviewId}-${i}`;
-                  if (!allowed.has(bugId) || !f || typeof f !== 'object') return;
-                  const strip = (value, max) => String(value || '').replace(/\u0000/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
-                  findings.push({
-                    bug_id: bugId,
-                    path: strip(f.path, 300),
-                    line: Number.isInteger(f.line) && f.line > 0 ? f.line : null,
-                    severity: strip(f.severity, 40),
-                    title: strip(f.title, 200),
-                    description: strip(`${f.explanation || ''} Suggested fix: ${f.fix || ''}`, 2000),
-                  });
-                });
-                if (findings.length === 0) {
-                  fail('no-findings');
-                  return;
-                }
-                fs.writeFileSync('.bugbot-findings.json', JSON.stringify({ untrusted: true, findings }));
-                core.setOutput('go', 'true');
-              } catch {
-                fail('no-findings');
-              }
-              return;
-            }
             try {
-              // Every review comment on the PR, not only this review's: a round may also carry
-              // findings from earlier reviews that never had one. The id list above limits it.
-              const comments = await github.paginate(github.rest.pulls.listReviewComments, {
-                owner, repo, pull_number: prNumber, per_page: 100,
-              });
-              const bugPattern = /<!--\s*BUGBOT_BUG_ID:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*-->/;
+              const { data: comment } = await github.rest.issues.getComment({ owner, repo, comment_id: reviewId });
+              const encoded = comment.user?.login === 'github-actions[bot]' && typeof comment.body === 'string'
+                ? comment.body.match(/<!-- claude-review-findings ([A-Za-z0-9+/=]+) -->/)
+                : null;
+              const data = encoded ? JSON.parse(Buffer.from(encoded[1], 'base64').toString('utf8')) : [];
               const findings = [];
-              const seen = new Set();
-              for (const comment of comments) {
-                const raw = typeof comment.body === 'string' ? comment.body : '';
-                const match = raw.match(bugPattern);
-                const security = !match && raw.includes('Agentic Security Review') && Number.isInteger(comment.id);
-                if (!match && !security) continue;
-                const bugId = match ? match[1].toLowerCase() : `sec-${comment.id}`;
-                if (!allowed.has(bugId) || seen.has(bugId)) continue;
-                seen.add(bugId);
-                const described = raw.match(/<!-- DESCRIPTION START -->([\s\S]*?)<!-- DESCRIPTION END -->/);
-                let text = described ? described[1] : raw.split(/<div><a href=|<sup>Reviewed by/)[0];
-                text = text.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\u0000/g, '');
-                text = text.replace(/\s+/g, ' ').trim().slice(0, 2000);
-                const titleLine = security ? null : raw.match(/^###\s+(.+)$/m);
-                const severityLine = security
-                  ? raw.match(/Severity:\s*([A-Za-z]+)/)
-                  : raw.match(/\*\*([A-Za-z ]+Severity)\*\*/);
-                const line = Number.isInteger(comment.line) ? comment.line : (Number.isInteger(comment.original_line) ? comment.original_line : null);
+              (Array.isArray(data) ? data.slice(0, 20) : []).forEach((f, i) => {
+                const bugId = `cr-${reviewId}-${i}`;
+                if (!allowed.has(bugId) || !f || typeof f !== 'object') return;
+                const strip = (value, max) => String(value || '').replace(/\u0000/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
                 findings.push({
                   bug_id: bugId,
-                  path: String(comment.path || '').slice(0, 300),
-                  line,
-                  severity: severityLine ? severityLine[1].slice(0, 40) : '',
-                  title: security ? 'Security review finding' : (titleLine ? titleLine[1].replace(/\s+/g, ' ').trim().slice(0, 200) : ''),
-                  description: text,
+                  path: strip(f.path, 300),
+                  line: Number.isInteger(f.line) && f.line > 0 ? f.line : null,
+                  severity: strip(f.severity, 40),
+                  title: strip(f.title, 200),
+                  description: strip(`${f.explanation || ''} Suggested fix: ${f.fix || ''}`, 2000),
                 });
-              }
+              });
               if (findings.length === 0) {
                 fail('no-findings');
                 return;
@@ -868,7 +599,7 @@ jobs:
             write_result false remote-moved ""
             exit 0
           fi
-          if ! git commit -m "${issue:+$issue }Fix Bugbot findings from review ${review}" -m "bugbot-claude-fix: review ${review}. Automated pass for one Bugbot review. Changed code files were formatted with Prettier; tests were not run here, CI runs on this push."; then
+          if ! git commit -m "${issue:+$issue }Fix Claude review findings from review ${review}" -m "bugbot-claude-fix: review ${review}. Automated pass for one Claude review. Changed code files were formatted with Prettier; tests were not run here, CI runs on this push."; then
             git reset --hard "$expected" >/dev/null 2>&1 || true
             write_result false commit-failed ""
             exit 0
@@ -997,10 +728,9 @@ jobs:
         uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1 / v1.0.269 on 2026-11-06
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # cursor: Bugbot and Security Agent reviews. claude: a Claude Review of a commit that
-          # Claude Fix pushed (the workflow_run actor is then claude[bot]); without it the
-          # second round on those commits stops before Claude starts.
-          allowed_bots: cursor,claude
+          # claude: a Claude Review of a commit that Claude Fix pushed (the workflow_run actor is
+          # then claude[bot]); without it the second round on those commits stops before Claude starts.
+          allowed_bots: claude
           base_branch: develop
           display_report: "false"
           classify_inline_comments: "false"
@@ -1081,7 +811,7 @@ jobs:
             const fs = require('fs');
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const uuid = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|sec-[0-9]{1,20}|cr-[0-9]{1,20}-[0-9]{1,2})$/;
+            const uuid = /^cr-[0-9]{1,20}-[0-9]{1,2}$/;
             const reviewId = String(process.env.REVIEW_ID || '');
             const reviewed = String(process.env.REVIEWED_SHA || '');
             const prNumber = String(process.env.PR_NUMBER || '');
@@ -1152,8 +882,6 @@ jobs:
             }
             const shaOk = typeof push.sha === 'string' && /^[0-9a-f]{40}$/.test(push.sha);
             const pushed = push.pushed === true && shaOk;
-            // The next step asks Bugbot to review this commit (it skips pushes made by a bot).
-            core.setOutput('pushed_sha', pushed ? push.sha : '');
             const pushReason = reasons[push.reason] || reasons['no-push-result'];
             const pushNote = pushed ? pushedNotes[push.reason] || '' : '';
             const changed = new Set(read('/opt/bugbot-guard/out/changed-paths.txt').split('\n').map((line) => line.trim()).filter(Boolean));
@@ -1242,16 +970,10 @@ jobs:
                 stillHere = live.state === 'open' && live.head?.sha === reviewed;
               } catch { stillHere = false; }
             }
-            const fromClaudeReview = bugIds.length > 0 && bugIds.every((id) => id.startsWith('cr-'));
-            const fromSecurity = bugIds.length > 0 && bugIds.every((id) => id.startsWith('sec-'));
             const needsYou = stillHere ? [
               '',
               `**Needs you:** nothing was pushed, so these findings are still open on \`${reviewed.slice(0, 7)}\` and auto-merge will wait. ` +
-                (fromClaudeReview
-                  ? 'Push a fix, or if the findings are fine, run Actions → Auto-merge → Run workflow with this PR number and tick "skip_claude_findings".'
-                  : fromSecurity
-                  ? 'Push a fix, or if a finding is fine, resolve its thread, then run Actions → Auto-merge → Run workflow with this PR number.'
-                  : 'Push a fix (it gets reviewed again), comment `bugbot run` if they are already handled, or merge by hand if the findings are wrong.'),
+                'Push a fix, or if the findings are fine, run Actions → Auto-merge → Run workflow with this PR number and tick "skip_claude_findings".',
             ] : [];
             const body = [
               `<!-- bugbot-claude-report ${reviewId} ${reviewed} -->`,
@@ -1294,69 +1016,4 @@ jobs:
               repo,
               issue_number: Number(prNumber),
               body,
-            });
-
-      # Bugbot skips commits pushed by a bot and ignores "bugbot run" from a bot account,
-      # so ask as the repo owner. BUGBOT_TRIGGER_TOKEN: fine-grained, this repo only,
-      # Pull requests: read and write. It is only in this step, after Claude has finished.
-      # The outcome is the "status" output: github-script overwrites "result" with the return value.
-      - name: Ask Bugbot to Review the Fix
-        id: rerun
-        if: always() && steps.report.outputs.pushed_sha != ''
-        continue-on-error: true
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
-        env:
-          HAS_TOKEN: ${{ secrets.BUGBOT_TRIGGER_TOKEN != '' }}
-          PUSHED_SHA: ${{ steps.report.outputs.pushed_sha }}
-          PR_NUMBER: ${{ env.PR_NUMBER }}
-        with:
-          github-token: ${{ secrets.BUGBOT_TRIGGER_TOKEN || github.token }}
-          script: |
-            if (process.env.HAS_TOKEN !== 'true') {
-              core.setOutput('status', 'no-token');
-              return;
-            }
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const prNumber = Number(process.env.PR_NUMBER);
-            const pushed = String(process.env.PUSHED_SHA || '');
-            if (!Number.isInteger(prNumber) || prNumber <= 0 || !/^[0-9a-f]{40}$/.test(pushed)) {
-              core.setOutput('status', 'bad-input');
-              return;
-            }
-            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
-            if (pr.state !== 'open' || pr.head?.sha !== pushed) {
-              // A newer push (or a closed PR): Bugbot reviews the owner's own pushes by itself.
-              core.setOutput('status', 'moved');
-              return;
-            }
-            await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: 'bugbot run' });
-            core.setOutput('status', 'asked');
-
-      - name: Say When Bugbot Was Not Asked
-        if: >-
-          always() && steps.report.outputs.pushed_sha != '' &&
-          steps.rerun.outputs.status != 'asked' && steps.rerun.outputs.status != 'moved'
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
-        env:
-          STATUS: ${{ steps.rerun.outputs.status }}
-          PUSHED_SHA: ${{ steps.report.outputs.pushed_sha }}
-          PR_NUMBER: ${{ env.PR_NUMBER }}
-        with:
-          script: |
-            const prNumber = Number(process.env.PR_NUMBER);
-            if (!Number.isInteger(prNumber) || prNumber <= 0) return;
-            const sha = String(process.env.PUSHED_SHA || '').slice(0, 7);
-            const why = process.env.STATUS === 'no-token'
-              ? 'The BUGBOT_TRIGGER_TOKEN repo secret is not set.'
-              : 'The BUGBOT_TRIGGER_TOKEN repo secret did not work (it may have expired). Make a new one and save it under the same name.';
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: [
-                `**🔧 Claude Fix** · Bugbot was not asked to review \`${sha}\``,
-                '',
-                `${why} Bugbot skips pushes made by a bot, so comment \`bugbot run\` on this PR yourself to continue the review loop.`,
-              ].join('\n'),
             });

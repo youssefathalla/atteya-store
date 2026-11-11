@@ -1,7 +1,7 @@
 # Finds open pull requests that conflict with develop and starts the Claude ticket
 # routine with the message "Fix conflicts" (step C of .claude/routines/ticket-pickup.md).
 # That cloud session merges develop into each branch, resolves the conflicts, runs the
-# same checks as a normal build and pushes as the repo owner, so CI, Bugbot and
+# same checks as a normal build and pushes as the repo owner, so CI, the Claude review and
 # auto-merge carry on by themselves.
 #
 # Runs after every push to develop. A merge made by auto-merge.yml uses the workflow

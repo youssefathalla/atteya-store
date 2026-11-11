@@ -1,16 +1,14 @@
-# Claude review trial (shadow mode).
-# Reviews every push to a pull request into develop next to Cursor Bugbot and the
-# Cursor Security Agent, and posts its findings as one PR comment per commit.
-# It changes nothing: no edits, no fixes, no review threads, no merge.
-# The point is to compare it with Bugbot on the same commits (Linear: the
-# "PR reviews: keep Cursor Bugbot …" open question) before choosing one.
+# Claude review: the reviewer of every push to an owner's pull request into develop
+# (Cursor Bugbot and the Cursor Security Agent are no longer used).
+# Posts its findings as one PR comment per commit. It changes nothing itself: no edits,
+# no fixes, no review threads, no merge.
 # Runs on the Claude Max plan through CLAUDE_CODE_OAUTH_TOKEN, so it uses the
 # same usage limits as interactive Claude Code.
 # Stays inactive until the repository variable CLAUDE_REVIEW is exactly "enabled".
-# The job always ends green so a failed or skipped review never blocks auto-merge.
+# The job always ends green; the verdict lives in the comment.
 # Each comment carries <!-- claude-review-verdict <sha> clean|issues|none --> (and the findings
-# as base64 JSON when there are issues). When Bugbot could not run on a commit (Cursor usage
-# limit), auto-merge.yml accepts a clean verdict and bugbot-claude-fix.yml fixes the findings.
+# as base64 JSON when there are issues). auto-merge.yml holds the merge on a high or medium
+# finding or on "none" (no result), and bugbot-claude-fix.yml fixes the high and medium findings.
 
 name: Claude Review
 
@@ -80,7 +78,7 @@ jobs:
             1. Run `git diff origin/${{ env.BASE_REF }}...HEAD --stat`, then read the full diff
                (`git diff origin/${{ env.BASE_REF }}...HEAD`) and `git log origin/${{ env.BASE_REF }}..HEAD`.
             2. Read `.cursor/BUGBOT.md` (this project's review checklist: money, stock, security, SSR, shared copies,
-               UI rules; Bugbot uses the same file) and `AGENTS.md`. For the areas the diff touches, read the matching rules:
+               UI rules) and `AGENTS.md`. For the areas the diff touches, read the matching rules:
                `.cursor/rules/design-system.mdc` and `.agents/skills/ui-design-rules/SKILL.md` for templates and styles,
                `.agents/skills/quality-standards/SKILL.md` for accessibility, security, ReDoS and SSR,
                `.agents/skills/copywriting/SKILL.md` for user-facing text, `.agents/skills/typescript/SKILL.md` for models and schemas.
@@ -173,8 +171,7 @@ jobs:
             }
 
             const marker = `<!-- claude-review-trial ${sha} -->`;
-            // Machine-readable result for auto-merge.yml and bugbot-claude-fix.yml, which use this
-            // review instead of Bugbot when Bugbot could not run (for example the Cursor usage limit).
+            // Machine-readable result for auto-merge.yml (the review gate) and bugbot-claude-fix.yml.
             // clean = finished with no findings, issues = finished with findings, none = no result.
             const finished = !workflowSkipped && report && Array.isArray(report.findings);
             const validFindings = finished ? report.findings.filter((f) => f && typeof f === 'object').slice(0, 20) : [];
@@ -197,7 +194,7 @@ jobs:
               hidden = { index: lines.length, data };
               lines.push('');
             }
-            lines.push(`**🤖 Claude Review** · trial · commit \`${sha.slice(0, 7)}\``, '', 'Shadow mode unless Bugbot could not run: then auto-merge and Claude Fix use this review instead.', '');
+            lines.push(`**🤖 Claude Review** · commit \`${sha.slice(0, 7)}\``, '', 'High and medium findings hold auto-merge, and Claude Fix works on them. Low findings are notes.', '');
             if (workflowSkipped) {
               lines.push(`Not reviewed: this commit's \`.github/workflows/claude-review.yml\` is missing from, or differs from, the copy on the default branch (\`${clean(context.payload.repository?.default_branch, 50)}\`), and the Claude action only runs when the two match (a safety check). Once the copies match (this change merged, or this branch updated from the default branch), it reviews normally.`);
             } else if (!report || !Array.isArray(report.findings)) {
