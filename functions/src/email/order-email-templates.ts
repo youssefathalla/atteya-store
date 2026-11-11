@@ -9,10 +9,42 @@ import {
   type InstapayInfo,
   type OrderMessageInput,
   type PayIn,
+  type PaymentDue,
 } from '../store/order-messages.js';
 import { formatIban, whatsappChatUrl } from '../store/store-info.js';
+import {
+  amountBlock,
+  bankBox,
+  detailsBox,
+  emailDocument,
+  escapeHtml,
+  FONT,
+  footer,
+  fullWidthLink,
+  header,
+  infoBoxes,
+  INK,
+  itemGrid,
+  mainButton,
+  paragraphHtml,
+  photoStrip,
+  section,
+  sectionTitle,
+  siteLabel,
+  steps,
+  TEXT_MUTED,
+  textLink,
+  totals,
+  type AmountCell,
+  type EmailButton,
+  type EmailStep,
+  type InfoBox,
+  type ItemCard,
+} from './email-blocks.js';
 import type { OrderEmailKind } from './order-email-events.js';
 import { orderConfirmationUrl, type OrderEmailLine, type OrderEmailOrder } from './order-email-model.js';
+
+export { escapeHtml, type EmailButton } from './email-blocks.js';
 
 /**
  * Order email copy. Agreed wording lives on the "Order emails with Resend" Linear issue (ATS-10);
@@ -24,6 +56,9 @@ import { orderConfirmationUrl, type OrderEmailLine, type OrderEmailOrder } from 
  * in full online. Bank Transfer (abroad only): the shopper sends the total in their own currency
  * (`pricing.payIn`) to our IBAN and sends the receipt on WhatsApp. InstaPay and bank details and "send the screenshot" come only from `paymentDue()`
  * (functions/src/store/order-messages.ts), so a paid order never asks for money.
+ *
+ * Shopper emails use the "Bold Black" building blocks in `email-blocks.ts` (<KEY>-221). The store
+ * alert keeps its older look (the helpers at the end of this file) until <KEY>-222.
  */
 
 export interface OrderEmailContext {
@@ -93,11 +128,11 @@ export function renderOrderEmail(
     case 'instapay-placed':
       return instapayPlaced(order, ctx);
     case 'instapay-confirmed':
-      return instapayConfirmed(order, ctx);
+      return paidConfirmed(order, ctx);
     case 'bank-transfer-placed':
       return bankTransferPlaced(order, ctx);
     case 'bank-transfer-confirmed':
-      return bankTransferConfirmed(order, ctx);
+      return paidConfirmed(order, ctx);
     case 'delivery-fee-set':
       return deliveryFeeSet(order, ctx, false);
     case 'delivery-fee-changed':
@@ -115,141 +150,255 @@ export function renderOrderEmail(
   }
 }
 
-// ── Shopper emails ───────────────────────────────────────────────────────────
+// ── Shopper emails ("Bold Black", <KEY>-221) ───────────────────────────────────
 
 /** Said on every email of a large order whose delivery fee isn't set yet. */
 const FEE_TO_AGREE =
   "It's a large order, so we'll message you on WhatsApp to agree the delivery fee before we send it.";
 
+/** One part of a shopper email: its HTML row(s) and the same facts as plain text. */
+interface Block {
+  readonly html: string;
+  readonly text: string | null;
+}
+
+interface ShopperEmail {
+  readonly subject: string;
+  /** Small line above the status, e.g. "Cash on Delivery" (shown in capitals). */
+  readonly kicker: string;
+  /** The huge status, one entry per line, e.g. `['Order', 'Placed']`. */
+  readonly status: readonly string[];
+  readonly sentence: string;
+  /** 0 Placed … 3 Delivered, for the progress bar in the header; omit for none. */
+  readonly progress?: number;
+  readonly blocks: readonly (Block | null)[];
+  /** Footer line while WhatsApp is set; default "Questions? We answer on WhatsApp." */
+  readonly footerLine?: string;
+  /** False leaves the footer's WhatsApp button out (the email already has one). */
+  readonly footerButton?: boolean;
+}
+
+function renderShopper(order: OrderEmailOrder, ctx: OrderEmailContext, email: ShopperEmail): RenderedEmail {
+  const blocks = email.blocks.filter((block): block is Block => block !== null);
+  const help = footerHelp(ctx, email.footerLine, email.footerButton ?? true);
+  const site = siteLabel(ctx.storefrontUrl);
+  const html = emailDocument(email.subject, [
+    header({
+      storeName: ctx.storeName,
+      ref: order.ref,
+      kicker: email.kicker,
+      status: email.status,
+      sentence: email.sentence,
+      progress: email.progress ?? null,
+    }),
+    ...blocks.map((block) => block.html),
+    SPACER,
+    footer({
+      storeName: ctx.storeName,
+      line: help.line,
+      button: help.button,
+      site,
+      siteUrl: ctx.storefrontUrl,
+    }),
+  ]);
+  const text = joinText([
+    `${email.status.join(' ')}\n${email.kicker} · Order ${order.ref}`,
+    email.sentence,
+    ...blocks.map((block) => block.text),
+    help.text,
+  ]);
+  return { subject: email.subject, html, text };
+}
+
+/** White space between the last section and the black footer. */
+const SPACER = '<tr><td style="height:40px;font-size:0;line-height:0;">&nbsp;</td></tr>';
+
+/**
+ * WhatsApp is the client's main channel, so it wins over "reply to this email". Without a number
+ * the footer has no WhatsApp line or button.
+ */
+function footerHelp(
+  ctx: OrderEmailContext,
+  line: string | undefined,
+  withButton: boolean,
+): { line: string | null; button: EmailButton | null; text: string | null } {
+  const waNumber = ctx.whatsappNumber.trim();
+  const waLink = whatsappChatUrl(waNumber);
+  if (waLink) {
+    const said = line ?? 'Questions? We answer on WhatsApp.';
+    return {
+      line: said,
+      button: withButton ? { label: 'Message Us on WhatsApp', url: waLink } : null,
+      text: withButton ? `${said}\nMessage Us on WhatsApp: ${waNumber} (${waLink})` : said,
+    };
+  }
+  const reply = ctx.canReply ? 'Questions? Just reply to this email.' : null;
+  const said = line && !/whatsapp/i.test(line) ? line : reply;
+  return { line: said, button: null, text: said };
+}
+
 function codPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
-  if (order.feeToBeAgreed) {
-    return shopperEmail(order, ctx, {
+  if (order.feeToBeAgreed) return largeOrderPlaced(order, ctx);
+  const cash = formatEgp(cashOnDeliveryEgp(order));
+  const due = dueFor(order);
+  if (due?.reason === 'shipping-fee') {
+    const fee = due.amountEgp !== null ? formatEgp(due.amountEgp) : null;
+    const pay = instapaySteps(order, ctx, due, 'fee');
+    return renderShopper(order, ctx, {
       subject: `We got your order ${order.ref}`,
-      heading: `Thanks for your order, ${firstName(order)}`,
-      intro: [`We've received your order ${order.ref}. ${FEE_TO_AGREE}`],
-      highlight: `Once we agree it, pay the delivery fee by InstaPay. You'll pay ${formatEgp(order.subtotalEgp)} for your items in cash when they arrive.`,
-      showTotals: true,
-      showAddress: true,
-      button: orderButton(order, ctx),
+      kicker: 'Cash on Delivery',
+      status: ['Order', 'Placed'],
+      sentence: `Thanks, ${firstName(order)}. Pay the shipping fee by InstaPay and we'll send your order. You pay the rest in cash at your door.`,
+      blocks: [
+        amountRow([
+          { label: 'Pay now', amount: fee ?? 'Shipping fee', note: 'Shipping fee by InstaPay' },
+          { label: 'At your door', amount: cash, note: 'In cash when it arrives' },
+        ]),
+        stepsRow([
+          placeStep(order),
+          ...pay.steps,
+          {
+            state: 'next',
+            title: 'Pay the rest in cash at your door',
+            amount: cash,
+            note: 'We send your order once the fee arrives.',
+          },
+        ]),
+        pay.button ? buttonRow(pay.button) : null,
+        ...orderSummary(order, ctx, { payment: ['Cash on Delivery', 'Fee first by InstaPay'] }),
+      ],
     });
   }
-  const cash = formatEgp(cashOnDeliveryEgp(order));
-  const feeFirst = order.shippingEgp > 0;
-  const payNow = feeFirst
-    ? `We'll send your order once we receive the shipping fee. You'll pay the rest, ${cash}, in cash when it arrives.`
-    : `Shipping is free on this order, so there's nothing to pay now. You'll pay ${cash} in cash when it arrives.`;
-  return shopperEmail(order, ctx, {
+  return renderShopper(order, ctx, {
     subject: `We got your order ${order.ref}`,
-    heading: `Thanks for your order, ${firstName(order)}`,
-    intro: [
-      feeFirst
-        ? `We've received your order ${order.ref}.`
-        : `We've received your order ${order.ref}. We'll contact you to confirm it.`,
+    kicker: 'Cash on Delivery',
+    status: ['Order', 'Placed'],
+    sentence: `Thanks, ${firstName(order)}. We've received your order ${order.ref}. We'll contact you to confirm it.`,
+    blocks: [
+      amountRow([
+        {
+          label: 'At your door',
+          amount: cash,
+          note: "In cash when it arrives. Shipping is free on this order, so there's nothing to pay now.",
+        },
+      ]),
+      ...orderSummary(order, ctx, {
+        payment: ['Cash on Delivery', 'Free shipping'],
+        viewAsButton: true,
+      }),
     ],
-    highlight: payNow,
-    payment: payBox(order, ctx),
-    showTotals: true,
-    showAddress: true,
-    button: orderButton(order, ctx),
   });
 }
 
-function codConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
-  const intro =
-    order.shippingEgp > 0
-      ? `Thanks, we've received your shipping fee and your order ${order.ref} is confirmed. We're getting it ready.`
-      : `Good news: your order ${order.ref} is confirmed and we're getting it ready.`;
-  return shopperEmail(order, ctx, {
-    subject: `Your order ${order.ref} is confirmed`,
-    heading: 'Your order is confirmed',
-    intro: [intro],
-    highlight: `Please have ${formatEgp(cashOnDeliveryEgp(order))} in cash ready when it arrives.`,
-    showTotals: true,
-    showAddress: true,
-    button: orderButton(order, ctx),
+/** Cash on Delivery or InstaPay order heavier than every box: nothing to pay until we agree the fee. */
+function largeOrderPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+  const instapay = order.paymentMethod === 'instapay';
+  const later: EmailStep[] = instapay
+    ? [
+        {
+          state: 'next',
+          title: 'Send the total by InstaPay',
+          note: "We'll confirm your order as soon as we receive your payment.",
+        },
+      ]
+    : [
+        {
+          state: 'next',
+          title: 'Send the delivery fee by InstaPay',
+          note: 'We send your order once it arrives.',
+        },
+        {
+          state: 'next',
+          title: 'Pay for your items in cash at your door',
+          amount: formatEgp(order.subtotalEgp),
+        },
+      ];
+  return renderShopper(order, ctx, {
+    subject: `We got your order ${order.ref}`,
+    kicker: 'Large order',
+    status: ['Order', 'Placed'],
+    sentence: `Thanks, ${firstName(order)}. ${FEE_TO_AGREE}`,
+    blocks: [
+      amountRow([
+        {
+          label: 'To pay now',
+          amount: 'Nothing yet',
+          note: "We'll email you the delivery fee once we agree it.",
+        },
+      ]),
+      stepsRow([
+        placeStep(order),
+        {
+          state: 'current',
+          title: 'We message you about the delivery fee',
+          note: 'On WhatsApp, usually the same day.',
+        },
+        ...later,
+      ]),
+      ...orderSummary(order, ctx, { payment: [methodName(order), 'Delivery fee to be agreed'] }),
+    ],
   });
 }
 
 function instapayPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
-  if (order.feeToBeAgreed) {
-    return shopperEmail(order, ctx, {
-      subject: `We got your order ${order.ref}`,
-      heading: `Thanks for your order, ${firstName(order)}`,
-      intro: [`We've received your order ${order.ref}. ${FEE_TO_AGREE}`],
-      highlight: "Once we agree it, transfer the total by InstaPay and we'll confirm your order.",
-      showTotals: true,
-      showAddress: true,
-      button: orderButton(order, ctx),
-    });
-  }
-  return shopperEmail(order, ctx, {
+  if (order.feeToBeAgreed) return largeOrderPlaced(order, ctx);
+  const due = dueFor(order);
+  const pay = due ? instapaySteps(order, ctx, due, 'total') : null;
+  return renderShopper(order, ctx, {
     subject: `We got your order ${order.ref}`,
-    heading: `Thanks for your order, ${firstName(order)}`,
-    intro: [`We've received your order ${order.ref}. We'll confirm it as soon as we receive your payment.`],
-    highlight: null,
-    payment: payBox(order, ctx),
-    showTotals: true,
-    showAddress: true,
-    button: orderButton(order, ctx),
-  });
-}
-
-function instapayConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
-  return shopperEmail(order, ctx, {
-    subject: `Payment received – order ${order.ref} is confirmed`,
-    heading: 'Payment received',
-    intro: [
-      `Thanks, ${firstName(order)}. We've received your InstaPay payment of ${formatEgp(order.totalEgp)} and your order ${order.ref} is confirmed. We're getting it ready.`,
+    kicker: 'InstaPay',
+    status: ['Order', 'Placed'],
+    sentence: pay
+      ? `Thanks, ${firstName(order)}. Send the total by InstaPay and we'll confirm your order as soon as it arrives.`
+      : `Thanks, ${firstName(order)}. We've received your order ${order.ref}. We'll confirm it as soon as we receive your payment.`,
+    blocks: [
+      pay && due?.amountEgp != null
+        ? amountRow([{ label: 'Send by InstaPay', amount: formatEgp(due.amountEgp) }])
+        : null,
+      pay ? stepsRow([placeStep(order), ...pay.steps]) : null,
+      pay?.button ? buttonRow(pay.button) : null,
+      ...orderSummary(order, ctx, {
+        payment: ['InstaPay', 'Waiting for Payment'],
+        viewAsButton: !pay?.button,
+      }),
     ],
-    highlight: null,
-    showTotals: true,
-    totalLabel: 'Total paid',
-    showAddress: true,
-    button: orderButton(order, ctx),
   });
 }
 
 function bankTransferPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
-  return shopperEmail(order, ctx, {
+  const due = dueFor(order);
+  const pay = due?.reason === 'bank-transfer' ? bankSteps(order, ctx, due) : null;
+  return renderShopper(order, ctx, {
     subject: `We got your order ${order.ref}`,
-    heading: `Thanks for your order, ${firstName(order)}`,
-    intro: [
-      `We've received your order ${order.ref}. Send the total from your bank to finish your order. We'll confirm it as soon as the money arrives.`,
-      ...egpPricesNote(order),
+    kicker: 'Bank Transfer',
+    status: ['Order', 'Placed'],
+    sentence: `Thanks, ${firstName(order)}. Send the total from your bank and we'll confirm your order as soon as the money arrives.`,
+    blocks: [
+      pay ? amountRow([sentAmount(order, 'Send from your bank', true)]) : null,
+      pay ? stepsRow([placeStep(order), ...pay.steps]) : null,
+      pay?.button ? buttonRow(pay.button) : null,
+      ...orderSummary(order, ctx, {
+        payment: ['Bank Transfer', 'Waiting for Payment'],
+        youSend: order.payIn ? ['You send', formatPayIn(order.payIn)] : null,
+        viewAsButton: !pay?.button,
+      }),
     ],
-    highlight: null,
-    payment: payBox(order, ctx),
-    showTotals: true,
-    showAddress: true,
-    button: orderButton(order, ctx),
-  });
-}
-
-function bankTransferConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
-  const amount = order.payIn ? ` of ${formatPayIn(order.payIn)}` : '';
-  return shopperEmail(order, ctx, {
-    subject: `Payment received – order ${order.ref} is confirmed`,
-    heading: 'Payment received',
-    intro: [
-      `Thanks, ${firstName(order)}. We've received your bank transfer${amount} and your order ${order.ref} is confirmed. We're getting it ready.`,
-      ...egpPricesNote(order),
-    ],
-    highlight: null,
-    showTotals: true,
-    showAddress: true,
-    button: orderButton(order, ctx),
   });
 }
 
 /**
- * A Bank Transfer is sent in the shopper's own currency, while the items and totals below are in
- * Egyptian pounds: say so once, so the two amounts don't look like a mismatch.
+ * A Bank Transfer amount in the shopper's currency, with the EGP total under it (the items and
+ * totals are in Egyptian pounds, so the two amounts must not look like a mismatch).
  */
-function egpPricesNote(order: OrderEmailOrder): string[] {
-  if (!order.payIn || order.payIn.currency === 'EGP') return [];
-  return [
-    `The prices below are in Egyptian pounds (EGP). You send ${formatPayIn(order.payIn)}, the same total in your currency.`,
-  ];
+function sentAmount(order: OrderEmailOrder, label: string, pricesNote: boolean): AmountCell {
+  if (!order.payIn || order.payIn.currency === 'EGP') {
+    return { label, amount: formatEgp(order.totalEgp) };
+  }
+  return {
+    label,
+    amount: formatPayIn(order.payIn),
+    note: `Same total as ${formatEgp(order.totalEgp)}.${pricesNote ? ' Item prices below are in EGP.' : ''}`,
+  };
 }
 
 /**
@@ -257,157 +406,543 @@ function egpPricesNote(order: OrderEmailOrder): string[] {
  * later correction of that fee; the amounts to pay are the new ones).
  */
 function deliveryFeeSet(order: OrderEmailOrder, ctx: OrderEmailContext, changed: boolean): RenderedEmail {
+  const now = changed ? 'now ' : '';
   const fee = order.shippingEgp > 0 ? formatEgp(order.shippingEgp) : null;
-  const intro = [
-    fee
-      ? `The delivery fee for your order ${order.ref} is ${changed ? 'now ' : ''}${fee}.`
-      : `Good news: delivery is ${changed ? 'now ' : ''}free on your order ${order.ref}.`,
-  ];
-  if (changed) {
-    intro.push("If you've already sent a different amount, message us on WhatsApp and we'll sort it out.");
+  const cod = order.paymentMethod === 'cash-on-delivery';
+  const cash = formatEgp(cashOnDeliveryEgp(order));
+  const due = dueFor(order);
+  const pay =
+    due && due.reason !== 'bank-transfer' ? instapaySteps(order, ctx, due, cod ? 'fee' : 'total') : null;
+
+  let sentence = fee
+    ? `The delivery fee for your order ${order.ref} is ${now}${fee}.`
+    : `Good news: delivery is ${now}free on your order ${order.ref}.`;
+  if (pay) {
+    sentence += cod
+      ? " Send it by InstaPay and we'll send your order."
+      : " Send the total by InstaPay and we'll confirm your order as soon as it arrives.";
+  } else if (cod) {
+    sentence += ` There's nothing to pay now. You'll pay ${cash} in cash when it arrives.`;
   }
-  let highlight: string | null;
-  if (order.paymentMethod === 'cash-on-delivery') {
-    const cash = formatEgp(cashOnDeliveryEgp(order));
-    highlight = fee
-      ? `We'll send your order once we receive the delivery fee. You'll pay the rest, ${cash}, in cash when it arrives.`
-      : `There's nothing to pay now. You'll pay ${cash} in cash when it arrives.`;
-  } else {
-    highlight = "We'll confirm your order as soon as we receive your payment.";
+
+  const agreed: EmailStep = {
+    state: 'done',
+    title: 'Agree the delivery fee',
+    note: `Done. ${fee ?? 'Free'}`,
+  };
+  let cells: AmountCell[] = [];
+  let list: EmailStep[] = [];
+  if (cod) {
+    cells =
+      pay && fee
+        ? [
+            { label: 'Pay now', amount: fee, note: 'Delivery fee by InstaPay' },
+            { label: 'At your door', amount: cash, note: 'In cash when it arrives' },
+          ]
+        : [{ label: 'At your door', amount: cash, note: 'In cash when it arrives' }];
+    if (pay) {
+      list = [
+        { state: 'done', title: 'Place your order' },
+        agreed,
+        ...pay.steps,
+        { state: 'next', title: 'Pay the rest in cash at your door', amount: cash },
+      ];
+    }
+  } else if (pay && due?.amountEgp != null) {
+    cells = [{ label: 'Send by InstaPay', amount: formatEgp(due.amountEgp) }];
+    list = [{ state: 'done', title: 'Place your order' }, agreed, ...pay.steps];
   }
-  return shopperEmail(order, ctx, {
+
+  return renderShopper(order, ctx, {
     subject: changed
       ? `Updated delivery fee for your order ${order.ref}`
       : `Delivery fee for your order ${order.ref}`,
-    heading: changed ? 'Your delivery fee has changed' : 'Your delivery fee is ready',
-    intro,
-    highlight,
-    payment: payBox(order, ctx),
-    showTotals: true,
-    showAddress: false,
-    button: orderButton(order, ctx),
+    kicker: 'Delivery fee',
+    status: changed ? ['Fee', 'Updated'] : ['Fee', 'Ready'],
+    sentence,
+    blocks: [
+      cells.length ? amountRow(cells) : null,
+      list.length ? stepsRow(list) : null,
+      pay?.button ? buttonRow(pay.button) : null,
+      changed
+        ? noteRow("If you've already sent a different amount, message us on WhatsApp and we'll sort it out.")
+        : null,
+      ...orderSummary(order, ctx, { payment: null, delivery: false, viewAsButton: !pay?.button }),
+    ],
   });
 }
 
+/** Paid in full and confirmed: InstaPay, Card (Paymob) or Bank Transfer share this email. */
 function paidConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
-  const intro = [
-    `Thanks, ${firstName(order)}. We've received your payment of ${formatEgp(order.totalEgp)} and your order ${order.ref} is confirmed. We're getting it ready.`,
-  ];
-  if (order.isInternational) {
-    intro.push(
-      'You were charged in Egyptian pounds (EGP). Your bank converts it to your currency, so the amount on your statement may differ slightly.',
-    );
-  }
-  return shopperEmail(order, ctx, {
+  const bank = order.paymentMethod === 'bank-transfer';
+  const name = methodName(order);
+  const cell: AmountCell = bank
+    ? sentAmount(order, `Paid by ${name}`, false)
+    : { label: `Paid by ${name}`, amount: formatEgp(order.totalEgp) };
+  const cardAbroad = order.paymentMethod === 'paymob' && order.isInternational;
+  return renderShopper(order, ctx, {
     subject: `Payment received – order ${order.ref} is confirmed`,
-    heading: 'Payment received',
-    intro,
-    highlight: null,
-    showTotals: true,
-    totalLabel: 'Total paid',
-    showAddress: true,
-    button: orderButton(order, ctx),
+    kicker: 'Payment received',
+    status: ['Order', 'Confirmed'],
+    sentence: `Thanks, ${firstName(order)}. We're getting your order ready and will email you when it's on its way.`,
+    progress: 1,
+    blocks: [
+      amountRow([cell], true),
+      cardAbroad
+        ? noteRow(
+            'You were charged in Egyptian pounds (EGP). Your bank converts it to your currency, so the amount on your statement may differ slightly.',
+            TEXT_MUTED,
+          )
+        : null,
+      ...orderSummary(order, ctx, {
+        payment: [name, 'Paid'],
+        totalLabel: 'Total paid',
+        youSend: bank && order.payIn ? ['You sent', formatPayIn(order.payIn)] : null,
+        viewAsButton: true,
+      }),
+    ],
+  });
+}
+
+function codConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+  const feePaid = order.shippingEgp > 0;
+  const cash = formatEgp(cashOnDeliveryEgp(order));
+  const shipLabel = shippingLabel(order);
+  return renderShopper(order, ctx, {
+    subject: `Your order ${order.ref} is confirmed`,
+    kicker: feePaid ? 'Shipping fee received' : 'Cash on Delivery',
+    status: ['Order', 'Confirmed'],
+    sentence: feePaid
+      ? `Thanks, ${firstName(order)}. We've received your shipping fee and we're getting your order ready.`
+      : `Good news: your order ${order.ref} is confirmed and we're getting it ready.`,
+    progress: 1,
+    blocks: [
+      amountRow([
+        {
+          label: 'Have ready in cash',
+          amount: cash,
+          note: `Pay the courier when your order arrives.${feePaid ? ` Shipping fee ${formatEgp(order.shippingEgp)} already paid.` : ''}`,
+        },
+      ]),
+      ...orderSummary(order, ctx, {
+        payment: ['Cash on Delivery', feePaid ? 'Shipping fee paid' : 'Pay in cash at your door'],
+        totalRows: [
+          ['Subtotal', formatEgp(order.subtotalEgp)],
+          feePaid ? [`${shipLabel} · paid`, formatEgp(order.shippingEgp)] : [shipLabel, 'Free'],
+          ['Cash at your door', cash],
+        ],
+        viewAsButton: true,
+      }),
+    ],
   });
 }
 
 function orderShipped(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
   const cod = order.paymentMethod === 'cash-on-delivery';
-  return shopperEmail(order, ctx, {
+  const date = shortDate(order.shippedAtMs);
+  const view = orderButton(order, ctx);
+  return renderShopper(order, ctx, {
     subject: `Your order ${order.ref} is on its way`,
-    heading: 'Your order is on its way',
-    intro: [`Good news, ${firstName(order)}: we've sent your order ${order.ref}.`],
-    highlight: cod
-      ? `Please have ${formatEgp(cashOnDeliveryEgp(order))} in cash ready when it arrives.`
-      : null,
-    showTotals: false,
-    showAddress: true,
-    button: orderButton(order, ctx),
+    kicker: date ? `Shipped ${date}` : 'Shipped',
+    status: ['On Its', 'Way'],
+    sentence: `Good news, ${firstName(order)}: we've sent your order. Keep your phone close so the courier can reach you.`,
+    progress: 2,
+    blocks: [
+      cod
+        ? amountRow([
+            {
+              label: 'Have ready in cash',
+              amount: formatEgp(cashOnDeliveryEgp(order)),
+              note: 'Pay the courier when your order arrives.',
+            },
+          ])
+        : null,
+      boxesRow([{ label: 'On its way to', lines: addressLines(order) }], 32),
+      itemsRow('In This Delivery', order.lines, ctx, { perRow: 3, prices: false }),
+      view ? buttonRow(view, 8) : null,
+    ],
   });
 }
 
 function orderDelivered(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
-  return shopperEmail(order, ctx, {
+  const date = shortDate(order.deliveredAtMs);
+  const waLink = whatsappChatUrl(ctx.whatsappNumber.trim());
+  const cards = itemCards(order.lines, ctx, false, 400);
+  const names = order.lines.map((line) => lineTitle(line));
+  const help = waLink
+    ? fullWidthLink({ label: 'Message Us on WhatsApp', url: waLink }, 'outlined')
+    : ctx.canReply
+      ? paragraphHtml('Just reply to this email.', TEXT_MUTED)
+      : '';
+  const helpText = waLink
+    ? `Message Us on WhatsApp: ${waLink}`
+    : ctx.canReply
+      ? 'Just reply to this email.'
+      : null;
+  const notRight = "Wrong size or a problem with an item? Message us and we'll sort it out.";
+  const view = orderButton(order, ctx);
+  return renderShopper(order, ctx, {
     subject: `Your order ${order.ref} was delivered`,
-    heading: 'Your order was delivered',
-    intro: [
-      `Hi ${firstName(order)}, your order ${order.ref} was delivered. Thanks for shopping with us. We hope you enjoy it.`,
+    kicker: date ? `Delivered ${date}` : 'Delivered',
+    status: ["It's", 'Here'],
+    sentence: `Hi ${firstName(order)}, your order ${order.ref} was delivered. Thanks for shopping with us. We hope you enjoy it.`,
+    progress: 3,
+    footerLine: 'Thanks for shopping with us.',
+    footerButton: false,
+    blocks: [
+      {
+        html: photoStrip(cards, names.join(' · ')),
+        text: `In this delivery:\n${itemsText(order.lines, false)}`,
+      },
+      {
+        html: section(
+          `${sectionTitle('Something Not Right?')}${paragraphHtml(notRight, TEXT_MUTED)}${help}`,
+          36,
+        ),
+        text: joinParts(['Something Not Right?', notRight, helpText]),
+      },
+      ctx.storefrontUrl
+        ? buttonRow({ label: 'Shop New Arrivals', url: `${ctx.storefrontUrl}/shop?newArrivals=1` }, 32)
+        : null,
+      view ? linkRow(view) : null,
     ],
-    highlight: null,
-    showTotals: false,
-    showAddress: false,
-    button: orderButton(order, ctx),
   });
 }
 
 function paymentFailed(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
-  return shopperEmail(order, ctx, {
+  const bought = order.lines.filter((line) => line.giftName === null);
+  return renderShopper(order, ctx, {
     subject: `Your payment for order ${order.ref} didn't go through`,
-    heading: "Your payment didn't go through",
-    intro: [
-      `Hi ${firstName(order)}, your payment for order ${order.ref} didn't go through, and you haven't been charged.`,
-      "If you'd still like these items, please place the order again.",
+    kicker: 'Card payment',
+    status: ["Didn't Go", 'Through'],
+    sentence: `Hi ${firstName(order)}, your card payment didn't go through. If you'd still like these items, please place the order again.`,
+    footerLine: 'Trouble paying? We can help on WhatsApp.',
+    blocks: [
+      amountRow([
+        {
+          label: 'Charged',
+          amount: formatEgp(0),
+          note: "You haven't been charged. Nothing left your account.",
+        },
+      ]),
+      ctx.storefrontUrl ? buttonRow({ label: 'Shop Again', url: `${ctx.storefrontUrl}/shop` }) : null,
+      itemsRow('Still Want These?', bought.length ? bought : order.lines, ctx, { perRow: 2, prices: true }),
     ],
-    highlight: null,
-    showTotals: false,
-    showAddress: false,
-    button: ctx.storefrontUrl ? { label: 'Shop Again', url: `${ctx.storefrontUrl}/shop` } : null,
   });
 }
 
-interface ShopperEmailParts {
-  readonly subject: string;
-  readonly heading: string;
-  readonly intro: readonly string[];
-  readonly highlight: string | null;
-  /** InstaPay instructions while money is owed (`payBox()`); omit everywhere else. */
-  readonly payment?: PayBox | null;
-  readonly showTotals: boolean;
-  readonly totalLabel?: string;
-  readonly showAddress: boolean;
+// ── Shopper email parts ──────────────────────────────────────────────────────
+
+/** Money still owed, from `paymentDue()` only, so a paid order never asks for money. */
+function dueFor(order: OrderEmailOrder): PaymentDue | null {
+  const input = messageInput(order);
+  return paymentDue(orderStage(input), input);
+}
+
+/** The steps that ask for money, and the WhatsApp button that goes with them. */
+interface PaySteps {
+  readonly steps: readonly EmailStepWithText[];
   readonly button: EmailButton | null;
 }
 
-function shopperEmail(
+/** A step with the plain-text lines of its details box. */
+interface EmailStepWithText extends EmailStep {
+  readonly boxText?: readonly string[];
+}
+
+function placeStep(order: OrderEmailOrder): EmailStep {
+  return { state: 'done', title: 'Place your order', note: `Done. Order ${order.ref}` };
+}
+
+/**
+ * InstaPay step(s) for an order that owes money. `total`: send the total, then a separate step
+ * for the screenshot. `fee`: send the shipping or delivery fee, with the screenshot in its note.
+ * The WhatsApp button opens a chat with the shopper's message already written in Arabic.
+ */
+function instapaySteps(
   order: OrderEmailOrder,
   ctx: OrderEmailContext,
-  parts: ShopperEmailParts,
-): RenderedEmail {
-  const waNumber = ctx.whatsappNumber.trim();
-  const waLink = whatsappChatUrl(waNumber);
-  // WhatsApp is the client's main channel, so it wins over "reply to this email".
-  const help = waLink
-    ? `Questions? Message us on WhatsApp: ${waNumber}`
+  due: PaymentDue,
+  kind: 'total' | 'fee',
+): PaySteps {
+  const input = messageInput(order);
+  const stage = orderStage(input);
+  const amount = due.amountEgp !== null ? formatEgp(due.amountEgp) : null;
+  const waUrl = whatsappChatUrl(ctx.whatsappNumber, shopperWhatsappText(stage, input, ctx.instapay));
+  const title = kind === 'fee' ? 'Send the delivery fee by InstaPay' : 'Send the total by InstaPay';
+
+  if (!hasInstapayDetails(ctx.instapay)) {
+    return {
+      steps: [
+        {
+          state: 'current',
+          title,
+          amount,
+          note: waUrl
+            ? "We'll send you the InstaPay details on WhatsApp."
+            : "We'll send you the InstaPay details.",
+        },
+      ],
+      button: waUrl ? { label: 'Message Us on WhatsApp', url: waUrl } : null,
+    };
+  }
+
+  const address = ctx.instapay.address.trim();
+  const number = ctx.instapay.number.trim();
+  const rows: [string, string][] = [];
+  if (address) rows.push(['Address', address]);
+  if (number) rows.push(['Number', number]);
+  const boxText = rows.map(([label, value]) => `InstaPay ${label.toLowerCase()}: ${value}`);
+  const screenshot = waUrl
+    ? 'Then send us the screenshot on WhatsApp.'
     : ctx.canReply
-      ? 'Questions? Just reply to this email.'
-      : null;
-  const helpHtml = waLink
-    ? `<p style="margin:16px 0 0;font-size:13px;color:${MUTED};">Questions? Message us on WhatsApp: <a href="${escapeHtml(waLink)}" style="color:${INK};font-weight:600;">${escapeHtml(waNumber)}</a></p>`
-    : help
-      ? smallText(help)
-      : '';
-  const html = layout(ctx.storeName, parts.subject, [
-    h1(parts.heading),
-    ...parts.intro.map((line) => paragraph(line)),
-    parts.highlight ? highlightBox(parts.highlight) : '',
-    parts.payment ? payBoxHtml(parts.payment) : '',
-    itemsTable(order.lines, ctx),
-    parts.showTotals ? totalsTable(order, parts.totalLabel ?? 'Total') : '',
-    parts.showAddress ? addressBlock(order) : '',
-    parts.button ? buttonHtml(parts.button) : '',
-    helpHtml,
-  ]);
-  const text = joinText([
-    parts.heading,
-    ...parts.intro,
-    parts.highlight,
-    parts.payment ? payBoxText(parts.payment) : null,
-    itemsText(order.lines),
-    parts.showTotals ? totalsText(order, parts.totalLabel ?? 'Total') : null,
-    parts.showAddress ? `Delivery Address:\n${addressLines(order).join('\n')}` : null,
-    parts.button ? `${parts.button.label}: ${parts.button.url}` : null,
-    help,
-  ]);
-  return { subject: parts.subject, html, text };
+      ? 'Then reply to this email with a screenshot of the transfer.'
+      : 'Then send us a screenshot of the transfer.';
+
+  const pay: EmailStepWithText = {
+    state: 'current',
+    title,
+    amount,
+    note: kind === 'fee' ? screenshot : null,
+    boxHtml: detailsBox(rows),
+    boxText,
+  };
+  const steps: EmailStepWithText[] = [pay];
+  if (kind === 'total') {
+    steps.push({
+      state: 'next',
+      title: waUrl
+        ? 'Send the screenshot on WhatsApp'
+        : ctx.canReply
+          ? 'Reply with the screenshot'
+          : 'Send us the screenshot',
+      note: 'We confirm your order and get it ready.',
+    });
+  }
+  return {
+    steps,
+    button: waUrl ? { label: 'Send Screenshot on WhatsApp', url: waUrl } : null,
+  };
+}
+
+/** Bank Transfer: our bank details, the reference, the fee line and Send Receipt on WhatsApp. */
+function bankSteps(order: OrderEmailOrder, ctx: OrderEmailContext, due: PaymentDue): PaySteps {
+  const input = messageInput(order);
+  const stage = orderStage(input);
+  const bank = ctx.bankTransfer;
+  const waUrl = whatsappChatUrl(ctx.whatsappNumber, shopperWhatsappText(stage, input, ctx.instapay, bank));
+  const payIn = due.payIn ?? null;
+  const title = `Send ${payIn ? formatPayIn(payIn) : 'the total'} from your bank`;
+
+  if (!hasBankTransferDetails(bank)) {
+    return {
+      steps: [
+        {
+          state: 'current',
+          title,
+          note: waUrl ? "We'll send you our bank details on WhatsApp." : "We'll send you our bank details.",
+        },
+      ],
+      button: waUrl ? { label: 'Message Us on WhatsApp', url: waUrl } : null,
+    };
+  }
+
+  const rows: { label: string; value: string; mono: boolean }[] = [];
+  if (bank.accountName.trim())
+    rows.push({ label: 'Account name', value: bank.accountName.trim(), mono: false });
+  rows.push({ label: 'IBAN', value: formatIban(bank.iban), mono: true });
+  if (bank.swift.trim()) rows.push({ label: 'SWIFT / BIC', value: bank.swift.trim(), mono: true });
+  if (bank.bankName.trim()) rows.push({ label: 'Bank', value: bank.bankName.trim(), mono: false });
+  const reference = order.ref.replace(/^#/, '');
+  const fees = 'Choose "I pay all fees" in your bank app so the full amount reaches us.';
+
+  return {
+    steps: [
+      {
+        state: 'current',
+        title,
+        boxHtml: bankBox(rows, reference),
+        boxText: [...rows.map((row) => `${row.label}: ${row.value}`), `Reference: ${reference}`],
+        after: fees,
+      },
+      {
+        state: 'next',
+        title: waUrl
+          ? 'Send the receipt on WhatsApp'
+          : ctx.canReply
+            ? 'Reply with the receipt'
+            : 'Send us the receipt',
+        note: 'We confirm and ship once the money arrives.',
+      },
+    ],
+    button: waUrl ? { label: 'Send Receipt on WhatsApp', url: waUrl } : null,
+  };
+}
+
+function amountRow(cells: readonly AmountCell[], check = false): Block {
+  return {
+    html: amountBlock(cells, check),
+    text: cells
+      .map((cell) => joinParts([`${upperFirst(cell.label)}: ${cell.amount}`, cell.note ?? null]))
+      .join('\n'),
+  };
+}
+
+function stepsRow(list: readonly EmailStepWithText[]): Block {
+  const text = list
+    .map((step, index) =>
+      joinParts([
+        `${index + 1}. ${step.title}${step.amount ? `: ${step.amount}` : ''}${step.state === 'done' ? ' ✓' : ''}`,
+        step.note ? `   ${step.note}` : null,
+        ...(step.boxText ?? []).map((line) => `   ${line}`),
+        step.after ? `   ${step.after}` : null,
+      ]),
+    )
+    .join('\n');
+  return { html: steps(list), text };
+}
+
+function buttonRow(button: EmailButton, padTop = 28): Block {
+  return { html: mainButton(button, padTop), text: `${button.label}: ${button.url}` };
+}
+
+function linkRow(button: EmailButton): Block {
+  return {
+    html: section(textLink({ label: `${button.label} →`, url: button.url }), 28),
+    text: `${button.label}: ${button.url}`,
+  };
+}
+
+function noteRow(textValue: string, color: string = INK): Block {
+  return { html: section(paragraphHtml(textValue, color, 14), 24), text: textValue };
+}
+
+function boxesRow(boxes: readonly InfoBox[], padTop = 24): Block {
+  return {
+    html: section(infoBoxes(boxes), padTop),
+    text: boxes.map((box) => `${upperFirst(box.label)}:\n${box.lines.join('\n')}`).join('\n\n'),
+  };
+}
+
+function itemsRow(
+  title: string,
+  lines: readonly OrderEmailLine[],
+  ctx: OrderEmailContext,
+  opts: { perRow: 2 | 3; prices: boolean },
+): Block {
+  const width = opts.perRow === 2 ? 520 : 360;
+  const grid = itemGrid(itemCards(lines, ctx, opts.prices, width), opts.perRow, opts.perRow === 2 ? 4 : 6);
+  return {
+    html: section(`${sectionTitle(title)}${grid}`, 40),
+    text: `${title}:\n${itemsText(lines, opts.prices)}`,
+  };
+}
+
+interface SummaryOptions {
+  /** Payment box lines (method, state); null leaves the Payment box out. */
+  readonly payment: readonly [string, string] | null;
+  /** False leaves the Delivery To box out. */
+  readonly delivery?: boolean;
+  readonly totalLabel?: string;
+  readonly totalRows?: readonly (readonly [string, string])[];
+  /** Bold row under the total ("You send" / "You sent"). */
+  readonly youSend?: readonly [string, string] | null;
+  /** True: "View Your Order" is the black main button; false: a text link. */
+  readonly viewAsButton?: boolean;
+}
+
+/** Your Items, totals, Delivery To / Payment and the order link: the end of most order emails. */
+function orderSummary(order: OrderEmailOrder, ctx: OrderEmailContext, opts: SummaryOptions): Block[] {
+  const rows = opts.totalRows ?? totalsFor(order, opts.totalLabel ?? 'Total');
+  const after = opts.youSend ? [opts.youSend] : [];
+  const boxes: InfoBox[] = [];
+  if (opts.delivery !== false) boxes.push({ label: 'Delivery to', lines: addressLines(order) });
+  if (opts.payment) boxes.push({ label: 'Payment', lines: opts.payment });
+  const view = orderButton(order, ctx);
+  const out: Block[] = [
+    itemsRow('Your Items', order.lines, ctx, { perRow: 2, prices: true }),
+    {
+      html: section(totals(rows, after), 8),
+      text: [...rows, ...after].map(([label, value]) => `${label}: ${value}`).join('\n'),
+    },
+  ];
+  if (boxes.length) out.push(boxesRow(boxes));
+  if (view) out.push(opts.viewAsButton ? buttonRow(view) : linkRow(view));
+  return out;
+}
+
+function totalsFor(order: OrderEmailOrder, totalLabel: string): [string, string][] {
+  const shipLabel = shippingLabel(order);
+  if (order.feeToBeAgreed) {
+    return [
+      ['Subtotal', formatEgp(order.subtotalEgp)],
+      [shipLabel, 'To be agreed'],
+      [totalLabel, `${formatEgp(order.subtotalEgp)} + delivery`],
+    ];
+  }
+  return [
+    ['Subtotal', formatEgp(order.subtotalEgp)],
+    [shipLabel, order.shippingEgp > 0 ? formatEgp(order.shippingEgp) : 'Free'],
+    [totalLabel, formatEgp(order.totalEgp)],
+  ];
+}
+
+/** "Delivery" for a large order whose fee is agreed with us, "Shipping" for the rest. */
+function shippingLabel(order: OrderEmailOrder): string {
+  return order.feeToBeAgreed || order.deliveryFeeAgreed ? 'Delivery' : 'Shipping';
+}
+
+function methodName(order: OrderEmailOrder): string {
+  switch (order.paymentMethod) {
+    case 'cash-on-delivery':
+      return 'Cash on Delivery';
+    case 'instapay':
+      return 'InstaPay';
+    case 'bank-transfer':
+      return 'Bank Transfer';
+    default:
+      return 'Card';
+  }
+}
+
+function itemCards(
+  lines: readonly OrderEmailLine[],
+  ctx: OrderEmailContext,
+  prices: boolean,
+  photoWidth: number,
+): ItemCard[] {
+  return lines.map((line) => {
+    const gift = line.giftName !== null;
+    return {
+      name: lineTitle(line),
+      details: lineDetails(line),
+      price: prices ? (gift ? 'Free' : formatEgp(line.lineEgp)) : null,
+      imageSrc: imageUrl(line.imagePath, ctx, photoWidth),
+      tags: gift ? ['Free gift'] : line.dealTag ? [line.dealTag] : [],
+    };
+  });
+}
+
+/** `14 Nov` in Cairo time, or null. */
+function shortDate(ms: number | null): string | null {
+  if (ms === null) return null;
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'Africa/Cairo',
+    }).format(new Date(ms));
+  } catch {
+    return null;
+  }
+}
+
+function upperFirst(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function joinParts(parts: readonly (string | null | undefined)[]): string {
+  return parts.filter((part): part is string => Boolean(part)).join('\n');
 }
 
 // ── Store-owner alert ────────────────────────────────────────────────────────
@@ -549,12 +1084,6 @@ ${rows}
 
 // ── Building blocks ──────────────────────────────────────────────────────────
 
-/** InstaPay or bank instructions for an order that still owes money. */
-interface PayBox {
-  readonly lines: readonly string[];
-  readonly whatsapp: EmailButton | null;
-}
-
 function messageInput(order: OrderEmailOrder): OrderMessageInput {
   return {
     ref: order.ref,
@@ -568,96 +1097,6 @@ function messageInput(order: OrderEmailOrder): OrderMessageInput {
     feeToBeAgreed: order.feeToBeAgreed,
     payIn: order.payIn,
   };
-}
-
-/**
- * Null unless `paymentDue()` says money is owed (open InstaPay order, or open cash on delivery
- * with a shipping fee). The WhatsApp button opens a chat with the shopper's message already
- * written in Arabic.
- */
-function payBox(order: OrderEmailOrder, ctx: OrderEmailContext): PayBox | null {
-  const input = messageInput(order);
-  const stage = orderStage(input);
-  const due = paymentDue(stage, input);
-  if (!due) return null;
-  if (due.reason === 'bank-transfer') return bankPayBox(order, ctx, stage, input, due.payIn ?? null);
-
-  const amount = due.amountEgp !== null ? ` ${formatEgp(due.amountEgp)}` : '';
-  const what = due.reason === 'shipping-fee' ? `the${amount} shipping fee` : amount.trim() || 'the total';
-  const waUrl = whatsappChatUrl(ctx.whatsappNumber, shopperWhatsappText(stage, input, ctx.instapay));
-  const details = hasInstapayDetails(ctx.instapay);
-  const lines: string[] = [];
-
-  if (details) {
-    lines.push(`Pay ${what} by InstaPay to:`);
-    const address = ctx.instapay.address.trim();
-    const number = ctx.instapay.number.trim();
-    if (address) lines.push(`InstaPay address: ${address}`);
-    if (number) lines.push(`InstaPay number: ${number}`);
-    lines.push(
-      waUrl
-        ? 'Then send us a screenshot of the transfer.'
-        : ctx.canReply
-          ? 'Then reply to this email with a screenshot of the transfer.'
-          : 'Then send us a screenshot of the transfer.',
-    );
-  } else {
-    lines.push(`Pay ${what} by InstaPay.`);
-    lines.push(
-      waUrl ? "We'll send you the InstaPay details on WhatsApp." : "We'll send you the InstaPay details.",
-    );
-  }
-
-  return {
-    lines,
-    whatsapp: waUrl ? { label: details ? 'Send on WhatsApp' : 'Message Us on WhatsApp', url: waUrl } : null,
-  };
-}
-
-/**
- * Bank Transfer: the amount to send in the shopper's currency, our bank details, the fee line and
- * a Send Receipt on WhatsApp button.
- */
-function bankPayBox(
-  order: OrderEmailOrder,
-  ctx: OrderEmailContext,
-  stage: ReturnType<typeof orderStage>,
-  input: OrderMessageInput,
-  payIn: PayIn | null,
-): PayBox {
-  const bank = ctx.bankTransfer;
-  const waUrl = whatsappChatUrl(ctx.whatsappNumber, shopperWhatsappText(stage, input, ctx.instapay, bank));
-  const lines: string[] = [`Send ${payIn ? formatPayIn(payIn) : 'the total'} from your bank to:`];
-  if (hasBankTransferDetails(bank)) {
-    if (bank.accountName.trim()) lines.push(`Account name: ${bank.accountName.trim()}`);
-    lines.push(`IBAN: ${formatIban(bank.iban)}`);
-    if (bank.swift.trim()) lines.push(`SWIFT / BIC: ${bank.swift.trim()}`);
-    if (bank.bankName.trim()) lines.push(`Bank: ${bank.bankName.trim()}`);
-    lines.push(`Reference: ${order.ref.replace(/^#/, '')}`);
-    lines.push('Choose "I pay all fees" so the full amount reaches us.');
-    lines.push('Then send us the receipt on WhatsApp.');
-  } else {
-    lines.push(waUrl ? "We'll send you our bank details on WhatsApp." : "We'll send you our bank details.");
-  }
-  return {
-    lines,
-    whatsapp: waUrl
-      ? {
-          label: hasBankTransferDetails(bank) ? 'Send Receipt on WhatsApp' : 'Message Us on WhatsApp',
-          url: waUrl,
-        }
-      : null,
-  };
-}
-
-function payBoxText(box: PayBox): string {
-  const button = box.whatsapp ? `\n${box.whatsapp.label}: ${box.whatsapp.url}` : '';
-  return `${box.lines.join('\n')}${button}`;
-}
-
-export interface EmailButton {
-  readonly label: string;
-  readonly url: string;
 }
 
 function orderButton(order: OrderEmailOrder, ctx: OrderEmailContext): EmailButton | null {
@@ -681,7 +1120,8 @@ function lineDetails(line: OrderEmailLine): string {
   return [...lineTags(line), `Qty ${line.quantity}`].join(' · ');
 }
 
-export function imageUrl(path: string | null, ctx: OrderEmailContext): string | null {
+/** ImageKit link for an item photo, at most `width` × 1.25 `width` px (twice the shown size). */
+export function imageUrl(path: string | null, ctx: OrderEmailContext, width = 192): string | null {
   if (!path) return null;
   if (path.startsWith('https://')) return path;
   if (!ctx.imageBaseUrl) return null;
@@ -690,7 +1130,7 @@ export function imageUrl(path: string | null, ctx: OrderEmailContext): string | 
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
-  return `${ctx.imageBaseUrl}/${clean}?tr=w-192,h-240,c-at_max`;
+  return `${ctx.imageBaseUrl}/${clean}?tr=w-${width},h-${Math.round(width * 1.25)},c-at_max`;
 }
 
 function addressLines(order: OrderEmailOrder): string[] {
@@ -729,13 +1169,14 @@ function totalsRows(order: OrderEmailOrder, totalLabel: string): [string, string
   ];
 }
 
-function itemsText(lines: readonly OrderEmailLine[]): string {
+function itemsText(lines: readonly OrderEmailLine[], prices = true): string {
   return lines
-    .map((line) =>
-      line.giftName !== null
+    .map((line) => {
+      if (!prices) return `- ${lineTitle(line)} (${lineDetails(line)})`;
+      return line.giftName !== null
         ? `  + ${line.giftName}: ${lineTitle(line)} (${lineDetails(line)}): Free`
-        : `- ${lineTitle(line)} (${lineDetails(line)}): ${formatEgp(line.lineEgp)}${line.dealTag ? ` (${line.dealTag})` : ''}`,
-    )
+        : `- ${lineTitle(line)} (${lineDetails(line)}): ${formatEgp(line.lineEgp)}${line.dealTag ? ` (${line.dealTag})` : ''}`;
+    })
     .join('\n');
 }
 
@@ -749,15 +1190,13 @@ function joinText(parts: readonly (string | null | undefined)[]): string {
   return `${parts.filter((part): part is string => Boolean(part)).join('\n\n')}\n`;
 }
 
-// ── HTML (inline styles; email clients ignore stylesheets) ──────────────────
+// ── Store alert HTML (today's look until <KEY>-222 moves it to the new blocks) ──
 
-const FONT = "font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
-const INK = '#111111';
 const MUTED = '#555555';
 const LINE = '#e5e5e5';
 const TONAL = '#e8e8e8';
 
-export function layout(storeName: string, title: string, blocks: readonly string[]): string {
+function layout(storeName: string, title: string, blocks: readonly string[]): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -780,23 +1219,8 @@ ${blocks.filter(Boolean).join('\n')}
 </html>`;
 }
 
-export function h1(textValue: string): string {
+function h1(textValue: string): string {
   return `<h1 style="margin:0 0 16px;${FONT}font-size:22px;line-height:1.3;color:${INK};">${escapeHtml(textValue)}</h1>`;
-}
-
-export function paragraph(textValue: string, alreadyEscaped = false): string {
-  const body = alreadyEscaped ? textValue : escapeHtml(textValue);
-  return `<p style="margin:0 0 12px;">${body}</p>`;
-}
-
-export function smallText(textValue: string): string {
-  return `<p style="margin:16px 0 0;font-size:13px;color:${MUTED};">${escapeHtml(textValue)}</p>`;
-}
-
-function payBoxHtml(box: PayBox): string {
-  const lines = box.lines.map(escapeHtml).join('<br>');
-  const button = box.whatsapp ? buttonHtml(box.whatsapp) : '';
-  return `<div style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};"><p style="margin:0;">${lines}</p>${button}</div>`;
 }
 
 function highlightBox(textValue: string): string {
@@ -884,17 +1308,8 @@ function addressBlock(order: OrderEmailOrder): string {
 }
 
 /** `filled`: black, for the shopper's main action. `tonal`: light grey, readable in light and dark mail apps. */
-export function buttonHtml(button: EmailButton, variant: 'filled' | 'tonal' = 'filled'): string {
+function buttonHtml(button: EmailButton, variant: 'filled' | 'tonal' = 'filled'): string {
   const colors =
     variant === 'tonal' ? `background:${TONAL};color:${INK};` : `background:${INK};color:#ffffff;`;
   return `<p style="margin:24px 0 0;"><a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 20px;${colors}text-decoration:none;font-weight:600;border-radius:2px;">${escapeHtml(button.label)}</a></p>`;
-}
-
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }

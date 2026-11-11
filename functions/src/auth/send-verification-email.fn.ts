@@ -104,7 +104,12 @@ export const sendVerificationEmail = onCall(
         email,
         continueUrl ? { url: continueUrl } : undefined,
       );
-      const message = renderVerificationEmail({ storeName: STORE_INFO.name, link });
+      const message = renderVerificationEmail({
+        storeName: STORE_INFO.name,
+        link,
+        whatsappNumber: STORE_INFO.contact.whatsapp,
+        storefrontUrl: STOREFRONT_URL.value().trim().replace(/\/+$/, ''),
+      });
       const replyTo = RESEND_REPLY_TO.value().trim();
       resendCalled = true;
       const resendId = await sendResendEmail(apiKey, {

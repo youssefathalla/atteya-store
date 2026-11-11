@@ -7,6 +7,7 @@ import {
   shortOrderRef,
   type OrderEmailOrder,
 } from './order-email-model.js';
+import { orderStage, paymentDue } from '../store/order-messages.js';
 import { formatEgp, renderOrderEmail, type OrderEmailContext } from './order-email-templates.js';
 
 const ctx: OrderEmailContext = {
@@ -135,13 +136,22 @@ describe('orderEmailsForWrite', () => {
   it('shipped email reminds Cash on Delivery of the cash and links a guest with its key', () => {
     const cod = renderOrderEmail('order-shipped', read(orderDoc({ status: 'shipped' })), ctx);
     assert.match(cod.subject, /is on its way/);
-    assert.match(cod.text, /in cash ready/);
+    assert.match(cod.text, new RegExp(`Have ready in cash: ${formatEgp(2370)}`));
+    assert.match(cod.html, />ON ITS<br>WAY</);
+    assert.doesNotMatch(cod.text, /EGP 2,450|EGP 1,185/, 'shipped items show no prices');
     const card = renderOrderEmail(
       'order-shipped',
       read(orderDoc({ paymentMethod: 'paymob', status: 'shipped' })),
       ctx,
     );
-    assert.doesNotMatch(card.text, /in cash/);
+    assert.doesNotMatch(card.text, /in cash/i);
+    const dated = renderOrderEmail(
+      'order-shipped',
+      read({ ...orderDoc({ status: 'shipped' }), shippedAt: new Date('2026-11-14T10:00:00Z') }),
+      ctx,
+    );
+    assert.match(dated.text, /Shipped 14 Nov · Order #ABCDEF/);
+    assert.match(cod.text, /^Shipped · Order #ABCDEF/m);
     const guest = renderOrderEmail(
       'order-delivered',
       read({ ...orderDoc({ status: 'delivered' }), viewKey: 'k'.repeat(43) }),
@@ -149,6 +159,8 @@ describe('orderEmailsForWrite', () => {
     );
     assert.match(guest.subject, /was delivered/);
     assert.match(guest.html, /\?key=k{43}/);
+    assert.match(guest.text, /Shop New Arrivals: https:\/\/shop\.example\/shop\?newArrivals=1/);
+    assert.match(guest.html, /IT&#39;S<br>HERE/);
   });
 
   it('cash on delivery edit without a status change sends nothing', () => {
@@ -193,11 +205,13 @@ describe('InstaPay emails', () => {
 
   it('InstaPay placed asks for the full total with the InstaPay details and a WhatsApp button', () => {
     const email = renderOrderEmail('instapay-placed', read(orderDoc({ paymentMethod: 'instapay' })), withPay);
-    assert.ok(email.text.includes(`Pay ${formatEgp(2450)} by InstaPay to:`));
+    assert.ok(email.text.includes(`Send by InstaPay: ${formatEgp(2450)}`));
+    assert.ok(email.text.includes(`2. Send the total by InstaPay: ${formatEgp(2450)}`));
     assert.ok(email.text.includes('InstaPay address: atteya@instapay'));
     assert.ok(email.text.includes('InstaPay number: 010 1234 5678'));
-    assert.ok(email.text.includes('Then send us a screenshot of the transfer.'));
-    assert.ok(email.text.includes('Send on WhatsApp: https://wa.me/201205658954?text='));
+    assert.ok(email.text.includes('3. Send the screenshot on WhatsApp'));
+    assert.ok(email.text.includes('Send Screenshot on WhatsApp: https://wa.me/201205658954?text='));
+    assert.ok(email.html.includes('>atteya@instapay<'));
     assert.ok(email.html.includes('https://wa.me/201205658954?text='));
     const text = decodeURIComponent(email.text.split('?text=')[1]?.split(/\s/)[0] ?? '');
     assert.match(text, /#ABCDEF/);
@@ -215,8 +229,10 @@ describe('InstaPay emails', () => {
 
   it('cash on delivery placed asks for the fee only by InstaPay', () => {
     const email = renderOrderEmail('cod-placed', read(orderDoc({})), withPay);
-    assert.ok(email.text.includes(`Pay the ${formatEgp(80)} shipping fee by InstaPay to:`));
-    assert.ok(!email.text.includes(`Pay ${formatEgp(2450)}`));
+    assert.ok(email.text.includes(`2. Send the delivery fee by InstaPay: ${formatEgp(80)}`));
+    assert.ok(email.text.includes(`Pay now: ${formatEgp(80)}`));
+    assert.ok(email.text.includes(`At your door: ${formatEgp(2370)}`));
+    assert.ok(!email.text.includes('Send the total by InstaPay'));
   });
 
   it('free shipping cash on delivery has no InstaPay box', () => {
@@ -240,7 +256,9 @@ describe('InstaPay emails', () => {
       read(orderDoc({ paymentMethod: 'instapay', status: 'confirmed' })),
       withPay,
     );
-    assert.ok(paid.text.includes(`InstaPay payment of ${formatEgp(2450)}`));
+    assert.ok(paid.text.includes(`Paid by InstaPay: ${formatEgp(2450)}`));
+    assert.ok(paid.text.includes(`Total paid: ${formatEgp(2450)}`));
+    assert.match(paid.html, />ORDER<br>CONFIRMED</);
   });
 
   it('store alert says InstaPay is waiting for the transfer', () => {
@@ -255,10 +273,10 @@ describe('order email wording and amounts', () => {
   it('cash on delivery placed asks for the shipping fee first, then the rest', () => {
     const email = renderOrderEmail('cod-placed', read(orderDoc({})), ctx);
     assert.equal(email.subject, 'We got your order #ABCDEF');
-    assert.match(email.text, /We've received your order #ABCDEF./);
+    assert.match(email.text, /Cash on Delivery · Order #ABCDEF/);
     assert.ok(!/whatsapp/i.test(email.text + email.html), 'no WhatsApp mention');
-    assert.ok(email.text.includes(`the ${formatEgp(80)} shipping fee`));
-    assert.ok(email.text.includes(`the rest, ${formatEgp(2370)}, in cash`));
+    assert.ok(email.text.includes(`Pay now: ${formatEgp(80)}`));
+    assert.ok(email.text.includes(`3. Pay the rest in cash at your door: ${formatEgp(2370)}`));
     assert.ok(email.text.includes(`Total: ${formatEgp(2450)}`));
     assert.ok(!email.text.includes('01012345678'), 'shopper emails never repeat the phone');
   });
@@ -267,7 +285,9 @@ describe('order email wording and amounts', () => {
     const order = read(orderDoc({ shippingEgp: 0 }));
     const placed = renderOrderEmail('cod-placed', order, ctx);
     assert.match(placed.text, /Shipping is free on this order, so there's nothing to pay now/);
+    assert.ok(placed.text.includes(`At your door: ${formatEgp(2370)}`));
     assert.ok(placed.text.includes('Shipping: Free'));
+    assert.ok(!placed.text.includes('Pay now'));
     assert.ok(!placed.text.includes('shipping fee of'));
     const confirmed = renderOrderEmail('cod-confirmed', order, ctx);
     assert.ok(!confirmed.text.includes('received your shipping fee'));
@@ -279,7 +299,10 @@ describe('order email wording and amounts', () => {
   it('cash on delivery confirmed: fee received, cash amount is total minus shipping', () => {
     const email = renderOrderEmail('cod-confirmed', read(orderDoc({ status: 'confirmed' })), ctx);
     assert.match(email.text, /received your shipping fee/);
-    assert.ok(email.text.includes(`have ${formatEgp(2370)} in cash ready`));
+    assert.ok(email.text.includes(`Have ready in cash: ${formatEgp(2370)}`));
+    assert.ok(email.text.includes(`Shipping fee ${formatEgp(80)} already paid.`));
+    assert.ok(email.text.includes(`Cash at your door: ${formatEgp(2370)}`));
+    assert.ok(email.text.includes(`Shipping · paid: ${formatEgp(80)}`));
   });
 
   it('paid online: full total, EGP note only abroad', () => {
@@ -288,7 +311,7 @@ describe('order email wording and amounts', () => {
       read(orderDoc({ paymentMethod: 'paymob', status: 'confirmed' })),
       ctx,
     );
-    assert.ok(egypt.text.includes(`payment of ${formatEgp(2450)}`));
+    assert.ok(egypt.text.includes(`Paid by Card: ${formatEgp(2450)}`));
     assert.ok(egypt.text.includes(`Total paid: ${formatEgp(2450)}`));
     assert.ok(!egypt.text.includes('Egyptian pounds'));
     assert.ok(!egypt.text.includes('cash'));
@@ -378,7 +401,7 @@ describe('order email Buy X Get Y', () => {
     assert.equal(order.lines[0]!.lineEgp, 1000);
     assert.equal(order.lines[0]!.dealTag, '1 free');
     const email = renderOrderEmail('cod-placed', order, ctx);
-    assert.ok(email.html.includes('>1 free<'));
+    assert.ok(email.html.includes('>1 FREE<'));
     assert.ok(email.text.includes(`${formatEgp(1000)} (1 free)`));
   });
 
@@ -401,7 +424,8 @@ describe('order email help line', () => {
       ...ctx,
       whatsappNumber: '+20 120 565 8954',
     });
-    assert.ok(email.text.includes('Questions? Message us on WhatsApp: +20 120 565 8954'));
+    assert.ok(email.text.includes('Questions? We answer on WhatsApp.'));
+    assert.ok(email.text.includes('Message Us on WhatsApp: +20 120 565 8954 (https://wa.me/201205658954)'));
     assert.ok(email.html.includes('href="https://wa.me/201205658954"'));
     assert.ok(!email.text.includes('reply to this email'));
   });
@@ -493,7 +517,9 @@ describe('large order: delivery fee to be agreed', () => {
       );
       const email = renderOrderEmail(kind, order, withPay);
       assert.match(email.text, /message you on WhatsApp to agree the delivery fee/);
-      assert.match(email.text, /Shipping: We'll contact you/);
+      assert.match(email.text, /To pay now: Nothing yet/);
+      assert.match(email.text, /Delivery: To be agreed/);
+      assert.match(email.text, new RegExp(`Total: ${formatEgp(2370)} \\+ delivery`));
       assert.doesNotMatch(email.text, /atteya@instapay|screenshot/);
     }
   });
@@ -508,7 +534,10 @@ describe('large order: delivery fee to be agreed', () => {
     const email = renderOrderEmail('delivery-fee-set', set, withPay);
     assert.match(email.text, new RegExp(`delivery fee for your order #ABCDEF is ${formatEgp(250)}`));
     assert.match(email.text, /atteya@instapay/);
-    assert.match(email.text, new RegExp(`the ${formatEgp(250)} shipping fee`));
+    assert.match(email.text, new RegExp(`Pay now: ${formatEgp(250)}`));
+    assert.match(email.text, /2\. Agree the delivery fee ✓/);
+    assert.match(email.text, new RegExp(`3\\. Send the delivery fee by InstaPay: ${formatEgp(250)}`));
+    assert.match(email.html, />FEE<br>READY</);
   });
 });
 
@@ -566,13 +595,16 @@ describe('Bank Transfer emails', () => {
 
   it('placed asks for the amount in the shopper currency with the bank details and the fee line', () => {
     const email = renderOrderEmail('bank-transfer-placed', read(bankDoc()), withBank);
-    assert.match(email.text, /Send \$205 from your bank to:/);
+    assert.match(email.text, /Send from your bank: \$205/);
+    assert.ok(email.text.includes(`Same total as ${formatEgp(2450)}. Item prices below are in EGP.`));
+    assert.match(email.text, /2\. Send \$205 from your bank/);
+    assert.match(email.text, /You send: \$205/);
     assert.match(email.text, /IBAN: EG52 0003 0233 5001 6856 6300 0015 0/);
     assert.match(email.text, /SWIFT \/ BIC: NBEGEGCXXXX/);
     assert.match(email.text, /Bank: National Bank of Egypt/);
     assert.match(email.text, /Account name: Youseif Tamer Elsayed Ibrahim Atteya/);
     assert.match(email.text, /Reference: ABCDEF/);
-    assert.match(email.text, /Choose "I pay all fees" so the full amount reaches us\./);
+    assert.match(email.text, /Choose "I pay all fees" in your bank app so the full amount reaches us\./);
     assert.match(email.text, /Send Receipt on WhatsApp: https:\/\/wa\.me\//);
     assert.match(email.text, /View Your Order: /);
     assert.doesNotMatch(email.text, /InstaPay/);
@@ -590,7 +622,8 @@ describe('Bank Transfer emails', () => {
 
   it('confirmed names the amount sent and never asks for money', () => {
     const email = renderOrderEmail('bank-transfer-confirmed', read(bankDoc('confirmed')), withBank);
-    assert.match(email.text, /bank transfer of \$205/);
+    assert.match(email.text, /Paid by Bank Transfer: \$205/);
+    assert.match(email.text, /You sent: \$205/);
     assert.doesNotMatch(email.text, /IBAN|Send Receipt/);
   });
 
@@ -599,5 +632,140 @@ describe('Bank Transfer emails', () => {
     assert.match(email.subject, /Bank Transfer – Waiting for Transfer/);
     assert.match(email.text, /Bank Transfer\nCustomer Sends: \$205\nOrder Total in EGP: /);
     assert.ok(email.text.includes(formatEgp(2450)));
+  });
+});
+
+describe('Bold Black shopper emails (<KEY>-221)', () => {
+  const BANK = {
+    accountName: 'Atteya Store',
+    bankName: 'National Bank of Egypt',
+    iban: 'EG520003023350016856630000150',
+    swift: 'NBEGEGCXXXX',
+  };
+  const full: OrderEmailContext = { ...withPay, bankTransfer: BANK };
+  const kinds = [
+    ['cod-placed', orderDoc({})],
+    ['cod-placed', orderDoc({ shippingEgp: 0 })],
+    ['cod-placed', orderDoc({ feeAgreed: false })],
+    ['cod-confirmed', orderDoc({ status: 'confirmed' })],
+    ['instapay-placed', orderDoc({ paymentMethod: 'instapay' })],
+    ['instapay-placed', orderDoc({ paymentMethod: 'instapay', feeAgreed: false })],
+    ['instapay-confirmed', orderDoc({ paymentMethod: 'instapay', status: 'confirmed' })],
+    [
+      'bank-transfer-placed',
+      orderDoc({ paymentMethod: 'bank-transfer', country: 'US', payIn: { currency: 'USD', amount: 205 } }),
+    ],
+    [
+      'bank-transfer-confirmed',
+      orderDoc({
+        paymentMethod: 'bank-transfer',
+        country: 'US',
+        status: 'confirmed',
+        payIn: { currency: 'USD', amount: 205 },
+      }),
+    ],
+    ['delivery-fee-set', orderDoc({ feeAgreed: true, shippingEgp: 250 })],
+    ['delivery-fee-changed', orderDoc({ feeAgreed: true, shippingEgp: 300, paymentMethod: 'instapay' })],
+    ['paid-confirmed', orderDoc({ paymentMethod: 'paymob', status: 'confirmed' })],
+    ['payment-failed', orderDoc({ paymentMethod: 'paymob', status: 'failed' })],
+    ['order-shipped', orderDoc({ status: 'shipped' })],
+    ['order-delivered', orderDoc({ status: 'delivered' })],
+  ] as const;
+
+  it('renders every shopper email with the black header, the order ref and email-safe HTML', () => {
+    for (const [kind, doc] of kinds) {
+      const email = renderOrderEmail(kind, read(doc), full);
+      assert.ok(email.subject.length > 0, kind);
+      assert.match(email.html, /<h1 class="status"/, kind);
+      assert.ok(email.html.includes('#ABCDEF'), kind);
+      assert.ok(email.text.includes('Order #ABCDEF'), kind);
+      assert.ok(email.html.includes('ATTEYA STORE'), kind);
+      assert.doesNotMatch(email.html, /display:\s*(flex|grid)|position:\s*(absolute|relative|fixed)/, kind);
+      assert.doesNotMatch(email.html, /<button/, kind);
+      assert.ok(email.text.endsWith('\n'), kind);
+    }
+  });
+
+  it('shows the InstaPay or bank box only when paymentDue() says money is owed', () => {
+    for (const [kind, doc] of kinds) {
+      const order = read(doc);
+      const input = {
+        ref: order.ref,
+        paymentMethod: order.paymentMethod,
+        status: order.status,
+        country: order.address.country,
+        shippingEgp: order.feeToBeAgreed ? null : order.shippingEgp,
+        totalEgp: order.feeToBeAgreed ? null : order.totalEgp,
+        needsReview: order.needsReview,
+        feeToBeAgreed: order.feeToBeAgreed,
+        payIn: order.payIn,
+      };
+      const due = paymentDue(orderStage(input), input);
+      const email = renderOrderEmail(kind, order, full);
+      const hasBox = /atteya@instapay|EG52 0003|screenshot|Send Receipt/.test(email.text + email.html);
+      assert.equal(hasBox, due !== null, kind);
+    }
+  });
+
+  it('amounts come from the saved order', () => {
+    const order = read(orderDoc({ subtotalEgp: 3000, shippingEgp: 120 }));
+    const email = renderOrderEmail('cod-placed', order, full);
+    assert.ok(email.text.includes(`Subtotal: ${formatEgp(3000)}`));
+    assert.ok(email.text.includes(`Shipping: ${formatEgp(120)}`));
+    assert.ok(email.text.includes(`Total: ${formatEgp(3120)}`));
+    assert.ok(email.text.includes(`Pay now: ${formatEgp(120)}`));
+    assert.ok(email.text.includes(`At your door: ${formatEgp(3000)}`));
+  });
+
+  it('uses 2 photos per row up to 4 items, then a compact list', () => {
+    const many = orderDoc({});
+    const pricing = many['pricing'] as { lines: Record<string, unknown>[] };
+    const base = pricing.lines[0]!;
+    pricing.lines = Array.from({ length: 5 }, (_, i) => ({ ...base, productId: `p${i}`, quantity: 1 }));
+    const long = renderOrderEmail('cod-placed', read(many), full);
+    assert.ok(long.html.includes('width="64"'), 'compact list');
+    const short = renderOrderEmail('cod-placed', read(orderDoc({})), full);
+    assert.ok(!short.html.includes('width="64"'));
+    assert.ok(short.html.includes('?tr=w-520,'), 'big photos');
+  });
+
+  it('marks a free gift with a FREE GIFT tag and a Free price', () => {
+    const doc = orderDoc({});
+    const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
+    pricing.lines.push({
+      productId: 'g',
+      quantity: 1,
+      unitEgp: 0,
+      name: 'Socks',
+      gift: { giftName: 'Free socks' },
+    });
+    const email = renderOrderEmail('cod-placed', read(doc), full);
+    assert.ok(email.html.includes('>FREE GIFT<'));
+    assert.ok(email.text.includes('Free socks: Socks (Qty 1): Free'));
+  });
+
+  it('leaves every WhatsApp button out when no number is set', () => {
+    for (const [kind, doc] of kinds) {
+      const email = renderOrderEmail(kind, read(doc), { ...ctx, instapay: INSTAPAY, bankTransfer: BANK });
+      assert.ok(!email.html.includes('wa.me'), kind);
+      assert.ok(!email.html.includes('Message Us on WhatsApp'), kind);
+    }
+  });
+
+  it('payment failed: charged nothing, Shop Again, and the WhatsApp help line for paying', () => {
+    const email = renderOrderEmail(
+      'payment-failed',
+      read(orderDoc({ paymentMethod: 'paymob', status: 'failed' })),
+      full,
+    );
+    assert.ok(email.text.includes(`Charged: ${formatEgp(0)}`));
+    assert.match(email.text, /Still Want These\?/);
+    assert.match(email.text, /Trouble paying\? We can help on WhatsApp\./);
+  });
+
+  it('keeps the store alert in its own look', () => {
+    const email = renderOrderEmail('store-new-order', read(orderDoc({})), full);
+    assert.doesNotMatch(email.html, /class="status"/);
+    assert.match(email.html, /ITEMS \(\d+\)/);
   });
 });
