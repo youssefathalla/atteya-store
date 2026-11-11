@@ -2,7 +2,7 @@
  * Prices are re-computed server-side at checkout from Firestore + settings, never trusted from the client.
  *
  * Paymob Egypt Accept charges whole EGP (amount_cents = totalEgp * 100).
- * Cash on delivery and InstaPay are Egypt shipping only.
+ * Cash on delivery and InstaPay are Egypt shipping only; Bank Transfer is outside Egypt only.
  * `isInternational` is decided by the shipping country, not a visitor display toggle.
  * Shipping stays a separate line. Product markup is never applied to that line for Paymob/COD
  * (payable currency is always EGP at the gateway).
@@ -20,7 +20,14 @@ export interface OrderPricingSnapshot {
   readonly shipping: OrderShippingLine | null;
   readonly totalDisplay: number;
   readonly totalEgp?: number;
-  readonly fulfilment: 'domestic-cod' | 'domestic-instapay' | 'domestic-paymob' | 'international-paymob';
+  readonly fulfilment:
+    | 'domestic-cod'
+    | 'domestic-instapay'
+    | 'domestic-paymob'
+    | 'international-paymob'
+    | 'international-bank-transfer';
+  /** Bank Transfer only: the amount to send in the shopper's currency, worked out by the server. */
+  readonly payIn?: { readonly currency: string; readonly amount: number };
 }
 
 export interface OrderLinePrice {

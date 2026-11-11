@@ -10,13 +10,14 @@ import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
 import {
   cashOnDeliveryEgp,
+  hasBankTransferDetails,
   hasInstapayDetails,
   orderStage,
   paymentDue,
   shopperWhatsappText,
   type OrderStage,
 } from '@core/config/order-messages';
-import { STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
+import { formatIban, STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
 import { FALLBACK_GIFT_NAME } from '@core/services/cart/cart-gifts';
 import type { CreateManualOrderResult } from '@core/services/orders/checkout-order.service';
 import { orderMessageInput } from '@core/services/orders/order-message-input';
@@ -132,13 +133,13 @@ export class CheckoutConfirmationPageComponent implements OnInit {
 
   readonly orderRef = computed(() => shortOrderRef(this.orderId()));
 
-  /** InstaPay instructions: only while the live order still owes money. */
+  /** InstaPay instructions: only while the live order still owes money by InstaPay. */
   readonly payBox = computed(() => {
     const input = this.#input();
     const stage = this.stage();
     if (!input || !stage) return null;
     const due = paymentDue(stage, input);
-    if (!due) return null;
+    if (!due || due.reason === 'bank-transfer') return null;
     const info = STORE_INFO.payments.instapay;
     return {
       reason: due.reason,
@@ -151,6 +152,52 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   });
 
   /**
+   * Bank Transfer instructions (abroad): the amount in the shopper's currency, our bank details
+   * with Copy buttons, and Send Receipt on WhatsApp. Only while the live order still owes money.
+   */
+  readonly bankBox = computed(() => {
+    const input = this.#input();
+    const stage = this.stage();
+    if (!input || !stage) return null;
+    const due = paymentDue(stage, input);
+    if (due?.reason !== 'bank-transfer') return null;
+    const bank = STORE_INFO.payments.bankTransfer;
+    const iban = bank.iban.replace(/\s/g, '');
+    const reference = this.orderRef().replace(/^#/, '');
+    const rows: BankRow[] = [
+      { label: 'Account name', value: bank.accountName.trim(), copy: bank.accountName.trim(), mono: false },
+      { label: 'IBAN', value: formatIban(iban), copy: iban, mono: true },
+      { label: 'SWIFT / BIC', value: bank.swift.trim(), copy: bank.swift.trim(), mono: true },
+      { label: 'Bank', value: bank.bankName.trim(), copy: null, mono: false },
+      { label: 'Reference', value: reference, copy: reference, mono: true },
+    ];
+    return {
+      amount: due.payIn
+        ? formatMoney(due.payIn.amount, due.payIn.currency, displayDecimals(due.payIn.currency))
+        : null,
+      hasDetails: hasBankTransferDetails(bank),
+      rows: rows.filter((row) => row.value !== ''),
+      whatsappUrl: whatsappChatUrl(STORE_INFO.contact.whatsapp, shopperWhatsappText(stage, input)),
+    };
+  });
+
+  /** What is owed now (InstaPay or Bank Transfer), formatted, or null. */
+  readonly #payNow = computed(() => this.payBox()?.amount ?? this.bankBox()?.amount ?? null);
+
+  /** A Bank Transfer order's total in the shopper's currency ("$205"), or null for every other order. */
+  readonly #payInTotal = computed(() => {
+    const order = this.order();
+    const payIn = order?.paymentMethod === 'bank-transfer' ? order.pricing.payIn : undefined;
+    return payIn ? formatMoney(payIn.amount, payIn.currency, displayDecimals(payIn.currency)) : null;
+  });
+
+  /** The "You send by bank" row under the order total: a Bank Transfer in a currency other than EGP. */
+  readonly bankSendTotal = computed(() => {
+    const payIn = this.order()?.pricing.payIn;
+    return payIn && payIn.currency !== 'EGP' ? this.#payInTotal() : null;
+  });
+
+  /**
    * "Questions? Message us" button. While InstaPay is due the Send on WhatsApp button already
    * carries the payment message, so this one opens a plain chat. Hidden while a card payment is
    * settling (no ready-made message for that stage).
@@ -159,7 +206,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     const input = this.#input();
     const stage = this.stage();
     if (!input || !stage) return null;
-    if (this.payBox()) return whatsappChatUrl(STORE_INFO.contact.whatsapp);
+    if (this.payBox() || this.bankBox()) return whatsappChatUrl(STORE_INFO.contact.whatsapp);
     const text = shopperWhatsappText(stage, input);
     return text ? whatsappChatUrl(STORE_INFO.contact.whatsapp, text) : null;
   });
@@ -177,6 +224,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       case 'fee-to-be-agreed':
       case 'instapay-total-due':
       case 'instapay-fee-due':
+      case 'bank-transfer-due':
       case 'cod-free-pending':
         return 'Order Placed';
       case 'cod-confirmed':
@@ -208,6 +256,8 @@ export class CheckoutConfirmationPageComponent implements OnInit {
         return 'One step left: send your payment.';
       case 'instapay-fee-due':
         return 'One step left: send the shipping fee.';
+      case 'bank-transfer-due':
+        return 'Send the total from your bank to finish your order.';
       case 'cod-free-pending':
         return "Nothing to pay now. We'll message you to confirm your order.";
       case 'cod-confirmed':
@@ -249,9 +299,10 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     const pricing = this.order()?.pricing;
     const stage = this.stage();
     if (!pricing || !stage) return [];
-    const total = this.displayTotal();
+    // A Bank Transfer order is paid in the shopper's own currency.
+    const total = this.#payInTotal() ?? this.displayTotal();
     const box = (label: string, value: string, now = false) => ({ label, value, now });
-    const payNow = this.payBox()?.amount ?? null;
+    const payNow = this.#payNow();
     const cash = this.#cash();
     switch (stage) {
       case 'instapay-fee-due':
@@ -262,6 +313,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
         ];
       // The whole total is due now, so one box says it.
       case 'instapay-total-due':
+      case 'bank-transfer-due':
         return [payNow ? box('Pay now', payNow, true) : box('Order total', total)];
       case 'shipped':
       case 'cod-free-pending':
@@ -295,7 +347,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     const order = this.order();
     return confirmationSteps(this.stage(), {
       placedAt: stepTime(this.#placed()),
-      payNow: this.payBox()?.amount ?? null,
+      payNow: this.#payNow(),
       cash: this.#cash(),
       paymentMethod: this.paymentLabel(),
       cashOnDelivery: order?.paymentMethod === 'cash-on-delivery',
@@ -326,6 +378,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     return buildPaymentParts(this.stage(), {
       method: this.paymentMethod(),
       total: formatMoney(pricing.totalDisplay, pricing.currency, displayDecimals(pricing.currency)),
+      payIn: this.#payInTotal(),
       items: formatMoney(pricing.subtotalDisplay, pricing.currency, displayDecimals(pricing.currency)),
       fee,
       cash: this.#cash(),
@@ -467,7 +520,9 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       await navigator.clipboard.writeText(value);
       this.#snackbar.success(`${what} copied.`);
     } catch {
-      this.#snackbar.info(`Couldn't copy. Please copy the ${what.toLowerCase()} by hand.`);
+      // "IBAN" and "SWIFT / BIC" keep their capitals.
+      const name = what === what.toUpperCase() ? what : what.toLowerCase();
+      this.#snackbar.info(`Couldn't copy. Please copy the ${name} by hand.`);
     }
   }
 
@@ -530,6 +585,15 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       ),
     );
   }
+}
+
+/** One row of the bank details box; `copy` null = no Copy button. */
+interface BankRow {
+  readonly label: string;
+  readonly value: string;
+  readonly copy: string | null;
+  /** Codes (IBAN, SWIFT, reference) show in a fixed-width font so they are easy to check. */
+  readonly mono: boolean;
 }
 
 interface ConfirmationItem {

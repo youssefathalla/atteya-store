@@ -23,13 +23,17 @@ function bagMethod(id: PaymentMethodId, comingSoon = false): BagPaymentMethod {
 
 /**
  * The payment methods checkout offers, in checkout's order: InstaPay, Card and
- * Cash on Delivery in Egypt; only Card abroad. While the Paymob switch
- * (`STORE_INFO.payments.cardOrWallet`) is off, Card is marked "Coming soon" and comes
- * last, after the methods shoppers can use today (checkout does the same).
+ * Cash on Delivery in Egypt; Bank Transfer (while an IBAN is set) and Card abroad. While the
+ * Paymob switch (`STORE_INFO.payments.cardOrWallet`) is off, Card is marked "Coming soon" and
+ * comes last, after the methods shoppers can use today (checkout does the same).
  */
-export function bagPaymentMethods(isEgypt: boolean, cardOrWalletLive: boolean): readonly BagPaymentMethod[] {
+export function bagPaymentMethods(
+  isEgypt: boolean,
+  cardOrWalletLive: boolean,
+  bankTransferLive = false,
+): readonly BagPaymentMethod[] {
   const cardOrWallet = bagMethod('paymob', !cardOrWalletLive);
-  if (!isEgypt) return [cardOrWallet];
+  if (!isEgypt) return bankTransferLive ? [bagMethod('bank-transfer'), cardOrWallet] : [cardOrWallet];
   return cardOrWalletLive
     ? [bagMethod('instapay'), cardOrWallet, bagMethod('cash-on-delivery')]
     : [bagMethod('instapay'), bagMethod('cash-on-delivery'), cardOrWallet];

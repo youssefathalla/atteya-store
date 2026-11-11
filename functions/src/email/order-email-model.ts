@@ -4,12 +4,13 @@
  *
  * Every amount comes from the saved order in whole Egyptian pounds:
  * `pricing.subtotalEgp`, `pricing.shipping.priceEgp`, `pricing.totalEgp`.
- * Orders never store the shopper's display currency, so emails show EGP only.
+ * Orders show EGP, except a Bank Transfer order's amount to send (`pricing.payIn`), which is in
+ * the shopper's own currency.
  */
 import { dealTag } from '../offers/engine/buy-x-get-y.js';
-import { isDeliveryFeeToBeAgreed } from '../store/order-messages.js';
+import { isDeliveryFeeToBeAgreed, readPayIn, type PayIn } from '../store/order-messages.js';
 
-export type OrderEmailPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
+export type OrderEmailPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay' | 'bank-transfer';
 export type OrderEmailStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
 
 export interface OrderEmailLine {
@@ -62,6 +63,8 @@ export interface OrderEmailOrder {
   readonly deliveryFeeSetAtMs: number | null;
   /** A guest order's secret view key (its links carry `?key=`); null for signed-in orders. */
   readonly viewKey: string | null;
+  /** Bank Transfer: the amount to send in the shopper's currency (`pricing.payIn`), or null. */
+  readonly payIn: PayIn | null;
 }
 
 /**
@@ -105,7 +108,12 @@ export function readOrderForEmail(
 ): OrderEmailOrder | null {
   if (!data) return null;
   const paymentMethod = data['paymentMethod'];
-  if (paymentMethod !== 'paymob' && paymentMethod !== 'cash-on-delivery' && paymentMethod !== 'instapay') {
+  if (
+    paymentMethod !== 'paymob' &&
+    paymentMethod !== 'cash-on-delivery' &&
+    paymentMethod !== 'instapay' &&
+    paymentMethod !== 'bank-transfer'
+  ) {
     return null;
   }
   const status = data['status'];
@@ -185,6 +193,7 @@ export function readOrderForEmail(
     deliveryFeeAgreed: shipping?.['kind'] === 'domestic-agreed' && shipping['feeAgreed'] === true,
     deliveryFeeSetAtMs: timestampMs(data['deliveryFeeSetAt']),
     viewKey: text(data['viewKey']) || null,
+    payIn: readPayIn(pricing['payIn']),
   };
 }
 

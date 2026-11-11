@@ -10,6 +10,7 @@ export function orderStatusName(stage: OrderStage | null, fallback = '—'): str
       return 'Waiting for Delivery Fee';
     case 'instapay-total-due':
     case 'instapay-fee-due':
+    case 'bank-transfer-due':
       return 'Waiting for Payment';
     case 'cod-free-pending':
       return 'Waiting for Confirmation';

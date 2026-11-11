@@ -1,12 +1,16 @@
+import { displayDecimals } from '../offers/engine/currency.js';
 import {
+  hasBankTransferDetails,
   hasInstapayDetails,
   orderStage,
   paymentDue,
   shopperWhatsappText,
+  type BankTransferInfo,
   type InstapayInfo,
   type OrderMessageInput,
+  type PayIn,
 } from '../store/order-messages.js';
-import { whatsappChatUrl } from '../store/store-info.js';
+import { formatIban, whatsappChatUrl } from '../store/store-info.js';
 import type { OrderEmailKind } from './order-email-events.js';
 import { orderConfirmationUrl, type OrderEmailLine, type OrderEmailOrder } from './order-email-model.js';
 
@@ -17,7 +21,8 @@ import { orderConfirmationUrl, type OrderEmailLine, type OrderEmailOrder } from 
  * Cash on delivery (Egypt only): the shopper pays the shipping fee first by InstaPay, then the
  * rest (total − shipping) in cash on delivery. Free shipping means no deposit.
  * InstaPay (Egypt only): the shopper transfers the full total. Card or wallet (Paymob) is paid
- * in full online. InstaPay details and "send the screenshot" come only from `paymentDue()`
+ * in full online. Bank Transfer (abroad only): the shopper sends the total in their own currency
+ * (`pricing.payIn`) to our IBAN and sends the receipt on WhatsApp. InstaPay and bank details and "send the screenshot" come only from `paymentDue()`
  * (functions/src/store/order-messages.ts), so a paid order never asks for money.
  */
 
@@ -34,6 +39,8 @@ export interface OrderEmailContext {
   readonly whatsappNumber: string;
   /** Where shoppers send InstaPay transfers (`STORE_INFO.payments.instapay`); empty = not set. */
   readonly instapay: InstapayInfo;
+  /** Our bank account for Bank Transfer (`STORE_INFO.payments.bankTransfer`); empty IBAN = not set. */
+  readonly bankTransfer: BankTransferInfo;
 }
 
 export interface RenderedEmail {
@@ -51,6 +58,21 @@ const EGP = new Intl.NumberFormat('en-EG', {
 /** Same whole-pound format as the storefront `formatMoney(…, 'EGP', 0)`. */
 export function formatEgp(amount: number): string {
   return EGP.format(amount);
+}
+
+/** `$205`, `€180`: the same format as the storefront `formatMoney()` for other currencies. */
+export function formatPayIn(payIn: PayIn): string {
+  const digits = displayDecimals(payIn.currency);
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: payIn.currency,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(payIn.amount);
+  } catch {
+    return `${payIn.amount} ${payIn.currency}`;
+  }
 }
 
 /** Amount paid in cash at the door for a cash-on-delivery order. */
@@ -72,6 +94,10 @@ export function renderOrderEmail(
       return instapayPlaced(order, ctx);
     case 'instapay-confirmed':
       return instapayConfirmed(order, ctx);
+    case 'bank-transfer-placed':
+      return bankTransferPlaced(order, ctx);
+    case 'bank-transfer-confirmed':
+      return bankTransferConfirmed(order, ctx);
     case 'delivery-fee-set':
       return deliveryFeeSet(order, ctx, false);
     case 'delivery-fee-changed':
@@ -181,6 +207,49 @@ function instapayConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): Rend
     showAddress: true,
     button: orderButton(order, ctx),
   });
+}
+
+function bankTransferPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+  return shopperEmail(order, ctx, {
+    subject: `We got your order ${order.ref}`,
+    heading: `Thanks for your order, ${firstName(order)}`,
+    intro: [
+      `We've received your order ${order.ref}. Send the total from your bank to finish your order. We'll confirm it as soon as the money arrives.`,
+      ...egpPricesNote(order),
+    ],
+    highlight: null,
+    payment: payBox(order, ctx),
+    showTotals: true,
+    showAddress: true,
+    button: orderButton(order, ctx),
+  });
+}
+
+function bankTransferConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
+  const amount = order.payIn ? ` of ${formatPayIn(order.payIn)}` : '';
+  return shopperEmail(order, ctx, {
+    subject: `Payment received – order ${order.ref} is confirmed`,
+    heading: 'Payment received',
+    intro: [
+      `Thanks, ${firstName(order)}. We've received your bank transfer${amount} and your order ${order.ref} is confirmed. We're getting it ready.`,
+      ...egpPricesNote(order),
+    ],
+    highlight: null,
+    showTotals: true,
+    showAddress: true,
+    button: orderButton(order, ctx),
+  });
+}
+
+/**
+ * A Bank Transfer is sent in the shopper's own currency, while the items and totals below are in
+ * Egyptian pounds: say so once, so the two amounts don't look like a mismatch.
+ */
+function egpPricesNote(order: OrderEmailOrder): string[] {
+  if (!order.payIn || order.payIn.currency === 'EGP') return [];
+  return [
+    `The prices below are in Egyptian pounds (EGP). You send ${formatPayIn(order.payIn)}, the same total in your currency.`,
+  ];
 }
 
 /**
@@ -350,10 +419,14 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
       ? 'Cash on Delivery'
       : method === 'instapay'
         ? 'InstaPay – Waiting for Transfer'
-        : 'Paid Online';
+        : method === 'bank-transfer'
+          ? 'Bank Transfer – Waiting for Transfer'
+          : 'Paid Online';
   const amount = order.feeToBeAgreed
     ? `${formatEgp(order.subtotalEgp)} + Delivery`
-    : formatEgp(order.totalEgp);
+    : method === 'bank-transfer' && order.payIn
+      ? `${formatPayIn(order.payIn)} (${formatEgp(order.totalEgp)})`
+      : formatEgp(order.totalEgp);
   const subject = order.feeToBeAgreed
     ? `New Order ${order.ref} – ${amount} – Agree Delivery Fee`
     : `New Order ${order.ref} – ${amount} – ${label}`;
@@ -435,6 +508,15 @@ function storePayment(order: OrderEmailOrder): StorePayment {
         rows: [['Waiting for Transfer', total]],
         note: 'Confirm the payment in the dashboard once you see it in your bank app.',
       };
+    case 'bank-transfer':
+      return {
+        method: 'Bank Transfer',
+        rows: [
+          ['Customer Sends', order.payIn ? formatPayIn(order.payIn) : 'The Total'],
+          ['Order Total in EGP', total],
+        ],
+        note: "Confirm the order in the dashboard once the money is in the account and the receipt shows the full amount in the customer's currency. Prices abroad include the international markup, so more pounds than the order total usually arrive.",
+      };
     default:
       return { method: 'Card', rows: [['Paid', total]], note: null };
   }
@@ -467,7 +549,7 @@ ${rows}
 
 // ── Building blocks ──────────────────────────────────────────────────────────
 
-/** InstaPay instructions for an order that still owes money. */
+/** InstaPay or bank instructions for an order that still owes money. */
 interface PayBox {
   readonly lines: readonly string[];
   readonly whatsapp: EmailButton | null;
@@ -484,6 +566,7 @@ function messageInput(order: OrderEmailOrder): OrderMessageInput {
     totalEgp: order.feeToBeAgreed ? null : order.totalEgp,
     needsReview: order.needsReview,
     feeToBeAgreed: order.feeToBeAgreed,
+    payIn: order.payIn,
   };
 }
 
@@ -497,6 +580,7 @@ function payBox(order: OrderEmailOrder, ctx: OrderEmailContext): PayBox | null {
   const stage = orderStage(input);
   const due = paymentDue(stage, input);
   if (!due) return null;
+  if (due.reason === 'bank-transfer') return bankPayBox(order, ctx, stage, input, due.payIn ?? null);
 
   const amount = due.amountEgp !== null ? ` ${formatEgp(due.amountEgp)}` : '';
   const what = due.reason === 'shipping-fee' ? `the${amount} shipping fee` : amount.trim() || 'the total';
@@ -527,6 +611,42 @@ function payBox(order: OrderEmailOrder, ctx: OrderEmailContext): PayBox | null {
   return {
     lines,
     whatsapp: waUrl ? { label: details ? 'Send on WhatsApp' : 'Message Us on WhatsApp', url: waUrl } : null,
+  };
+}
+
+/**
+ * Bank Transfer: the amount to send in the shopper's currency, our bank details, the fee line and
+ * a Send Receipt on WhatsApp button.
+ */
+function bankPayBox(
+  order: OrderEmailOrder,
+  ctx: OrderEmailContext,
+  stage: ReturnType<typeof orderStage>,
+  input: OrderMessageInput,
+  payIn: PayIn | null,
+): PayBox {
+  const bank = ctx.bankTransfer;
+  const waUrl = whatsappChatUrl(ctx.whatsappNumber, shopperWhatsappText(stage, input, ctx.instapay, bank));
+  const lines: string[] = [`Send ${payIn ? formatPayIn(payIn) : 'the total'} from your bank to:`];
+  if (hasBankTransferDetails(bank)) {
+    if (bank.accountName.trim()) lines.push(`Account name: ${bank.accountName.trim()}`);
+    lines.push(`IBAN: ${formatIban(bank.iban)}`);
+    if (bank.swift.trim()) lines.push(`SWIFT / BIC: ${bank.swift.trim()}`);
+    if (bank.bankName.trim()) lines.push(`Bank: ${bank.bankName.trim()}`);
+    lines.push(`Reference: ${order.ref.replace(/^#/, '')}`);
+    lines.push('Choose "I pay all fees" so the full amount reaches us.');
+    lines.push('Then send us the receipt on WhatsApp.');
+  } else {
+    lines.push(waUrl ? "We'll send you our bank details on WhatsApp." : "We'll send you our bank details.");
+  }
+  return {
+    lines,
+    whatsapp: waUrl
+      ? {
+          label: hasBankTransferDetails(bank) ? 'Send Receipt on WhatsApp' : 'Message Us on WhatsApp',
+          url: waUrl,
+        }
+      : null,
   };
 }
 
