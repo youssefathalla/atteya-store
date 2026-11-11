@@ -61,7 +61,14 @@ export function emailDocument(title: string, rows: readonly string[]): string {
 .status{font-size:38px!important;}
 .amount{font-size:32px!important;}
 .stat{font-size:18px!important;}
-.statcell{padding-left:12px!important;padding-right:12px!important;}
+.statcell{display:block!important;width:auto!important;padding:14px 24px!important;border-left:0!important;}
+td.statcell + td.statcell{border-top:1px solid ${GREY_LINE}!important;}
+.sphoto1{height:380px!important;}
+.sphoto1 img{max-height:380px!important;}
+.sphoto2{height:200px!important;}
+.sphoto2 img{max-height:200px!important;}
+.sphoto3{height:130px!important;}
+.sphoto3 img{max-height:130px!important;}
 }
 </style>
 </head>
@@ -279,7 +286,7 @@ export function bankBox(
     .map(
       (row) => `<tr>
 <td style="padding:10px 14px;border-bottom:1px solid ${GREY_LINE};${FONT}font-size:13px;color:${TEXT_MUTED};white-space:nowrap;">${escapeHtml(row.label)}</td>
-<td align="right" style="padding:10px 14px;border-bottom:1px solid ${GREY_LINE};${row.mono ? mono : FONT}font-size:13px;font-weight:700;color:${INK};word-break:break-all;">${escapeHtml(row.value)}</td>
+<td align="right" style="padding:10px 14px;border-bottom:1px solid ${GREY_LINE};${row.mono ? mono : FONT}font-size:13px;font-weight:700;color:${INK};word-break:normal;word-wrap:break-word;overflow-wrap:anywhere;">${escapeHtml(row.value)}</td>
 </tr>`,
     )
     .join('\n');
@@ -339,11 +346,20 @@ function tagHtml(tags: readonly string[]): string {
     .join('');
 }
 
-function photo(src: string | null, width: number, height: number): string {
-  if (!src) {
-    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td height="${height}" style="height:${height}px;background:${GREY_PHOTO};font-size:0;line-height:0;">&nbsp;</td></tr></table>`;
-  }
-  return `<img src="${escapeHtml(src)}" width="${width}" alt="" style="display:block;width:100%;max-width:${width}px;height:auto;border:0;background:${GREY_PHOTO};">`;
+/**
+ * A photo fitted inside a fixed-height grey box (like `object-fit: contain`): the picture is centred
+ * and limited by `max-width` / `max-height`, never cropped, so every photo in a row is the same
+ * height whatever its shape. A table cell is used because many mail apps ignore `object-fit`.
+ * `boxClass` lets the narrow-screen style shrink the box. The `width` attribute is the box's pixel
+ * width: Outlook for Windows ignores `max-width` / `max-height` and would otherwise draw the photo
+ * at its natural size; clients that read CSS use the inline `width:auto` instead.
+ */
+function photo(src: string | null, width: number, height: number, boxClass = ''): string {
+  const img = src
+    ? `<img src="${escapeHtml(src)}" alt="" width="${width}" style="display:block;margin:0 auto;width:auto;height:auto;max-width:100%;max-height:${height}px;border:0;">`
+    : '&nbsp;';
+  const cls = boxClass ? ` class="${boxClass}"` : '';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;"><tr><td${cls} height="${height}" align="center" valign="middle" style="width:100%;height:${height}px;background:${GREY_PHOTO};text-align:center;font-size:0;line-height:0;">${img}</td></tr></table>`;
 }
 
 /**
@@ -390,9 +406,11 @@ ${rows.join('\n')}
 function itemList(cards: readonly ItemCard[]): string {
   const rows = cards
     .map((card) => {
-      const thumb = card.imageSrc
-        ? `<img src="${escapeHtml(card.imageSrc)}" width="64" alt="" style="display:block;width:64px;height:auto;border:0;background:${GREY_PHOTO};">`
-        : `<table role="presentation" width="64" cellpadding="0" cellspacing="0"><tr><td width="64" height="64" style="width:64px;height:64px;background:${GREY_PHOTO};font-size:0;">&nbsp;</td></tr></table>`;
+      const thumb = `<table role="presentation" width="64" cellpadding="0" cellspacing="0"><tr><td width="64" height="64" align="center" valign="middle" style="width:64px;height:64px;background:${GREY_PHOTO};text-align:center;font-size:0;line-height:0;">${
+        card.imageSrc
+          ? `<img src="${escapeHtml(card.imageSrc)}" alt="" width="64" style="display:block;margin:0 auto;width:auto;height:auto;max-width:64px;max-height:64px;border:0;">`
+          : '&nbsp;'
+      }</td></tr></table>`;
       const tags = card.tags.length ? `<div>${tagHtml(card.tags)}</div>` : '';
       const details = card.details
         ? `<p style="margin:3px 0 0;${FONT}font-size:13px;color:${TEXT_SOFT};">${escapeHtml(card.details)}</p>`
@@ -420,10 +438,12 @@ export function photoStrip(cards: readonly ItemCard[], captions: string): string
   const shown = cards.slice(0, 3);
   if (shown.length === 0) return '';
   const width = Math.floor(600 / shown.length);
+  // Percent widths: fixed pixel widths make a fixed-layout table wider than a phone screen.
+  const cellPercent = `${Math.floor(100 / shown.length)}%`;
   const tds = shown
     .map(
       (card) =>
-        `<td width="${width}" valign="top" style="padding:0;">${photo(card.imageSrc, width, Math.round(width * 1.1))}</td>`,
+        `<td width="${cellPercent}" valign="top" style="padding:0;">${photo(card.imageSrc, width, Math.round(width * 1.1), `sphoto${shown.length}`)}</td>`,
     )
     .join('\n');
   return `<tr><td style="padding:0;">
@@ -590,9 +610,9 @@ export function statStrip(cells: readonly AmountCell[]): string {
       const last = index === cells.length - 1;
       const divider = first ? '' : `border-left:1px solid ${GREY_LINE};`;
       const pad = `padding:24px ${last ? SIDE : 16}px 24px ${first ? SIDE : 20}px;`;
-      return `<td class="${first ? 'px' : 'statcell'}" valign="top" width="${width}" style="${pad}${divider}">
+      return `<td class="${first ? 'px statcell' : 'statcell'}" valign="top" width="${width}" style="${pad}${divider}">
 <p style="margin:0 0 6px;${FONT}font-size:11px;font-weight:600;letter-spacing:2px;color:${TEXT_MUTED};">${escapeHtml(cell.label.toUpperCase())}</p>
-<p class="stat" style="margin:0;${FONT}font-size:24px;line-height:1.15;font-weight:800;letter-spacing:-0.5px;color:${INK};">${escapeHtml(cell.amount)}</p>
+<p class="stat" style="margin:0;${FONT}font-size:24px;line-height:1.15;font-weight:800;letter-spacing:-0.5px;color:${INK};overflow-wrap:break-word;">${escapeHtml(cell.amount)}</p>
 </td>`;
     })
     .join('\n');
