@@ -992,9 +992,9 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
   const payment = storePayment(order);
   const top = staffTop(order, payment);
   const strip: AmountCell[] = [{ label: 'Items', amount: String(pieceCount(order.lines)) }, ...payment.cells];
-  // A large order's note is already the header sentence; the box then only names the action.
-  const stepNote = order.feeToBeAgreed ? null : payment.note;
-  const showStep = payment.note !== null;
+  // When the note is already the header sentence (a large order), the box only names the action.
+  const step = payment.step;
+  const stepNote = step && step.note !== top.sentence ? step.note : null;
   const customer = staffCustomer(order, ctx);
   const pack = packList(order.lines, ctx);
   const totalRows = totalsFor(order, 'Total');
@@ -1012,7 +1012,7 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
       sentence: top.sentence,
     }),
     statStrip(strip),
-    showStep ? section(nextStepBox(payment.action, stepNote), 32) : '',
+    step ? section(nextStepBox(step.action, stepNote), 32) : '',
     customer.html,
     pack.html,
     section(totals(totalRows), 8),
@@ -1035,7 +1035,7 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
       top.sentence,
     ]),
     strip.map((cell) => `${upperFirst(cell.label)}: ${cell.amount}`).join('\n'),
-    showStep ? joinParts([`Next step: ${payment.action}`, stepNote]) : null,
+    step ? joinParts([`Next Step: ${step.action}`, stepNote]) : null,
     customer.text,
     pack.text,
     totalRows.map(([rowLabel, value]) => `${rowLabel}: ${value}`).join('\n'),
@@ -1050,9 +1050,8 @@ const STAFF_FOOTER = 'Sent to the store team for every new order.';
 /** What staff collect for a new order: the amounts for the strip, the next action and today's note. */
 interface StorePayment {
   readonly cells: readonly AmountCell[];
-  /** Bold first line of the next-step box. */
-  readonly action: string;
-  readonly note: string | null;
+  /** The next-step box: the action in bold and today's note under it; null when there is no note. */
+  readonly step: { readonly action: string; readonly note: string } | null;
 }
 
 function storePayment(order: OrderEmailOrder): StorePayment {
@@ -1063,8 +1062,10 @@ function storePayment(order: OrderEmailOrder): StorePayment {
         { label: 'Items Total', amount: formatEgp(order.subtotalEgp) },
         { label: 'Delivery Fee', amount: 'To Be Agreed' },
       ],
-      action: 'Agree the delivery fee on WhatsApp',
-      note: 'This order is heavier than the biggest box. Agree the delivery fee with the customer on WhatsApp, then set it in the dashboard.',
+      step: {
+        action: 'Agree the delivery fee on WhatsApp',
+        note: 'This order is heavier than the biggest box. Agree the delivery fee with the customer on WhatsApp, then set it in the dashboard.',
+      },
     };
   }
   switch (order.paymentMethod) {
@@ -1073,20 +1074,23 @@ function storePayment(order: OrderEmailOrder): StorePayment {
       return order.shippingEgp > 0
         ? {
             cells: [{ label: 'Fee by InstaPay', amount: formatEgp(order.shippingEgp) }, cash],
-            action: `Wait for ${formatEgp(order.shippingEgp)} on InstaPay`,
-            note: 'Send the order once the shipping fee arrives on InstaPay.',
+            step: {
+              action: `Wait for ${formatEgp(order.shippingEgp)} on InstaPay`,
+              note: 'Send the order once the shipping fee arrives on InstaPay.',
+            },
           }
         : {
             cells: [{ label: 'Fee by InstaPay', amount: 'Free' }, cash],
-            action: 'Send the order',
-            note: null,
+            step: null,
           };
     }
     case 'instapay':
       return {
         cells: [{ label: 'Waiting for Transfer', amount: total }],
-        action: `Wait for ${total} on InstaPay`,
-        note: 'Confirm the payment in the dashboard once you see it in your bank app.',
+        step: {
+          action: `Wait for ${total} on InstaPay`,
+          note: 'Confirm the payment in the dashboard once you see it in your bank app.',
+        },
       };
     case 'bank-transfer': {
       const sends = order.payIn ? formatPayIn(order.payIn) : 'The Total';
@@ -1095,12 +1099,14 @@ function storePayment(order: OrderEmailOrder): StorePayment {
           { label: 'Customer Sends', amount: sends },
           { label: 'Order Total in EGP', amount: total },
         ],
-        action: order.payIn ? `Wait for ${sends} by bank transfer` : 'Wait for the bank transfer',
-        note: "Confirm the order in the dashboard once the money is in the account and the receipt shows the full amount in the customer's currency. Prices abroad include the international markup, so more pounds than the order total usually arrive.",
+        step: {
+          action: order.payIn ? `Wait for ${sends} by bank transfer` : 'Wait for the bank transfer',
+          note: "Confirm the order in the dashboard once the money is in the account and the receipt shows the full amount in the customer's currency. Prices abroad include the international markup, so more pounds than the order total usually arrive.",
+        },
       };
     }
     default:
-      return { cells: [{ label: 'Paid', amount: total }], action: 'Send the order', note: null };
+      return { cells: [{ label: 'Paid', amount: total }], step: null };
   }
 }
 
@@ -1118,17 +1124,17 @@ function staffTop(
   const amountNote = bank ? `${formatEgp(order.totalEgp)} order total` : null;
   if (order.needsReview) {
     return {
-      kicker: 'Check this order',
+      kicker: 'Check This Order',
       amount,
       amountNote,
       sentence: 'One item sold out before this payment came in. Please check this order.',
     };
   }
   if (order.feeToBeAgreed) {
-    return { kicker: 'Agree the delivery fee', amount, amountNote, sentence: payment.note };
+    return { kicker: 'Agree the Delivery Fee', amount, amountNote, sentence: payment.step?.note ?? null };
   }
   const when = cairoDateTime(order.createdAtMs);
-  return { kicker: when ? `New order · ${when}` : 'New order', amount, amountNote, sentence: null };
+  return { kicker: when ? `New Order · ${when}` : 'New Order', amount, amountNote, sentence: null };
 }
 
 /** `12 Nov · 14:32` in Cairo time, or null. */
@@ -1185,11 +1191,19 @@ function staffCustomer(order: OrderEmailOrder, ctx: OrderEmailContext): Block {
     ? `<a href="tel:${escapeHtml(phone.replace(/[^\d+]/g, ''))}" style="color:${INK};font-weight:600;text-decoration:underline;">${escapeHtml(phone)}</a>`
     : '';
   const contactHtml = [phoneHtml, email ? escapeHtml(email) : ''].filter(Boolean).join(' · ');
-  const stage = orderStage(messageInput(order));
   const waNumber = shopperWhatsappNumber(a.phone, a.country);
-  const waText = waNumber
-    ? staffWhatsappText(stage, messageInput(order), a.fullName, ctx.instapay, ctx.storeName, ctx.bankTransfer)
-    : null;
+  let waText: string | null = null;
+  if (waNumber) {
+    const input = messageInput(order);
+    waText = staffWhatsappText(
+      orderStage(input),
+      input,
+      a.fullName,
+      ctx.instapay,
+      ctx.storeName,
+      ctx.bankTransfer,
+    );
+  }
   const waUrl = waNumber ? whatsappChatUrl(waNumber, waText) : null;
   const wa = waUrl ? { label: 'Message Customer on WhatsApp', url: waUrl } : null;
 
@@ -1219,7 +1233,7 @@ function packList(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): Blo
     const options = lineTags(line).join(' · ');
     return {
       name: lineTitle(line),
-      details: gift ? joinWith([options, 'Free gift'], ' · ') : options,
+      details: gift ? joinWith([options, line.giftName], ' · ') : options,
       price: gift ? null : formatEgp(line.lineEgp),
       imageSrc: imageUrl(line.imagePath, ctx, width),
       tags: [`×${line.quantity}`, ...(line.dealTag && !gift ? [line.dealTag] : [])],
@@ -1230,7 +1244,7 @@ function packList(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): Blo
       const gift = line.giftName !== null;
       const options = lineTags(line).join(' · ');
       const price = gift
-        ? 'Free gift'
+        ? (line.giftName ?? 'Free gift')
         : `${formatEgp(line.lineEgp)}${line.dealTag ? ` (${line.dealTag})` : ''}`;
       return `- ×${line.quantity} ${lineTitle(line)}${options ? ` (${options})` : ''}: ${price}`;
     })

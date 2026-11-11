@@ -362,7 +362,10 @@ export function itemGrid(cards: readonly ItemCard[], perRow: 2 | 3, compactAfter
     const slice = cards.slice(start, start + perRow);
     const tds = Array.from({ length: perRow }, (_, index) => {
       const card = slice[index];
-      const pad = index < perRow - 1 ? `padding-right:${gap}px;` : '';
+      // Each cell gives up the same share of the gaps, so every column (and photo) is the same width.
+      const left = Math.round((gap * index) / perRow);
+      const right = Math.round((gap * (perRow - 1 - index)) / perRow);
+      const pad = `${left ? `padding-left:${left}px;` : ''}${right ? `padding-right:${right}px;` : ''}`;
       if (!card) return `<td width="${cellPercent}" valign="top" style="${pad}">&nbsp;</td>`;
       const price = card.price
         ? `<p style="margin:6px 0 0;${FONT}font-size:15px;font-weight:700;color:${INK};">${escapeHtml(card.price)}</p>`

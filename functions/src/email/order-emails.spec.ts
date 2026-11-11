@@ -265,7 +265,7 @@ describe('InstaPay emails', () => {
     const email = renderOrderEmail('store-new-order', read(orderDoc({ paymentMethod: 'instapay' })), ctx);
     assert.match(email.subject, /InstaPay – Waiting for Transfer/);
     assert.ok(email.text.includes(`Waiting for Transfer: ${formatEgp(2450)}`));
-    assert.ok(email.text.includes(`Next step: Wait for ${formatEgp(2450)} on InstaPay`));
+    assert.ok(email.text.includes(`Next Step: Wait for ${formatEgp(2450)} on InstaPay`));
     assert.match(email.text, /once you see it in your bank app/);
   });
 });
@@ -295,7 +295,7 @@ describe('order email wording and amounts', () => {
     const alert = renderOrderEmail('store-new-order', order, ctx);
     assert.ok(alert.text.includes(`Fee by InstaPay: Free\nCash at Door: ${formatEgp(2370)}`));
     assert.ok(!alert.text.includes('arrives on InstaPay'), 'no fee to wait for');
-    assert.ok(!alert.text.includes('Next step'), 'no next-step box without a note');
+    assert.ok(!alert.text.includes('Next Step'), 'no next-step box without a note');
   });
 
   it('cash on delivery confirmed: fee received, cash amount is total minus shipping', () => {
@@ -627,7 +627,7 @@ describe('Bank Transfer emails', () => {
     assert.match(email.subject, /Bank Transfer – Waiting for Transfer/);
     assert.match(email.text, /#ABCDEF · Bank Transfer/);
     assert.match(email.text, /Customer Sends: \$205\nOrder Total in EGP: /);
-    assert.match(email.text, /Next step: Wait for \$205 by bank transfer/);
+    assert.match(email.text, /Next Step: Wait for \$205 by bank transfer/);
     assert.ok(email.text.includes(formatEgp(2450)));
   });
 });
@@ -841,7 +841,7 @@ describe('Bold Black staff alert (<KEY>-222)', () => {
     assert.ok(email.html.includes(`>${formatEgp(2450)}</h1>`));
     assert.ok(email.html.includes('>#ABCDEF · Cash on Delivery<'));
     assert.ok(
-      email.text.startsWith(`New order · 12 Nov · 14:32\n${formatEgp(2450)}\n#ABCDEF · Cash on Delivery`),
+      email.text.startsWith(`New Order · 12 Nov · 14:32\n${formatEgp(2450)}\n#ABCDEF · Cash on Delivery`),
     );
   });
 
@@ -849,14 +849,14 @@ describe('Bold Black staff alert (<KEY>-222)', () => {
     const email = alert(cases.codPaid);
     assert.ok(email.html.includes('>FEE BY INSTAPAY<'));
     assert.ok(email.html.includes('>CASH AT DOOR<'));
-    assert.ok(email.text.includes(`Next step: Wait for ${formatEgp(80)} on InstaPay`));
+    assert.ok(email.text.includes(`Next Step: Wait for ${formatEgp(80)} on InstaPay`));
     assert.ok(email.text.includes('Send the order once the shipping fee arrives on InstaPay.'));
   });
 
   it('Cash on Delivery with free shipping: Free, and no next-step box', () => {
     const email = alert(cases.codFree);
     assert.ok(email.text.includes('Fee by InstaPay: Free'));
-    assert.ok(!email.text.includes('Next step'));
+    assert.ok(!email.text.includes('Next Step'));
     assert.ok(!email.html.includes('>1</td>'), 'no number circle');
   });
 
@@ -878,7 +878,7 @@ describe('Bold Black staff alert (<KEY>-222)', () => {
   it('Card: paid, no next-step box', () => {
     const email = alert(cases.card);
     assert.ok(email.text.includes(`Paid: ${formatEgp(2450)}`));
-    assert.ok(!email.text.includes('Next step'));
+    assert.ok(!email.text.includes('Next Step'));
   });
 
   it('large order: the header asks to agree the fee and the strip says To Be Agreed', () => {
@@ -886,7 +886,7 @@ describe('Bold Black staff alert (<KEY>-222)', () => {
     assert.ok(email.html.includes('>AGREE THE DELIVERY FEE<'));
     assert.ok(email.html.includes(`>${formatEgp(2370)} + Delivery</h1>`));
     assert.ok(email.text.includes('Delivery Fee: To Be Agreed'));
-    assert.ok(email.text.includes('Next step: Agree the delivery fee on WhatsApp'));
+    assert.ok(email.text.includes('Next Step: Agree the delivery fee on WhatsApp'));
     // The note is said once, in the header.
     assert.equal(email.html.split('heavier than the biggest box').length - 1, 1);
   });
@@ -915,6 +915,13 @@ describe('Bold Black staff alert (<KEY>-222)', () => {
     assert.ok(!alert(noNumber).html.includes('Message Customer on WhatsApp'));
   });
 
+  it('item grid columns share the gaps so every column is the same width', () => {
+    const email = alert(cases.codPaid);
+    assert.ok(email.html.includes('width="33%" valign="top" style="padding-right:8px;'));
+    assert.ok(email.html.includes('width="33%" valign="top" style="padding-left:4px;padding-right:4px;'));
+    assert.ok(email.html.includes('width="33%" valign="top" style="padding-left:8px;'));
+  });
+
   it('Pack List: 3 per row with ×n tags, gifts say Free gift, 7 or more lines are a compact list', () => {
     const doc = orderDoc({});
     const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
@@ -929,7 +936,8 @@ describe('Bold Black staff alert (<KEY>-222)', () => {
     assert.ok(email.html.includes('>×2<'));
     assert.ok(email.html.includes('>×1<'));
     assert.ok(email.html.includes('?tr=w-360,'), '3 per row photos');
-    assert.ok(email.text.includes('- ×1 Socks: Free gift'));
+    assert.ok(email.text.includes('- ×1 Socks: Free socks'));
+    assert.ok(email.html.includes('>Free socks<'));
     assert.ok(email.text.includes('Items: 3'));
 
     const many = orderDoc({});
