@@ -27,6 +27,7 @@ The rules for offers, moved here from one long AGENTS.md paragraph so offers PRs
 - `onOfferWritten` and the 15-minute `refreshOfferPricing` schedule refresh them.
 - `onOfferWritten` (`onDocumentWrittenWithAuthContext`) also writes one `auditLogs` entry per offer create, update and delete; `actorUid` is the doc's `updatedBy`, and for a delete (no doc left) the write's `event.authId` (`unknown` only when the write had no signed-in caller).
 - Cart-level rewards and quantity tiers still show as labels only, so the offer form hides "Buy more, save more" and "Spend X, get…" from the Deal type list for launch (`REWARD_PICKER_OPTIONS`; the engine keeps them for later): an old offer of those types still opens with "This deal type isn't available yet. Pause or archive this offer." and Save Offer stays disabled (`isUnavailableDeal()` in `offers-manager/models/offer-admin.model.ts`).
+- The offers list refuses **Duplicate**, and **Resume** of a paused offer, for those hidden deal types with the same message (`duplicateOffer` and `toggleActive` in `offers-manager.page.ts`); Pause, Archive and Restore still work.
 
 ## Overlap warnings
 
