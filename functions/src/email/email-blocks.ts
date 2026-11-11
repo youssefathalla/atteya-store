@@ -61,6 +61,8 @@ export function emailDocument(title: string, rows: readonly string[]): string {
 .status{font-size:38px!important;}
 .amount{font-size:32px!important;}
 .stat{font-size:18px!important;}
+.half{display:block!important;width:auto!important;padding:20px 24px!important;border-left:0!important;}
+td.half + td.half{border-top:1px solid ${GREY_LINE}!important;}
 .statcell{display:block!important;width:auto!important;padding:14px 24px!important;border-left:0!important;}
 td.statcell + td.statcell{border-top:1px solid ${GREY_LINE}!important;}
 .sphoto1{height:380px!important;}
@@ -164,7 +166,7 @@ export function amountBlock(cells: readonly AmountCell[], check = false): string
       const note = cell.note
         ? `<p style="margin:8px 0 0;${FONT}font-size:13px;line-height:1.5;color:${TEXT_MUTED};">${escapeHtml(cell.note)}</p>`
         : '';
-      return `<td class="px" valign="top" width="${two ? '50%' : '100%'}" style="${pad}${divider}">
+      return `<td class="${two ? 'half' : 'px'}" valign="top" width="${two ? '50%' : '100%'}" style="${pad}${divider}">
 <p style="margin:0 0 6px;${FONT}font-size:11px;font-weight:600;letter-spacing:2px;color:${TEXT_MUTED};">${escapeHtml(cell.label.toUpperCase())}</p>
 <p class="amount" style="margin:0;${FONT}font-size:${two ? 32 : 40}px;line-height:1.1;font-weight:800;letter-spacing:-1px;color:${INK};">${escapeHtml(cell.amount)}</p>
 ${note}
