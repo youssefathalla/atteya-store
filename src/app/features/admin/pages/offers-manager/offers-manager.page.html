@@ -33,8 +33,14 @@
       }
     </div>
 
-    <div class="elements-start-col items-stretch! gap-3 w-full @3xl:flex-row! @3xl:items-center!">
-      <mat-form-field class="w-full @3xl:w-80" appearance="outline" subscriptSizing="dynamic">
+    <!--
+      One line when everything fits (search left, filters right); otherwise the search takes the
+      full width and all the filters sit below it, never split across the two lines.
+    -->
+    <div
+      class="elements-start-col items-stretch! gap-3 w-full @5xl:flex-row! @5xl:justify-between! @5xl:items-center!"
+    >
+      <mat-form-field class="w-full @5xl:w-96" appearance="outline" subscriptSizing="dynamic">
         <mat-label>Search by offer name</mat-label>
         <mat-icon matPrefix name="search" />
         <input
@@ -48,7 +54,6 @@
 
       <mat-chip-listbox
         aria-label="Filter offers by deal type"
-        [hideSingleSelectionIndicator]="true"
         [value]="dealFilter()"
         (change)="setDealFilter($event)"
       >
