@@ -30,7 +30,13 @@ import { SkeletonComponent } from '@shared/ui/skeleton';
 import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.component';
 import type { StatusConfig } from '@shared/ui/status-badge/status.model';
 import { ProductsAdminService } from '../products-manager/services/products-admin.service';
-import { toOfferTableRow, type OfferStatusFilter, type OfferTableRow } from './models/offer-admin.model';
+import {
+  isUnavailableDeal,
+  toOfferTableRow,
+  UNAVAILABLE_DEAL_MESSAGE,
+  type OfferStatusFilter,
+  type OfferTableRow,
+} from './models/offer-admin.model';
 import { OffersAdminService } from './services/offers-admin.service';
 
 const FILTER_TABS: readonly { readonly id: OfferStatusFilter; readonly label: string }[] = [
@@ -145,6 +151,10 @@ export class OffersManagerPageComponent implements OnInit {
   async duplicateOffer(id: string): Promise<void> {
     const source = this.dataResource.value()?.offers.find((item) => item.id === id);
     if (!source) return;
+    if (isUnavailableDeal(source.reward, source.scope)) {
+      this.#snackbar.error(UNAVAILABLE_DEAL_MESSAGE);
+      return;
+    }
     try {
       const nextId = await this.#offersAdmin.duplicateOffer(source);
       this.#snackbar.success('Offer duplicated as paused.');
@@ -155,6 +165,14 @@ export class OffersManagerPageComponent implements OnInit {
   }
 
   async toggleActive(row: OfferTableRow): Promise<void> {
+    // Pausing is always allowed; resuming an offer of a hidden deal type is not.
+    if (!row.active) {
+      const offer = this.dataResource.value()?.offers.find((item) => item.id === row.id);
+      if (offer && isUnavailableDeal(offer.reward, offer.scope)) {
+        this.#snackbar.error(UNAVAILABLE_DEAL_MESSAGE);
+        return;
+      }
+    }
     try {
       await this.#offersAdmin.setOfferActive(row.id, !row.active);
       this.#snackbar.success(row.active ? 'Offer paused.' : 'Offer resumed.');
