@@ -1,15 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import {
-  Component,
-  computed,
-  inject,
-  OnInit,
-  PLATFORM_ID,
-  resource,
-  signal,
-  TemplateRef,
-  viewChild,
-} from '@angular/core';
+import { Component, computed, inject, OnInit, PLATFORM_ID, resource, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -19,14 +9,11 @@ import { firstValueFrom } from 'rxjs';
 import { orderStatusLabel as statusName } from '@core/config/order-status';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
-import { TemplateTypeDirective } from '@shared/directives/template-type/template-type.directive';
 import {
   ConfirmDialogComponent,
   type ConfirmDialogData,
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import { ReusableTable } from '@shared/ui/reusable-table/reusable-table.component';
-import type { TableColumn } from '@shared/ui/reusable-table/table.model';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.component';
 import type { StatusConfig } from '@shared/ui/status-badge/status.model';
@@ -39,22 +26,27 @@ import {
   DeliveryFeeDialogComponent,
   type DeliveryFeeDialogData,
 } from './dialogs/delivery-fee-dialog/delivery-fee-dialog.component';
-import type { OrderLineAdminRow, OrderStatusFilter, OrderStatusMove } from './models/order-admin.model';
+import type {
+  OrderCard,
+  OrderLineAdminRow,
+  OrderStatusFilter,
+  OrderStatusMove,
+} from './models/order-admin.model';
 import { OrdersAdminService } from './services/orders-admin.service';
 import { orderActionError } from './utils/order-action-error';
-import { toOrderLineAdminRows } from './utils/order-admin.utils';
+import { groupOrderCards, toOrderLineAdminRows } from './utils/order-admin.utils';
 import { orderListError } from './utils/order-list-error';
 
 type OrderAction = 'status' | 'fee';
 
 const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: string }[] = [
+  { id: 'all', label: 'All Recent' },
   { id: 'pending', label: 'Waiting for Payment' },
   { id: 'confirmed', label: 'Confirmed' },
   { id: 'shipped', label: 'Shipped' },
   { id: 'delivered', label: 'Delivered' },
   { id: 'failed', label: 'Payment Failed' },
   { id: 'cancelled', label: 'Cancelled' },
-  { id: 'all', label: 'All Recent' },
 ];
 
 /** What a step back does, said before staff confirm it. */
@@ -77,8 +69,6 @@ function stepBackMessage(status: string): string {
     MatButtonModule,
     MatMenuModule,
     MatProgressSpinnerModule,
-    TemplateTypeDirective,
-    ReusableTable,
     SharedIconModule,
     SkeletonComponent,
     StatusBadgeComponent,
@@ -92,51 +82,12 @@ export class OrdersManagerPageComponent implements OnInit {
   readonly #dialog = inject(MatDialog);
   readonly #platformId = inject(PLATFORM_ID);
 
-  readonly statusFilter = signal<OrderStatusFilter>('pending');
+  readonly statusFilter = signal<OrderStatusFilter>('all');
   readonly filterTabs = FILTER_TABS;
 
   /** Order id currently being confirmed or cancelled (one action at a time). */
   readonly busyOrderId = signal<string | null>(null);
   readonly busyAction = signal<OrderAction | null>(null);
-
-  private readonly orderCell = viewChild<TemplateRef<unknown>>('orderCell');
-  private readonly statusCell = viewChild<TemplateRef<unknown>>('statusCell');
-  private readonly productCell = viewChild<TemplateRef<unknown>>('productCell');
-  private readonly stockCell = viewChild<TemplateRef<unknown>>('stockCell');
-  private readonly actionsCell = viewChild<TemplateRef<unknown>>('actionsCell');
-
-  readonly sampleRow: OrderLineAdminRow = {
-    id: '',
-    orderId: '',
-    orderRef: '',
-    placedAtLabel: '',
-    customerName: '',
-    country: '',
-    status: 'pending',
-    paymentMethod: 'paymob',
-    paymentLabel: '',
-    productId: '',
-    productName: '',
-    giftName: null,
-    dealLabel: null,
-    selectionLabel: '',
-    quantity: 0,
-    currentStock: null,
-    stockStatus: 'unset',
-    orderTotalLabel: '',
-    phone: '',
-    stage: 'unknown',
-    isFirstLine: false,
-    whatsappUrl: null,
-    confirmAction: null,
-    statusMoves: [],
-    stockTaken: false,
-    history: [],
-    cancelReason: null,
-    amountDueLabel: null,
-    deliveryFeeAction: null,
-    deliveryFeeEgp: null,
-  };
 
   readonly orderStatusConfig: Record<string, StatusConfig> = {
     pending: { label: 'Waiting for Payment', color: 'yellow' },
@@ -185,16 +136,7 @@ export class OrdersManagerPageComponent implements OnInit {
     return [...toOrderLineAdminRows(data.orders, data.productsById, data.notesById)];
   });
 
-  readonly columns = computed((): TableColumn<OrderLineAdminRow>[] => [
-    { key: 'orderId', label: 'Order', sortable: true, customCellTpl: this.orderCell() },
-    { key: 'status', label: 'Status', sortable: true, customCellTpl: this.statusCell() },
-    { key: 'productName', label: 'Product', sortable: true, customCellTpl: this.productCell() },
-    { key: 'selectionLabel', label: 'Options', sortable: false },
-    { key: 'quantity', label: 'Qty', sortable: true },
-    { key: 'currentStock', label: 'Current stock', sortable: true, customCellTpl: this.stockCell() },
-    { key: 'orderTotalLabel', label: 'Order total', sortable: false },
-    { key: 'id', label: 'Actions', sortable: false, customCellTpl: this.actionsCell() },
-  ]);
+  readonly cards = computed((): readonly OrderCard[] => groupOrderCards(this.rows()));
 
   ngOnInit(): void {
     this.#seo.setPageMetadata({

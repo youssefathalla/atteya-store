@@ -19,6 +19,7 @@ import type { OrderDoc, OrderStaffNotes } from '@core/services/orders/order.sche
 import { formatMoney } from '@shared/utils/money';
 import { orderDate } from '@core/services/orders/shopper-orders.service';
 import type {
+  OrderCard,
   OrderHistoryEntry,
   OrderLineAdminRow,
   OrderStatusMove,
@@ -39,15 +40,13 @@ export function paymentLabel(order: OrderDoc): string {
   }
 }
 
-export function formatPlacedAt(order: OrderDoc): string {
-  const raw = order.createdAt;
-  const date =
-    raw instanceof Date
-      ? raw
-      : typeof raw === 'object' && raw && 'toDate' in raw && typeof raw.toDate === 'function'
-        ? raw.toDate()
-        : null;
+export function formatOrderDate(raw: unknown): string {
+  const date = orderDate(raw);
   return date ? date.toLocaleString() : '';
+}
+
+export function formatPlacedAt(order: OrderDoc): string {
+  return formatOrderDate(order.createdAt);
 }
 
 export function formatOrderTotal(order: OrderDoc): string {
@@ -222,6 +221,7 @@ export function toOrderLineAdminRows(
 
   for (const order of orders) {
     const placedAtLabel = formatPlacedAt(order);
+    const updatedAtLabel = formatOrderDate(order.updatedAt);
     const payLabel = paymentLabel(order);
     const orderTotalLabel = formatOrderTotal(order);
     const actions = orderActions(order, notesById.get(order.id) ?? null);
@@ -236,6 +236,7 @@ export function toOrderLineAdminRows(
         orderId: order.id,
         orderRef: shortOrderRef(order.id),
         placedAtLabel,
+        updatedAtLabel,
         customerName: order.shipping.fullName,
         country: order.shipping.country,
         status: order.status,
@@ -261,4 +262,15 @@ export function toOrderLineAdminRows(
   }
 
   return rows;
+}
+
+/** Group the per-line rows into one card per order, keeping the loaded (latest update first) order. */
+export function groupOrderCards(rows: readonly OrderLineAdminRow[]): readonly OrderCard[] {
+  const byOrder = new Map<string, OrderLineAdminRow[]>();
+  for (const row of rows) {
+    const lines = byOrder.get(row.orderId);
+    if (lines) lines.push(row);
+    else byOrder.set(row.orderId, [row]);
+  }
+  return [...byOrder.values()].map((lines) => ({ orderId: lines[0]!.orderId, first: lines[0]!, lines }));
 }
