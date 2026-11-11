@@ -77,19 +77,9 @@
     aspect-ratio: 4 / 5;
     max-height: var(
       --row-lock-media-max,
-      calc(100dvh - var(--storefront-top-chrome, 56px) - var(--home-new-arrivals-chrome, 7.75rem))
+      calc(100dvh - var(--storefront-top-chrome, 56px) - var(--product-card-details) - 3.5rem)
     );
   }
 
-  .home-new-arrivals .product-card__photo {
-    @apply p-2 sm:p-3;
-  }
-
-  .home-new-arrivals .product-card__swatches {
-    @apply pt-1 pb-0.5;
-  }
-
-  .home-new-arrivals .product-card__info {
-    @apply pt-1;
-  }
+  /* Everything else (colour row, spacing, name, heart) is the shared card, same as Shop. */
 }
