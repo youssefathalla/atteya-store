@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Component, computed, inject, PLATFORM_ID } from '@angular/core';
+import { afterNextRender, Component, computed, inject, PLATFORM_ID, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -50,11 +50,20 @@ export class FooterComponent {
   );
 
   /**
-   * The server and the first browser render show neither Sign In nor Sign Out (auth is only
-   * known in the browser), so hydration matches; the account links appear once auth is ready.
+   * Flipped after the first browser render. The footer hydrates on viewport, by which time auth
+   * is often already known, so without this the first client render could differ from the server.
+   */
+  readonly #rendered = signal(false);
+
+  /**
+   * The server and the first browser render show neither Sign In nor Sign Out and keep the
+   * sign-up (auth is only known in the browser), so hydration matches; the account links appear
+   * (and the sign-up hides for a signed-in shopper) after that first render once auth is ready.
    */
   readonly accountState = computed(() => {
-    if (!this.#isBrowser || !this.#auth.isAuthReady()) return 'pending' as const;
+    if (!this.#isBrowser || !this.#rendered() || !this.#auth.isAuthReady()) {
+      return 'pending' as const;
+    }
     return this.#auth.isAuthenticated() ? ('signed-in' as const) : ('signed-out' as const);
   });
   readonly isAdmin = this.#auth.isAdmin;
@@ -70,6 +79,10 @@ export class FooterComponent {
     ),
     { initialValue: safeReturnUrl(this.#router.url) },
   );
+
+  constructor() {
+    afterNextRender(() => this.#rendered.set(true));
+  }
 
   signOut(): void {
     void this.#auth.logout();
