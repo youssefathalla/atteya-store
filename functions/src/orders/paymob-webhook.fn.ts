@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   FieldValue,
   getFirestore,
+  Timestamp,
   type DocumentData,
   type DocumentReference,
   type Firestore,
@@ -11,6 +12,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { verifyPaymobHmac } from '../paymob/hmac.js';
 import { PAYMOB_HMAC_SECRET, paymobSecrets } from '../paymob/paymob-config.js';
 import type { StockFields } from '../products/stock.js';
+import { isOrderStatus, type OrderStatus } from '../store/order-status.js';
 import {
   aggregateOrderStockDemand,
   applyStockDemand,
@@ -209,6 +211,7 @@ export const paymobWebhook = onRequest(
             stockIssues: stockPlan.issues,
             needsReview,
             updatedAt: now,
+            statusHistory: FieldValue.arrayUnion(webhookHistoryEntry('confirmed', data['status'])),
           });
           if (needsReview) {
             console.warn('Paymob order confirmed with stock issues', {
@@ -221,11 +224,16 @@ export const paymobWebhook = onRequest(
 
         // Failed capture, void, refund, or gateway error — do not fulfil.
         if (isVoided || isRefunded || errorOccurred || !success) {
-          tx.update(orderRef, {
+          const failPatch: DocumentData = {
             status: 'failed',
             'paymob.transactionId': transactionId,
             updatedAt: now,
-          });
+          };
+          // Only record a real change (a repeat failure on a failed order adds no row).
+          if (data['status'] !== 'failed') {
+            failPatch['statusHistory'] = FieldValue.arrayUnion(webhookHistoryEntry('failed', data['status']));
+          }
+          tx.update(orderRef, failPatch);
         }
       });
     } catch (error: unknown) {
@@ -303,6 +311,16 @@ async function planPaidOrderStock(
     }
   }
   return { updates, issues };
+}
+
+/** `statusHistory` row for a Paymob-driven move (same shape `changeOrderStatus` appends). */
+function webhookHistoryEntry(status: OrderStatus, from: unknown): DocumentData {
+  return {
+    status,
+    from: isOrderStatus(from) ? from : null,
+    at: Timestamp.now(),
+    by: 'paymob-webhook',
+  };
 }
 
 function errorMessage(error: unknown): string {
