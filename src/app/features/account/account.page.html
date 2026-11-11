@@ -1,31 +1,31 @@
-<section class="container-content max-w-4xl mx-auto elements-start-col gap-8">
-  <header class="w-full elements-between flex-wrap gap-4 border-b border-outline-variant pb-6">
-    <div class="elements-start gap-4 min-w-0">
-      <span class="account-avatar" aria-hidden="true">{{ initial() }}</span>
+<section class="container-content max-w-6xl mx-auto elements-start-col gap-6">
+  <header class="account-hero">
+    <div class="elements-start gap-4 min-w-0 flex-1">
+      <span class="account-avatar account-avatar--inverse" aria-hidden="true">{{ initial() }}</span>
       <div class="min-w-0">
-        <h1 class="font-headline-sm font-bold! truncate">{{ name() }}</h1>
+        <h1 class="font-headline-sm font-bold! truncate">Hi, {{ name() }}</h1>
         @if (email() && email() !== name()) {
-          <p class="font-body-md text-on-surface-variant truncate">{{ email() }}</p>
+          <p class="font-body-md account-hero__muted truncate">{{ email() }}</p>
         }
       </div>
     </div>
-    <button matButton="outlined" type="button" (click)="signOut()">
-      <mat-icon name="logout" />
+    <dl class="account-hero__stats">
+      <div class="account-hero__stat">
+        <dt class="font-label-md account-hero__muted">Orders</dt>
+        <dd class="font-headline-sm font-bold!">{{ orderCount() ?? '–' }}</dd>
+      </div>
+      <div class="account-hero__stat">
+        <dt class="font-label-md account-hero__muted">Favorites</dt>
+        <dd class="font-headline-sm font-bold!">{{ favoritesReady() ? favoritesCount() : '–' }}</dd>
+      </div>
+    </dl>
+    <button class="account-hero__action" type="button" (click)="signOut()">
+      <mat-icon name="logout" size="lg" aria-hidden="true" />
       <span>Sign Out</span>
     </button>
   </header>
 
   <app-confirm-email-prompt />
-
-  <nav class="w-full" aria-label="Account sections">
-    <ul class="account-page__tabs">
-      @for (section of sections; track section.id) {
-        <li>
-          <a class="account-page__tab" routerLink="/account" [fragment]="section.id">{{ section.label }}</a>
-        </li>
-      }
-    </ul>
-  </nav>
 
   @if (profileResource.error()) {
     <div class="surface-card p-6 w-full elements-center-col gap-3 text-center" role="alert">
@@ -35,14 +35,37 @@
     </div>
   }
 
-  <app-profile-section
-    id="profile"
-    [uid]="uid()"
-    [email]="email()"
-    [profile]="profile()"
-    [loading]="profileLoading()"
-  />
-  <app-address-section id="address" [uid]="uid()" [profile]="profile()" [loading]="profileLoading()" />
-  <app-emails-section id="emails" [uid]="uid()" [profile]="profile()" [loading]="profileLoading()" />
-  <app-orders-section id="orders" [uid]="uid()" />
+  <div class="account-grid">
+    <div class="account-grid__main">
+      <app-orders-section id="orders" [uid]="uid()" />
+    </div>
+    <div class="account-grid__side">
+      <app-profile-section
+        id="profile"
+        [uid]="uid()"
+        [email]="email()"
+        [profile]="profile()"
+        [loading]="profileLoading()"
+      />
+      <app-address-section id="address" [uid]="uid()" [profile]="profile()" [loading]="profileLoading()" />
+      <section id="favorites" class="account-section w-full" aria-labelledby="account-favorites-title">
+        <h2 id="account-favorites-title" class="account-section__title">
+          <mat-icon name="favorite" aria-hidden="true" />
+          <span>Favorites</span>
+        </h2>
+        @if (!favoritesReady()) {
+          <app-skeleton class="h-5 w-1/2" />
+        } @else if (favoritesCount() > 0) {
+          <p class="font-body-md">
+            {{ favoritesCount() === 1 ? '1 item saved.' : favoritesCount() + ' items saved.' }}
+          </p>
+          <a matButton="outlined" routerLink="/favorites">View Favorites</a>
+        } @else {
+          <p class="font-body-md text-on-surface-variant">Tap the heart on a product to save it here.</p>
+          <a matButton="outlined" routerLink="/shop">Start Shopping</a>
+        }
+      </section>
+      <app-emails-section id="emails" [uid]="uid()" [profile]="profile()" [loading]="profileLoading()" />
+    </div>
+  </div>
 </section>
