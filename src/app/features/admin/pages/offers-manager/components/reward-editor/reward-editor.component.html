@@ -1,24 +1,4 @@
-<section class="surface-card p-5 w-full elements-start-col gap-4">
-  <div>
-    <h2 class="font-title-md font-bold!">What shoppers get</h2>
-    <p class="font-body-sm text-on-surface-variant">Choose the discount or deal for matching products.</p>
-  </div>
-
-  <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
-    Deal type
-    <select
-      class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-      (change)="onKindChange($event)"
-    >
-      @for (opt of pickerOptions; track opt.id) {
-        <option [value]="opt.id" [selected]="opt.id === selectedPickerKind()">{{ opt.label }}</option>
-      }
-      @if (isUnavailableDeal()) {
-        <option [value]="selectedPickerKind()" disabled selected>Not available yet</option>
-      }
-    </select>
-  </label>
-
+<div class="w-full elements-start-col items-stretch! gap-4">
   @if (isUnavailableDeal()) {
     <p
       class="border-shape border border-outline-variant bg-surface-container p-3 font-body-sm w-full"
@@ -28,75 +8,79 @@
     </p>
   }
 
-  @if (selectedPickerKind() === 'freeShipping') {
-    <p class="font-body-sm text-on-surface-variant">Applies to orders shipped in Egypt only.</p>
-  }
-
   @let r = reward();
   @if (selectedPickerKind() === 'percentOff' && r.kind === 'percentOff') {
-    <label class="elements-start-col gap-1 font-label-md">
-      Discount percentage (1–100%)
-      <input
-        type="number"
-        min="1"
-        max="100"
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
-        [value]="r.percent"
-        (input)="onPercentChange($event)"
-      />
-    </label>
+    <div class="elements-start-col items-stretch! gap-2">
+      <span class="font-title-sm font-bold!">How much off?</span>
+      <div class="elements-start items-center! flex-wrap gap-2">
+        <mat-form-field class="w-32" appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Percent off</mat-label>
+          <input
+            matInput
+            type="number"
+            min="1"
+            max="100"
+            [value]="r.percent"
+            (input)="onPercentChange($event)"
+          />
+          <span matTextSuffix>%</span>
+        </mat-form-field>
+        <mat-button-toggle-group
+          class="pill-switch"
+          aria-label="Quick percent"
+          hideSingleSelectionIndicator
+          [value]="r.percent"
+          (change)="setPercent($event.value)"
+        >
+          @for (percent of quickPercents; track percent) {
+            <mat-button-toggle [value]="percent">{{ percent }}%</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+      </div>
+    </div>
   } @else if (selectedPickerKind() === 'amountOff' && r.kind === 'amountOff') {
-    <label class="elements-start-col gap-1 font-label-md">
-      Amount off per item (EGP)
-      <input
-        type="number"
-        min="1"
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
-        [value]="r.amount"
-        (input)="onAmountChange($event)"
-      />
-    </label>
+    <mat-form-field class="w-full sm:w-56" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Money off each item</mat-label>
+      <span matTextPrefix>EGP&nbsp;</span>
+      <input matInput type="number" min="1" [value]="r.amount" (input)="onAmountChange($event)" />
+    </mat-form-field>
   } @else if (selectedPickerKind() === 'fixedPrice' && r.kind === 'fixedPrice') {
-    <label class="elements-start-col gap-1 font-label-md">
-      Set price per item (EGP)
-      <input
-        type="number"
-        min="0"
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
-        [value]="r.price"
-        (input)="onFixedPriceChange($event)"
-      />
-    </label>
+    <mat-form-field class="w-full sm:w-56" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>New price for each item</mat-label>
+      <span matTextPrefix>EGP&nbsp;</span>
+      <input matInput type="number" min="0" [value]="r.price" (input)="onFixedPriceChange($event)" />
+    </mat-form-field>
   } @else if (selectedPickerKind() === 'bundlePrice' && r.kind === 'bundlePrice') {
-    <fieldset class="w-full elements-start-col gap-3">
-      <legend class="font-label-md">Price per quantity</legend>
+    <fieldset class="w-full elements-start-col items-stretch! gap-3">
+      <legend class="font-title-sm font-bold!">Price per quantity</legend>
       <p class="font-body-sm text-on-surface-variant">
         Shoppers can mix any of the matching products. The bag uses the cheapest mix of rows, and rows repeat.
       </p>
-      <ul class="w-full elements-start-col gap-2" (focusout)="onBundleRowsFocusOut($event)">
+      <ul class="w-full elements-start-col items-stretch! gap-2" (focusout)="onBundleRowsFocusOut($event)">
         @for (row of r.rows; track $index) {
-          <li class="elements-start items-end! flex-wrap gap-3">
-            <label class="elements-start-col gap-1 font-label-md">
-              Pieces
+          <li class="elements-start items-center! flex-wrap gap-3">
+            <mat-form-field class="w-28" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Pieces</mat-label>
               <input
+                matInput
                 type="number"
                 min="1"
                 [max]="maxBundlePieces"
-                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-24"
                 [value]="row.quantity"
                 (change)="onBundlePiecesChange($index, $event)"
               />
-            </label>
-            <label class="elements-start-col gap-1 font-label-md">
-              Total price (EGP)
+            </mat-form-field>
+            <mat-form-field class="w-44" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Total price</mat-label>
+              <span matTextPrefix>EGP&nbsp;</span>
               <input
+                matInput
                 type="number"
                 min="1"
-                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
                 [value]="row.price || ''"
                 (input)="onBundlePriceChange($index, $event)"
               />
-            </label>
+            </mat-form-field>
             <button
               matIconButton
               type="button"
@@ -110,191 +94,167 @@
         }
       </ul>
       @if (r.rows.length < maxBundleRows) {
-        <button matButton="outlined" type="button" (click)="addBundleRow()">
-          <mat-icon name="add" />
-          <span>Add Row</span>
-        </button>
+        <div>
+          <button matButton="outlined" type="button" (click)="addBundleRow()">
+            <mat-icon name="add" />
+            <span>Add Row</span>
+          </button>
+        </div>
       }
     </fieldset>
   } @else if (selectedPickerKind() === 'buyXGetY' && r.kind === 'buyXGetY') {
-    <div class="elements-center flex-wrap gap-3">
-      <label class="elements-start-col gap-1 font-label-md">
-        Buy quantity
+    <div class="elements-start items-center! flex-wrap gap-3">
+      <mat-form-field class="w-28" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Buy</mat-label>
         <input
+          matInput
           type="number"
           min="1"
-          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-28"
           [value]="r.buy.quantity"
           (input)="onBuyXGetYChange('buyQty', $event)"
         />
-      </label>
-      <label class="elements-start-col gap-1 font-label-md">
-        Get quantity
+      </mat-form-field>
+      <mat-form-field class="w-28" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Get</mat-label>
         <input
+          matInput
           type="number"
           min="1"
-          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-28"
           [value]="r.get.quantity"
           (input)="onBuyXGetYChange('getQty', $event)"
         />
-      </label>
-      <label class="elements-start-col gap-1 font-label-md">
-        Get discount % (100 = free)
+      </mat-form-field>
+      <mat-form-field class="w-40" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Off what they get</mat-label>
         <input
+          matInput
           type="number"
           min="1"
           max="100"
-          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
           [value]="r.get.percent"
           (input)="onBuyXGetYChange('getPercent', $event)"
         />
-      </label>
-      <label class="elements-start-col gap-1 font-label-md">
-        Max times per order (optional)
+        <span matTextSuffix>%</span>
+      </mat-form-field>
+      <mat-form-field class="w-48" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Most times per order</mat-label>
         <input
+          matInput
           type="number"
           min="1"
-          class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-36"
+          placeholder="No limit"
           [value]="r.maxApplications ?? ''"
           (input)="onBuyXGetYChange('maxApps', $event)"
         />
-      </label>
+      </mat-form-field>
     </div>
+    <p class="font-body-sm text-on-surface-variant">100% off means what they get is free.</p>
 
     @let free = freeItem();
     @if (free) {
-      <fieldset class="w-full elements-start-col gap-2">
-        <legend class="font-label-md">Which item is free?</legend>
+      <fieldset class="w-full elements-start-col items-stretch! gap-2">
+        <legend class="font-title-sm font-bold!">Which item is free?</legend>
         <p class="font-body-sm text-on-surface-variant">
           Shoppers don't pick: the bag makes the cheapest matching item free.
         </p>
-        <div class="elements-start-col gap-1" role="radiogroup" aria-label="Which item is free?">
+        <mat-radio-group
+          class="elements-start-col gap-1"
+          aria-label="Which item is free?"
+          [value]="free.mode"
+          (change)="onFreeItemModeChange($event.value)"
+        >
           @for (opt of freeItemOptions; track opt.id) {
-            <label class="elements-start gap-2 font-body-md">
-              <input
-                type="radio"
-                name="free-item-mode"
-                [value]="opt.id"
-                [checked]="free.mode === opt.id"
-                (change)="onFreeItemModeChange(opt.id)"
-              />
-              {{ opt.label }}
-            </label>
+            <mat-radio-button [value]="opt.id">{{ opt.label }}</mat-radio-button>
           }
-        </div>
+        </mat-radio-group>
 
         @if (free.mode === 'products') {
           @if (free.selection.productIds.length === 0) {
             <p class="font-body-sm text-on-surface-variant">No products yet. Add at least one.</p>
           } @else {
-            <ul class="w-full elements-start-col gap-1 sm:max-w-md">
+            <mat-chip-set aria-label="Free item products">
               @for (productId of free.selection.productIds; track productId) {
-                <li class="w-full elements-between gap-2 border-shape bg-surface-container px-3 py-1">
-                  <span class="font-body-sm">
-                    {{ productNames().get(productId) ?? 'Product not found' }}
-                  </span>
+                <mat-chip (removed)="removeFreeItemValue('productIds', productId)">
+                  {{ productNames().get(productId) ?? 'Product not found' }}
                   <button
-                    matIconButton
+                    matChipRemove
                     type="button"
                     [attr.aria-label]="
                       'Remove ' + (productNames().get(productId) ?? 'product') + ' from the free items'
                     "
-                    (click)="removeFreeItemValue('productIds', productId)"
                   >
                     <mat-icon name="close" />
                   </button>
-                </li>
+                </mat-chip>
               }
-            </ul>
+            </mat-chip-set>
           }
-          <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
-            Add a product
-            <select
-              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-              (change)="addFreeItemValue('productIds', $event)"
-            >
-              <option value="">Choose a product…</option>
+          <mat-form-field class="w-full sm:max-w-xs" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Add a product</mat-label>
+            <mat-select [value]="null" (selectionChange)="addFreeItemValue('productIds', $event)">
               @for (p of products(); track p.id) {
                 @if (!free.selection.productIds.includes(p.id)) {
-                  <option [value]="p.id">{{ p.name }}</option>
+                  <mat-option [value]="p.id">{{ p.name }}</mat-option>
                 }
               }
-            </select>
-          </label>
+            </mat-select>
+          </mat-form-field>
         } @else if (free.mode === 'categoryBrand') {
           <p class="font-body-sm text-on-surface-variant">Pick at least one category or brand.</p>
-
-          @if (free.selection.categoryIds.length > 0) {
-            <ul class="w-full elements-start-col gap-1 sm:max-w-md">
+          @if (free.selection.categoryIds.length > 0 || free.selection.brandIds.length > 0) {
+            <mat-chip-set aria-label="Free item categories and brands">
               @for (categoryId of free.selection.categoryIds; track categoryId) {
-                <li class="w-full elements-between gap-2 border-shape bg-surface-container px-3 py-1">
-                  <span class="font-body-sm">
-                    Category: {{ categoryNames().get(categoryId) ?? 'Category not found' }}
-                  </span>
+                <mat-chip (removed)="removeFreeItemValue('categoryIds', categoryId)">
+                  Category: {{ categoryNames().get(categoryId) ?? 'Category not found' }}
                   <button
-                    matIconButton
+                    matChipRemove
                     type="button"
                     [attr.aria-label]="
                       'Remove ' + (categoryNames().get(categoryId) ?? 'category') + ' from the free items'
                     "
-                    (click)="removeFreeItemValue('categoryIds', categoryId)"
                   >
                     <mat-icon name="close" />
                   </button>
-                </li>
+                </mat-chip>
               }
-            </ul>
-          }
-          <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
-            Add a category
-            <select
-              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-              (change)="addFreeItemValue('categoryIds', $event)"
-            >
-              <option value="">Choose a category…</option>
-              @for (c of categories(); track c.id) {
-                @if (!free.selection.categoryIds.includes(c.id)) {
-                  <option [value]="c.id">{{ c.depth === 1 ? '— ' + c.name : c.name }}</option>
-                }
-              }
-            </select>
-          </label>
-
-          @if (free.selection.brandIds.length > 0) {
-            <ul class="w-full elements-start-col gap-1 sm:max-w-md">
               @for (brandId of free.selection.brandIds; track brandId) {
-                <li class="w-full elements-between gap-2 border-shape bg-surface-container px-3 py-1">
-                  <span class="font-body-sm">
-                    Brand: {{ brandNames().get(brandId) ?? 'Brand not found' }}
-                  </span>
+                <mat-chip (removed)="removeFreeItemValue('brandIds', brandId)">
+                  Brand: {{ brandNames().get(brandId) ?? 'Brand not found' }}
                   <button
-                    matIconButton
+                    matChipRemove
                     type="button"
                     [attr.aria-label]="
                       'Remove ' + (brandNames().get(brandId) ?? 'brand') + ' from the free items'
                     "
-                    (click)="removeFreeItemValue('brandIds', brandId)"
                   >
                     <mat-icon name="close" />
                   </button>
-                </li>
+                </mat-chip>
               }
-            </ul>
+            </mat-chip-set>
           }
-          <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
-            Add a brand
-            <select
-              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-              (change)="addFreeItemValue('brandIds', $event)"
-            >
-              <option value="">Choose a brand…</option>
-              @for (b of brands(); track b.id) {
-                @if (!free.selection.brandIds.includes(b.id)) {
-                  <option [value]="b.id">{{ b.name }}</option>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Add a category</mat-label>
+              <mat-select [value]="null" (selectionChange)="addFreeItemValue('categoryIds', $event)">
+                @for (c of categories(); track c.id) {
+                  @if (!free.selection.categoryIds.includes(c.id)) {
+                    <mat-option [value]="c.id">{{ c.depth === 1 ? '— ' + c.name : c.name }}</mat-option>
+                  }
                 }
-              }
-            </select>
-          </label>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Add a brand</mat-label>
+              <mat-select [value]="null" (selectionChange)="addFreeItemValue('brandIds', $event)">
+                @for (b of brands(); track b.id) {
+                  @if (!free.selection.brandIds.includes(b.id)) {
+                    <mat-option [value]="b.id">{{ b.name }}</mat-option>
+                  }
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
         }
       </fieldset>
     }
@@ -307,89 +267,91 @@
       Shoppers get one of each gift for every matching item they buy, and choose which product (and size) they
       want. Gifts are free, ship with the order and come out of stock.
     </p>
-    <div class="w-full elements-start-col gap-3">
+    <div class="w-full elements-start-col items-stretch! gap-3">
       @for (gift of r.gifts; track gift.id) {
-        <fieldset class="w-full border-shape border border-outline-variant p-4 elements-start-col gap-3">
+        <fieldset
+          class="w-full border-shape border border-outline-variant p-4 elements-start-col items-stretch! gap-3"
+        >
           <legend class="px-1 font-label-md">Gift {{ $index + 1 }}</legend>
-          <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
-            Gift name shoppers see
+          <mat-form-field class="w-full sm:max-w-xs" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Gift name shoppers see</mat-label>
             <input
+              matInput
               type="text"
-              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
               placeholder="Free shirt"
               [attr.maxlength]="maxGiftName"
               [value]="gift.name"
               (input)="onGiftNameChange(gift.id, $event)"
             />
-          </label>
+          </mat-form-field>
 
-          <div class="w-full elements-start-col gap-2">
+          <div class="w-full elements-start-col items-stretch! gap-2">
             <span class="font-label-md">Products shoppers can choose from</span>
             @if (gift.productIds.length === 0) {
               <p class="font-body-sm text-on-surface-variant">No products yet. Add at least one.</p>
             } @else {
-              <ul class="w-full elements-start-col gap-1">
+              <mat-chip-set [attr.aria-label]="'Products for gift ' + ($index + 1)">
                 @for (productId of gift.productIds; track productId) {
-                  <li class="w-full elements-between gap-2 border-shape bg-surface-container px-3 py-1">
-                    <span class="font-body-sm">
-                      {{ productNames().get(productId) ?? 'Product not found' }}
-                    </span>
+                  <mat-chip (removed)="removeGiftChoice(gift.id, productId)">
+                    {{ productNames().get(productId) ?? 'Product not found' }}
                     <button
-                      matIconButton
+                      matChipRemove
                       type="button"
                       [attr.aria-label]="
                         'Remove ' + (productNames().get(productId) ?? 'product') + ' from this gift'
                       "
-                      (click)="removeGiftChoice(gift.id, productId)"
                     >
                       <mat-icon name="close" />
                     </button>
-                  </li>
+                  </mat-chip>
                 }
-              </ul>
+              </mat-chip-set>
             }
             @if (gift.productIds.length < maxGiftChoices) {
-              <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
-                Add a product
-                <select
-                  class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-                  (change)="onGiftChoiceAdd(gift.id, $event)"
-                >
-                  <option value="">Choose a product…</option>
+              <mat-form-field class="w-full sm:max-w-xs" appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Add a product</mat-label>
+                <mat-select [value]="null" (selectionChange)="onGiftChoiceAdd(gift.id, $event)">
                   @for (p of products(); track p.id) {
                     @if (!gift.productIds.includes(p.id)) {
-                      <option [value]="p.id">{{ p.name }}</option>
+                      <mat-option [value]="p.id">{{ p.name }}</mat-option>
                     }
                   }
-                </select>
-              </label>
+                </mat-select>
+              </mat-form-field>
             }
           </div>
 
           @if (r.gifts.length > 1) {
-            <button matButton="text" type="button" (click)="removeGift(gift.id)">
-              <span>Remove Gift</span>
-            </button>
+            <div>
+              <button matButton="text" type="button" (click)="removeGift(gift.id)">
+                <span>Remove Gift</span>
+              </button>
+            </div>
           }
         </fieldset>
       }
       @if (r.gifts.length < maxGifts) {
-        <button matButton="outlined" type="button" (click)="addGift()">
-          <mat-icon name="add" />
-          <span>Add Gift</span>
-        </button>
+        <div>
+          <button matButton="outlined" type="button" (click)="addGift()">
+            <mat-icon name="add" />
+            <span>Add Gift</span>
+          </button>
+        </div>
       }
     </div>
   } @else if (selectedPickerKind() === 'freeShipping') {
-    <label class="elements-start-col gap-1 font-label-md">
-      Minimum order subtotal (EGP, optional)
+    <p class="font-body-sm text-on-surface-variant">Applies to orders shipped in Egypt only.</p>
+    <mat-form-field class="w-full sm:w-64" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Smallest order total (optional)</mat-label>
+      <span matTextPrefix>EGP&nbsp;</span>
       <input
+        matInput
         type="number"
         min="0"
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-40"
+        placeholder="Any order"
         [value]="minimum()?.subtotal ?? ''"
         (input)="onMinSubtotalChange($event)"
       />
-    </label>
+    </mat-form-field>
   }
-</section>
+</div>

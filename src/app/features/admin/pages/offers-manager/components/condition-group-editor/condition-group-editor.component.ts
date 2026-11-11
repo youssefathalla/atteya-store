@@ -1,5 +1,8 @@
 import { Component, computed, input, model } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import type {
   OfferConditionAtom,
   OfferConditionField,
@@ -24,7 +27,14 @@ export interface ValueChoice {
 @Component({
   selector: 'app-condition-group-editor',
   host: { class: 'block w-full' },
-  imports: [MatButtonModule, SharedIconModule, ColorSwatchComponent],
+  imports: [
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    SharedIconModule,
+    ColorSwatchComponent,
+  ],
   templateUrl: './condition-group-editor.component.html',
 })
 export class ConditionGroupEditorComponent {
@@ -110,10 +120,7 @@ export class ConditionGroupEditorComponent {
     }));
   }
 
-  onFieldChange(groupIndex: number, atomIndex: number, event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    const field = target.value as OfferConditionField;
+  onFieldChange(groupIndex: number, atomIndex: number, field: OfferConditionField): void {
     const nextAtom: OfferConditionAtom = field === 'price' ? { field: 'price' } : { field, in: [] };
     this.#replaceAtom(groupIndex, atomIndex, nextAtom);
   }
@@ -123,11 +130,14 @@ export class ConditionGroupEditorComponent {
     return atom.notIn ? 'notIn' : 'in';
   }
 
-  onModeChange(groupIndex: number, atomIndex: number, atom: OfferConditionAtom, event: Event): void {
+  onModeChange(
+    groupIndex: number,
+    atomIndex: number,
+    atom: OfferConditionAtom,
+    picked: 'in' | 'notIn',
+  ): void {
     if (atom.field === 'price') return;
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    const mode = target.value === 'notIn' ? 'notIn' : 'in';
+    const mode = picked === 'notIn' ? 'notIn' : 'in';
     const values = atom.in ?? atom.notIn ?? [];
     const nextAtom: OfferSetAtom =
       mode === 'notIn' ? { field: atom.field, notIn: values } : { field: atom.field, in: values };

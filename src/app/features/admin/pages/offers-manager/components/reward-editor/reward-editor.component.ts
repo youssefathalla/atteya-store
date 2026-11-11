@@ -1,6 +1,12 @@
 import { Component, computed, input, model } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatRadioModule } from '@angular/material/radio';
+import { MatSelectChange, MatSelectModule } from '@angular/material/select';
 import {
   MAX_BUNDLE_PIECES,
   MAX_BUNDLE_ROWS,
@@ -19,8 +25,8 @@ import {
   FREE_ITEM_OPTIONS,
   isUnavailableDeal,
   MAX_FREE_ITEM_VALUES,
+  QUICK_PERCENTS,
   readFreeItem,
-  REWARD_PICKER_OPTIONS,
   rewardPickerKind,
   UNAVAILABLE_DEAL_MESSAGE,
   type FreeItemMode,
@@ -31,7 +37,17 @@ import {
 @Component({
   selector: 'app-reward-editor',
   host: { class: 'block w-full' },
-  imports: [MatButtonModule, MatCheckboxModule, SharedIconModule],
+  imports: [
+    MatButtonModule,
+    MatButtonToggleModule,
+    MatCheckboxModule,
+    MatChipsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatRadioModule,
+    MatSelectModule,
+    SharedIconModule,
+  ],
   templateUrl: './reward-editor.component.html',
 })
 export class RewardEditorComponent {
@@ -42,8 +58,6 @@ export class RewardEditorComponent {
   readonly categories = input<readonly Category[]>([]);
   readonly brands = input<readonly Brand[]>([]);
 
-  readonly pickerOptions = REWARD_PICKER_OPTIONS;
-
   readonly selectedPickerKind = computed<RewardPickerKind>(() =>
     rewardPickerKind(this.reward(), this.scope()),
   );
@@ -52,67 +66,15 @@ export class RewardEditorComponent {
   readonly isUnavailableDeal = computed(() => isUnavailableDeal(this.reward(), this.scope()));
   readonly unavailableDealMessage = UNAVAILABLE_DEAL_MESSAGE;
 
-  onKindChange(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    const picked = target.value as RewardPickerKind;
-
-    switch (picked) {
-      case 'percentOff':
-        this.scope.set('item');
-        this.minimum.set(null);
-        this.reward.set({ kind: 'percentOff', percent: 10 });
-        break;
-      case 'amountOff':
-        this.scope.set('item');
-        this.minimum.set(null);
-        this.reward.set({ kind: 'amountOff', amount: 200 });
-        break;
-      case 'fixedPrice':
-        this.scope.set('item');
-        this.minimum.set(null);
-        this.reward.set({ kind: 'fixedPrice', price: 1000 });
-        break;
-      case 'buyXGetY':
-        this.scope.set('item');
-        this.minimum.set(null);
-        this.reward.set({
-          kind: 'buyXGetY',
-          buy: { quantity: 2 },
-          get: { quantity: 1, percent: 100 },
-          getConditions: null,
-          cheapestFree: true,
-          repeat: true,
-          maxApplications: null,
-        });
-        break;
-      case 'bundlePrice':
-        // An item offer with no minimum: the bag groups the qualifying pieces into the rows.
-        this.scope.set('item');
-        this.minimum.set(null);
-        this.reward.set({ kind: 'bundlePrice', rows: [{ quantity: 2, price: 200 }] });
-        break;
-      case 'freeGift':
-        // One set of gifts per qualifying item bought, so it is an item offer with no minimum.
-        this.scope.set('item');
-        this.minimum.set(null);
-        this.reward.set({
-          kind: 'freeGift',
-          gifts: [{ id: 'gift-1', name: 'Free gift', productIds: [] }],
-        });
-        break;
-      case 'freeShipping':
-        this.scope.set('cart');
-        // The minimum is optional: start empty so the offer covers every Egypt order unless staff type one.
-        this.minimum.set(null);
-        this.reward.set({ kind: 'freeShipping' });
-        break;
-    }
-  }
+  readonly quickPercents = QUICK_PERCENTS;
 
   onPercentChange(event: Event): void {
     const val = this.#readInt(event, 1);
     this.reward.set({ kind: 'percentOff', percent: Math.min(100, val) });
+  }
+
+  setPercent(percent: number): void {
+    this.reward.set({ kind: 'percentOff', percent });
   }
 
   onAmountChange(event: Event): void {
@@ -173,11 +135,9 @@ export class RewardEditorComponent {
     this.reward.set(withFreeItem(r, mode, current.selection));
   }
 
-  addFreeItemValue(kind: 'productIds' | 'categoryIds' | 'brandIds', event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    const value = target.value;
-    target.value = '';
+  addFreeItemValue(kind: 'productIds' | 'categoryIds' | 'brandIds', event: MatSelectChange): void {
+    const value = typeof event.value === 'string' ? event.value : '';
+    event.source.value = null;
     this.#changeFreeItem(kind, (list) =>
       !value || list.includes(value) || list.length >= MAX_FREE_ITEM_VALUES ? list : [...list, value],
     );
@@ -298,11 +258,9 @@ export class RewardEditorComponent {
     this.#updateGift(giftId, (gift) => ({ ...gift, name: value }));
   }
 
-  onGiftChoiceAdd(giftId: string, event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    const productId = target.value;
-    target.value = '';
+  onGiftChoiceAdd(giftId: string, event: MatSelectChange): void {
+    const productId = typeof event.value === 'string' ? event.value : '';
+    event.source.value = null;
     if (!productId) return;
     this.#updateGift(giftId, (gift) =>
       gift.productIds.includes(productId) || gift.productIds.length >= MAX_GIFT_CHOICES

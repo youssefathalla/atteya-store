@@ -1,48 +1,75 @@
-<section class="surface-card p-5 w-full elements-start-col gap-4">
-  <div>
-    <h2 class="font-title-md font-bold!">Schedule (Cairo time)</h2>
-    <p class="font-body-sm text-on-surface-variant">
-      Dates and times are entered in Egypt local time (Africa/Cairo).
-    </p>
-  </div>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-    <div class="elements-start-col gap-2">
-      <div class="elements-between w-full">
-        <label class="font-label-md" for="offer-starts-at">Start date &amp; time (Cairo time)</label>
-        <button matButton="text" type="button" (click)="setStartsNow()">
-          <span>Starts Now</span>
-        </button>
+<div class="grid grid-cols-1 @3xl:grid-cols-2 gap-6 w-full">
+  <fieldset class="elements-start-col items-stretch! gap-2 min-w-0">
+    <legend class="font-title-sm font-bold! mb-1">Starts</legend>
+    <mat-radio-group
+      class="elements-start-col gap-1"
+      aria-label="Starts"
+      [value]="schedule().startsAt ? 'date' : 'now'"
+      (change)="onStartMode($event.value)"
+    >
+      <mat-radio-button value="now">Right away</mat-radio-button>
+      <mat-radio-button value="date">On a date</mat-radio-button>
+    </mat-radio-group>
+    @if (start(); as s) {
+      <div class="grid grid-cols-[1fr_7rem] gap-2 w-full ps-0 @3xl:ps-10">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Start date</mat-label>
+          <input
+            matInput
+            [matDatepicker]="startPicker"
+            [value]="s.day"
+            (dateChange)="onDay('start', $event.value)"
+          />
+          <mat-datepicker-toggle matIconSuffix [for]="startPicker" />
+          <mat-datepicker #startPicker />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Time</mat-label>
+          <input matInput type="time" step="60" [value]="s.time" (change)="onTime('start', $event)" />
+        </mat-form-field>
       </div>
-      <input
-        id="offer-starts-at"
-        type="datetime-local"
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-        [value]="startsAtInput()"
-        (input)="onStartChange($event)"
-      />
-      @if (!schedule().startsAt) {
-        <p class="font-body-sm text-on-surface-variant">Starts immediately when active.</p>
-      }
-    </div>
+    }
+  </fieldset>
 
-    <div class="elements-start-col gap-2">
-      <div class="elements-between w-full">
-        <label class="font-label-md" for="offer-ends-at">End date &amp; time (Cairo time)</label>
-        <button matButton="text" type="button" (click)="setNoEndDate()">
-          <span>No End Date</span>
-        </button>
+  <fieldset class="elements-start-col items-stretch! gap-2 min-w-0">
+    <legend class="font-title-sm font-bold! mb-1">Ends</legend>
+    <mat-radio-group
+      class="elements-start-col gap-1"
+      aria-label="Ends"
+      [value]="schedule().endsAt ? 'date' : 'off'"
+      (change)="onEndMode($event.value)"
+    >
+      <mat-radio-button value="off">When I turn it off</mat-radio-button>
+      <mat-radio-button value="date">On a date</mat-radio-button>
+    </mat-radio-group>
+    @if (end(); as e) {
+      <div class="grid grid-cols-[1fr_7rem] gap-2 w-full ps-0 @3xl:ps-10">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>End date</mat-label>
+          <input
+            matInput
+            [matDatepicker]="endPicker"
+            [min]="start()?.day ?? null"
+            [value]="e.day"
+            (dateChange)="onDay('end', $event.value)"
+          />
+          <mat-datepicker-toggle matIconSuffix [for]="endPicker" />
+          <mat-datepicker #endPicker />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Time</mat-label>
+          <input matInput type="time" step="60" [value]="e.time" (change)="onTime('end', $event)" />
+        </mat-form-field>
       </div>
-      <input
-        id="offer-ends-at"
-        type="datetime-local"
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-        [value]="endsAtInput()"
-        (input)="onEndChange($event)"
-      />
-      @if (!schedule().endsAt) {
-        <p class="font-body-sm text-on-surface-variant">Runs until you pause or archive it.</p>
-      }
-    </div>
-  </div>
-</section>
+      <div class="ps-0 @3xl:ps-10">
+        <div class="elements-start flex-wrap gap-2" role="group" aria-label="Quick end date">
+          @for (quick of quickEnds; track quick.id) {
+            <button matButton="outlined" type="button" (click)="onQuickEnd(quick.id)">
+              <span>{{ quick.label }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </fieldset>
+</div>

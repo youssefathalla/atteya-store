@@ -1,34 +1,26 @@
 import { NgOptimizedImage } from '@angular/common';
-import { Component, computed, input, signal } from '@angular/core';
-import {
-  displayPrice,
-  formatCairoDateTimeInput,
-  matchProduct,
-  parseCairoDateTimeInput,
-  type Offer,
-  type OfferDraft,
-  type OfferValidationResult,
-  type PricingContext,
-} from '@core/services/offers/engine';
+import { Component, computed, input } from '@angular/core';
+import { displayPrice, matchProduct, type Offer, type OfferDraft } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import type { Product } from '@core/services/products/product.model';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { EgpPricePipe } from '@shared/pipes/egp-price.pipe';
 import { normalizeImageKitPath } from '@shared/utils/image';
 
-export type PreviewViewMode = 'visitor' | 'signedIn';
+/** Most rows the list shows; the rest is "And n more." */
+const MAX_ROWS = 100;
 
-export interface PreviewSampleRow {
+export interface PreviewRow {
   readonly id: string;
   readonly name: string;
   readonly imagePath: string | null;
   readonly currentPrice: number;
   readonly offerPrice: number;
-  readonly saving: number;
-  readonly badge: string | null;
   readonly partial: boolean;
+  readonly inStock: boolean;
 }
 
+/** The product list behind "See the Products" on step 2, priced as the offer would price them now. */
 @Component({
   selector: 'app-offer-preview',
   host: { class: 'block w-full' },
@@ -38,74 +30,34 @@ export interface PreviewSampleRow {
 export class OfferPreviewComponent {
   readonly draft = input.required<OfferDraft>();
   readonly products = input.required<readonly Product[]>();
-  readonly validation = input.required<OfferValidationResult>();
 
-  readonly viewMode = signal<PreviewViewMode>('signedIn');
-  readonly customAt = signal<Date | null>(null);
-
-  readonly atInput = computed(() =>
-    formatCairoDateTimeInput(this.customAt() ?? this.draft().schedule.startsAt ?? new Date()),
-  );
-
-  readonly previewSummary = computed(() => {
+  readonly #matched = computed(() => {
     const draft = this.draft();
-    const products = this.products();
-    const mode = this.viewMode();
-    const evalTime = this.customAt() ?? draft.schedule.startsAt ?? new Date();
-
-    const simulatedOffer: Offer = {
-      ...draft,
-      id: draft.id ?? 'preview-offer',
-      active: true,
-      archived: false,
-    };
-
-    const ctx: PricingContext = {
-      now: evalTime,
-      signedIn: mode === 'signedIn',
-    };
-
-    let fullCount = 0;
-    let partialCount = 0;
-    const sampleRows: PreviewSampleRow[] = [];
-
-    for (const product of products) {
+    const offer: Offer = { ...draft, id: draft.id ?? 'preview-offer', active: true, archived: false };
+    const ctx = { now: draft.schedule.startsAt ?? new Date(), signedIn: true };
+    const rows: PreviewRow[] = [];
+    let total = 0;
+    for (const product of this.products()) {
       const priced = toPricedProduct(product);
       const level = matchProduct(draft.conditions, draft.exclude, priced);
       if (level === 'none') continue;
-      if (level === 'full') fullCount += 1;
-      else partialCount += 1;
-
-      if (sampleRows.length < 10) {
-        const res = displayPrice(priced, [simulatedOffer], ctx);
-        const rawImage = product.images[0]?.path;
-        sampleRows.push({
-          id: product.id,
-          name: product.name,
-          imagePath: rawImage ? normalizeImageKitPath(rawImage) : null,
-          currentPrice: product.price,
-          offerPrice: res.fromPrice,
-          saving: Math.max(0, product.price - res.fromPrice),
-          badge: res.badges[0]?.text ?? null,
-          partial: level === 'partial',
-        });
-      }
+      total += 1;
+      if (rows.length >= MAX_ROWS) continue;
+      const res = displayPrice(priced, [offer], ctx);
+      const rawImage = product.images[0]?.path;
+      rows.push({
+        id: product.id,
+        name: product.name,
+        imagePath: rawImage ? normalizeImageKitPath(rawImage) : null,
+        currentPrice: product.price,
+        offerPrice: res.fromPrice,
+        partial: level === 'partial',
+        inStock: product.inStock,
+      });
     }
-
-    return {
-      totalMatched: fullCount + partialCount,
-      partialCount,
-      sampleRows,
-    };
+    return { rows, total };
   });
 
-  onViewModeChange(event: Event): void {
-    const val = (event.target as HTMLSelectElement).value as PreviewViewMode;
-    this.viewMode.set(val);
-  }
-
-  onAtChange(event: Event): void {
-    const raw = (event.target as HTMLInputElement).value;
-    this.customAt.set(parseCairoDateTimeInput(raw, false));
-  }
+  readonly rows = computed(() => this.#matched().rows);
+  readonly more = computed(() => this.#matched().total - this.#matched().rows.length);
 }

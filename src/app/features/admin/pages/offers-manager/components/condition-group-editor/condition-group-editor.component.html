@@ -1,7 +1,7 @@
-<section class="surface-card p-5 w-full elements-start-col gap-4">
+<section class="w-full elements-start-col items-stretch! gap-4">
   <div class="elements-between flex-wrap gap-2 w-full">
     <div>
-      <h2 class="font-title-md font-bold!">{{ heading() }}</h2>
+      <h3 class="font-title-sm font-bold!">{{ heading() }}</h3>
       @if (hint()) {
         <p class="font-body-sm text-on-surface-variant">{{ hint() }}</p>
       }
@@ -33,25 +33,26 @@
       @for (atom of group.allOf; track $index; let aIdx = $index) {
         <div class="w-full border-t border-outline-variant pt-3 elements-start-col gap-2">
           <div class="elements-center flex-wrap gap-2 w-full">
-            <select
-              class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm"
-              aria-label="Condition field"
-              (change)="onFieldChange(gIdx, aIdx, $event)"
-            >
-              @for (f of fieldOptions; track f.id) {
-                <option [value]="f.id" [selected]="f.id === atom.field">{{ f.label }}</option>
-              }
-            </select>
+            <mat-form-field class="w-44" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Rule on</mat-label>
+              <mat-select [value]="atom.field" (selectionChange)="onFieldChange(gIdx, aIdx, $event.value)">
+                @for (f of fieldOptions; track f.id) {
+                  <mat-option [value]="f.id">{{ f.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
 
             @if (atom.field !== 'price') {
-              <select
-                class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm"
-                aria-label="Condition operator"
-                (change)="onModeChange(gIdx, aIdx, atom, $event)"
-              >
-                <option value="in" [selected]="atomMode(atom) === 'in'">is one of</option>
-                <option value="notIn" [selected]="atomMode(atom) === 'notIn'">is not one of</option>
-              </select>
+              <mat-form-field class="w-44" appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Match</mat-label>
+                <mat-select
+                  [value]="atomMode(atom)"
+                  (selectionChange)="onModeChange(gIdx, aIdx, atom, $event.value)"
+                >
+                  <mat-option value="in">is one of</mat-option>
+                  <mat-option value="notIn">is not one of</mat-option>
+                </mat-select>
+              </mat-form-field>
             }
 
             <button matButton="text" type="button" (click)="removeAtom(gIdx, aIdx)">
@@ -61,26 +62,28 @@
 
           @if (atom.field === 'price') {
             <div class="elements-center flex-wrap gap-3">
-              <label class="elements-center gap-2 font-body-sm">
-                <span>Min EGP</span>
+              <mat-form-field class="w-36" appearance="outline" subscriptSizing="dynamic">
+                <mat-label>From</mat-label>
+                <span matTextPrefix>EGP&nbsp;</span>
                 <input
+                  matInput
                   type="number"
                   min="0"
-                  class="border-shape border border-outline bg-surface px-2.5 py-1 w-28 font-body-sm"
                   [value]="atom.min ?? ''"
                   (input)="onPriceChange(gIdx, aIdx, atom, 'min', $event)"
                 />
-              </label>
-              <label class="elements-center gap-2 font-body-sm">
-                <span>Max EGP</span>
+              </mat-form-field>
+              <mat-form-field class="w-36" appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Up to</mat-label>
+                <span matTextPrefix>EGP&nbsp;</span>
                 <input
+                  matInput
                   type="number"
                   min="0"
-                  class="border-shape border border-outline bg-surface px-2.5 py-1 w-28 font-body-sm"
                   [value]="atom.max ?? ''"
                   (input)="onPriceChange(gIdx, aIdx, atom, 'max', $event)"
                 />
-              </label>
+              </mat-form-field>
             </div>
           } @else {
             <div class="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto p-1">
