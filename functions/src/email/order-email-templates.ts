@@ -4,7 +4,9 @@ import {
   hasInstapayDetails,
   orderStage,
   paymentDue,
+  shopperWhatsappNumber,
   shopperWhatsappText,
+  staffWhatsappText,
   type BankTransferInfo,
   type InstapayInfo,
   type OrderMessageInput,
@@ -26,11 +28,15 @@ import {
   INK,
   itemGrid,
   mainButton,
+  nextStepBox,
+  outlinedButton,
   paragraphHtml,
   photoStrip,
   section,
   sectionTitle,
   siteLabel,
+  staffHeader,
+  statStrip,
   steps,
   TEXT_MUTED,
   textLink,
@@ -57,8 +63,8 @@ export { escapeHtml, type EmailButton } from './email-blocks.js';
  * (`pricing.payIn`) to our IBAN and sends the receipt on WhatsApp. InstaPay and bank details and "send the screenshot" come only from `paymentDue()`
  * (functions/src/store/order-messages.ts), so a paid order never asks for money.
  *
- * Shopper emails use the "Bold Black" building blocks in `email-blocks.ts` (<KEY>-221). The store
- * alert keeps its older look (the helpers at the end of this file) until <KEY>-222.
+ * Shopper emails use the "Bold Black" building blocks in `email-blocks.ts` (<KEY>-221), and so does
+ * the staff new-order alert (<KEY>-222).
  */
 
 export interface OrderEmailContext {
@@ -962,7 +968,7 @@ function joinParts(parts: readonly (string | null | undefined)[]): string {
   return parts.filter((part): part is string => Boolean(part)).join('\n');
 }
 
-// ── Store-owner alert ────────────────────────────────────────────────────────
+// ── Store-owner alert ("Bold Black", <KEY>-222) ───────────────────────────────
 
 function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedEmail {
   const method = order.paymentMethod;
@@ -982,121 +988,275 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
   const subject = order.feeToBeAgreed
     ? `New Order ${order.ref} – ${amount} – Agree Delivery Fee`
     : `New Order ${order.ref} – ${amount} – ${label}`;
+
   const payment = storePayment(order);
-  const warning = order.needsReview
-    ? 'One item sold out before this payment came in. Please check this order.'
-    : null;
-  const customer = [order.address.fullName, order.address.phone, order.customerEmail].filter(
-    (part): part is string => Boolean(part?.trim()),
-  );
+  const top = staffTop(order, payment);
+  const strip: AmountCell[] = [{ label: 'Items', amount: String(pieceCount(order.lines)) }, ...payment.cells];
+  // When the note is already the header sentence (a large order), the box only names the action.
+  const step = payment.step;
+  const stepNote = step && step.note !== top.sentence ? step.note : null;
+  const customer = staffCustomer(order, ctx);
+  const pack = packList(order.lines, ctx);
+  const totalRows = totalsFor(order, 'Total');
   const button = ctx.storefrontUrl
-    ? { label: 'Open Orders in the Dashboard', url: `${ctx.storefrontUrl}/admin/orders` }
+    ? { label: 'Open This Order', url: `${ctx.storefrontUrl}/admin/orders/${encodeURIComponent(order.id)}` }
     : null;
 
-  const html = layout(ctx.storeName, subject, [
-    h1(`New Order ${order.ref}`),
-    warning ? highlightBox(`⚠ ${warning}`) : '',
-    storePaymentHtml(payment),
-    labelledLines('Customer', customer),
-    itemsTable(order.lines, ctx),
-    totalsTable(order, 'Total'),
-    addressBlock(order),
-    button ? buttonHtml(button, 'tonal') : '',
+  const html = emailDocument(subject, [
+    staffHeader({
+      storeName: ctx.storeName,
+      kicker: top.kicker,
+      amount: top.amount,
+      amountNote: top.amountNote,
+      refLine: `${order.ref} · ${methodName(order)}`,
+      sentence: top.sentence,
+    }),
+    statStrip(strip),
+    step ? section(nextStepBox(step.action, stepNote), 32) : '',
+    customer.html,
+    pack.html,
+    section(totals(totalRows), 8),
+    button ? mainButton(button) : '',
+    SPACER,
+    footer({
+      storeName: ctx.storeName,
+      line: STAFF_FOOTER,
+      button: null,
+      site: '',
+      siteUrl: '',
+      wordmark: false,
+    }),
   ]);
   const text = joinText([
-    `New Order ${order.ref}`,
-    warning,
-    storePaymentText(payment),
-    `Customer:\n${customer.join('\n')}`,
-    itemsText(order.lines),
-    totalsText(order, 'Total'),
-    `Delivery Address:\n${addressLines(order).join('\n')}`,
+    joinParts([
+      top.kicker,
+      top.amountNote ? `${top.amount} (${top.amountNote})` : top.amount,
+      `${order.ref} · ${methodName(order)}`,
+      top.sentence,
+    ]),
+    strip.map((cell) => `${upperFirst(cell.label)}: ${cell.amount}`).join('\n'),
+    step ? joinParts([`Next Step: ${step.action}`, stepNote]) : null,
+    customer.text,
+    pack.text,
+    totalRows.map(([rowLabel, value]) => `${rowLabel}: ${value}`).join('\n'),
     button ? `${button.label}: ${button.url}` : null,
+    STAFF_FOOTER,
   ]);
   return { subject, html, text };
 }
 
-/** What staff collect for a new order: the method on its own, then the amounts. */
+const STAFF_FOOTER = 'Sent to the store team for every new order.';
+
+/** What staff collect for a new order: the amounts for the strip, the next action and today's note. */
 interface StorePayment {
-  readonly method: string;
-  readonly rows: readonly (readonly [string, string])[];
-  readonly note: string | null;
+  readonly cells: readonly AmountCell[];
+  /** The next-step box: the action in bold and today's note under it; null when there is no note. */
+  readonly step: { readonly action: string; readonly note: string } | null;
 }
 
 function storePayment(order: OrderEmailOrder): StorePayment {
   const total = formatEgp(order.totalEgp);
   if (order.feeToBeAgreed) {
     return {
-      method: order.paymentMethod === 'instapay' ? 'InstaPay' : 'Cash on Delivery',
-      rows: [
-        ['Items', formatEgp(order.subtotalEgp)],
-        ['Delivery Fee', 'To Be Agreed'],
+      cells: [
+        { label: 'Items Total', amount: formatEgp(order.subtotalEgp) },
+        { label: 'Delivery Fee', amount: 'To Be Agreed' },
       ],
-      note: 'This order is heavier than the biggest box. Agree the delivery fee with the customer on WhatsApp, then set it in the dashboard.',
+      step: {
+        action: 'Agree the delivery fee on WhatsApp',
+        note: 'This order is heavier than the biggest box. Agree the delivery fee with the customer on WhatsApp, then set it in the dashboard.',
+      },
     };
   }
   switch (order.paymentMethod) {
-    case 'cash-on-delivery':
+    case 'cash-on-delivery': {
+      const cash = { label: 'Cash at Door', amount: formatEgp(cashOnDeliveryEgp(order)) };
       return order.shippingEgp > 0
         ? {
-            method: 'Cash on Delivery',
-            rows: [
-              ['Shipping Fee', formatEgp(order.shippingEgp)],
-              ['Cash at the Door', formatEgp(cashOnDeliveryEgp(order))],
-            ],
-            note: 'Send the order once the shipping fee arrives on InstaPay.',
+            cells: [{ label: 'Fee by InstaPay', amount: formatEgp(order.shippingEgp) }, cash],
+            step: {
+              action: `Wait for ${formatEgp(order.shippingEgp)} on InstaPay`,
+              note: 'Send the order once the shipping fee arrives on InstaPay.',
+            },
           }
         : {
-            method: 'Cash on Delivery',
-            rows: [
-              ['Shipping Fee', 'Free'],
-              ['Cash at the Door', formatEgp(cashOnDeliveryEgp(order))],
-            ],
-            note: null,
+            cells: [{ label: 'Fee by InstaPay', amount: 'Free' }, cash],
+            step: null,
           };
+    }
     case 'instapay':
       return {
-        method: 'InstaPay',
-        rows: [['Waiting for Transfer', total]],
-        note: 'Confirm the payment in the dashboard once you see it in your bank app.',
+        cells: [{ label: 'Waiting for Transfer', amount: total }],
+        step: {
+          action: `Wait for ${total} on InstaPay`,
+          note: 'Confirm the payment in the dashboard once you see it in your bank app.',
+        },
       };
-    case 'bank-transfer':
+    case 'bank-transfer': {
+      const sends = order.payIn ? formatPayIn(order.payIn) : 'The Total';
       return {
-        method: 'Bank Transfer',
-        rows: [
-          ['Customer Sends', order.payIn ? formatPayIn(order.payIn) : 'The Total'],
-          ['Order Total in EGP', total],
+        cells: [
+          { label: 'Customer Sends', amount: sends },
+          { label: 'Order Total in EGP', amount: total },
         ],
-        note: "Confirm the order in the dashboard once the money is in the account and the receipt shows the full amount in the customer's currency. Prices abroad include the international markup, so more pounds than the order total usually arrive.",
+        step: {
+          action: order.payIn ? `Wait for ${sends} by bank transfer` : 'Wait for the bank transfer',
+          note: "Confirm the order in the dashboard once the money is in the account and the receipt shows the full amount in the customer's currency. Prices abroad include the international markup, so more pounds than the order total usually arrive.",
+        },
       };
+    }
     default:
-      return { method: 'Card', rows: [['Paid', total]], note: null };
+      return { cells: [{ label: 'Paid', amount: total }], step: null };
   }
 }
 
-function storePaymentText(payment: StorePayment): string {
-  return [payment.method, ...payment.rows.map(([label, value]) => `${label}: ${value}`), payment.note]
-    .filter((line): line is string => Boolean(line))
-    .join('\n');
+/** The header's kicker, big amount and warning: a warning replaces the date when the order needs a look. */
+function staffTop(
+  order: OrderEmailOrder,
+  payment: StorePayment,
+): { kicker: string; amount: string; amountNote: string | null; sentence: string | null } {
+  const bank = order.paymentMethod === 'bank-transfer' && order.payIn !== null && !order.feeToBeAgreed;
+  const amount = order.feeToBeAgreed
+    ? `${formatEgp(order.subtotalEgp)} + Delivery`
+    : bank
+      ? formatPayIn(order.payIn!)
+      : formatEgp(order.totalEgp);
+  const amountNote = bank ? `${formatEgp(order.totalEgp)} order total` : null;
+  if (order.needsReview) {
+    return {
+      kicker: 'Check This Order',
+      amount,
+      amountNote,
+      sentence: 'One item sold out before this payment came in. Please check this order.',
+    };
+  }
+  if (order.feeToBeAgreed) {
+    return { kicker: 'Agree the Delivery Fee', amount, amountNote, sentence: payment.step?.note ?? null };
+  }
+  const when = cairoDateTime(order.createdAtMs);
+  return { kicker: when ? `New Order · ${when}` : 'New Order', amount, amountNote, sentence: null };
 }
 
-function storePaymentHtml(payment: StorePayment): string {
-  const rows = payment.rows
-    .map(
-      ([label, value]) => `<tr>
-<td style="padding:4px 0;">${escapeHtml(label)}</td>
-<td align="right" style="padding:4px 0;font-weight:700;white-space:nowrap;">${escapeHtml(value)}</td>
-</tr>`,
-    )
-    .join('\n');
-  const note = payment.note
-    ? `<p style="margin:8px 0 0;font-size:13px;color:${MUTED};">${escapeHtml(payment.note)}</p>`
+/** `12 Nov · 14:32` in Cairo time, or null. */
+function cairoDateTime(ms: number | null): string | null {
+  const day = shortDate(ms);
+  if (!day || ms === null) return null;
+  try {
+    const time = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+      timeZone: 'Africa/Cairo',
+    }).format(new Date(ms));
+    return `${day} · ${time}`;
+  } catch {
+    return day;
+  }
+}
+
+function pieceCount(lines: readonly OrderEmailLine[]): number {
+  return lines.reduce((sum, line) => sum + line.quantity, 0);
+}
+
+/** "Box 1", "Box 2 (abroad)", or null when the order has no box. */
+function boxName(order: OrderEmailOrder): string | null {
+  if (!order.boxId) return null;
+  const name = `Box ${order.boxId.replace(/\D/g, '') || order.boxId}`;
+  return order.isInternational ? `${name} (abroad)` : name;
+}
+
+/** Customer block: name, phone link · email, grey address line and the WhatsApp button. */
+function staffCustomer(order: OrderEmailOrder, ctx: OrderEmailContext): Block {
+  const a = order.address;
+  const where = [
+    a.line1,
+    a.line2,
+    a.city,
+    order.isInternational ? a.region : null,
+    order.isInternational ? a.postalCode : null,
+  ]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join(', ');
+  const country = order.isInternational ? countryName(a.country) : null;
+  const greyLine = [
+    joinWith([where, country], ', '),
+    order.guestCheckout ? 'Guest checkout' : 'Account',
+    boxName(order),
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(' · ');
+  const phone = a.phone.trim();
+  const email = order.customerEmail?.trim() ?? '';
+  const phoneHtml = phone
+    ? `<a href="tel:${escapeHtml(phone.replace(/[^\d+]/g, ''))}" style="color:${INK};font-weight:600;text-decoration:underline;">${escapeHtml(phone)}</a>`
     : '';
-  return `<div style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};">
-<p style="margin:0 0 6px;font-size:17px;font-weight:700;">${escapeHtml(payment.method)}</p>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${FONT}font-size:14px;color:${INK};">
-${rows}
-</table>${note}</div>`;
+  const contactHtml = [phoneHtml, email ? escapeHtml(email) : ''].filter(Boolean).join(' · ');
+  const waNumber = shopperWhatsappNumber(a.phone, a.country);
+  let waText: string | null = null;
+  if (waNumber) {
+    const input = messageInput(order);
+    waText = staffWhatsappText(
+      orderStage(input),
+      input,
+      a.fullName,
+      ctx.instapay,
+      ctx.storeName,
+      ctx.bankTransfer,
+    );
+  }
+  const waUrl = waNumber ? whatsappChatUrl(waNumber, waText) : null;
+  const wa = waUrl ? { label: 'Message Customer on WhatsApp', url: waUrl } : null;
+
+  const html = section(
+    `<p style="margin:0;${FONT}font-size:24px;line-height:1.25;font-weight:800;letter-spacing:-0.5px;color:${INK};word-break:break-word;">${escapeHtml(a.fullName || 'Customer')}</p>
+${contactHtml ? `<p style="margin:10px 0 0;${FONT}font-size:15px;line-height:1.5;color:${INK};word-break:break-word;">${contactHtml}</p>` : ''}
+${greyLine ? `<p style="margin:6px 0 0;${FONT}font-size:14px;line-height:1.5;color:${TEXT_MUTED};word-break:break-word;">${escapeHtml(greyLine)}</p>` : ''}
+${wa ? `<div style="margin-top:18px;">${outlinedButton(wa)}</div>` : ''}`,
+    36,
+  );
+  const text = joinParts([
+    `Customer: ${a.fullName || 'Customer'}`,
+    phone ? `Phone: ${phone}` : null,
+    email ? `Email: ${email}` : null,
+    greyLine || null,
+    wa ? `${wa.label}: ${wa.url}` : null,
+  ]);
+  return { html, text };
+}
+
+/** Pack List: 3 photos per row with a ×2 tag on each; 7 or more lines use the compact list. */
+function packList(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): Block {
+  const compactAfter = 6;
+  const width = lines.length > compactAfter ? 128 : 360;
+  const cards: ItemCard[] = lines.map((line) => {
+    const gift = line.giftName !== null;
+    const options = lineTags(line).join(' · ');
+    return {
+      name: lineTitle(line),
+      details: gift ? joinWith([options, line.giftName], ' · ') : options,
+      price: gift ? null : formatEgp(line.lineEgp),
+      imageSrc: imageUrl(line.imagePath, ctx, width),
+      tags: [`×${line.quantity}`, ...(line.dealTag && !gift ? [line.dealTag] : [])],
+    };
+  });
+  const text = lines
+    .map((line) => {
+      const gift = line.giftName !== null;
+      const options = lineTags(line).join(' · ');
+      const price = gift
+        ? (line.giftName ?? 'Free gift')
+        : `${formatEgp(line.lineEgp)}${line.dealTag ? ` (${line.dealTag})` : ''}`;
+      return `- ×${line.quantity} ${lineTitle(line)}${options ? ` (${options})` : ''}: ${price}`;
+    })
+    .join('\n');
+  return {
+    html: section(`${sectionTitle('Pack List')}${itemGrid(cards, 3, compactAfter)}`, 40),
+    text: `Pack List:\n${text}`,
+  };
+}
+
+function joinWith(parts: readonly (string | null | undefined)[], separator: string): string {
+  return parts.filter((part): part is string => Boolean(part?.trim())).join(separator);
 }
 
 // ── Building blocks ──────────────────────────────────────────────────────────
@@ -1171,21 +1331,6 @@ function countryName(code: string): string {
   }
 }
 
-function totalsRows(order: OrderEmailOrder, totalLabel: string): [string, string][] {
-  if (order.feeToBeAgreed) {
-    return [
-      ['Subtotal', formatEgp(order.subtotalEgp)],
-      ['Shipping', "We'll contact you"],
-      [totalLabel, `${formatEgp(order.subtotalEgp)} + shipping`],
-    ];
-  }
-  return [
-    ['Subtotal', formatEgp(order.subtotalEgp)],
-    ['Shipping', order.shippingEgp > 0 ? formatEgp(order.shippingEgp) : 'Free'],
-    [totalLabel, formatEgp(order.totalEgp)],
-  ];
-}
-
 function itemsText(lines: readonly OrderEmailLine[], prices = true): string {
   return lines
     .map((line) => {
@@ -1197,51 +1342,8 @@ function itemsText(lines: readonly OrderEmailLine[], prices = true): string {
     .join('\n');
 }
 
-function totalsText(order: OrderEmailOrder, totalLabel: string): string {
-  return totalsRows(order, totalLabel)
-    .map(([label, value]) => `${label}: ${value}`)
-    .join('\n');
-}
-
 function joinText(parts: readonly (string | null | undefined)[]): string {
   return `${parts.filter((part): part is string => Boolean(part)).join('\n\n')}\n`;
-}
-
-// ── Store alert HTML (today's look until <KEY>-222 moves it to the new blocks) ──
-
-const MUTED = '#555555';
-const LINE = '#e5e5e5';
-const TONAL = '#e8e8e8';
-
-function layout(storeName: string, title: string, blocks: readonly string[]): string {
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title)}</title>
-</head>
-<body style="margin:0;padding:0;background:#f5f5f5;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;">
-<tr><td align="center" style="padding:12px 6px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid ${LINE};">
-<tr><td style="padding:14px 12px;border-bottom:1px solid ${LINE};${FONT}font-size:18px;font-weight:700;letter-spacing:2px;color:${INK};">${escapeHtml(storeName.toUpperCase())}</td></tr>
-<tr><td style="padding:12px;${FONT}color:${INK};font-size:15px;line-height:1.5;">
-${blocks.filter(Boolean).join('\n')}
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
-
-function h1(textValue: string): string {
-  return `<h1 style="margin:0 0 16px;${FONT}font-size:22px;line-height:1.3;color:${INK};">${escapeHtml(textValue)}</h1>`;
-}
-
-function highlightBox(textValue: string): string {
-  return `<p style="margin:16px 0;padding:12px 14px;border:1px solid ${INK};font-weight:600;">${escapeHtml(textValue)}</p>`;
 }
 
 /** Short tags for a line's options: "Size M" for the size, the plain value for the rest. */
@@ -1249,84 +1351,4 @@ function lineTags(line: OrderEmailLine): string[] {
   return line.optionLabels
     .map((opt) => (opt.label.trim().toLowerCase() === 'size' ? `Size ${opt.value}` : opt.value))
     .filter((tag) => tag.trim().length > 0);
-}
-
-/**
- * One bordered card per item: photo and name with option tags on top, then a grey strip with
- * the quantity and the line price. Long names wrap inside the card and never squeeze the price.
- */
-function itemsTable(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): string {
-  const count = lines.reduce((sum, line) => sum + line.quantity, 0);
-  const cards = lines
-    .map((line) => {
-      const src = imageUrl(line.imagePath, ctx);
-      const photoCell = src
-        ? `<td width="84" valign="top" style="padding:12px 0 12px 12px;"><img src="${escapeHtml(src)}" width="72" alt="" style="display:block;width:72px;height:auto;border:0;border-radius:2px;"></td>\n`
-        : '';
-      const gift = line.giftName !== null;
-      const tags = [
-        ...(gift ? [line.giftName!] : []),
-        ...(line.dealTag ? [line.dealTag] : []),
-        ...lineTags(line),
-      ]
-        .map(
-          (tag) =>
-            `<span style="display:inline-block;margin:6px 6px 0 0;padding:1px 8px;border:1px solid #d4d4d4;font-size:12px;color:#444444;">${escapeHtml(tag)}</span>`,
-        )
-        .join('');
-      // A gift sits indented under the item it came with, priced "Free".
-      const indent = gift ? 'margin-left:24px;width:auto;' : '';
-      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;${indent}border:1px solid ${LINE};border-radius:2px;${FONT}font-size:14px;color:${INK};">
-<tr>
-${photoCell}<td valign="top" style="padding:12px;">
-<div style="font-weight:600;">${escapeHtml(lineTitle(line))}</div>${tags ? `\n<div>${tags}</div>` : ''}
-</td>
-</tr>
-<tr><td${src ? ' colspan="2"' : ''} style="padding:8px 12px;border-top:1px solid ${LINE};background:#fafafa;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${FONT}font-size:14px;color:${INK};"><tr>
-<td style="color:${MUTED};">Qty ${line.quantity}</td>
-<td align="right" style="font-weight:700;white-space:nowrap;">${escapeHtml(gift ? 'Free' : formatEgp(line.lineEgp))}</td>
-</tr></table>
-</td></tr>
-</table>`;
-    })
-    .join('\n');
-  return `<p style="margin:24px 0 10px;font-size:13px;font-weight:700;letter-spacing:1px;color:${MUTED};">ITEMS (${count})</p>
-${cards}`;
-}
-
-function totalsTable(order: OrderEmailOrder, totalLabel: string): string {
-  const rows = totalsRows(order, totalLabel)
-    .map(([label, value], index, all) => {
-      const isTotal = index === all.length - 1;
-      const weight = isTotal ? 'font-weight:700;' : '';
-      // A line above the total only; the item cards already close off the list.
-      const border = isTotal ? `border-top:1px solid ${LINE};` : '';
-      const pad = isTotal ? 'padding:10px 0 6px;' : 'padding:6px 0;';
-      return `<tr>
-<td style="${pad}${border}${weight}">${escapeHtml(label)}</td>
-<td align="right" style="${pad}${border}${weight}">${escapeHtml(value)}</td>
-</tr>`;
-    })
-    .join('\n');
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 0;${FONT}font-size:14px;color:${INK};">
-${rows}
-</table>`;
-}
-
-/** A bold label with one value per line (customer details, delivery address). */
-function labelledLines(label: string, lines: readonly string[]): string {
-  const body = lines.map(escapeHtml).join('<br>');
-  return `<p style="margin:20px 0 0;font-size:14px;word-break:break-word;"><strong>${escapeHtml(label)}</strong><br>${body}</p>`;
-}
-
-function addressBlock(order: OrderEmailOrder): string {
-  return labelledLines('Delivery Address', addressLines(order));
-}
-
-/** `filled`: black, for the shopper's main action. `tonal`: light grey, readable in light and dark mail apps. */
-function buttonHtml(button: EmailButton, variant: 'filled' | 'tonal' = 'filled'): string {
-  const colors =
-    variant === 'tonal' ? `background:${TONAL};color:${INK};` : `background:${INK};color:#ffffff;`;
-  return `<p style="margin:24px 0 0;"><a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 20px;${colors}text-decoration:none;font-weight:600;border-radius:2px;">${escapeHtml(button.label)}</a></p>`;
 }
