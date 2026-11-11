@@ -470,44 +470,66 @@ export class ProductComponent {
   });
 
   /**
-   * The Bundle price offer on this product (live for this shopper, like the bag), or null. Known
-   * on the server too (offers come with the page), so the picker's space is kept from the first paint.
+   * The Bundle price offer the bag would put this item in (same rules as the bag: product, chosen
+   * size or colour, sale items), or null. Known on the server too (offers come with the page), so
+   * the picker's space is kept from the first paint.
    */
   readonly bundleOffer = computed(
     () => {
       const p = this.product();
       if (!p || !this.inStock()) return null;
-      return bundleOfferForProduct(toPricedProduct(p), this.#offers(), this.#pricingCtx());
+      return bundleOfferForProduct(
+        {
+          product: toPricedProduct(p),
+          variant: this.variantFacts(),
+          onSale: p.compareAtPrice !== null && p.compareAtPrice > p.price,
+        },
+        this.#offers(),
+        this.#pricingCtx(),
+      );
     },
     {
       equal: (a, b) =>
         a === b ||
-        (!!a && !!b && a.offer.id === b.offer.id && JSON.stringify(a.rows) === JSON.stringify(b.rows)),
+        (!!a &&
+          !!b &&
+          JSON.stringify(a.offer) === JSON.stringify(b.offer) &&
+          JSON.stringify(a.rows) === JSON.stringify(b.rows)),
+    },
+  );
+
+  /** What the picker's product read depends on; plain values, so a live price or stock change reads nothing again. */
+  readonly #bundleReadKey = computed(
+    () => {
+      const bundle = this.bundleOffer();
+      const id = this.product()?.id;
+      if (!this.#hydrated() || !bundle || !id) return undefined;
+      return { offerId: bundle.offer.id, shop: canShopOffer(bundle.offer), currentId: id };
+    },
+    {
+      equal: (a, b) =>
+        a === b ||
+        (!!a && !!b && a.offerId === b.offerId && a.shop === b.shop && a.currentId === b.currentId),
     },
   );
 
   /**
-   * The products a piece can be, read in the browser once the page is up: this product, then the
-   * offer's other published, in-stock products (every colour on its own), as Shop lists them. An
-   * offer Shop can't list (signed-in only, with a code) offers this product only.
+   * The offer's other products a piece can be, read in the browser once the page is up: published
+   * and in stock, every colour on its own, as Shop lists them. An offer Shop can't list (signed-in
+   * only, with a code) offers this product only.
    */
-  readonly #bundleChoices = resource({
-    params: () => {
-      const bundle = this.bundleOffer();
-      const p = this.product();
-      if (!this.#hydrated() || !bundle || !p) return undefined;
-      return { offerId: bundle.offer.id, shop: canShopOffer(bundle.offer), currentId: p.id };
-    },
+  readonly #bundleOthers = resource({
+    params: () => this.#bundleReadKey(),
     loader: async ({ params }): Promise<BundleChoice[]> => {
-      let ids = [params.currentId];
-      if (params.shop && OFFER_ID.test(params.offerId)) {
-        const result = await this.#search.browseCatalog({
-          filters: `offerIds:"${params.offerId}" AND inStock:true`,
-          hitsPerPage: MAX_BUNDLE_CHOICES,
-          distinct: false,
-        });
-        ids = [...new Set([params.currentId, ...result.hits.map((hit) => hit.objectID)])];
-      }
+      if (!params.shop || !OFFER_ID.test(params.offerId)) return [];
+      const result = await this.#search.browseCatalog({
+        filters: `offerIds:"${params.offerId}" AND inStock:true`,
+        hitsPerPage: MAX_BUNDLE_CHOICES,
+        distinct: false,
+      });
+      const ids = [...new Set(result.hits.map((hit) => hit.objectID))].filter(
+        (id) => id !== params.currentId,
+      );
       const products = await Promise.all(ids.map((id) => this.#products.getById(id)));
       return products.flatMap((product) => {
         const view = product ? toGiftChoice(product) : null;
@@ -516,41 +538,51 @@ export class ProductComponent {
     },
   });
 
+  /** Every product a piece can be: this product (live price and stock), then the offer's others. Null while loading. */
+  readonly #bundleChoices = computed<readonly BundleChoice[] | null>(() => {
+    const p = this.product();
+    if (!p || !this.#bundleOthers.hasValue()) return null;
+    const view = toGiftChoice({ ...p, published: !this.removed() });
+    return [...(view ? [{ view, product: p }] : []), ...this.#bundleOthers.value()];
+  });
+
   /** Space for the picker while its products load (server render included). */
   readonly bundleLoading = computed(
-    () => !!this.bundleOffer() && !this.#bundleChoices.hasValue() && !this.#bundleChoices.error(),
+    () => !!this.bundleOffer() && !this.#bundleOthers.hasValue() && !this.#bundleOthers.error(),
   );
 
   /** The picker is in use: a Bundle price offer whose products could be read (a failed read falls back to one item). */
-  readonly #bundleActive = computed(() => !!this.bundleOffer() && !this.#bundleChoices.error());
+  readonly #bundleActive = computed(() => !!this.bundleOffer() && !this.#bundleOthers.error());
 
-  /** How many pieces the shopper picked. Starts on the 1-piece row for every product. */
-  readonly #bundlePieces = linkedSignal<string | undefined, number | null>({
-    source: () => this.bundleOffer()?.offer.id,
+  /** How many pieces the shopper picked. Starts on the 1-piece row for every product and offer. */
+  readonly #bundlePieces = linkedSignal<string, number | null>({
+    source: () => `${this.product()?.id ?? ''}|${this.bundleOffer()?.offer.id ?? ''}`,
     computation: () => null,
   });
 
   /** This product's own price for one piece (after its item offers), the price rows save against. */
   readonly #fullPrice = computed(() => this.price()?.price ?? this.product()?.price ?? 0);
 
+  /** One piece of a product at its own price after item offers (this product: the price shown above). */
+  #piecePrice(productId: string): number {
+    if (productId === this.product()?.id) return this.#fullPrice();
+    const choice = this.#bundleChoices()?.find((entry) => entry.view.productId === productId);
+    if (!choice) return this.#fullPrice();
+    return displayPrice(toPricedProduct(choice.product), this.#offers(), this.#pricingCtx(), {
+      bundleFrom: false,
+    }).fromPrice;
+  }
+
   /**
-   * The rows the picker lists: the offer's rows, plus "Get 1" at the piece's own price when the
+   * The rows the picker lists: the offer's rows, plus "Get 1" at piece 1's own price when the
    * offer has no 1-piece row, so one piece can still be bought (the bag charges its normal price).
    */
   readonly #pickerRows = computed<readonly OfferBundleRow[]>(() => {
     const bundle = this.bundleOffer();
     if (!bundle) return [];
     if (bundle.rows.some((row) => row.quantity === 1)) return bundle.rows;
-    return [{ quantity: 1, price: this.#pieceOnePrice() }, ...bundle.rows];
-  });
-
-  /** Piece 1's own price: this product's, or the base price of the product picked instead. */
-  readonly #pieceOnePrice = computed(() => {
-    const p = this.product();
-    const pick = this.#bundlePicks()[0];
-    if (!p || !pick || pick.productId === p.id || !this.#bundleChoices.hasValue()) return this.#fullPrice();
-    const choice = this.#bundleChoices.value().find((entry) => entry.view.productId === pick.productId);
-    return choice?.product.price ?? this.#fullPrice();
+    const first = this.#bundlePicks()[0]?.productId;
+    return [{ quantity: 1, price: first ? this.#piecePrice(first) : this.#fullPrice() }, ...bundle.rows];
   });
 
   readonly bundlePieces = computed(() => {
@@ -586,15 +618,18 @@ export class ProductComponent {
   readonly bundleSteps = computed(() => {
     const p = this.product();
     const card = this.#currentBundleCard();
-    if (!p || !card || !this.bundleOffer() || !this.#bundleChoices.hasValue()) return [];
-    return bundleSteps(this.bundlePieces(), p.id, card, this.#bundleChoices.value(), this.#bundlePicks());
+    const choices = this.#bundleChoices();
+    if (!p || !card || !this.bundleOffer() || !choices) return [];
+    return bundleSteps(this.bundlePieces(), p.id, card, choices, this.#bundlePicks());
   });
 
   /** The quantity rows in the visitor's currency, priced against this product's own price. */
   readonly bundleRows = computed<readonly BundleRowView[]>(() => {
+    const offerRows = this.bundleOffer()?.rows ?? [];
     const full = this.#fullPrice();
     return this.#pickerRows().map((row) => {
-      const savePercent = bundleSavePercent(row, full);
+      // The added "Get 1" row is the normal price: nothing to save.
+      const savePercent = offerRows.includes(row) ? bundleSavePercent(row, full) : 0;
       return {
         row,
         title: `Get ${row.quantity} for ${this.#money(row.price)}`,
@@ -605,14 +640,22 @@ export class ProductComponent {
     });
   });
 
-  /** "Add to Bag", or with the bundle total: "Add to Bag · EGP 125", "Add 2 to Bag · EGP 200". */
+  /**
+   * "Add to Bag", or with the total: "Add to Bag · EGP 125", "Add 2 to Bag · EGP 200". Never more
+   * than the pieces' own prices, because the bag uses the bundle only when it costs the shopper less.
+   */
   readonly addLabel = computed(() => {
-    const bundle = this.bundleOffer();
-    if (!bundle || !this.#bundleActive() || this.bundleLoading()) return 'Add to Bag';
+    if (!this.bundleOffer() || !this.#bundleActive() || this.bundleLoading()) return 'Add to Bag';
     const pieces = this.bundlePieces();
     const row = this.#pickerRows().find((entry) => entry.quantity === pieces);
     if (!row) return 'Add to Bag';
-    const total = this.#money(row.price);
+    const picks = this.#bundlePicks();
+    let own = 0;
+    for (let piece = 0; piece < pieces; piece++) {
+      const pick = picks[piece];
+      own += pick ? this.#piecePrice(pick.productId) : this.#fullPrice();
+    }
+    const total = this.#money(Math.min(row.price, own));
     return pieces === 1 ? `Add to Bag · ${total}` : `Add ${pieces} to Bag · ${total}`;
   });
 
@@ -648,10 +691,10 @@ export class ProductComponent {
       return line ? [line] : null;
     }
     const p = this.product();
-    if (!p || this.bundleLoading() || !this.#bundleChoices.hasValue()) return null;
+    const choices = this.#bundleChoices();
+    if (!p || !choices) return null;
     const steps = this.bundleSteps();
     if (steps.length === 0 || missingBundlePrompt(steps, 0)) return null;
-    const choices = this.#bundleChoices.value();
     const picks = this.#bundlePicks();
     const lines: CartLineDraft[] = [];
     for (let piece = 0; piece < this.bundlePieces(); piece++) {

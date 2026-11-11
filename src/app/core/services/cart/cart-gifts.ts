@@ -64,7 +64,12 @@ export interface GiftChoiceView {
  * offer in the bag), or null when it can't be given now: out of stock,
  * every size sold out, or a choice besides size with more than one value (checkout refuses those).
  */
-export function toGiftChoice(product: Product): GiftChoiceView | null {
+export function toGiftChoice(
+  product: Pick<
+    Product,
+    'id' | 'published' | 'stock' | 'stockBySize' | 'inStock' | 'options' | 'name' | 'colors' | 'images'
+  >,
+): GiftChoiceView | null {
   if (!product.published) return null;
   if (typeof product.stock === 'number' ? product.stock <= 0 : !product.inStock) return null;
   let sizes: GiftSizeView[] | null = null;

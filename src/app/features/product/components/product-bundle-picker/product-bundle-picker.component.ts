@@ -1,4 +1,3 @@
-import { NgOptimizedImage } from '@angular/common';
 import {
   afterNextRender,
   Component,
@@ -12,16 +11,10 @@ import {
   untracked,
 } from '@angular/core';
 import { MatRadioModule } from '@angular/material/radio';
-import type { GiftCardColour } from '@core/services/cart/gift-card-label';
 import type { OfferBundleRow } from '@core/services/offers/engine';
-import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
-import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll/horizontal-scroll.directive';
-import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
-import { SharedIconModule } from '@shared/ui/mat-icon';
-import { RowScrollNavComponent } from '@shared/ui/row-scroll-nav';
-import { normalizeImageKitPath } from '@shared/utils/image';
 import type { ChoicePrompt } from '../../models/product-page.model';
 import type { BundleStep } from '../../utils/product-bundle';
+import { ChoiceCardRowComponent } from '../choice-card-row/choice-card-row.component';
 
 /** One quantity row as the picker shows it, amounts already written in the visitor's currency. */
 export interface BundleRowView {
@@ -43,15 +36,7 @@ export interface BundleRowView {
  */
 @Component({
   selector: 'app-product-bundle-picker',
-  imports: [
-    NgOptimizedImage,
-    MatRadioModule,
-    AppImageFallbackDirective,
-    HorizontalScrollDirective,
-    RowScrollNavComponent,
-    ColorSwatchComponent,
-    SharedIconModule,
-  ],
+  imports: [MatRadioModule, ChoiceCardRowComponent],
   templateUrl: './product-bundle-picker.component.html',
   host: { class: 'block w-full' },
 })
@@ -72,9 +57,6 @@ export class ProductBundlePickerComponent {
   readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly #injector = inject(Injector);
 
-  readonly path = normalizeImageKitPath;
-  protected readonly Math = Math;
-
   readonly groupLabelId = computed(() => `pdp-bundle-heading-${this.offerId()}`);
 
   constructor() {
@@ -85,13 +67,6 @@ export class ProductBundlePickerComponent {
         afterNextRender({ write: () => this.#focusStep(prompt.key) }, { injector: this.#injector }),
       );
     });
-  }
-
-  /** "White", "Black and Grey", "Red, White and Blue". */
-  colourNames(colours: readonly GiftCardColour[]): string {
-    const names = colours.map((colour) => colour.label);
-    if (names.length <= 1) return names[0] ?? '';
-    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
   }
 
   #focusStep(key: string): void {

@@ -46,86 +46,14 @@
         >
           <legend class="sr-only">{{ step.title }}</legend>
           @if (step.kind === 'piece') {
-            <div class="elements-between w-full gap-3 pb-2">
-              <span class="font-label-lg" aria-hidden="true">{{ step.title }}</span>
-              @if (row.canPrev() || row.canNext()) {
-                <app-row-scroll-nav
-                  class="pdp-gift-nav"
-                  [showProgress]="false"
-                  [canPrev]="row.canPrev()"
-                  [canNext]="row.canNext()"
-                  (prev)="row.step(-1)"
-                  (next)="row.step(1)"
-                />
-              }
-            </div>
-            <div class="w-full min-w-0">
-              <div
-                class="scroll-row pdp-gift-row"
-                appHorizontalScroll
-                #row="horizontalScroll"
-                [enableWheel]="false"
-                [trackScroll]="true"
-              >
-                @for (choice of step.choices; track choice.productId) {
-                  @let picked = step.pickedId === choice.productId;
-                  <button
-                    type="button"
-                    data-choice
-                    class="pdp-gift-card"
-                    [disabled]="disabled()"
-                    [attr.aria-label]="choice.label"
-                    [attr.aria-pressed]="picked"
-                    (click)="productPicked.emit({ piece: step.piece, productId: choice.productId })"
-                  >
-                    <span class="pdp-gift-card__photo">
-                      @if (choice.imagePath) {
-                        <img
-                          [ngSrc]="path(choice.imagePath)"
-                          [appImageFallback]="choice.imagePath"
-                          alt=""
-                          fill
-                          sizes="(max-width: 1023px) 45vw, 12vw"
-                          class="object-cover"
-                        />
-                      }
-                      @if (picked) {
-                        <span class="pdp-gift-card__picked" aria-hidden="true">
-                          <mat-icon name="check" size="xs" weight="700" />
-                          Picked
-                        </span>
-                      }
-                    </span>
-                    <span class="pdp-gift-card__caption" aria-hidden="true">
-                      <span class="pdp-gift-card__name">{{ choice.cardName }}</span>
-                      @if (choice.cardColours.length > 0) {
-                        <span class="pdp-gift-card__colour">
-                          @for (colour of choice.cardColours; track colour.id) {
-                            <app-color-swatch class="size-2.5" [colorId]="colour.id" round />
-                          }
-                          <span class="truncate">{{ colourNames(choice.cardColours) }}</span>
-                        </span>
-                      }
-                    </span>
-                  </button>
-                }
-              </div>
-              @if (row.canPrev() || row.canNext()) {
-                <div
-                  class="pdp-gift-progress"
-                  role="progressbar"
-                  aria-label="Position in the list"
-                  [attr.aria-valuemin]="0"
-                  [attr.aria-valuemax]="100"
-                  [attr.aria-valuenow]="Math.round(row.progress() * 100)"
-                  [style.--row-scroll-progress]="row.progress()"
-                >
-                  <div class="row-scroll-nav__progress-fill" aria-hidden="true"></div>
-                </div>
-              } @else if (!lastStep) {
-                <div class="pdp-gift-progress" aria-hidden="true"></div>
-              }
-            </div>
+            <app-choice-card-row
+              [title]="step.title"
+              [choices]="step.choices"
+              [pickedId]="step.pickedId"
+              [disabled]="disabled()"
+              [divider]="!lastStep"
+              (picked)="productPicked.emit({ piece: step.piece, productId: $event })"
+            />
           } @else {
             <div class="elements-between w-full gap-3 pb-2" aria-hidden="true">
               <span class="font-label-lg">{{ step.title }}</span>

@@ -1,16 +1,13 @@
 import type { GiftChoiceView } from '@core/services/cart/cart-gifts';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import {
+  bundleOffersForItem,
   bundleRows,
-  liveOffers,
-  matchProduct,
   type Offer,
   type OfferBundleRow,
   type PricingContext,
-  type ProductFacts,
 } from '@core/services/offers/engine';
-import type { Product } from '@core/services/products';
-import type { ChoicePrompt } from '../models/product-page.model';
+import type { ChoicePrompt, ProductView } from '../models/product-page.model';
 import { findVariant } from './product-stock.utils';
 
 /** The Bundle price offer on this product: its id and its rows ("1 for 125", "2 for 200"). */
@@ -22,7 +19,7 @@ export interface ProductBundleOffer {
 /** One product a piece can be: its card, plus the product itself for building the bag line. */
 export interface BundleChoice {
   readonly view: GiftChoiceView;
-  readonly product: Product;
+  readonly product: ProductView;
 }
 
 /** What the shopper picked for one piece. `sizeId` is null until a size is chosen (or there is none). */
@@ -59,29 +56,15 @@ export const bundleStepKey = (piece: number): string => `bundle:${piece}`;
 export const bundleSizeStepKey = (piece: number): string => `bundle-size:${piece}`;
 
 /**
- * The Bundle price offer the bag would use for this product: live for this shopper, per item,
- * no minimum (the only ones the bag prices), matching the product; highest priority, then the
- * newest edit, like the bag. Null when there is none or it has no usable row.
+ * The Bundle price offer the bag would put this item in (`bundleOffersForItem`: the bag's own
+ * rules and order), with its usable rows. Null when there is none or it has no usable row.
  */
 export function bundleOfferForProduct(
-  facts: ProductFacts,
+  item: Parameters<typeof bundleOffersForItem>[2],
   offers: readonly Offer[],
   ctx: PricingContext,
 ): ProductBundleOffer | null {
-  const candidates = liveOffers(offers, ctx)
-    .filter((offer) => {
-      if (offer.reward.kind !== 'bundlePrice' || offer.scope !== 'item') return false;
-      const minimum = offer.minimum;
-      if (minimum && ((minimum.subtotal ?? 0) > 0 || (minimum.quantity ?? 0) > 0)) return false;
-      return matchProduct(offer.conditions, offer.exclude, facts) !== 'none';
-    })
-    .sort(
-      (a, b) =>
-        b.priority - a.priority ||
-        (b.updatedAtMs ?? 0) - (a.updatedAtMs ?? 0) ||
-        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
-    );
-  for (const offer of candidates) {
+  for (const offer of bundleOffersForItem(offers, ctx, item)) {
     const rows = bundleRows(offer.reward);
     if (rows.length > 0) return { offer, rows };
   }
