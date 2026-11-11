@@ -466,15 +466,7 @@ export function freeItemProductIds(conditions: OfferConditions | null): string[]
 export function canBeFreeItem(offer: Offer, product: ProductFacts, onSale: boolean): boolean {
   if (offer.reward.kind !== 'buyXGetY') return false;
   const conditions = offer.reward.getConditions ?? offer.conditions;
-  return qualifies(offer, conditions, {
-    product,
-    variant: null,
-    quantity: 1,
-    basePrice: product.price,
-    offerPrice: product.price,
-    onSale,
-    giftWorth: 0,
-  });
+  return qualifies(offer, conditions, { product, variant: null, onSale });
 }
 
 /**
@@ -503,7 +495,32 @@ function appliesToBag(offer: Offer): boolean {
   return !minimum || ((minimum.subtotal ?? 0) <= 0 && (minimum.quantity ?? 0) <= 0);
 }
 
-function qualifies(offer: Offer, conditions: OfferConditions, line: BagLineFacts): boolean {
+/**
+ * The Bundle price offers the bag would put one item in, in the bag's order (highest priority,
+ * then the newest edit): live for this shopper, per item with no minimum, and the item qualifies
+ * (product, size or colour when `variant` is known, and sale items when the offer leaves them out).
+ * The product page's picker shows the first one with rows.
+ */
+export function bundleOffersForItem(
+  offers: readonly Offer[],
+  ctx: PricingContext,
+  item: Pick<BagLineFacts, 'product' | 'variant' | 'onSale'>,
+): Offer[] {
+  return liveOffers(offers, ctx)
+    .filter(
+      (offer) =>
+        offer.reward.kind === 'bundlePrice' &&
+        appliesToBag(offer) &&
+        qualifies(offer, offer.conditions, item),
+    )
+    .sort(compareOffers);
+}
+
+function qualifies(
+  offer: Offer,
+  conditions: OfferConditions,
+  line: Pick<BagLineFacts, 'product' | 'variant' | 'onSale'>,
+): boolean {
   if (line.onSale && offer.saleItems === 'exclude') return false;
   if (matchProduct(conditions, offer.exclude, line.product) === 'none') return false;
   return line.variant === null || matchVariant(conditions, offer.exclude, line.product, line.variant);

@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import {
   bestBundle,
   bundleCover,
+  bundleOffersForItem,
   bundleOneRowPrice,
   dealTag,
   displayPrice,
@@ -331,5 +332,34 @@ describe('Bundle price on cards and in the offer form', () => {
       { quantity: 1, price: 125 },
       { quantity: 3, price: 275 },
     ]);
+  });
+});
+
+describe('bundleOffersForItem (product page picker)', () => {
+  const item = (facts, extra = {}) => ({ product: facts, variant: null, onSale: false, ...extra });
+
+  it('lists the bundles the item is in, highest priority first', () => {
+    const low = bundle('low', [{ quantity: 2, price: 200 }], { priority: 1 });
+    const high = bundle('high', [{ quantity: 2, price: 190 }], { priority: 5 });
+    const ids = bundleOffersForItem([low, high], CTX, item(SOCKS_A)).map((o) => o.id);
+    assert.deepEqual(ids, ['high', 'low']);
+  });
+
+  it('leaves out other products, other offer kinds and offers with a minimum', () => {
+    const percent = offer('pct', { kind: 'percentOff', percent: 10 });
+    const withMinimum = bundle('min', [{ quantity: 2, price: 200 }], {
+      minimum: { subtotal: 500, quantity: null },
+    });
+    assert.deepEqual(bundleOffersForItem([WITH_ONE], CTX, item(TEE)), []);
+    assert.deepEqual(
+      bundleOffersForItem([percent, withMinimum], CTX, item(SOCKS_A)).map((o) => o.id),
+      [],
+    );
+  });
+
+  it('leaves out a sale item when the offer leaves sale items out, like the bag', () => {
+    const exclude = bundle('ex', [{ quantity: 2, price: 200 }], { saleItems: 'exclude' });
+    assert.deepEqual(bundleOffersForItem([exclude], CTX, item(SOCKS_A, { onSale: true })), []);
+    assert.equal(bundleOffersForItem([exclude], CTX, item(SOCKS_A)).length, 1);
   });
 });

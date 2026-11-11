@@ -48,6 +48,11 @@ export interface CatalogBrowseOptions {
    */
   readonly disjunctiveFacets?: readonly string[];
   readonly maxValuesPerFacet?: number;
+  /**
+   * One record per model (default true). False lists every colour as its own hit (the Bundle
+   * price picker, where each colour is a style the shopper can pick).
+   */
+  readonly distinct?: boolean;
 }
 
 export interface CatalogBrowseResult {

@@ -14,12 +14,15 @@ import { MatButtonModule } from '@angular/material/button';
 import { Router, RouterLink } from '@angular/router';
 import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
+import { giftProductLabel } from '@core/services/cart/cart-gifts';
 import { bagLineVariant } from '@core/services/cart/cart-deals';
+import { giftCardColours, giftCardName } from '@core/services/cart/gift-card-label';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { canShopOffer, offerTitleVisible } from '@core/services/offers/offer-shop';
 import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
 import {
+  displayDecimals,
   displayPrice,
   giftChoiceIds,
   giftOfferForProduct,
@@ -27,7 +30,9 @@ import {
   matchProduct,
   type Offer,
   type OfferBadge,
+  type OfferBundleRow,
   priceItem,
+  toDisplayAmount,
 } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { fromTransferOffer } from '@core/services/offers/offer-transfer';
@@ -42,6 +47,7 @@ import {
   productDetailsTitle,
   ProductService,
 } from '@core/services/products';
+import { SearchService } from '@core/services/search';
 import { SeoService } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
@@ -50,6 +56,10 @@ import { SkeletonComponent } from '@shared/ui/skeleton';
 import { formatMoney } from '@shared/utils/money';
 import { AddToBagButtonComponent } from './components/add-to-bag-button/add-to-bag-button.component';
 import { ProductGalleryComponent } from './components/product-gallery/product-gallery.component';
+import {
+  type BundleRowView,
+  ProductBundlePickerComponent,
+} from './components/product-bundle-picker/product-bundle-picker.component';
 import { ProductGiftBoxComponent } from './components/product-gift-box/product-gift-box.component';
 import { ProductOptionsComponent } from './components/product-options/product-options.component';
 import { ProductSiblingsComponent } from './components/product-siblings/product-siblings.component';
@@ -71,6 +81,19 @@ import {
   missingGiftPrompt,
   toGiftChoice,
 } from './utils/product-gifts';
+import {
+  type BundleChoice,
+  type BundlePicks,
+  bundleOfferForProduct,
+  bundlePieceLine,
+  bundleQualifyingChoices,
+  bundleSavePercent,
+  bundleSizeStepKey,
+  bundleStepKey,
+  bundleSteps,
+  firstBundleRow,
+  missingBundlePrompt,
+} from './utils/product-bundle';
 import { SizeGuideComponent } from './components/size-guide/size-guide.component';
 import { watchProductDoc } from './utils/product-live';
 import { sizeGuidesFor } from './utils/size-guide';
@@ -80,6 +103,11 @@ import {
   isProductInStock,
   isValueAvailable,
 } from './utils/product-stock.utils';
+
+/** Most products a Bundle price picker lists for each piece. */
+const MAX_BUNDLE_CHOICES = 20;
+/** Offer ids are Firestore document ids; anything else never goes into a search filter. */
+const OFFER_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 /** One offer line under the price; `shopOfferId` makes it a link to that offer's Shop page. */
 interface ProductOfferLine {
@@ -98,6 +126,7 @@ interface ProductOfferLine {
     ProductOptionsComponent,
     ProductSiblingsComponent,
     ProductGiftBoxComponent,
+    ProductBundlePickerComponent,
     SkeletonComponent,
     AddToBagButtonComponent,
     SizeGuideComponent,
@@ -122,6 +151,7 @@ export class ProductComponent {
   readonly #shippingSettings = inject(ShippingSettingsService);
   readonly #currency = inject(CurrencyService);
   readonly #products = inject(ProductService);
+  readonly #search = inject(SearchService);
 
   /**
    * Shipping section lines. Null = visitor pays in another currency (worked out at checkout).
@@ -440,6 +470,211 @@ export class ProductComponent {
     return box ? effectiveGiftPicks(box, this.#giftPicks()) : {};
   });
 
+  /**
+   * The Bundle price offer the bag would put this item in (same rules as the bag: product, chosen
+   * size or colour, sale items), or null. Known on the server too (offers come with the page), so
+   * the picker's space is kept from the first paint.
+   */
+  readonly bundleOffer = computed(
+    () => {
+      const p = this.product();
+      if (!p || !this.inStock()) return null;
+      return bundleOfferForProduct(
+        {
+          product: toPricedProduct(p),
+          variant: this.variantFacts(),
+          onSale: p.compareAtPrice !== null && p.compareAtPrice > p.price,
+        },
+        this.#offers(),
+        this.#pricingCtx(),
+      );
+    },
+    {
+      equal: (a, b) =>
+        a === b ||
+        (!!a &&
+          !!b &&
+          JSON.stringify(a.offer) === JSON.stringify(b.offer) &&
+          JSON.stringify(a.rows) === JSON.stringify(b.rows)),
+    },
+  );
+
+  /** What the picker's product read depends on; plain values, so a live price or stock change reads nothing again. */
+  readonly #bundleReadKey = computed(
+    () => {
+      const bundle = this.bundleOffer();
+      const id = this.product()?.id;
+      if (!this.#hydrated() || !bundle || !id) return undefined;
+      return { offerId: bundle.offer.id, shop: canShopOffer(bundle.offer), currentId: id };
+    },
+    {
+      equal: (a, b) =>
+        a === b ||
+        (!!a && !!b && a.offerId === b.offerId && a.shop === b.shop && a.currentId === b.currentId),
+    },
+  );
+
+  /**
+   * The offer's other products a piece can be, read in the browser once the page is up: published
+   * and in stock, every colour on its own, as Shop lists them. An offer Shop can't list (signed-in
+   * only, with a code) offers this product only.
+   */
+  readonly #bundleOthers = resource({
+    params: () => this.#bundleReadKey(),
+    loader: async ({ params }): Promise<BundleChoice[]> => {
+      if (!params.shop || !OFFER_ID.test(params.offerId)) return [];
+      const result = await this.#search.browseCatalog({
+        filters: `offerIds:"${params.offerId}" AND inStock:true`,
+        hitsPerPage: MAX_BUNDLE_CHOICES,
+        distinct: false,
+      });
+      const ids = [...new Set(result.hits.map((hit) => hit.objectID))].filter(
+        (id) => id !== params.currentId,
+      );
+      const products = await Promise.all(ids.map((id) => this.#products.getById(id)));
+      return products.flatMap((product) => {
+        const view = product ? toGiftChoice(product) : null;
+        return product && view ? [{ view, product }] : [];
+      });
+    },
+  });
+
+  /**
+   * Every product a piece can be: this product (live price and stock), then the offer's others,
+   * each with only the sizes the bag would count in the offer. Null while loading.
+   */
+  readonly #bundleChoices = computed<readonly BundleChoice[] | null>(() => {
+    const p = this.product();
+    const bundle = this.bundleOffer();
+    if (!p || !bundle || !this.#bundleOthers.hasValue()) return null;
+    const view = toGiftChoice({ ...p, published: !this.removed() });
+    const all = [...(view ? [{ view, product: p }] : []), ...this.#bundleOthers.value()];
+    return bundleQualifyingChoices(all, bundle.offer, this.#pricingCtx());
+  });
+
+  /** Space for the picker while its products load (server render included). */
+  readonly bundleLoading = computed(
+    () => !!this.bundleOffer() && !this.#bundleOthers.hasValue() && !this.#bundleOthers.error(),
+  );
+
+  /** The picker is in use: a Bundle price offer whose products could be read (a failed read falls back to one item). */
+  readonly #bundleActive = computed(() => !!this.bundleOffer() && !this.#bundleOthers.error());
+
+  /** How many pieces the shopper picked. Starts on the 1-piece row for every product and offer. */
+  readonly #bundlePieces = linkedSignal<string, number | null>({
+    source: () => `${this.product()?.id ?? ''}|${this.bundleOffer()?.offer.id ?? ''}`,
+    computation: () => null,
+  });
+
+  /** This product's own price for one piece (after its item offers), the price rows save against. */
+  readonly #fullPrice = computed(() => this.price()?.price ?? this.product()?.price ?? 0);
+
+  /** One piece of a product at its own price after item offers (this product: the price shown above). */
+  #piecePrice(productId: string): number {
+    if (productId === this.product()?.id) return this.#fullPrice();
+    const choice = this.#bundleChoices()?.find((entry) => entry.view.productId === productId);
+    if (!choice) return this.#fullPrice();
+    return displayPrice(toPricedProduct(choice.product), this.#offers(), this.#pricingCtx(), {
+      bundleFrom: false,
+    }).fromPrice;
+  }
+
+  /**
+   * The rows the picker lists: the offer's rows, plus "Get 1" at piece 1's own price when the
+   * offer has no 1-piece row, so one piece can still be bought (the bag charges its normal price).
+   * Once the products are read, rows for 2+ pieces are dropped when no product can fill pieces 2+
+   * (this product has a real choice besides size and the offer lists no other product).
+   */
+  readonly #pickerRows = computed<readonly OfferBundleRow[]>(() => {
+    const bundle = this.bundleOffer();
+    if (!bundle) return [];
+    const choices = this.#bundleChoices();
+    const rows =
+      choices && choices.length === 0 ? bundle.rows.filter((row) => row.quantity <= 1) : bundle.rows;
+    if (rows.some((row) => row.quantity === 1)) return rows;
+    const first = this.#bundlePicks()[0]?.productId;
+    return [{ quantity: 1, price: first ? this.#piecePrice(first) : this.#fullPrice() }, ...rows];
+  });
+
+  readonly bundlePieces = computed(() => {
+    const rows = this.#pickerRows();
+    const chosen = this.#bundlePieces();
+    if (chosen !== null && rows.some((row) => row.quantity === chosen)) return chosen;
+    return firstBundleRow(rows)?.quantity ?? 1;
+  });
+
+  /** What the shopper picked for each piece. Piece 1 starts on this product. Cleared for every new product. */
+  readonly #bundlePicks = linkedSignal<string | undefined, BundlePicks>({
+    source: () => this.product()?.id,
+    computation: (id): BundlePicks => (id ? { 0: { productId: id, sizeId: null } } : {}),
+  });
+
+  /** This product's card for piece 1 (its size is the choice above, so it never needs a size step). */
+  readonly #currentBundleCard = computed(() => {
+    const p = this.product();
+    if (!p) return null;
+    const colours = giftCardColours(p.colors);
+    return {
+      productId: p.id,
+      label: giftProductLabel(p),
+      name: p.name,
+      colors: p.colors,
+      cardName: giftCardName(p.name, colours),
+      cardColours: colours,
+      imagePath: p.images[0]?.path ?? '',
+      sizes: null,
+    };
+  });
+
+  readonly bundleSteps = computed(() => {
+    const p = this.product();
+    const card = this.#currentBundleCard();
+    const choices = this.#bundleChoices();
+    if (!p || !card || !this.bundleOffer() || !choices) return [];
+    return bundleSteps(this.bundlePieces(), p.id, card, choices, this.#bundlePicks());
+  });
+
+  /** The quantity rows in the visitor's currency, priced against this product's own price. */
+  readonly bundleRows = computed<readonly BundleRowView[]>(() => {
+    const offerRows = this.bundleOffer()?.rows ?? [];
+    const full = this.#fullPrice();
+    return this.#pickerRows().map((row) => {
+      // The added "Get 1" row is the normal price: nothing to save.
+      const savePercent = offerRows.includes(row) ? bundleSavePercent(row, full) : 0;
+      return {
+        row,
+        title: `Get ${row.quantity} for ${this.#money(row.price)}`,
+        perPiece: this.#money(Math.round(row.price / row.quantity)),
+        fullPrice: savePercent > 0 ? this.#money(full) : '',
+        savePercent,
+      };
+    });
+  });
+
+  /**
+   * "Add to Bag", or with the total: "Add to Bag · EGP 125", "Add 2 to Bag · EGP 200". Never more
+   * than the pieces' own prices, because the bag uses the bundle only when it costs the shopper less.
+   */
+  readonly addLabel = computed(() => {
+    if (!this.bundleOffer() || !this.#bundleActive() || this.bundleLoading()) return 'Add to Bag';
+    const pieces = this.bundlePieces();
+    const row = this.#pickerRows().find((entry) => entry.quantity === pieces);
+    if (!row) return 'Add to Bag';
+    const picks = this.#bundlePicks();
+    let own = 0;
+    for (let piece = 0; piece < pieces; piece++) {
+      const pick = picks[piece];
+      own += pick ? this.#piecePrice(pick.productId) : this.#fullPrice();
+    }
+    const total = this.#money(Math.min(row.price, own));
+    return pieces === 1 ? `Add to Bag · ${total}` : `Add ${pieces} to Bag · ${total}`;
+  });
+
+  #money(egp: number): string {
+    const entry = this.#currency.entry();
+    return formatMoney(toDisplayAmount(egp, entry), entry.code, displayDecimals(entry.code));
+  }
+
   readonly isFavorite = computed(() => {
     const p = this.product();
     if (!p || !this.#auth.isAuthReady() || !this.#auth.isAuthenticated()) return false;
@@ -456,6 +691,39 @@ export class ProductComponent {
   });
 
   readonly favoriteLabel = computed(() => (this.isFavorite() ? 'Remove from favorites' : 'Add to favorites'));
+
+  /**
+   * What Add to Bag adds: this product's line, or with a Bundle price picker one line per piece.
+   * Null while a choice, a gift or a piece is still open.
+   */
+  readonly bagLines = computed<readonly CartLineDraft[] | null>(() => {
+    if (!this.#bundleActive()) {
+      const line = this.cartLine();
+      return line ? [line] : null;
+    }
+    const p = this.product();
+    const choices = this.#bundleChoices();
+    if (!p || !choices) return null;
+    const steps = this.bundleSteps();
+    if (steps.length === 0 || missingBundlePrompt(steps, 0)) return null;
+    const picks = this.#bundlePicks();
+    const lines: CartLineDraft[] = [];
+    for (let piece = 0; piece < this.bundlePieces(); piece++) {
+      const pick = picks[piece];
+      if (!pick) return null;
+      if (piece === 0 && pick.productId === p.id) {
+        const line = this.cartLine();
+        if (!line) return null;
+        lines.push(line);
+        continue;
+      }
+      const choice = choices.find((entry) => entry.view.productId === pick.productId);
+      const line = choice ? bundlePieceLine(choice, pick) : null;
+      if (!line) return null;
+      lines.push(line);
+    }
+    return lines;
+  });
 
   readonly cartLine = computed<CartLineDraft | null>(() => {
     const p = this.product();
@@ -538,12 +806,47 @@ export class ProductComponent {
     if (this.choicePrompt()?.key === giftSizeStepKey(giftId)) this.choicePrompt.set(null);
   }
 
+  pickBundleRow(pieces: number): void {
+    this.#bundlePieces.set(pieces);
+    const key = this.choicePrompt()?.key ?? '';
+    if (key.startsWith('bundle')) this.choicePrompt.set(null);
+  }
+
+  pickBundleProduct(piece: number, productId: string): void {
+    this.#bundlePicks.update((current) => ({
+      ...current,
+      [piece]: {
+        productId,
+        sizeId: current[piece]?.productId === productId ? current[piece].sizeId : null,
+      },
+    }));
+    if (this.choicePrompt()?.key === bundleStepKey(piece)) this.choicePrompt.set(null);
+  }
+
+  pickBundleSize(piece: number, sizeId: string): void {
+    const pick = this.#bundlePicks()[piece];
+    if (!pick) return;
+    this.#bundlePicks.update((current) => ({ ...current, [piece]: { productId: pick.productId, sizeId } }));
+    if (this.choicePrompt()?.key === bundleSizeStepKey(piece)) this.choicePrompt.set(null);
+  }
+
+  /** Piece 1 is this product: its options and gifts are asked for above the picker. */
+  #pieceOneIsThisProduct(): boolean {
+    const p = this.product();
+    return !this.#bundleActive() || (!!p && this.#bundlePicks()[0]?.productId === p.id);
+  }
+
   /** Add to Bag pressed while a choice or a gift is missing, or the chosen size has just sold out. */
   onChoiceMissing(): void {
     const p = this.product();
     if (!p || !this.inStock()) return;
-    const sel = this.selection();
     const attempt = (this.choicePrompt()?.attempt ?? 0) + 1;
+    if (!this.#pieceOneIsThisProduct()) {
+      const bundlePrompt = missingBundlePrompt(this.bundleSteps(), attempt);
+      if (bundlePrompt) this.choicePrompt.set(bundlePrompt);
+      return;
+    }
+    const sel = this.selection();
     const missing = p.options.find((option) => !sel[option.key]);
     if (missing) {
       // The message sits right under its group, so other choices ("Choose your pair") need no name.
@@ -561,7 +864,12 @@ export class ProductComponent {
     }
     const box = this.giftBox();
     const giftPrompt = box ? missingGiftPrompt(box, this.giftPicks(), attempt) : null;
-    if (giftPrompt) this.choicePrompt.set(giftPrompt);
+    if (giftPrompt) {
+      this.choicePrompt.set(giftPrompt);
+      return;
+    }
+    const bundlePrompt = this.#bundleActive() ? missingBundlePrompt(this.bundleSteps(), attempt) : null;
+    if (bundlePrompt) this.choicePrompt.set(bundlePrompt);
   }
 
   onFavoriteClick(): void {
