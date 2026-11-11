@@ -47,7 +47,9 @@
             </div>
             <div class="elements-start-col pb-4">
               <span class="font-body-md" [class.font-bold!]="step.current">{{ step.label }}</span>
-              <span class="font-label-md text-on-surface-variant">{{ step.when ?? 'Not yet' }}</span>
+              <span class="font-label-md text-on-surface-variant">{{
+                step.when ?? (step.done ? 'Date not recorded' : 'Not yet')
+              }}</span>
             </div>
           </li>
         }

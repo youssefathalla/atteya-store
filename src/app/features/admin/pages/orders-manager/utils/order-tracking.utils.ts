@@ -4,7 +4,7 @@ import { formatOrderDate } from './order-admin.utils';
 export interface TrackingStep {
   readonly key: string;
   readonly label: string;
-  /** Date and time it happened; null while it hasn't. */
+  /** Date and time it happened; null while it hasn't (or when an older order has no stamp). */
   readonly when: string | null;
   readonly done: boolean;
   /** The step the order is on right now. */
@@ -31,14 +31,26 @@ export function trackingSteps(order: OrderDoc): readonly TrackingStep[] {
   if (order.status === 'cancelled' || order.status === 'failed') {
     const reached = steps.filter((step) => step.done);
     const endLabel = order.status === 'cancelled' ? 'Cancelled' : 'Payment Failed';
-    const endWhen =
+    const stamped =
       order.status === 'cancelled' && 'cancelledAt' in order ? formatOrderDate(order.cancelledAt) : '';
+    // Failed orders (and older cancelled ones) carry no own stamp: the status was the last change.
+    const endWhen = stamped || formatOrderDate(order.updatedAt);
     return [
       ...reached,
       { key: order.status, label: endLabel, when: endWhen || null, done: true, current: true },
     ];
   }
 
-  const lastDone = steps.map((step) => step.done).lastIndexOf(true);
-  return steps.map((step, index) => ({ ...step, current: index === lastDone }));
+  // The status says how far the order got, even when an older order never got the stamp.
+  const statusIndex = STEP_INDEX[order.status] ?? 0;
+  const withStatus = steps.map((step, index) => ({ ...step, done: step.done || index <= statusIndex }));
+  const lastDone = withStatus.map((step) => step.done).lastIndexOf(true);
+  return withStatus.map((step, index) => ({ ...step, current: index === lastDone }));
 }
+
+const STEP_INDEX: Partial<Record<OrderDoc['status'], number>> = {
+  pending: 0,
+  confirmed: 1,
+  shipped: 2,
+  delivered: 3,
+};
