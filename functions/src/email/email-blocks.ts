@@ -63,8 +63,12 @@ export function emailDocument(title: string, rows: readonly string[]): string {
 .stat{font-size:18px!important;}
 .statcell{display:block!important;width:auto!important;padding:14px 24px!important;border-left:0!important;}
 td.statcell + td.statcell{border-top:1px solid ${GREY_LINE}!important;}
-.sphoto{height:130px!important;}
-.sphoto img{max-height:130px!important;}
+.sphoto1{height:380px!important;}
+.sphoto1 img{max-height:380px!important;}
+.sphoto2{height:200px!important;}
+.sphoto2 img{max-height:200px!important;}
+.sphoto3{height:130px!important;}
+.sphoto3 img{max-height:130px!important;}
 }
 </style>
 </head>
@@ -282,7 +286,7 @@ export function bankBox(
     .map(
       (row) => `<tr>
 <td style="padding:10px 14px;border-bottom:1px solid ${GREY_LINE};${FONT}font-size:13px;color:${TEXT_MUTED};white-space:nowrap;">${escapeHtml(row.label)}</td>
-<td align="right" style="padding:10px 14px;border-bottom:1px solid ${GREY_LINE};${row.mono ? mono : FONT}font-size:13px;font-weight:700;color:${INK};word-break:normal;overflow-wrap:break-word;">${escapeHtml(row.value)}</td>
+<td align="right" style="padding:10px 14px;border-bottom:1px solid ${GREY_LINE};${row.mono ? mono : FONT}font-size:13px;font-weight:700;color:${INK};word-break:normal;word-wrap:break-word;overflow-wrap:anywhere;">${escapeHtml(row.value)}</td>
 </tr>`,
     )
     .join('\n');
@@ -348,12 +352,12 @@ function tagHtml(tags: readonly string[]): string {
  * height whatever its shape. A table cell is used because many mail apps ignore `object-fit`.
  * `boxClass` lets the narrow-screen style shrink the box.
  */
-function photo(src: string | null, width: number, height: number, boxClass = ''): string {
+function photo(src: string | null, height: number, boxClass = ''): string {
   const img = src
     ? `<img src="${escapeHtml(src)}" alt="" style="display:block;margin:0 auto;width:auto;height:auto;max-width:100%;max-height:${height}px;border:0;">`
     : '&nbsp;';
   const cls = boxClass ? ` class="${boxClass}"` : '';
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;"><tr><td${cls} width="${width}" height="${height}" align="center" valign="middle" style="width:100%;height:${height}px;background:${GREY_PHOTO};text-align:center;font-size:0;line-height:0;">${img}</td></tr></table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;"><tr><td${cls} height="${height}" align="center" valign="middle" style="width:100%;height:${height}px;background:${GREY_PHOTO};text-align:center;font-size:0;line-height:0;">${img}</td></tr></table>`;
 }
 
 /**
@@ -385,7 +389,7 @@ export function itemGrid(cards: readonly ItemCard[], perRow: 2 | 3, compactAfter
         : '';
       const tags = card.tags.length ? `<div style="margin:0 0 2px;">${tagHtml(card.tags)}</div>` : '';
       return `<td width="${cellPercent}" valign="top" style="${pad}padding-bottom:24px;">
-${tags}${photo(card.imageSrc, cellWidth, photoHeight)}
+${tags}${photo(card.imageSrc, photoHeight)}
 <p style="margin:12px 0 0;${FONT}font-size:15px;font-weight:700;line-height:1.35;color:${INK};">${escapeHtml(card.name)}</p>
 ${details}${price}
 </td>`;
@@ -437,7 +441,7 @@ export function photoStrip(cards: readonly ItemCard[], captions: string): string
   const tds = shown
     .map(
       (card) =>
-        `<td width="${cellPercent}" valign="top" style="padding:0;">${photo(card.imageSrc, width, Math.round(width * 1.1), 'sphoto')}</td>`,
+        `<td width="${cellPercent}" valign="top" style="padding:0;">${photo(card.imageSrc, Math.round(width * 1.1), `sphoto${shown.length}`)}</td>`,
     )
     .join('\n');
   return `<tr><td style="padding:0;">
