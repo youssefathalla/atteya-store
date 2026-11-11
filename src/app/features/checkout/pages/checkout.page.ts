@@ -624,7 +624,8 @@ export class CheckoutPageComponent implements OnInit {
         state: 'ready',
         feeToBeAgreed: false,
         subtotal: formatMoney(serverSubtotalDisplay, entry.code, decimals),
-        shipping: formatMoney(serverShippingDisplay, entry.code, decimals),
+        shipping:
+          server.shippingEgp === 0 ? 'Free' : formatMoney(serverShippingDisplay, entry.code, decimals),
         total: formatMoney(serverSubtotalDisplay + serverShippingDisplay, entry.code, decimals),
         instapayTotal: formatMoney(server.totalEgp, 'EGP', 0),
         codShippingEgp: server.shippingEgp,
@@ -640,7 +641,7 @@ export class CheckoutPageComponent implements OnInit {
       state: 'ready',
       feeToBeAgreed: false,
       subtotal: formatMoney(subtotalDisplay, entry.code, decimals),
-      shipping: formatMoney(shippingDisplay, entry.code, decimals),
+      shipping: feeEgp === 0 ? 'Free' : formatMoney(shippingDisplay, entry.code, decimals),
       total: formatMoney(subtotalDisplay + shippingDisplay, entry.code, decimals),
       instapayTotal: formatMoney(subtotalEgp + feeEgp, 'EGP', 0),
       codShippingEgp: feeEgp,
