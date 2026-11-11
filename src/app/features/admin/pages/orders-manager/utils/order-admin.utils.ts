@@ -20,6 +20,7 @@ import { formatMoney } from '@shared/utils/money';
 import { orderDate } from '@core/services/orders/shopper-orders.service';
 import type {
   OrderCard,
+  OrderDetails,
   OrderHistoryEntry,
   OrderLineAdminRow,
   OrderStatusMove,
@@ -281,12 +282,20 @@ export function toOrderLineAdminRows(
 }
 
 /** Group the per-line rows into one card per order, keeping the loaded (latest update first) order. */
-export function groupOrderCards(rows: readonly OrderLineAdminRow[]): readonly OrderCard[] {
+export function groupOrderCards(
+  rows: readonly OrderLineAdminRow[],
+  detailsById: ReadonlyMap<string, OrderDetails> = new Map(),
+): readonly OrderCard[] {
   const byOrder = new Map<string, OrderLineAdminRow[]>();
   for (const row of rows) {
     const lines = byOrder.get(row.orderId);
     if (lines) lines.push(row);
     else byOrder.set(row.orderId, [row]);
   }
-  return [...byOrder.values()].map((lines) => ({ orderId: lines[0]!.orderId, first: lines[0]!, lines }));
+  return [...byOrder.values()].map((lines) => ({
+    orderId: lines[0]!.orderId,
+    first: lines[0]!,
+    lines,
+    details: detailsById.get(lines[0]!.orderId) ?? null,
+  }));
 }

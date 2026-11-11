@@ -1,14 +1,11 @@
-<div class="elements-start-col gap-6 w-full">
-  <section class="surface-card p-5 w-full elements-start-col gap-4" aria-label="Orders toolbar">
-    <div>
+<div class="elements-start-col items-stretch! gap-4 w-full">
+  <section class="surface-card p-4 @5xl:p-5 w-full elements-start-col gap-4" aria-label="Orders toolbar">
+    <div class="elements-start-col gap-1">
       <h1 class="font-title-lg font-bold!">Orders</h1>
       <p class="font-body-md text-on-surface-variant">
-        Review InstaPay, Card, and Cash on Delivery orders, and move each one along with Change Status:
-        Confirmed, Shipped, Delivered, or one step back if something goes wrong. Confirm an InstaPay payment
-        only after the money shows in your bank app. For a large order, agree the delivery fee with the
-        customer on WhatsApp, then use Set Delivery Fee before you confirm it. Confirming takes the items out
-        of stock; cancelling or going back to Waiting for Payment puts them back. Current stock comes from
-        each product right now, not from the amounts stored when the order was placed.
+        Open an order to see the customer, the delivery address, the items and what to do next. Confirm an
+        InstaPay or bank payment only after the money shows in your bank app. Confirming takes the items out
+        of stock; cancelling or going back to Waiting for Payment puts them back.
       </p>
     </div>
 
@@ -22,7 +19,7 @@
           [class.bg-surface-container-highest]="statusFilter() === tab.id"
           [class.border-outline-variant]="statusFilter() !== tab.id"
           [attr.aria-selected]="statusFilter() === tab.id"
-          (click)="statusFilter.set(tab.id)"
+          (click)="setFilter(tab.id)"
         >
           {{ tab.label }}
         </button>
@@ -32,156 +29,131 @@
 
   <section class="w-full" aria-label="Orders list">
     @if (dataResource.isLoading() && !dataResource.hasValue()) {
-      <div class="elements-start-col gap-4" aria-hidden="true">
-        <app-skeleton class="h-48 w-full" />
-        <app-skeleton class="h-48 w-full" />
-        <app-skeleton class="h-48 w-full" />
+      <div class="elements-start-col items-stretch! gap-2" aria-hidden="true">
+        <app-skeleton class="h-20 w-full" />
+        <app-skeleton class="h-20 w-full" />
+        <app-skeleton class="h-20 w-full" />
       </div>
     } @else if (loadErrorMessage(); as message) {
       <p class="surface-card p-5 font-body-md break-words" role="alert">{{ message }}</p>
     } @else if (cards().length === 0) {
       <p class="surface-card p-5 font-body-md">No orders in this view yet.</p>
     } @else {
-      <ul class="elements-start-col gap-4 w-full">
-        @for (card of cards(); track card.orderId) {
-          @let row = card.first;
-          <li class="surface-card w-full p-5 elements-start-col gap-4">
-            <div class="elements-between gap-3 w-full flex-wrap">
-              <div class="elements-start-col gap-0.5">
-                <span class="font-title-md font-bold! break-all" [attr.title]="row.orderId">{{
+      <div class="surface-card w-full overflow-hidden">
+        <div class="admin-order-row__head" aria-hidden="true">
+          <span>Order</span>
+          <span>Customer</span>
+          <span>Items</span>
+          <span>Payment</span>
+          <span>Total</span>
+          <span>Status</span>
+          <span></span>
+        </div>
+
+        <ul class="w-full">
+          @for (card of cards(); track card.orderId) {
+            @let row = card.first;
+            @let d = card.details;
+            @let open = openOrderId() === card.orderId;
+            <li class="border-b border-outline-variant last:border-b-0">
+              <button
+                type="button"
+                class="admin-order-row"
+                [attr.aria-expanded]="open"
+                [attr.aria-controls]="'order-panel-' + card.orderId"
+                [attr.aria-label]="(open ? 'Close order ' : 'Open order ') + row.orderRef"
+                (click)="toggle(card.orderId)"
+              >
+                <span class="order-1 font-title-sm font-bold! @5xl:order-none" [attr.title]="row.orderId">{{
                   row.orderRef
                 }}</span>
-                <span class="font-body-md">{{ row.customerName }} · {{ row.country }} · {{ row.phone }}</span>
-                <span class="font-label-md text-on-surface-variant">
-                  {{ row.paymentLabel }} · Placed {{ row.placedAtLabel }}
+                <span
+                  class="order-3 col-span-2 elements-start-col gap-0.5 min-w-0 @5xl:order-none @5xl:col-span-1"
+                >
+                  <span class="font-body-md font-bold! truncate max-w-full">
+                    {{ row.customerName }}
+                    @if (d?.customer?.account === 'Guest') {
+                      <span class="ms-1 px-1.5 border border-outline-variant border-shape font-label-sm"
+                        >Guest</span
+                      >
+                    }
+                  </span>
+                  <span class="admin-order-muted truncate max-w-full"
+                    >{{ d?.city }} · {{ d?.placedShort }}</span
+                  >
                 </span>
-                <span class="font-label-md text-on-surface-variant">Updated {{ row.updatedAtLabel }}</span>
-              </div>
-              <app-status-badge [value]="row.status" [statusConfig]="orderStatusConfig" />
-            </div>
-
-            @if (row.cancelReason) {
-              <p class="font-body-sm">Cancel reason: {{ row.cancelReason }}</p>
-            }
-
-            <ul class="w-full" [attr.aria-label]="'Items in order ' + row.orderRef">
-              @for (line of card.lines; track line.id) {
-                <li class="elements-between gap-3 w-full flex-wrap border-t border-outline-variant py-3">
-                  <div class="elements-start-col gap-0.5 min-w-0">
-                    <a matButton="text" [routerLink]="['/admin/products', line.productId]">
-                      <span class="font-body-md">{{ line.productName }}</span>
-                    </a>
-                    <span class="px-3 font-label-md text-on-surface-variant">
-                      {{ line.selectionLabel }} · Qty {{ line.quantity }}
+                <span class="order-4 elements-start gap-1.5 min-w-0 overflow-hidden @5xl:order-none">
+                  @for (item of d?.thumbs ?? []; track item.key) {
+                    <span class="size-9 shrink-0 admin-order-photo">
+                      <img
+                        [ngSrc]="item.imageSrc"
+                        [appImageFallback]="item.imagePath ?? ''"
+                        alt=""
+                        width="36"
+                        height="36"
+                        class="size-full object-contain p-0.5"
+                      />
                     </span>
-                    @if (line.giftName) {
-                      <span class="px-3 font-label-md text-on-surface-variant"
-                        >{{ line.giftName }} · Free</span
-                      >
-                    }
-                    @if (line.dealLabel) {
-                      <span class="px-3 font-label-md text-on-surface-variant"
-                        >Offer · {{ line.dealLabel }}</span
-                      >
-                    }
-                  </div>
-                  <div class="elements-center gap-2">
-                    <span class="font-label-md text-on-surface-variant"
-                      >Stock {{ stockCountLabel(line) }}</span
-                    >
-                    <app-status-badge [value]="line.stockStatus" [statusConfig]="stockStatusConfig" />
-                  </div>
-                </li>
-              }
-            </ul>
+                  }
+                  <span class="admin-order-muted truncate"
+                    >{{ d?.pieces }}<span class="@5xl:hidden"> · {{ row.paymentLabel }}</span></span
+                  >
+                </span>
+                <span class="hidden @5xl:block font-body-md">{{ row.paymentLabel }}</span>
+                <span class="order-5 elements-end-col items-end! @5xl:items-start! @5xl:order-none">
+                  <span class="font-body-md font-bold! whitespace-nowrap">{{ row.orderTotalLabel }}</span>
+                  @if (d?.totalEgp; as egp) {
+                    <span class="admin-order-muted whitespace-nowrap">{{ egp }}</span>
+                  }
+                </span>
+                <span class="order-2 justify-self-end @5xl:justify-self-start @5xl:order-none">
+                  <app-status-badge [value]="row.status" [statusConfig]="orderStatusConfig" />
+                </span>
+                <span
+                  class="hidden @5xl:flex justify-self-end transition-transform"
+                  [class.rotate-90]="!open"
+                  [class.-rotate-90]="open"
+                  aria-hidden="true"
+                >
+                  <mat-icon name="chevron_right" size="xl" />
+                </span>
+              </button>
 
-            <div class="elements-between gap-3 w-full flex-wrap border-t border-outline-variant pt-4">
-              <span class="font-title-md font-bold!">{{ row.orderTotalLabel }}</span>
-              <div class="flex flex-wrap items-center gap-2">
-                <a matButton="text" [routerLink]="['/admin/orders', row.orderId]">
-                  <span>Track Order</span>
-                </a>
-                @if (row.whatsappUrl) {
-                  <a
-                    matButton="outlined"
-                    theme="success"
-                    [href]="row.whatsappUrl"
-                    target="_blank"
-                    rel="noopener"
-                    [attr.aria-label]="'Message ' + row.customerName + ' on WhatsApp'"
-                  >
-                    <mat-icon name="chat_bubble" />
-                    <span>WhatsApp</span>
-                  </a>
-                } @else if (showCopyPhone(row)) {
-                  <button
-                    matButton="outlined"
-                    type="button"
-                    [attr.aria-label]="'Copy phone number of ' + row.customerName"
-                    (click)="copyPhone(row)"
-                  >
-                    <span>Copy Number</span>
-                  </button>
-                }
-                @if (row.deliveryFeeAction === 'change') {
-                  <button
-                    matButton="text"
-                    type="button"
-                    [disabled]="busyOrderId() !== null"
-                    [attr.aria-label]="isBusy(row, 'fee') ? 'Saving delivery fee…' : null"
-                    (click)="setDeliveryFee(row)"
-                  >
-                    @if (isBusy(row, 'fee')) {
-                      <mat-progress-spinner mode="indeterminate" diameter="18" />
-                    } @else {
-                      <span>Change Delivery Fee</span>
-                    }
-                  </button>
-                }
-                @if (row.deliveryFeeAction === 'set') {
-                  <button
-                    matButton="filled"
-                    type="button"
-                    [disabled]="busyOrderId() !== null"
-                    [attr.aria-label]="isBusy(row, 'fee') ? 'Saving delivery fee…' : null"
-                    (click)="setDeliveryFee(row)"
-                  >
-                    @if (isBusy(row, 'fee')) {
-                      <mat-progress-spinner mode="indeterminate" diameter="18" />
-                    } @else {
-                      <span>Set Delivery Fee</span>
-                    }
-                  </button>
-                }
-                @if (row.statusMoves.length) {
-                  <button
-                    matButton="filled"
-                    type="button"
-                    [matMenuTriggerFor]="statusMenu"
-                    [disabled]="busyOrderId() !== null"
-                    [attr.aria-label]="
-                      isBusy(row, 'status') ? 'Saving status…' : 'Change status of order ' + row.orderRef
-                    "
-                  >
-                    @if (isBusy(row, 'status')) {
-                      <mat-progress-spinner mode="indeterminate" diameter="18" />
-                    } @else {
-                      <span>Change Status</span>
-                    }
-                  </button>
-                  <mat-menu #statusMenu="matMenu">
-                    @for (move of row.statusMoves; track move.status) {
-                      <button mat-menu-item type="button" (click)="changeStatus(row, move)">
-                        {{ move.label }}
-                      </button>
-                    }
-                  </mat-menu>
-                }
-              </div>
-            </div>
-          </li>
-        }
-      </ul>
+              @if (open && d) {
+                <div
+                  [id]="'order-panel-' + card.orderId"
+                  class="elements-start-col items-stretch! gap-4 px-3 pb-4 pt-1 @5xl:px-5 @5xl:pb-5 bg-surface-container-low"
+                >
+                  @if (d.nextStep; as step) {
+                    <p class="admin-order-next"><span class="font-bold!">Next step:</span> {{ step }}</p>
+                  }
+                  @if (row.cancelReason; as reason) {
+                    <p class="admin-order-box">Cancel reason: {{ reason }}</p>
+                  }
+
+                  <div class="grid gap-4 @xl:grid-cols-2 @5xl:grid-cols-3">
+                    <app-order-info-boxes [details]="d" />
+                  </div>
+
+                  <app-order-items [details]="d" />
+
+                  <div class="elements-between flex-wrap gap-3">
+                    <span class="admin-order-muted">
+                      Placed {{ row.placedAtLabel }} · Updated {{ row.updatedAtLabel }}
+                    </span>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <a matButton="text" [routerLink]="['/admin/orders', row.orderId]">
+                        <span>Open Full Order</span>
+                      </a>
+                      <app-order-actions [row]="row" (changed)="reload()" />
+                    </div>
+                  </div>
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      </div>
     }
   </section>
 </div>
