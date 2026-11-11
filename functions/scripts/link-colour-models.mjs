@@ -35,6 +35,8 @@ const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const UPDATED_BY = 'script:link-colour-models';
+/** Same limit as `modelGroup` in `ProductSchema` and the product form (`MAX_SLUG`). */
+const MAX_MODEL_GROUP = 80;
 
 const arg = (name) => {
   const index = process.argv.indexOf(`--${name}`);
@@ -107,6 +109,13 @@ for (const members of groups.values()) {
   const target = models[0] ?? modelFromName(name);
   if (!target) {
     checks.push(`CHECK  ${name}: no model name can be made from it`);
+    continue;
+  }
+  // The product schema and the product form allow at most 80 characters for `modelGroup`.
+  if (target.length > MAX_MODEL_GROUP) {
+    checks.push(
+      `CHECK  ${name}: the model name "${target}" is longer than ${MAX_MODEL_GROUP} characters; set one in the admin`,
+    );
     continue;
   }
   const memberIds = new Set(members.map((snap) => snap.id));
