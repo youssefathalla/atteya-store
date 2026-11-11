@@ -1,6 +1,6 @@
 # Review rules for Atteya Store
 
-Cursor Bugbot reads this file on every pull request. The Claude review workflow (`.github/workflows/claude-review.yml`) reads it too, and agents use it for their own review before opening a PR. `AGENTS.md` is the full contract; this is the short list of things that break production, money, data or security here. Flag a change that breaks one of these. Don't flag style, naming or "consider adding tests".
+The Claude review workflow (`.github/workflows/claude-review.yml`) reads this file on every pull request, and agents use it for their own review before opening a PR. `AGENTS.md` is the full contract; this is the short list of things that break production, money, data or security here. Flag a change that breaks one of these. Don't flag style, naming or "consider adding tests".
 
 ## Money and prices
 

@@ -1,25 +1,20 @@
 # Merges a pull request into develop once it is clean, so the loop
-#   push -> Bugbot review -> Claude fix (bugbot-claude-fix.yml) -> Bugbot again -> merge
+#   push -> Claude review -> Claude fix (bugbot-claude-fix.yml) -> Claude review again -> merge
 # runs without anyone pressing the button.
 #
 # "Clean" means, all on the PR's latest commit:
-#   - the "Cursor Bugbot" check finished with success (Bugbot found no issues;
-#     "neutral" means it found some, and bugbot-claude-fix.yml takes over),
+#   - the Claude review (claude-review.yml) finished with a result and has no high or medium
+#     finding (low ones are notes; bugbot-claude-fix.yml fixes high and medium ones),
 #   - the CI "checks" job and the "linear-id" PR title check passed, and the Browser Check
 #     ("Phone and Desktop Pages", browser-check.yml) passed when it runs on that commit,
-#   - no other check failed or is still running,
-#   - no unresolved review thread from a person or from the Cursor Security Agent
-#     (its check ends "success" even when it reports something) and no "changes requested",
+#   - no other check failed or is still running (checks from the Cursor app are ignored:
+#     Bugbot and the Cursor Security Agent are no longer part of the loop),
+#   - no unresolved review thread from a person and no "changes requested",
 #   - GitHub says the PR can merge (no conflicts).
-# When Bugbot could not run on the commit (Cursor usage limit: its check ends with the title
-# "Error"), a "clean" verdict from the Claude review of that commit (claude-review.yml) counts
-# instead of Bugbot's success, so this also runs when Claude Review finishes. When Bugbot did run,
-# the Claude review of the commit still has to finish, and a high or medium finding from it holds
-# the merge (bugbot-claude-fix.yml fixes those in the same rounds).
-# Whenever only a review step is left (Claude findings, an open security thread), it posts
-# "✋ Auto-merge" once per commit saying why. Resolving a review thread starts no workflow, so
+# Whenever only the Claude review is left (findings, or no result), it posts a note once per
+# commit saying why. Resolving a review thread starts no workflow, so
 # Actions → Auto-merge → Run workflow (PR number) checks one PR again by hand; ticking
-# "skip_claude_findings" there also skips the Claude-findings hold (the owner decided those
+# "skip_claude_findings" there also skips the Claude review hold (the owner decided those
 # findings are fine), but nothing else. A hand-started run only counts when the repo owner
 # starts it from the default branch: a dispatch runs the workflow copy on the chosen branch,
 # so a run from any other branch is skipped here.
@@ -32,16 +27,13 @@
 #
 # Each started job bills at least a minute, and a job skipped by its `if:` is free, so the job
 # only starts on events that can be the last gate a clean PR waits for:
-#   - a Cursor check finishing: Bugbot, except when it reports issues (no merge is possible then;
-#     Claude Fix takes over), and any other Cursor check, such as the Security Agent's, unless it
-#     failed (a check still running holds the merge, so its end must start a check);
 #   - CI, PR Title or Browser Check finishing with success (any other ending holds the merge);
-#   - Claude Review finishing in any way but skipped (when Bugbot ran, a review with no result
-#     does not hold the merge, so even a failed review can be the last gate);
+#   - Claude Review finishing in any way but skipped (a review with no result holds with a note,
+#     so even a failed review must start a check to post it);
 #   - a hand-started run (below).
 # Events from forks and from pushes (not pull requests) never start it.
 #
-# check_run and workflow_run only run the copy of this file on the repository's
+# workflow_run only runs the copy of this file on the repository's
 # default branch, so it is live only once this file is on the default branch.
 # Stays inactive until the repository variable AUTO_MERGE is exactly "enabled".
 #
@@ -61,11 +53,9 @@
 name: Auto-merge
 
 on:
-  check_run:
-    types: [completed]
   workflow_run:
     # "PR title" is the old name, still used by branches made before the rename.
-    # "Claude Review": its verdict is the gate when Bugbot could not run on a commit.
+    # "Claude Review": its verdict is the review gate.
     # "Browser Check": required when it runs on the commit, so its end starts a merge check too.
     workflows: [CI, PR Title, PR title, Claude Review, Browser Check]
     types: [completed]
@@ -87,23 +77,9 @@ jobs:
   merge:
     name: Merge When Clean
     # Starts only on events that can be the last gate a clean PR waits for (see the top of this
-    # file). Bugbot's check is left out only when the script below would stop without a word: it
-    # did not succeed, did not "fail to run" (title "Error", or "failed to run" in the summary:
-    # then the Claude review is the gate) and its text mentions issues (otherwise the script posts
-    # the "ended without reporting issues" note). Expression comparisons ignore case, so this lets
-    # through at least everything the script's own case-sensitive checks let through.
+    # file).
     if: >-
       vars.AUTO_MERGE == 'enabled' && (
-        (github.event_name == 'check_run' &&
-         github.event.check_run.app.slug == 'cursor' &&
-         github.event.check_run.status == 'completed' &&
-         ((github.event.check_run.name == 'Cursor Bugbot' && !(
-             github.event.check_run.conclusion != 'success' &&
-             github.event.check_run.output.title != 'Error' &&
-             !contains(github.event.check_run.output.summary, 'failed to run') &&
-             (contains(github.event.check_run.output.title, 'issue') || contains(github.event.check_run.output.summary, 'issue')))) ||
-          (github.event.check_run.name != 'Cursor Bugbot' &&
-           !contains(fromJSON('["failure","cancelled","timed_out","action_required","stale","startup_failure"]'), github.event.check_run.conclusion)))) ||
         (github.event_name == 'workflow_run' &&
          github.event.workflow_run.event == 'pull_request' &&
          github.event.workflow_run.head_repository.full_name == github.repository &&
@@ -120,7 +96,7 @@ jobs:
     # piled-up duplicates never start), and a running check is never cancelled (it may be halfway
     # through a merge).
     concurrency:
-      group: auto-merge-${{ github.event.check_run.head_sha || github.event.workflow_run.head_sha || format('pr-{0}', inputs.pr) }}
+      group: auto-merge-${{ github.event.workflow_run.head_sha || format('pr-{0}', inputs.pr) }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
     # 10, not 5: after a merge it may retry and check the other open PRs too.
@@ -140,7 +116,6 @@ jobs:
             const repo = context.repo.repo;
             const BASE = 'develop';
             const OPT_OUT_LABEL = 'no-auto-merge';
-            const BUGBOT = 'Cursor Bugbot';
             // Required checks by their current name, then the old name that branches made
             // before the rename still report.
             const REQUIRED = [
@@ -159,7 +134,7 @@ jobs:
             // "Claim a Fix Round" and "Fix Review Findings" (bugbot-claude-fix.yml) start on every
             // review; waiting for them made the merge skip with nothing to start it again (a round
             // that pushes nothing triggers no other workflow). A real fix round is still covered:
-            // Bugbot's check, the open security threads and the Claude verdict all hold the merge.
+            // the Claude verdict holds the merge.
             // "Fix Conflicting PRs" (conflict-watch.yml) runs on PR events through pull_request_target,
             // so GitHub lists it on the PR's commit, but it checks every open PR, not this one. Its
             // repo-wide queue cancels a waiting run when a newer one starts, and a cancelled or still
@@ -167,7 +142,7 @@ jobs:
             const IGNORED = new Set([OWN_JOB, 'Merge when clean', 'Claude Review (Trial)', 'Claude review (trial)', 'Claim a Fix Round', 'Fix Review Findings', 'Fix Conflicting PRs']);
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-            let sha = context.payload.check_run?.head_sha || context.payload.workflow_run?.head_sha || '';
+            let sha = context.payload.workflow_run?.head_sha || '';
             if (context.eventName === 'workflow_dispatch') {
               // Started by hand for one PR (for example after resolving a review thread).
               const number = Number(context.payload.inputs?.pr);
@@ -263,6 +238,9 @@ jobs:
               const byName = new Map();
               for (const run of runs) {
                 if (IGNORED.has(run.name)) continue;
+                // Cursor Bugbot and the Cursor Security Agent are no longer reviewers. While the
+                // Cursor app is still installed its checks may appear; they never hold a merge.
+                if (run.app?.slug === 'cursor') continue;
                 const seen = byName.get(run.name);
                 // PR Title skips its job when an edit leaves the title as it was (pr-title.yml), which
                 // adds a newer "skipped" title check on the same commit. The title it checked has not
@@ -273,9 +251,10 @@ jobs:
                 }
                 if (!seen || new Date(run.started_at) > new Date(seen.started_at)) byName.set(run.name, run);
               }
-              // The Claude review of this commit. Its check is in IGNORED, so the running-check wait
-              // below does not see it. When its check is not listed yet, look for a Claude Review run
-              // on this commit instead; no run at all means the review is off or skipped for this PR.
+              // The Claude review of this commit, the review gate. Its check is in IGNORED, so the
+              // running-check wait below does not see it. When its check is not listed yet, look for a
+              // Claude Review run on this commit instead; no run at all means the review is off or
+              // skipped for this PR, and then nothing reviewed the commit.
               let claudeRanHere = Boolean(claudeRun) && claudeRun.conclusion !== 'skipped';
               let claudePending = claudeRun ? claudeRun.status !== 'completed' : false;
               if (!claudeRun) {
@@ -286,46 +265,20 @@ jobs:
                 claudePending = (wf.workflow_runs || []).some((run) => run.status !== 'completed');
               }
 
-              const bugbot = byName.get(BUGBOT);
-              if (!bugbot || bugbot.status !== 'completed') {
-                // Bugbot normally checks a commit within minutes. If the Claude review (which takes
-                // longer) has finished and Bugbot has not even started, say so: nothing else will.
-                if (!bugbot && claudeRanHere && !claudePending && (await claudeReview(n, sha)).posted) {
-                  await commentOnce(n, `<!-- auto-merge-bugbot-missing ${sha} -->`,
-                    `**⏳ Auto-merge** · waiting for Bugbot\n\nBugbot has not reviewed \`${sha.slice(0, 7)}\` (it has no Bugbot check yet). Comment \`bugbot run\` to ask it again; this merges by itself once Bugbot and the other checks are clean.`);
-                }
-                stop('Bugbot has not finished on this commit.');
-                return false;
-              }
-              // Bugbot "couldn't run" (for example the Cursor usage limit): its check ends with the
-              // title "Error". Then the Claude review of this commit is the gate instead.
-              const bugbotOut = bugbot.conclusion !== 'success' &&
-                (bugbot.output?.title === 'Error' || /failed to run/i.test(String(bugbot.output?.summary || '')));
-              if (bugbot.conclusion !== 'success' && !bugbotOut) {
-                // Issues found: Claude Fix works on them and its report says when it needs you. Any
-                // other ending is unexpected, so say it once.
-                const said = `${bugbot.output?.title || ''} ${bugbot.output?.summary || ''}`;
-                if (!/issue/i.test(said)) {
-                  await commentOnce(n, `<!-- auto-merge-bugbot-odd ${sha} -->`,
-                    `**✋ Auto-merge** · waiting for you\n\nBugbot's check on \`${sha.slice(0, 7)}\` ended with "${String(bugbot.conclusion)}" without reporting issues. Comment \`bugbot run\` to try again, or merge by hand.`);
-                }
-                stop(`Bugbot ended with "${bugbot.conclusion}" (issues found or an error).`);
-                return false;
-              }
               if (claudePending) { stop('The Claude review of this commit is still running.'); return false; }
 
-              // Only high and medium Claude findings hold the merge (low ones are notes), whether
-              // or not Bugbot ran. When Bugbot could not run, a Claude review with no result holds
-              // too, because then nothing reviewed the commit. Only a run started by hand with
+              // Only high and medium Claude findings hold the merge (low ones are notes). A Claude
+              // review with no result (failed, usage limit, or not run at all) holds too, because
+              // then nothing reviewed the commit. Only a run started by hand with
               // "skip_claude_findings" ticked is the owner deciding to merge anyway; a plain
-              // hand-started run (e.g. after resolving a security thread) still holds. The hold
-              // itself is applied after every other gate, so its comment is only posted when it is
-              // really the last thing left.
+              // hand-started run (e.g. after resolving a thread) still holds. The hold itself is
+              // applied after every other gate, so its comment is only posted when it is really
+              // the last thing left.
               const review = await claudeReview(n, sha);
               const skipClaude = byHand && context.eventName === 'workflow_dispatch' &&
                 String(context.payload.inputs?.skip_claude_findings) === 'true';
               let claudeSerious = review.verdict === 'issues' ? review.serious : 0;
-              let claudeNoResult = bugbotOut && review.verdict === 'none';
+              let claudeNoResult = review.verdict === 'none';
               let skippedClaude = false;
               if ((claudeSerious > 0 || claudeNoResult) && skipClaude) {
                 core.info(`#${n}: the Claude review holds this commit; merging anyway because the run was started by hand with skip_claude_findings.`);
@@ -333,8 +286,6 @@ jobs:
                 claudeNoResult = false;
                 skippedClaude = true;
               }
-              const usedClaude = bugbotOut;
-              const claudeMissing = !bugbotOut && claudeRanHere && review.verdict === 'none';
               const browserRun = byName.get(BROWSER_CHECK);
               let browserCheckHere = Boolean(browserRun) && browserRun.conclusion !== 'skipped';
               if (!browserRun) {
@@ -360,11 +311,8 @@ jobs:
               const failed = [...byName.values()].filter((run) => bad.includes(run.conclusion)).map((run) => run.name);
               if (failed.length) { stop(`Failed checks: ${failed.join(', ')}.`); return false; }
 
-              // Open review threads and "changes requested".
-              // Bugbot threads are covered by the Bugbot check above (success on the latest
-              // commit means it found nothing left). The Cursor Security Agent's check ends
-              // "success" even when it reports something, so its open threads block the merge
-              // until they are resolved, like a person's.
+              // Open review threads from a person and "changes requested". Threads left by bots
+              // (old Bugbot or Security Agent threads, Claude) never hold the merge.
               const gql = await github.graphql(
                 `query($owner: String!, $repo: String!, $n: Int!) {
                   repository(owner: $owner, name: $repo) {
@@ -381,16 +329,6 @@ jobs:
               const pull = gql.repository.pullRequest;
               if (pull.reviewDecision === 'CHANGES_REQUESTED') { stop('Changes were requested.'); return false; }
               const open = pull.reviewThreads.nodes.filter((thread) => !thread.isResolved);
-              const isSecurity = (thread) => {
-                const first = thread.comments.nodes[0] || {};
-                const body = typeof first.body === 'string' ? first.body : '';
-                // A Bugbot finding (BUGBOT_BUG_ID) is never a security thread, even when its text
-                // quotes "Agentic Security Review"; the Bugbot check above covers those.
-                if (!/^cursor(\[bot\])?$/.test(first.author?.login || '')) return false;
-                if (/<!--\s*BUGBOT_BUG_ID:/.test(body)) return false;
-                return body.includes('Agentic Security Review') || body.includes('CURSOR_AUTOMATION_ID');
-              };
-              const openSecurity = open.filter(isSecurity);
               const openHumanThreads = open.filter((thread) => {
                 const login = thread.comments.nodes[0]?.author?.login || '';
                 return !/^(cursor|claude)(\[bot\])?$/.test(login);
@@ -401,7 +339,7 @@ jobs:
               const files = await github.paginate(github.rest.pulls.listFiles, { owner, repo, pull_number: n, per_page: 100 });
               if (files.some((f) => f.filename.startsWith('.github/'))) {
                 await commentOnce(n, '<!-- auto-merge-needs-person -->',
-                  '**✋ Auto-merge** · waiting for you\n\nBugbot found no issues and the checks passed, but this pull request changes files under `.github/`, so it is not merged automatically. Merge it yourself when you are happy with it.');
+                  '**✋ Auto-merge** · waiting for you\n\nThe checks passed, but this pull request changes files under `.github/`, so it is not merged automatically. Merge it yourself when you are happy with it.');
                 stop('It changes files under .github/.');
                 return false;
               }
@@ -411,22 +349,20 @@ jobs:
               // Review steps that are the last thing left. Checked after every other gate, so the
               // ✋ comments are only posted when nothing else is holding the merge.
               if (claudeNoResult) {
+                const why = claudeRanHere
+                  ? `The Claude review has no result for \`${sha.slice(0, 7)}\` (for example a usage limit or an error; the workflow run has the reason), so nothing reviewed this commit.`
+                  : `The Claude review did not run on \`${sha.slice(0, 7)}\` (is the \`CLAUDE_REVIEW\` repo variable set to \`enabled\`?), so nothing reviewed this commit.`;
                 await commentOnce(n, `<!-- auto-merge-claude-none ${sha} -->`,
-                  `**✋ Auto-merge** · waiting for you\n\nBugbot could not run on \`${sha.slice(0, 7)}\` (for example the Cursor usage limit), and the Claude review has no result for it either, so nothing reviewed this commit. Comment \`bugbot run\` once Bugbot can run again, or run Actions → Auto-merge → Run workflow with PR number ${n} and tick "skip_claude_findings" to merge without a review.`);
+                  `**✋ Auto-merge** · waiting for you\n\n${why} Re-run the Claude Review workflow for this commit, push again, or run Actions → Auto-merge → Run workflow with PR number ${n} and tick "skip_claude_findings" to merge without a review.`);
               }
               if (claudeSerious > 0) {
                 await commentOnce(n, `<!-- auto-merge-claude-findings ${sha} -->`,
-                  `**⏳ Auto-merge** · waiting for Claude Fix\n\n${bugbotOut ? 'Bugbot could not run' : 'Bugbot found no issues'}, but the Claude review found ${claudeSerious} high or medium issue${claudeSerious === 1 ? '' : 's'} on \`${sha.slice(0, 7)}\`. Claude Fix works on them (up to 3 rounds), and this merges by itself once the next review is clean. If Claude Fix has stopped and you decide the findings are fine, run Actions → Auto-merge → Run workflow with PR number ${n} and tick "skip_claude_findings": it then merges if everything else is clean.`);
+                  `**⏳ Auto-merge** · waiting for Claude Fix\n\nThe Claude review found ${claudeSerious} high or medium issue${claudeSerious === 1 ? '' : 's'} on \`${sha.slice(0, 7)}\`. Claude Fix works on them (up to 3 rounds), and this merges by itself once the next review is clean. If Claude Fix has stopped and you decide the findings are fine, run Actions → Auto-merge → Run workflow with PR number ${n} and tick "skip_claude_findings": it then merges if everything else is clean.`);
               }
-              if (openSecurity.length) {
-                await commentOnce(n, `<!-- auto-merge-security-open ${sha} -->`,
-                  `**✋ Auto-merge** · waiting for you\n\n${openSecurity.length} security finding${openSecurity.length === 1 ? ' from the Cursor Security Agent is' : 's from the Cursor Security Agent are'} still open on \`${sha.slice(0, 7)}\`. Check each one (Claude Fix may have fixed it, or may not have had a turn on it), then resolve the thread. Resolving starts nothing by itself, so then run Actions → Auto-merge → Run workflow with PR number ${n}.`);
-              }
-              if (claudeSerious > 0 || claudeNoResult || openSecurity.length) {
+              if (claudeSerious > 0 || claudeNoResult) {
                 stop([
                   claudeSerious > 0 ? `The Claude review found ${claudeSerious} high or medium issue(s).` : '',
-                  claudeNoResult ? 'Bugbot could not run and the Claude review has no result.' : '',
-                  openSecurity.length ? `${openSecurity.length} security finding(s) are still open.` : '',
+                  claudeNoResult ? 'The Claude review has no result for this commit.' : '',
                 ].filter(Boolean).join(' '));
                 return false;
               }
@@ -476,15 +412,11 @@ jobs:
                   '<!-- auto-merged -->',
                   '**✅ Auto-merge** · merged',
                   '',
-                  (usedClaude
-                    ? `Merged into \`${BASE}\` automatically: Bugbot could not run (Cursor usage limit), so the Claude review was used for the latest commit. No security finding is open, and all checks passed.`
-                    : `Merged into \`${BASE}\` automatically: Bugbot found no issues on the latest commit, no security finding is open, and all checks passed.`) +
-                    (skippedClaude
-                      ? (review.verdict === 'none'
-                        ? ' Nothing reviewed this commit: it was merged because the run was started by hand with "skip_claude_findings".'
-                        : ' The Claude review\'s findings were skipped because the run was started by hand with "skip_claude_findings".')
-                      : '') +
-                    (claudeMissing ? ' The Claude review of this commit did not finish, so only Bugbot reviewed it.' : ''),
+                  (skippedClaude
+                    ? (review.verdict === 'none'
+                      ? `Merged into \`${BASE}\` automatically: all checks passed. Nothing reviewed this commit: it was merged because the run was started by hand with "skip_claude_findings".`
+                      : `Merged into \`${BASE}\` automatically: all checks passed. The Claude review's findings were skipped because the run was started by hand with "skip_claude_findings".`)
+                    : `Merged into \`${BASE}\` automatically: the Claude review found no high or medium issues on the latest commit, and all checks passed.`),
                 ].join('\n'),
               });
 
