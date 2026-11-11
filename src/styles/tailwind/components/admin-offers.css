@@ -129,14 +129,10 @@
     @apply size-8 shrink-0 elements-center rounded-full border border-outline bg-surface-container-lowest font-label-lg text-on-surface-variant;
   }
 
-  /* Only the current step is filled black. */
-  .offer-steps__circle--on {
-    @apply bg-primary text-on-primary border-primary;
-  }
-
-  /* A finished step: black outline with a tick, not filled. */
+  /* The current step (its number) and every step before it (a tick) are filled black. */
+  .offer-steps__circle--on,
   .offer-steps__circle--done {
-    @apply border-primary text-primary;
+    @apply bg-primary text-on-primary border-primary;
   }
 
   .offer-steps__link {

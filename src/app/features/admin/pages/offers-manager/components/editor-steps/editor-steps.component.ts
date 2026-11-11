@@ -4,8 +4,8 @@ import { OFFER_EDITOR_STEPS, type OfferEditorStep } from '../../models/offer-adm
 
 /**
  * The step bar of the offer editor, drawn as a timeline (a column on phone, a row from `sm`).
- * The look follows the position only: every step before the current one has a tick (black
- * outline) and links back to it, the current step shows its number filled black, and every step
+ * The look follows the position only: every step before the current one has a tick (filled
+ * black) and links back to it, the current step shows its number filled black, and every step
  * after it stays a grey outline with its number, even when it was visited already (editing an
  * existing offer) — then it is still a link, just not ticked. The line after a ticked step is black.
  */

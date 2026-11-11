@@ -7,19 +7,22 @@
         </a>
         <h1 class="font-title-lg font-bold! truncate">{{ pageHeading() }}</h1>
       </div>
-      <button
-        matButton="outlined"
-        type="button"
-        [disabled]="isSaving() || !editorResource.hasValue()"
-        [attr.aria-label]="isSaving() ? 'Saving offer' : null"
-        (click)="save(false)"
-      >
-        @if (isSaving()) {
-          <mat-progress-spinner mode="indeterminate" diameter="18" />
-        } @else {
-          <span>Save as Draft</span>
-        }
-      </button>
+      <!-- Never squeezed: on a phone the button kept wrapping onto two lines and cut the title. -->
+      <div class="shrink-0">
+        <button
+          matButton="outlined"
+          type="button"
+          [disabled]="isSaving() || !editorResource.hasValue()"
+          [attr.aria-label]="isSaving() ? 'Saving offer' : null"
+          (click)="save(false)"
+        >
+          @if (isSaving()) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Save as Draft</span>
+          }
+        </button>
+      </div>
     </div>
     <div class="border-t border-outline-variant px-4 py-4">
       <app-editor-steps [current]="step()" [done]="doneSteps()" (stepClick)="goTo($event)" />
