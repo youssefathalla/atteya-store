@@ -5,8 +5,8 @@
  * The admin dropdown reads the same table: edit ONLY this file (functions/src/store/order-status.ts),
  * then run `npm run sync:engine`, which copies it to src/app/core/config/order-status.ts.
  *
- * Waiting for Payment (`pending`, Cash on Delivery / InstaPay only) → Confirmed, Cancelled
- * Confirmed → Shipped, Cancelled, back to Waiting for Payment (Cash on Delivery / InstaPay only)
+ * Waiting for Payment (`pending`, Cash on Delivery / InstaPay / Bank Transfer only) → Confirmed, Cancelled
+ * Confirmed → Shipped, Cancelled, back to Waiting for Payment (Cash on Delivery / InstaPay / Bank Transfer only)
  * Shipped → Delivered, back to Confirmed
  * Delivered → back to Shipped
  * Cancelled and Payment Failed are final. Card (Paymob) orders: `pending` / `failed` are set by
@@ -48,8 +48,9 @@ function isStaffStatus(value: unknown): value is StaffOrderStatus {
   );
 }
 
+/** Paid outside Paymob and confirmed by staff: Cash on Delivery, InstaPay or Bank Transfer. */
 export function isManualPayment(method: unknown): boolean {
-  return method === 'cash-on-delivery' || method === 'instapay';
+  return method === 'cash-on-delivery' || method === 'instapay' || method === 'bank-transfer';
 }
 
 /** The statuses staff may move this order to now, in the order the dropdown lists them. */

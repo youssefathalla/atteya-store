@@ -176,7 +176,7 @@
                   This is a large order, so we'll message you on WhatsApp to agree the delivery fee before we
                   send it.
                 </p>
-              } @else if (!abroadOrderingClosed()) {
+              } @else if (!abroadOrderingClosed() && paymentMethod() !== 'bank-transfer') {
                 <p class="font-label-sm opacity-70">
                   Your total is calculated in Egyptian pounds when you place the order.
                 </p>
@@ -393,6 +393,33 @@
                 @if (paymentMethod() === 'instapay' && ready) {
                   <ol class="pay-steps" aria-label="How to pay by InstaPay" aria-live="polite">
                     @for (step of instapaySteps(); track $index) {
+                      <ng-container *ngTemplateOutlet="payStep; context: { $implicit: step }" />
+                    }
+                  </ol>
+                }
+              </div>
+            }
+            @if (!localMethodsAvailable() && bankTransferLive) {
+              <div
+                class="pay-option space-y-2"
+                [class.pay-option--selected]="paymentMethod() === 'bank-transfer'"
+              >
+                <div class="elements-between gap-3 pe-3">
+                  <mat-radio-button value="bank-transfer">
+                    <span class="elements-start gap-3">
+                      <!-- Stretches the label over the whole row, so a click anywhere on it picks this method. -->
+                      <span class="pay-option__hit" aria-hidden="true"></span>
+                      <span class="pay-option__mark"><app-payment-mark method="bank-transfer" /></span>
+                      <span>Bank Transfer</span>
+                    </span>
+                  </mat-radio-button>
+                  @if (paymentMethod() === 'bank-transfer' && bankTransfer()?.total; as total) {
+                    <span class="font-body-lg font-bold!">{{ total }}</span>
+                  }
+                </div>
+                @if (paymentMethod() === 'bank-transfer' && ready) {
+                  <ol class="pay-steps" aria-label="How to pay by Bank Transfer" aria-live="polite">
+                    @for (step of bankTransferSteps(); track $index) {
                       <ng-container *ngTemplateOutlet="payStep; context: { $implicit: step }" />
                     }
                   </ol>

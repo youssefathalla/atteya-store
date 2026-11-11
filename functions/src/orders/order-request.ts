@@ -15,7 +15,7 @@ const MAX_SELECTION_KEYS = 8;
 const MAX_LINE_GIFTS = 5;
 /** Most offer ids in one of checkout's offer id lists. */
 const MAX_ENDED_OFFERS = 20;
-export type StorePaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
+export type StorePaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay' | 'bank-transfer';
 
 export interface OrderLineInput {
   readonly productId: string;
@@ -91,6 +91,12 @@ export interface CreateStoreOrderRequest {
    * lowers a price.
    */
   readonly shownTotalEgp: number | null;
+  /**
+   * Bank Transfer only: the currency code checkout showed prices in (e.g. `USD`), or null when it
+   * sent none or an unreadable one. The server checks it against `settings/currency` itself and
+   * works out the amount to send (`payInFor()`); this never changes the EGP price.
+   */
+  readonly payInCurrency: string | null;
 }
 
 /** Longest email address a guest can order with (RFC 5321 path limit). */
@@ -127,7 +133,24 @@ export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderReq
   const dealOfferIds = parseOfferIds(data['dealOfferIds']);
   const shownShippingEgp = parseShownAmountEgp(data['shownShippingEgp']);
   const shownTotalEgp = parseShownAmountEgp(data['shownTotalEgp']);
-  return { lines, shipping, paymentMethod, endedOfferIds, dealOfferIds, shownShippingEgp, shownTotalEgp };
+  const payInCurrency = parsePayInCurrency(data['payInCurrency']);
+  return {
+    lines,
+    shipping,
+    paymentMethod,
+    endedOfferIds,
+    dealOfferIds,
+    shownShippingEgp,
+    shownTotalEgp,
+    payInCurrency,
+  };
+}
+
+/** A three-letter currency code (upper-cased), or null when missing or unreadable. */
+export function parsePayInCurrency(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const code = raw.trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(code) ? code : null;
 }
 
 /** Most whole EGP a shown shipping fee or order total can be; anything above is read as not sent. */
@@ -158,7 +181,7 @@ export function parseOfferIds(raw: unknown): string[] {
 }
 
 function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {
-  if (raw !== 'paymob' && raw !== 'cash-on-delivery' && raw !== 'instapay') {
+  if (raw !== 'paymob' && raw !== 'cash-on-delivery' && raw !== 'instapay' && raw !== 'bank-transfer') {
     throw new HttpsError('invalid-argument', 'Choose how you want to pay.');
   }
   if (raw === 'cash-on-delivery' && country !== 'EG') {
@@ -169,6 +192,12 @@ function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {
   }
   if (raw === 'instapay' && country !== 'EG') {
     throw new HttpsError('failed-precondition', 'InstaPay is only available for orders delivered in Egypt.');
+  }
+  if (raw === 'bank-transfer' && country === 'EG') {
+    throw new HttpsError(
+      'failed-precondition',
+      'Bank Transfer is only available for orders delivered outside Egypt.',
+    );
   }
   return raw;
 }

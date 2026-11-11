@@ -96,7 +96,15 @@ export const OrderPricingSnapshotSchema = v.object({
     'international-paymob',
     // Legacy bank-transfer fulfilment (pre-Paymob checkout).
     'international-third-party',
+    'international-bank-transfer',
   ]),
+  /** Bank Transfer: the amount to send in the shopper's currency (worked out by the server). */
+  payIn: v.optional(
+    v.object({
+      currency: v.pipe(v.string(), v.regex(/^[A-Z]{3}$/)),
+      amount: v.pipe(v.number(), v.finite(), v.minValue(0)),
+    }),
+  ),
 });
 
 export const OrderPaymobSchema = v.object({
@@ -162,7 +170,7 @@ const OrderBaseFields = {
 
 export const StoreOrderSchema = v.object({
   ...OrderBaseFields,
-  paymentMethod: v.picklist(['paymob', 'cash-on-delivery', 'instapay']),
+  paymentMethod: v.picklist(['paymob', 'cash-on-delivery', 'instapay', 'bank-transfer']),
   paymob: v.nullable(OrderPaymobSchema, null),
   /** Paid (Paymob) while an item had already sold out; staff check the order. */
   needsReview: v.optional(v.boolean(), false),
@@ -200,7 +208,7 @@ export const ORDERS_COLLECTION = 'orders';
 export const OrderViewSchema = v.object({
   id: v.string(),
   status: orderStatus,
-  paymentMethod: v.picklist(['paymob', 'cash-on-delivery', 'instapay']),
+  paymentMethod: v.picklist(['paymob', 'cash-on-delivery', 'instapay', 'bank-transfer']),
   shipping: OrderShippingSchema,
   pricing: OrderPricingSnapshotSchema,
   paymob: v.optional(

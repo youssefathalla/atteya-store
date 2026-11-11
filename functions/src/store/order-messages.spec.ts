@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   cashOnDeliveryEgp,
+  formatPayInPlain,
   isDeliveryFeeToBeAgreed,
   isEgyptMobile,
   orderStage,
   paymentDue,
+  readPayIn,
   shopperWhatsappNumber,
   shopperWhatsappText,
   staffWhatsappText,
@@ -33,6 +35,21 @@ function order(overrides: Partial<OrderMessageInput> = {}): OrderMessageInput {
 /** Large Egypt order whose delivery fee isn't agreed yet: neither amount is known. */
 const TO_AGREE = { shippingEgp: null, totalEgp: null, feeToBeAgreed: true } as const;
 
+/** Bank Transfer order shipped to the US, $205 to send. */
+const BANK = {
+  paymentMethod: 'bank-transfer',
+  country: 'US',
+  shippingEgp: 900,
+  totalEgp: 10100,
+  payIn: { currency: 'USD', amount: 205 },
+} as const;
+const BANK_INFO = {
+  accountName: 'Youseif Tamer Elsayed Ibrahim Atteya',
+  bankName: 'National Bank of Egypt',
+  iban: 'EG520003023350016856630000150',
+  swift: 'NBEGEGCXXXX',
+};
+
 const ALL_STAGES: readonly [OrderStage, OrderMessageInput][] = [
   ['fee-to-be-agreed', order(TO_AGREE)],
   ['fee-to-be-agreed', order({ paymentMethod: 'cash-on-delivery', ...TO_AGREE })],
@@ -52,6 +69,12 @@ const ALL_STAGES: readonly [OrderStage, OrderMessageInput][] = [
   ['delivered', order({ paymentMethod: 'cash-on-delivery', status: 'delivered' })],
   ['delivered', order({ paymentMethod: 'paymob', status: 'delivered' })],
   ['unknown', order({ paymentMethod: 'international-bank-transfer' })],
+  ['bank-transfer-due', order(BANK)],
+  ['paid', order({ ...BANK, status: 'confirmed' })],
+  ['shipped', order({ ...BANK, status: 'shipped' })],
+  ['delivered', order({ ...BANK, status: 'delivered' })],
+  ['cancelled', order({ ...BANK, status: 'cancelled' })],
+  ['unknown', order({ ...BANK, country: 'EG' })],
 ];
 
 describe('orderStage', () => {
@@ -126,7 +149,8 @@ describe('paymentDue', () => {
 
   it('asks for nothing in every other stage', () => {
     for (const [stage, input] of ALL_STAGES) {
-      if (stage === 'instapay-total-due' || stage === 'instapay-fee-due') continue;
+      if (stage === 'instapay-total-due' || stage === 'instapay-fee-due' || stage === 'bank-transfer-due')
+        continue;
       assert.equal(paymentDue(stage, input), null, stage);
     }
   });
@@ -258,5 +282,61 @@ describe('shopperWhatsappNumber', () => {
     assert.equal(shopperWhatsappNumber('501234567', 'AE'), null);
     assert.equal(shopperWhatsappNumber('0501234567', 'ZZ'), null);
     assert.equal(shopperWhatsappNumber('', 'EG'), null);
+  });
+});
+
+describe('Bank Transfer', () => {
+  it('asks for the total in the shopper currency while waiting for payment', () => {
+    const input = order(BANK);
+    assert.deepEqual(paymentDue(orderStage(input), input), {
+      amountEgp: 10100,
+      reason: 'bank-transfer',
+      payIn: { currency: 'USD', amount: 205 },
+    });
+  });
+
+  it('drops an unreadable amount to send but still asks', () => {
+    const input = order({ ...BANK, payIn: { currency: 'egp', amount: -1 } });
+    assert.equal(paymentDue(orderStage(input), input)?.payIn, null);
+    // A visitor whose prices showed in pounds sends pounds.
+    assert.deepEqual(readPayIn({ currency: 'EGP', amount: 10 }), { currency: 'EGP', amount: 10 });
+    assert.equal(readPayIn({ currency: 'usd', amount: 10 }), null);
+    assert.deepEqual(readPayIn({ currency: 'KWD', amount: 12.345 }), { currency: 'KWD', amount: 12.345 });
+  });
+
+  it('formats the amount with English digits and the code', () => {
+    assert.equal(formatPayInPlain({ currency: 'USD', amount: 1205 }), '1,205 USD');
+    assert.equal(formatPayInPlain({ currency: 'KWD', amount: 12.345 }), '12.345 KWD');
+  });
+
+  it('shopper text names the amount and the order, never InstaPay or a deposit', () => {
+    const text = shopperWhatsappText('bank-transfer-due', order(BANK), INSTAPAY)!;
+    assert.match(text, /205 USD/);
+    assert.match(text, /#A1B2C3/);
+    assert.doesNotMatch(text, /InstaPay|مصاريف الشحن|EGP/);
+  });
+
+  it('staff text names the amount, the bank details and the reference, never InstaPay', () => {
+    const text = staffWhatsappText(
+      'bank-transfer-due',
+      order(BANK),
+      'Sam Lee',
+      INSTAPAY,
+      'Atteya Store',
+      BANK_INFO,
+    )!;
+    assert.match(text, /205 USD/);
+    assert.match(text, /#A1B2C3/);
+    assert.match(text, /IBAN: EG520003023350016856630000150/);
+    assert.match(text, /SWIFT \/ BIC: NBEGEGCXXXX/);
+    assert.match(text, /A1B2C3 في ملاحظة التحويل/);
+    assert.doesNotMatch(text, /InstaPay|مصاريف الشحن|EGP/);
+  });
+
+  it('staff text without bank details says we will send them', () => {
+    const empty = { accountName: '', bankName: '', iban: '', swift: '' };
+    const text = staffWhatsappText('bank-transfer-due', order(BANK), 'Sam', INSTAPAY, 'Atteya Store', empty)!;
+    assert.match(text, /هنبعتلك بيانات الحساب/);
+    assert.doesNotMatch(text, /IBAN|InstaPay/);
   });
 });

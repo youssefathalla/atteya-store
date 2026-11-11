@@ -4,9 +4,18 @@ import type { ShownLinePrice } from '@core/services/cart/cart-deals';
 import type { CartLineDraft, CartLineGift } from '@core/services/cart/cart.model';
 import type { OrderPricingSnapshot } from '@core/services/orders/order-pricing.model';
 
-export type CheckoutPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
-/** Egypt-only methods that staff confirm by hand. */
-export type ManualCheckoutPaymentMethod = 'cash-on-delivery' | 'instapay';
+export type CheckoutPaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay' | 'bank-transfer';
+/**
+ * Methods staff confirm by hand: Cash on Delivery and InstaPay (Egypt), Bank Transfer (outside Egypt).
+ */
+export type ManualCheckoutPaymentMethod = 'cash-on-delivery' | 'instapay' | 'bank-transfer';
+
+/** The order callable behind each method staff confirm by hand. */
+const MANUAL_CALLABLE: Record<ManualCheckoutPaymentMethod, string> = {
+  'cash-on-delivery': 'createCodOrder',
+  instapay: 'createInstapayOrder',
+  'bank-transfer': 'createBankTransferOrder',
+};
 
 export interface CheckoutShippingInput {
   readonly fullName: string;
@@ -143,9 +152,14 @@ export class CheckoutOrderService {
     return response.data;
   }
 
-  /** Egypt-only orders confirmed by staff: cash on delivery or InstaPay. */
+  /** Orders confirmed by staff: Cash on Delivery or InstaPay (Egypt), Bank Transfer (abroad). */
   async placeManualOrder<M extends ManualCheckoutPaymentMethod>(args: {
     readonly method: M;
+    /**
+     * Bank Transfer: the currency checkout showed prices in. The server checks it and works out
+     * the amount to send itself (`pricing.payIn`). Ignored for the other methods.
+     */
+    readonly payInCurrency?: string | null;
     readonly lines: readonly CartLineDraft[];
     readonly shipping: CheckoutShippingInput;
     readonly endedOfferIds: readonly string[];
@@ -167,10 +181,11 @@ export class CheckoutOrderService {
         dealOfferIds: readonly string[];
         shownShippingEgp: number | null;
         shownTotalEgp: number | null;
+        payInCurrency?: string;
         guest?: GuestCheckoutInput;
       },
       CreateManualOrderResult<M>
-    >(this.#functions(), args.method === 'instapay' ? 'createInstapayOrder' : 'createCodOrder');
+    >(this.#functions(), MANUAL_CALLABLE[args.method]);
     const response = await call({
       lines: toCheckoutLines(args.lines, args.shownPrices),
       shipping: args.shipping,
@@ -179,6 +194,7 @@ export class CheckoutOrderService {
       dealOfferIds: args.dealOfferIds,
       shownShippingEgp: args.shownTotals.shippingEgp,
       shownTotalEgp: args.shownTotals.totalEgp,
+      ...(args.method === 'bank-transfer' && args.payInCurrency ? { payInCurrency: args.payInCurrency } : {}),
       ...(args.guest ? { guest: { email: args.guest.email } } : {}),
     });
     return response.data;
