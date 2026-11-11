@@ -34,7 +34,7 @@ empty ones:
 
 - **Shipped** (Done or merged since the date)
 - **Building now** (In Progress, with the PR link once there is one)
-- **In review** (To Review: say what each one waits for, e.g. Bugbot, a fix round, a merge by hand
+- **In review** (To Review: say what each one waits for, e.g. the Claude review, a fix round, a merge by hand
   for `.github/` changes)
 - **Next build** (the next scheduled run and which ticket it will pick up first)
 - **Waiting on Youssef**: numbered, each with what to do and my recommendation (this is the batched

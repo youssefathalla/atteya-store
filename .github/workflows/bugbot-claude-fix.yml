@@ -1,5 +1,6 @@
-# Same-PR fixes for each finished Claude review (claude-review.yml, workflow_run below) whose
-# verdict has high or medium findings (ids cr-<comment id>-<n>; low ones stay as notes and never
+# Same-PR fixes for each finished Claude review (claude-review.yml, workflow_run below: a code
+# review and a security review, posted as one verdict comment) whose verdict has high or medium
+# findings (ids cr-<comment id>-<n>; low ones stay as notes and never
 # hold the merge). Claude's push starts a new Claude review, so this repeats until the review has
 # no high or medium finding or 3 rounds have run (then it leaves a "needs a person" comment).
 # A clean review plus green checks lets auto-merge.yml merge the PR into develop.
