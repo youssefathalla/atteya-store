@@ -229,15 +229,23 @@ export class RewardEditorComponent {
 
   /**
    * Pieces keep exactly what was typed (empty counts as 0), so a wrong value shows the form's
-   * error. The rows are sorted by pieces once the field is left (`change`), not while typing.
+   * error. The row stays where it is: sorting here would move it before the next click or tab
+   * lands, so that click would hit another row (`onBundleRowsFocusOut` sorts instead).
    */
   onBundlePiecesChange(index: number, event: Event): void {
     const quantity = this.#readTyped(event);
-    this.#updateBundleRows((rows) =>
-      rows
-        .map((row, at) => (at === index ? { ...row, quantity } : row))
-        .sort((a, b) => a.quantity - b.quantity),
-    );
+    this.#updateBundleRows((rows) => rows.map((row, at) => (at === index ? { ...row, quantity } : row)));
+  }
+
+  /** Sorts the rows by pieces once focus has left the whole list (not when it moves between rows). */
+  onBundleRowsFocusOut(event: FocusEvent): void {
+    const list = event.currentTarget as HTMLElement;
+    const next = event.relatedTarget;
+    if (next instanceof Node && list.contains(next)) return;
+    this.#updateBundleRows((rows) => {
+      const sorted = [...rows].sort((a, b) => a.quantity - b.quantity);
+      return sorted.every((row, at) => row === rows[at]) ? rows : sorted;
+    });
   }
 
   onBundlePriceChange(index: number, event: Event): void {

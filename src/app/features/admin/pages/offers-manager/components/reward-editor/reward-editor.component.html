@@ -73,7 +73,7 @@
       <p class="font-body-sm text-on-surface-variant">
         Shoppers can mix any of the matching products. The bag uses the cheapest mix of rows, and rows repeat.
       </p>
-      <ul class="w-full elements-start-col gap-2">
+      <ul class="w-full elements-start-col gap-2" (focusout)="onBundleRowsFocusOut($event)">
         @for (row of r.rows; track $index) {
           <li class="elements-start items-end! flex-wrap gap-3">
             <label class="elements-start-col gap-1 font-label-md">
