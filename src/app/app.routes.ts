@@ -43,6 +43,12 @@ export const routes: Routes = [
         pathMatch: 'full',
       },
       {
+        // Old home-page links point at "Shop" as if it were a category; it is the /shop page.
+        path: 'category/shop',
+        redirectTo: 'shop',
+        pathMatch: 'full',
+      },
+      {
         path: 'category/apparel',
         loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
         title: 'Apparel | Atteya Store',
