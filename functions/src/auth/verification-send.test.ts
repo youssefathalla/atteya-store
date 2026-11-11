@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  MAX_VERIFICATION_SENDS_PER_STORE_PER_UTC_DAY,
   MAX_VERIFICATION_SENDS_PER_UTC_DAY,
+  storeVerificationSendDocId,
   nextVerificationSendCount,
   verificationContinueUrl,
   verificationSendDocId,
@@ -27,6 +29,13 @@ describe('confirm-your-email send limit', () => {
 
   it('keys the counter by account and UTC day', () => {
     assert.equal(verificationSendDocId('abc', '20261111'), 'abc_20261111');
+    assert.equal(storeVerificationSendDocId('20261111'), '__all_20261111');
+  });
+
+  it('caps the whole store per day', () => {
+    const max = MAX_VERIFICATION_SENDS_PER_STORE_PER_UTC_DAY;
+    assert.equal(nextVerificationSendCount(max - 1, max), max);
+    assert.equal(nextVerificationSendCount(max, max), null);
   });
 });
 

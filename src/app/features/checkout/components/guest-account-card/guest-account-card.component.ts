@@ -32,7 +32,7 @@ import {
 } from '../../utils/guest-order-storage';
 
 const CLAIM_FAILED = "We couldn't save this order to your account. Try again in a moment.";
-const VERIFY_SEND_FAILED = "We couldn't send the confirmation email. Try again in a moment.";
+const VERIFY_SEND_FAILED = "We couldn't send the email. Please try again in a moment.";
 
 /** What the card shows. `hidden` renders nothing. */
 type CardMode = 'hidden' | 'offer' | 'saved' | 'exists' | 'claim' | 'verify' | 'message';

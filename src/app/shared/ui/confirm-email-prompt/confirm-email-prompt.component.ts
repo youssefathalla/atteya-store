@@ -25,7 +25,7 @@ const SEND_FAILED = "We couldn't send the email. Please try again in a moment.";
         <div class="flex-1 min-w-0">
           <p class="font-label-lg font-bold!">Confirm your email</p>
           <p class="font-body-sm text-on-surface-variant break-words">
-            Open the link we emailed to {{ email() }} to confirm it.
+            Use the link we emailed to {{ email() }}, or send a new one.
           </p>
         </div>
         <button
@@ -60,7 +60,9 @@ export class ConfirmEmailPromptComponent {
       const sentTo = await this.#auth.sendVerificationEmail();
       if (sentTo) this.#snackbar.success(`We sent a new link to ${sentTo}.`);
     } catch (error) {
-      this.#snackbar.error(callableMessage(error) ?? SEND_FAILED);
+      // Refused because it's already confirmed (in another tab or device): the check hides this prompt.
+      const confirmed = await this.#auth.refreshEmailVerified().catch(() => false);
+      if (!confirmed) this.#snackbar.error(callableMessage(error) ?? SEND_FAILED);
     } finally {
       this.sending.set(false);
     }

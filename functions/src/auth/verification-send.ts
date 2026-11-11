@@ -6,6 +6,16 @@
 /** Confirmation emails one account can ask for per UTC day. */
 export const MAX_VERIFICATION_SENDS_PER_UTC_DAY = 3;
 
+/**
+ * Confirmation emails the whole store sends per UTC day. Sign-up takes any address and the IP can't
+ * be trusted, so this cap is what keeps a script from mailing strangers in bulk from our sender
+ * (the same sender as order emails).
+ */
+export const MAX_VERIFICATION_SENDS_PER_STORE_PER_UTC_DAY = 300;
+
+export const VERIFICATION_STORE_LIMIT_MESSAGE =
+  "We can't send more confirmation emails today. Please try again tomorrow.";
+
 export const VERIFICATION_LIMIT_MESSAGE =
   "You've asked for 3 emails today. Please check your inbox or try again tomorrow.";
 
@@ -21,13 +31,21 @@ export function verificationSendDocId(uid: string, day: string): string {
   return `${uid}_${day}`;
 }
 
+/** `emailVerificationSends` doc id for the store-wide daily counter (uids never contain `__`). */
+export function storeVerificationSendDocId(day: string): string {
+  return `__all_${day}`;
+}
+
 /**
  * Next value for `emailVerificationSends/{uid}_{day}.count`, or null when the account has already
  * had its 3 emails today.
  */
-export function nextVerificationSendCount(raw: unknown): number | null {
+export function nextVerificationSendCount(
+  raw: unknown,
+  max: number = MAX_VERIFICATION_SENDS_PER_UTC_DAY,
+): number | null {
   const count = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;
-  return count >= MAX_VERIFICATION_SENDS_PER_UTC_DAY ? null : count + 1;
+  return count >= max ? null : count + 1;
 }
 
 /** Counter docs carry `expireAt` (2 days later) so a Firestore TTL policy can delete them. */

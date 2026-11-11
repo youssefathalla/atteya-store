@@ -47,6 +47,9 @@ const CONSENT_STEP_PATHS = new Set(['/login', '/terms', '/privacy']);
 /** The order confirmation page, whose Save card reports its own save. */
 const ORDER_CONFIRMATION_PATH = '/checkout/confirmation/';
 
+/** Least time between two "is the email confirmed yet?" checks on focus. */
+const EMAIL_CHECK_GAP_MS = 5000;
+
 /** Consent chosen on Create account before a Google redirect completes. */
 const REDIRECT_CONSENT_KEY = 'atteya-auth-redirect-consent';
 
@@ -364,8 +367,13 @@ export class AuthService {
    * a failed check (offline) is silent and the next one tries again.
    */
   #watchEmailConfirmation(): void {
+    let lastCheck = 0;
     const check = (): void => {
       if (!untracked(this.emailNeedsConfirming)) return;
+      // Coming back to the tab fires both visibilitychange and focus; one check is enough.
+      const now = Date.now();
+      if (now - lastCheck < EMAIL_CHECK_GAP_MS) return;
+      lastCheck = now;
       void this.refreshEmailVerified().catch(() => false);
     };
     let checkedUid: string | null = null;
