@@ -1,7 +1,11 @@
 <div class="elements-start-col items-stretch! gap-6 w-full">
   <header class="surface-card w-full">
-    <div class="elements-between gap-3 p-4 @3xl:px-5">
-      <div class="elements-start items-center! gap-3 min-w-0">
+    <!--
+      Tighter gaps on a phone so "Edit Offer" fits next to Save as Draft; on a very narrow phone the
+      button drops under the title instead of cutting it.
+    -->
+    <div class="elements-between flex-wrap gap-2 @3xl:gap-3 p-4 @3xl:px-5">
+      <div class="elements-start items-center! gap-1 @3xl:gap-3">
         <a matIconButton routerLink="/admin/offers" aria-label="Back to Offers">
           <mat-icon name="arrow_back" />
         </a>
