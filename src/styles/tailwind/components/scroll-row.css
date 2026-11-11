@@ -36,6 +36,7 @@
 
   .scroll-row-item {
     position: relative;
+    min-width: 0;
     flex: 0 0
       calc((100% - (var(--scroll-cols) - 1) * var(--scroll-gap) - var(--scroll-peek)) / var(--scroll-cols));
     scroll-snap-align: start;
