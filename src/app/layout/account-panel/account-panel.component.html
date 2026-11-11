@@ -54,6 +54,12 @@
           </a>
         </li>
       }
+      <li>
+        <button class="account-panel__link" type="button" (click)="signOut()">
+          <mat-icon name="logout" size="xl" aria-hidden="true" />
+          <span>Sign Out</span>
+        </button>
+      </li>
     </ul>
   </nav>
 
@@ -105,10 +111,3 @@
     </p>
   }
 </div>
-
-<footer class="side-panel__footer">
-  <button matButton="outlined" type="button" (click)="signOut()">
-    <mat-icon name="logout" />
-    <span>Sign Out</span>
-  </button>
-</footer>
