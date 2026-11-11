@@ -41,7 +41,8 @@ interface CheckoutLineInput {
 
 /**
  * The shipping fee and order total (whole EGP) checkout showed, sent only so the server can refuse
- * rather than charge more. Null when the summary showed none (a fee to be agreed later).
+ * rather than charge more. While the fee is to be agreed later, `shippingEgp` is null and
+ * `totalEgp` is the items total.
  */
 export interface ShownOrderTotals {
   readonly shippingEgp: number | null;

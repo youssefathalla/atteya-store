@@ -80,13 +80,15 @@ export interface CreateStoreOrderRequest {
   readonly dealOfferIds: readonly string[];
   /**
    * The shipping fee checkout showed (whole EGP), or null when it didn't send one (older pages, or
-   * a large order whose fee is agreed later). The order is refused when the server's fee is higher.
-   * Never lowers a price.
+   * a large order whose fee is agreed later). The order is refused when the server's fee is higher,
+   * or, when this is null but `shownTotalEgp` is set (checkout showed a fee to be agreed), when the
+   * server charges any shipping fee. Never lowers a price.
    */
   readonly shownShippingEgp: number | null;
   /**
-   * The order total checkout showed (whole EGP, items plus shipping), or null. The order is refused
-   * when the server's `totalEgp` is higher. Never lowers a price.
+   * The order total checkout showed (whole EGP, items plus shipping; only the items while the fee is
+   * to be agreed), or null. The order is refused when the server's `totalEgp` is higher. Never
+   * lowers a price.
    */
   readonly shownTotalEgp: number | null;
 }

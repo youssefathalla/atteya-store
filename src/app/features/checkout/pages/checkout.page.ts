@@ -41,6 +41,7 @@ import { isCardOrWalletLive, STORE_INFO, whatsappChatUrl } from '@core/config/st
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import {
+  type CurrencyEntry,
   dealTag,
   displayDecimals,
   parcelWeight,
@@ -204,7 +205,8 @@ type CheckoutSummary =
       readonly codCash: string;
       /**
        * The shipping fee and total (whole EGP) this summary shows, sent with the order so the
-       * server refuses rather than charge more. Null while the fee is to be agreed.
+       * server refuses rather than charge more. While the fee is to be agreed the shipping fee is
+       * null and the total is the items total.
        */
       readonly shown: ShownOrderTotals;
       /** The Free shipping offer that made shipping free, or null (for the bag's notes). */
@@ -580,20 +582,17 @@ export class CheckoutPageComponent implements OnInit {
     if (plan.kind === 'unavailable') return { state: 'unavailable' };
 
     const decimals = displayDecimals(entry.code);
+    const server = this.#serverTotals();
     if (plan.kind === 'to-be-agreed') {
-      return {
-        state: 'ready',
-        feeToBeAgreed: true,
-        subtotal: formatMoney(subtotalDisplay, entry.code, decimals),
-        shipping: "We'll contact you",
-        total: `${formatMoney(subtotalDisplay, entry.code, decimals)} + shipping`,
-        instapayTotal: formatMoney(subtotalEgp, 'EGP', 0),
-        codShippingEgp: 0,
-        codShipping: '',
-        codCash: formatMoney(subtotalEgp, 'EGP', 0),
-        shown: { shippingEgp: null, totalEgp: null },
-        freeShippingOfferId: null,
-      };
+      // The items total goes to the server as the shown total (no shipping fee): it refuses rather
+      // than save the order for more, or charge a box fee this summary never showed.
+      if (server && server.forShippingEgp === null && server.forTotalEgp === subtotalEgp) {
+        // Refused twice in a row with the same figures (see `placeOrder`): show the server's.
+        if (server.shippingEgp > 0) return serverTotalsSummary(server, entry, null);
+        const serverItemsDisplay = toDisplayAmount(server.totalEgp, entry);
+        return feeToBeAgreedSummary(server.totalEgp, serverItemsDisplay, entry);
+      }
+      return feeToBeAgreedSummary(subtotalEgp, subtotalDisplay, entry);
     }
 
     let feeEgp: number;
@@ -621,25 +620,8 @@ export class CheckoutPageComponent implements OnInit {
 
     // The server refused this same shipping fee and total twice in a row with its own figures:
     // show those, so the shopper sees what the order costs (see `placeOrder`).
-    const server = this.#serverTotals();
     if (server && server.forShippingEgp === feeEgp && server.forTotalEgp === subtotalEgp + feeEgp) {
-      const serverSubtotalEgp = server.totalEgp - server.shippingEgp;
-      const serverSubtotalDisplay = toDisplayAmount(serverSubtotalEgp, entry);
-      const serverShippingDisplay = toDisplayAmount(server.shippingEgp, entry);
-      return {
-        state: 'ready',
-        feeToBeAgreed: false,
-        subtotal: formatMoney(serverSubtotalDisplay, entry.code, decimals),
-        shipping:
-          server.shippingEgp === 0 ? 'Free' : formatMoney(serverShippingDisplay, entry.code, decimals),
-        total: formatMoney(serverSubtotalDisplay + serverShippingDisplay, entry.code, decimals),
-        instapayTotal: formatMoney(server.totalEgp, 'EGP', 0),
-        codShippingEgp: server.shippingEgp,
-        codShipping: formatMoney(server.shippingEgp, 'EGP', 0),
-        codCash: formatMoney(serverSubtotalEgp, 'EGP', 0),
-        shown: { shippingEgp: server.shippingEgp, totalEgp: server.totalEgp },
-        freeShippingOfferId,
-      };
+      return serverTotalsSummary(server, entry, freeShippingOfferId);
     }
 
     const shippingDisplay = toDisplayAmount(feeEgp, entry);
@@ -906,7 +888,7 @@ export class CheckoutPageComponent implements OnInit {
    * figures this summary showed then (`for…`): shown while the summary's own figures stay the same.
    */
   readonly #serverTotals = signal<
-    (ServerTotals & { readonly forShippingEgp: number; readonly forTotalEgp: number }) | null
+    (ServerTotals & { readonly forShippingEgp: number | null; readonly forTotalEgp: number }) | null
   >(null);
 
   async placeOrder(): Promise<void> {
@@ -1060,12 +1042,13 @@ export class CheckoutPageComponent implements OnInit {
       if (serverNowMs !== null) this.#offers.syncClock(serverNowMs);
       const totals = serverTotalsToShow(error, this.#lastServerTotals);
       this.#lastServerTotals = totals.last;
-      if (totals.show && shownTotals.shippingEgp !== null && shownTotals.totalEgp !== null) {
+      if (totals.show && shownTotals.totalEgp !== null) {
         // Keyed on the summary's own figures, also when it was already showing server totals.
+        // A fee to be agreed is shown with no shipping fee (null), which the server sends as 0.
         const current = this.#serverTotals();
         const showingServer =
           current !== null &&
-          current.shippingEgp === shownTotals.shippingEgp &&
+          current.shippingEgp === (shownTotals.shippingEgp ?? 0) &&
           current.totalEgp === shownTotals.totalEgp;
         this.#serverTotals.set({
           ...totals.show,
@@ -1078,6 +1061,56 @@ export class CheckoutPageComponent implements OnInit {
       this.isSubmitting.set(false);
     }
   }
+}
+
+type ReadySummary = Extract<CheckoutSummary, { readonly state: 'ready' }>;
+
+/**
+ * A large Egypt order whose delivery fee is agreed on WhatsApp: the items total (whole EGP and in
+ * the display currency) "+ shipping". The items total is sent as the shown total with no shipping
+ * fee, so the server refuses rather than save more or add a box fee this summary never showed.
+ */
+function feeToBeAgreedSummary(itemsEgp: number, itemsDisplay: number, entry: CurrencyEntry): ReadySummary {
+  const decimals = displayDecimals(entry.code);
+  const items = formatMoney(itemsDisplay, entry.code, decimals);
+  return {
+    state: 'ready',
+    feeToBeAgreed: true,
+    subtotal: items,
+    shipping: "We'll contact you",
+    total: `${items} + shipping`,
+    instapayTotal: formatMoney(itemsEgp, 'EGP', 0),
+    codShippingEgp: 0,
+    codShipping: '',
+    codCash: formatMoney(itemsEgp, 'EGP', 0),
+    shown: { shippingEgp: null, totalEgp: itemsEgp },
+    freeShippingOfferId: null,
+  };
+}
+
+/** The server's shipping fee and total, after it refused the same ones twice in a row. */
+function serverTotalsSummary(
+  server: ServerTotals,
+  entry: CurrencyEntry,
+  freeShippingOfferId: string | null,
+): ReadySummary {
+  const decimals = displayDecimals(entry.code);
+  const subtotalEgp = server.totalEgp - server.shippingEgp;
+  const subtotalDisplay = toDisplayAmount(subtotalEgp, entry);
+  const shippingDisplay = toDisplayAmount(server.shippingEgp, entry);
+  return {
+    state: 'ready',
+    feeToBeAgreed: false,
+    subtotal: formatMoney(subtotalDisplay, entry.code, decimals),
+    shipping: server.shippingEgp === 0 ? 'Free' : formatMoney(shippingDisplay, entry.code, decimals),
+    total: formatMoney(subtotalDisplay + shippingDisplay, entry.code, decimals),
+    instapayTotal: formatMoney(server.totalEgp, 'EGP', 0),
+    codShippingEgp: server.shippingEgp,
+    codShipping: formatMoney(server.shippingEgp, 'EGP', 0),
+    codCash: formatMoney(subtotalEgp, 'EGP', 0),
+    shown: { shippingEgp: server.shippingEgp, totalEgp: server.totalEgp },
+    freeShippingOfferId,
+  };
 }
 
 function hasTypedAddress(shipping: CheckoutShippingInput): boolean {

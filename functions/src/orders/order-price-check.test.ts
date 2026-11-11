@@ -240,14 +240,42 @@ describe('shipping fee and order total checkout showed', () => {
     assert.equal(missedOrderTotal({ shownShippingEgp: 115, shownTotalEgp: 2105 }, BOX, 1500), null);
   });
 
-  it('skips a fee to be agreed later, and a page that sent nothing', () => {
-    const agreed = { kind: 'domestic-agreed' as const, priceEgp: 0 };
-    assert.equal(missedOrderTotal({ shownShippingEgp: 0, shownTotalEgp: 100 }, agreed, 5000), null);
+  it('skips a page that sent nothing, and compares a total sent on its own', () => {
     assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: null }, BOX, 2105), null);
     assert.deepEqual(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 2050 }, BOX, 2105), {
       missedTotalEgp: 2105,
       shippingEgp: 115,
     });
+  });
+
+  it('compares the items total of a fee to be agreed later', () => {
+    const agreed = { kind: 'domestic-agreed' as const, priceEgp: 0 };
+    // Checkout showed items 3,000 EGP "+ shipping"; a Buy X Get Y discount shrank, so the server
+    // saves 3,080: refused.
+    assert.deepEqual(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 3000 }, agreed, 3080), {
+      missedTotalEgp: 3080,
+      shippingEgp: 0,
+    });
+    // Same or lower: the order goes through.
+    assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 3000 }, agreed, 3000), null);
+    assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 3000 }, agreed, 2900), null);
+    // An older page that sent nothing is not compared.
+    assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: null }, agreed, 5000), null);
+  });
+
+  it('refuses a box fee when checkout showed a fee to be agreed', () => {
+    // Checkout showed items 3,000 EGP with a fee to be agreed; the server's weights fit a box (115 EGP).
+    assert.deepEqual(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 3000 }, BOX, 3115), {
+      missedTotalEgp: 3115,
+      shippingEgp: 115,
+    });
+    // Even when lower items prices keep the total at or under what was shown, the fee was never shown.
+    assert.deepEqual(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 3000 }, BOX, 2950), {
+      missedTotalEgp: 2950,
+      shippingEgp: 115,
+    });
+    // A free box adds nothing the shopper didn't see.
+    assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 3000 }, FREE, 3000), null);
   });
 
   it('reads the offers again, then refuses with "Prices in your bag changed" and the server totals', async () => {
