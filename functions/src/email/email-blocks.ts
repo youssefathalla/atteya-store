@@ -350,11 +350,13 @@ function tagHtml(tags: readonly string[]): string {
  * A photo fitted inside a fixed-height grey box (like `object-fit: contain`): the picture is centred
  * and limited by `max-width` / `max-height`, never cropped, so every photo in a row is the same
  * height whatever its shape. A table cell is used because many mail apps ignore `object-fit`.
- * `boxClass` lets the narrow-screen style shrink the box.
+ * `boxClass` lets the narrow-screen style shrink the box. The `width` attribute is the box's pixel
+ * width: Outlook for Windows ignores `max-width` / `max-height` and would otherwise draw the photo
+ * at its natural size; clients that read CSS use the inline `width:auto` instead.
  */
-function photo(src: string | null, height: number, boxClass = ''): string {
+function photo(src: string | null, width: number, height: number, boxClass = ''): string {
   const img = src
-    ? `<img src="${escapeHtml(src)}" alt="" style="display:block;margin:0 auto;width:auto;height:auto;max-width:100%;max-height:${height}px;border:0;">`
+    ? `<img src="${escapeHtml(src)}" alt="" width="${width}" style="display:block;margin:0 auto;width:auto;height:auto;max-width:100%;max-height:${height}px;border:0;">`
     : '&nbsp;';
   const cls = boxClass ? ` class="${boxClass}"` : '';
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;"><tr><td${cls} height="${height}" align="center" valign="middle" style="width:100%;height:${height}px;background:${GREY_PHOTO};text-align:center;font-size:0;line-height:0;">${img}</td></tr></table>`;
@@ -389,7 +391,7 @@ export function itemGrid(cards: readonly ItemCard[], perRow: 2 | 3, compactAfter
         : '';
       const tags = card.tags.length ? `<div style="margin:0 0 2px;">${tagHtml(card.tags)}</div>` : '';
       return `<td width="${cellPercent}" valign="top" style="${pad}padding-bottom:24px;">
-${tags}${photo(card.imageSrc, photoHeight)}
+${tags}${photo(card.imageSrc, cellWidth, photoHeight)}
 <p style="margin:12px 0 0;${FONT}font-size:15px;font-weight:700;line-height:1.35;color:${INK};">${escapeHtml(card.name)}</p>
 ${details}${price}
 </td>`;
@@ -406,7 +408,7 @@ function itemList(cards: readonly ItemCard[]): string {
     .map((card) => {
       const thumb = `<table role="presentation" width="64" cellpadding="0" cellspacing="0"><tr><td width="64" height="64" align="center" valign="middle" style="width:64px;height:64px;background:${GREY_PHOTO};text-align:center;font-size:0;line-height:0;">${
         card.imageSrc
-          ? `<img src="${escapeHtml(card.imageSrc)}" alt="" style="display:block;margin:0 auto;width:auto;height:auto;max-width:64px;max-height:64px;border:0;">`
+          ? `<img src="${escapeHtml(card.imageSrc)}" alt="" width="64" style="display:block;margin:0 auto;width:auto;height:auto;max-width:64px;max-height:64px;border:0;">`
           : '&nbsp;'
       }</td></tr></table>`;
       const tags = card.tags.length ? `<div>${tagHtml(card.tags)}</div>` : '';
@@ -441,7 +443,7 @@ export function photoStrip(cards: readonly ItemCard[], captions: string): string
   const tds = shown
     .map(
       (card) =>
-        `<td width="${cellPercent}" valign="top" style="padding:0;">${photo(card.imageSrc, Math.round(width * 1.1), `sphoto${shown.length}`)}</td>`,
+        `<td width="${cellPercent}" valign="top" style="padding:0;">${photo(card.imageSrc, width, Math.round(width * 1.1), `sphoto${shown.length}`)}</td>`,
     )
     .join('\n');
   return `<tr><td style="padding:0;">
