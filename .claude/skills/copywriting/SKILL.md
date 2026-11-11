@@ -19,7 +19,7 @@ Every rule here came from a real correction by Youssef. Follow it the first time
 
 Title case = capital on every main word; these small words stay lower case unless they are first or last: a, an, the, and, or, but, of, on, in, at, to, by, for, with, from. Brand words keep their own spelling: InstaPay, WhatsApp, Paymob.
 
-Account emails follow the same table: the "Confirm Your Email" message (`functions/src/email/verification-email-template.ts`, tested in `functions/src/auth/verification-send.test.ts`) has the heading **Confirm Your Email** and the button **Confirm Email**; the website prompt reads "Confirm your email" (sentence case, it is a note) with the button **Resend Email**.
+Account emails follow the same table: the "Confirm Your Email" message (`functions/src/email/verification-email-template.ts`, tested in `functions/src/auth/verification-send.test.ts`) has the status **CONFIRM YOUR EMAIL** under the kicker **ONE LAST STEP** and the button **Confirm Email**; the website prompt reads "Confirm your email" (sentence case, it is a note) with the button **Resend Email**.
 
 ## 2. Say each thing once
 
@@ -72,3 +72,10 @@ Set by the catalogue copy cleanup (Nov 8, 2026); keep new products in the same s
 - Read every new string out loud next to what's around it: is anything said twice?
 - Check capitals against the table in section 1.
 - Update the matching tests (`functions/src/email/order-emails.spec.ts`, `functions/src/store/order-messages.spec.ts`) when wording changes, and keep `AGENTS.md` examples in step.
+
+## Shopper email headers ("Bold Black", <KEY>-221)
+
+- The kicker and the huge status in the black header are written in capitals by the template: `ORDER PLACED`, `ORDER CONFIRMED`, `FEE READY`, `FEE UPDATED`, `ON ITS WAY`, `IT'S HERE`, `DIDN'T GO THROUGH`, `CONFIRM YOUR EMAIL`; write them in title case in code (`['Order', 'Placed']`).
+- Amount labels (`PAY NOW`, `AT YOUR DOOR`, `SEND BY INSTAPAY`, `HAVE READY IN CASH`) and box labels (`DELIVERY TO`, `PAYMENT`) are capitals too; their plain-text versions are sentence case ("Pay now: EGP 115").
+- Step titles and notes are sentence case ("Send the delivery fee by InstaPay", "Done. Order #A1B2C3"); buttons stay title case (**Send Screenshot on WhatsApp**, **Send Receipt on WhatsApp**, **View Your Order**, **Shop New Arrivals**, **Shop Again**).
+- The approved mockups pair the step "Send the screenshot on WhatsApp" with the button **Send Screenshot on WhatsApp** (and the receipt step with **Send Receipt on WhatsApp**); that is the one agreed exception to "don't repeat a step in its button", for these emails only.

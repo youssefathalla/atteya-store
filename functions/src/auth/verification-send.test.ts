@@ -89,12 +89,28 @@ describe('confirm-your-email message', () => {
 
   it('has the heading, button and expiry line', () => {
     assert.equal(email.subject, 'Confirm Your Email');
-    assert.match(email.html, />Confirm Your Email<\/h1>/);
+    assert.match(email.html, />CONFIRM<br>YOUR EMAIL<\/h1>/);
+    assert.match(email.html, />ONE LAST STEP</);
     assert.match(email.html, />Confirm Email<\/a>/);
     assert.match(email.html, /background:#111111;color:#ffffff;/);
+    assert.match(email.html, />Member prices</);
+    assert.match(email.text, /- Save orders to your account/);
     assert.match(email.html, /expires/);
     assert.match(email.html, /ignore this email/);
     assert.match(email.html, /ATTEYA STORE/);
+  });
+
+  it('links WhatsApp in the footer only when the number is set', () => {
+    assert.doesNotMatch(email.html, /wa\.me/);
+    const withWa = renderVerificationEmail({
+      storeName: 'Atteya Store',
+      link: 'https://auth.example/verify',
+      whatsappNumber: '+20 120 565 8954',
+      storefrontUrl: 'https://www.atteyastore.com',
+    });
+    assert.match(withWa.html, /href="https:\/\/wa\.me\/201205658954"/);
+    assert.match(withWa.html, />atteyastore\.com</);
+    assert.match(withWa.text, /Questions\? Message us on WhatsApp/);
   });
 
   it('escapes the link in the HTML and keeps it plain in the text', () => {

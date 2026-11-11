@@ -61,6 +61,10 @@ export interface OrderEmailOrder {
   readonly deliveryFeeAgreed: boolean;
   /** When staff last saved the delivery fee (`deliveryFeeSetAt`, epoch ms), or null. */
   readonly deliveryFeeSetAtMs: number | null;
+  /** When staff marked the order Shipped (`shippedAt`, epoch ms), or null. */
+  readonly shippedAtMs: number | null;
+  /** When staff marked the order Delivered (`deliveredAt`, epoch ms), or null. */
+  readonly deliveredAtMs: number | null;
   /** A guest order's secret view key (its links carry `?key=`); null for signed-in orders. */
   readonly viewKey: string | null;
   /** Bank Transfer: the amount to send in the shopper's currency (`pricing.payIn`), or null. */
@@ -192,6 +196,8 @@ export function readOrderForEmail(
     feeToBeAgreed: isDeliveryFeeToBeAgreed(shipping),
     deliveryFeeAgreed: shipping?.['kind'] === 'domestic-agreed' && shipping['feeAgreed'] === true,
     deliveryFeeSetAtMs: timestampMs(data['deliveryFeeSetAt']),
+    shippedAtMs: timestampMs(data['shippedAt']),
+    deliveredAtMs: timestampMs(data['deliveredAt']),
     viewKey: text(data['viewKey']) || null,
     payIn: readPayIn(pricing['payIn']),
   };
