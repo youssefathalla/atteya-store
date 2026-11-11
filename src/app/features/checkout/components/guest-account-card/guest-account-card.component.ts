@@ -148,8 +148,9 @@ export class GuestAccountCardComponent implements OnInit {
     // Signing in from the offer: keep it on screen until the result is known.
     const busy = this.busy();
     if (busy === 'create' || busy === 'google') return 'offer';
-    // Just created here: confirm the email, then save (it shows its own messages).
-    if (outcome === 'created') return 'verify';
+    // Just created here: confirm the email, then save (it shows its own messages). Once the
+    // account reads as confirmed (e.g. Resend found nothing to send), offer Save directly.
+    if (outcome === 'created') return this.#canClaim() ? 'claim' : 'verify';
     if (this.#auth.user()) {
       const owned = !this.#owned.hasValue() || this.#owned.value();
       if (!owned && (this.#needsVerification() || this.verificationSent())) return 'verify';
