@@ -636,12 +636,18 @@ export class ProductEditorPageComponent implements OnInit {
     const order = (value: string): number =>
       (SIZE_ORDER as readonly string[]).findIndex((item) => item.toLowerCase() === value.toLowerCase());
     const rank = order(label);
+    const wasFlat = this.sizes().length === 0;
     this.sizes.update((list) => {
       const at = rank < 0 ? -1 : list.findIndex((item) => order(item.label) > rank);
       return at < 0 ? [...list, size] : [...list.slice(0, at), size, ...list.slice(at)];
     });
+    // When the first size replaces a single total, leave the box empty unless that
+    // total was zero, so save asks for real counts instead of silently storing 0.
     this.colours.update((list) =>
-      list.map((colour) => ({ ...colour, stock: { ...colour.stock, [size.key]: '0' } })),
+      list.map((colour) => {
+        const start = wasFlat && parseCount(colour.flatStock) !== 0 ? '' : '0';
+        return { ...colour, stock: { ...colour.stock, [size.key]: start } };
+      }),
     );
     this.sizeError.set('');
     return true;
