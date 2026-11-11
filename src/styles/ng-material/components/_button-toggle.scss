@@ -11,9 +11,10 @@
   );
 }
 
-// InstaPay box on the order confirmation page: two separate options (8px apart) instead of one joined bar.
-// Spacing only; colours come from the tokens above.
-.mat-button-toggle-group.instapay-switch {
+// Two separate options (8px apart) instead of one joined bar: the InstaPay box on the order
+// confirmation page and the product page's Size & Fit chart. Spacing only; colours come from the tokens above.
+.mat-button-toggle-group.instapay-switch,
+.mat-button-toggle-group.pill-switch {
   gap: 8px;
   // On a very narrow phone the second option goes to its own line instead of cutting its label.
   flex-wrap: wrap;
