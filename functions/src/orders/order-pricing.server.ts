@@ -92,14 +92,18 @@ export interface OrderLinePrice {
   readonly fullEgp?: number;
 }
 
-/** One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100). */
+/**
+ * One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100), or a Bundle price
+ * offer's share of it (`bundle: true`, `percent` 0: `units` pieces pay their part of the bundle).
+ */
 export interface OrderLineDeal {
   readonly offerId: string;
-  /** Pieces of the line discounted. */
+  /** Pieces of the line discounted (in the bundle). */
   readonly units: number;
-  /** 100 = free, 50 = half price. */
+  /** 100 = free, 50 = half price; 0 for a bundle. */
   readonly percent: number;
   readonly discountEgp: number;
+  readonly bundle?: true;
 }
 
 /** Marks an order line as a free gift. Gift lines follow the line they belong to. */
@@ -496,17 +500,6 @@ async function priceWithOffers(
     giftDemand.set(key, (giftDemand.get(key) ?? 0) + line.quantity);
   }
 
-  // Percent off, Amount off and Set price offers: a line that costs more per piece than checkout
-  // showed (the offer was paused, ended or lowered after the page priced the bag, or this server's
-  // offer cache is behind) would make the order cost more than the shopper saw:
-  // `priceWithFreshOffersOnMiss` reads the offers again and refuses only if it still misses.
-  const missedPrice = missedLinePrice(
-    input.lines,
-    lineResults.map((result) => ({ unitEgp: result.priced.unitEgp, appliedOfferId: result.appliedOfferId })),
-    new Set(liveOffers(offers, ctx).map((offer) => offer.id)),
-  );
-  if (missedPrice !== null) return missedPrice;
-
   // Buy X Get Y: worked out over the whole bag with the shared engine, so the order charges what
   // the bag showed. One discount per item: a group's pieces get either the Buy X Get Y discount
   // (on the price before per-item offers) or their per-item offers, whichever saves more.
@@ -524,6 +517,29 @@ async function priceWithOffers(
     };
   });
   const deals = priceBagDeals(dealFacts, offers, ctx);
+
+  // Percent off, Amount off and Set price offers: a line that costs more per piece than checkout
+  // showed (the offer was paused, ended or lowered after the page priced the bag, or this server's
+  // offer cache is behind) would make the order cost more than the shopper saw:
+  // `priceWithFreshOffersOnMiss` reads the offers again and refuses only if it still misses.
+  // A line whose every piece is in a Bundle price offer pays its share of the bundle total, not
+  // that price: it is not compared while the bag costs no more than at the prices checkout showed.
+  const shownUnitEgp = input.lines.map((line) => line.shownUnitEgp);
+  const bundledOnly = deals.lines.map(
+    (lineDeals) =>
+      lineDeals.dealUnits > 0 && lineDeals.offerUnits === 0 && dealUnitsOutsideBundles(lineDeals) === 0,
+  );
+  const skipBundled =
+    bundledOnly.some((bundled) => bundled) && !unitRiseCostsMore(dealFacts, shownUnitEgp, offers, ctx);
+  const missedPrice = missedLinePrice(
+    input.lines.map((line, index) =>
+      skipBundled && bundledOnly[index] ? { ...line, shownUnitEgp: null } : line,
+    ),
+    lineResults.map((result) => ({ unitEgp: result.priced.unitEgp, appliedOfferId: result.appliedOfferId })),
+    new Set(liveOffers(offers, ctx).map((offer) => offer.id)),
+  );
+  if (missedPrice !== null) return missedPrice;
+
   // A page from before "one discount per item" (no `shownBaseEgp`) still shows Buy X Get Y on top
   // of per-item offers. Never charge it more than it showed, and never give it the double discount
   // either (any client could leave the field out): refuse and ask for a refresh, only when the
@@ -534,7 +550,10 @@ async function priceWithOffers(
   ) {
     throw outdatedPageError();
   }
-  for (const offerId of deals.offerIds) addUsedOffer(usedOffers, offers, offerId, 'deal');
+  for (const offerId of deals.offerIds) {
+    const bundle = offers.find((offer) => offer.id === offerId)?.reward.kind === 'bundlePrice';
+    addUsedOffer(usedOffers, offers, offerId, bundle ? 'bundle' : 'deal');
+  }
   // A Buy X Get Y offer the bag showed (`dealOfferIds`) that this order doesn't get (it ended, was
   // switched off, the bag's clock was behind, or this server's offer cache is) would make the order
   // cost more than the shopper saw: `priceWithFreshOffersOnMiss` reads the offers again and refuses
@@ -554,7 +573,9 @@ async function priceWithOffers(
       productId: line.productId,
       shownBaseEgp: line.shownBaseEgp,
       baseEgp: Math.max(0, Math.round(lineResults[index]!.product.price)),
-      dealUnits: deals.lines[index]!.dealUnits,
+      // Bundle pieces pay their share of the bundle total, whatever the base price; a rise that
+      // changes the bag's total is still caught by `baseRiseCostsMore` below.
+      dealUnits: dealUnitsOutsideBundles(deals.lines[index]!),
     })),
   );
   if (missedBase !== null) return missedBase;
@@ -700,6 +721,28 @@ export function baseRiseCostsMore(
 }
 
 /**
+ * True when the bag's Buy X Get Y and Bundle price pricing costs more than it would on the per-piece
+ * prices after per-item offers checkout showed (`shownUnitEgp`), where those were lower. Lines
+ * without `shownUnitEgp` keep the server's price.
+ */
+export function unitRiseCostsMore(
+  facts: readonly BagLineFacts[],
+  shownUnitEgp: readonly (number | null)[],
+  offers: readonly Offer[],
+  ctx: PricingContext,
+): boolean {
+  const shownFacts = facts.map((line, index) => {
+    const shown = shownUnitEgp[index];
+    if (shown === null || shown === undefined || line.offerPrice <= shown) return line;
+    return { ...line, offerPrice: shown };
+  });
+  if (shownFacts.every((line, index) => line === facts[index])) return false;
+  const total = (lines: readonly BagLineFacts[]): number =>
+    priceBagDeals(lines, offers, ctx).lines.reduce((sum, line) => sum + line.total, 0);
+  return total(facts) > total(shownFacts);
+}
+
+/**
  * True when the bag costs more with one discount per item than with Buy X Get Y worked out on top
  * of per-item offers (what pages from before that rule show).
  */
@@ -755,6 +798,12 @@ export function giftWorth(
   return worth;
 }
 
+/** Pieces of a line in a Buy X Get Y group (they pay the price before per-item offers), bundles left out. */
+export function dealUnitsOutsideBundles(lineDeals: BagLineDeals): number {
+  const bundled = lineDeals.deals.filter((deal) => deal.bundle).reduce((sum, deal) => sum + deal.units, 0);
+  return Math.max(0, lineDeals.dealUnits - bundled);
+}
+
 /**
  * The line with its Buy X Get Y groups priced (unchanged when no piece is in one): pieces in a
  * group pay the price before per-item offers, minus the deal's discount; the others keep
@@ -772,6 +821,7 @@ export function withDeals(priced: OrderLinePrice, lineDeals: BagLineDeals): Orde
       units: deal.units,
       percent: deal.percent,
       discountEgp: deal.discount,
+      ...(deal.bundle ? { bundle: true as const } : {}),
     })),
   };
 }

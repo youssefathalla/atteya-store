@@ -5,7 +5,8 @@ import type { OfferLimits } from '../offers/engine/index.js';
 
 /**
  * An offer an order uses, with its limits: a Free gift offer it gives gifts from (`gift`), a
- * Buy X Get Y offer that discounts it (`deal`), a Percent off, Amount off or Set price offer that
+ * Buy X Get Y offer that discounts it (`deal`), a Bundle price offer that prices some of its pieces
+ * (`bundle`), a Percent off, Amount off or Set price offer that
  * lowers the price of at least one piece (`item`), or a Free shipping offer that made the
  * shipping free (`shipping`). Each counts once per order, however many pieces it touches.
  */
@@ -17,7 +18,7 @@ export interface UsedOffer {
   readonly kind: UsedOfferKind;
 }
 
-export type UsedOfferKind = 'gift' | 'deal' | 'item' | 'shipping';
+export type UsedOfferKind = 'gift' | 'deal' | 'bundle' | 'item' | 'shipping';
 
 /**
  * The key a guest's `perCustomer` offer uses are counted under, in place of a uid:

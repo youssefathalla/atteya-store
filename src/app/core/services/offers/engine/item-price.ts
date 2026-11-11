@@ -1,4 +1,5 @@
 // GENERATED — edit functions/src/offers/engine
+import { bundleOneRowPrice } from './bundle-price';
 import { formatAppliedOfferBadge, formatLabelOnlyOfferBadge } from './labels';
 import { matchProduct, matchVariant } from './match';
 import type {
@@ -113,10 +114,15 @@ export function priceItem(
   };
 }
 
+/**
+ * The card price. `bundleFrom` (on by default) lets a Bundle price offer's 1-piece row lower the
+ * "From" price; the product page turns it off, since it prices the chosen size like the bag.
+ */
 export function displayPrice(
   product: PricedProduct,
   offers: readonly Offer[],
   ctx: PricingContext,
+  options: { readonly bundleFrom?: boolean } = {},
 ): DisplayPriceResult {
   const active = liveOffers(offers, ctx);
   const synthesizedVariants = buildTestableVariants(product);
@@ -148,6 +154,16 @@ export function displayPrice(
     if (matchProduct(offer.conditions, offer.exclude, product) === 'none') continue;
     if (onSale && offer.saleItems === 'exclude') continue;
     matchingOfferIds.push(offer.id);
+  }
+
+  // A Bundle price offer with a 1-piece row ("1 for 125") is the lowest a single piece costs, so
+  // the card says "From 125". Only priced in the bag: the product page keeps its own price.
+  for (const offer of options.bundleFrom === false ? [] : active) {
+    if (offer.scope !== 'item' || hasMinimum(offer)) continue;
+    const one = bundleOneRowPrice(offer);
+    if (one === null || one >= fromPrice || !matchingOfferIds.includes(offer.id)) continue;
+    fromPrice = one;
+    partial = true;
   }
 
   const listPrice = productLevel.listPrice;
@@ -202,6 +218,7 @@ function computeCandidateUnitPrice(
       break;
     }
     case 'buyXGetY':
+    case 'bundlePrice':
     case 'freeGift':
     case 'freeShipping':
       return null;
@@ -209,6 +226,11 @@ function computeCandidateUnitPrice(
 
   if (rawDiscounted === null) return null;
   return Math.min(basePrice, Math.max(0, rawDiscounted));
+}
+
+function hasMinimum(offer: Offer): boolean {
+  const minimum = offer.minimum;
+  return !!minimum && ((minimum.subtotal ?? 0) > 0 || (minimum.quantity ?? 0) > 0);
 }
 
 function findSingleUnitTier(tiers: readonly OfferTier[]): OfferTier | null {
@@ -226,7 +248,9 @@ function findSingleUnitTier(tiers: readonly OfferTier[]): OfferTier | null {
 function isLabelOnlyOffer(offer: Offer): boolean {
   if (offer.scope === 'cart') return true;
   const kind = offer.reward.kind;
-  if (kind === 'buyXGetY' || kind === 'freeGift' || kind === 'freeShipping') return true;
+  if (kind === 'buyXGetY' || kind === 'bundlePrice' || kind === 'freeGift' || kind === 'freeShipping') {
+    return true;
+  }
   if (kind === 'tiered') return true;
   return false;
 }

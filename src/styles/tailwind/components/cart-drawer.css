@@ -51,6 +51,15 @@
     @apply border-dashed bg-transparent;
   }
 
+  /* A nudge with two buttons (Bundle price): the buttons drop under the text when the row is too narrow, never squashed. */
+  .bag-card__strip--wrap {
+    @apply flex-wrap;
+  }
+
+  .bag-card__strip-actions {
+    @apply shrink-0 elements-start gap-2 ms-auto;
+  }
+
   /* "You've earned a free grip": the free-item tiles inside the card, under a dashed line. */
   .bag-card__pick {
     @apply border-t border-dashed border-outline-variant;

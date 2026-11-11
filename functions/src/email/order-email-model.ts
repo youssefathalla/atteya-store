@@ -82,13 +82,17 @@ function readGiftName(raw: unknown): string | null {
   return text(raw['giftName']) || 'Free gift';
 }
 
-/** The Buy X Get Y tag of a line ("Free", "1 free", "−50%"), or null when it has none. */
+/** The Buy X Get Y or bundle tag of a line ("Free", "1 free", "−50%", "Bundle price"), or null. */
 function readDealTag(raw: unknown, quantity: number): string | null {
   if (!Array.isArray(raw)) return null;
   const deals = raw
     .filter(isRecord)
-    .map((deal) => ({ units: wholeNumber(deal['units']), percent: wholeNumber(deal['percent']) }))
-    .filter((deal) => deal.units > 0 && deal.percent > 0);
+    .map((deal) => ({
+      units: wholeNumber(deal['units']),
+      percent: wholeNumber(deal['percent']),
+      bundle: deal['bundle'] === true,
+    }))
+    .filter((deal) => deal.units > 0 && (deal.percent > 0 || deal.bundle));
   return dealTag(deals, quantity) || null;
 }
 
