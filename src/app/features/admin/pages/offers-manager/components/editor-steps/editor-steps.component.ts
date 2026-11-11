@@ -3,9 +3,10 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 import { OFFER_EDITOR_STEPS, type OfferEditorStep } from '../../models/offer-admin.model';
 
 /**
- * The step bar of the offer editor, drawn as a timeline: a finished step shows a tick and links
- * back to it, the current step is bold, later steps are grey outlines, and a line joins each step
- * to the next (black after a finished step).
+ * The step bar of the offer editor, drawn as a timeline (a column on phone, a row from `sm`):
+ * only the current step is filled black and bold, a finished step is a black outline with a tick
+ * that links back to it, later steps are grey outlines, and a line joins each step to the next
+ * (black after a finished step).
  */
 @Component({
   selector: 'app-editor-steps',
@@ -23,7 +24,7 @@ import { OFFER_EDITOR_STEPS, type OfferEditorStep } from '../../models/offer-adm
               <span class="font-bold!" aria-current="step">{{ step.label }}</span>
             } @else if (done().includes(step.id)) {
               <button type="button" class="offer-steps__link" (click)="stepClick.emit(step.id)">
-                <span class="offer-steps__circle offer-steps__circle--on" aria-hidden="true">
+                <span class="offer-steps__circle offer-steps__circle--done" aria-hidden="true">
                   <mat-icon name="check" />
                 </span>
                 <span>{{ step.label }}</span>

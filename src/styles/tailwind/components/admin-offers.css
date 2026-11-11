@@ -86,26 +86,39 @@
   }
 
   /*
-   * Step bar as a timeline: 4 equal columns, a circle per step with its name under it, and a
-   * line joining each circle to the next (black after a finished step, grey otherwise). One row
-   * at every width, so it never wraps.
+   * Step bar as a timeline. Phone: a column, each circle with its name on the right and a line
+   * down to the next circle. From `sm`: one row of 4 equal columns, each name under its circle and
+   * a line across to the next. The line is black after a finished step, grey otherwise.
    */
   .offer-steps {
-    @apply grid grid-cols-4 items-start w-full max-w-3xl mx-auto font-label-md;
+    @apply flex flex-col w-full font-label-md sm:grid sm:grid-cols-4 sm:items-start sm:max-w-3xl sm:mx-auto;
   }
 
   .offer-steps__item {
-    @apply relative elements-start-col items-center! gap-2 px-1 text-center min-w-0;
+    @apply relative elements-start items-center! gap-3 pb-4 last:pb-0 text-start min-w-0 sm:flex-col sm:gap-2 sm:pb-0 sm:px-1 sm:text-center;
   }
 
+  /* Phone: a vertical line from under this circle to the top of the next one. */
   .offer-steps__item:not(:last-child)::after {
     content: '';
     position: absolute;
-    top: calc(1rem - 1px);
-    left: calc(50% + 1.25rem);
-    right: calc(-50% + 1.25rem);
-    height: 2px;
+    top: calc(2rem + 0.25rem);
+    bottom: 0.25rem;
+    left: calc(1rem - 1px);
+    width: 2px;
     background: var(--mat-sys-outline-variant);
+  }
+
+  /* From `sm`: a horizontal line from this circle to the next column's circle. */
+  @media (width >= 40rem) {
+    .offer-steps__item:not(:last-child)::after {
+      top: calc(1rem - 1px);
+      bottom: auto;
+      left: calc(50% + 1.25rem);
+      right: calc(-50% + 1.25rem);
+      width: auto;
+      height: 2px;
+    }
   }
 
   .offer-steps__item--done:not(:last-child)::after {
@@ -116,12 +129,18 @@
     @apply size-8 shrink-0 elements-center rounded-full border border-outline bg-surface-container-lowest font-label-lg text-on-surface-variant;
   }
 
+  /* Only the current step is filled black. */
   .offer-steps__circle--on {
     @apply bg-primary text-on-primary border-primary;
   }
 
+  /* A finished step: black outline with a tick, not filled. */
+  .offer-steps__circle--done {
+    @apply border-primary text-primary;
+  }
+
   .offer-steps__link {
-    @apply elements-start-col items-center! gap-2 cursor-pointer;
+    @apply elements-start items-center! gap-3 cursor-pointer text-start sm:flex-col sm:gap-2 sm:text-center;
   }
 
   /* A choice card: the border is a wrapper around a Material radio; the hit span makes the whole card clickable. */
