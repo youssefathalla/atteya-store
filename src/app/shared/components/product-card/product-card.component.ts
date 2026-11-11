@@ -1,17 +1,19 @@
 import { NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
+import { Component, computed, inject, input, linkedSignal, output, resource, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
 import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
+import { OffersService } from '@core/services/offers/offers.service';
 import { CatalogService } from '@core/services/products/catalog.service';
+import { ProductCacheService } from '@core/services/products/product-cache.service';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { PrefetchProductDirective } from '@shared/directives/prefetch-product';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { normalizeImageKitPath } from '@shared/utils/image';
-import type { ProductCardColorway, ProductCardData } from './product-card.model';
-import { genderCategoryLine, visibleColorways } from './product-card.utils';
+import type { ProductCardColorway, ProductCardData, ProductCardPrice } from './product-card.model';
+import { genderCategoryLine, productCardPrice, visibleColorways } from './product-card.utils';
 
 interface PhotoLayer {
   readonly path: string;
@@ -49,6 +51,8 @@ export class ProductCardComponent {
   readonly #favoritesGate = inject(FavoritesGateService);
   readonly #catalog = inject(CatalogService);
   readonly #router = inject(Router);
+  readonly #productCache = inject(ProductCacheService);
+  readonly #offers = inject(OffersService);
 
   /** Colour picked by a click or tap; the card shows its photo (and opens it) until another is picked. */
   readonly #preview = signal<ProductCardColorway | null>(null);
@@ -66,11 +70,34 @@ export class ProductCardComponent {
   });
 
   /**
-   * The colour the card shows: the photo, the name link and the heart all follow it, so the whole card
-   * opens and saves the colour on screen (decided with Youssef, ATS-187). The price stays the card's
-   * own: colours of one model share a price in the catalogue, and the product page shows the live one.
+   * The colour the card shows: the photo, the name link, the price and the heart all follow it, so the
+   * whole card opens, prices and saves the colour on screen (decided with Youssef, ATS-187).
    */
   readonly photoSlug = computed(() => this.#preview()?.slug ?? this.product().slug);
+
+  /** The picked colour's product, read through the shared cache (usually warm from the swatch prefetch). */
+  readonly #picked = resource({
+    params: () => this.#preview()?.slug,
+    loader: ({ params }) => this.#productCache.getBySlug(params),
+  });
+
+  /**
+   * The price for the colour on screen. Colours of one model can have different prices, so a picked
+   * colour shows its own price; null while it loads (the card shows a placeholder of the same height).
+   */
+  readonly shownPrice = computed<ProductCardPrice | null>(() => {
+    const preview = this.#preview();
+    if (!preview) return this.product().price;
+    if (this.#picked.error()) return this.product().price;
+    if (!this.#picked.hasValue() || this.#picked.isLoading()) return null;
+    const picked = this.#picked.value();
+    if (!picked || picked.id !== preview.productId) return this.product().price;
+    const live = this.#offers.ready() && !this.#offers.failed();
+    return productCardPrice(picked, live ? this.#offers.all() : null, {
+      now: this.#offers.now(),
+      signedIn: this.#auth.offerSignedIn(),
+    });
+  });
 
   readonly displayImagePath = computed(() => {
     const preview = this.#preview();

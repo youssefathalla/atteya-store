@@ -150,6 +150,11 @@
     @apply font-body-sm line-clamp-1 text-on-surface-variant;
   }
 
+  /* Same height as the price line while a picked colour's price loads, so nothing jumps. */
+  .product-card__price-loading {
+    @apply block h-6 w-24 mt-0.5 border-shape;
+  }
+
   .product-card__price {
     @apply pt-0.5;
   }

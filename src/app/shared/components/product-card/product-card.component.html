@@ -83,13 +83,17 @@
   @if (secondLine(); as line) {
     <p class="product-card__desc">{{ line }}</p>
   }
-  <app-product-price
-    class="product-card__price"
-    tone="listing"
-    [price]="product().price.price"
-    [fromPrice]="product().price.fromPrice"
-    [partial]="product().price.partial"
-    [listPrice]="product().price.listPrice"
-    [badges]="product().price.badges"
-  />
+  @if (shownPrice(); as price) {
+    <app-product-price
+      class="product-card__price"
+      tone="listing"
+      [price]="price.price"
+      [fromPrice]="price.fromPrice"
+      [partial]="price.partial"
+      [listPrice]="price.listPrice"
+      [badges]="price.badges"
+    />
+  } @else {
+    <span class="product-card__price-loading skeleton" aria-hidden="true"></span>
+  }
 </a>
