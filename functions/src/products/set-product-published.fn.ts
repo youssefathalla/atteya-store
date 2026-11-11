@@ -30,6 +30,8 @@ export const setProductPublished = onCall(
       // No auditLogs entry yet, same as setProductStock.
       tx.update(ref, {
         published: input.published,
+        // Same as the product editor: staff's choice must not be overwritten by catalogue tools.
+        lockedFields: FieldValue.arrayUnion('published'),
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: actor.uid,
       });
