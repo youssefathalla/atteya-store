@@ -1,7 +1,6 @@
 import {
   DEFAULT_OFFER_BANNER,
   describeOfferReward,
-  formatCairoDisplay,
   matchProduct,
   type Offer,
   type OfferConditionAtom,
@@ -13,23 +12,6 @@ import {
   type OfferScope,
   type PricedProduct,
 } from '@core/services/offers/engine';
-
-export type OfferStatusFilter = 'all' | 'live' | 'scheduled' | 'ended' | 'archived';
-export type OfferComputedStatus = 'live' | 'scheduled' | 'ended' | 'paused' | 'archived';
-
-export interface OfferTableRow {
-  readonly id: string;
-  readonly name: string;
-  readonly title: string;
-  readonly status: OfferComputedStatus;
-  readonly rewardSummary: string;
-  readonly matchSummary: string;
-  readonly datesSummary: string;
-  readonly priority: number;
-  readonly active: boolean;
-  readonly archived: boolean;
-  readonly code: string | null;
-}
 
 export interface ConditionFieldOption {
   readonly id: OfferConditionField;
@@ -228,52 +210,279 @@ export function createEmptyOfferDraft(): OfferDraft {
   };
 }
 
-export function computeOfferStatus(offer: Offer, now: Date): OfferComputedStatus {
+// ---------------------------------------------------------------------------------------------
+// Offers list cards (ATS-219): count boxes, deal-type chips, the card text and grouping.
+// ---------------------------------------------------------------------------------------------
+
+/** The four count boxes on the Offers list. */
+export type OfferListBucket = 'running' | 'later' | 'ended' | 'archived';
+
+export const OFFER_LIST_BUCKETS: readonly { readonly id: OfferListBucket; readonly label: string }[] = [
+  { id: 'running', label: 'Running now' },
+  { id: 'later', label: 'Starting later' },
+  { id: 'ended', label: 'Ended' },
+  { id: 'archived', label: 'Archived' },
+];
+
+/** The deal-type chips under the search box. */
+export type OfferDealFilter = 'all' | 'discounts' | 'gifts' | 'bundles' | 'banner';
+
+export const OFFER_DEAL_FILTERS: readonly { readonly id: OfferDealFilter; readonly label: string }[] = [
+  { id: 'all', label: 'All deal types' },
+  { id: 'discounts', label: 'Discounts' },
+  { id: 'gifts', label: 'Free gifts' },
+  { id: 'bundles', label: 'Bundles' },
+  { id: 'banner', label: 'In top banner' },
+];
+
+/**
+ * Which count box an offer counts under. The dates decide, whether the offer is on or off, so a
+ * paused offer counts under Running now (with a "Paused" status) and an ended one stays ended.
+ */
+export function offerListBucket(offer: Offer, now: Date): OfferListBucket {
   if (offer.archived) return 'archived';
-  if (!offer.active) return 'paused';
   const nowMs = now.getTime();
-  if (offer.schedule.startsAt && nowMs < offer.schedule.startsAt.getTime()) {
-    return 'scheduled';
-  }
-  if (offer.schedule.endsAt && nowMs >= offer.schedule.endsAt.getTime()) {
-    return 'ended';
-  }
-  return 'live';
+  if (offer.schedule.endsAt && nowMs >= offer.schedule.endsAt.getTime()) return 'ended';
+  if (offer.schedule.startsAt && nowMs < offer.schedule.startsAt.getTime()) return 'later';
+  return 'running';
 }
 
-export function toOfferTableRow(offer: Offer, products: readonly PricedProduct[], now: Date): OfferTableRow {
-  const status = computeOfferStatus(offer, now);
-  let fullCount = 0;
-  let partialCount = 0;
+/** True when the offer is one of the deal types a chip stands for. */
+export function matchesDealFilter(offer: Offer, filter: OfferDealFilter): boolean {
+  const kind = offer.reward.kind;
+  switch (filter) {
+    case 'all':
+      return true;
+    case 'discounts':
+      return kind === 'percentOff' || kind === 'amountOff' || kind === 'fixedPrice';
+    case 'gifts':
+      return kind === 'freeGift';
+    case 'bundles':
+      return kind === 'bundlePrice' || kind === 'buyXGetY';
+    case 'banner':
+      return offer.banner?.show === true;
+  }
+}
 
+/** The deal in a few words, as the card's large text: "50% off", "Free shirt + free socks". */
+export function offerDealHeadline(offer: Offer): string {
+  const r = offer.reward;
+  if (r.kind === 'fixedPrice') return `New price EGP ${r.price.toLocaleString('en-US')}`;
+  if (r.kind === 'freeGift' && r.gifts.length > 0) {
+    return r.gifts
+      .map((gift, index) => (index > 0 ? gift.name.replace(/^Free /, 'free ') : gift.name))
+      .join(' + ');
+  }
+  return describeOfferReward(offer);
+}
+
+const CAIRO_SHORT_PARTS = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Africa/Cairo',
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+function cairoShortParts(date: Date): { readonly day: string; readonly time: string } {
+  const parts = CAIRO_SHORT_PARTS.formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((item) => item.type === type)?.value ?? '';
+  return { day: `${part('day')} ${part('month')}`, time: `${part('hour')}:${part('minute')}` };
+}
+
+/** "20 Nov, 00:00" (Cairo time), for the status line. */
+export function cairoShortWithComma(date: Date): string {
+  const { day, time } = cairoShortParts(date);
+  return `${day}, ${time}`;
+}
+
+/** "20 Nov 00:00" (Cairo time), for the When row. */
+export function cairoShort(date: Date): string {
+  const { day, time } = cairoShortParts(date);
+  return `${day} ${time}`;
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** "Ends in 2 days", "Ends in 5 hours", "Ends in under an hour". */
+function endsIn(endsAt: Date, now: Date): string {
+  const left = endsAt.getTime() - now.getTime();
+  if (left < HOUR_MS) return 'Ends in under an hour';
+  if (left < DAY_MS) {
+    const hours = Math.floor(left / HOUR_MS);
+    return `Ends in ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  }
+  const days = Math.floor(left / DAY_MS);
+  return `Ends in ${days} ${days === 1 ? 'day' : 'days'}`;
+}
+
+/** The When row: "Running · no end date", "20 Nov 00:00 → 29 Nov 23:59", "Ends in 2 days". */
+export function offerWhenLine(offer: Offer, now: Date): string {
+  const { startsAt, endsAt } = offer.schedule;
+  const bucket = offerListBucket(offer, now);
+  if (bucket === 'running') {
+    return endsAt ? endsIn(endsAt, now) : 'Running · no end date';
+  }
+  const start = startsAt ? cairoShort(startsAt) : 'Any time';
+  const end = endsAt ? cairoShort(endsAt) : 'no end date';
+  return `${start} → ${end}`;
+}
+
+/** The status line's text and dot: "Live · In top banner", "Paused", "Starts 20 Nov, 00:00". */
+export interface OfferStatusLine {
+  readonly text: string;
+  /** Green dot for a live offer; none for every other status. */
+  readonly live: boolean;
+}
+
+export function offerStatusLine(offer: Offer, now: Date): OfferStatusLine {
+  const bucket = offerListBucket(offer, now);
+  const paused = !offer.active;
+  switch (bucket) {
+    case 'archived':
+      return { text: 'Archived', live: false };
+    case 'ended':
+      return { text: `Ended ${cairoShortWithComma(offer.schedule.endsAt as Date)}`, live: false };
+    case 'later': {
+      const starts = `Starts ${cairoShortWithComma(offer.schedule.startsAt as Date)}`;
+      return { text: paused ? `${starts} · Paused` : starts, live: false };
+    }
+    case 'running':
+      if (paused) return { text: 'Paused', live: false };
+      return { text: offer.banner?.show ? 'Live · In top banner' : 'Live', live: true };
+  }
+}
+
+/** "Everyone" or "Signed-in shoppers". */
+export function offerAudienceLabel(offer: Offer): string {
+  return offer.audience === 'signedIn' ? 'Signed-in shoppers' : 'Everyone';
+}
+
+/** Ids of the products an offer reaches (fully or for some sizes or colours). */
+export function affectedProductIds(offer: Offer, products: readonly PricedProduct[]): Set<string> {
+  const ids = new Set<string>();
   for (const product of products) {
-    const level = matchProduct(offer.conditions, offer.exclude, product);
-    if (level === 'full') fullCount += 1;
-    else if (level === 'partial') partialCount += 1;
+    if (matchProduct(offer.conditions, offer.exclude, product) !== 'none') ids.add(product.productId);
+  }
+  return ids;
+}
+
+/** One offer on the list, with the text its card shows. */
+export interface OfferCardItem {
+  readonly offer: Offer;
+  readonly bucket: OfferListBucket;
+  readonly status: OfferStatusLine;
+  readonly headline: string;
+  readonly when: string;
+  readonly who: string;
+  readonly productIds: ReadonlySet<string>;
+  readonly coversAll: boolean;
+}
+
+/** One card: a single offer, or several offers with the same name and deal type. */
+export interface OfferCardView {
+  /** The first offer's id for a single card; `group:<…>` for a group. */
+  readonly key: string;
+  readonly items: readonly OfferCardItem[];
+  readonly bucket: OfferListBucket;
+  readonly statusText: string;
+  readonly live: boolean;
+  readonly headline: string;
+  readonly name: string;
+  readonly title: string;
+  readonly affected: string;
+  readonly who: string;
+  readonly when: string;
+  /** Every offer in the card is on. */
+  readonly allOn: boolean;
+  /** Running and Starting later cards have the on/off switch; Ended and Archived don't. */
+  readonly hasSwitch: boolean;
+}
+
+export function toOfferCardItem(offer: Offer, products: readonly PricedProduct[], now: Date): OfferCardItem {
+  return {
+    offer,
+    bucket: offerListBucket(offer, now),
+    status: offerStatusLine(offer, now),
+    headline: offerDealHeadline(offer),
+    when: offerWhenLine(offer, now),
+    who: offerAudienceLabel(offer),
+    productIds: affectedProductIds(offer, products),
+    coversAll: offer.conditions.anyOf.length === 0,
+  };
+}
+
+function affectedText(items: readonly OfferCardItem[], productCount: number): string {
+  if (items.some((item) => item.coversAll)) return `${productCount} (all)`;
+  const ids = new Set<string>();
+  for (const item of items) for (const id of item.productIds) ids.add(id);
+  return String(ids.size);
+}
+
+function groupKey(item: OfferCardItem): string {
+  const name = item.offer.name.trim().toLowerCase();
+  return `${item.bucket}|${rewardPickerKind(item.offer.reward, item.offer.scope)}|${name}`;
+}
+
+/**
+ * Builds the cards in list order. Offers in the same count box with the same internal name
+ * (case and spaces ignored) and the same deal type become one card; the rest stay one card each.
+ */
+export function groupOfferCards(items: readonly OfferCardItem[], productCount: number): OfferCardView[] {
+  const groups = new Map<string, OfferCardItem[]>();
+  for (const item of items) {
+    const key = items.length > 1 && item.offer.name.trim() ? groupKey(item) : `single|${item.offer.id}`;
+    const list = groups.get(key);
+    if (list) list.push(item);
+    else groups.set(key, [item]);
   }
 
-  const totalMatches = fullCount + partialCount;
-  const matchSummary =
-    offer.conditions.anyOf.length === 0
-      ? `All products (${products.length})`
-      : partialCount > 0
-        ? `${totalMatches} (${partialCount} partly)`
-        : `${totalMatches} ${totalMatches === 1 ? 'product' : 'products'}`;
+  return [...groups.values()].map((list) => {
+    const first = list[0];
+    const allOn = list.every((item) => item.offer.active);
+    const hasSwitch = first.bucket === 'running' || first.bucket === 'later';
+    const whoValues = [...new Set(list.map((item) => item.who))];
+    if (list.length === 1) {
+      return {
+        key: first.offer.id,
+        items: list,
+        bucket: first.bucket,
+        statusText: first.status.text,
+        live: first.status.live,
+        headline: first.headline,
+        name: first.offer.name,
+        title: first.offer.title,
+        affected: affectedText(list, productCount),
+        who: first.who,
+        when: first.when,
+        allOn,
+        hasSwitch,
+      };
+    }
+    const liveItem = list.find((item) => item.status.live);
+    const lead = liveItem ? 'Live' : first.status.text;
+    return {
+      key: `group:${list.map((item) => item.offer.id).join(',')}`,
+      items: list,
+      bucket: first.bucket,
+      statusText: `${lead} · ${list.length} offers`,
+      live: !!liveItem,
+      headline: first.headline,
+      name: first.offer.name,
+      title: first.offer.title,
+      affected: affectedText(list, productCount),
+      who: whoValues.join(' / '),
+      when: first.when,
+      allOn,
+      hasSwitch,
+    };
+  });
+}
 
-  const startText = formatCairoDisplay(offer.schedule.startsAt) || 'Starts now';
-  const endText = formatCairoDisplay(offer.schedule.endsAt) || 'No end date';
-
-  return {
-    id: offer.id,
-    name: offer.name,
-    title: offer.title,
-    status,
-    rewardSummary: describeOfferReward(offer),
-    matchSummary,
-    datesSummary: `${startText} \u2192 ${endText}`,
-    priority: offer.priority,
-    active: offer.active,
-    archived: offer.archived,
-    code: offer.code ?? null,
-  };
+/** One offer as its own card (Open Group shows each offer this way). */
+export function singleOfferCard(item: OfferCardItem, productCount: number): OfferCardView {
+  return groupOfferCards([item], productCount)[0];
 }
