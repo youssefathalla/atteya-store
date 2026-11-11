@@ -32,11 +32,11 @@ import {
 import { SearchService } from '@core/services/search';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import type {
-  CreateProductPayload,
-  SaveProductResult,
+  ProductModelVersions,
+  SaveProductModelPayload,
+  SaveProductModelResult,
   StockChange,
   StockResult,
-  UpdateProductPayload,
 } from '../models/product-admin.model';
 
 const LIST_PAGE_SIZE = 500;
@@ -49,9 +49,17 @@ const StockResultSchema = v.object({
   inStock: v.boolean(),
 });
 
-const SaveProductResultSchema = v.object({
-  id: v.pipe(v.string(), v.minLength(1)),
-  slug: v.pipe(v.string(), v.minLength(1)),
+const nonEmpty = v.pipe(v.string(), v.minLength(1));
+
+const ProductModelVersionsSchema = v.object({
+  modelGroup: v.nullable(nonEmpty),
+  colours: v.pipe(v.array(v.object({ id: nonEmpty, version: nonEmpty })), v.minLength(1)),
+});
+
+const SaveProductModelResultSchema = v.object({
+  anchorId: nonEmpty,
+  modelGroup: v.nullable(nonEmpty),
+  colours: v.array(v.object({ id: nonEmpty, slug: v.string() })),
 });
 
 type SetStockPayload = { readonly productId: string } & StockChange;
@@ -116,17 +124,6 @@ export class ProductsAdminService {
     return { products: visible, truncated };
   }
 
-  async listModelGroups(): Promise<readonly string[]> {
-    const products = collection(this.#firestore, PRODUCTS_COLLECTION).withConverter(this.#productConverter);
-    const snap = await getDocs(query(products, where('modelGroup', '!=', null)));
-    const groups = new Set<string>();
-    for (const docSnap of snap.docs) {
-      const group = docSnap.data().modelGroup;
-      if (group) groups.add(group);
-    }
-    return [...groups].sort((left, right) => left.localeCompare(right));
-  }
-
   async listAllCategories(): Promise<readonly Category[]> {
     const categories = collection(this.#firestore, CATEGORIES_COLLECTION).withConverter(
       createValibotConverter(CategorySchema),
@@ -154,20 +151,26 @@ export class ProductsAdminService {
     return snap.exists() ? snap.data() : null;
   }
 
-  async createProduct(payload: CreateProductPayload): Promise<SaveProductResult> {
-    const create = await callableFrom<CreateProductPayload, unknown>(this.#functions(), 'createProduct');
-    const result = await create(payload);
-    const saved = await this.#parseSaveResult(result.data);
-    this.#productCache.clear();
-    return saved;
+  /** The colours of the product that holds `productId`, with the version each save is checked against. */
+  async getProductModel(productId: string): Promise<ProductModelVersions> {
+    const read = await callableFrom<{ productId: string }, unknown>(this.#functions(), 'getProductModel');
+    const result = await read({ productId });
+    const parsed = v.safeParse(ProductModelVersionsSchema, result.data);
+    if (!parsed.success) throw new Error('This product could not be loaded. Reload the page.');
+    return parsed.output;
   }
 
-  async updateProduct(payload: UpdateProductPayload): Promise<SaveProductResult> {
-    const update = await callableFrom<UpdateProductPayload, unknown>(this.#functions(), 'updateProduct');
-    const result = await update(payload);
-    const saved = await this.#parseSaveResult(result.data);
+  /** Save the product and every colour of it at once. */
+  async saveProductModel(payload: SaveProductModelPayload): Promise<SaveProductModelResult> {
+    const save = await callableFrom<SaveProductModelPayload, unknown>(this.#functions(), 'saveProductModel');
+    const result = await save(payload);
     this.#productCache.clear();
-    return saved;
+    const parsed = v.safeParse(SaveProductModelResultSchema, result.data);
+    if (!parsed.success) {
+      throw new Error('The product was saved, but the response was unexpected. Reload the page.');
+    }
+    await this.#searchService.clearCache();
+    return parsed.output;
   }
 
   async saveStock(productId: string, change: StockChange): Promise<StockResult> {
@@ -176,15 +179,6 @@ export class ProductsAdminService {
     const parsed = v.safeParse(StockResultSchema, result.data);
     if (!parsed.success) {
       throw new Error('Stock was saved, but the response was unexpected. Reload the page.');
-    }
-    await this.#searchService.clearCache();
-    return parsed.output;
-  }
-
-  async #parseSaveResult(data: unknown): Promise<SaveProductResult> {
-    const parsed = v.safeParse(SaveProductResultSchema, data);
-    if (!parsed.success) {
-      throw new Error('The product was saved, but the response was unexpected. Reload the page.');
     }
     await this.#searchService.clearCache();
     return parsed.output;

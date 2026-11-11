@@ -32,7 +32,7 @@ import {
 } from '../../utils/guest-order-storage';
 
 const CLAIM_FAILED = "We couldn't save this order to your account. Try again in a moment.";
-const VERIFY_SEND_FAILED = "We couldn't send the confirmation email. Try again in a moment.";
+const VERIFY_SEND_FAILED = "We couldn't send the email. Please try again in a moment.";
 
 /** What the card shows. `hidden` renders nothing. */
 type CardMode = 'hidden' | 'offer' | 'saved' | 'exists' | 'claim' | 'verify' | 'message';
@@ -148,8 +148,9 @@ export class GuestAccountCardComponent implements OnInit {
     // Signing in from the offer: keep it on screen until the result is known.
     const busy = this.busy();
     if (busy === 'create' || busy === 'google') return 'offer';
-    // Just created here: confirm the email, then save (it shows its own messages).
-    if (outcome === 'created') return 'verify';
+    // Just created here: confirm the email, then save (it shows its own messages). Once the
+    // account reads as confirmed (e.g. Resend found nothing to send), offer Save directly.
+    if (outcome === 'created') return this.#canClaim() ? 'claim' : 'verify';
     if (this.#auth.user()) {
       const owned = !this.#owned.hasValue() || this.#owned.value();
       if (!owned && (this.#needsVerification() || this.verificationSent())) return 'verify';
@@ -199,7 +200,7 @@ export class GuestAccountCardComponent implements OnInit {
       // the shopper opens the confirmation link sent here and then saves the order.
       this.#outcome.set('created');
       try {
-        await this.#auth.sendVerificationEmail(this.#continueUrl());
+        await this.#auth.sendVerificationEmail(this.#continuePath());
         this.verificationSent.set(true);
       } catch {
         this.message.set(
@@ -252,11 +253,17 @@ export class GuestAccountCardComponent implements OnInit {
     this.message.set('');
     this.busy.set('verify');
     try {
-      await this.#auth.sendVerificationEmail(this.#continueUrl());
-      this.verificationSent.set(true);
+      const sentTo = await this.#auth.sendVerificationEmail(this.#continuePath());
+      if (sentTo) {
+        this.verificationSent.set(true);
+      } else {
+        // Nothing was sent: the email is already confirmed (or the shopper signed out). Show the
+        // current state instead of claiming a new link went out.
+        this.verificationSent.set(false);
+        this.#userRefreshed.update((n) => n + 1);
+      }
     } catch (error) {
-      const code = authErrorCode(error);
-      this.message.set(code ? this.#auth.mapFirebaseError(error) : VERIFY_SEND_FAILED);
+      this.message.set(callableMessage(error) ?? VERIFY_SEND_FAILED);
     } finally {
       this.busy.set(null);
     }
@@ -286,13 +293,12 @@ export class GuestAccountCardComponent implements OnInit {
   }
 
   /**
-   * Absolute link back to this order, for the confirmation email's continue button. It carries the
-   * view key so the page opens on another device too; the email only goes to the order's own address,
-   * which already gets the keyed order link, and the page removes the key from the address bar.
+   * Path back to this order, for the confirmation email's continue link (the server puts it on the
+   * store's own address). It carries the view key so the page opens on another device too; the email
+   * only goes to the order's own address, which already gets the keyed order link, and the page
+   * removes the key from the address bar.
    */
-  #continueUrl(): string | undefined {
-    const origin = globalThis.location?.origin;
-    if (!origin) return undefined;
-    return `${origin}${this.#orderPath()}?key=${encodeURIComponent(this.viewKey())}`;
+  #continuePath(): string {
+    return `${this.#orderPath()}?key=${encodeURIComponent(this.viewKey())}`;
   }
 }

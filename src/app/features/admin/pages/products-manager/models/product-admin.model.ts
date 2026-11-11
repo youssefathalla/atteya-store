@@ -1,6 +1,7 @@
 import type { ColorId } from '@core/services/products/catalog-taxonomy';
 import type { MarketingBadge } from '@core/services/products/marketing-badge';
 import type { ProductGenderId, ProductTypeId } from '@core/services/products/product.model';
+import type { ImageAsset } from '@shared/schemas';
 
 export interface ProductTableRow {
   readonly id: string;
@@ -37,58 +38,84 @@ export interface ProductImagePayload {
   readonly height?: number;
 }
 
-export interface ProductSizePayload {
-  readonly id?: string;
-  readonly label: string;
-  readonly initialStock?: number;
-}
-
-export interface ProductFormPayload {
+/** Details shared by every colour of a product (`saveProductModel`). */
+export interface ProductModelSharedPayload {
   readonly name: string;
   readonly summary: string | null;
+  /** Left out = every saved colour keeps its own description. */
   readonly description?: string | null;
-  /** One fact per line; always sent, so clearing the box clears the list. */
   readonly details: readonly string[];
   readonly type: ProductTypeId;
   readonly categoryId: string;
   readonly brandId: string;
-  readonly modelGroup: string | null;
   readonly gender: ProductGenderId | null;
-  readonly colors: readonly ColorId[];
-  readonly tags: readonly string[];
-  /** Player ids; left out while the player list hasn't loaded, so the saved list stays. */
+  /** Player ids; left out while the player list hasn't loaded, so the saved lists stay. */
   readonly players?: readonly string[];
+  readonly weightGrams: number | null;
+  readonly tags: readonly string[];
   readonly marketingBadge: MarketingBadge | null;
   /** ISO timestamp or null when not flagged for New Arrivals. */
   readonly newArrivalUntil: string | null;
   readonly price: number;
   readonly compareAtPrice: number | null;
-  readonly published: boolean;
+  readonly sizes: readonly { readonly id?: string; readonly label: string }[];
+}
+
+export interface ProductModelColourPayload {
+  readonly productId: string;
+  /** Version from `getProductModel`; null = a new colour. */
+  readonly version: string | null;
+  readonly colors: readonly ColorId[];
   readonly images: readonly ProductImagePayload[];
-  readonly sizes: readonly ProductSizePayload[];
-  readonly stock?: number;
-  readonly weightGrams?: number | null;
+  readonly published: boolean;
+  readonly ownPrice: { readonly price: number; readonly compareAtPrice: number | null } | null;
+  /** One count per shared size (same order); one number when there are no sizes. */
+  readonly stock: readonly number[];
+  /** One flag per shared size: false = this colour isn't made in it. */
+  readonly made: readonly boolean[];
 }
 
-export interface CreateProductPayload extends ProductFormPayload {
-  readonly productId: string;
-  readonly slug?: string;
+export interface SaveProductModelPayload {
+  readonly anchorId: string | null;
+  readonly shared: ProductModelSharedPayload;
+  readonly colours: readonly ProductModelColourPayload[];
 }
 
-export interface UpdateProductPayload extends ProductFormPayload {
-  readonly productId: string;
+export interface ProductModelVersions {
+  readonly modelGroup: string | null;
+  readonly colours: readonly { readonly id: string; readonly version: string }[];
 }
 
-export interface SaveProductResult {
-  readonly id: string;
-  readonly slug: string;
+export interface SaveProductModelResult {
+  readonly anchorId: string;
+  readonly modelGroup: string | null;
+  readonly colours: readonly { readonly id: string; readonly slug: string }[];
 }
 
-export interface ProductSizeDraft {
+/** One size in the editor. `key` is the saved id, or a local key for a new size. */
+export interface ModelSizeDraft {
+  readonly key: string;
   readonly id?: string;
   readonly label: string;
-  readonly initialStock: string;
-  readonly isNew: boolean;
+}
+
+/** One colour tab in the editor (one product document). */
+export interface ColourDraft {
+  readonly productId: string;
+  readonly version: string | null;
+  readonly slug: string | null;
+  readonly colors: readonly ColorId[];
+  readonly images: readonly ImageAsset[];
+  readonly published: boolean;
+  readonly ownPrice: boolean;
+  readonly price: string;
+  readonly compareAtPrice: string;
+  /** Stock text per size key; '' = not set yet. */
+  readonly stock: Readonly<Record<string, string>>;
+  /** Size keys this colour isn't made in. */
+  readonly notMade: readonly string[];
+  /** Stock text when the product has no sizes. */
+  readonly flatStock: string;
 }
 
 export interface CategoryOptionView {

@@ -16,6 +16,7 @@ const ctx: OrderEmailContext = {
   storeName: 'Atteya Store',
   whatsappNumber: '',
   instapay: { address: '', number: '' },
+  bankTransfer: { accountName: '', bankName: '', iban: '', swift: '' },
 };
 
 const WA = '+20 120 565 8954';
@@ -32,6 +33,8 @@ function orderDoc(overrides: {
   email?: string | null;
   /** Large order: `domestic-agreed` shipping, fee not set (`false`) or set (`true`). */
   feeAgreed?: boolean;
+  /** Bank Transfer: the amount to send in the shopper's currency. */
+  payIn?: { currency: string; amount: number };
 }): Record<string, unknown> {
   const subtotal = overrides.subtotalEgp ?? 2370;
   const shipping = overrides.shippingEgp ?? 80;
@@ -75,6 +78,7 @@ function orderDoc(overrides: {
               feeAgreed: overrides.feeAgreed,
             },
       totalEgp: overrides.feeAgreed === false ? subtotal : subtotal + shipping,
+      ...(overrides.payIn ? { payIn: overrides.payIn } : {}),
     },
   };
 }
@@ -533,5 +537,67 @@ describe('order page link', () => {
       assert.ok(email.text.includes(`/checkout/confirmation/abcdef123456?key=${KEY}`), kind);
       assert.ok(email.html.includes(`/checkout/confirmation/abcdef123456?key=${KEY}`), kind);
     }
+  });
+});
+
+describe('Bank Transfer emails', () => {
+  const BANK = {
+    accountName: 'Youseif Tamer Elsayed Ibrahim Atteya',
+    bankName: 'National Bank of Egypt',
+    iban: 'EG520003023350016856630000150',
+    swift: 'NBEGEGCXXXX',
+  };
+  const withBank: OrderEmailContext = { ...ctx, whatsappNumber: WA, bankTransfer: BANK };
+  const bankDoc = (status = 'pending') =>
+    orderDoc({
+      paymentMethod: 'bank-transfer',
+      country: 'US',
+      status,
+      payIn: { currency: 'USD', amount: 205 },
+    });
+
+  it('placed: shopper + store alert; confirmed: shopper only', () => {
+    const pending = read(bankDoc());
+    const confirmed = read(bankDoc('confirmed'));
+    assert.deepEqual(orderEmailsForWrite(null, pending), ['bank-transfer-placed', 'store-new-order']);
+    assert.deepEqual(orderEmailsForWrite(pending, confirmed), ['bank-transfer-confirmed']);
+    assert.deepEqual(orderEmailsForWrite(pending, read(bankDoc('cancelled'))), []);
+  });
+
+  it('placed asks for the amount in the shopper currency with the bank details and the fee line', () => {
+    const email = renderOrderEmail('bank-transfer-placed', read(bankDoc()), withBank);
+    assert.match(email.text, /Send \$205 from your bank to:/);
+    assert.match(email.text, /IBAN: EG52 0003 0233 5001 6856 6300 0015 0/);
+    assert.match(email.text, /SWIFT \/ BIC: NBEGEGCXXXX/);
+    assert.match(email.text, /Bank: National Bank of Egypt/);
+    assert.match(email.text, /Account name: Youseif Tamer Elsayed Ibrahim Atteya/);
+    assert.match(email.text, /Reference: ABCDEF/);
+    assert.match(email.text, /Choose "I pay all fees" so the full amount reaches us\./);
+    assert.match(email.text, /Send Receipt on WhatsApp: https:\/\/wa\.me\//);
+    assert.match(email.text, /View Your Order: /);
+    assert.doesNotMatch(email.text, /InstaPay/);
+    const message = decodeURIComponent(email.text.split('?text=')[1]?.split(/\s/)[0] ?? '');
+    assert.match(message, /205 USD/);
+    assert.match(message, /#ABCDEF/);
+    assert.match(email.html, /Send Receipt on WhatsApp/);
+  });
+
+  it('placed without bank details says we will send them', () => {
+    const email = renderOrderEmail('bank-transfer-placed', read(bankDoc()), { ...ctx, whatsappNumber: WA });
+    assert.match(email.text, /We'll send you our bank details on WhatsApp\./);
+    assert.doesNotMatch(email.text, /IBAN/);
+  });
+
+  it('confirmed names the amount sent and never asks for money', () => {
+    const email = renderOrderEmail('bank-transfer-confirmed', read(bankDoc('confirmed')), withBank);
+    assert.match(email.text, /bank transfer of \$205/);
+    assert.doesNotMatch(email.text, /IBAN|Send Receipt/);
+  });
+
+  it('store alert shows the method, the amount in the shopper currency and the EGP total', () => {
+    const email = renderOrderEmail('store-new-order', read(bankDoc()), withBank);
+    assert.match(email.subject, /Bank Transfer – Waiting for Transfer/);
+    assert.match(email.text, /Bank Transfer\nCustomer Sends: \$205\nOrder Total in EGP: /);
+    assert.ok(email.text.includes(formatEgp(2450)));
   });
 });

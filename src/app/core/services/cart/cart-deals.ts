@@ -2,6 +2,7 @@ import {
   freeItemWins,
   priceBagDeals,
   priceItem,
+  type BagBundle,
   type BagDealHint,
   type BagLineDeals,
   type BagLineFacts,
@@ -47,6 +48,8 @@ export interface PricedBagDeals {
   readonly lines: readonly (PricedBagLine | null)[];
   /** Buy X Get Y nudges, with `lineIndex` pointing at the bag line (not the priced subset). */
   readonly hints: readonly BagDealHint[];
+  /** Bundle price offers the bag counts toward, with `lineIndex` pointing at the bag line. */
+  readonly bundles: readonly BagBundle[];
   /**
    * True when adding `quantity` of this product to the bag would really get it a discount from
    * the Buy X Get Y offer `offerId` (one discount per item applied), so the bag never offers a
@@ -117,6 +120,7 @@ export function priceBag(
   return {
     lines: priced,
     hints: deals.hints.map((hint) => ({ ...hint, lineIndex: toBagLine(hint.lineIndex) })),
+    bundles: deals.bundles.map((bundle) => ({ ...bundle, lineIndex: toBagLine(bundle.lineIndex) })),
     wouldDiscount: (offerId, product, quantity) =>
       freeItemWins(facts, offers, ctx, offerId, extraLineFacts(product, quantity, offers, ctx)),
   };
@@ -161,7 +165,10 @@ function lineGiftWorth(
   return worth;
 }
 
-/** The Buy X Get Y offers a priced bag uses, sent with the order so the server can check them. */
+/**
+ * The Buy X Get Y and Bundle price offers a priced bag uses, sent with the order so the server
+ * can check them.
+ */
 export function dealOfferIdsOf(lines: readonly (PricedBagLine | null)[]): string[] {
   const ids = new Set<string>();
   for (const line of lines) for (const deal of line?.deals.deals ?? []) ids.add(deal.offerId);

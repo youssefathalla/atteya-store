@@ -14,6 +14,7 @@ import {
   isProfileIncomplete,
   UserProfileService,
 } from '@core/services/user-profile';
+import { ConfirmEmailPromptComponent } from '@shared/ui/confirm-email-prompt';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 
@@ -26,7 +27,7 @@ import { SkeletonComponent } from '@shared/ui/skeleton';
 @Component({
   selector: 'app-account-panel',
   host: { class: 'side-panel' },
-  imports: [RouterLink, MatButtonModule, SharedIconModule, SkeletonComponent],
+  imports: [RouterLink, MatButtonModule, SharedIconModule, SkeletonComponent, ConfirmEmailPromptComponent],
   templateUrl: './account-panel.component.html',
 })
 export class AccountPanelComponent {

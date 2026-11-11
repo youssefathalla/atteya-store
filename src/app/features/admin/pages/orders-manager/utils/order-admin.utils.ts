@@ -19,6 +19,7 @@ import type { OrderDoc, OrderStaffNotes } from '@core/services/orders/order.sche
 import { formatMoney } from '@shared/utils/money';
 import { orderDate } from '@core/services/orders/shopper-orders.service';
 import type {
+  OrderCard,
   OrderHistoryEntry,
   OrderLineAdminRow,
   OrderStatusMove,
@@ -32,6 +33,8 @@ export function paymentLabel(order: OrderDoc): string {
       return 'Cash on Delivery';
     case 'instapay':
       return 'InstaPay';
+    case 'bank-transfer':
+      return 'Bank Transfer';
     case 'paymob':
       return 'Card (Paymob)';
     case 'international-bank-transfer':
@@ -39,15 +42,13 @@ export function paymentLabel(order: OrderDoc): string {
   }
 }
 
-export function formatPlacedAt(order: OrderDoc): string {
-  const raw = order.createdAt;
-  const date =
-    raw instanceof Date
-      ? raw
-      : typeof raw === 'object' && raw && 'toDate' in raw && typeof raw.toDate === 'function'
-        ? raw.toDate()
-        : null;
+export function formatOrderDate(raw: unknown): string {
+  const date = orderDate(raw);
   return date ? date.toLocaleString() : '';
+}
+
+export function formatPlacedAt(order: OrderDoc): string {
+  return formatOrderDate(order.createdAt);
 }
 
 export function formatOrderTotal(order: OrderDoc): string {
@@ -136,6 +137,7 @@ export function orderActions(
   const text = staffWhatsappText(stage, input, order.shipping.fullName);
   const due = paymentDue(stage, input);
   const open = order.status === 'pending';
+  // Only Egypt orders (Cash on Delivery, InstaPay) can have a delivery fee agreed later.
   const manual = order.paymentMethod === 'cash-on-delivery' || order.paymentMethod === 'instapay';
   const shipping = order.pricing.shipping;
   const agreedLine = manual && open && shipping?.kind === 'domestic-agreed';
@@ -147,17 +149,30 @@ export function orderActions(
     confirmAction:
       canConfirm && order.paymentMethod === 'cash-on-delivery'
         ? 'confirm-order'
-        : canConfirm && order.paymentMethod === 'instapay'
+        : canConfirm && (order.paymentMethod === 'instapay' || order.paymentMethod === 'bank-transfer')
           ? 'confirm-payment'
           : null,
     statusMoves: statusMoves(order, stage === 'fee-to-be-agreed'),
     stockTaken: stockTaken(order),
     history: statusHistory(notes),
     cancelReason: notes?.cancelReason?.trim() || null,
-    amountDueLabel: due?.amountEgp != null ? formatMoney(due.amountEgp, 'EGP', 0) : null,
+    amountDueLabel: amountDueLabel(due),
     deliveryFeeAction: agreedLine ? (isDeliveryFeeToBeAgreed(shipping) ? 'set' : 'change') : null,
     deliveryFeeEgp: agreedLine && !isDeliveryFeeToBeAgreed(shipping) ? (shipping?.priceEgp ?? null) : null,
   };
+}
+
+/**
+ * What staff look for in the bank before confirming: the EGP amount for InstaPay, or for a Bank
+ * Transfer the amount sent in the shopper's currency (prices abroad include the markup, so the
+ * pounds that arrive are more than the EGP order total and are not compared).
+ */
+function amountDueLabel(due: ReturnType<typeof paymentDue>): string | null {
+  if (!due) return null;
+  const egp = due.amountEgp != null ? formatMoney(due.amountEgp, 'EGP', 0) : null;
+  if (due.reason !== 'bank-transfer') return egp;
+  if (!due.payIn) return egp;
+  return `the transfer of ${formatMoney(due.payIn.amount, due.payIn.currency, displayDecimals(due.payIn.currency))}`;
 }
 
 /**
@@ -222,6 +237,7 @@ export function toOrderLineAdminRows(
 
   for (const order of orders) {
     const placedAtLabel = formatPlacedAt(order);
+    const updatedAtLabel = formatOrderDate(order.updatedAt);
     const payLabel = paymentLabel(order);
     const orderTotalLabel = formatOrderTotal(order);
     const actions = orderActions(order, notesById.get(order.id) ?? null);
@@ -236,6 +252,7 @@ export function toOrderLineAdminRows(
         orderId: order.id,
         orderRef: shortOrderRef(order.id),
         placedAtLabel,
+        updatedAtLabel,
         customerName: order.shipping.fullName,
         country: order.shipping.country,
         status: order.status,
@@ -261,4 +278,15 @@ export function toOrderLineAdminRows(
   }
 
   return rows;
+}
+
+/** Group the per-line rows into one card per order, keeping the loaded (latest update first) order. */
+export function groupOrderCards(rows: readonly OrderLineAdminRow[]): readonly OrderCard[] {
+  const byOrder = new Map<string, OrderLineAdminRow[]>();
+  for (const row of rows) {
+    const lines = byOrder.get(row.orderId);
+    if (lines) lines.push(row);
+    else byOrder.set(row.orderId, [row]);
+  }
+  return [...byOrder.values()].map((lines) => ({ orderId: lines[0]!.orderId, first: lines[0]!, lines }));
 }

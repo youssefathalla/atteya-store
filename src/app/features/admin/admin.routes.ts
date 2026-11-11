@@ -72,6 +72,14 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Orders | Atteya Admin',
       },
       {
+        path: 'orders/:orderId',
+        loadComponent: () =>
+          import('./pages/orders-manager/order-tracking/order-tracking.page').then(
+            (m) => m.OrderTrackingPageComponent,
+          ),
+        title: 'Track Order | Atteya Admin',
+      },
+      {
         // Componentless parent: each Settings sidebar entry is a standalone page
         // (no shared in-page tab/switcher duplicating the admin sidebar).
         path: 'settings',

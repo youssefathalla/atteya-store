@@ -43,6 +43,8 @@ import {
   dealHintText,
   EARNED_LABEL_MAX,
   earnedItemLabel,
+  bundleNudgeText,
+  bundleStripTitle,
   offerShopSubtitle,
   offerTitleVisible,
   shortItemWord,
@@ -338,6 +340,65 @@ describe('bag Buy X Get Y nudge (ATS-130)', () => {
     const grip = { ...base, reward: { ...base.reward, getConditions: atom('productId', ['grip']) } };
     assert.equal(offerShopSubtitle(grip), null);
     assert.equal(offerShopSubtitle({ ...base, reward: { kind: 'freeShipping' } }), null);
+  });
+});
+
+describe('Bundle price wording', () => {
+  const rows = [
+    { quantity: 3, price: 275 },
+    { quantity: 2, price: 200 },
+  ];
+  const bundleOffer = { id: 'socks', title: 'Socks bundle', reward: { kind: 'bundlePrice', rows } };
+  const bagBundle = (extra) => ({
+    offerId: 'socks',
+    title: 'Socks bundle',
+    rows: [],
+    units: 0,
+    total: 0,
+    saving: 0,
+    lineIndex: 0,
+    next: null,
+    ...extra,
+  });
+
+  it('the Shop heading lists every row, smallest first', () => {
+    assert.equal(offerShopSubtitle(bundleOffer), '2 for EGP 200 · 3 for EGP 275');
+    assert.equal(
+      offerShopSubtitle(bundleOffer, (egp) => `USD ${egp}`),
+      '2 for USD 200 · 3 for USD 275',
+    );
+  });
+
+  it('the bag strip names the rows used, and is empty with no piece in the bundle', () => {
+    assert.equal(
+      bundleStripTitle(bagBundle({ units: 2, rows: [{ quantity: 2, price: 200, count: 1 }] })),
+      'Socks bundle · 2 for EGP 200',
+    );
+    assert.equal(
+      bundleStripTitle(
+        bagBundle({
+          units: 7,
+          rows: [
+            { quantity: 3, price: 275, count: 2 },
+            { quantity: 1, price: 125, count: 1 },
+          ],
+        }),
+      ),
+      'Socks bundle · 2 × 3 for EGP 275 + 1 for EGP 125',
+    );
+    assert.equal(bundleStripTitle(bagBundle({})), null);
+  });
+
+  it('the nudge says how many more reach the next row', () => {
+    assert.equal(
+      bundleNudgeText(bagBundle({ next: { missing: 1, quantity: 3, price: 275 } })),
+      'Add 1 more to get 3 for EGP 275',
+    );
+    assert.equal(
+      bundleNudgeText(bagBundle({ next: { missing: 2, quantity: 3, price: 275 } })),
+      'Add 2 more to get 3 for EGP 275',
+    );
+    assert.equal(bundleNudgeText(bagBundle({})), null);
   });
 });
 

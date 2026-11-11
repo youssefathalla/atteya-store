@@ -24,7 +24,7 @@ export function orderListError(error: unknown): string {
       if (message.length > 0) return message;
       return (
         'This filter needs a database index that is missing or still building. ' +
-        'Wait until the orders status + createdAt index is READY, then refresh.'
+        'Wait until the orders status + updatedAt index is READY, then refresh.'
       );
     }
 

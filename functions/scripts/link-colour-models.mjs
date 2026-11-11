@@ -16,6 +16,13 @@
  *   - if exactly one model is used, the colours without one join it;
  *   - if two different models are used, or the new model name is already used by another product,
  *     the group is listed as CHECK and left alone.
+ *
+ * Some colours of one product have different names (`Babolat Padel Shorts` in black and grey, and
+ * `Babolat Printed Padel Shorts` in green and orange, are one product in four colours). Those are
+ * listed by hand in `scripts/data/colour-model-groups.json` (model -> document ids) and linked first:
+ * every listed product gets that model, even when it already had another one. A listed id that does
+ * not exist, an id listed under two models, or the model being used by a product outside the list is
+ * a CHECK, and that group is left alone. Listed products are left out of the name groups.
  * Each changed product gets `modelGroup`, `searchTokens` (admin search reads the model too), the
  * `modelGroup` lock (so Check catalogue structure never changes it back), `updatedAt` and `updatedBy`.
  * Each write is checked against the document's last update time, so a product edited while the
@@ -30,6 +37,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -68,15 +76,29 @@ const modelFromName = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+/** Hand-picked groups: colours of one product that have different names (model -> document ids). */
+const MANUAL_GROUPS = JSON.parse(readFileSync(join(__dirname, 'data/colour-model-groups.json'), 'utf8'));
+
 const snaps = (await db.collection('products').get()).docs;
 console.log(`${snaps.length} products read from ${projectId}.`);
+const snapById = new Map(snaps.map((snap) => [snap.id, snap]));
+
+const checks = [];
+const manualIds = new Set();
+const listedTwice = new Set();
+for (const ids of Object.values(MANUAL_GROUPS)) {
+  for (const id of ids) {
+    if (manualIds.has(id)) listedTwice.add(id);
+    manualIds.add(id);
+  }
+}
 
 const groups = new Map();
 const productsByModel = new Map();
 for (const snap of snaps) {
   const data = snap.data();
   const key = nameKey(data.name);
-  if (key) {
+  if (key && !manualIds.has(snap.id)) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(snap);
   }
@@ -90,49 +112,19 @@ for (const snap of snaps) {
 let changed = 0;
 let raced = 0;
 let groupsLinked = 0;
-const checks = [];
 
-for (const members of groups.values()) {
-  if (members.length < 2) continue;
-  const name = trimmed(members[0].data().name);
-  const models = [...new Set(members.map((snap) => trimmed(snap.data().modelGroup)).filter(Boolean))];
-  const slugs = members.map(
-    (snap) => `${trimmed(snap.data().slug)}${snap.data().published ? '' : ' (hidden)'}`,
-  );
+const productLabel = (snap) => `${trimmed(snap.data().slug)}${snap.data().published ? '' : ' (hidden)'}`;
 
-  if (models.length > 1) {
-    checks.push(
-      `CHECK  ${name}: its colours use different models (${models.join(', ')}): ${slugs.join(', ')}`,
-    );
-    continue;
-  }
-  const target = models[0] ?? modelFromName(name);
-  if (!target) {
-    checks.push(`CHECK  ${name}: no model name can be made from it`);
-    continue;
-  }
-  // The product schema and the product form allow at most 80 characters for `modelGroup`.
-  if (target.length > MAX_MODEL_GROUP) {
-    checks.push(
-      `CHECK  ${name}: the model name "${target}" is longer than ${MAX_MODEL_GROUP} characters; set one in the admin`,
-    );
-    continue;
-  }
-  const memberIds = new Set(members.map((snap) => snap.id));
-  const outsiders = [...(productsByModel.get(target) ?? [])].filter((id) => !memberIds.has(id));
-  if (outsiders.length > 0) {
-    checks.push(`CHECK  ${name}: the model "${target}" is already used by ${outsiders.join(', ')}`);
-    continue;
-  }
-
+/** Gives every member `target`; members already in it are left as they are. */
+async function linkMembers(heading, members, target) {
   const todo = members.filter((snap) => trimmed(snap.data().modelGroup) !== target);
-  if (todo.length === 0) continue;
+  if (todo.length === 0) return;
   groupsLinked += 1;
-  console.log(`\n${name}  -> model "${target}"${models.length === 0 ? ' (new)' : ' (existing)'}`);
+  console.log(`\n${heading}`);
   for (const snap of members) {
     const data = snap.data();
     const current = trimmed(data.modelGroup);
-    const label = `  ${trimmed(data.slug)}${data.published ? '' : ' (hidden)'}`;
+    const label = `  ${productLabel(snap)}`;
     if (current === target) {
       console.log(`${label}: already in it`);
       continue;
@@ -160,6 +152,68 @@ for (const members of groups.values()) {
     }
     changed += 1;
   }
+}
+
+for (const [target, ids] of Object.entries(MANUAL_GROUPS)) {
+  const missing = ids.filter((id) => !snapById.has(id));
+  const twice = ids.filter((id) => listedTwice.has(id));
+  if (missing.length > 0 || twice.length > 0) {
+    if (missing.length > 0) checks.push(`CHECK  ${target}: no product with id ${missing.join(', ')}`);
+    if (twice.length > 0) checks.push(`CHECK  ${target}: listed under two models: ${twice.join(', ')}`);
+    continue;
+  }
+  if (target !== modelFromName(target) || target.length > MAX_MODEL_GROUP) {
+    checks.push(`CHECK  ${target}: not a valid model name (a-z, 0-9 and -, at most ${MAX_MODEL_GROUP})`);
+    continue;
+  }
+  const outsiders = [...(productsByModel.get(target) ?? [])].filter((id) => !ids.includes(id));
+  if (outsiders.length > 0) {
+    checks.push(
+      `CHECK  ${target}: also used by ${outsiders.join(', ')}; add them to the list or pick another model`,
+    );
+    continue;
+  }
+  const members = ids.map((id) => snapById.get(id));
+  const names = [...new Set(members.map((snap) => trimmed(snap.data().name)))].join(' + ');
+  await linkMembers(`${names}  -> model "${target}" (listed by hand)`, members, target);
+}
+
+for (const members of groups.values()) {
+  if (members.length < 2) continue;
+  const name = trimmed(members[0].data().name);
+  const models = [...new Set(members.map((snap) => trimmed(snap.data().modelGroup)).filter(Boolean))];
+  const slugs = members.map(productLabel);
+
+  if (models.length > 1) {
+    checks.push(
+      `CHECK  ${name}: its colours use different models (${models.join(', ')}): ${slugs.join(', ')}`,
+    );
+    continue;
+  }
+  const target = models[0] ?? modelFromName(name);
+  if (!target) {
+    checks.push(`CHECK  ${name}: no model name can be made from it`);
+    continue;
+  }
+  // The product schema and the product form allow at most 80 characters for `modelGroup`.
+  if (target.length > MAX_MODEL_GROUP) {
+    checks.push(
+      `CHECK  ${name}: the model name "${target}" is longer than ${MAX_MODEL_GROUP} characters; set one in the admin`,
+    );
+    continue;
+  }
+  const memberIds = new Set(members.map((snap) => snap.id));
+  const outsiders = [...(productsByModel.get(target) ?? [])].filter((id) => !memberIds.has(id));
+  if (outsiders.length > 0) {
+    checks.push(`CHECK  ${name}: the model "${target}" is already used by ${outsiders.join(', ')}`);
+    continue;
+  }
+
+  await linkMembers(
+    `${name}  -> model "${target}"${models.length === 0 ? ' (new)' : ' (existing)'}`,
+    members,
+    target,
+  );
 }
 
 if (checks.length > 0) {

@@ -1,0 +1,87 @@
+<section class="elements-start-col w-full gap-3" [attr.aria-labelledby]="groupLabelId()">
+  <h2 [id]="groupLabelId()" class="font-label-lg">How many?</h2>
+
+  <mat-radio-group
+    class="elements-start-col items-stretch! w-full gap-2"
+    [attr.aria-labelledby]="groupLabelId()"
+    [value]="pieces()"
+    [disabled]="disabled()"
+    (change)="rowPicked.emit($event.value)"
+  >
+    @for (view of rows(); track view.row.quantity) {
+      <div class="pdp-bundle-row" [class.pdp-bundle-row--selected]="view.row.quantity === pieces()">
+        <mat-radio-button [value]="view.row.quantity">
+          <!-- Stretches the label over the whole row, so a click anywhere on it picks this row. -->
+          <span class="pdp-bundle-row__hit" aria-hidden="true"></span>
+          <span>{{ view.title }}</span>
+          @if (view.savePercent > 0) {
+            <span class="sr-only">, save {{ view.savePercent }}%</span>
+          }
+        </mat-radio-button>
+        <span class="pdp-bundle-row__price" aria-hidden="true">
+          @if (view.savePercent > 0) {
+            <span class="deal-tag">Save {{ view.savePercent }}%</span>
+          }
+          <span class="elements-end-col items-end!">
+            <span class="font-label-lg font-bold!">{{ view.perPiece }} each</span>
+            @if (view.fullPrice) {
+              <s class="font-label-md text-on-surface-variant">{{ view.fullPrice }}</s>
+            }
+          </span>
+        </span>
+      </div>
+    }
+  </mat-radio-group>
+
+  <div class="pdp-gift-box">
+    <div class="elements-start-col min-w-0 gap-5 p-4">
+      @for (step of steps(); track step.key; let lastStep = $last) {
+        @let promptHere = prompt()?.key === step.key;
+        @let messageId = 'pdp-bundle-msg-' + step.key;
+        <fieldset
+          class="pdp-gift-step"
+          [class.pdp-gift-step--prompt]="promptHere"
+          [attr.data-bundle-step]="step.key"
+          [attr.aria-describedby]="promptHere ? messageId : null"
+        >
+          <legend class="sr-only">{{ step.title }}</legend>
+          @if (step.kind === 'piece') {
+            <app-choice-card-row
+              [title]="step.title"
+              [choices]="step.choices"
+              [pickedId]="step.pickedId"
+              [disabled]="disabled()"
+              [divider]="!lastStep"
+              (picked)="productPicked.emit({ piece: step.piece, productId: $event })"
+            />
+          } @else {
+            <div class="elements-between w-full gap-3 pb-2" aria-hidden="true">
+              <span class="font-label-lg">{{ step.title }}</span>
+              @if (step.chosen) {
+                <span class="font-label-lg text-end">{{ step.chosen }} ✓</span>
+              }
+            </div>
+            <div class="grid w-full grid-cols-3 gap-2">
+              @for (size of step.sizes; track size.id) {
+                <button
+                  type="button"
+                  data-choice
+                  class="pdp-choice"
+                  [disabled]="disabled()"
+                  [attr.aria-pressed]="step.pickedId === size.id"
+                  (click)="sizePicked.emit({ piece: step.piece, sizeId: size.id })"
+                >
+                  {{ size.label }}
+                </button>
+              }
+            </div>
+          }
+
+          @if (promptHere) {
+            <p [id]="messageId" class="font-body-sm text-error pt-2" role="alert">{{ prompt()!.message }}</p>
+          }
+        </fieldset>
+      }
+    </div>
+  </div>
+</section>

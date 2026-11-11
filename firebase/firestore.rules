@@ -151,6 +151,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Confirm-your-email send counter (sendVerificationEmail). Admin SDK only.
+    match /emailVerificationSends/{id} {
+      allow read, write: if false;
+    }
+
     // Per-shopper favorites. Only that signed-in person can read or change their list.
     // Docs live at favorites/{uid}/items/{productId}. Parent favorites/{uid} is unused.
     match /favorites/{uid} {
@@ -301,7 +306,7 @@ service cloud.firestore {
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends']);
     }
   }
 }

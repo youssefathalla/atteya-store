@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
-import type { Offer } from '@core/services/offers/engine';
+import { displayDecimals, toDisplayAmount, type Offer } from '@core/services/offers/engine';
 import { offerShopSubtitle, offerTitleVisible } from '@core/services/offers/offer-shop';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { OffersService } from '@core/services/offers/offers.service';
@@ -21,6 +21,7 @@ import { PlayerListService } from '@core/services/products/player-list.service';
 import { SeoService } from '@core/services/seo';
 import { SearchService, type SearchHit } from '@core/services/search';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { formatMoney } from '@shared/utils/money';
 import { ShopFiltersDrawerComponent } from './components/shop-filters-drawer/shop-filters-drawer.component';
 import { ShopFiltersComponent } from './components/shop-filters/shop-filters.component';
 import { ShopGridComponent } from './components/shop-grid/shop-grid.component';
@@ -146,7 +147,14 @@ export class ShopPage {
 
   readonly pageSubtitle = computed(() => {
     const offer = this.#titledOffer();
-    if (offer) return offerShopSubtitle(offer);
+    if (offer) {
+      // Bundle rows in the visitor's currency ("2 for EGP 200 · 3 for EGP 275").
+      const entry = this.#currency.entry();
+      const decimals = displayDecimals(entry.code);
+      return offerShopSubtitle(offer, (egp) =>
+        formatMoney(toDisplayAmount(egp, entry), entry.code, decimals),
+      );
+    }
     return this.offerEnded() ? 'This offer has ended. Here is everything else in the store.' : null;
   });
 

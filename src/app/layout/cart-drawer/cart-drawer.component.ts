@@ -19,6 +19,9 @@ import { bagGiftKey, giftNoteText } from '@core/services/cart/bag-offer-notes';
 import { BagOfferNotesService } from '@core/services/cart/bag-offer-notes.service';
 import { bagOfferLook, type BagNotesProduct } from '@core/services/cart/bag-offer-state';
 import {
+  bundleNudgeText,
+  bundleStripTitle,
+  canShopOffer,
   dealHintAction,
   dealHintText,
   earnedItemLabel,
@@ -26,7 +29,7 @@ import {
   shortItemWord,
 } from '@core/services/offers/offer-shop';
 import { CatalogService } from '@core/services/products/catalog.service';
-import { isCardOrWalletLive } from '@core/config/store-info';
+import { isBankTransferLive, isCardOrWalletLive } from '@core/config/store-info';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
@@ -108,6 +111,22 @@ interface CartLineStrip {
   readonly tag: string;
   /** Right-hand text: "You save EGP 250" or "2 free gifts". */
   readonly end: string;
+}
+
+/**
+ * A Bundle price offer under the last item that counts toward it: the grey strip ("Socks · 2 for
+ * EGP 200", "You save EGP 150") once pieces are in the bundle, and the dashed nudge to the next row.
+ */
+interface CartBundleBox {
+  readonly offerId: string;
+  /** Strip title; null while no piece is in the bundle. */
+  readonly strip: string | null;
+  readonly saving: string;
+  /** "Add 1 more to get 3 for EGP 275"; null at the top row. */
+  readonly nudge: string | null;
+  readonly missing: number;
+  /** Query params of Choose Another: the offer's Shop page, or plain Shop when it can't be filtered. */
+  readonly shopQuery: { readonly offer: string } | null;
 }
 
 /** One Buy X Get Y nudge under an item, with its wording and what its button does. */
@@ -202,7 +221,11 @@ export class CartDrawerComponent {
    * known yet, the same fallback checkout uses).
    */
   readonly paymentMethods = computed(() =>
-    bagPaymentMethods((this.#currency.visitorCountry() ?? 'EG') === 'EG', isCardOrWalletLive()),
+    bagPaymentMethods(
+      (this.#currency.visitorCountry() ?? 'EG') === 'EG',
+      isCardOrWalletLive(),
+      isBankTransferLive(),
+    ),
   );
   /** Rows are tracked by product + chosen options, so removing one row leaves the others in place. */
   readonly lineKey = cartLineKey;
@@ -449,6 +472,35 @@ export class CartDrawerComponent {
     });
   });
 
+  /** Bundle price strips and nudges, by the bag line they sit under. */
+  readonly #bundlesByLine = computed(() => {
+    const entry = this.#currency.entry();
+    const decimals = displayDecimals(entry.code);
+    const money = (egp: number): string => formatMoney(toDisplayAmount(egp, entry), entry.code, decimals);
+    const offers = new Map(this.#offers.all().map((offer) => [offer.id, offer]));
+    const map = new Map<number, CartBundleBox[]>();
+    for (const bundle of this.#pricedBag().bundles) {
+      const strip = bundleStripTitle(bundle, money);
+      const nudge = bundleNudgeText(bundle, money);
+      if (!strip && !nudge) continue;
+      const offer = offers.get(bundle.offerId);
+      const box: CartBundleBox = {
+        offerId: bundle.offerId,
+        strip,
+        saving: bundle.saving > 0 ? `You save ${money(bundle.saving)}` : '',
+        nudge,
+        missing: bundle.next?.missing ?? 0,
+        shopQuery: offer && canShopOffer(offer) ? offerShopQuery(offer.id) : null,
+      };
+      map.set(bundle.lineIndex, [...(map.get(bundle.lineIndex) ?? []), box]);
+    }
+    return map;
+  });
+
+  bundleBoxes(index: number): readonly CartBundleBox[] {
+    return this.#bundlesByLine().get(index) ?? [];
+  }
+
   dealHints(index: number): readonly CartDealNudge[] {
     return this.#hintsByLine().get(index) ?? [];
   }
@@ -497,6 +549,8 @@ export class CartDrawerComponent {
       }
 
       for (const deal of priced.deals.deals) {
+        // A bundle has one strip for all its pieces, under its last item (`bundleBoxes`).
+        if (deal.bundle) continue;
         strips.push({
           key: `deal-${deal.offerId}`,
           title: titleOf(deal.offerId),

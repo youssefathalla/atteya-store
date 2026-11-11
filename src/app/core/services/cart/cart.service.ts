@@ -118,6 +118,28 @@ export class CartService {
     return added;
   }
 
+  /**
+   * Adds every line (a Bundle price picker's pieces) in one change, or none of them: returns false
+   * and adds nothing when they don't all fit in `MAX_CART_LINES` lines.
+   */
+  addAll(drafts: readonly CartLineDraft[]): boolean {
+    let added = true;
+    void this.#mutate((lines) => {
+      let next = lines;
+      for (const draft of drafts) {
+        const after = addCartLine(next, draft);
+        if (after === next) {
+          added = false;
+          if (this.#replaying) this.#replayDropped = true;
+          return lines;
+        }
+        next = after;
+      }
+      return next;
+    });
+    return added;
+  }
+
   removeAt(index: number): void {
     const key = this.#keyAt(index);
     if (key === null) return;

@@ -15,6 +15,14 @@ export interface PayStepAmounts {
   readonly codCash: string;
 }
 
+/** What a Bank Transfer sends: the total in the currency checkout shows. */
+export interface BankTransferAmounts {
+  /** The total as checkout shows it ("$205"). */
+  readonly total: string;
+  /** The currency's name in the plural, "US dollars". */
+  readonly currencyName: string;
+}
+
 const PLACE: PayStep = { title: 'Place your order', note: 'Nothing to pay yet', amount: null };
 const AGREE_FEE: PayStep = {
   title: "We'll contact you about the delivery fee",
@@ -37,6 +45,32 @@ export function instapaySteps(a: PayStepAmounts): PayStep[] {
     { title: 'Send the total by InstaPay', note: 'From your InstaPay app', amount: a.instapayTotal },
     { title: 'Send the screenshot on WhatsApp', note: 'We confirm and ship', amount: null },
   ];
+}
+
+/** Bank Transfer (outside Egypt): place the order, send the total from your bank, send the receipt. */
+export function bankTransferSteps(a: BankTransferAmounts): PayStep[] {
+  return [
+    PLACE,
+    { title: 'Send the total from your bank', note: `In ${a.currencyName}, to our IBAN`, amount: a.total },
+    { title: 'Send the receipt on WhatsApp', note: 'We confirm and ship', amount: null },
+  ];
+}
+
+/**
+ * "US dollars", "euros": a currency's name as it reads after "In …", from the browser's own names.
+ * Falls back to the code.
+ */
+export function currencyPluralName(code: string): string {
+  try {
+    const parts = new Intl.NumberFormat('en', {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'name',
+    }).formatToParts(2);
+    return parts.find((part) => part.type === 'currency')?.value ?? code;
+  } catch {
+    return code;
+  }
 }
 
 /** Cash on Delivery: the delivery fee by InstaPay first (when there is one), the rest in cash at the door. */

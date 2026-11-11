@@ -1,0 +1,74 @@
+@let g = guide();
+@if (g) {
+  <div class="elements-between flex-wrap gap-3">
+    @if (guides().length > 1) {
+      <mat-button-toggle-group
+        class="pill-switch"
+        aria-label="Size chart"
+        hideSingleSelectionIndicator
+        [value]="guideId()"
+        (change)="guideId.set($event.value)"
+      >
+        @for (option of guides(); track option.id) {
+          <mat-button-toggle [value]="option.id">{{ option.label }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    }
+    <div class="ms-auto">
+      <mat-button-toggle-group
+        class="pill-switch"
+        aria-label="Measurement unit"
+        hideSingleSelectionIndicator
+        [value]="unit()"
+        (change)="unit.set($event.value)"
+      >
+        <mat-button-toggle value="cm">Centimetres</mat-button-toggle>
+        <mat-button-toggle value="in">Inches</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+  </div>
+
+  <p class="mt-4 font-body-md">{{ intro() }}</p>
+
+  <!-- Mouse drag only while the table is wider than its box; the wheel stays on the page, and touch and trackpads scroll natively. -->
+  <section
+    class="size-guide"
+    tabindex="0"
+    [attr.aria-label]="g.label + ' size chart'"
+    appHorizontalScroll
+    #scroller="horizontalScroll"
+    [trackScroll]="true"
+    [snapToItems]="false"
+    [enableWheel]="false"
+    [enableDrag]="scroller.canPrev() || scroller.canNext()"
+  >
+    <table class="size-guide__table">
+      <caption class="sr-only">
+        {{
+          g.label
+        }}'s size chart.
+        {{
+          intro()
+        }}
+      </caption>
+      <thead>
+        <tr>
+          <td></td>
+          @for (size of g.sizes; track size) {
+            <th scope="col">{{ size }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of g.rows; track row.label) {
+          <tr>
+            <th scope="row">{{ row.label }}</th>
+            @for (size of g.sizes; track size) {
+              <td>{{ row[unit()][size] ?? '–' }}</td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+}

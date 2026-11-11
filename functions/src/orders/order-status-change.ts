@@ -213,14 +213,22 @@ function assertConfirmable(order: DocumentData): void {
   if (!isManualPayment(order['paymentMethod'])) {
     throw new HttpsError(
       'failed-precondition',
-      'Only Cash on Delivery and InstaPay orders are confirmed here. Card payments confirm on their own.',
+      'Only Cash on Delivery, InstaPay and Bank Transfer orders are confirmed here. Card payments confirm on their own.',
     );
   }
   const shipping = isRecord(order['shipping']) ? order['shipping'] : null;
   const country = shipping && typeof shipping['country'] === 'string' ? shipping['country'] : '';
   const pricing = isRecord(order['pricing']) ? order['pricing'] : null;
   const fulfilment = pricing && typeof pricing['fulfilment'] === 'string' ? pricing['fulfilment'] : '';
-  if (country !== 'EG' && fulfilment !== 'domestic-cod' && fulfilment !== 'domestic-instapay') {
+  if (order['paymentMethod'] === 'bank-transfer') {
+    // Bank Transfer is for orders shipped outside Egypt only.
+    if (country === 'EG' || fulfilment !== 'international-bank-transfer') {
+      throw new HttpsError(
+        'failed-precondition',
+        'Only Bank Transfer orders shipped abroad are confirmed here.',
+      );
+    }
+  } else if (country !== 'EG' && fulfilment !== 'domestic-cod' && fulfilment !== 'domestic-instapay') {
     throw new HttpsError('failed-precondition', 'Only Egypt orders are confirmed here.');
   }
   if (isDeliveryFeeToBeAgreed(pricing?.['shipping'])) {

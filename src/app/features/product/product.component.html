@@ -72,8 +72,18 @@
               [partial]="pr.partial"
               [badges]="pr.badges"
             />
-            @for (line of pr.offerLines; track line) {
-              <p class="font-label-lg">{{ line }}</p>
+            @for (line of pr.offerLines; track line.text) {
+              @if (line.shopOfferId; as offerId) {
+                <a
+                  class="block w-fit font-label-lg underline underline-offset-2"
+                  routerLink="/shop"
+                  [queryParams]="{ offer: offerId }"
+                >
+                  {{ line.text }}
+                </a>
+              } @else {
+                <p class="font-label-lg">{{ line.text }}</p>
+              }
             }
           }
 
@@ -134,8 +144,44 @@
               </div>
             </div>
           }
+          @if (bundleOffer(); as bundle) {
+            @if (bundleLoading()) {
+              <div class="elements-start-col w-full gap-3" aria-hidden="true">
+                <app-skeleton class="h-5 w-24" />
+                @for (view of bundleRows(); track view.row.quantity) {
+                  <app-skeleton class="h-12 w-full" />
+                }
+                <div class="pdp-gift-box">
+                  <div class="elements-start-col gap-2 p-4">
+                    <app-skeleton class="h-5 w-20" />
+                    <div class="scroll-row pdp-gift-row">
+                      @for (n of [1, 2, 3]; track n) {
+                        <div class="pdp-gift-card">
+                          <app-skeleton class="pdp-gift-card__photo" />
+                          <span class="pdp-gift-card__caption"><app-skeleton class="h-10 w-full" /></span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            } @else if (bundleSteps().length > 0) {
+              <app-product-bundle-picker
+                [offerId]="bundle.offer.id"
+                [rows]="bundleRows()"
+                [pieces]="bundlePieces()"
+                [steps]="bundleSteps()"
+                [disabled]="!inStock()"
+                [prompt]="choicePrompt()"
+                (rowPicked)="pickBundleRow($event)"
+                (productPicked)="pickBundleProduct($event.piece, $event.productId)"
+                (sizePicked)="pickBundleSize($event.piece, $event.sizeId)"
+              />
+            }
+          }
           <app-add-to-bag-button
-            [line]="cartLine()"
+            [lines]="bagLines()"
+            [label]="addLabel()"
             [unavailable]="!inStock()"
             (choiceMissing)="onChoiceMissing()"
           />
@@ -154,6 +200,19 @@
                     <li>{{ line }}</li>
                   }
                 </ul>
+              </div>
+            </details>
+          }
+
+          @let guides = sizeGuides();
+          @if (guides.length > 0) {
+            <details class="pdp-section">
+              <summary>
+                <span>Size &amp; Fit</span>
+                <span class="pdp-section__icon" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
+              </summary>
+              <div class="pdp-section__body max-w-none!">
+                <app-size-guide [guides]="guides" />
               </div>
             </details>
           }

@@ -41,6 +41,8 @@ export interface OrderLineAdminRow {
   /** `#A1B2C3`, the number shoppers see in emails and on the confirmation page. */
   readonly orderRef: string;
   readonly placedAtLabel: string;
+  /** When the order last changed (status, fee, payment), e.g. `11/11/2026, 2:14:00 PM`. */
+  readonly updatedAtLabel: string;
   readonly customerName: string;
   readonly country: string;
   readonly status: OrderDoc['status'];
@@ -84,4 +86,11 @@ export interface OrderLineAdminRow {
   readonly deliveryFeeEgp: number | null;
   /** Money staff should see arrive before confirming, e.g. `EGP 1,500`. Null when nothing is due. */
   readonly amountDueLabel: string | null;
+}
+
+/** One order on the Orders page: its first row carries the order actions, `lines` are the items. */
+export interface OrderCard {
+  readonly orderId: string;
+  readonly first: OrderLineAdminRow;
+  readonly lines: readonly OrderLineAdminRow[];
 }

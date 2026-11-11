@@ -8,14 +8,17 @@ export interface ConfirmationStep {
   readonly title: string;
   readonly note: string;
   readonly state: ConfirmationStepState;
-  /** The InstaPay box (address / number, Send on WhatsApp) goes under this step. */
+  /** The InstaPay box (address / number, Send on WhatsApp) or the bank details box goes under this step. */
   readonly pay: boolean;
 }
 
 export interface ConfirmationStepAmounts {
   /** "2:14 pm, 9 Nov 2026", or empty when the saved date is unreadable. */
   readonly placedAt: string;
-  /** What InstaPay asks for now (the fee or the total), e.g. "EGP 135". Null when unreadable. */
+  /**
+   * What is owed now: by InstaPay (the fee or the total), e.g. "EGP 135", or by Bank Transfer in
+   * the shopper's currency, e.g. "$205". Null when unreadable.
+   */
   readonly payNow: string | null;
   /** Cash paid at the door, e.g. "EGP 16,449". Null when unreadable. */
   readonly cash: string | null;
@@ -68,6 +71,18 @@ export function confirmationSteps(
         ),
         step('confirm', 'We confirm your order', 'As soon as we receive your payment.', 'next'),
         step('send', 'We send your order', '', 'next'),
+      ];
+    case 'bank-transfer-due':
+      return [
+        placed,
+        step(
+          'pay-bank',
+          amounts.payNow ? `Send ${amounts.payNow} from your bank` : 'Send the total from your bank',
+          '',
+          'current',
+          true,
+        ),
+        step('confirm', 'We confirm and ship', 'Usually 1–3 working days after you send it.', 'next'),
       ];
     case 'fee-to-be-agreed':
       return [

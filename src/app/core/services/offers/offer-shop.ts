@@ -1,5 +1,5 @@
 // Type-only imports: `npm run test:cart` loads this file straight from source.
-import type { BagDealHint, Offer, OfferConditions } from './engine';
+import type { BagBundle, BagDealHint, Offer, OfferBundleRow, OfferConditions } from './engine';
 
 /**
  * True when Shop can list this offer's products (`/shop?offer=<id>`): the search index keeps the
@@ -32,14 +32,49 @@ export function offerShopQuery(offerId: string): { readonly offer: string } {
 
 /**
  * The line under the offer's Shop heading: which piece is free in a Buy X Get Y offer whose free
- * pieces come from the same items ("The cheapest one is free."). Null for every other offer.
+ * pieces come from the same items ("The cheapest one is free."), or a Bundle price offer's rows
+ * ("2 for EGP 200 · 3 for EGP 275", amounts written by `money`). Null for every other offer.
  */
-export function offerShopSubtitle(offer: Offer): string | null {
+export function offerShopSubtitle(offer: Offer, money: (egp: number) => string = egpText): string | null {
   const reward = offer.reward;
+  if (reward.kind === 'bundlePrice') {
+    const rows = [...reward.rows].sort((a, b) => a.quantity - b.quantity);
+    return rows.length > 0 ? rows.map((row) => bundleRowLabel(row, money)).join(' · ') : null;
+  }
   if (reward.kind !== 'buyXGetY' || reward.getConditions !== null) return null;
   const many = reward.get.quantity > 1;
   const subject = many ? 'The cheapest ones are' : 'The cheapest one is';
   return reward.get.percent >= 100 ? `${subject} free.` : `${subject} ${reward.get.percent}% off.`;
+}
+
+/** "2 for EGP 200". */
+export function bundleRowLabel(row: OfferBundleRow, money: (egp: number) => string = egpText): string {
+  return `${row.quantity} for ${money(row.price)}`;
+}
+
+/**
+ * The bag's grey strip for a bundle: "<title> · 2 for EGP 200" ("3 for EGP 275 + 1 for EGP 125"
+ * for two rows, "2 × 3 for EGP 275" for a repeated row). Null while no piece is in the bundle.
+ */
+export function bundleStripTitle(bundle: BagBundle, money: (egp: number) => string = egpText): string | null {
+  if (bundle.units === 0 || bundle.rows.length === 0) return null;
+  const rows = bundle.rows
+    .map((row) =>
+      row.count > 1 ? `${row.count} × ${bundleRowLabel(row, money)}` : bundleRowLabel(row, money),
+    )
+    .join(' + ');
+  return `${bundle.title} · ${rows}`;
+}
+
+/** The bag's bundle nudge: "Add 1 more to get 3 for EGP 275". Null at the top row. */
+export function bundleNudgeText(bundle: BagBundle, money: (egp: number) => string = egpText): string | null {
+  const next = bundle.next;
+  if (!next) return null;
+  return `Add ${next.missing} more to get ${bundleRowLabel(next, money)}`;
+}
+
+function egpText(egp: number): string {
+  return `EGP ${egp.toLocaleString('en-US')}`;
 }
 
 /**
