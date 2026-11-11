@@ -4,6 +4,11 @@ import { formatMoney } from '@shared/utils/money';
 export interface RatePreviewRow {
   readonly code: string;
   readonly perEgp: string;
+  /** 1,000 EGP converted at the plain rate, no markup, same rounding. */
+  readonly baseAs: string;
+  /** What the markup adds: the price with markup minus the price before it. */
+  readonly markupAs: string;
+  /** 1,000 EGP with the markup added: what shoppers see. */
   readonly showsAs: string;
 }
 
@@ -27,10 +32,15 @@ export function ratePreviewRows(
     if (!/^[A-Z]{3}$/.test(code) || code === 'EGP') continue;
     const rate = rates[code];
     if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) continue;
+    const decimals = displayDecimals(code);
+    const base = sampleAmount(code, 0, rate);
+    const withMarkup = sampleAmount(code, markupPercent, rate);
     rows.push({
       code,
       perEgp: rate.toLocaleString('en-US', { maximumSignificantDigits: 6 }),
-      showsAs: samplePrice(code, markupPercent, rate),
+      baseAs: formatMoney(base, code, decimals),
+      markupAs: `+${formatMoney(Math.max(0, withMarkup - base), code, decimals)}`,
+      showsAs: formatMoney(withMarkup, code, decimals),
     });
   }
   return rows;
@@ -81,10 +91,10 @@ export function callableMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function samplePrice(code: string, markupPercent: number, rate: number): string {
+function sampleAmount(code: string, markupPercent: number, rate: number): number {
   const entry: CurrencyEntry = {
     code,
     factor: (1 + markupPercent / 100) * rate,
   };
-  return formatMoney(toDisplayAmount(SAMPLE_EGP, entry), code, displayDecimals(code));
+  return toDisplayAmount(SAMPLE_EGP, entry);
 }

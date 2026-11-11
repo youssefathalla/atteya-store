@@ -80,6 +80,7 @@ Always use Material M3 typography tokens. Never use arbitrary Tailwind text sizi
    - When a full-height hero is specified, do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to the slide containers, as `aspect-ratio` overrides height in modern CSS.
 4. **Section Spacing**:
    - Use `.container-content` as the single unified class for page section layout and responsive container padding (`p-[5cqw]`). Do not append `.section-space` to elements that already have `.container-content`.
+   - The first `.container-content` of a routed page (the page host itself when it carries the class, or the first child of the page host, right after `<router-outlet />`) automatically gets `padding-top: 2.5cqw` instead of `5cqw` (`spacing.css`); never add this by hand.
 
 ---
 
