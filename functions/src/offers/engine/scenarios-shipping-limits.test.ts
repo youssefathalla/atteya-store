@@ -503,9 +503,14 @@ describe('M8 large orders: the fee is agreed, so no free shipping applies', () =
     );
   });
 
-  it('a fee still to be agreed is never compared with what checkout showed', () => {
+  it('a fee still to be agreed compares only the items total with what checkout showed (ATS-152)', () => {
     const agreed = { kind: 'domestic-agreed', priceEgp: 0 };
-    assert.equal(missedOrderTotal({ shownShippingEgp: 0, shownTotalEgp: 100 }, agreed, 5_000), null);
+    assert.deepEqual(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 3_000 }, agreed, 3_080), {
+      missedTotalEgp: 3_080,
+      shippingEgp: 0,
+    });
+    assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 3_000 }, agreed, 3_000), null);
+    assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: null }, agreed, 5_000), null);
   });
 });
 
@@ -1233,9 +1238,21 @@ describe('R / ATS-147 the shipping fee or total is never higher than checkout sh
 
   it('values a page did not send are not compared', () => {
     assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: null }, box, 99_999), null);
-    assert.equal(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 2_000 }, box, 2_000), null);
-    assert.ok(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 2_000 }, box, 2_001));
     assert.ok(missedOrderTotal({ shownShippingEgp: 100, shownTotalEgp: null }, box, 1));
+  });
+
+  it('a box fee is a miss when checkout showed a fee to be agreed (ATS-152)', () => {
+    // No shipping fee and a total = checkout showed the items total "+ shipping".
+    assert.ok(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 2_000 }, box, 2_000));
+    assert.ok(missedOrderTotal({ shownShippingEgp: null, shownTotalEgp: 2_000 }, box, 2_115));
+    assert.equal(
+      missedOrderTotal(
+        { shownShippingEgp: null, shownTotalEgp: 2_000 },
+        { kind: 'domestic-box', priceEgp: 0 },
+        2_000,
+      ),
+      null,
+    );
   });
 
   it('abroad box fees are compared the same way', () => {
