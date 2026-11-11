@@ -66,8 +66,9 @@ export class ProductCardComponent {
   });
 
   /**
-   * The photo opens the colour it shows. The name, badge and price link keeps the card's own product,
-   * since those details belong to it (a colour sibling may have its own price and offers).
+   * The colour the card shows: the photo, the name link and the heart all follow it, so the whole card
+   * opens and saves the colour on screen (decided with Youssef, ATS-187). The price stays the card's
+   * own: colours of one model share a price in the catalogue, and the product page shows the live one.
    */
   readonly photoSlug = computed(() => this.#preview()?.slug ?? this.product().slug);
 

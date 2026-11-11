@@ -70,8 +70,8 @@
 
 <a
   class="product-card__info"
-  [routerLink]="['/product', product().slug]"
-  [appPrefetchProduct]="product().slug"
+  [routerLink]="['/product', photoSlug()]"
+  [appPrefetchProduct]="photoSlug()"
   (click)="onProductLinkClick($event)"
 >
   @if (product().marketingBadge; as badge) {
