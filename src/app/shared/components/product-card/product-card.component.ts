@@ -1,5 +1,15 @@
 import { NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject, input, linkedSignal, output, resource, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  output,
+  resource,
+  signal,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
 import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
@@ -88,15 +98,25 @@ export class ProductCardComponent {
   readonly shownPrice = computed<ProductCardPrice | null>(() => {
     const preview = this.#preview();
     if (!preview) return this.product().price;
-    if (this.#picked.error()) return this.product().price;
+    // A colour that can't be read is dropped (effect below); until then show no price for it.
+    if (this.#pickedUnavailable()) return null;
     if (!this.#picked.hasValue() || this.#picked.isLoading()) return null;
     const picked = this.#picked.value();
-    if (!picked || picked.id !== preview.productId) return this.product().price;
+    if (!picked) return null;
     const live = this.#offers.ready() && !this.#offers.failed();
     return productCardPrice(picked, live ? this.#offers.all() : null, {
       now: this.#offers.now(),
       signedIn: this.#auth.offerSignedIn(),
     });
+  });
+
+  /** Whether the picked colour couldn't be read (failed, unpublished or a stale link). */
+  readonly #pickedUnavailable = computed(() => {
+    const preview = this.#preview();
+    if (!preview) return false;
+    if (this.#picked.error()) return true;
+    if (!this.#picked.hasValue() || this.#picked.isLoading()) return false;
+    return this.#picked.value()?.id !== preview.productId;
   });
 
   readonly displayImagePath = computed(() => {
@@ -174,6 +194,14 @@ export class ProductCardComponent {
   });
 
   readonly favoriteLabel = computed(() => (this.isFavorite() ? 'Remove from favorites' : 'Add to favorites'));
+
+  constructor() {
+    // The card never pairs a colour's photo with another colour's price: if the picked colour can't
+    // be read, the card goes back to its own colour.
+    effect(() => {
+      if (this.#pickedUnavailable()) this.#preview.set(null);
+    });
+  }
 
   imagePath(rawPath: string): string {
     return normalizeImageKitPath(rawPath);
