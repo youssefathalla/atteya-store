@@ -240,7 +240,7 @@ export function orderDetails(
       rows: paymentRows(order, stage, egp),
     },
     items,
-    thumbs: items.filter((item) => item.imagePath).slice(0, 3),
+    thumbs: items.filter((item) => item.imagePath).slice(0, 2),
     pieces: `${pieces} ${pieces === 1 ? 'item' : 'items'}`,
     totals,
     total,
