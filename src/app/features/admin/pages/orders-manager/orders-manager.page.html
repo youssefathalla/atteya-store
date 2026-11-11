@@ -145,7 +145,7 @@
                       <a matButton="text" [routerLink]="['/admin/orders', row.orderId]">
                         <span>Open Full Order</span>
                       </a>
-                      <app-order-actions [row]="row" (changed)="reload()" />
+                      <app-order-actions [row]="row" [afterChange]="reloadFn" />
                     </div>
                   </div>
                 </div>

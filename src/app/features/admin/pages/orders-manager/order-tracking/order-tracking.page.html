@@ -29,7 +29,7 @@
         </p>
         <p class="admin-order-muted">Updated {{ row.updatedAtLabel }}</p>
       </div>
-      <app-order-actions [row]="row" (changed)="reload()" />
+      <app-order-actions [row]="row" [afterChange]="reloadFn" />
     </section>
 
     @if (d.nextStep; as step) {
