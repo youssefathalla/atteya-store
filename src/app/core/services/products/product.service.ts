@@ -24,6 +24,7 @@ import {
   NEW_ARRIVALS_LIMIT,
   timestampToMs,
 } from './utils/new-arrival';
+import { onePerModel } from './utils/one-per-model';
 
 /**
  * Public catalogue reads. Every query includes published == true so Firestore rules allow it.
@@ -64,10 +65,17 @@ export class ProductService {
           limit(NEW_ARRIVAL_FLAGGED_FETCH),
         ),
       ),
-      this.listPublished({ limit: max }),
+      // Extra newest products, so the row is still full after other colours of a model are dropped.
+      this.listPublished({ limit: max * 3 }),
     ]);
     const flagged = flaggedSnap.docs.map((item) => item.data());
-    return mergeNewArrivalPool(flagged, newest, (product) => timestampToMs(product.updatedAt) ?? 0, max);
+    const pool = mergeNewArrivalPool(
+      flagged,
+      newest,
+      (product) => timestampToMs(product.updatedAt) ?? 0,
+      max * 3,
+    );
+    return onePerModel(pool).slice(0, max);
   }
 
   async getBySlug(slug: string): Promise<Product | null> {

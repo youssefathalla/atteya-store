@@ -19,6 +19,7 @@ import { OffersService } from '@core/services/offers/offers.service';
 import { NavService } from '@core/services/navigation';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { ProductService } from '@core/services/products/product.service';
+import { onePerModel } from '@core/services/products/utils/one-per-model';
 import { SeoService } from '@core/services/seo';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import {
@@ -142,7 +143,8 @@ export class CategoryComponent {
 
   readonly products = computed(() => {
     if (this.productsResource.error() || !this.productsResource.hasValue()) return [];
-    return this.productsResource.value() ?? [];
+    // One card per model: other colours are under each card's photo.
+    return onePerModel(this.productsResource.value() ?? []);
   });
 
   readonly cardPrices = computed<ReadonlyMap<string, CatalogCardPrice>>(() => {

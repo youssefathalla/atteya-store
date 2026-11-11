@@ -133,3 +133,38 @@ describe('search record onSale (Shop Sale filter)', () => {
     assert.equal(computeProductOfferFields('racket-1', compareAt, [], NOW).onSale, true);
   });
 });
+
+describe('search record distinctKey (one card per model)', () => {
+  it('groups colours of one model under the same key', () => {
+    const black = toSearchRecord(
+      'bag-black',
+      { ...RACKET, modelGroup: 'multigame' },
+      new Map(),
+      new Map(),
+      [],
+      NOW,
+    );
+    const red = toSearchRecord(
+      'bag-red',
+      { ...RACKET, modelGroup: ' multigame ' },
+      new Map(),
+      new Map(),
+      [],
+      NOW,
+    );
+    assert.equal(black?.distinctKey, 'model:multigame');
+    assert.equal(red?.distinctKey, black?.distinctKey);
+  });
+
+  it('gives a product without a model its own key', () => {
+    assert.equal(record([]).distinctKey, 'product:racket-1');
+    const blank = toSearchRecord('racket-2', { ...RACKET, modelGroup: '  ' }, new Map(), new Map(), [], NOW);
+    assert.equal(blank?.distinctKey, 'product:racket-2');
+  });
+
+  it('never lets a model key collide with a product id', () => {
+    const asModel = toSearchRecord('a', { ...RACKET, modelGroup: 'x' }, new Map(), new Map(), [], NOW);
+    const asProduct = toSearchRecord('x', RACKET, new Map(), new Map(), [], NOW);
+    assert.notEqual(asModel?.distinctKey, asProduct?.distinctKey);
+  });
+});
