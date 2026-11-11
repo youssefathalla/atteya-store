@@ -12,7 +12,7 @@ import { FooterSignupComponent } from './components/footer-signup/footer-signup.
 import { footerLabel, footerSocialLinks } from './utils/footer-links';
 
 /** Shop column links written in the template, so a nav entry with the same path is skipped. */
-const FIXED_SHOP_PATHS = new Set(['/shop', '/brands', '/category/all']);
+const FIXED_SHOP_PATHS = new Set(['/shop', '/brands', '/category/all', '/category/shop']);
 
 /**
  * Storefront footer: Shop / Help / Account link columns, the email sign-up for visitors who
