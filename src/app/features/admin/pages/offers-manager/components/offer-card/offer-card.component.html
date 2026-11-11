@@ -1,0 +1,111 @@
+@let c = card();
+<article class="offer-card" [class.offer-card--ended]="ended()" [attr.aria-label]="c.name || c.headline">
+  <div class="offer-card__status">
+    <span class="elements-start gap-1.5 min-w-0">
+      @if (c.live) {
+        <span class="offer-dot offer-dot--live" aria-hidden="true"></span>
+      }
+      <span class="truncate">{{ c.statusText }}</span>
+    </span>
+    @if (c.hasSwitch) {
+      <mat-slide-toggle
+        [checked]="c.on"
+        [disabled]="busy()"
+        [attr.aria-label]="(c.on ? 'Turn off ' : 'Turn on ') + (c.name || c.headline)"
+        (change)="switched.emit($event)"
+      />
+    }
+  </div>
+
+  <p class="offer-card__deal" [attr.title]="c.headline">{{ c.headline }}</p>
+
+  <div class="elements-start-col items-stretch! gap-0.5 min-w-0">
+    <p class="font-body-md font-bold! truncate" [attr.title]="c.name">
+      {{ c.name || 'No internal name' }}
+      @if (code()) {
+        · Code: {{ code() }}
+      }
+    </p>
+    <p class="offer-card__muted truncate">
+      @if (c.title) {
+        Shoppers see “{{ c.title }}”
+      } @else {
+        Shoppers see no title
+      }
+    </p>
+  </div>
+
+  <dl class="offer-card__facts">
+    <div class="offer-card__fact">
+      <dt>Affected products</dt>
+      <dd>{{ c.affected }}</dd>
+    </div>
+    <div class="offer-card__fact">
+      <dt>Who</dt>
+      <dd>{{ c.who }}</dd>
+    </div>
+    <div class="offer-card__fact">
+      <dt>When</dt>
+      <dd>{{ c.when }}</dd>
+    </div>
+  </dl>
+
+  <div class="offer-card__footer">
+    <div class="flex-1 min-w-0 grid">
+      @if (isGroup()) {
+        <button matButton="outlined" type="button" (click)="openGroup.emit()">
+          <span>Open Group</span>
+        </button>
+      } @else if (ended()) {
+        <button matButton="outlined" type="button" [disabled]="busy()" (click)="duplicate.emit()">
+          <span>Run Again</span>
+        </button>
+      } @else {
+        <a matButton="outlined" [routerLink]="['/admin/offers', offer().id]">
+          <span>Edit</span>
+        </a>
+      }
+    </div>
+    <button
+      matIconButton
+      type="button"
+      [disabled]="busy()"
+      [matMenuTriggerFor]="menu"
+      [attr.aria-label]="'More actions for ' + (c.name || c.headline)"
+    >
+      <mat-icon name="more_vert" />
+    </button>
+    <mat-menu #menu="matMenu">
+      @if (isGroup()) {
+        <button mat-menu-item type="button" (click)="openGroup.emit()">
+          <span>Open Group</span>
+        </button>
+        <button mat-menu-item type="button" (click)="archive.emit()">
+          <span>{{ archived() ? 'Restore All' : 'Archive All' }}</span>
+        </button>
+      } @else {
+        @if (ended()) {
+          <a mat-menu-item [routerLink]="['/admin/offers', offer().id]">
+            <span>Edit</span>
+          </a>
+        }
+        <button mat-menu-item type="button" (click)="duplicate.emit()">
+          <span>Duplicate</span>
+        </button>
+        @if (!archived()) {
+          <button mat-menu-item type="button" (click)="pauseResume.emit()">
+            <span>{{ offer().active ? 'Pause' : 'Resume' }}</span>
+          </button>
+        }
+        <button mat-menu-item type="button" (click)="archive.emit()">
+          <span>{{ archived() ? 'Restore' : 'Archive' }}</span>
+        </button>
+        @if (archived()) {
+          <button mat-menu-item type="button" (click)="remove.emit()">
+            <span>Delete Permanently</span>
+          </button>
+        }
+      }
+    </mat-menu>
+  </div>
+</article>
