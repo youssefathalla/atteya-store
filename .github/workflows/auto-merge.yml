@@ -50,6 +50,13 @@
 # and CI does not run again on the push to develop (it already passed on the PR).
 # For the same reason it starts conflict-watch.yml (workflow_dispatch) after each merge,
 # so other open PRs that now conflict with develop get fixed.
+#
+# Two clean PRs can finish at the same moment: one merges, and GitHub refuses the other with
+# "Base branch was modified". Every check on that PR has already ended, so nothing would start
+# this job again. So a refused merge for that reason is retried (up to 3 tries, re-reading the PR
+# each time; after that a "✋ Auto-merge" note says how to start it again), and after any merge
+# the job checks every other open owner PR into develop once, quietly (no notes), and merges
+# the ones that are clean.
 
 name: Auto-merge
 
@@ -116,7 +123,8 @@ jobs:
       group: auto-merge-${{ github.event.check_run.head_sha || github.event.workflow_run.head_sha || format('pr-{0}', inputs.pr) }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 10, not 5: after a merge it may retry and check the other open PRs too.
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
@@ -199,7 +207,11 @@ jobs:
             };
             const claudeVerdict = async (prNumber, commit) => (await claudeReview(prNumber, commit)).verdict;
 
+            // While checking other PRs after a merge (the sweep below), stay quiet: those PRs get
+            // their own ✋ / ⏳ notes from their own events.
+            let quiet = false;
             const commentOnce = async (prNumber, marker, text) => {
+              if (quiet) return;
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner, repo, issue_number: prNumber, per_page: 100,
               });
@@ -214,8 +226,9 @@ jobs:
               return;
             }
 
-            for (const candidate of candidates) {
-              const n = candidate.number;
+            // Checks one PR at one commit and merges it when clean. Returns true when it merged.
+            // `byHand` is true only for the PR a hand-started run names (skip_claude_findings).
+            const checkAndMerge = async (n, sha, byHand) => {
               const stop = (why) => core.info(`#${n}: ${why} Not merging.`);
 
               // Read the PR again; wait for GitHub to work out whether it can merge.
@@ -225,14 +238,14 @@ jobs:
                 if (pr.mergeable !== null) break;
                 await sleep(5000);
               }
-              if (pr.state !== 'open') { stop('It is not open.'); continue; }
-              if (pr.draft) { stop('It is a draft.'); continue; }
-              if (pr.base?.ref !== BASE) { stop(`It does not target ${BASE}.`); continue; }
-              if (pr.head?.sha !== sha) { stop('A newer commit was pushed.'); continue; }
-              if (pr.head?.repo?.full_name !== `${owner}/${repo}`) { stop('It comes from a fork.'); continue; }
-              if (pr.user?.login !== owner) { stop('It was not opened by the repository owner.'); continue; }
-              if ((pr.labels || []).some((l) => l.name === OPT_OUT_LABEL)) { stop(`It has the ${OPT_OUT_LABEL} label.`); continue; }
-              if (['develop', 'main'].includes(pr.head?.ref)) { stop('Its branch is develop or main.'); continue; }
+              if (pr.state !== 'open') { stop('It is not open.'); return false; }
+              if (pr.draft) { stop('It is a draft.'); return false; }
+              if (pr.base?.ref !== BASE) { stop(`It does not target ${BASE}.`); return false; }
+              if (pr.head?.sha !== sha) { stop('A newer commit was pushed.'); return false; }
+              if (pr.head?.repo?.full_name !== `${owner}/${repo}`) { stop('It comes from a fork.'); return false; }
+              if (pr.user?.login !== owner) { stop('It was not opened by the repository owner.'); return false; }
+              if ((pr.labels || []).some((l) => l.name === OPT_OUT_LABEL)) { stop(`It has the ${OPT_OUT_LABEL} label.`); return false; }
+              if (['develop', 'main'].includes(pr.head?.ref)) { stop('Its branch is develop or main.'); return false; }
 
               // Checks on the latest commit. Every run is listed ("all", so a newer skipped PR Title
               // run cannot hide an earlier result); the newest of each name is picked below.
@@ -277,7 +290,7 @@ jobs:
                     `**⏳ Auto-merge** · waiting for Bugbot\n\nBugbot has not reviewed \`${sha.slice(0, 7)}\` (it has no Bugbot check yet). Comment \`bugbot run\` to ask it again; this merges by itself once Bugbot and the other checks are clean.`);
                 }
                 stop('Bugbot has not finished on this commit.');
-                continue;
+                return false;
               }
               // Bugbot "couldn't run" (for example the Cursor usage limit): its check ends with the
               // title "Error". Then the Claude review of this commit is the gate instead.
@@ -292,9 +305,9 @@ jobs:
                     `**✋ Auto-merge** · waiting for you\n\nBugbot's check on \`${sha.slice(0, 7)}\` ended with "${String(bugbot.conclusion)}" without reporting issues. Comment \`bugbot run\` to try again, or merge by hand.`);
                 }
                 stop(`Bugbot ended with "${bugbot.conclusion}" (issues found or an error).`);
-                continue;
+                return false;
               }
-              if (claudePending) { stop('The Claude review of this commit is still running.'); continue; }
+              if (claudePending) { stop('The Claude review of this commit is still running.'); return false; }
 
               // Only high and medium Claude findings hold the merge (low ones are notes), whether
               // or not Bugbot ran. When Bugbot could not run, a Claude review with no result holds
@@ -304,7 +317,7 @@ jobs:
               // itself is applied after every other gate, so its comment is only posted when it is
               // really the last thing left.
               const review = await claudeReview(n, sha);
-              const skipClaude = context.eventName === 'workflow_dispatch' &&
+              const skipClaude = byHand && context.eventName === 'workflow_dispatch' &&
                 String(context.payload.inputs?.skip_claude_findings) === 'true';
               let claudeSerious = review.verdict === 'issues' ? review.serious : 0;
               let claudeNoResult = bugbotOut && review.verdict === 'none';
@@ -333,14 +346,14 @@ jobs:
               const requiredNames = browserCheckHere ? [...REQUIRED, [BROWSER_CHECK]] : REQUIRED;
               const required = requiredNames.map((names) => ({ label: names[0], run: names.map((name) => byName.get(name)).find(Boolean) }));
               const missing = required.filter((r) => r.run?.status !== 'completed').map((r) => r.label);
-              if (missing.length) { stop(`Still waiting for: ${missing.join(', ')}.`); continue; }
+              if (missing.length) { stop(`Still waiting for: ${missing.join(', ')}.`); return false; }
               const failedRequired = required.filter((r) => r.run.conclusion !== 'success').map((r) => r.label);
-              if (failedRequired.length) { stop(`Did not pass: ${failedRequired.join(', ')}.`); continue; }
+              if (failedRequired.length) { stop(`Did not pass: ${failedRequired.join(', ')}.`); return false; }
               const running = [...byName.values()].filter((run) => run.status !== 'completed').map((run) => run.name);
-              if (running.length) { stop(`Still running: ${running.join(', ')}.`); continue; }
+              if (running.length) { stop(`Still running: ${running.join(', ')}.`); return false; }
               const bad = ['failure', 'cancelled', 'timed_out', 'action_required', 'stale', 'startup_failure'];
               const failed = [...byName.values()].filter((run) => bad.includes(run.conclusion)).map((run) => run.name);
-              if (failed.length) { stop(`Failed checks: ${failed.join(', ')}.`); continue; }
+              if (failed.length) { stop(`Failed checks: ${failed.join(', ')}.`); return false; }
 
               // Open review threads and "changes requested".
               // Bugbot threads are covered by the Bugbot check above (success on the latest
@@ -361,7 +374,7 @@ jobs:
                 { owner, repo, n },
               );
               const pull = gql.repository.pullRequest;
-              if (pull.reviewDecision === 'CHANGES_REQUESTED') { stop('Changes were requested.'); continue; }
+              if (pull.reviewDecision === 'CHANGES_REQUESTED') { stop('Changes were requested.'); return false; }
               const open = pull.reviewThreads.nodes.filter((thread) => !thread.isResolved);
               const isSecurity = (thread) => {
                 const first = thread.comments.nodes[0] || {};
@@ -377,7 +390,7 @@ jobs:
                 const login = thread.comments.nodes[0]?.author?.login || '';
                 return !/^(cursor|claude)(\[bot\])?$/.test(login);
               });
-              if (openHumanThreads.length) { stop(`${openHumanThreads.length} review thread(s) from a person are still open.`); continue; }
+              if (openHumanThreads.length) { stop(`${openHumanThreads.length} review thread(s) from a person are still open.`); return false; }
 
               // Workflow and agent settings changes wait for a person.
               const files = await github.paginate(github.rest.pulls.listFiles, { owner, repo, pull_number: n, per_page: 100 });
@@ -385,10 +398,10 @@ jobs:
                 await commentOnce(n, '<!-- auto-merge-needs-person -->',
                   '**✋ Auto-merge** · waiting for you\n\nBugbot found no issues and the checks passed, but this pull request changes files under `.github/`, so it is not merged automatically. Merge it yourself when you are happy with it.');
                 stop('It changes files under .github/.');
-                continue;
+                return false;
               }
 
-              if (pr.mergeable !== true) { stop(`GitHub cannot merge it yet (mergeable: ${pr.mergeable}, state: ${pr.mergeable_state}).`); continue; }
+              if (pr.mergeable !== true) { stop(`GitHub cannot merge it yet (mergeable: ${pr.mergeable}, state: ${pr.mergeable_state}).`); return false; }
 
               // Review steps that are the last thing left. Checked after every other gate, so the
               // ✋ comments are only posted when nothing else is holding the merge.
@@ -410,17 +423,45 @@ jobs:
                   claudeNoResult ? 'Bugbot could not run and the Claude review has no result.' : '',
                   openSecurity.length ? `${openSecurity.length} security finding(s) are still open.` : '',
                 ].filter(Boolean).join(' '));
-                continue;
+                return false;
               }
 
-              try {
-                await github.rest.pulls.merge({
-                  owner, repo, pull_number: n, sha, merge_method: 'squash',
-                  commit_title: `${pr.title} (#${n})`,
-                });
-              } catch (error) {
-                stop(`The merge was refused: ${error.message}`);
-                continue;
+              // When another PR merged a moment earlier, GitHub refuses with "Base branch was
+              // modified" (405 / 409). Nothing else would start this check again (every check on
+              // this PR has finished), so wait, read the PR again and retry, up to 3 times.
+              const baseMoved = (error) => [405, 409].includes(error?.status) &&
+                /base branch was modified/i.test(String(error?.message || ''));
+              let merged = false;
+              for (let attempt = 1; attempt <= 3 && !merged; attempt++) {
+                try {
+                  await github.rest.pulls.merge({
+                    owner, repo, pull_number: n, sha, merge_method: 'squash',
+                    commit_title: `${pr.title} (#${n})`,
+                  });
+                  merged = true;
+                } catch (error) {
+                  if (!baseMoved(error)) {
+                    stop(`The merge was refused: ${error.message}`);
+                    return false;
+                  }
+                  if (attempt === 3) {
+                    await commentOnce(n, `<!-- auto-merge-base-moved ${sha} -->`,
+                      `**✋ Auto-merge** · waiting for you\n\n\`${sha.slice(0, 7)}\` is clean, but \`${BASE}\` kept moving while it tried to merge (3 tries). Run Actions → Auto-merge → Run workflow with PR number ${n} to try again, or merge it yourself.`);
+                    stop(`${BASE} kept moving (3 tries): ${error.message}`);
+                    return false;
+                  }
+                  core.info(`#${n}: ${BASE} moved during the merge (try ${attempt} of 3); trying again.`);
+                  await sleep(5000 * attempt);
+                  let fresh;
+                  for (let wait = 0; wait < 6; wait++) {
+                    fresh = (await github.rest.pulls.get({ owner, repo, pull_number: n })).data;
+                    if (fresh.mergeable !== null) break;
+                    await sleep(5000);
+                  }
+                  if (fresh.state !== 'open' || fresh.merged) { stop('It is no longer open.'); return false; }
+                  if (fresh.head?.sha !== sha) { stop('A newer commit was pushed.'); return false; }
+                  if (fresh.mergeable === false) { stop(`It conflicts with ${BASE} now (Conflict Watch handles it).`); return false; }
+                }
               }
               core.info(`#${n}: merged into ${BASE}.`);
 
@@ -448,8 +489,40 @@ jobs:
                 core.info(`Could not delete ${pr.head.ref}: ${error.message}`);
               }
 
-              // This merge used the workflow token, so no push workflow starts on develop.
-              // Start Conflict Watch directly: other open PRs may conflict now.
+              return true;
+            };
+
+            let mergedAny = false;
+            const checked = new Set();
+            for (const candidate of candidates) {
+              checked.add(candidate.number);
+              if (await checkAndMerge(candidate.number, sha, true)) mergedAny = true;
+            }
+
+            // A PR that lost a race (or whose last check ended while develop was moving) has no
+            // event left to start it. After a merge, check every other open owner PR into develop
+            // once, quietly, and merge the ones that are clean.
+            if (mergedAny) {
+              quiet = true;
+              const open = await github.paginate(github.rest.pulls.list, {
+                owner, repo, state: 'open', base: BASE, sort: 'created', direction: 'asc', per_page: 100,
+              });
+              for (const other of open) {
+                if (checked.has(other.number)) continue;
+                if (other.draft || other.user?.login !== owner) continue;
+                if (other.head?.repo?.full_name !== `${owner}/${repo}`) continue;
+                checked.add(other.number);
+                try {
+                  if (await checkAndMerge(other.number, other.head.sha, false)) mergedAny = true;
+                } catch (error) {
+                  core.info(`#${other.number}: could not check it (${error.message}).`);
+                }
+              }
+            }
+
+            // These merges used the workflow token, so no push workflow starts on develop.
+            // Start Conflict Watch directly: other open PRs may conflict now.
+            if (mergedAny) {
               try {
                 await github.rest.actions.createWorkflowDispatch({ owner, repo, workflow_id: 'conflict-watch.yml', ref: BASE });
               } catch (error) {
