@@ -7,7 +7,7 @@ import type { Product } from '@core/services/products/product.model';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { ProductsTableComponent } from './components/products-table/products-table.component';
 import { ProductsToolbarComponent } from './components/products-toolbar/products-toolbar.component';
-import type { MigratePass, ProductListView } from './models/product-admin.model';
+import type { MigratePass, ProductListView, ProductTableRow } from './models/product-admin.model';
 import { CatalogToolsService } from './services/catalog-tools.service';
 import { ProductsAdminService } from './services/products-admin.service';
 import { ProductsDialogService } from './services/products-dialog.service';
@@ -37,6 +37,8 @@ export class ProductsManagerComponent implements OnInit {
   readonly brandId = signal('all');
   readonly view = signal<ProductListView>('all');
   readonly searchSyncErrors = signal(0);
+  /** Product whose Live / Hidden change is saving. */
+  readonly switchingId = signal<string | null>(null);
 
   /** The whole catalogue, so every colour of a model lands in the same row. */
   readonly catalogResource = resource({
@@ -162,6 +164,23 @@ export class ProductsManagerComponent implements OnInit {
   editProduct(id: string): void {
     if (this.activity()) return;
     void this.#router.navigate(['/admin/products', id]);
+  }
+
+  async switchPublished(row: ProductTableRow): Promise<void> {
+    if (this.activity() || this.switchingId()) return;
+    const published = !row.published;
+    if (!(await this.#dialogs.confirmPublished(row, published))) return;
+    this.switchingId.set(row.id);
+    try {
+      await this.#admin.setPublished(row.id, published);
+      this.#productCache.clear();
+      this.#snackbar.success(published ? 'Now live on the store.' : 'Hidden from the store.');
+      await this.reloadCatalogue();
+    } catch (error: unknown) {
+      this.#snackbar.error(importActionError(error));
+    } finally {
+      this.switchingId.set(null);
+    }
   }
 
   async editStock(id: string): Promise<void> {

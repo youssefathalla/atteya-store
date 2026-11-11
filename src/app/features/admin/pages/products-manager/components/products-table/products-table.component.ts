@@ -2,6 +2,7 @@ import { Component, computed, input, output, signal, TemplateRef, viewChild } fr
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { TemplateTypeDirective } from '@shared/directives/template-type/template-type.directive';
 import { EgpPricePipe } from '@shared/pipes/egp-price.pipe';
@@ -19,6 +20,7 @@ import type { ProductGroupRow, ProductStockStatus, ProductTableRow } from '../..
     NgTemplateOutlet,
     MatButtonModule,
     MatMenuModule,
+    MatProgressSpinnerModule,
     AppImageFallbackDirective,
     TemplateTypeDirective,
     EgpPricePipe,
@@ -39,6 +41,8 @@ export class ProductsTableComponent {
   /** Product id: the editor opens on that colour. */
   readonly edit = output<string>();
   readonly stock = output<string>();
+  readonly switchingId = input<string | null>(null);
+  readonly switchPublished = output<ProductTableRow>();
 
   readonly #open = signal<ReadonlySet<string>>(new Set());
 
@@ -64,6 +68,26 @@ export class ProductsTableComponent {
     stockStatus: 'unset',
     liveCount: 0,
     colours: [],
+  };
+
+  readonly sampleColour: ProductTableRow = {
+    id: '',
+    name: '',
+    categoryId: '',
+    categoryLabel: '',
+    type: 'rackets',
+    typeLabel: '',
+    brandId: '',
+    brandLabel: '',
+    modelGroup: '',
+    price: 0,
+    compareAtPrice: null,
+    published: false,
+    imagePath: null,
+    status: 'hidden',
+    stock: null,
+    stockStatus: 'unset',
+    colourLabel: '',
   };
 
   readonly mutableGroups = computed(() => [...this.groups()]);
@@ -96,6 +120,11 @@ export class ProductsTableComponent {
       else next.add(row.id);
       return next;
     });
+  }
+
+  statusLabel(colour: ProductTableRow): string {
+    if (this.switchingId() === colour.id) return 'Saving';
+    return `${colour.published ? 'Live. Hide' : 'Hidden. Make live'} ${this.colourName(colour)}`;
   }
 
   colourName(colour: ProductTableRow): string {

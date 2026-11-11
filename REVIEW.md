@@ -13,7 +13,7 @@ The Claude review workflow (`.github/workflows/claude-review.yml`: a code review
 ## Stock
 
 - `stock`, `stockBySize` and `inStock` are written together, only through `stockFields()` / `bootstrapStock()` in `functions/src/products/stock.ts`. `inStock` is always `stock > 0`; `stock` equals the sum of `stockBySize` when sizes exist.
-- No client code writes product docs or stock fields. Admin stock edits go through the `setProductStock` callable in a transaction.
+- No client code writes product docs or stock fields. Admin stock edits go through the `setProductStock` callable in a transaction, and the list's Live / Hidden switch through `setProductPublished`.
 - Stock is taken on confirm (`changeOrderStatus()` behind `setOrderStatus` / `confirmCodOrder`, and `paymobWebhook`), never on order creation; it is taken once (`stockDecrementedAt`) and goes back on Cancelled or back to Waiting for Payment.
 
 ## Security and access
