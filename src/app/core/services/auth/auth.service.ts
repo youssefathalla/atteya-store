@@ -321,13 +321,19 @@ export class AuthService {
    * Emails the signed-in account our own "Confirm Your Email" message (`sendVerificationEmail`
    * callable, sent through Resend; 3 per account per day). The link returns to `returnPath` (a path
    * on this site, default `/account`). Resolves with the address it went to, or null when signed
-   * out, already confirmed, or on the server. Throws the callable's error (show it with
-   * `callableMessage()`).
+   * out, already confirmed (nothing is sent), or on the server. Throws the callable's error (show
+   * it with `callableMessage()`).
    */
   async sendVerificationEmail(returnPath?: string): Promise<string | null> {
     if (!isPlatformBrowser(this.#platformId)) return null;
     const user = this.#auth.currentUser;
-    if (!user || user.emailVerified) return null;
+    if (!user) return null;
+    if (user.emailVerified) {
+      // Confirmed already (the account was reloaded) while the ID token may still read unconfirmed:
+      // refresh it so the "Confirm your email" prompt goes away instead of Resend doing nothing.
+      await this.refreshEmailVerified().catch(() => false);
+      return null;
+    }
     const call = await callableFrom<{ returnPath?: string }, { sent: true; email: string }>(
       this.#functions(),
       'sendVerificationEmail',

@@ -252,8 +252,15 @@ export class GuestAccountCardComponent implements OnInit {
     this.message.set('');
     this.busy.set('verify');
     try {
-      await this.#auth.sendVerificationEmail(this.#continuePath());
-      this.verificationSent.set(true);
+      const sentTo = await this.#auth.sendVerificationEmail(this.#continuePath());
+      if (sentTo) {
+        this.verificationSent.set(true);
+      } else {
+        // Nothing was sent: the email is already confirmed (or the shopper signed out). Show the
+        // current state instead of claiming a new link went out.
+        this.verificationSent.set(false);
+        this.#userRefreshed.update((n) => n + 1);
+      }
     } catch (error) {
       this.message.set(callableMessage(error) ?? VERIFY_SEND_FAILED);
     } finally {
