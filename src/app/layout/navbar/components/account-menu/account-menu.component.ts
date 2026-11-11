@@ -2,7 +2,6 @@ import { isPlatformBrowser } from '@angular/common';
 import { Component, computed, inject, input, PLATFORM_ID } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '@core/services/auth/auth.service';
 import { safeReturnUrl } from '@core/services/auth/auth.utils';
@@ -12,7 +11,7 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 @Component({
   selector: 'app-account-menu',
   host: { class: 'inline-flex' },
-  imports: [RouterLink, MatButtonModule, MatMenuModule, MatTooltipModule, SharedIconModule],
+  imports: [RouterLink, MatButtonModule, MatTooltipModule, SharedIconModule],
   templateUrl: './account-menu.component.html',
 })
 export class AccountMenuComponent {
@@ -22,7 +21,6 @@ export class AccountMenuComponent {
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly tooltip = input<string>('');
-  readonly yPosition = input<'above' | 'below'>('below');
 
   readonly isAuthReady = this.#auth.isAuthReady;
   readonly isAuthenticated = this.#auth.isAuthenticated;

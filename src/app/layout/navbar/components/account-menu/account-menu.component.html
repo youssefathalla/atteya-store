@@ -18,22 +18,15 @@
     </button>
   }
   @case ('signed-out') {
-    <button
+    <a
       matIconButton
-      type="button"
-      [matMenuTriggerFor]="menu"
+      routerLink="/login"
+      [queryParams]="signInParams()"
       [matTooltip]="tooltip() ? 'Sign in' : ''"
       [matTooltipDisabled]="!tooltip()"
       aria-label="Sign in"
     >
       <mat-icon name="login" size="2xl" />
-    </button>
-
-    <mat-menu #menu="matMenu" [yPosition]="yPosition()" xPosition="before">
-      <a mat-menu-item routerLink="/login" [queryParams]="signInParams()">
-        <mat-icon name="login" />
-        <span>Sign In</span>
-      </a>
-    </mat-menu>
+    </a>
   }
 }
