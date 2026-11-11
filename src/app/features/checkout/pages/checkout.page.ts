@@ -22,6 +22,7 @@ import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { lineDisplayAmount } from '@core/services/cart/cart-pricing';
 import {
+  bagLineVariant,
   dealOfferIdsOf,
   priceBag,
   shownLinePrices,
@@ -48,6 +49,7 @@ import {
   type ParcelLine,
   toDisplayAmount,
   type PricedProduct,
+  type ShippingQuoteLine,
   type PricingContext,
 } from '@core/services/offers/engine';
 import {
@@ -132,7 +134,8 @@ type PricedBag =
       readonly lineDisplay: readonly (number | null)[];
       /** Each line priced in EGP with its Buy X Get Y discount, in bag order (null = gone). */
       readonly lines: readonly (PricedBagLine | null)[];
-      readonly pricedLines: readonly PricedProduct[];
+      /** Each available line's product with its chosen size and colour, for Free shipping offers. */
+      readonly pricedLines: readonly ShippingQuoteLine[];
       readonly parcelLines: readonly ParcelLine[];
       readonly subtotalEgp: number;
       readonly subtotalDisplay: number;
@@ -426,7 +429,7 @@ export class CheckoutPageComponent implements OnInit {
     const givenGifts = giftLook?.state.gifts ?? new Map();
     const unavailableGifts = new Set(giftLook?.state.unavailableGifts?.keys() ?? []);
     const lineDisplay: (number | null)[] = [];
-    const pricedLines: PricedProduct[] = [];
+    const pricedLines: ShippingQuoteLine[] = [];
     const parcelLines: ParcelLine[] = [];
     let subtotalEgp = 0;
     let subtotalDisplay = 0;
@@ -458,7 +461,9 @@ export class CheckoutPageComponent implements OnInit {
       subtotalEgp += priced.lineEgp;
       subtotalDisplay += display;
       lineDisplay.push(display);
-      pricedLines.push(info.priced);
+      // The chosen size and colour, matched as the order callables match it, so a Free shipping
+      // offer's size and colour Except rules apply to the option picked.
+      pricedLines.push({ product: info.priced, variant: bagLineVariant(info, line) });
     }
     // Every item is gone: nothing left to price.
     if (pricedLines.length === 0) return { state: 'missing-item' };

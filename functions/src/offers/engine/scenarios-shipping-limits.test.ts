@@ -143,7 +143,12 @@ function quote({
 } = {}) {
   return shippingQuote(
     settings,
-    { region, totalWeightGrams: weight, goodsSubtotal: subtotal, lines },
+    {
+      region,
+      totalWeightGrams: weight,
+      goodsSubtotal: subtotal,
+      lines: lines.map((product) => ({ product, variant: null })),
+    },
     offers,
     ctx,
   );

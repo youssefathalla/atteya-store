@@ -17,6 +17,7 @@ import {
   type PricedProduct,
   type PricingContext,
   type ShippingQuote,
+  type ShippingQuoteLine,
   type ShippingRegion,
   type ShippingSettings,
   type VariantFacts,
@@ -448,7 +449,9 @@ async function priceWithOffers(
       : await confirmedEndedOfferIds(db, uid, allOffers, input.endedOfferIds);
   const offers = ended.size === 0 ? allOffers : allOffers.filter((offer) => !ended.has(offer.id));
   const pricedLines: OrderLinePrice[] = [];
-  const cartProducts: PricedProduct[] = [];
+  // Paid lines with their chosen size and colour, so a Free shipping offer's Except rules apply to
+  // the option picked (as item prices, Buy X Get Y and gifts do).
+  const cartProducts: ShippingQuoteLine[] = [];
   let subtotalEgp = 0;
   const parcelLines: ParcelLine[] = [];
 
@@ -561,7 +564,7 @@ async function priceWithOffers(
       addUsedOffer(usedOffers, offers, itemOfferId, 'item');
     const forLine = pricedLines.length;
     pricedLines.push(priced);
-    cartProducts.push(product);
+    cartProducts.push({ product, variant });
     subtotalEgp += priced.lineDisplay;
     parcelLines.push({ weightGrams, quantity: line.quantity });
 
@@ -790,7 +793,7 @@ interface ShippingLineContext {
   readonly isInternational: boolean;
   readonly paymentMethod: StorePaymentMethod;
   readonly subtotalEgp: number;
-  readonly cartProducts: readonly PricedProduct[];
+  readonly cartProducts: readonly ShippingQuoteLine[];
   readonly offers: readonly Offer[];
   readonly ctx: PricingContext;
 }
