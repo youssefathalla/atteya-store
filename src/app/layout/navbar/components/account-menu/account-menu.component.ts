@@ -1,6 +1,8 @@
 import { isPlatformBrowser } from '@angular/common';
 import { Component, computed, inject, input, PLATFORM_ID } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '@core/services/auth/auth.service';
@@ -34,9 +36,16 @@ export class AccountMenuComponent {
     return this.isAuthenticated() ? ('signed-in' as const) : ('signed-out' as const);
   });
 
-  signInParams(): { returnUrl: string } {
-    return { returnUrl: safeReturnUrl(this.#router.url) };
-  }
+  /** Follows navigation so Sign In brings the visitor back to the page they are on. */
+  readonly #currentUrl = toSignal(
+    this.#router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => this.#router.url),
+    ),
+    { initialValue: this.#router.url },
+  );
+
+  readonly signInParams = computed(() => ({ returnUrl: safeReturnUrl(this.#currentUrl()) }));
 
   /** Signed in: the account panel (profile, orders, favorites, Sign Out). */
   openPanel(event: MouseEvent): void {
