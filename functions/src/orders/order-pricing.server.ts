@@ -230,18 +230,27 @@ export type PricingMiss = MissedDeal | MissedPrice | MissedTotal;
 
 /**
  * The server's totals when its shipping fee or order total is higher than checkout showed, or
- * null. A fee to be agreed later (`domestic-agreed`) is never compared: it is 0 until staff set it.
- * A value checkout didn't send (null, older pages) is not compared. A lower or equal server
+ * null. A value checkout didn't send (null, older pages) is not compared. A lower or equal server
  * amount is never a miss: the order goes through at the server's total.
+ *
+ * A large order whose fee is agreed later (`domestic-agreed`, fee 0 until staff set it) compares
+ * only its items total (`totalEgp`) with `shownTotalEgp`, which checkout sends as the items total
+ * with no shipping fee (`shownShippingEgp` null). When checkout showed a fee to be agreed (no
+ * shipping fee, a total) but the server fits a box with a fee, that fee was never shown: a miss.
  */
 export function missedOrderTotal(
   shown: { readonly shownShippingEgp: number | null; readonly shownTotalEgp: number | null },
   shipping: Pick<OrderShippingLine, 'kind' | 'priceEgp'>,
   totalEgp: number,
 ): MissedTotal | null {
-  if (shipping.kind === 'domestic-agreed') return null;
-  const shippingHigher = shown.shownShippingEgp !== null && shipping.priceEgp > shown.shownShippingEgp;
   const totalHigher = shown.shownTotalEgp !== null && totalEgp > shown.shownTotalEgp;
+  if (shipping.kind === 'domestic-agreed') {
+    return totalHigher ? { missedTotalEgp: totalEgp, shippingEgp: shipping.priceEgp } : null;
+  }
+  const shownFeeToBeAgreed = shown.shownShippingEgp === null && shown.shownTotalEgp !== null;
+  const shippingHigher = shownFeeToBeAgreed
+    ? shipping.priceEgp > 0
+    : shown.shownShippingEgp !== null && shipping.priceEgp > shown.shownShippingEgp;
   if (!shippingHigher && !totalHigher) return null;
   return { missedTotalEgp: totalEgp, shippingEgp: shipping.priceEgp };
 }
