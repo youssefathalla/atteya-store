@@ -8,24 +8,30 @@ import {
   Injector,
   OnInit,
   PLATFORM_ID,
+  resource,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { of } from 'rxjs';
 import { AuthService } from '@core/services/auth/auth.service';
+import { FavoritesService } from '@core/services/favorites';
+import { ShopperOrdersService } from '@core/services/orders/shopper-orders.service';
 import { SeoService } from '@core/services/seo';
 import { accountDisplayName, accountInitial, UserProfileService } from '@core/services/user-profile';
 import { ConfirmEmailPromptComponent } from '@shared/ui/confirm-email-prompt';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { SkeletonComponent } from '@shared/ui/skeleton';
 import { AddressSectionComponent } from './components/address-section/address-section.component';
 import { EmailsSectionComponent } from './components/emails-section/emails-section.component';
 import { OrdersSectionComponent } from './components/orders-section/orders-section.component';
 import { ProfileSectionComponent } from './components/profile-section/profile-section.component';
 
 /**
- * `/account` (client-rendered, behind `accountAuthGuard`): Profile, Delivery Address, Emails
- * and Orders for the signed-in shopper. `users/{uid}` is read live and handed to each section.
+ * `/account` (client-rendered, behind `accountAuthGuard`): a black welcome bar (name, email,
+ * order and favorite counts, Sign Out) over a grid: Orders on the left, Profile, Delivery
+ * Address, Favorites and Emails on the right (one column on phones). `users/{uid}` is read live
+ * and handed to each section.
  */
 @Component({
   selector: 'app-account-page',
@@ -34,6 +40,7 @@ import { ProfileSectionComponent } from './components/profile-section/profile-se
     RouterLink,
     MatButtonModule,
     SharedIconModule,
+    SkeletonComponent,
     ConfirmEmailPromptComponent,
     ProfileSectionComponent,
     AddressSectionComponent,
@@ -46,6 +53,8 @@ export class AccountPageComponent implements OnInit {
   readonly #auth = inject(AuthService);
   readonly #profiles = inject(UserProfileService);
   readonly #seo = inject(SeoService);
+  readonly #orders = inject(ShopperOrdersService);
+  readonly #favorites = inject(FavoritesService);
   readonly #injector = inject(Injector);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   #scrolledToSection = false;
@@ -68,12 +77,17 @@ export class AccountPageComponent implements OnInit {
   );
   readonly initial = computed(() => accountInitial(this.name()));
 
-  readonly sections = [
-    { id: 'profile', label: 'Profile' },
-    { id: 'address', label: 'Delivery Address' },
-    { id: 'emails', label: 'Emails' },
-    { id: 'orders', label: 'Orders' },
-  ] as const;
+  /** One count read for the welcome bar; a failure just leaves a dash. */
+  readonly orderCountResource = resource({
+    params: () => this.uid() || undefined,
+    loader: ({ params: uid }) => this.#orders.count(uid),
+  });
+  readonly orderCount = computed(() =>
+    this.orderCountResource.hasValue() ? this.orderCountResource.value() : null,
+  );
+
+  readonly favoritesReady = this.#favorites.ready;
+  readonly favoritesCount = this.#favorites.count;
 
   constructor() {
     // The router scrolls to `#orders` / `#profile` at once, while the sections still show

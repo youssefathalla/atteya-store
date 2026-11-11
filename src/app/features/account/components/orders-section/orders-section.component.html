@@ -10,35 +10,89 @@
   </div>
 } @else if (showLoading()) {
   <div class="w-full elements-start-col gap-3" aria-label="Loading your orders">
+    <app-skeleton class="h-40 w-full" />
     @for (row of skeletonRows; track row) {
       <app-skeleton class="h-16 w-full" />
     }
   </div>
-} @else if (rows().length === 0) {
-  <p class="font-body-md text-on-surface-variant">You haven't placed an order yet.</p>
-  <a matButton="outlined" routerLink="/shop">Start Shopping</a>
-} @else {
-  <ul class="w-full elements-start-col">
-    @for (order of rows(); track order.id) {
-      <li class="w-full">
-        <a class="account-order-row" [routerLink]="['/checkout', 'confirmation', order.id]">
-          <span class="elements-start-col gap-1 min-w-0">
-            <span class="font-title-sm font-bold!">Order {{ order.ref }}</span>
-            <span class="font-body-sm text-on-surface-variant">
-              {{ order.placedOn }} · {{ order.itemCount === 1 ? '1 item' : order.itemCount + ' items' }}
-            </span>
+} @else if (latest(); as order) {
+  <a class="account-latest" [routerLink]="['/checkout', 'confirmation', order.id]">
+    <span class="elements-between gap-3 w-full">
+      <span class="font-label-md uppercase text-on-surface-variant">Latest Order</span>
+      <span class="font-body-sm text-on-surface-variant">{{ order.placedOn }}</span>
+    </span>
+    <span class="elements-between gap-3 w-full">
+      <span class="font-title-md font-bold!">Order {{ order.ref }}</span>
+      <span class="font-title-md">{{ order.total }}</span>
+    </span>
+    @if (order.photos.length > 0) {
+      <span class="elements-start gap-2">
+        @for (photo of order.photos; track $index) {
+          <span class="account-latest__photo">
+            <img
+              [ngSrc]="photo.src"
+              [appImageFallback]="photo.path"
+              [alt]="photo.alt"
+              width="64"
+              height="64"
+              class="size-full object-contain p-1"
+            />
           </span>
-          <span class="elements-end-col gap-1 text-end shrink-0">
-            <span class="font-title-sm">{{ order.total }}</span>
-            <span class="font-body-sm text-on-surface-variant">{{ order.statusName }}</span>
-          </span>
-        </a>
-      </li>
+        }
+      </span>
     }
-  </ul>
+    @if (order.progress > 0) {
+      <span class="w-full elements-start-col gap-2">
+        <span class="account-progress" aria-hidden="true">
+          @for (step of progressSteps; track step; let i = $index) {
+            <span
+              class="account-progress__bar"
+              [class.account-progress__bar--done]="i < order.progress"
+            ></span>
+          }
+        </span>
+        <span class="account-progress__labels" aria-hidden="true">
+          @for (step of progressSteps; track step) {
+            <span>{{ step }}</span>
+          }
+        </span>
+      </span>
+    }
+    <span class="elements-between gap-3 w-full">
+      <span class="font-body-md font-bold!">{{ order.statusName }}</span>
+      <span class="font-body-sm text-on-surface-variant">
+        {{ order.itemCount === 1 ? '1 item' : order.itemCount + ' items' }}
+      </span>
+    </span>
+  </a>
+
+  @if (earlier().length > 0) {
+    <h3 class="font-label-lg font-bold! uppercase pt-2">Earlier Orders</h3>
+    <ul class="w-full elements-start-col">
+      @for (row of earlier(); track row.id) {
+        <li class="w-full">
+          <a class="account-order-row" [routerLink]="['/checkout', 'confirmation', row.id]">
+            <span class="elements-start-col gap-1 min-w-0">
+              <span class="font-title-sm font-bold!">Order {{ row.ref }}</span>
+              <span class="font-body-sm text-on-surface-variant">
+                {{ row.placedOn }} · {{ row.itemCount === 1 ? '1 item' : row.itemCount + ' items' }}
+              </span>
+            </span>
+            <span class="elements-end-col gap-1 text-end shrink-0">
+              <span class="font-title-sm">{{ row.total }}</span>
+              <span class="font-body-sm text-on-surface-variant">{{ row.statusName }}</span>
+            </span>
+          </a>
+        </li>
+      }
+    </ul>
+  }
   @if (canShowMore()) {
     <button matButton="outlined" type="button" [disabled]="ordersResource.isLoading()" (click)="showMore()">
       Show More Orders
     </button>
   }
+} @else {
+  <p class="font-body-md text-on-surface-variant">You haven't placed an order yet.</p>
+  <a matButton="outlined" routerLink="/shop">Start Shopping</a>
 }

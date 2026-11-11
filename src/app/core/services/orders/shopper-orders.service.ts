@@ -1,10 +1,11 @@
 import { isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID, Service } from '@angular/core';
-import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, getCountFromServer, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { Observable, of } from 'rxjs';
 import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
 import { orderStage } from '@core/config/order-messages';
+import { normalizeImageKitPath } from '@shared/utils/image';
 import { formatMoney } from '@shared/utils/money';
 import { orderMessageInput } from './order-message-input';
 import { shortOrderRef } from './order-ref';
@@ -22,7 +23,28 @@ export interface ShopperOrderRow {
   readonly total: string;
   readonly statusName: string;
   readonly itemCount: number;
+  /** Up to 4 item photos saved on the order (older orders have none). */
+  readonly photos: readonly ShopperOrderPhoto[];
+  /** Steps reached out of Placed, Confirmed, Shipped, Delivered (1–4); 0 when cancelled or failed. */
+  readonly progress: number;
 }
+
+export interface ShopperOrderPhoto {
+  /** ImageKit path for `ngSrc`. */
+  readonly src: string;
+  /** Storage path for `appImageFallback`. */
+  readonly path: string;
+  readonly alt: string;
+}
+
+/** Placed, Confirmed, Shipped, Delivered: how many the order has reached. */
+const ORDER_PROGRESS: Partial<Record<OrderDoc['status'], number>> = {
+  pending: 1,
+  confirmed: 2,
+  shipped: 3,
+  delivered: 4,
+};
+const MAX_PHOTOS = 4;
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -62,6 +84,15 @@ export class ShopperOrdersService {
       ),
     );
   }
+
+  /** How many orders the shopper has (one count read, not a listener). */
+  async count(uid: string): Promise<number> {
+    if (!this.#isBrowser || !uid) return 0;
+    const snap = await getCountFromServer(
+      query(collection(this.#firestore, ORDERS_COLLECTION), where('customerId', '==', uid)),
+    );
+    return snap.data().count;
+  }
 }
 
 export function toShopperOrderRow(order: OrderDoc): ShopperOrderRow {
@@ -76,7 +107,19 @@ export function toShopperOrderRow(order: OrderDoc): ShopperOrderRow {
     total,
     statusName: orderStatusName(stage, order.status),
     itemCount: order.pricing.lines.reduce((sum, line) => sum + line.quantity, 0),
+    photos: orderPhotos(order),
+    progress: ORDER_PROGRESS[order.status] ?? 0,
   };
+}
+
+function orderPhotos(order: OrderDoc): ShopperOrderPhoto[] {
+  const photos: ShopperOrderPhoto[] = [];
+  for (const line of order.pricing.lines) {
+    if (photos.length >= MAX_PHOTOS) break;
+    if (!line.imagePath || line.gift) continue;
+    photos.push({ src: normalizeImageKitPath(line.imagePath), path: line.imagePath, alt: line.name ?? '' });
+  }
+  return photos;
 }
 
 /** A saved order date (Firestore Timestamp, Date or ISO string) as a Date, or null when unreadable. */
