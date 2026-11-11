@@ -16,6 +16,7 @@ import { of } from 'rxjs';
 import { AuthService } from '@core/services/auth/auth.service';
 import { SeoService } from '@core/services/seo';
 import { accountDisplayName, accountInitial, UserProfileService } from '@core/services/user-profile';
+import { ConfirmEmailPromptComponent } from '@shared/ui/confirm-email-prompt';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { AddressSectionComponent } from './components/address-section/address-section.component';
 import { EmailsSectionComponent } from './components/emails-section/emails-section.component';
@@ -33,6 +34,7 @@ import { ProfileSectionComponent } from './components/profile-section/profile-se
     RouterLink,
     MatButtonModule,
     SharedIconModule,
+    ConfirmEmailPromptComponent,
     ProfileSectionComponent,
     AddressSectionComponent,
     EmailsSectionComponent,

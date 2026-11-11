@@ -535,7 +535,7 @@ function payBoxText(box: PayBox): string {
   return `${box.lines.join('\n')}${button}`;
 }
 
-interface EmailButton {
+export interface EmailButton {
   readonly label: string;
   readonly url: string;
 }
@@ -637,7 +637,7 @@ const MUTED = '#555555';
 const LINE = '#e5e5e5';
 const TONAL = '#e8e8e8';
 
-function layout(storeName: string, title: string, blocks: readonly string[]): string {
+export function layout(storeName: string, title: string, blocks: readonly string[]): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -660,16 +660,16 @@ ${blocks.filter(Boolean).join('\n')}
 </html>`;
 }
 
-function h1(textValue: string): string {
+export function h1(textValue: string): string {
   return `<h1 style="margin:0 0 16px;${FONT}font-size:22px;line-height:1.3;color:${INK};">${escapeHtml(textValue)}</h1>`;
 }
 
-function paragraph(textValue: string, alreadyEscaped = false): string {
+export function paragraph(textValue: string, alreadyEscaped = false): string {
   const body = alreadyEscaped ? textValue : escapeHtml(textValue);
   return `<p style="margin:0 0 12px;">${body}</p>`;
 }
 
-function smallText(textValue: string): string {
+export function smallText(textValue: string): string {
   return `<p style="margin:16px 0 0;font-size:13px;color:${MUTED};">${escapeHtml(textValue)}</p>`;
 }
 
@@ -764,7 +764,7 @@ function addressBlock(order: OrderEmailOrder): string {
 }
 
 /** `filled`: black, for the shopper's main action. `tonal`: light grey, readable in light and dark mail apps. */
-function buttonHtml(button: EmailButton, variant: 'filled' | 'tonal' = 'filled'): string {
+export function buttonHtml(button: EmailButton, variant: 'filled' | 'tonal' = 'filled'): string {
   const colors =
     variant === 'tonal' ? `background:${TONAL};color:${INK};` : `background:${INK};color:#ffffff;`;
   return `<p style="margin:24px 0 0;"><a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 20px;${colors}text-decoration:none;font-weight:600;border-radius:2px;">${escapeHtml(button.label)}</a></p>`;

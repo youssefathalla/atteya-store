@@ -10,6 +10,11 @@
     @apply w-full elements-start gap-3 p-3 border border-primary border-shape no-underline;
   }
 
+  /* app-confirm-email-prompt: "Confirm your email" with Resend Email (panel and /account). */
+  .confirm-email-prompt {
+    @apply w-full elements-start flex-wrap gap-3 p-3 border border-primary border-shape;
+  }
+
   .account-panel__links {
     @apply w-full elements-start-col;
   }

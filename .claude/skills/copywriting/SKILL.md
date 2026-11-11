@@ -19,6 +19,8 @@ Every rule here came from a real correction by Youssef. Follow it the first time
 
 Title case = capital on every main word; these small words stay lower case unless they are first or last: a, an, the, and, or, but, of, on, in, at, to, by, for, with, from. Brand words keep their own spelling: InstaPay, WhatsApp, Paymob.
 
+Account emails follow the same table: the "Confirm Your Email" message (`functions/src/email/verification-email-template.ts`, tested in `functions/src/auth/verification-send.test.ts`) has the heading **Confirm Your Email** and the button **Confirm Email**; the website prompt reads "Confirm your email" (sentence case, it is a note) with the button **Resend Email**.
+
 ## 2. Say each thing once
 
 - Don't repeat the same word or fact in a heading, a step and the button next to it. Example: step "Send us a screenshot of the transfer." + button **Send on WhatsApp** (not "Send screenshot on WhatsApp").

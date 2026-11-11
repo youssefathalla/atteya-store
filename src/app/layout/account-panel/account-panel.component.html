@@ -12,6 +12,8 @@
 </header>
 
 <div class="side-panel__body space-y-6">
+  <app-confirm-email-prompt />
+
   @if (showCompleteProfile()) {
     <a class="account-panel__prompt" routerLink="/account" fragment="profile">
       <mat-icon name="person" size="xl" aria-hidden="true" />
