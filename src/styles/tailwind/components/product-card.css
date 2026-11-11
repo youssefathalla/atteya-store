@@ -32,9 +32,15 @@
 
   .product-card__media {
     @apply relative w-full overflow-hidden aspect-4/5;
-    /* Photo and details fit in one window on wide screens; the photo stays contained. */
-    max-height: calc(100dvh - var(--storefront-top-chrome, 56px) - var(--product-card-details) - 1rem);
-    min-height: 16rem;
+    /*
+     * Photo and details fit in one window on wide screens; the photo stays contained.
+     * The 16rem floor only limits how far the cap can shrink on short windows; it is not a
+     * min-height, so narrow (phone) cards keep their true 4:5 ratio.
+     */
+    max-height: max(
+      16rem,
+      calc(100dvh - var(--storefront-top-chrome, 56px) - var(--product-card-details) - 1rem)
+    );
     background: linear-gradient(180deg, var(--product-card-media-from), var(--product-card-media-to));
   }
 

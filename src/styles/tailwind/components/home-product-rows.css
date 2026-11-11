@@ -77,7 +77,7 @@
     aspect-ratio: 4 / 5;
     max-height: var(
       --row-lock-media-max,
-      calc(100dvh - var(--storefront-top-chrome, 56px) - var(--product-card-details) - 3.5rem)
+      max(16rem, calc(100dvh - var(--storefront-top-chrome, 56px) - var(--product-card-details) - 3.5rem))
     );
   }
 
