@@ -263,21 +263,21 @@ function liveValueMap(option: Record<string, unknown> | null): Map<string, Recor
   return map;
 }
 
-function readCreateId(value: unknown): string {
+export function readCreateId(value: unknown): string {
   if (typeof value !== 'string' || !CREATE_ID.test(value)) {
     invalid('Start again from Add product.');
   }
   return value;
 }
 
-function readUpdateId(value: unknown): string {
+export function readUpdateId(value: unknown): string {
   if (typeof value !== 'string' || value.length === 0 || value.length > 200 || value.includes('/')) {
     invalid('Choose a product and try again.');
   }
   return value;
 }
 
-function readName(value: unknown): string {
+export function readName(value: unknown): string {
   if (typeof value !== 'string') invalid('Give the product a name.');
   const name = collapseSpaces(value);
   if (name.length === 0) invalid('Give the product a name.');
@@ -298,7 +298,7 @@ function readOptionalSlug(value: unknown): string | undefined {
   return slug;
 }
 
-function readSummary(value: unknown): string | null {
+export function readSummary(value: unknown): string | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== 'string') invalid('The summary must be plain text.');
   const summary = value.trim();
@@ -307,7 +307,7 @@ function readSummary(value: unknown): string | null {
   return summary;
 }
 
-function readDescription(raw: Record<string, unknown>): string | null | undefined {
+export function readDescription(raw: Record<string, unknown>): string | null | undefined {
   if (!Object.hasOwn(raw, 'description')) return undefined;
   const value = raw['description'];
   if (value === null) return null;
@@ -323,7 +323,7 @@ function readDescription(raw: Record<string, unknown>): string | null | undefine
  * Details lines: trimmed, blanks dropped, a leading "•" removed (pasted bullet lists).
  * Missing key = undefined (the saved list stays); null = clear.
  */
-function readDetails(raw: Record<string, unknown>): string[] | undefined {
+export function readDetails(raw: Record<string, unknown>): string[] | undefined {
   if (!Object.hasOwn(raw, 'details')) return undefined;
   const value = raw['details'];
   if (value === null) return [];
@@ -347,12 +347,12 @@ export function detailLine(value: string): string {
   return collapseSpaces(value.trim().replace(/^•\s*/u, ''));
 }
 
-function readType(value: unknown): ProductTypeId {
+export function readType(value: unknown): ProductTypeId {
   if (typeof value !== 'string' || !TYPE_IDS.has(value)) invalid('Choose a product type.');
   return value as ProductTypeId;
 }
 
-function readSlugId(value: unknown, message: string): string {
+export function readSlugId(value: unknown, message: string): string {
   if (typeof value !== 'string') invalid(message);
   const id = value.trim();
   if (id.length === 0 || id.length > MAX_ID || !SLUG_PATTERN.test(id)) invalid(message);
@@ -372,7 +372,7 @@ function readModelGroup(value: unknown): string | null {
   return group;
 }
 
-function readGender(value: unknown): ProductGenderId | null {
+export function readGender(value: unknown): ProductGenderId | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== 'string') {
     invalid('Choose Women, Men, Kids, or Unisex — or leave gender unset.');
@@ -399,7 +399,7 @@ function isSlugPart(part: string): boolean {
   return true;
 }
 
-function readColors(value: unknown): ColorId[] {
+export function readColors(value: unknown): ColorId[] {
   if (!Array.isArray(value)) invalid('Choose colours from the list.');
   if (value.length > MAX_COLORS) invalid('Choose up to 12 colours.');
   const colors: ColorId[] = [];
@@ -415,7 +415,7 @@ function readColors(value: unknown): ColorId[] {
   return colors;
 }
 
-function readTags(value: unknown): string[] {
+export function readTags(value: unknown): string[] {
   if (!Array.isArray(value)) invalid('Tags use lowercase letters, numbers and dashes.');
   if (value.length > MAX_TAGS) invalid('You can add up to 20 tags.');
   const tags: string[] = [];
@@ -432,7 +432,7 @@ function readTags(value: unknown): string[] {
 }
 
 /** Player ids picked from the list. Missing key = undefined (the saved list stays); null = clear. */
-function readPlayers(raw: Record<string, unknown>): string[] | undefined {
+export function readPlayers(raw: Record<string, unknown>): string[] | undefined {
   if (!Object.hasOwn(raw, 'players')) return undefined;
   const value = raw['players'];
   if (value === null) return [];
@@ -447,7 +447,7 @@ function readPlayers(raw: Record<string, unknown>): string[] | undefined {
   return players;
 }
 
-function readMarketingBadge(value: unknown): MarketingBadge | null {
+export function readMarketingBadge(value: unknown): MarketingBadge | null {
   if (value === undefined || value === null) return null;
   if (!isPlainObject(value)) {
     invalid('Choose a marketing badge or leave it empty.');
@@ -467,7 +467,7 @@ function readMarketingBadge(value: unknown): MarketingBadge | null {
  * Accepts null (clear), ISO string, or epoch milliseconds.
  * Must be a real future-or-present instant when set (admin may extend).
  */
-function readNewArrivalUntil(value: unknown): Date | null {
+export function readNewArrivalUntil(value: unknown): Date | null {
   if (value === undefined || value === null) return null;
   if (typeof value === 'number') {
     if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
@@ -487,12 +487,12 @@ function readNewArrivalUntil(value: unknown): Date | null {
   return new Date(ms);
 }
 
-function readPrice(value: unknown): number {
+export function readPrice(value: unknown): number {
   if (!isIntegerInRange(value, 1, MAX_PRICE)) invalid('Enter a price in whole pounds.');
   return value;
 }
 
-function readCompareAtPrice(value: unknown, price: number): number | null {
+export function readCompareAtPrice(value: unknown, price: number): number | null {
   if (value === undefined || value === null) return null;
   if (!isIntegerInRange(value, 1, MAX_PRICE) || value <= price) {
     invalid('The original price must be higher than the selling price.');
@@ -500,7 +500,7 @@ function readCompareAtPrice(value: unknown, price: number): number | null {
   return value;
 }
 
-function readPublished(value: unknown, imageCount: number): boolean {
+export function readPublished(value: unknown, imageCount: number): boolean {
   if (typeof value !== 'boolean') invalid('Choose whether to show this product on the store.');
   if (value && imageCount < 1) {
     invalid('Add at least one photo before showing it on the store.');
@@ -508,7 +508,7 @@ function readPublished(value: unknown, imageCount: number): boolean {
   return value;
 }
 
-function readImages(value: unknown): ProductImageInput[] {
+export function readImages(value: unknown): ProductImageInput[] {
   if (!Array.isArray(value)) invalid('Add the product photos again.');
   if (value.length > MAX_IMAGES) invalid('Add up to 8 photos.');
   return value.map((entry) => readImage(entry));
@@ -553,7 +553,7 @@ function readDimension(value: unknown): number | undefined {
   return value;
 }
 
-function readSizes(value: unknown): ProductSizeInput[] {
+export function readSizes(value: unknown): ProductSizeInput[] {
   if (!Array.isArray(value)) invalid('Add sizes as a list.');
   if (value.length > MAX_SIZES) invalid('You can add up to 20 sizes.');
   const sizes: ProductSizeInput[] = [];
@@ -600,7 +600,7 @@ function readStock(raw: Record<string, unknown>, sizeCount: number): number | un
   return raw['stock'];
 }
 
-function readWeightGrams(raw: Record<string, unknown>): number | null | undefined {
+export function readWeightGrams(raw: Record<string, unknown>): number | null | undefined {
   if (!Object.hasOwn(raw, 'weightGrams')) return undefined;
   const value = raw['weightGrams'];
   if (value === undefined || value === null) return null;
@@ -611,11 +611,11 @@ function readWeightGrams(raw: Record<string, unknown>): number | null | undefine
   return value;
 }
 
-function isIntegerInRange(value: unknown, min: number, max: number): value is number {
+export function isIntegerInRange(value: unknown, min: number, max: number): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -633,7 +633,7 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
-function kebab(value: string): string {
+export function kebab(value: string): string {
   let out = '';
   let pendingDash = false;
   for (const char of value.toLowerCase()) {
@@ -651,6 +651,6 @@ function kebab(value: string): string {
   return out;
 }
 
-function invalid(message: string): never {
+export function invalid(message: string): never {
   throw new HttpsError('invalid-argument', message);
 }

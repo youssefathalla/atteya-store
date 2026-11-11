@@ -1,0 +1,28 @@
+@layer components {
+  /* Admin product editor (ATS-205): one tab per colour; the open one has a 2px black border. */
+  .colour-tab {
+    @apply border-shape border border-outline-variant bg-surface px-3 py-2 elements-start-col gap-0.5 cursor-pointer text-left min-w-36;
+
+    &.colour-tab--active {
+      @apply border-2 border-primary;
+    }
+
+    &.colour-tab--off {
+      @apply opacity-60;
+    }
+  }
+
+  /* Number box for stock, prices and weight. A box at 0 has a red outline. */
+  .stock-box {
+    @apply border-shape border border-outline bg-surface px-3 py-2 font-body-md w-20;
+
+    &.stock-box--zero,
+    &[aria-invalid='true'] {
+      @apply border-error;
+    }
+
+    &.stock-box--off {
+      @apply bg-surface-container text-on-surface-variant;
+    }
+  }
+}
