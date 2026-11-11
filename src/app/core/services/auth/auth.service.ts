@@ -183,7 +183,41 @@ export class AuthService {
       this.#holdUntilConsent();
       this.#claimGuestOrdersOnSignIn();
       this.#watchEmailConfirmation();
+      this.#sendConfirmationOnSignIn();
     }
+  }
+
+  /**
+   * Once per sign-in (per account, per browser tab session), emails the "Confirm Your Email" message
+   * to an email/password account whose email isn't confirmed yet, after the account has agreed to the
+   * terms. It covers Create Account and every later Sign In, so nobody has to find the Resend Email
+   * button. Silent: a refusal (for example Firebase's "wait a few minutes" or the 3-a-day limit)
+   * leaves the Resend Email button in the account panel, and the next page load tries again.
+   */
+  #sendConfirmationOnSignIn(): void {
+    const attempted = new Set<string>();
+    effect(() => {
+      const uid = this.#user()?.uid;
+      if (!uid) {
+        attempted.clear();
+        // Signed out for real (not the first load before auth answers): the next sign-in asks again.
+        if (this.#isAuthReady()) clearConfirmEmailStamps();
+        return;
+      }
+      if (!this.emailNeedsConfirming() || !this.#consentReady() || this.#needsConsent()) return;
+      if (attempted.has(uid) || readConfirmEmailStamp(uid)) return;
+      // The order page's Save card sends its own message, with a link back to the order.
+      if (untracked(() => this.#router.url).startsWith(ORDER_CONFIRMATION_PATH)) return;
+      attempted.add(uid);
+      untracked(
+        () =>
+          void this.sendVerificationEmail()
+            .then((sentTo) => {
+              if (sentTo) writeConfirmEmailStamp(uid);
+            })
+            .catch(() => undefined),
+      );
+    });
   }
 
   /**
@@ -798,6 +832,36 @@ function writeGuestClaimStamp(uid: string): void {
     sessionStorage.setItem(GUEST_CLAIM_STAMP + uid, '1');
   } catch {
     // Storage blocked: the next page load asks again, which is harmless.
+  }
+}
+
+/** `sessionStorage` key saying this tab already sent the account its "Confirm Your Email" message. */
+const CONFIRM_EMAIL_STAMP = 'atteya-confirm-email-sent:';
+
+function readConfirmEmailStamp(uid: string): boolean {
+  try {
+    return sessionStorage.getItem(CONFIRM_EMAIL_STAMP + uid) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeConfirmEmailStamp(uid: string): void {
+  try {
+    sessionStorage.setItem(CONFIRM_EMAIL_STAMP + uid, '1');
+  } catch {
+    // Storage blocked: the next page load asks again, which the server's daily limit keeps small.
+  }
+}
+
+function clearConfirmEmailStamps(): void {
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(CONFIRM_EMAIL_STAMP)) sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Storage blocked: nothing was stamped.
   }
 }
 

@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import {
   MAX_VERIFICATION_SENDS_PER_STORE_PER_UTC_DAY,
   MAX_VERIFICATION_SENDS_PER_UTC_DAY,
+  isTooManyLinkAttempts,
   storeVerificationSendDocId,
   nextVerificationSendCount,
   verificationContinueUrl,
@@ -36,6 +37,21 @@ describe('confirm-your-email send limit', () => {
     const max = MAX_VERIFICATION_SENDS_PER_STORE_PER_UTC_DAY;
     assert.equal(nextVerificationSendCount(max - 1, max), max);
     assert.equal(nextVerificationSendCount(max, max), null);
+  });
+});
+
+describe('confirm-your-email link limit from Firebase Auth', () => {
+  it('spots TOO_MANY_ATTEMPTS_TRY_LATER inside the SDK internal error', () => {
+    const raw =
+      'An internal error has occurred. Raw server response: "{"error":{"code":400,"message":"TOO_MANY_ATTEMPTS_TRY_LATER"}}"';
+    assert.equal(isTooManyLinkAttempts(new Error(raw)), true);
+    assert.equal(isTooManyLinkAttempts({ errorInfo: { message: raw } }), true);
+  });
+
+  it('ignores every other failure', () => {
+    assert.equal(isTooManyLinkAttempts(new Error('RESEND_API_KEY is not set.')), false);
+    assert.equal(isTooManyLinkAttempts(null), false);
+    assert.equal(isTooManyLinkAttempts(undefined), false);
   });
 });
 
