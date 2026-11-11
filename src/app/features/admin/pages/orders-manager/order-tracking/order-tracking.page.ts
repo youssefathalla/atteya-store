@@ -6,16 +6,34 @@ import { SeoService } from '@core/services/seo';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.component';
-import type { StatusConfig } from '@shared/ui/status-badge/status.model';
+import { OrderActionsComponent } from '../components/order-actions/order-actions.component';
+import { OrderInfoBoxesComponent } from '../components/order-info-boxes/order-info-boxes.component';
+import { OrderItemsComponent } from '../components/order-items/order-items.component';
+import { ORDER_STATUS_CONFIG } from '../models/order-status-config';
 import { OrdersAdminService } from '../services/orders-admin.service';
 import { toOrderLineAdminRows } from '../utils/order-admin.utils';
+import { orderDetails } from '../utils/order-details.utils';
 import { orderListError } from '../utils/order-list-error';
 import { trackingSteps } from '../utils/order-tracking.utils';
 
+/**
+ * One order in full: the header with its actions, the items and money, progress and every change
+ * on the left, Customer, Delivery Address and Payment on the right. Below desktop width the
+ * right-hand boxes come first, then the items.
+ */
 @Component({
   selector: 'app-order-tracking-page',
-  host: { class: 'block w-full' },
-  imports: [RouterLink, MatButtonModule, SharedIconModule, SkeletonComponent, StatusBadgeComponent],
+  host: { class: 'block w-full @container' },
+  imports: [
+    RouterLink,
+    MatButtonModule,
+    SharedIconModule,
+    SkeletonComponent,
+    StatusBadgeComponent,
+    OrderActionsComponent,
+    OrderInfoBoxesComponent,
+    OrderItemsComponent,
+  ],
   templateUrl: './order-tracking.page.html',
 })
 export class OrderTrackingPageComponent implements OnInit {
@@ -26,14 +44,7 @@ export class OrderTrackingPageComponent implements OnInit {
   /** From the `:orderId` route segment. */
   readonly orderId = input.required<string>();
 
-  readonly orderStatusConfig: Record<string, StatusConfig> = {
-    pending: { label: 'Waiting for Payment', color: 'yellow' },
-    confirmed: { label: 'Confirmed', color: 'blue' },
-    shipped: { label: 'Shipped', color: 'primary' },
-    delivered: { label: 'Delivered', color: 'green' },
-    failed: { label: 'Payment Failed', color: 'red' },
-    cancelled: { label: 'Cancelled', color: 'gray' },
-  };
+  readonly orderStatusConfig = ORDER_STATUS_CONFIG;
 
   readonly dataResource = resource({
     params: () => ({ id: this.orderId() }),
@@ -54,12 +65,15 @@ export class OrderTrackingPageComponent implements OnInit {
     return error == null ? null : orderListError(error);
   });
 
-  readonly rows = computed(() => {
+  readonly first = computed(() => {
     const data = this.dataResource.value();
-    return data ? toOrderLineAdminRows([data.order], data.productsById, data.notesById) : [];
+    return data ? (toOrderLineAdminRows([data.order], data.productsById, data.notesById)[0] ?? null) : null;
   });
 
-  readonly first = computed(() => this.rows()[0] ?? null);
+  readonly details = computed(() => {
+    const data = this.dataResource.value();
+    return data ? orderDetails(data.order, data.productsById) : null;
+  });
 
   readonly steps = computed(() => {
     const data = this.dataResource.value();
@@ -68,9 +82,13 @@ export class OrderTrackingPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.#seo.setPageMetadata({
-      title: 'Track Order | Atteya Admin',
-      description: 'Follow an order from placed to delivered, with the date of every status change.',
+      title: 'Order | Atteya Admin',
+      description: 'Everything about one order: customer, delivery address, items, payment and progress.',
       noindex: true,
     });
+  }
+
+  reload(): void {
+    this.dataResource.reload();
   }
 }

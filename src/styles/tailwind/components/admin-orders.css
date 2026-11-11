@@ -1,0 +1,60 @@
+@layer components {
+  /*! admin orders: the list rows, the opened order and the order page (ATS-213) */
+
+  /* One info box (Customer, Delivery, Payment, Items, History). */
+  .admin-order-box {
+    @apply bg-surface-container-lowest border border-outline-variant border-shape shadow-sm p-4 elements-start-col items-stretch! justify-start! gap-2 min-w-0 font-body-md;
+  }
+
+  .admin-order-box__title {
+    @apply font-title-sm font-bold!;
+  }
+
+  /* "Subtotal ........ EGP 5,000": label on the left, value on the right, wraps on a narrow box. */
+  .admin-order-pair {
+    @apply elements-between flex-wrap gap-x-3 gap-y-0.5 min-w-0;
+  }
+
+  .admin-order-muted {
+    @apply font-body-sm text-on-surface-variant;
+  }
+
+  /* The black "Next step" bar. */
+  .admin-order-next {
+    @apply bg-primary text-on-primary border-shape px-4 py-3 font-body-md;
+  }
+
+  /* Small square product photo. */
+  .admin-order-photo {
+    @apply size-full overflow-hidden bg-surface border border-outline-variant border-shape;
+  }
+
+  /*
+   * One order in the list. Phone and tablet: order number and status on top, customer under them,
+   * then photos and the total. Wide: one line of columns, like a table.
+   */
+  .admin-order-row {
+    @apply grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-3 text-start cursor-pointer;
+    @apply @5xl:grid-cols-[6.5rem_minmax(0,1.5fr)_minmax(0,1.1fr)_8.5rem_8rem_11rem_2rem] @5xl:gap-4 @5xl:px-5;
+  }
+
+  .admin-order-row:hover,
+  .admin-order-row[aria-expanded='true'] {
+    @apply bg-surface-container-low;
+  }
+
+  .admin-order-row:focus-visible {
+    @apply outline-2 outline-primary -outline-offset-2;
+  }
+
+  .admin-order-row__head {
+    @apply hidden @5xl:grid @5xl:grid-cols-[6.5rem_minmax(0,1.5fr)_minmax(0,1.1fr)_8.5rem_8rem_11rem_2rem] @5xl:gap-4 px-5 py-2.5 font-label-md text-on-surface-variant border-b border-outline-variant;
+  }
+}
+
+@layer components {
+  /* A value with its Copy button: the value takes the room, the button stays on the same line. */
+  .admin-order-copy {
+    @apply grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2;
+  }
+}
