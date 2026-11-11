@@ -107,12 +107,7 @@ function parseOrderId(raw: unknown): string {
     throw new HttpsError('invalid-argument', 'Choose an order to confirm.');
   }
   const orderId = raw['orderId'];
-  if (
-    typeof orderId !== 'string' ||
-    orderId.length === 0 ||
-    orderId.length > 200 ||
-    orderId.includes('/')
-  ) {
+  if (typeof orderId !== 'string' || orderId.length === 0 || orderId.length > 200 || orderId.includes('/')) {
     throw new HttpsError('invalid-argument', 'Choose an order to confirm.');
   }
   return orderId;
@@ -123,7 +118,7 @@ function assertConfirmableCodOrder(order: DocumentData): void {
   if (method !== 'cash-on-delivery' && method !== 'instapay') {
     throw new HttpsError(
       'failed-precondition',
-      'Only Cash on Delivery and InstaPay orders are confirmed here. Card or Wallet payments confirm on their own.',
+      'Only Cash on Delivery and InstaPay orders are confirmed here. Card payments confirm on their own.',
     );
   }
   const shipping = isRecord(order['shipping']) ? order['shipping'] : null;

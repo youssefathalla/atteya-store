@@ -1,0 +1,77 @@
+@layer components {
+  /*! account panel (app-account-panel, AccountPanelService) and /account page */
+
+  /* Round first-letter badge for the signed-in person. */
+  .account-avatar {
+    @apply size-11 shrink-0 elements-center rounded-full bg-primary text-on-primary font-title-md font-bold! uppercase;
+  }
+
+  .account-panel__prompt {
+    @apply w-full elements-start gap-3 p-3 border border-primary border-shape no-underline;
+  }
+
+  .account-panel__links {
+    @apply w-full elements-start-col;
+  }
+
+  .account-panel__links > li {
+    @apply w-full;
+  }
+
+  .account-panel__link {
+    @apply w-full elements-start gap-3 px-2 py-3 border-b border-outline-variant font-label-lg no-underline;
+  }
+
+  .account-panel__card {
+    @apply w-full space-y-3 p-4 bg-surface-container-low border border-outline-variant border-shape;
+  }
+
+  .account-panel__order {
+    @apply w-full elements-start-col gap-1 no-underline;
+  }
+
+  .account-panel__prompt:hover,
+  .account-panel__prompt:focus-visible,
+  .account-panel__link:hover,
+  .account-panel__link:focus-visible {
+    @apply bg-surface-container-low;
+  }
+
+  .account-panel__order:hover .font-title-sm,
+  .account-panel__order:focus-visible .font-title-sm {
+    @apply underline;
+  }
+}
+
+@layer components {
+  /* /account page (features/account): section cards (host also has `block w-full`), section links and order rows. */
+  .account-section {
+    @apply space-y-4 p-6 max-sm:p-4 bg-surface-container-lowest border border-outline-variant border-shape shadow-sm scroll-mt-24;
+  }
+
+  .account-section__title {
+    @apply elements-start gap-2 font-title-lg font-bold!;
+  }
+
+  .account-page__tabs {
+    @apply w-full elements-start flex-wrap gap-2;
+  }
+
+  .account-page__tab {
+    @apply inline-flex px-3 py-2 border border-outline-variant border-shape font-label-lg no-underline;
+  }
+
+  .account-page__tab:hover,
+  .account-page__tab:focus-visible {
+    @apply border-primary;
+  }
+
+  .account-order-row {
+    @apply w-full elements-between gap-4 py-3 px-2 border-b border-outline-variant no-underline;
+  }
+
+  .account-order-row:hover,
+  .account-order-row:focus-visible {
+    @apply bg-surface-container-low;
+  }
+}

@@ -1,20 +1,10 @@
-import { Component, computed, inject, input, resource } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import type { Product } from '@core/services/products/product.model';
-import { ProductCacheService, ProductService } from '@core/services/products';
-import {
-  ProductCardComponent,
-} from '@shared/components/product-card/product-card.component';
-import type {
-  ProductCardPrice,
-  ProductCardSibling,
-} from '@shared/components/product-card/product-card.model';
-import {
-  productToCardData,
-  siblingGroupsMap,
-  toSiblingGroupsRecord,
-  uniqueModelGroups,
-} from '@shared/components/product-card/product-card.utils';
+import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
+import type { ProductCardPrice } from '@shared/components/product-card/product-card.model';
+import { productToCardData } from '@shared/components/product-card/product-card.utils';
 import { SkeletonComponent } from '@shared/ui/skeleton';
+import { injectFirstRowCount } from '@shared/utils/first-row.utils';
 
 export type CatalogCardPrice = ProductCardPrice;
 
@@ -29,41 +19,15 @@ export class CatalogProductGridComponent {
   readonly prices = input.required<ReadonlyMap<string, CatalogCardPrice>>();
   readonly loading = input(false);
   readonly skeletonSlots = [0, 1, 2, 3, 4, 5, 6, 7] as const;
-
-  readonly #products = inject(ProductService);
-  readonly #cache = inject(ProductCacheService);
-
-  /**
-   * Stable `id` + JSON-safe lean sibling record so SSR TransferState matches
-   * the first client paint (no flash of missing colour thumbs).
-   */
-  readonly #siblingsResource = resource({
-    params: () =>
-      uniqueModelGroups(this.products().map((product) => product.modelGroup)),
-    loader: async ({ params }) => {
-      const map = await this.#products.listPublishedByModelGroups(params, 12);
-      const all: Product[] = [];
-      for (const list of map.values()) all.push(...list);
-      this.#cache.seed(all);
-      return toSiblingGroupsRecord(map);
-    },
-    id: 'catalog-product-siblings',
-  });
-
-  readonly siblingsByGroup = computed(
-    (): ReadonlyMap<string, readonly ProductCardSibling[]> => {
-      if (!this.#siblingsResource.hasValue()) return new Map();
-      return siblingGroupsMap(this.#siblingsResource.value());
-    },
-  );
+  /** Photos that load first: one row (2 phone, 3 tablet, 4 desktop), matching the grid columns. */
+  readonly firstRow = injectFirstRowCount({ base: 2, md: 3, lg: 4 });
 
   readonly cards = computed(() => {
     const prices = this.prices();
-    const siblings = this.siblingsByGroup();
     return this.products().flatMap((product) => {
       const price = prices.get(product.id);
       if (!price) return [];
-      return [productToCardData(product, price, siblings)];
+      return [productToCardData(product, price)];
     });
   });
 }

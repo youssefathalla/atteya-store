@@ -16,17 +16,16 @@ import { ProductService } from '@core/services/products';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { PrefetchProductDirective } from '@shared/directives/prefetch-product';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
+import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { normalizeImageKitPath } from '@shared/utils/image';
-import { RowScrollNavComponent } from '../row-scroll-nav/row-scroll-nav.component';
-import { rowScrollProgress, scrollRowByItem } from '../../utils/row-scroll';
-import {
-  HOME_PADEL_ROW_KEY,
-  putHomeRowSeed,
-  takeHomeRowSeed,
-} from '../../utils/home-row-products.state';
+import { RowScrollNavComponent } from '@shared/ui/row-scroll-nav';
+import { rowScrollProgress } from '@shared/utils/row-scroll.utils';
+import { RowScrollLockDirective } from '../../directives/row-scroll-lock.directive';
+import { HOME_PADEL_ROW_KEY, putHomeRowSeed, takeHomeRowSeed } from '../../utils/home-row-products.state';
 
-const PADEL_CAROUSEL_LIMIT = 16;
+/** Rackets shown in the home Padel row. */
+const PADEL_CAROUSEL_LIMIT = 8;
 
 @Component({
   selector: 'app-padel-carousel-section',
@@ -37,6 +36,8 @@ const PADEL_CAROUSEL_LIMIT = 16;
     AppImageFallbackDirective,
     PrefetchProductDirective,
     HorizontalScrollDirective,
+    RowScrollLockDirective,
+    SharedIconModule,
     SkeletonComponent,
     RowScrollNavComponent,
   ],
@@ -55,9 +56,7 @@ export class PadelCarouselSectionComponent {
   readonly canNext = signal(false);
 
   /** SSR TransferState seed — keeps tiles visible across hydrate (no skeleton flash). */
-  readonly #seeded = signal(
-    takeHomeRowSeed(this.#transfer, HOME_PADEL_ROW_KEY, this.isBrowser),
-  );
+  readonly #seeded = signal(takeHomeRowSeed(this.#transfer, HOME_PADEL_ROW_KEY, this.isBrowser));
 
   readonly #list = resource({
     loader: async () => {
@@ -111,15 +110,5 @@ export class PadelCarouselSectionComponent {
     if (!path) return null;
     const normalized = normalizeImageKitPath(path);
     return normalized || null;
-  }
-
-  prev(): void {
-    const el = this.scrollEl()?.nativeElement;
-    if (el) scrollRowByItem(el, -1);
-  }
-
-  next(): void {
-    const el = this.scrollEl()?.nativeElement;
-    if (el) scrollRowByItem(el, 1);
   }
 }

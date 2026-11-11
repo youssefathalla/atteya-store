@@ -33,7 +33,10 @@ if (!alias || (alias !== 'dev' && alias !== 'prod') || !targetsRaw) {
   process.exit(1);
 }
 
-const targets = targetsRaw.split(',').map((t) => t.trim()).filter(Boolean);
+const targets = targetsRaw
+  .split(',')
+  .map((t) => t.trim())
+  .filter(Boolean);
 if (!targets.length) {
   console.error(`${RED}✖ Deploy blocked:${RESET} no deploy targets specified.`);
   process.exit(1);

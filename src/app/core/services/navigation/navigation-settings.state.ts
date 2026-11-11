@@ -6,9 +6,7 @@ export interface NavigationSettingsSeed {
   readonly categories: readonly NavCategory[];
 }
 
-export const NAVIGATION_SETTINGS_KEY = makeStateKey<NavigationSettingsSeed | null>(
-  'navigation-settings',
-);
+export const NAVIGATION_SETTINGS_KEY = makeStateKey<NavigationSettingsSeed | null>('navigation-settings');
 
 export function toNavigationSettingsSeed(doc: NavSettings): NavigationSettingsSeed {
   return { categories: doc.categories };

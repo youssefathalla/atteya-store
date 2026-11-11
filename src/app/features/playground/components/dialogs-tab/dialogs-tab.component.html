@@ -16,30 +16,20 @@
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <!-- Dialog Launchers Card -->
-    <div
-      class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4"
-    >
+    <div class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4">
       <span class="font-title-md text-primary">Modal Dialogs</span>
       <p class="font-body-sm text-on-surface-variant">
-        Launch pre-built accessible dialogs with custom header/body projections or image
-        pan/zoom capabilities:
+        Launch pre-built accessible dialogs with custom header/body projections or image pan/zoom
+        capabilities:
       </p>
       <div class="flex flex-wrap gap-4 pt-2">
-        <button
-          matButton="filled"
-          type="button"
-          (click)="openConfirmModal()"
-        >
+        <button matButton="filled" type="button" (click)="openConfirmModal()">
           <span class="flex items-center gap-2">
             <mat-icon name="help_outline" />
             <span>Open Confirmation Dialog</span>
           </span>
         </button>
-        <button
-          matButton="outlined"
-          type="button"
-          (click)="openImagePreviewModal()"
-        >
+        <button matButton="outlined" type="button" (click)="openImagePreviewModal()">
           <span class="flex items-center gap-2">
             <mat-icon name="zoom_in" />
             <span>Open Image Zoom & Pan Modal</span>
@@ -49,53 +39,31 @@
     </div>
 
     <!-- Snackbar Triggers Card -->
-    <div
-      class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4"
-    >
+    <div class="bg-surface-container-low p-6 border-shape border border-outline-variant flex flex-col gap-4">
       <span class="font-title-md text-primary">Thematic Snackbars (Toasts)</span>
       <p class="font-body-sm text-on-surface-variant">
         Trigger instant toast notifications styled with custom Material 3 color palettes:
       </p>
       <div class="flex flex-wrap gap-3 pt-2">
-        <button
-          matButton="filled"
-          theme="success"
-          type="button"
-          (click)="triggerSnackbar('success')"
-        >
+        <button matButton="filled" theme="success" type="button" (click)="triggerSnackbar('success')">
           <span class="flex items-center gap-2">
             <mat-icon name="check_circle" />
             <span>Success Toast</span>
           </span>
         </button>
-        <button
-          matButton="filled"
-          theme="warning"
-          type="button"
-          (click)="triggerSnackbar('warning')"
-        >
+        <button matButton="filled" theme="warning" type="button" (click)="triggerSnackbar('warning')">
           <span class="flex items-center gap-2">
             <mat-icon name="warning" />
             <span>Warning Toast</span>
           </span>
         </button>
-        <button
-          matButton="filled"
-          theme="info"
-          type="button"
-          (click)="triggerSnackbar('info')"
-        >
+        <button matButton="filled" theme="info" type="button" (click)="triggerSnackbar('info')">
           <span class="flex items-center gap-2">
             <mat-icon name="info" />
             <span>Info Toast</span>
           </span>
         </button>
-        <button
-          matButton="filled"
-          theme="error"
-          type="button"
-          (click)="triggerSnackbar('error')"
-        >
+        <button matButton="filled" theme="error" type="button" (click)="triggerSnackbar('error')">
           <span class="flex items-center gap-2">
             <mat-icon name="error" />
             <span>Error Toast</span>

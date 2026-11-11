@@ -1,0 +1,112 @@
+<section class="surface-card p-5 w-full elements-start-col gap-5" aria-labelledby="players-title">
+  <div>
+    <h2 id="players-title" class="font-title-md font-bold!">Players</h2>
+    <p class="font-body-sm text-on-surface-variant">
+      Pro players shoppers can filter Shop by. Pick them on each product in the product form. A player shows
+      in the Player filter once one of their products is on the store.
+    </p>
+  </div>
+
+  @if (listResource.isLoading() && !listResource.hasValue()) {
+    <app-skeleton class="h-40 w-full" />
+  } @else if (listResource.error()) {
+    <div class="w-full elements-start-col gap-3" role="alert">
+      <p class="font-body-md">We couldn't load the players. Please try again.</p>
+      <button matButton="outlined" type="button" (click)="listResource.reload()">
+        <span>Try Again</span>
+      </button>
+    </div>
+  } @else {
+    @if (draft().length === 0) {
+      <p class="font-body-md">No players yet. Add the first one below.</p>
+    } @else {
+      <ul class="w-full elements-start-col gap-2 list-none m-0 p-0" aria-label="Players">
+        @for (player of draft(); track player.id; let i = $index) {
+          <li class="w-full border border-outline-variant border-shape p-3 elements-between flex-wrap gap-3">
+            <label class="elements-start-col gap-1 font-label-md grow min-w-48">
+              Name
+              <input
+                type="text"
+                [attr.maxlength]="maxName"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                [value]="player.name"
+                (input)="rename(i, textFrom($event))"
+              />
+            </label>
+            <div class="elements-start-col gap-1 min-w-40">
+              <span class="font-label-md">Link name</span>
+              <span class="font-body-md py-2">/shop?player={{ player.id }}</span>
+            </div>
+            <button
+              matIconButton
+              type="button"
+              [attr.aria-label]="'Remove ' + (player.name || player.id)"
+              (click)="remove(i)"
+            >
+              <mat-icon name="delete" />
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
+    <div class="w-full border-t border-outline-variant pt-4 elements-start-col gap-3">
+      <h3 class="font-title-sm font-bold!">Add a Player</h3>
+      <div class="w-full flex flex-wrap items-end gap-3">
+        <label class="elements-start-col gap-1 font-label-md grow min-w-48">
+          Name
+          <input
+            type="text"
+            [attr.maxlength]="maxName"
+            placeholder="Ale Galán"
+            class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+            [value]="newName()"
+            (input)="onNewName(textFrom($event))"
+            (keydown.enter)="add()"
+          />
+        </label>
+        <label class="elements-start-col gap-1 font-label-md grow min-w-48">
+          Link name
+          <input
+            type="text"
+            maxlength="60"
+            placeholder="ale-galan"
+            class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+            [value]="newId()"
+            (input)="onNewId(textFrom($event))"
+            (keydown.enter)="add()"
+          />
+        </label>
+        <button matButton="outlined" type="button" [disabled]="isFull()" (click)="add()">
+          <mat-icon name="add" />
+          <span>Add Player</span>
+        </button>
+      </div>
+      @if (addError()) {
+        <p class="font-body-sm" role="alert">{{ addError() }}</p>
+      }
+      <p class="font-body-sm text-on-surface-variant">
+        The link name is used in Shop links and can't be changed after you save. After you rename or remove a
+        player, use Rebuild Search in Products → Catalogue Tools so search and the Player filter show the
+        change.
+      </p>
+    </div>
+
+    <button
+      matButton="filled"
+      type="button"
+      [disabled]="isSaving()"
+      [attr.aria-label]="isSaving() ? 'Saving players' : null"
+      (click)="save()"
+    >
+      @if (isSaving()) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" />
+      } @else {
+        <mat-icon name="check" />
+      }
+      @if (!isSaving()) {
+        <span>Save Players</span>
+      }
+    </button>
+  }
+</section>

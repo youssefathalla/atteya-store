@@ -50,7 +50,7 @@ export class ProductService {
 
   /**
    * Homepage New Arrivals: unexpired `newArrivalUntil` first (most recently
-   * updated), then newest published by `createdAt`, capped at 10.
+   * updated), then newest published by `createdAt`, capped at `max` (the row size).
    */
   async listNewArrivals(max = NEW_ARRIVALS_LIMIT): Promise<readonly Product[]> {
     const now = Timestamp.now();
@@ -67,12 +67,7 @@ export class ProductService {
       this.listPublished({ limit: max }),
     ]);
     const flagged = flaggedSnap.docs.map((item) => item.data());
-    return mergeNewArrivalPool(
-      flagged,
-      newest,
-      (product) => timestampToMs(product.updatedAt) ?? 0,
-      max,
-    );
+    return mergeNewArrivalPool(flagged, newest, (product) => timestampToMs(product.updatedAt) ?? 0, max);
   }
 
   async getBySlug(slug: string): Promise<Product | null> {
@@ -92,46 +87,20 @@ export class ProductService {
     }
   }
 
-  async listModelGroup(modelGroup: string, excludeId: string, max = 8): Promise<readonly Product[]> {
+  /**
+   * Every published colour of one model, the open product included. No `orderBy`, so Firestore
+   * returns them by document id: the same order on every product page of the group.
+   */
+  async listModelGroup(modelGroup: string, max = 9): Promise<readonly Product[]> {
     const snap = await getDocs(
       query(
         this.#products,
         where('published', '==', true),
         where('modelGroup', '==', modelGroup),
-        limit(max + 1),
+        limit(max),
       ),
     );
-    return snap.docs
-      .map((item) => item.data())
-      .filter((product) => product.id !== excludeId)
-      .slice(0, max);
-  }
-
-  /**
-   * Batch-load published colorways for many model groups (one query per unique group).
-   * Used by listing cards so each card does not fire its own sibling read.
-   */
-  async listPublishedByModelGroups(
-    groups: readonly string[],
-    maxPerGroup = 12,
-  ): Promise<ReadonlyMap<string, readonly Product[]>> {
-    const unique = [
-      ...new Set(groups.map((group) => group.trim()).filter((group) => group.length > 0)),
-    ];
-    const entries = await Promise.all(
-      unique.map(async (group) => {
-        const snap = await getDocs(
-          query(
-            this.#products,
-            where('published', '==', true),
-            where('modelGroup', '==', group),
-            limit(maxPerGroup),
-          ),
-        );
-        return [group, snap.docs.map((item) => item.data())] as const;
-      }),
-    );
-    return new Map(entries);
+    return snap.docs.map((item) => item.data());
   }
 
   async countPublished(countQuery: ProductCountQuery): Promise<number> {

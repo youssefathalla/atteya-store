@@ -1,13 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import {
-  computed,
-  effect,
-  inject,
-  PLATFORM_ID,
-  Service,
-  signal,
-  untracked,
-} from '@angular/core';
+import { computed, effect, inject, PLATFORM_ID, Service, signal, untracked } from '@angular/core';
 import {
   collection,
   deleteDoc,
@@ -22,12 +14,7 @@ import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
-import {
-  FAVORITE_ITEMS,
-  FAVORITES_COLLECTION,
-  MAX_FAVORITES,
-  type FavoriteItem,
-} from './favorite.model';
+import { FAVORITE_ITEMS, FAVORITES_COLLECTION, MAX_FAVORITES, type FavoriteItem } from './favorite.model';
 import { FavoriteItemSchema } from './favorite.schema';
 
 @Service()
@@ -146,11 +133,7 @@ export class FavoritesService {
     }
   }
 
-  async #createFavorite(
-    uid: string,
-    id: string,
-    productSlug: string,
-  ): Promise<'added' | null> {
+  async #createFavorite(uid: string, id: string, productSlug: string): Promise<'added' | null> {
     if (this.#items().length >= MAX_FAVORITES) {
       this.#snackbar.error(`You can favorite up to ${MAX_FAVORITES} products.`);
       return null;
@@ -162,10 +145,7 @@ export class FavoritesService {
       addedAt: serverTimestamp(),
     });
     if (!this.has(id)) {
-      this.#items.update((list) => [
-        { productId: id, slug: productSlug, addedAt: new Date() },
-        ...list,
-      ]);
+      this.#items.update((list) => [{ productId: id, slug: productSlug, addedAt: new Date() }, ...list]);
     }
     return 'added';
   }
@@ -195,12 +175,9 @@ export class FavoritesService {
     this.#setReady(false);
 
     const converter = createValibotConverter(FavoriteItemSchema);
-    const items = collection(
-      this.#firestore,
-      FAVORITES_COLLECTION,
-      uid,
-      FAVORITE_ITEMS,
-    ).withConverter(converter);
+    const items = collection(this.#firestore, FAVORITES_COLLECTION, uid, FAVORITE_ITEMS).withConverter(
+      converter,
+    );
 
     this.#unsubscribe = onSnapshot(
       items,

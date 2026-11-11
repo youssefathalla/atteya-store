@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { claimId, orderEmailsForWrite } from './order-email-events.js';
-import { readOrderForEmail, shortOrderRef, type OrderEmailOrder } from './order-email-model.js';
+import {
+  orderConfirmationUrl,
+  readOrderForEmail,
+  shortOrderRef,
+  type OrderEmailOrder,
+} from './order-email-model.js';
 import { formatEgp, renderOrderEmail, type OrderEmailContext } from './order-email-templates.js';
 
 const ctx: OrderEmailContext = {
@@ -151,11 +156,10 @@ describe('InstaPay emails', () => {
   });
 
   it('InstaPay placed without details set says we will send them', () => {
-    const email = renderOrderEmail(
-      'instapay-placed',
-      read(orderDoc({ paymentMethod: 'instapay' })),
-      { ...withPay, instapay: { address: '', number: '' } },
-    );
+    const email = renderOrderEmail('instapay-placed', read(orderDoc({ paymentMethod: 'instapay' })), {
+      ...withPay,
+      instapay: { address: '', number: '' },
+    });
     assert.match(email.text, /We'll send you the InstaPay details on WhatsApp/);
     assert.ok(!email.text.includes('screenshot'));
   });
@@ -217,7 +221,7 @@ describe('order email wording and amounts', () => {
     assert.ok(placed.text.includes('Shipping: Free'));
     assert.ok(!placed.text.includes('shipping fee of'));
     const confirmed = renderOrderEmail('cod-confirmed', order, ctx);
-    assert.ok(!confirmed.text.includes("received your shipping fee"));
+    assert.ok(!confirmed.text.includes('received your shipping fee'));
     const alert = renderOrderEmail('store-new-order', order, ctx);
     assert.ok(alert.text.includes(`Shipping Fee: Free\nCash at the Door: ${formatEgp(2370)}`));
     assert.ok(!alert.text.includes('arrives on InstaPay'), 'no fee to wait for');
@@ -279,7 +283,7 @@ describe('order email wording and amounts', () => {
       ctx,
     );
     assert.match(paid.subject, /Paid Online$/);
-    assert.ok(paid.text.includes(`Card or Wallet\nPaid: ${formatEgp(2450)}`));
+    assert.ok(paid.text.includes(`Card\nPaid: ${formatEgp(2450)}`));
     assert.match(paid.text, /sold out before this payment/);
   });
 
@@ -287,9 +291,7 @@ describe('order email wording and amounts', () => {
     const email = renderOrderEmail('cod-placed', read(orderDoc({})), ctx);
     assert.ok(email.html.includes('Padel Racket &lt;Pro&gt;'));
     assert.ok(!email.html.includes('<Pro>'));
-    assert.ok(
-      email.html.includes('https://ik.imagekit.io/atteyastore/dev/products/p1/a%20b.jpg?tr='),
-    );
+    assert.ok(email.html.includes('https://ik.imagekit.io/atteyastore/dev/products/p1/a%20b.jpg?tr='));
   });
 
   it('skips orders without an email address for the shopper', () => {
@@ -317,9 +319,39 @@ describe('order email photos', () => {
   });
 });
 
+describe('order email Buy X Get Y', () => {
+  it('shows the discounted line price with a Free tag', () => {
+    const doc = orderDoc({ subtotalEgp: 2000 });
+    const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
+    pricing.lines[0]!['discountEgp'] = 1000;
+    pricing.lines[0]!['deals'] = [{ offerId: 'b2g1', units: 1, percent: 100, discountEgp: 1000 }];
+    const order = read(doc);
+    assert.equal(order.lines[0]!.lineEgp, 1000);
+    assert.equal(order.lines[0]!.dealTag, '1 free');
+    const email = renderOrderEmail('cod-placed', order, ctx);
+    assert.ok(email.html.includes('>1 free<'));
+    assert.ok(email.text.includes(`${formatEgp(1000)} (1 free)`));
+  });
+
+  it('reads the line before the discount from fullEgp when group pieces lost their per-item offer', () => {
+    const doc = orderDoc({});
+    const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
+    // 3 pieces with 10% off (900) in a Buy 2 get 1 free group: they pay 1,000 each, one free.
+    pricing.lines[0]!['quantity'] = 3;
+    pricing.lines[0]!['unitEgp'] = 900;
+    pricing.lines[0]!['fullEgp'] = 3000;
+    pricing.lines[0]!['discountEgp'] = 1000;
+    pricing.lines[0]!['deals'] = [{ offerId: 'b2g1', units: 1, percent: 100, discountEgp: 1000 }];
+    assert.equal(read(doc).lines[0]!.lineEgp, 2000);
+  });
+});
+
 describe('order email help line', () => {
   it('shows the business WhatsApp number with a chat link when set', () => {
-    const email = renderOrderEmail('cod-placed', read(orderDoc({})), { ...ctx, whatsappNumber: '+20 120 565 8954' });
+    const email = renderOrderEmail('cod-placed', read(orderDoc({})), {
+      ...ctx,
+      whatsappNumber: '+20 120 565 8954',
+    });
     assert.ok(email.text.includes('Questions? Message us on WhatsApp: +20 120 565 8954'));
     assert.ok(email.html.includes('href="https://wa.me/201205658954"'));
     assert.ok(!email.text.includes('reply to this email'));
@@ -332,7 +364,10 @@ describe('order email help line', () => {
   });
 
   it('never puts the WhatsApp line in the store alert', () => {
-    const email = renderOrderEmail('store-new-order', read(orderDoc({})), { ...ctx, whatsappNumber: '+20 120 565 8954' });
+    const email = renderOrderEmail('store-new-order', read(orderDoc({})), {
+      ...ctx,
+      whatsappNumber: '+20 120 565 8954',
+    });
     assert.ok(!email.text.includes('Message us on WhatsApp'));
   });
 });
@@ -387,15 +422,26 @@ describe('large order: delivery fee to be agreed', () => {
     const changed = read(orderDoc({ feeAgreed: true, shippingEgp: 300 }));
     assert.equal(claimId('delivery-fee-set', set), 'abcdef123456_delivery-fee-set');
     assert.equal(claimId('delivery-fee-changed', changed), 'abcdef123456_delivery-fee-changed_300');
-    const withTime = readOrderForEmail('abcdef123456', { ...orderDoc({ feeAgreed: true, shippingEgp: 300 }), deliveryFeeSetAt: new Date(1_700_000_000_000) });
+    const withTime = readOrderForEmail('abcdef123456', {
+      ...orderDoc({ feeAgreed: true, shippingEgp: 300 }),
+      deliveryFeeSetAt: new Date(1_700_000_000_000),
+    });
     assert.ok(withTime);
     assert.equal(withTime.deliveryFeeSetAtMs, 1_700_000_000_000);
-    assert.equal(claimId('delivery-fee-changed', withTime), 'abcdef123456_delivery-fee-changed_1700000000000');
+    assert.equal(
+      claimId('delivery-fee-changed', withTime),
+      'abcdef123456_delivery-fee-changed_1700000000000',
+    );
   });
 
   it('placed emails say we will agree the fee on WhatsApp and ask for no payment', () => {
     for (const kind of ['cod-placed', 'instapay-placed'] as const) {
-      const order = read(orderDoc({ paymentMethod: kind === 'cod-placed' ? 'cash-on-delivery' : 'instapay', feeAgreed: false }));
+      const order = read(
+        orderDoc({
+          paymentMethod: kind === 'cod-placed' ? 'cash-on-delivery' : 'instapay',
+          feeAgreed: false,
+        }),
+      );
       const email = renderOrderEmail(kind, order, withPay);
       assert.match(email.text, /message you on WhatsApp to agree the delivery fee/);
       assert.match(email.text, /Shipping: We'll contact you/);
@@ -414,5 +460,33 @@ describe('large order: delivery fee to be agreed', () => {
     assert.match(email.text, new RegExp(`delivery fee for your order #ABCDEF is ${formatEgp(250)}`));
     assert.match(email.text, /atteya@instapay/);
     assert.match(email.text, new RegExp(`the ${formatEgp(250)} shipping fee`));
+  });
+});
+
+describe('order page link', () => {
+  const KEY = 'k'.repeat(43);
+
+  it('a signed-in order links to the order page without a key', () => {
+    assert.equal(
+      orderConfirmationUrl('https://shop.example', 'abc123', null),
+      'https://shop.example/checkout/confirmation/abc123',
+    );
+    const email = renderOrderEmail('cod-placed', read(orderDoc({})), ctx);
+    assert.ok(email.text.includes('https://shop.example/checkout/confirmation/abcdef123456'));
+    assert.ok(!email.text.includes('?key='));
+  });
+
+  it('a guest order carries its view key in every View Your Order link', () => {
+    assert.equal(
+      orderConfirmationUrl('https://shop.example', 'abc123', KEY),
+      `https://shop.example/checkout/confirmation/abc123?key=${KEY}`,
+    );
+    const order = read({ ...orderDoc({}), customerId: null, viewKey: KEY });
+    assert.equal(order.viewKey, KEY);
+    for (const kind of ['cod-placed', 'cod-confirmed'] as const) {
+      const email = renderOrderEmail(kind, order, ctx);
+      assert.ok(email.text.includes(`/checkout/confirmation/abcdef123456?key=${KEY}`), kind);
+      assert.ok(email.html.includes(`/checkout/confirmation/abcdef123456?key=${KEY}`), kind);
+    }
   });
 });

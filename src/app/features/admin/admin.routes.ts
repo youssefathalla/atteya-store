@@ -6,8 +6,7 @@ export const ADMIN_ROUTES: Routes = [
     path: '',
     canActivate: [adminGuard],
     canActivateChild: [adminGuard],
-    loadComponent: () =>
-      import('./layout/admin-layout.component').then((m) => m.AdminLayoutComponent),
+    loadComponent: () => import('./layout/admin-layout.component').then((m) => m.AdminLayoutComponent),
     children: [
       {
         path: '',
@@ -17,9 +16,7 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'home',
         loadComponent: () =>
-          import('./pages/home-manager/home-manager.component').then(
-            (m) => m.HomeManagerComponent,
-          ),
+          import('./pages/home-manager/home-manager.component').then((m) => m.HomeManagerComponent),
         title: 'Home Page Manager | Atteya Admin',
       },
       {
@@ -41,49 +38,37 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'products/new',
         loadComponent: () =>
-          import('./pages/products-manager/product-editor.page').then(
-            (m) => m.ProductEditorPageComponent,
-          ),
+          import('./pages/products-manager/product-editor.page').then((m) => m.ProductEditorPageComponent),
         title: 'New Product | Atteya Admin',
       },
       {
         path: 'products/:productId',
         loadComponent: () =>
-          import('./pages/products-manager/product-editor.page').then(
-            (m) => m.ProductEditorPageComponent,
-          ),
+          import('./pages/products-manager/product-editor.page').then((m) => m.ProductEditorPageComponent),
         title: 'Edit Product | Atteya Admin',
       },
       {
         path: 'offers',
         loadComponent: () =>
-          import('./pages/offers-manager/offers-manager.page').then(
-            (m) => m.OffersManagerPageComponent,
-          ),
+          import('./pages/offers-manager/offers-manager.page').then((m) => m.OffersManagerPageComponent),
         title: 'Offers | Atteya Admin',
       },
       {
         path: 'offers/new',
         loadComponent: () =>
-          import('./pages/offers-manager/offer-editor.page').then(
-            (m) => m.OfferEditorPageComponent,
-          ),
+          import('./pages/offers-manager/offer-editor.page').then((m) => m.OfferEditorPageComponent),
         title: 'New Offer | Atteya Admin',
       },
       {
         path: 'offers/:offerId',
         loadComponent: () =>
-          import('./pages/offers-manager/offer-editor.page').then(
-            (m) => m.OfferEditorPageComponent,
-          ),
+          import('./pages/offers-manager/offer-editor.page').then((m) => m.OfferEditorPageComponent),
         title: 'Edit Offer | Atteya Admin',
       },
       {
         path: 'orders',
         loadComponent: () =>
-          import('./pages/orders-manager/orders-manager.page').then(
-            (m) => m.OrdersManagerPageComponent,
-          ),
+          import('./pages/orders-manager/orders-manager.page').then((m) => m.OrdersManagerPageComponent),
         title: 'Orders | Atteya Admin',
       },
       {
@@ -99,18 +84,20 @@ export const ADMIN_ROUTES: Routes = [
           {
             path: 'admins',
             loadComponent: () =>
-              import('./pages/settings/admins/admins-tab.component').then(
-                (m) => m.AdminsTabComponent,
-              ),
+              import('./pages/settings/admins/admins-tab.component').then((m) => m.AdminsTabComponent),
             title: 'Admins | Atteya Admin',
           },
           {
             path: 'shipping',
             loadComponent: () =>
-              import('./pages/settings/shipping/shipping-tab.component').then(
-                (m) => m.ShippingTabComponent,
-              ),
+              import('./pages/settings/shipping/shipping-tab.component').then((m) => m.ShippingTabComponent),
             title: 'Shipping | Atteya Admin',
+          },
+          {
+            path: 'players',
+            loadComponent: () =>
+              import('./pages/settings/players/players-tab.component').then((m) => m.PlayersTabComponent),
+            title: 'Players | Atteya Admin',
           },
           {
             path: 'international',

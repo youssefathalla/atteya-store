@@ -1,10 +1,5 @@
 import { getAuth, type UserRecord } from 'firebase-admin/auth';
-import {
-  FieldValue,
-  getFirestore,
-  type DocumentData,
-  type WriteResult,
-} from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, type DocumentData, type WriteResult } from 'firebase-admin/firestore';
 import type { Role } from '../auth/require-role.js';
 import { revokeTimeMs } from '../auth/session-revocation.js';
 
@@ -60,11 +55,7 @@ export interface ListedAdmin {
 
 const GET_USERS_CHUNK = 100;
 
-function listedAdminFromMirror(
-  uid: string,
-  email: string,
-  data: DocumentData | undefined,
-): ListedAdmin {
+function listedAdminFromMirror(uid: string, email: string, data: DocumentData | undefined): ListedAdmin {
   const mirrorIsAdmin = data?.['role'] === 'admin';
   const updatedBy = data?.['updatedBy'];
   return {
@@ -105,11 +96,7 @@ export async function listAdminsViaMirrors(): Promise<readonly ListedAdmin[]> {
     for (const user of users) {
       if (readRole(user.customClaims) !== 'admin') continue;
       admins.push(
-        listedAdminFromMirror(
-          user.uid,
-          (user.email ?? '').trim().toLowerCase(),
-          byUid.get(user.uid),
-        ),
+        listedAdminFromMirror(user.uid, (user.email ?? '').trim().toLowerCase(), byUid.get(user.uid)),
       );
     }
 
@@ -195,10 +182,9 @@ export async function recordSessionRevocation(uid: string): Promise<void> {
   const auth = getAuth();
   await auth.revokeRefreshTokens(uid);
   const refreshed = await auth.getUser(uid);
-  await getFirestore().doc(`roles/${uid}`).set(
-    { revokeTimeMs: revokeTimeMs(refreshed.tokensValidAfterTime) },
-    { merge: true },
-  );
+  await getFirestore()
+    .doc(`roles/${uid}`)
+    .set({ revokeTimeMs: revokeTimeMs(refreshed.tokensValidAfterTime) }, { merge: true });
 }
 
 export async function revertRoleMirror(

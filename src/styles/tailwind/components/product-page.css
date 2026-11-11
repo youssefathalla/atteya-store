@@ -1,0 +1,359 @@
+@layer components {
+  /**
+   * Product page.
+   * Gallery: one photo per view below xl, two side by side from xl up.
+   * Native scroll-snap row: swipe on touch, drag with a mouse, arrows on every screen,
+   * no wheel hijack.
+   */
+  .pdp-gallery-track {
+    @apply flex w-full gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth select-none;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pdp-gallery-track:not(.pdp-gallery-track--single) {
+      cursor: grab;
+    }
+  }
+
+  /* While the mouse drags, the row follows the pointer 1:1; snapping comes back on release. */
+  .pdp-gallery-track.pdp-gallery-track--dragging {
+    scroll-snap-type: none;
+    scroll-behavior: auto;
+    cursor: grabbing;
+  }
+
+  .pdp-gallery-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pdp-gallery-track:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  .pdp-gallery-slide {
+    @apply relative w-full shrink-0 snap-start overflow-hidden aspect-4/5 bg-surface-container;
+  }
+
+  /*
+   * Photos and the arrows under them always fit in the window (tablets, short laptop windows,
+   * wide screens): the frame stops growing at the window height (less the top bar, the page's
+   * top padding, the arrow row and, below `lg`, the 5rem bottom bar) and the photo sits centred
+   * in it. Portrait phones never reach the limit. `cqw` is <main>'s width.
+   */
+  .pdp-gallery-slide {
+    max-height: max(20rem, calc(100dvh - var(--storefront-top-chrome, 56px) - 5cqw - 9.5rem));
+  }
+
+  @media (min-width: 64rem) {
+    .pdp-gallery-slide {
+      max-height: max(20rem, calc(100dvh - var(--storefront-top-chrome, 56px) - 5cqw - 4.5rem));
+    }
+  }
+
+  @media (min-width: 80rem) {
+    .pdp-gallery-slide {
+      width: calc(50% - 0.25rem);
+    }
+
+    /* A lone photo fills the column (wider, shorter frame) instead of leaving half of it empty. */
+    .pdp-gallery-track--single .pdp-gallery-slide {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pdp-gallery-track {
+      scroll-behavior: auto;
+    }
+  }
+
+  /** Small mono caps line: breadcrumb and merchandising badge. */
+  .pdp-kicker {
+    @apply font-label-sm font-mono uppercase tracking-wider;
+  }
+
+  /** Option boxes (size, gift, choice). Selected = aria-pressed. */
+  .pdp-choice {
+    @apply min-h-12 px-3 py-2 elements-center text-center border border-outline-variant border-shape bg-surface font-label-lg cursor-pointer transition-colors;
+  }
+
+  .pdp-choice:enabled:hover {
+    @apply border-primary;
+  }
+
+  .pdp-choice[aria-pressed='true'] {
+    @apply bg-primary text-on-primary border-primary;
+  }
+
+  .pdp-choice:disabled {
+    @apply cursor-not-allowed;
+  }
+
+  .pdp-choice--sold-out {
+    @apply line-through opacity-40;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pdp-choice {
+      transition: none;
+    }
+  }
+
+  /**
+   * Gift choice as a big card in one sideways row (`.pdp-gift-row`, built on `.scroll-row`):
+   * 156px wide, 4:5 photo, the full name and a colour line under it. Selected = aria-pressed: 2px
+   * black border and a black "Picked" tag on the photo.
+   */
+  .pdp-gift-row {
+    --scroll-gap: 0.75rem;
+    @apply scroll-px-0;
+  }
+
+  .pdp-gift-card {
+    @apply relative shrink-0 w-39 flex flex-col border border-outline-variant border-shape bg-surface overflow-hidden cursor-pointer transition-colors;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  .pdp-gift-card:enabled:hover {
+    @apply border-primary;
+  }
+
+  .pdp-gift-card[aria-pressed='true'] {
+    @apply border-primary;
+  }
+
+  .pdp-gift-card:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  .pdp-gift-card__photo {
+    @apply relative block w-full aspect-4/5 overflow-hidden;
+  }
+
+  /* Under the photo: the full name on up to two lines (the same height on every card, so the row stays even), then
+     the colour dot and the colour's name in grey. */
+  .pdp-gift-card__caption {
+    @apply elements-start-col items-stretch! gap-1 px-2.5 pt-2 pb-2.5 text-start;
+  }
+
+  .pdp-gift-card__name {
+    @apply font-label-lg font-bold! line-clamp-2 min-h-[2lh];
+  }
+
+  .pdp-gift-card__colour {
+    @apply elements-start gap-1.5 min-w-0 font-label-md text-on-surface-variant;
+  }
+
+  /* The chosen card: a 2px black border (1px border + 1px inset ring) and a black "Picked" tag on its photo. */
+  .pdp-gift-card[aria-pressed='true'] {
+    @apply ring-1 ring-inset ring-primary;
+  }
+
+  .pdp-gift-card__picked {
+    @apply absolute top-2 start-2 elements-start gap-1 px-2 py-0.5 bg-primary text-on-primary border-shape font-label-sm font-bold!;
+  }
+
+  /** Thin progress line under a gift row. */
+  .pdp-gift-progress {
+    @apply relative h-px w-full mt-3 bg-outline-variant overflow-hidden;
+  }
+
+  .pdp-gift-progress .row-scroll-nav__progress-fill {
+    @apply absolute inset-y-0 left-0 bg-primary;
+    width: calc(var(--row-scroll-progress, 0) * 100%);
+  }
+
+  /** Arrows in a gift step's title row: no padding above them. */
+  .pdp-gift-nav {
+    @apply pt-0 sm:pt-0;
+  }
+
+  /**
+   * Free choice as a photo tile in the bag's free pick (`app-bag-free-pick`): square photo, short
+   * name under it. Selected = aria-pressed: 2px black border (the padding shrinks as the border
+   * grows, so the tile never shifts) and a ✓.
+   */
+  .pdp-gift-tile {
+    @apply relative w-full elements-start-col gap-1 p-[3px] border border-outline-variant border-shape bg-surface cursor-pointer transition-colors;
+  }
+
+  .pdp-gift-tile:enabled:hover {
+    @apply border-primary;
+  }
+
+  .pdp-gift-tile[aria-pressed='true'] {
+    @apply p-0.5 border-2 border-primary;
+  }
+
+  .pdp-gift-tile[aria-pressed='true']::after {
+    content: '✓';
+    @apply absolute top-1 end-1 size-5 elements-center bg-primary text-on-primary font-label-sm border-shape;
+  }
+
+  .pdp-gift-tile:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  .pdp-gift-tile__photo {
+    @apply relative block w-full aspect-square overflow-hidden border-shape;
+  }
+
+  .pdp-gift-tile__name {
+    @apply w-full px-1 pb-1 text-center font-label-sm line-clamp-2;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pdp-gift-card,
+    .pdp-gift-tile {
+      transition: none;
+    }
+  }
+
+  /** Gift Box (Free gift offers): bordered box with a black header, then numbered steps. */
+  .pdp-gift-box {
+    @apply w-full border border-primary border-shape bg-surface overflow-hidden;
+  }
+
+  .pdp-gift-box__header {
+    @apply px-4 py-3 bg-primary text-on-primary;
+  }
+
+  /** One numbered gift step. The step Add to Bag asks for gets a red line on its left. */
+  .pdp-gift-step {
+    @apply w-full min-w-0 m-0 p-0 border-0;
+  }
+
+  .pdp-gift-step--prompt {
+    @apply ps-3 border-s-2 border-error;
+  }
+
+  /** "Select a Size" opener. */
+  .pdp-size-toggle {
+    @apply w-full min-h-12 px-4 elements-between gap-2 border border-outline border-shape bg-surface font-label-lg cursor-pointer transition-colors;
+  }
+
+  .pdp-size-toggle:enabled:hover {
+    @apply border-primary;
+  }
+
+  .pdp-size-toggle:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  .pdp-size-toggle[aria-invalid='true'] {
+    @apply border-error;
+  }
+
+  /** Other colours of the same model: small photo links, current one underlined. */
+  .pdp-colour-thumb {
+    @apply relative block size-16 overflow-hidden bg-surface-container border-b-2 border-transparent transition-colors;
+  }
+
+  a.pdp-colour-thumb:not([aria-current='page']):hover {
+    @apply border-outline;
+  }
+
+  .pdp-colour-thumb[aria-current='page'] {
+    @apply border-primary;
+  }
+
+  /** Description under the price (plain paragraphs; older imported text may still hold lists or links). */
+  .pdp-description {
+    @apply w-full font-body-md max-w-prose;
+  }
+
+  .pdp-description :where(p, ul, ol) + :where(p, ul, ol) {
+    @apply mt-3;
+  }
+
+  .pdp-description :where(ul) {
+    @apply list-disc ps-5;
+  }
+
+  .pdp-description :where(ol) {
+    @apply list-decimal ps-5;
+  }
+
+  .pdp-description :where(a) {
+    @apply underline;
+  }
+
+  /**
+   * Open/close rows under the product (Materials / Specifications, Shipping). Native <details>.
+   * The + turns into a × (45°) as the row opens.
+   */
+  .pdp-section {
+    @apply w-full border-b border-outline;
+  }
+
+  .pdp-section > summary {
+    @apply elements-between gap-4 py-5 cursor-pointer list-none font-label-lg font-mono uppercase tracking-wider;
+  }
+
+  .pdp-section > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .pdp-section > summary:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  /* Icon ligatures need the original lower-case name, so undo the summary's caps. */
+  .pdp-section__icon {
+    @apply inline-flex normal-case;
+    transition: transform 200ms ease-out;
+  }
+
+  .pdp-section[open] .pdp-section__icon {
+    transform: rotate(45deg);
+  }
+
+  /*
+   * Smooth open and close: the content box grows from 0 to its natural height. Browsers without
+   * `::details-content` or `interpolate-size` skip this block and open at once.
+   */
+  @supports (interpolate-size: allow-keywords) and selector(::details-content) {
+    .pdp-section {
+      interpolate-size: allow-keywords;
+    }
+
+    .pdp-section::details-content {
+      block-size: 0;
+      overflow: clip;
+      transition:
+        block-size 200ms ease-out,
+        content-visibility 200ms ease-out allow-discrete;
+    }
+
+    .pdp-section[open]::details-content {
+      block-size: auto;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pdp-section::details-content {
+        transition: none;
+      }
+    }
+  }
+
+  /* Kept apart from the rule above: an unknown pseudo-element would void the whole selector list. */
+  @media (prefers-reduced-motion: reduce) {
+    .pdp-section__icon {
+      transition: none;
+    }
+  }
+
+  .pdp-section__body {
+    @apply pb-6 font-body-md max-w-prose;
+  }
+
+  /** One line per fact (details, shipping notes). */
+  .pdp-section__list {
+    @apply elements-start-col gap-1 list-none m-0 p-0;
+  }
+}

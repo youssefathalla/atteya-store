@@ -13,6 +13,8 @@ export interface SearchQueryOptions {
   readonly page?: number;
   readonly sort?: SearchSort;
   readonly filters?: string;
+  /** Results per page (1–48). Defaults to 24, the `/search` grid size. */
+  readonly hitsPerPage?: number;
 }
 
 export interface SearchResultPage {

@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { MARKETING_BADGE_KINDS, MARKETING_BADGE_STYLES } from '@core/services/products/marketing-badge';
+import { ColorSiblingSchema } from '@core/services/products/product.schema';
 
 export const SearchHitImageSchema = v.object({
   path: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(512)),
@@ -15,12 +16,11 @@ export const SearchHitSchema = v.object({
   type: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(64)),
   typeLabel: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
   modelGroup: v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(120)), null),
+  /** Main (leaf) category; missing on records indexed before the card redesign. */
+  categoryId: v.optional(v.nullable(v.string()), null),
   categoryIds: v.optional(v.array(v.string()), []),
   price: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000)),
-  compareAtPrice: v.nullable(
-    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000)),
-    null,
-  ),
+  compareAtPrice: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000)), null),
   discountPercent: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)), 0),
   onSale: v.optional(v.boolean(), false),
   listPrice: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000))),
@@ -28,23 +28,14 @@ export const SearchHitSchema = v.object({
   hasOffer: v.optional(v.boolean(), false),
   offerIds: v.optional(v.array(v.string()), []),
   offerBadges: v.optional(v.array(v.string()), []),
-  maxDiscountPercent: v.optional(
-    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
-    0,
-  ),
+  maxDiscountPercent: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)), 0),
   pricePartial: v.optional(v.boolean()),
   colors: v.optional(v.array(v.string()), []),
   sizes: v.optional(v.array(v.string()), []),
   tags: v.optional(v.array(v.string()), []),
   gender: v.optional(v.picklist(['women', 'men', 'kids', 'unisex'])),
-  marketingBadgeKind: v.optional(
-    v.nullable(v.picklist(MARKETING_BADGE_KINDS)),
-    null,
-  ),
-  marketingBadgeStyle: v.optional(
-    v.nullable(v.picklist(MARKETING_BADGE_STYLES)),
-    null,
-  ),
+  marketingBadgeKind: v.optional(v.nullable(v.picklist(MARKETING_BADGE_KINDS)), null),
+  marketingBadgeStyle: v.optional(v.nullable(v.picklist(MARKETING_BADGE_STYLES)), null),
   summary: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(300))), null),
   // Clip instead of reject so a pre-cap Algolia record never drops the whole hit.
   shortDescription: v.optional(
@@ -56,5 +47,7 @@ export const SearchHitSchema = v.object({
   ),
   inStock: v.optional(v.boolean(), true),
   image: v.nullable(SearchHitImageSchema, null),
+  /** Every colour of the model (card colour row); empty until search is rebuilt. */
+  colorSiblings: v.optional(v.fallback(v.array(ColorSiblingSchema), []), []),
   createdAtMs: v.optional(v.number(), 0),
 });

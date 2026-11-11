@@ -1,4 +1,4 @@
-name: Claude Code
+name: Claude Mentions
 
 on:
   issue_comment:
@@ -8,9 +8,14 @@ on:
 
 jobs:
   claude:
+    name: Answer @claude
+    # Only people with a role in the repository (owner, member or collaborator) can start it, so a
+    # stranger's "@claude" never starts a job if the repository is public.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude') &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
     runs-on: ubuntu-latest
     permissions:
       contents: write

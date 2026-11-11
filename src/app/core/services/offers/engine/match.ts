@@ -120,11 +120,7 @@ function evaluateAtom(atom: OfferConditionAtom, facts: ProductFacts): MatchLevel
   }
 }
 
-function matchScalar(
-  value: string,
-  inList: readonly string[],
-  notInList: readonly string[],
-): MatchLevel {
+function matchScalar(value: string, inList: readonly string[], notInList: readonly string[]): MatchLevel {
   if (notInList.length > 0 && notInList.includes(value)) return 'none';
   if (inList.length > 0 && !inList.includes(value)) return 'none';
   return 'full';

@@ -1,14 +1,5 @@
 import { Service } from '@angular/core';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import * as v from 'valibot';
 import { callableFrom, injectFirestore, injectFunctionsAsync } from '@core/firebase';
 import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
@@ -92,9 +83,7 @@ export class OrdersAdminService {
    * Current catalogue stock for the product ids on the loaded orders.
    * Reads live `stock` / `stockBySize` from product docs (not the order pricing snapshot).
    */
-  async loadProductStock(
-    orders: readonly OrderDoc[],
-  ): Promise<ReadonlyMap<string, ProductStockLookup>> {
+  async loadProductStock(orders: readonly OrderDoc[]): Promise<ReadonlyMap<string, ProductStockLookup>> {
     const ids = productIdsFromOrders(orders);
     const byId = new Map<string, ProductStockLookup>();
     if (ids.length === 0) return byId;
@@ -140,10 +129,7 @@ export class OrdersAdminService {
 
   /** Cancel an open cash-on-delivery or InstaPay order that was never paid. */
   async cancelOrder(orderId: string): Promise<CancelOrderResult> {
-    const call = await callableFrom<{ orderId: string }, CancelOrderResult>(
-      this.#functions(),
-      'cancelOrder',
-    );
+    const call = await callableFrom<{ orderId: string }, CancelOrderResult>(this.#functions(), 'cancelOrder');
     const response = await call({ orderId });
     return response.data;
   }

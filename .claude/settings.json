@@ -2,6 +2,20 @@
   "worktree": {
     "baseRef": "head"
   },
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "high"
+    },
+    "claude-haiku-5-5": {
+      "effortLevel": "high"
+    }
+  },
+  "permissions": {
+    "allow": ["Bash", "PowerShell"]
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -12,6 +26,30 @@
             "command": "node",
             "args": ["${CLAUDE_PROJECT_DIR}/scripts/hooks/check-branch-name.mjs"],
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/scripts/hooks/guard-generated-and-deploy.mjs"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/scripts/hooks/format-edited-file.mjs"],
+            "timeout": 30
           }
         ]
       }

@@ -14,10 +14,27 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Atteya" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <script>try{var r=document.documentElement;if(r.hasAttribute("data-currency-ready")){}else{var c="";try{c=(new URLSearchParams(location.search).get("cur")||"").toUpperCase()}catch(e){}var country=r.getAttribute("data-visitor-country")||"";if(c==="EGP"||country==="EG"){}else if(c||country){r.setAttribute("data-cur-pending","")}else{r.setAttribute("data-cur-pending","")}}}catch(e){}</script>
+    <script>
+      try {
+        var r = document.documentElement;
+        if (r.hasAttribute('data-currency-ready')) {
+        } else {
+          var c = '';
+          try {
+            c = (new URLSearchParams(location.search).get('cur') || '').toUpperCase();
+          } catch (e) {}
+          var country = r.getAttribute('data-visitor-country') || '';
+          if (c === 'EGP' || country === 'EG') {
+          } else if (c || country) {
+            r.setAttribute('data-cur-pending', '');
+          } else {
+            r.setAttribute('data-cur-pending', '');
+          }
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <app-root></app-root>
   </body>
 </html>
-

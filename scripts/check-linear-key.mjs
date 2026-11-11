@@ -43,7 +43,9 @@ for (const file of ROOTS.flatMap(listFiles).filter((f) => TEXT_FILE.test(f))) {
 }
 
 if (problems.length) {
-  console.error('Hard-coded Linear issue ids found. Write <KEY>-123 and point at teamKey in linear.config.json:');
+  console.error(
+    'Hard-coded Linear issue ids found. Write <KEY>-123 and point at teamKey in linear.config.json:',
+  );
   problems.forEach((p) => console.error(`   ${p}`));
   process.exit(1);
 }

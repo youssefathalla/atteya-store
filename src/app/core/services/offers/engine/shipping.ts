@@ -68,10 +68,7 @@ export type SelectShippingBoxResult =
 
 const TIE_ORDER: readonly ShippingReason[] = ['promo', 'freeOver', 'offer', 'box'];
 
-export function boxesForRegion(
-  settings: ShippingSettings,
-  region: ShippingRegion,
-): readonly ShippingBox[] {
+export function boxesForRegion(settings: ShippingSettings, region: ShippingRegion): readonly ShippingBox[] {
   return region === 'egypt' ? settings.egyptBoxes : settings.internationalBoxes;
 }
 
@@ -231,15 +228,20 @@ export function shippingQuote(
     candidates.push({ fee: 0, reason: 'freeOver' });
   }
 
-  for (const offer of liveOffers(offers, ctx)) {
+  // Free shipping offers are campaigns for Egypt orders only: shipping abroad costs far more,
+  // so an order shipped outside Egypt always pays its box fee (or the settings rules above).
+  const offersForRegion = input.region === 'egypt' ? liveOffers(offers, ctx) : [];
+  for (const offer of offersForRegion) {
     if (offer.reward.kind !== 'freeShipping') continue;
     if (offer.minimum?.subtotal !== undefined && input.goodsSubtotal < offer.minimum.subtotal) {
       continue;
     }
-    const lines = input.lines ?? [];
-    const qualifies =
-      offer.conditions.anyOf.length === 0 ||
-      lines.some((line) => matchProduct(offer.conditions, offer.exclude, line) !== 'none');
+    // With lines, every line goes through `matchProduct`, so Except rules always apply (an
+    // "all except Brand X" offer never frees a bag of only Brand X). Without lines, only an
+    // offer with no product rules and no Except rules can qualify.
+    const qualifies = input.lines
+      ? input.lines.some((line) => matchProduct(offer.conditions, offer.exclude, line) !== 'none')
+      : offer.conditions.anyOf.length === 0 && offer.exclude.anyOf.length === 0;
     if (qualifies) candidates.push({ fee: 0, reason: 'offer', offerId: offer.id });
   }
 

@@ -1,7 +1,5 @@
-import type {
-  MarketingBadgeKind,
-  MarketingBadgeStyle,
-} from '@core/services/products/marketing-badge';
+import type { MarketingBadgeKind, MarketingBadgeStyle } from '@core/services/products/marketing-badge';
+import type { ProductGenderId } from '@core/services/products/product.model';
 
 export interface ProductCardPrice {
   readonly price: number;
@@ -12,27 +10,13 @@ export interface ProductCardPrice {
   readonly badges: readonly string[];
 }
 
+/** One colour in the card's colour row (always includes the card's own product). */
 export interface ProductCardColorway {
   readonly productId: string;
   readonly slug: string;
   readonly imagePath: string;
   readonly imageAlt: string;
 }
-
-/** Lean sibling shape — JSON-safe for resource TransferState (no Firestore Timestamps). */
-export interface ProductCardSibling {
-  readonly id: string;
-  readonly slug: string;
-  readonly name: string;
-  readonly images: readonly {
-    readonly path: string;
-    readonly alt: string;
-  }[];
-}
-
-export type ProductCardSiblingGroups = Readonly<
-  Record<string, readonly ProductCardSibling[]>
->;
 
 export interface ProductCardMarketingBadge {
   readonly kind: MarketingBadgeKind;
@@ -45,6 +29,10 @@ export interface ProductCardData {
   readonly slug: string;
   readonly name: string;
   readonly shortDescription: string;
+  /** With `categoryId`, gives the second line ("Men – T-shirts & polos"); null = not set. */
+  readonly gender: ProductGenderId | null;
+  /** Main (leaf) category id; null when unknown. */
+  readonly categoryId: string | null;
   readonly imagePath: string | null;
   readonly imageAlt: string;
   readonly marketingBadge: ProductCardMarketingBadge | null;
@@ -52,5 +40,5 @@ export interface ProductCardData {
   readonly price: ProductCardPrice;
 }
 
-/** Max photo thumbs before the trailing +N chip. */
-export const PRODUCT_CARD_COLORWAY_CAP = 6;
+/** Max colour photos under the card photo before the trailing +N chip. */
+export const PRODUCT_CARD_COLORWAY_CAP = 8;

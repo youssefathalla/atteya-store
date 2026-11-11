@@ -2,151 +2,297 @@
   <header
     class="shrink-0 elements-between px-5 pt-safe-top lg:pt-4 pb-4 border-b border-outline-variant bg-surface-container-lowest"
   >
-    <div class="flex items-center gap-2">
-      <mat-icon name="shopping_bag" size="xl" />
-      <h2 class="font-title-md font-bold! tracking-tight">Shopping Bag</h2>
+    <h2 class="font-title-md font-bold! tracking-tight">
+      Your Bag
       @if (count() > 0) {
-        <span class="font-label-sm opacity-70">({{ count() }})</span>
+        <span class="font-label-lg opacity-70">({{ countLabel() }})</span>
       }
-    </div>
+    </h2>
 
-    <button
-      matIconButton
-      type="button"
-      (click)="drawerService.close()"
-      aria-label="Close shopping bag"
-    >
+    <button matIconButton type="button" (click)="drawerService.close()" aria-label="Close shopping bag">
       <mat-icon name="close" />
     </button>
   </header>
 
-  <div class="flex-1 min-h-0 overflow-y-auto p-6">
+  <!-- Only this part scrolls; overscroll-contain keeps the end of the list from scrolling the page. -->
+  <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
     @if (isEmpty()) {
-      <div class="elements-center flex-col text-center h-full">
-        <div
-          class="size-20 rounded-full bg-surface-container-high elements-center mb-4 opacity-70"
-        >
-          <mat-icon name="shopping_cart" size="4xl" />
-        </div>
-
-        <h3 class="font-title-md font-bold! mb-1">Your bag is empty</h3>
+      <div class="elements-center-col text-center h-full p-6">
+        <mat-icon name="shopping_bag" size="4xl" />
+        <h3 class="font-title-md font-bold! mt-4 mb-1">Your bag is empty</h3>
         <p class="font-body-md opacity-80 max-w-60 mb-6">
-          Explore our premium padel rackets, apparel, and gear to get started.
+          Find something you like and it will wait for you here.
         </p>
-
-        <button
-          matButton="filled"
-          type="button"
-          routerLink="/category/rackets"
-          (click)="drawerService.close()"
-        >
-          Explore Rackets
-        </button>
+        <a matButton="filled" routerLink="/shop" (click)="drawerService.close()"> Start Shopping </a>
       </div>
     } @else {
-      <ul class="space-y-4">
-        @for (line of lines(); track $index) {
+      <!-- An offer that stopped applying during this visit: one note each, closed with ✕. -->
+      <app-bag-offer-notes class="px-5" spacing="pt-4" />
+      <ul class="px-5 pt-4 pb-1 border-b border-outline-variant">
+        @for (line of lines(); track lineKey(line)) {
           @let info = productInfo(line.productId);
-          <li class="elements-start gap-3 border-b border-outline-variant pb-4">
+          <li class="bag-card" [class.bag-card--gone]="!info">
             @if (info; as product) {
-              <a
-                class="relative size-20 shrink-0 overflow-hidden bg-surface-container-high no-underline"
-                [routerLink]="['/product', product.slug]"
-                (click)="drawerService.close()"
-                [attr.aria-label]="product.name"
-              >
-                @if (product.imagePath; as path) {
-                  <img
-                    [ngSrc]="imagePath(path)"
-                    [appImageFallback]="path"
-                    [alt]="product.imageAlt || product.name"
-                    fill
-                    sizes="80px"
-                    class="object-contain p-1.5"
-                  />
-                }
-              </a>
-
-              <div class="min-w-0 flex-1 elements-start-col gap-0.5">
+              <div class="bag-card__body">
                 <a
-                  class="font-title-sm font-bold! no-underline line-clamp-2"
+                  class="bag-card__photo no-underline"
                   [routerLink]="['/product', product.slug]"
                   (click)="drawerService.close()"
+                  [attr.aria-label]="product.name"
                 >
-                  {{ product.name }}
-                </a>
-                @if (selectionLabel(line.productId, line.selection); as selection) {
-                  <p class="font-label-sm text-on-surface-variant">{{ selection }}</p>
-                }
-                <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
-                <div class="elements-center flex-wrap gap-1.5 pt-0.5">
-                  <span [class]="linePriceClass(line.productId)">
-                    {{ lineTotalLabel(line.productId, line.quantity) }}
-                  </span>
-                  @if (lineListLabel(line.productId, line.quantity); as listLabel) {
-                    <span class="font-body-sm text-on-surface-variant line-through">
-                      {{ listLabel }}
-                    </span>
+                  @if (product.imagePath; as path) {
+                    <img
+                      [ngSrc]="imagePath(path)"
+                      [appImageFallback]="path"
+                      [alt]="product.imageAlt || product.name"
+                      width="76"
+                      height="92"
+                      class="size-full object-contain p-1.5"
+                    />
                   }
+                </a>
+
+                <div class="min-w-0 flex-1 self-stretch elements-between-col items-stretch! gap-3">
+                  <div class="elements-between items-start! gap-3">
+                    <div class="min-w-0 flex-1">
+                      <!-- The name has the whole row, so it is never cut short by the price or buttons. -->
+                      <a
+                        class="font-title-sm font-bold! no-underline line-clamp-2"
+                        [routerLink]="['/product', product.slug]"
+                        (click)="drawerService.close()"
+                      >
+                        {{ product.name }}
+                      </a>
+                      @if (optionsLine(line.productId, line.selection); as options) {
+                        <!-- One line; a long list ends in an ellipsis and the full text stays in the page for screen readers. -->
+                        <p class="truncate font-label-md text-on-surface-variant" [attr.title]="options">
+                          {{ options }}
+                        </p>
+                      }
+                      @if (earnedLabels()[$index]; as earned) {
+                        <!-- Pays full price because it gets another item free or cheaper (its own offer saves less). -->
+                        <p class="bag-card__earned">{{ earned }}</p>
+                      }
+                    </div>
+                    <button
+                      matIconButton
+                      type="button"
+                      (click)="removeLine($index)"
+                      [attr.aria-label]="'Remove ' + product.name"
+                    >
+                      <mat-icon name="delete" />
+                    </button>
+                  </div>
+
+                  <div class="elements-between items-end!">
+                    <div class="bag-card__stepper">
+                      <button
+                        matIconButton
+                        type="button"
+                        (click)="decreaseQuantity($index)"
+                        [disabled]="line.quantity <= 1"
+                        [attr.aria-label]="'Decrease quantity of ' + product.name"
+                      >
+                        <mat-icon name="remove" />
+                      </button>
+                      <span class="min-w-8 text-center font-label-lg" aria-live="polite">
+                        {{ line.quantity }}
+                      </span>
+                      <button
+                        matIconButton
+                        type="button"
+                        (click)="increaseQuantity($index)"
+                        [disabled]="line.quantity >= 20"
+                        [attr.aria-label]="'Increase quantity of ' + product.name"
+                      >
+                        <mat-icon name="add" />
+                      </button>
+                    </div>
+
+                    @let price = linePrices()[$index];
+                    <div class="shrink-0 elements-end-col gap-0.5 text-end">
+                      @if (price?.was; as was) {
+                        <span class="font-body-sm text-on-surface-variant line-through">{{ was }}</span>
+                      }
+                      <span class="font-title-sm font-bold!">{{ price?.total }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              @for (gift of giftRows(line, $index); track gift.key) {
+                <div class="bag-card__gift">
+                  <span class="bag-card__gift-photo" aria-hidden="true">
+                    @if (gift.imagePath; as giftPath) {
+                      <img
+                        [ngSrc]="imagePath(giftPath)"
+                        [appImageFallback]="giftPath"
+                        alt=""
+                        width="36"
+                        height="42"
+                        class="size-full object-contain"
+                      />
+                    }
+                  </span>
+                  <span class="min-w-0 flex-1">{{ gift.label }}</span>
+                  <span class="shrink-0 font-bold!">Free</span>
+                </div>
+              }
+
+              @for (note of giftNotes(line); track $index) {
+                <p class="gift-note px-4 py-2.5 border-t border-outline-variant">
+                  <mat-icon name="info" size="base" />
+                  <span>{{ note }}</span>
+                </p>
+              }
+
+              @for (nudge of dealHints($index); track nudge.hint.offerId) {
+                @if (nudge.hint.kind === 'add-more') {
+                  <div class="bag-card__strip bag-card__strip--hint">
+                    <span>{{ nudge.text }}</span>
+                    @if (nudge.hint.samePool) {
+                      @if (nudge.action === 'shop') {
+                        <a
+                          matButton="outlined"
+                          routerLink="/shop"
+                          [queryParams]="nudge.shopQuery"
+                          (click)="drawerService.close()"
+                        >
+                          Shop the Offer
+                        </a>
+                      } @else if (nudge.action === 'browse') {
+                        <a matButton="outlined" routerLink="/shop" (click)="drawerService.close()">
+                          Keep Shopping
+                        </a>
+                      } @else {
+                        <button
+                          matButton="outlined"
+                          type="button"
+                          (click)="addMore($index, nudge.hint.missing)"
+                          [attr.aria-label]="'Add ' + nudge.hint.missing + ' more ' + product.name"
+                        >
+                          Add {{ nudge.hint.missing }}
+                        </button>
+                      }
+                    }
+                  </div>
+                } @else {
+                  <div class="bag-card__pick">
+                    <app-bag-free-pick [hint]="nudge.hint" [wouldDiscount]="wouldDiscount()" />
+                  </div>
+                }
+              }
+
+              @for (strip of lineStrips()[$index]; track strip.key) {
+                <div class="bag-card__strip">
+                  <span class="min-w-0 elements-start gap-2">
+                    @if (strip.tag) {
+                      <span class="deal-tag">{{ strip.tag }}</span>
+                    }
+                    <span>{{ strip.title }}</span>
+                  </span>
+                  @if (strip.end) {
+                    <span class="shrink-0 font-bold!">{{ strip.end }}</span>
+                  }
+                </div>
+              }
             } @else {
-              <div class="relative size-20 shrink-0 bg-surface-container-high" aria-hidden="true"></div>
-              <div class="min-w-0 flex-1 elements-start-col gap-0.5">
-                <p class="font-title-sm font-bold!">Item</p>
-                <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
+              <div class="bag-card__body">
+                <div class="bag-card__photo" aria-hidden="true"></div>
+                <div class="min-w-0 flex-1 elements-between items-start! gap-3">
+                  <div class="min-w-0 elements-start-col gap-0.5">
+                    @if (isUnavailable(line.productId)) {
+                      <p class="font-title-sm font-bold! text-on-surface-variant">No longer available</p>
+                      <p class="font-label-md text-on-surface-variant">Please remove it from your bag.</p>
+                    } @else {
+                      <p class="font-title-sm font-bold!">Item</p>
+                      <p class="font-label-md text-on-surface-variant">Qty {{ line.quantity }}</p>
+                    }
+                  </div>
+                  <button matIconButton type="button" (click)="removeLine($index)" aria-label="Remove item">
+                    <mat-icon name="delete" />
+                  </button>
+                </div>
               </div>
             }
-
-            <div class="elements-end gap-1 shrink-0 self-start">
-              <button
-                matIconButton
-                type="button"
-                (click)="decreaseQuantity($index)"
-                [attr.aria-label]="line.quantity === 1 ? 'Remove item' : 'Decrease quantity'"
-              >
-                <mat-icon [name]="line.quantity === 1 ? 'delete' : 'remove'" />
-              </button>
-              <button
-                matIconButton
-                type="button"
-                (click)="increaseQuantity($index)"
-                [disabled]="line.quantity >= 20"
-                aria-label="Increase quantity"
-              >
-                <mat-icon name="add" />
-              </button>
-            </div>
           </li>
         }
       </ul>
+
+      <section
+        class="px-5 py-5 space-y-3 border-b border-outline-variant"
+        aria-labelledby="bag-payment-title"
+      >
+        <h3 id="bag-payment-title" class="font-title-sm font-bold!">Payment Methods</h3>
+        <ul class="bag-pay-list">
+          @for (method of paymentMethods(); track method.id) {
+            <li class="bag-pay-row" [class.bag-pay-row--soon]="method.comingSoon">
+              <span class="bag-pay-row__mark"><app-payment-mark [method]="method.id" /></span>
+              <span class="bag-pay-row__name">{{ method.name }}</span>
+              @if (method.comingSoon) {
+                <span class="shrink-0 font-body-sm text-on-surface-variant">Coming soon</span>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+
+      @if (placement() === 'sheet' && recommendations().length > 0) {
+        <section class="py-5 space-y-3" aria-labelledby="bag-recommended-title">
+          <h3 id="bag-recommended-title" class="px-5 font-title-sm font-bold!">Recommended for You</h3>
+          <!-- The wheel stays on the bag's own scroll; drag, swipe and the arrows move the row. -->
+          <div>
+            <div
+              class="scroll-row px-5 scroll-px-5 [--scroll-cols:2] [--scroll-peek:2.5rem] [--scroll-gap:0.75rem]"
+              appHorizontalScroll
+              #recommendedRow="horizontalScroll"
+              [enableWheel]="false"
+              [trackScroll]="true"
+            >
+              @for (card of recommendations(); track card.id) {
+                <div class="scroll-row-item">
+                  <app-product-card
+                    [product]="card"
+                    sizes="(max-width: 1023px) 45vw, 20vw"
+                    (productOpen)="drawerService.close()"
+                  />
+                </div>
+              }
+            </div>
+
+            @if (recommendedRow.canPrev() || recommendedRow.canNext()) {
+              <app-row-scroll-nav
+                [progress]="recommendedRow.progress()"
+                [canPrev]="recommendedRow.canPrev()"
+                [canNext]="recommendedRow.canNext()"
+                (prev)="recommendedRow.step(-1)"
+                (next)="recommendedRow.step(1)"
+              />
+            }
+          </div>
+        </section>
+      }
     }
   </div>
 
-  <footer
-    class="shrink-0 p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] lg:pb-5 border-t border-outline-variant bg-surface-container-lowest space-y-3"
-  >
-    <div class="elements-between font-label-lg opacity-80">
-      <span>Subtotal</span>
-      <span class="font-title-sm font-bold!">{{ subtotal() }}</span>
-    </div>
+  @if (!isEmpty()) {
+    <footer
+      class="shrink-0 p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] lg:pb-5 border-t border-outline-variant bg-surface-container-lowest space-y-3"
+    >
+      <div class="elements-between">
+        <span class="font-title-sm font-bold!">Subtotal</span>
+        <span class="font-title-sm font-bold!">{{ subtotal() }}</span>
+      </div>
 
-    <p class="font-label-sm opacity-70 text-center">
-      Shipping and your total in your currency are calculated at checkout.
-    </p>
+      <p class="font-label-md opacity-70">Shipping is worked out at checkout.</p>
 
-    <div class="w-full [&>button]:w-full [&>a]:w-full">
-      @if (showCheckout()) {
-        <a
-          matButton="filled"
-          routerLink="/checkout"
-          (click)="drawerService.close()"
-        >
-          Checkout
-        </a>
-      } @else {
-        <button matButton="filled" type="button" disabled>Checkout</button>
-      }
-    </div>
-  </footer>
+      <div class="w-full [&>button]:w-full [&>a]:w-full">
+        @if (showCheckout()) {
+          <a matButton="filled" routerLink="/checkout" (click)="drawerService.close()"> Checkout </a>
+        } @else {
+          <button matButton="filled" type="button" disabled>Checkout</button>
+        }
+      </div>
+    </footer>
+  }
 </div>

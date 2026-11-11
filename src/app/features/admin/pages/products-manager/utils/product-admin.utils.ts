@@ -4,22 +4,10 @@ import {
   SEED_BRANDS,
   SEED_CATEGORIES,
 } from '@core/services/products/catalog-taxonomy';
-import {
-  PRODUCT_BRANDS,
-  PRODUCT_TYPES,
-} from '@core/services/products/product.constants';
-import type {
-  Brand,
-  Category,
-  Product,
-  ProductTypeId,
-} from '@core/services/products/product.model';
+import { PRODUCT_BRANDS, PRODUCT_TYPES } from '@core/services/products/product.constants';
+import type { Brand, Category, Product, ProductTypeId } from '@core/services/products/product.model';
 import { normalizeImageKitPath } from '@shared/utils/image';
-import type {
-  BrandOptionView,
-  CategoryOptionView,
-  ProductTableRow,
-} from '../models/product-admin.model';
+import type { BrandOptionView, CategoryOptionView, ProductTableRow } from '../models/product-admin.model';
 
 const TYPE_LABELS = new Map(PRODUCT_TYPES.map((type) => [type.id, type.label]));
 const SEED_BRAND_LABELS = new Map<string, string>([
@@ -46,13 +34,9 @@ export function categoryLabel(id: string, categories?: ReadonlyMap<string, strin
   return categories?.get(id) ?? SEED_CATEGORY_LABELS.get(id) ?? id;
 }
 
-export function buildLeafCategoryOptions(
-  categories: readonly Category[],
-): readonly CategoryOptionView[] {
+export function buildLeafCategoryOptions(categories: readonly Category[]): readonly CategoryOptionView[] {
   const source = categories.length > 0 ? categories : SEED_CATEGORIES;
-  const parentIds = new Set(
-    source.flatMap((cat) => (cat.parentId ? [cat.parentId] : [])),
-  );
+  const parentIds = new Set(source.flatMap((cat) => (cat.parentId ? [cat.parentId] : [])));
   const byId = new Map(source.map((cat) => [cat.id, cat]));
   const leaves = source.filter((cat) => cat.depth === 1 || !parentIds.has(cat.id));
 
@@ -97,8 +81,7 @@ export function toProductTableRow(
     imagePath: path ? normalizeImageKitPath(path) : null,
     status: product.published ? 'live' : 'hidden',
     stock: typeof product.stock === 'number' ? product.stock : null,
-    stockStatus:
-      typeof product.stock !== 'number' ? 'unset' : product.stock > 0 ? 'in' : 'out',
+    stockStatus: typeof product.stock !== 'number' ? 'unset' : product.stock > 0 ? 'in' : 'out',
   };
 }
 

@@ -8,9 +8,7 @@ import { useBreakpoint } from './breakpoint.utils';
  *
  * @param breakpoint - The min-width breakpoint (pixel number or media query string). Defaults to `800`.
  */
-export function useStepperOrientation(
-  breakpoint: number | string = 800,
-): Signal<StepperOrientation> {
+export function useStepperOrientation(breakpoint: number | string = 800): Signal<StepperOrientation> {
   const isWide = useBreakpoint(breakpoint, true);
   return computed<StepperOrientation>(() => (isWide() ? 'horizontal' : 'vertical'));
 }

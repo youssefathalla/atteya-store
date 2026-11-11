@@ -1,13 +1,7 @@
-import {
-  Component,
-  computed,
-  inject,
-  input,
-  output,
-  PLATFORM_ID,
-} from '@angular/core';
+import { Component, computed, inject, input, output, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
@@ -25,6 +19,7 @@ import { MatAnchor, MatButtonModule } from '@angular/material/button';
   styleUrl: './hero-section.component.scss',
   imports: [
     RouterLink,
+    LinkTargetPipe,
     NgOptimizedImage,
     AppImageFallbackDirective,
     SkeletonComponent,

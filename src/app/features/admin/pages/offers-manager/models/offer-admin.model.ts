@@ -1,10 +1,16 @@
 import {
+  DEFAULT_OFFER_BANNER,
   describeOfferReward,
   formatCairoDisplay,
   matchProduct,
   type Offer,
+  type OfferConditionAtom,
   type OfferConditionField,
+  type OfferConditionGroup,
+  type OfferConditions,
   type OfferDraft,
+  type OfferReward,
+  type OfferScope,
   type PricedProduct,
 } from '@core/services/offers/engine';
 
@@ -62,11 +68,133 @@ export const REWARD_PICKER_OPTIONS: readonly RewardPickerOption[] = [
   { id: 'amountOff', label: 'Amount off' },
   { id: 'fixedPrice', label: 'Set price' },
   { id: 'buyXGetY', label: 'Buy X get Y' },
-  { id: 'tiered', label: 'Buy more, save more' },
   { id: 'freeGift', label: 'Free gift' },
   { id: 'freeShipping', label: 'Free shipping' },
-  { id: 'cartThreshold', label: 'Spend X, get…' },
 ];
+
+/**
+ * Deal types kept in the engine but hidden from the Deal type list for launch ("Buy more, save
+ * more" and "Spend X, get…" don't take the promised money off yet, ATS-135). An old offer of one of
+ * these still opens, but it can't be saved.
+ */
+const HIDDEN_REWARD_KINDS: readonly RewardPickerKind[] = ['tiered', 'cartThreshold'];
+
+export const UNAVAILABLE_DEAL_MESSAGE = "This deal type isn't available yet. Pause or archive this offer.";
+
+/** The Deal type the form shows for a reward (a cart-wide percent or amount off is "Spend X, get…"). */
+export function rewardPickerKind(reward: OfferReward, scope: OfferScope): RewardPickerKind {
+  if (scope === 'cart' && (reward.kind === 'percentOff' || reward.kind === 'amountOff')) {
+    return 'cartThreshold';
+  }
+  return reward.kind;
+}
+
+/** True when the offer's deal type is hidden for launch, so the form must not save it. */
+export function isUnavailableDeal(reward: OfferReward, scope: OfferScope): boolean {
+  return HIDDEN_REWARD_KINDS.includes(rewardPickerKind(reward, scope));
+}
+
+/** Which item becomes free in a Buy X get Y offer. */
+export type FreeItemMode = 'cheapest' | 'products' | 'categoryBrand';
+
+export interface FreeItemOption {
+  readonly id: FreeItemMode;
+  readonly label: string;
+}
+
+export const FREE_ITEM_OPTIONS: readonly FreeItemOption[] = [
+  { id: 'cheapest', label: 'The cheapest of them' },
+  { id: 'products', label: 'One of these products' },
+  { id: 'categoryBrand', label: 'Any item from a category or brand' },
+];
+
+/** The most values one free-item choice can hold (same cap as every condition rule). */
+export const MAX_FREE_ITEM_VALUES = 200;
+
+export interface FreeItemSelection {
+  readonly productIds: readonly string[];
+  readonly categoryIds: readonly string[];
+  readonly brandIds: readonly string[];
+}
+
+type BuyXGetYReward = Extract<OfferReward, { kind: 'buyXGetY' }>;
+
+function setAtoms(conditions: OfferConditions | null): readonly OfferConditionAtom[] {
+  return conditions?.anyOf.flatMap((group) => group.allOf) ?? [];
+}
+
+function valuesOf(atoms: readonly OfferConditionAtom[], field: OfferConditionField): string[] {
+  const values: string[] = [];
+  for (const atom of atoms) {
+    if (atom.field === field && atom.field !== 'price') values.push(...(atom.in ?? []));
+  }
+  return values;
+}
+
+/** Reads the saved free-item choice back into the mode and picked values. */
+export function readFreeItem(reward: BuyXGetYReward): {
+  readonly mode: FreeItemMode;
+  readonly selection: FreeItemSelection;
+} {
+  const atoms = setAtoms(reward.getConditions);
+  const mode: FreeItemMode = !reward.getConditions
+    ? 'cheapest'
+    : atoms.some((atom) => atom.field === 'productId')
+      ? 'products'
+      : 'categoryBrand';
+  return {
+    mode,
+    selection: {
+      productIds: valuesOf(atoms, 'productId'),
+      categoryIds: valuesOf(atoms, 'categoryIds'),
+      brandIds: valuesOf(atoms, 'brandId'),
+    },
+  };
+}
+
+/**
+ * Builds the reward for a free-item choice. Picking a mode with nothing chosen yet keeps an
+ * empty rule, so the editor remembers the mode; validation stops the save until values are
+ * picked, and `withoutEmptyFreeItemRules` cleans up before it is written.
+ */
+export function withFreeItem(
+  reward: BuyXGetYReward,
+  mode: FreeItemMode,
+  selection: FreeItemSelection,
+): BuyXGetYReward {
+  let getConditions: OfferConditions | null = null;
+  if (mode === 'products') {
+    getConditions = { anyOf: [{ allOf: [{ field: 'productId', in: selection.productIds }] }] };
+  } else if (mode === 'categoryBrand') {
+    getConditions = {
+      anyOf: [
+        { allOf: [{ field: 'categoryIds', in: selection.categoryIds }] },
+        { allOf: [{ field: 'brandId', in: selection.brandIds }] },
+      ],
+    };
+  }
+  return { ...reward, getConditions, cheapestFree: true };
+}
+
+/** Drops free-item rules with nothing picked, so the saved offer never holds an empty rule. */
+export function withoutEmptyFreeItemRules(draft: OfferDraft): OfferDraft {
+  const r = draft.reward;
+  if (r.kind !== 'buyXGetY' || !r.getConditions) return draft;
+  const anyOf = r.getConditions.anyOf.filter((group: OfferConditionGroup) =>
+    group.allOf.some((atom) => atom.field === 'price' || (atom.in?.length ?? 0) > 0),
+  );
+  return { ...draft, reward: { ...r, getConditions: { anyOf } } };
+}
+
+/**
+ * The form only offers "Best discount wins" and "Skip products already on sale". An old offer saved
+ * with "Apply on top of sale price" (`stack`) is read and saved as `bestOf`.
+ */
+export function withoutStackSaleItems<T extends { readonly saleItems: OfferDraft['saleItems'] }>(
+  draft: T,
+): T {
+  return draft.saleItems === 'stack' ? { ...draft, saleItems: 'bestOf' } : draft;
+}
 
 export function createEmptyOfferDraft(): OfferDraft {
   return {
@@ -94,6 +222,7 @@ export function createEmptyOfferDraft(): OfferDraft {
     limits: { totalUses: null, perCustomer: null },
     requiresCode: false,
     code: null,
+    banner: DEFAULT_OFFER_BANNER,
   };
 }
 
@@ -110,11 +239,7 @@ export function computeOfferStatus(offer: Offer, now: Date): OfferComputedStatus
   return 'live';
 }
 
-export function toOfferTableRow(
-  offer: Offer,
-  products: readonly PricedProduct[],
-  now: Date,
-): OfferTableRow {
+export function toOfferTableRow(offer: Offer, products: readonly PricedProduct[], now: Date): OfferTableRow {
   const status = computeOfferStatus(offer, now);
   let fullCount = 0;
   let partialCount = 0;

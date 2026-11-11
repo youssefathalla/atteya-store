@@ -20,11 +20,7 @@ export interface OrderPricingSnapshot {
   readonly shipping: OrderShippingLine | null;
   readonly totalDisplay: number;
   readonly totalEgp?: number;
-  readonly fulfilment:
-    | 'domestic-cod'
-    | 'domestic-instapay'
-    | 'domestic-paymob'
-    | 'international-paymob';
+  readonly fulfilment: 'domestic-cod' | 'domestic-instapay' | 'domestic-paymob' | 'international-paymob';
 }
 
 export interface OrderLinePrice {
@@ -39,6 +35,34 @@ export interface OrderLinePrice {
   readonly name?: string;
   readonly optionLabels?: readonly { readonly label: string; readonly value: string }[];
   readonly imagePath?: string | null;
+  /** Set on a free gift line (price 0). Gift lines follow the line they came with. */
+  readonly gift?: OrderLineGift;
+  /** Whole EGP a Buy X Get Y offer took off the line (`lineDisplay` is already after it). */
+  readonly discountEgp?: number;
+  /** The Buy X Get Y offers behind `discountEgp`. */
+  readonly deals?: readonly OrderLineDeal[];
+  /**
+   * The line before its Buy X Get Y discount (pieces in a group pay the price before per-item
+   * offers, so it can differ from `unitEgp × quantity`). Missing on older orders and other lines.
+   */
+  readonly fullEgp?: number;
+}
+
+/** One Buy X Get Y discount on an order line, e.g. 1 piece free (`percent` 100). */
+export interface OrderLineDeal {
+  readonly offerId: string;
+  readonly units: number;
+  readonly percent: number;
+  readonly discountEgp: number;
+}
+
+/** Marks an order line as a free gift of an offer, given with the line at index `forLine`. */
+export interface OrderLineGift {
+  readonly offerId: string;
+  readonly giftId: string;
+  /** The gift's name as shoppers saw it, e.g. "Free shirt". */
+  readonly giftName: string;
+  readonly forLine: number;
 }
 
 export interface OrderShippingLine {

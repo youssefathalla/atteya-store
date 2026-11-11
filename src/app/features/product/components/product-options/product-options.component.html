@@ -1,56 +1,115 @@
 @if (product().options.length > 0) {
-  <div class="w-full elements-start-col gap-4">
+  <div class="w-full elements-start-col gap-5">
     @for (option of product().options; track option.key) {
-      <fieldset class="w-full elements-start-col gap-2 border-0 p-0 m-0">
-        <legend class="font-label-lg pb-1">{{ option.label }}</legend>
-        <div class="flex flex-wrap items-center gap-2">
-          @for (value of option.values; track value.id) {
-            @let selected = isSelected(option.key, value.id);
-            @let avail = available(option.key, value.id);
+      @let promptHere = prompt()?.key === option.key;
+      @let messageId = 'pdp-choice-msg-' + option.key;
 
-            @if (hasColourSwatch(option.key, value)) {
-              <button
-                type="button"
-                class="relative size-9 rounded-full p-0.5 border-2 transition-colors cursor-pointer disabled:cursor-not-allowed"
-                [title]="value.label"
-                [class.border-primary]="selected"
-                [class.border-transparent]="!selected"
-                [class.line-through]="!avail"
-                [class.opacity-40]="!avail"
-                [disabled]="isDisabled(option.key, value.id)"
-                [attr.aria-pressed]="selected"
-                [attr.aria-label]="optionAriaLabel(option.key, value)"
-                (click)="pick(option.key, value.id)"
-              >
-                <app-color-swatch
-                  class="size-full"
-                  round
-                  [colorId]="value.color ?? null"
-                  [swatch]="value.swatch ?? null"
-                />
-              </button>
-            } @else {
-              <button
-                type="button"
-                class="min-h-10 min-w-11 px-3 py-2 border-shape border font-label-lg transition-colors cursor-pointer disabled:cursor-not-allowed enabled:hover:border-primary"
-                [class.bg-primary]="selected"
-                [class.text-on-primary]="selected"
-                [class.border-primary]="selected"
-                [class.bg-surface]="!selected"
-                [class.border-outline-variant]="!selected"
-                [class.line-through]="!avail"
-                [class.opacity-40]="!avail"
-                [disabled]="isDisabled(option.key, value.id)"
-                [attr.aria-pressed]="selected"
-                [attr.aria-label]="optionAriaLabel(option.key, value)"
-                (click)="pick(option.key, value.id)"
-              >
-                {{ value.label }}
-              </button>
-            }
+      @if (option.key === 'size') {
+        <div class="w-full elements-start-col gap-2" [attr.data-option]="option.key">
+          <button
+            #sizeToggle
+            type="button"
+            class="pdp-size-toggle"
+            aria-controls="pdp-size-panel"
+            [attr.aria-expanded]="sizeOpen()"
+            [attr.aria-invalid]="promptHere ? 'true' : null"
+            [attr.aria-describedby]="promptHere ? messageId : null"
+            [disabled]="disabled()"
+            (click)="toggleSize()"
+          >
+            <span>{{ sizeButtonLabel(option) }}</span>
+            <span
+              class="elements-center transition-transform"
+              aria-hidden="true"
+              [class.rotate-90]="!sizeOpen()"
+              [class.-rotate-90]="sizeOpen()"
+            >
+              <mat-icon name="chevron_right" />
+            </span>
+          </button>
+
+          @if (sizeOpen()) {
+            <fieldset id="pdp-size-panel" class="w-full border-0 p-0 m-0">
+              <legend class="sr-only">{{ option.label }}</legend>
+              <div class="grid w-full grid-cols-3 gap-2">
+                @for (value of option.values; track value.id) {
+                  <button
+                    type="button"
+                    data-choice
+                    class="pdp-choice"
+                    [class.pdp-choice--sold-out]="!available(option.key, value.id)"
+                    [disabled]="isDisabled(option.key, value.id)"
+                    [attr.aria-pressed]="isSelected(option.key, value.id)"
+                    [attr.aria-label]="optionAriaLabel(option.key, value)"
+                    (click)="pick(option.key, value.id)"
+                  >
+                    {{ value.label }}
+                  </button>
+                }
+              </div>
+            </fieldset>
+          }
+
+          @if (promptHere) {
+            <p [id]="messageId" class="font-body-sm text-error" role="alert">{{ prompt()!.message }}</p>
           }
         </div>
-      </fieldset>
+      } @else {
+        <fieldset
+          class="w-full elements-start-col gap-2 border-0 p-0 m-0"
+          [attr.data-option]="option.key"
+          [attr.aria-describedby]="promptHere ? messageId : null"
+        >
+          <legend class="font-label-lg pb-1">
+            {{ groupLabel(option) }}
+          </legend>
+          <div class="flex flex-wrap items-center gap-2">
+            @for (value of option.values; track value.id) {
+              @let selected = isSelected(option.key, value.id);
+              @let avail = available(option.key, value.id);
+
+              @if (hasColourSwatch(option.key, value)) {
+                <button
+                  type="button"
+                  data-choice
+                  class="relative size-9 rounded-full p-0.5 border-2 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  [title]="value.label"
+                  [class.border-primary]="selected"
+                  [class.border-transparent]="!selected"
+                  [class.opacity-40]="!avail"
+                  [disabled]="isDisabled(option.key, value.id)"
+                  [attr.aria-pressed]="selected"
+                  [attr.aria-label]="optionAriaLabel(option.key, value)"
+                  (click)="pick(option.key, value.id)"
+                >
+                  <app-color-swatch
+                    class="size-full"
+                    round
+                    [colorId]="value.color ?? null"
+                    [swatch]="value.swatch ?? null"
+                  />
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  data-choice
+                  class="pdp-choice min-w-12"
+                  [class.pdp-choice--sold-out]="!avail"
+                  [disabled]="isDisabled(option.key, value.id)"
+                  [attr.aria-pressed]="selected"
+                  [attr.aria-label]="optionAriaLabel(option.key, value)"
+                  (click)="pick(option.key, value.id)"
+                >
+                  {{ value.label }}
+                </button>
+              }
+            }
+          </div>
+          @if (promptHere) {
+            <p [id]="messageId" class="font-body-sm text-error" role="alert">{{ prompt()!.message }}</p>
+          }
+        </fieldset>
+      }
     }
   </div>
 }

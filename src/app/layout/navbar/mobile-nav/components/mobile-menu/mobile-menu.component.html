@@ -24,11 +24,7 @@
         class="elements-between px-5 pt-safe-top pb-3 border-b border-outline-variant bg-surface-container-lowest"
       >
         <div class="flex items-center gap-2">
-          <span
-            class="font-display-sm font-bold! tracking-widest uppercase"
-          >
-            ATTEYA.
-          </span>
+          <span class="font-display-sm font-bold! tracking-widest uppercase"> ATTEYA. </span>
         </div>
       </div>
 
@@ -68,7 +64,7 @@
             } @else {
               <!-- Direct Route Link -->
               <a
-                [routerLink]="category.path"
+                [routerLink]="category.path | linkTarget"
                 (click)="closeMenu()"
                 class="w-full elements-between px-3 py-3 border-shape hover:bg-surface-container-high transition-colors"
               >
@@ -93,9 +89,7 @@
             >
               <div class="flex items-center gap-2.5">
                 <mat-icon name="science" size="sm" />
-                <span class="font-title-sm font-bold! uppercase tracking-wider"
-                  >Dev Playground</span
-                >
+                <span class="font-title-sm font-bold! uppercase tracking-wider">Dev Playground</span>
               </div>
               <span
                 class="font-label-sm bg-primary-container text-on-primary-container px-2 py-0.5 border-shape font-bold!"
@@ -133,16 +127,14 @@
         </div>
 
         <!-- Current Category Title & View All -->
-        <div
-          class="px-5 py-3 border-b border-outline-variant bg-surface-container-low elements-between"
-        >
+        <div class="px-5 py-3 border-b border-outline-variant bg-surface-container-low elements-between">
           <h2 class="font-title-md font-bold! tracking-wide uppercase">
             {{ cat.label }}
           </h2>
 
           @if (cat.path) {
             <a
-              [routerLink]="cat.path"
+              [routerLink]="cat.path | linkTarget"
               (click)="closeMenu()"
               class="font-label-sm font-bold! uppercase underline underline-offset-4"
             >
@@ -157,9 +149,7 @@
             @for (col of cat.megaMenu; track col.title || $index) {
               <div class="space-y-2">
                 @if (col.title) {
-                  <div
-                    class="font-label-sm font-bold! opacity-70 uppercase tracking-widest px-2"
-                  >
+                  <div class="font-label-sm font-bold! opacity-70 uppercase tracking-widest px-2">
                     {{ col.title }}
                   </div>
                 }
@@ -167,7 +157,7 @@
                 <div class="space-y-1">
                   @for (link of col.links; track link.label) {
                     <a
-                      [routerLink]="link.path"
+                      [routerLink]="link.path | linkTarget"
                       (click)="closeMenu()"
                       class="elements-between px-3 py-2 border-shape hover:bg-surface-container-high transition-colors font-body-md"
                     >

@@ -1,9 +1,7 @@
 <section class="w-full elements-start-col gap-6" aria-label="Favorites">
   <header class="w-full elements-start-col gap-1 border-b border-outline-variant pb-6">
     <h1 class="font-headline-md font-bold! uppercase tracking-tight">Favorites</h1>
-    <p class="font-body-md text-on-surface-variant">
-      Products you saved with the heart on a product card.
-    </p>
+    <p class="font-body-md text-on-surface-variant">Products you saved with the heart on a product card.</p>
   </header>
 
   @if (productsResource.error()) {
@@ -15,10 +13,7 @@
       </button>
     </div>
   } @else if (showLoading()) {
-    <div
-      class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full"
-      aria-label="Loading favorites"
-    >
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full" aria-label="Loading favorites">
       @for (slot of skeletonSlots; track slot) {
         <div class="elements-start-col gap-2">
           <app-skeleton class="aspect-4/5 w-full" />
@@ -33,9 +28,7 @@
     <div class="surface-card p-8 w-full elements-center-col gap-3 text-center">
       <mat-icon name="favorite" />
       <p class="font-title-md font-bold!">No favorites yet</p>
-      <p class="font-body-md text-on-surface-variant">
-        Tap the heart on a product to save it here.
-      </p>
+      <p class="font-body-md text-on-surface-variant">Tap the heart on a product to save it here.</p>
       <a matButton="filled" routerLink="/category/all">
         <span>Browse Products</span>
       </a>

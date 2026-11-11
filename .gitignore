@@ -62,3 +62,6 @@ ui-debug.log
 
 # Agent worktrees (see the branch-naming skill)
 .claude/worktrees/
+
+# Browser check output (scripts/browser-check.mjs)
+/browser-check/

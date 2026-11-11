@@ -13,9 +13,7 @@
   </div>
 
   @if (conditions().anyOf.length === 0) {
-    <p class="font-body-sm text-on-surface-variant">
-      No rules added here.
-    </p>
+    <p class="font-body-sm text-on-surface-variant">No rules added here.</p>
   }
 
   @for (group of conditions().anyOf; track $index; let gIdx = $index) {
@@ -38,11 +36,10 @@
             <select
               class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm"
               aria-label="Condition field"
-              [value]="atom.field"
               (change)="onFieldChange(gIdx, aIdx, $event)"
             >
               @for (f of fieldOptions; track f.id) {
-                <option [value]="f.id">{{ f.label }}</option>
+                <option [value]="f.id" [selected]="f.id === atom.field">{{ f.label }}</option>
               }
             </select>
 
@@ -50,11 +47,10 @@
               <select
                 class="border-shape border border-outline bg-surface px-3 py-1.5 font-body-sm"
                 aria-label="Condition operator"
-                [value]="atomMode(atom)"
                 (change)="onModeChange(gIdx, aIdx, atom, $event)"
               >
-                <option value="in">is one of</option>
-                <option value="notIn">is not one of</option>
+                <option value="in" [selected]="atomMode(atom) === 'in'">is one of</option>
+                <option value="notIn" [selected]="atomMode(atom) === 'notIn'">is not one of</option>
               </select>
             }
 
@@ -91,19 +87,12 @@
               @for (choice of choicesForField(atom.field); track choice.id) {
                 <button
                   type="button"
-                  class="border-shape border px-2.5 py-1 elements-center gap-1.5 font-label-sm cursor-pointer"
-                  [class.border-primary]="hasValue(atom, choice.id)"
-                  [class.bg-surface-container-highest]="hasValue(atom, choice.id)"
-                  [class.border-outline-variant]="!hasValue(atom, choice.id)"
+                  class="toggle-pill"
                   [attr.aria-pressed]="hasValue(atom, choice.id)"
                   (click)="toggleValue(gIdx, aIdx, atom, choice.id)"
                 >
                   @if (choice.swatch || choice.id === 'multi') {
-                    <app-color-swatch
-                      class="size-3"
-                      [colorId]="choice.id"
-                      [swatch]="choice.swatch ?? null"
-                    />
+                    <app-color-swatch class="size-3" [colorId]="choice.id" [swatch]="choice.swatch ?? null" />
                   }
                   <span>{{ choice.label }}</span>
                 </button>

@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '@core/services/auth/auth.service';
 import { displayPrice } from '@core/services/offers/engine';
@@ -31,7 +32,14 @@ const PAGE_SIZE = 48;
 
 @Component({
   selector: 'app-category',
-  imports: [RouterLink, MatButtonModule, SharedIconModule, CatalogProductGridComponent, LoaderComponent],
+  imports: [
+    RouterLink,
+    LinkTargetPipe,
+    MatButtonModule,
+    SharedIconModule,
+    CatalogProductGridComponent,
+    LoaderComponent,
+  ],
   templateUrl: './category.component.html',
   host: {
     class: 'block w-full min-h-[60vh] container-content',
@@ -74,9 +82,7 @@ export class CategoryComponent {
     });
   }
 
-  readonly isBrandRoute = computed(
-    () => this.isBrand() || this.#router.url.startsWith('/brand/'),
-  );
+  readonly isBrandRoute = computed(() => this.isBrand() || this.#router.url.startsWith('/brand/'));
 
   readonly matchedBrand = computed(() => {
     if (!this.isBrandRoute()) return null;

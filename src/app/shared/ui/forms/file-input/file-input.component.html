@@ -21,29 +21,16 @@
     @if (hasFile()) {
       <!-- PREVIEW STATE -->
       @if (isImage()) {
-        <div
-          class="relative size-24 border-shape overflow-hidden border border-outline-variant shadow-mat-1"
-        >
-          <img
-            [ngSrc]="previewUrl() || ''"
-            class="object-cover"
-            [alt]="label() || 'File preview'"
-            fill
-          />
+        <div class="relative size-24 border-shape overflow-hidden border border-outline-variant shadow-mat-1">
+          <img [ngSrc]="previewUrl() || ''" class="object-cover" [alt]="label() || 'File preview'" fill />
         </div>
       } @else {
         <div class="flex items-center gap-2">
           <mat-icon name="description" size="2xl" iconColor="primary" />
-          <span class="font-body-sm truncate max-w-50">{{
-            fileName() || 'File selected'
-          }}</span>
+          <span class="font-body-sm truncate max-w-50">{{ fileName() || 'File selected' }}</span>
         </div>
       }
-      <button
-        matButton="outlined"
-        type="button"
-        (click)="triggerUpload()"
-      >
+      <button matButton="outlined" type="button" (click)="triggerUpload()">
         <span class="flex items-center gap-2">
           <mat-icon name="edit" />
           <span>Change File</span>
@@ -51,11 +38,7 @@
       </button>
     } @else {
       <!-- EMPTY STATE: Centered normal button with label and max size -->
-      <button
-        matButton="outlined"
-        type="button"
-        (click)="triggerUpload()"
-      >
+      <button matButton="outlined" type="button" (click)="triggerUpload()">
         <span class="flex items-center gap-2">
           <mat-icon name="upload_file" />
           <span>Choose File</span>

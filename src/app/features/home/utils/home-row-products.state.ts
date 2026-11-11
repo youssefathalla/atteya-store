@@ -2,7 +2,7 @@ import { makeStateKey, type TransferState } from '@angular/core';
 import { Timestamp } from 'firebase/firestore';
 import type { MarketingBadge } from '@core/services/products/marketing-badge';
 import type { Product, ProductImage } from '@core/services/products/product.model';
-import type { ProductTypeId } from '@core/services/products/product.model';
+import type { ProductGenderId, ProductTypeId } from '@core/services/products/product.model';
 import type { ColorId } from '@core/services/products/catalog-taxonomy';
 import { timestampToMs } from '@core/services/products/utils/new-arrival';
 
@@ -18,6 +18,8 @@ export interface HomeRowProductSeed {
   readonly type: ProductTypeId;
   readonly brandId: string;
   readonly modelGroup: string | null;
+  readonly gender: ProductGenderId | null;
+  readonly colorSiblings: Product['colorSiblings'];
   readonly price: number;
   readonly compareAtPrice: number | null;
   readonly images: readonly ProductImage[];
@@ -31,9 +33,7 @@ export interface HomeRowProductSeed {
   readonly updatedAtMs: number;
 }
 
-export const HOME_PADEL_ROW_KEY = makeStateKey<readonly HomeRowProductSeed[] | null>(
-  'home-padel-row',
-);
+export const HOME_PADEL_ROW_KEY = makeStateKey<readonly HomeRowProductSeed[] | null>('home-padel-row');
 export const HOME_NEW_ARRIVALS_ROW_KEY = makeStateKey<readonly HomeRowProductSeed[] | null>(
   'home-new-arrivals-row',
 );
@@ -50,6 +50,8 @@ export function toHomeRowProductSeed(product: Product): HomeRowProductSeed {
     type: product.type,
     brandId: product.brandId,
     modelGroup: product.modelGroup,
+    gender: product.gender ?? null,
+    colorSiblings: product.colorSiblings.map((sibling) => ({ ...sibling })),
     price: product.price,
     compareAtPrice: product.compareAtPrice,
     images: product.images.map((image) => ({ ...image })),
@@ -74,12 +76,15 @@ export function fromHomeRowProductSeed(seed: HomeRowProductSeed): Product {
     name: seed.name,
     summary: seed.summary,
     descriptionHtml: seed.descriptionHtml,
+    details: [],
     detailImages: [],
     categoryId: seed.categoryId,
     categoryIds: [...seed.categoryIds],
     type: seed.type,
     brandId: seed.brandId,
     modelGroup: seed.modelGroup,
+    ...(seed.gender ? { gender: seed.gender } : {}),
+    colorSiblings: (seed.colorSiblings ?? []).map((sibling) => ({ ...sibling })),
     currency: 'EGP',
     price: seed.price,
     compareAtPrice: seed.compareAtPrice,
@@ -90,9 +95,10 @@ export function fromHomeRowProductSeed(seed: HomeRowProductSeed): Product {
     })),
     colors: [...seed.colors],
     tags: [...seed.tags],
+    // Home cards never show players; the product page reads its own doc.
+    players: [],
     marketingBadge: seed.marketingBadge ? { ...seed.marketingBadge } : null,
-    newArrivalUntil:
-      seed.newArrivalUntilMs != null ? Timestamp.fromMillis(seed.newArrivalUntilMs) : null,
+    newArrivalUntil: seed.newArrivalUntilMs != null ? Timestamp.fromMillis(seed.newArrivalUntilMs) : null,
     variants: [],
     published: seed.published,
     searchTokens: [],
@@ -124,8 +130,5 @@ export function putHomeRowSeed(
   isBrowser: boolean,
 ): void {
   if (isBrowser) return;
-  transfer.set(
-    key,
-    products.map(toHomeRowProductSeed),
-  );
+  transfer.set(key, products.map(toHomeRowProductSeed));
 }

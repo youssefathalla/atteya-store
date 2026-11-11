@@ -1,5 +1,7 @@
+import { MAX_GIFT_CHOICES, MAX_OFFER_GIFTS, parseOfferBanner } from './engine/index.js';
 import type {
   Offer,
+  OfferGift,
   OfferAudience,
   OfferConditionAtom,
   OfferConditionField,
@@ -55,9 +57,7 @@ export function parseOfferDoc(
       : 0;
   const stacking: OfferStacking = data['stacking'] === 'exclusive' ? 'exclusive' : 'stackable';
   const saleItems: OfferSaleItemsPolicy =
-    data['saleItems'] === 'exclude' || data['saleItems'] === 'stack'
-      ? data['saleItems']
-      : 'bestOf';
+    data['saleItems'] === 'exclude' || data['saleItems'] === 'stack' ? data['saleItems'] : 'bestOf';
   const scope: OfferScope = data['scope'] === 'cart' ? 'cart' : 'item';
 
   const conditions = parseConditions(data['conditions']);
@@ -66,6 +66,7 @@ export function parseOfferDoc(
   const limits = parseLimits(data['limits']);
   const requiresCode = data['requiresCode'] === true || visibility === 'code';
   const updatedAtMs = readTimestampMs(data['updatedAt']);
+  const banner = parseOfferBanner(data['banner']);
 
   return {
     id,
@@ -90,6 +91,7 @@ export function parseOfferDoc(
     requiresCode,
     code: code ?? null,
     updatedAtMs,
+    banner,
   };
 }
 
@@ -137,13 +139,9 @@ function parseAtom(raw: unknown): OfferConditionAtom | null {
 
   if (field === 'price') {
     const min =
-      typeof obj['min'] === 'number' && Number.isFinite(obj['min'])
-        ? Math.round(obj['min'])
-        : undefined;
+      typeof obj['min'] === 'number' && Number.isFinite(obj['min']) ? Math.round(obj['min']) : undefined;
     const max =
-      typeof obj['max'] === 'number' && Number.isFinite(obj['max'])
-        ? Math.round(obj['max'])
-        : undefined;
+      typeof obj['max'] === 'number' && Number.isFinite(obj['max']) ? Math.round(obj['max']) : undefined;
     return { field: 'price', ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) };
   }
 
@@ -237,13 +235,9 @@ function parseReward(raw: unknown): OfferReward | null {
     }
     case 'buyXGetY': {
       const buyObj =
-        typeof obj['buy'] === 'object' && obj['buy'] !== null
-          ? (obj['buy'] as Record<string, unknown>)
-          : {};
+        typeof obj['buy'] === 'object' && obj['buy'] !== null ? (obj['buy'] as Record<string, unknown>) : {};
       const getObj =
-        typeof obj['get'] === 'object' && obj['get'] !== null
-          ? (obj['get'] as Record<string, unknown>)
-          : {};
+        typeof obj['get'] === 'object' && obj['get'] !== null ? (obj['get'] as Record<string, unknown>) : {};
       const buyQty = readNumber(buyObj['quantity']) ?? 1;
       const getQty = readNumber(getObj['quantity']) ?? 1;
       const getPercent = readNumber(getObj['percent']) ?? 100;
@@ -258,20 +252,46 @@ function parseReward(raw: unknown): OfferReward | null {
         maxApplications: readNumber(obj['maxApplications']),
       };
     }
-    case 'freeGift': {
-      const giftProductId = readString(obj['giftProductId']);
-      return {
-        kind: 'freeGift',
-        giftProductId,
-        giftVariantId: readNullableString(obj['giftVariantId']),
-        quantity: readNumber(obj['quantity']) ?? 1,
-      };
-    }
+    case 'freeGift':
+      return { kind: 'freeGift', gifts: parseGifts(obj) };
     case 'freeShipping':
       return { kind: 'freeShipping' };
     default:
       return null;
   }
+}
+
+/**
+ * Gifts of a Free gift offer. An old offer holding one fixed `giftProductId` becomes one gift
+ * ("Free gift") with that one choice. Bad entries are skipped; the list is capped.
+ */
+export function parseGifts(obj: Record<string, unknown>): OfferGift[] {
+  const raw = obj['gifts'];
+  if (Array.isArray(raw)) {
+    const gifts: OfferGift[] = [];
+    const ids = new Set<string>();
+    for (const entry of raw) {
+      if (gifts.length >= MAX_OFFER_GIFTS) break;
+      if (typeof entry !== 'object' || entry === null) continue;
+      const rec = entry as Record<string, unknown>;
+      const id = readString(rec['id']);
+      if (!id || ids.has(id)) continue;
+      const productIds = Array.isArray(rec['productIds'])
+        ? Array.from(
+            new Set(
+              rec['productIds'].filter(
+                (val): val is string => typeof val === 'string' && val.trim().length > 0,
+              ),
+            ),
+          ).slice(0, MAX_GIFT_CHOICES)
+        : [];
+      ids.add(id);
+      gifts.push({ id, name: readString(rec['name']) || 'Free gift', productIds });
+    }
+    return gifts;
+  }
+  const legacyProductId = readString(obj['giftProductId']);
+  return legacyProductId ? [{ id: 'gift-1', name: 'Free gift', productIds: [legacyProductId] }] : [];
 }
 
 function readString(raw: unknown): string {
@@ -303,8 +323,7 @@ function readTimestampMs(raw: unknown): number {
       if (typeof ms === 'number' && Number.isFinite(ms)) return ms;
     }
     const seconds =
-      (raw as { _seconds?: unknown; seconds?: unknown })._seconds ??
-      (raw as { seconds?: unknown }).seconds;
+      (raw as { _seconds?: unknown; seconds?: unknown })._seconds ?? (raw as { seconds?: unknown }).seconds;
     if (typeof seconds === 'number' && Number.isFinite(seconds)) {
       return Math.round(seconds * 1000);
     }

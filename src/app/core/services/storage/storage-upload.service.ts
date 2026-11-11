@@ -1,10 +1,6 @@
 import { Service, signal } from '@angular/core';
 import { callableFrom, injectFunctionsAsync, injectStorageAsync } from '@core/firebase';
-import {
-  ImageFolderPath,
-  normalizeImageKitPath,
-  PROTECTED_STORAGE_PATHS,
-} from '@shared/utils/image';
+import { ImageFolderPath, normalizeImageKitPath, PROTECTED_STORAGE_PATHS } from '@shared/utils/image';
 
 export interface UploadResult {
   /** Relative storage path within the bucket (e.g. 'hero/1729000000-banner.webp') */
@@ -86,8 +82,7 @@ export class StorageUploadService {
       const result = await callable({ url, folder });
       return { path: result.data.path };
     } catch (fnErr: unknown) {
-      const message =
-        fnErr instanceof Error ? fnErr.message : 'Unable to import image from that web link.';
+      const message = fnErr instanceof Error ? fnErr.message : 'Unable to import image from that web link.';
       this.#uploadError.set(message);
       throw fnErr;
     } finally {

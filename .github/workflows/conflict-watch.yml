@@ -1,0 +1,171 @@
+# Finds open pull requests that conflict with develop and starts the Claude ticket
+# routine with the message "Fix conflicts" (step C of .claude/routines/ticket-pickup.md).
+# That cloud session merges develop into each branch, resolves the conflicts, runs the
+# same checks as a normal build and pushes as the repo owner, so CI, Bugbot and
+# auto-merge carry on by themselves.
+#
+# Runs after every push to develop. A merge made by auto-merge.yml uses the workflow
+# token, which starts no push workflows, so auto-merge.yml starts this one directly
+# (workflow_dispatch) after each merge. Scheduled routine runs also fix conflicts first,
+# as a fallback.
+#
+# Also runs when a PR into develop is opened, reopened or marked ready, so a PR that already
+# conflicts when it opens is not missed until the next push to develop (PR 219 sat 15 minutes
+# that way). That uses pull_request_target, because GitHub runs no pull_request workflow while a
+# PR conflicts. pull_request_target runs this file from develop and nothing here checks out or
+# runs the PR's code, so the token and secret never meet PR code.
+#
+# Each PR head is sent once per develop commit (marker comment), so a failed fix is not
+# retried until develop moves again. A PR the routine marked "needs a person" for its
+# current head is left alone.
+#
+# Needs the repo secret ATTEYA_ROUTINE_TOKEN_OPUS (the routine's API token; it can only start
+# that routine). Stays inactive until the repository variable CONFLICT_FIX is "enabled".
+
+name: Conflict Watch
+
+on:
+  push:
+    branches: [develop]
+  # Never check out or run the PR's code in this workflow (see above).
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+    branches: [develop]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: conflict-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Fix Conflicting PRs
+    # A PR event only matters for the owner's own non-draft PRs from this repo (the script skips
+    # every other PR anyway); checking here keeps the job from starting and billing a minute.
+    if: >-
+      vars.CONFLICT_FIX == 'enabled' && (
+        github.event_name != 'pull_request_target' || (
+          github.event.pull_request.user.login == github.repository_owner &&
+          github.event.pull_request.draft == false &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Find conflicting pull requests
+        id: find
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const BASE = 'develop';
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+            const { data: base } = await github.rest.repos.getBranch({ owner, repo, branch: BASE });
+            const baseSha = base.commit.sha;
+            // GitHub works out mergeability in the background after develop moves.
+            await sleep(20000);
+            const prs = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', base: BASE, sort: 'created', direction: 'asc', per_page: 100 });
+            const found = [];
+            for (const listed of prs) {
+              if (listed.draft) continue;
+              if (listed.user?.login !== owner) continue;
+              if (listed.head?.repo?.full_name !== `${owner}/${repo}`) continue;
+              if ((listed.labels || []).some((l) => l.name === 'no-auto-merge')) continue;
+              let pr = listed;
+              for (let i = 0; i < 8; i++) {
+                ({ data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: listed.number }));
+                if (pr.mergeable !== null) break;
+                await sleep(5000);
+              }
+              if (pr.mergeable !== false) continue;
+              const head = pr.head.sha;
+              const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pr.number, per_page: 100 });
+              const asked = `<!-- conflict-fix-requested ${head} ${baseSha} -->`;
+              // Only markers from this workflow or the owner's account (the routine posts as the owner) count.
+              const trusted = comments.filter((c) => c.user?.login === 'github-actions[bot]' || c.user?.login === owner);
+              if (trusted.some((c) => (c.body || '').includes(asked))) continue;
+              if (trusted.some((c) => (c.body || '').includes('Conflict Fix · needs a person') && (c.body || '').includes(head))) continue;
+              found.push({ number: pr.number, head });
+              // The routine fixes at most 3 per run, oldest first, so only mark those 3.
+              // The rest are picked up after the next merge into develop or by a scheduled run.
+              if (found.length >= 3) break;
+            }
+            core.info(`Conflicting PRs to fix: ${found.map((p) => '#' + p.number).join(', ') || 'none'}`);
+            core.setOutput('prs', JSON.stringify(found));
+            core.setOutput('count', String(found.length));
+            core.setOutput('base_sha', baseSha);
+
+      - name: Start the Claude routine
+        id: fire
+        if: steps.find.outputs.count != '0'
+        env:
+          ROUTINE_TOKEN: ${{ secrets.ATTEYA_ROUTINE_TOKEN_OPUS }}
+        run: |
+          if [ -z "$ROUTINE_TOKEN" ]; then
+            echo "status=no-token" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/fire.json -w '%{http_code}' -X POST \
+            "https://api.anthropic.com/v1/claude_code/routines/trig_01BzzGXbAheJgZo7kqRxGUh8/fire" \
+            -H "Authorization: Bearer $ROUTINE_TOKEN" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
+            -H "Content-Type: application/json" \
+            -d '{"text":"Fix conflicts"}') || code=000
+          echo "Routine API answered HTTP $code"
+          if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+            echo "status=started" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failed-$code" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment on each pull request
+        if: steps.find.outputs.count != '0'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          PRS: ${{ steps.find.outputs.prs }}
+          BASE_SHA: ${{ steps.find.outputs.base_sha }}
+          STATUS: ${{ steps.fire.outputs.status }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const status = String(process.env.STATUS || '');
+            const baseSha = String(process.env.BASE_SHA || '');
+            let prs = [];
+            try { prs = JSON.parse(process.env.PRS || '[]'); } catch { prs = []; }
+            for (const { number, head } of prs) {
+              if (!Number.isInteger(number) || !/^[0-9a-f]{40}$/.test(String(head))) continue;
+              // A routine that can't be started fails again on every push to develop. Say so once
+              // per PR head and reason, not on every push.
+              const notStarted = `<!-- conflict-fix-not-started ${head} ${status.replace(/[^a-z0-9-]/gi, '') || 'unknown'} -->`;
+              if (status !== 'started') {
+                const existing = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
+                if (existing.some((c) => c.user?.login === 'github-actions[bot]' && (c.body || '').includes(notStarted))) continue;
+              }
+              const body = status === 'started'
+                ? [
+                    `<!-- conflict-fix-requested ${head} ${baseSha} -->`,
+                    `**🔀 Conflict Fix** · started for \`${head.slice(0, 7)}\``,
+                    '',
+                    'This branch conflicts with `develop`. A Claude session is merging `develop` in, resolving the conflicts and running the checks. It pushes the result here, or comments that a person is needed.',
+                  ].join('\n')
+                : [
+                    notStarted,
+                    `**🔀 Conflict Fix** · not started for \`${head.slice(0, 7)}\``,
+                    '',
+                    status === 'no-token'
+                      ? 'The ATTEYA_ROUTINE_TOKEN_OPUS repo secret is not set, so the Claude routine could not be started. Resolve the conflicts by hand, or add the secret.'
+                      : `The Claude routine could not be started (${status || 'unknown error'}). It may be over its hourly limit or the token may be wrong (a new routine token revokes the old one, so update the ATTEYA_ROUTINE_TOKEN_OPUS repo secret too). The next scheduled routine run tries again.`,
+                  ].join('\n');
+              await github.rest.issues.createComment({ owner, repo, issue_number: number, body });
+            }
+            if (status && status !== 'started' && status !== 'no-token') core.setFailed(`Routine not started: ${status}`);

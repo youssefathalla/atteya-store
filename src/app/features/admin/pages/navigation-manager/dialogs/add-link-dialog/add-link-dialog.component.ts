@@ -2,11 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import {
-  MAT_DIALOG_DATA,
-  MatDialogModule,
-  MatDialogRef,
-} from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -46,9 +42,7 @@ export class AddLinkDialogComponent {
 
   readonly label = signal<string>('');
   readonly path = signal<string>(
-    this.data?.isBrand
-      ? '/brand/'
-      : (this.data?.categoryPath ? `${this.data.categoryPath}/` : '/category/'),
+    this.data?.isBrand ? '/brand/' : this.data?.categoryPath ? `${this.data.categoryPath}/` : '/category/',
   );
   readonly badge = signal<string>('');
   readonly isBrand = signal<boolean>(this.data?.isBrand ?? false);
@@ -61,7 +55,7 @@ export class AddLinkDialogComponent {
   onLabelChange(value: string): void {
     this.label.set(value);
     if (!this.isManualPath()) {
-      const basePath = this.isBrand() ? '/brand' : (this.data?.categoryPath || '/category');
+      const basePath = this.isBrand() ? '/brand' : this.data?.categoryPath || '/category';
       const slug = slugify(value);
       this.path.set(slug ? `${basePath}/${slug}` : `${basePath}/`);
     }
@@ -70,7 +64,7 @@ export class AddLinkDialogComponent {
   onIsBrandChange(checked: boolean): void {
     this.isBrand.set(checked);
     if (!this.isManualPath()) {
-      const basePath = checked ? '/brand' : (this.data?.categoryPath || '/category');
+      const basePath = checked ? '/brand' : this.data?.categoryPath || '/category';
       const slug = slugify(this.label());
       this.path.set(slug ? `${basePath}/${slug}` : `${basePath}/`);
     }
@@ -82,7 +76,7 @@ export class AddLinkDialogComponent {
   }
 
   generateSlug(): void {
-    const basePath = this.isBrand() ? '/brand' : (this.data?.categoryPath || '/category');
+    const basePath = this.isBrand() ? '/brand' : this.data?.categoryPath || '/category';
     const slug = slugify(this.label());
     this.path.set(slug ? `${basePath}/${slug}` : `${basePath}/`);
     this.isManualPath.set(false);

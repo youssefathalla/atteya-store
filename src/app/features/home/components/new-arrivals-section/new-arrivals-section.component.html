@@ -1,11 +1,13 @@
 @if (showSection()) {
-  <section
-    class="container-content home-new-arrivals select-none"
-    aria-labelledby="new-arrivals-heading"
-  >
+  <section class="container-content home-new-arrivals select-none" aria-labelledby="new-arrivals-heading">
     <header class="pb-2 sm:pb-3">
-      <h2 id="new-arrivals-heading" class="font-headline-md sm:font-headline-lg font-bold!">
-        New arrivals
+      <h2 id="new-arrivals-heading" class="home-section-title">
+        <a class="home-section-title-link" routerLink="/shop" [queryParams]="titleQueryParams()">
+          <span>New Arrivals</span>
+          <span class="home-section-title-arrow">
+            <mat-icon name="arrow_outward" size="lg" />
+          </span>
+        </a>
       </h2>
     </header>
 
@@ -30,6 +32,11 @@
         class="scroll-row [--scroll-peek:2.5rem] sm:[--scroll-cols:2] md:[--scroll-cols:3] md:[--scroll-peek:3.5rem]"
         [style.--scroll-peek]="cards().length > 3 ? null : '0px'"
         appHorizontalScroll
+        appRowScrollLock
+        rowLockFit=".product-card__media"
+        #lock="rowScrollLock"
+        [enableWheel]="false"
+        [snapToItems]="!lock.enabled()"
       >
         @for (card of cards(); track card.id) {
           <div class="scroll-row-item">
@@ -46,8 +53,8 @@
           [progress]="progress()"
           [canPrev]="canPrev()"
           [canNext]="canNext()"
-          (prev)="prev()"
-          (next)="next()"
+          (prev)="lock.step(-1)"
+          (next)="lock.step(1)"
         />
       }
     }

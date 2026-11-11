@@ -1,9 +1,5 @@
 import type { DocumentData } from 'firebase-admin/firestore';
-import type {
-  ShippingBox,
-  ShippingBoxId,
-  ShippingSettings,
-} from '../offers/engine/index.js';
+import type { ShippingBox, ShippingBoxId, ShippingSettings } from '../offers/engine/index.js';
 import { SHIPPING_BOX_IDS } from '../offers/engine/index.js';
 
 export const SHIPPING_DOC_PATH = 'settings/shipping';
@@ -99,16 +95,13 @@ export function shippingSeedData(): Record<string, unknown> {
   };
 }
 
-export function parseCheckoutShippingConfig(
-  data: DocumentData | undefined,
-): CheckoutShippingConfig {
+export function parseCheckoutShippingConfig(data: DocumentData | undefined): CheckoutShippingConfig {
   const base = DEFAULT_SHIPPING_SETTINGS;
   if (!data) {
     return { settings: base };
   }
   const egyptBoxes = parseBoxes(data['egyptBoxes']) ?? base.egyptBoxes;
-  const internationalBoxes =
-    parseBoxes(data['internationalBoxes']) ?? base.internationalBoxes;
+  const internationalBoxes = parseBoxes(data['internationalBoxes']) ?? base.internationalBoxes;
   const settings: ShippingSettings = {
     currency: 'EGP',
     egyptBoxes,
@@ -161,7 +154,14 @@ function parseBox(raw: unknown): ShippingBox | null {
   const maxWidthCm = readPositiveInt(row['maxWidthCm'], 1, 300);
   const maxHeightCm = readPositiveInt(row['maxHeightCm'], 1, 300);
   const feeEgp = readFee(row['feeEgp'], -1);
-  if (!name || maxWeightGrams === null || maxLengthCm === null || maxWidthCm === null || maxHeightCm === null || feeEgp < 0) {
+  if (
+    !name ||
+    maxWeightGrams === null ||
+    maxLengthCm === null ||
+    maxWidthCm === null ||
+    maxHeightCm === null ||
+    feeEgp < 0
+  ) {
     return null;
   }
   return {
@@ -175,9 +175,7 @@ function parseBox(raw: unknown): ShippingBox | null {
   };
 }
 
-function parseFreeOver(
-  raw: unknown,
-): ShippingSettings['freeOver'] | null {
+function parseFreeOver(raw: unknown): ShippingSettings['freeOver'] | null {
   if (!raw || typeof raw !== 'object') return null;
   const row = raw as Record<string, unknown>;
   const active = row['active'] === true;
@@ -207,7 +205,11 @@ function parsePromo(raw: unknown): ShippingSettings['promo'] | null {
 function toDate(raw: unknown): Date | null {
   if (!raw) return null;
   if (raw instanceof Date) return raw;
-  if (typeof raw === 'object' && 'toDate' in raw && typeof (raw as { toDate: () => Date }).toDate === 'function') {
+  if (
+    typeof raw === 'object' &&
+    'toDate' in raw &&
+    typeof (raw as { toDate: () => Date }).toDate === 'function'
+  ) {
     return (raw as { toDate: () => Date }).toDate();
   }
   return null;

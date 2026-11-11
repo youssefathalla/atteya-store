@@ -25,10 +25,7 @@ export type ProductStockDemand =
 export function aggregateOrderStockDemand(
   lines: readonly OrderLineForStock[],
 ): ReadonlyMap<string, ProductStockDemand> {
-  const acc = new Map<
-    string,
-    { flat: number; bySize: Map<string, number> }
-  >();
+  const acc = new Map<string, { flat: number; bySize: Map<string, number> }>();
 
   for (const line of lines) {
     if (!line.productId || !Number.isInteger(line.quantity) || line.quantity < 1) {
@@ -73,10 +70,7 @@ export function aggregateOrderStockDemand(
  * a product-level quantity after EasyOrders import).
  * Does not write — callers apply the result inside a transaction.
  */
-export function nextStockAfterDemand(
-  product: ProductStockSnapshot,
-  demand: ProductStockDemand,
-): StockFields {
+export function nextStockAfterDemand(product: ProductStockSnapshot, demand: ProductStockDemand): StockFields {
   return applyStockDemand(product, demand, { allowShortfall: false }).next;
 }
 
@@ -114,8 +108,7 @@ export function applyStockDemand(
     const nextMap: Record<string, number> = {};
     for (const id of knownIds) {
       const raw = liveMap[id];
-      nextMap[id] =
-        typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0;
+      nextMap[id] = typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0;
     }
     for (const [sizeId, qty] of Object.entries(demand.bySize)) {
       if (!Object.hasOwn(nextMap, sizeId) && hasSizeOption) {
@@ -129,10 +122,7 @@ export function applyStockDemand(
       }
       if (nextMap[sizeId]! < qty) {
         if (!opts.allowShortfall) {
-          throw new HttpsError(
-            'failed-precondition',
-            'Not enough stock left for one of the ordered sizes.',
-          );
+          throw new HttpsError('failed-precondition', 'Not enough stock left for one of the ordered sizes.');
         }
         short = true;
         nextMap[sizeId] = 0;
@@ -145,18 +135,12 @@ export function applyStockDemand(
 
   const qty = demandQuantity(demand);
   if (typeof product.stock !== 'number' || !Number.isFinite(product.stock)) {
-    throw new HttpsError(
-      'failed-precondition',
-      'Stock is not set up for one of the products on this order.',
-    );
+    throw new HttpsError('failed-precondition', 'Stock is not set up for one of the products on this order.');
   }
   const live = Math.max(0, Math.floor(product.stock));
   if (live < qty) {
     if (!opts.allowShortfall) {
-      throw new HttpsError(
-        'failed-precondition',
-        'Not enough stock left for one of the ordered items.',
-      );
+      throw new HttpsError('failed-precondition', 'Not enough stock left for one of the ordered items.');
     }
     return { next: stockFields(null, 0), short: true };
   }

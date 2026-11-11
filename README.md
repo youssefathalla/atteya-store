@@ -2,6 +2,15 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.3.
 
+## How work gets done
+
+- Work is tracked in Linear, with the team and project named in `linear.config.json`. `AGENTS.md` is the full rulebook for people and AI agents.
+- Branch names are `<type>/<short-name>`, for example `fix/sign-in-errors`. PR titles and commit messages start with the Linear id.
+- `npm ci` turns on a pre-push check that blocks bad branch names and commits without the Linear id. It also runs preflight, tests and the build before anything reaches GitHub.
+- On a pull request, Cursor Bugbot and the Cursor security review check it, and Claude fixes what they find (up to 3 rounds, plus one round for Low findings). The PR merges into `develop` by itself when it's clean, but PRs that change `.github/` wait for a person.
+- `npm run agent:build -- <id> <id>` starts Claude on Linear tickets right away (Opus by default; add `--sonnet` or `--haiku` only to go faster on a clearly simple ticket, matching the ticket's Model label, `--help` for details). Tickets labelled `agent-ready` are built by the hourly routine, one new ticket per run and up to 4 at a time, in the order their Linear "blocked by" links allow.
+- Merged work goes to QA in Linear. A person checks it on the dev site and moves it to Done.
+
 ## Development server
 
 To start a local development server, run:
@@ -42,7 +51,7 @@ The first page preloads two subset fonts instead of the full Google Sans Flex fi
 
 Add a new icon to that list, regenerate the symbols file, and preflight will remind you when the code uses a name that is not on the list.
 
-Material Symbols, from the sorted list (`icon_names` must be alphabetical). The CSS response contains one `fonts.gstatic.com` woff2 URL. Save that file under a new name in `public/fonts/` (the current file is `material-symbols-outlined-subset-2.woff2`) and point `_fonts.scss` and `index.html` at it. Fonts are cached for a year, so a changed subset must not reuse the previous file name.
+Material Symbols, from the sorted list (`icon_names` must be alphabetical). The CSS response contains one `fonts.gstatic.com` woff2 URL. Save that file under a new name in `public/fonts/` (the current file is `material-symbols-outlined-subset-6.woff2`) and point `_fonts.scss` at it. The file Google returns covers weights 100–700 whatever range you ask for; `_fonts.scss` declares `font-weight: 400 700`, and `MatIconDirective` defaults to `600`, so only an icon with `weight="700"` uses the heaviest stroke. Fonts are cached for a year, so a changed subset must not reuse the previous file name.
 
 ```bash
 names=$(paste -sd, scripts/fonts/material-symbols.icons.txt)

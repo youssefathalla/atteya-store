@@ -1,7 +1,9 @@
 /**
  * Cloud CDN on Firebase App Hosting honors `CDN-Cache-Control` separately from
- * `Cache-Control`. Storefront HTML keeps `max-age=0` for browsers while the edge
- * Geo-priced storefront HTML uses `private, no-store` (see app.routes.server.ts).
+ * `Cache-Control`. Only cacheable values (static assets with `s-maxage`,
+ * `max-age` or `immutable`) are copied into it. Geo-priced storefront HTML uses
+ * `private, no-store` (see app.routes.server.ts), so it gets no CDN header and
+ * the edge never caches it.
  */
 
 /** @param {string | undefined | null} cacheControl */

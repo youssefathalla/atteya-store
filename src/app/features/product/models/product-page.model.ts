@@ -9,6 +9,7 @@ export type ProductView = Pick<
   | 'name'
   | 'summary'
   | 'descriptionHtml'
+  | 'details'
   | 'detailImages'
   | 'categoryId'
   | 'categoryIds'
@@ -22,6 +23,7 @@ export type ProductView = Pick<
   | 'options'
   | 'colors'
   | 'tags'
+  | 'players'
   | 'marketingBadge'
   | 'variants'
   | 'stock'
@@ -44,6 +46,13 @@ export type ProductPageResult =
 /** option key -> selected value id */
 export type OptionSelection = Readonly<Record<string, string>>;
 
+/** The choice a shopper still has to make after pressing Add to Bag. `attempt` re-triggers focus on every press. */
+export interface ChoicePrompt {
+  readonly key: string;
+  readonly message: string;
+  readonly attempt: number;
+}
+
 export function toProductView(product: Product): ProductView {
   return {
     id: product.id,
@@ -51,6 +60,7 @@ export function toProductView(product: Product): ProductView {
     name: product.name,
     summary: product.summary,
     descriptionHtml: product.descriptionHtml,
+    details: product.details,
     detailImages: product.detailImages,
     categoryId: product.categoryId,
     categoryIds: product.categoryIds,
@@ -64,6 +74,7 @@ export function toProductView(product: Product): ProductView {
     options: product.options,
     colors: product.colors,
     tags: product.tags,
+    players: product.players,
     marketingBadge: product.marketingBadge,
     variants: product.variants,
     stock: product.stock,

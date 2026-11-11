@@ -4,7 +4,13 @@
 >
   <div class="elements-between py-2 px-1 sm:px-2 icon-btn-lg text">
     <!-- 1. Search -->
-    <button matIconButton type="button" (click)="toggleSearch()" aria-label="Search">
+    <button
+      matIconButton
+      type="button"
+      (click)="openSearch($event)"
+      aria-label="Search products"
+      aria-haspopup="dialog"
+    >
       <mat-icon name="search" size="2xl" />
     </button>
 
@@ -45,5 +51,5 @@
   [class.pointer-events-none]="!isCartOpen()"
   aria-label="Shopping Cart"
 >
-  <app-cart-drawer />
+  <app-cart-drawer placement="sheet" />
 </div>

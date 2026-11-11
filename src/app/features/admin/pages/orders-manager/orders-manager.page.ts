@@ -95,6 +95,8 @@ export class OrdersManagerPageComponent implements OnInit {
     paymentLabel: '',
     productId: '',
     productName: '',
+    giftName: null,
+    dealLabel: null,
     selectionLabel: '',
     quantity: 0,
     currentStock: null,
@@ -246,9 +248,7 @@ export class OrdersManagerPageComponent implements OnInit {
 
   /** The number can't be turned into a WhatsApp link safely: let staff copy and check it. */
   showCopyPhone(row: OrderLineAdminRow): boolean {
-    return (
-      !row.whatsappUrl && row.stage !== 'paymob-pending' && row.stage !== 'unknown' && !!row.phone
-    );
+    return !row.whatsappUrl && row.stage !== 'paymob-pending' && row.stage !== 'unknown' && !!row.phone;
   }
 
   async copyPhone(row: OrderLineAdminRow): Promise<void> {
@@ -260,11 +260,7 @@ export class OrdersManagerPageComponent implements OnInit {
     }
   }
 
-  async #run(
-    row: OrderLineAdminRow,
-    action: OrderAction,
-    work: () => Promise<void>,
-  ): Promise<void> {
+  async #run(row: OrderLineAdminRow, action: OrderAction, work: () => Promise<void>): Promise<void> {
     this.busyOrderId.set(row.orderId);
     this.busyAction.set(action);
     try {

@@ -15,7 +15,7 @@ import { FormField, form, submit, validate } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { StorageAssetTracker, StorageUploadService } from '@core/services/storage';
 import {
   COLOR_PALETTE,
@@ -30,12 +30,10 @@ import {
   type MarketingBadgeKind,
   type MarketingBadgeStyle,
 } from '@core/services/products/marketing-badge';
-import {
-  PRODUCT_GENDERS,
-  PRODUCT_TYPES,
-  SIZE_ORDER,
-} from '@core/services/products/product.constants';
+import { PRODUCT_GENDERS, PRODUCT_TYPES, SIZE_ORDER } from '@core/services/products/product.constants';
 import type { Product, ProductGenderId, ProductTypeId } from '@core/services/products/product.model';
+import { PlayerListService } from '@core/services/products/player-list.service';
+import { MAX_PRODUCT_PLAYERS } from '@core/services/products/player.schema';
 import {
   defaultNewArrivalUntil,
   isActiveNewArrival,
@@ -44,6 +42,11 @@ import {
   timestampToMs,
   toDateInputValue,
 } from '@core/services/products/utils/new-arrival';
+import {
+  detailLinesFromText,
+  MAX_DETAIL_LINE,
+  MAX_DETAIL_LINES,
+} from '@core/services/products/utils/product-details';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import type { ImageAsset } from '@shared/schemas';
@@ -83,6 +86,8 @@ interface EditorFields {
   slug: string;
   summary: string;
   description: string;
+  /** One fact per line (materials, racket specs). */
+  details: string;
   type: ProductTypeId;
   categoryId: string;
   brandId: string;
@@ -106,6 +111,7 @@ const GENDER_OPTIONS: readonly { readonly id: '' | ProductGenderId; readonly lab
     MatButtonModule,
     MatCheckboxModule,
     MatProgressSpinnerModule,
+    RouterLink,
     SelectInputComponent,
     TextInputComponent,
     TextFieldInputComponent,
@@ -125,19 +131,23 @@ export class ProductEditorPageComponent implements OnInit {
   readonly #snackbar = inject(SnackbarService);
   readonly #router = inject(Router);
   readonly #platformId = inject(PLATFORM_ID);
+  readonly #playerList = inject(PlayerListService);
   readonly #tracker = new StorageAssetTracker();
 
   readonly types = PRODUCT_TYPES;
   readonly genderOptions = GENDER_OPTIONS;
   readonly colorPalette = COLOR_PALETTE;
-  readonly quickSizes = SIZE_ORDER.filter((label) =>
-    (QUICK_SIZES as readonly string[]).includes(label),
-  );
+  readonly quickSizes = SIZE_ORDER.filter((label) => (QUICK_SIZES as readonly string[]).includes(label));
 
   readonly isSaving = signal(false);
   readonly images = signal<ImageAsset[]>([]);
   readonly selectedColors = signal<readonly ColorId[]>([]);
   readonly tags = signal<readonly string[]>([]);
+  /** Player ids picked from Settings → Players. */
+  readonly selectedPlayers = signal<readonly string[]>([]);
+  readonly playerError = signal('');
+  readonly playerOptions = this.#playerList.players;
+  readonly playersLoading = this.#playerList.isLoading;
   readonly tagInput = signal('');
   readonly tagError = signal('');
   readonly marketingBadgeKind = signal<MarketingBadgeKind | ''>('');
@@ -211,9 +221,7 @@ export class ProductEditorPageComponent implements OnInit {
   readonly categoryOptions = computed(() =>
     buildLeafCategoryOptions(this.editorResource.value()?.categories ?? []),
   );
-  readonly brandOptions = computed(() =>
-    buildBrandOptions(this.editorResource.value()?.brands ?? []),
-  );
+  readonly brandOptions = computed(() => buildBrandOptions(this.editorResource.value()?.brands ?? []));
   readonly groupHint = computed(() => {
     const groups = this.editorResource.value()?.groups ?? [];
     return groups.length
@@ -277,15 +285,7 @@ export class ProductEditorPageComponent implements OnInit {
     const date = parseDateInputValue(this.newArrivalUntilInput());
     if (!date) return null;
     // End of local day so "today" still counts as active.
-    const untilMs = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      23,
-      59,
-      59,
-      999,
-    ).getTime();
+    const untilMs = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999).getTime();
     return newArrivalCountdownLabel(untilMs);
   });
 
@@ -319,6 +319,16 @@ export class ProductEditorPageComponent implements OnInit {
     validate(path.description, ({ value }) => {
       if (asText(value()).trim().length > 5_000) {
         return { kind: 'description', message: 'The description must be 5,000 characters or fewer.' };
+      }
+      return undefined;
+    });
+    validate(path.details, ({ value }) => {
+      const lines = detailLinesFromText(asText(value()));
+      if (lines.length > MAX_DETAIL_LINES) {
+        return { kind: 'details', message: 'Add up to 20 lines of details.' };
+      }
+      if (lines.some((line) => line.length > MAX_DETAIL_LINE)) {
+        return { kind: 'details', message: 'Keep each line of details to 200 characters or fewer.' };
       }
       return undefined;
     });
@@ -363,10 +373,7 @@ export class ProductEditorPageComponent implements OnInit {
   constructor() {
     effect(() => {
       const current = this.model();
-      if (
-        current.categoryId !== this.#lastSuggestedCategory &&
-        current.type === this.#lastType
-      ) {
+      if (current.categoryId !== this.#lastSuggestedCategory && current.type === this.#lastType) {
         this.#categoryPicked = true;
         this.#lastSuggestedCategory = current.categoryId;
       }
@@ -462,6 +469,25 @@ export class ProductEditorPageComponent implements OnInit {
     }
     this.selectedColors.set(sortColors([...current, colorId]));
     this.colorError.set('');
+  }
+
+  hasPlayer(id: string): boolean {
+    return this.selectedPlayers().includes(id);
+  }
+
+  togglePlayer(id: string): void {
+    const current = this.selectedPlayers();
+    if (current.includes(id)) {
+      this.selectedPlayers.set(current.filter((item) => item !== id));
+      this.playerError.set('');
+      return;
+    }
+    if (current.length >= MAX_PRODUCT_PLAYERS) {
+      this.playerError.set('Choose up to 10 players.');
+      return;
+    }
+    this.selectedPlayers.set([...current, id]);
+    this.playerError.set('');
   }
 
   onTagInput(event: Event): void {
@@ -600,9 +626,7 @@ export class ProductEditorPageComponent implements OnInit {
     if (!(target instanceof HTMLInputElement)) return;
     const value = target.value;
     this.sizes.update((list) =>
-      list.map((size, itemIndex) =>
-        itemIndex === index ? { ...size, initialStock: value } : size,
-      ),
+      list.map((size, itemIndex) => (itemIndex === index ? { ...size, initialStock: value } : size)),
     );
   }
 
@@ -689,6 +713,8 @@ export class ProductEditorPageComponent implements OnInit {
       this.images.set([]);
       this.selectedColors.set([]);
       this.tags.set([]);
+      this.selectedPlayers.set([]);
+      this.playerError.set('');
       this.tagInput.set('');
       this.tagError.set('');
       this.marketingBadgeKind.set('');
@@ -731,6 +757,7 @@ export class ProductEditorPageComponent implements OnInit {
       slug: product.slug,
       summary: product.summary ?? '',
       description,
+      details: product.details.join('\n'),
       type: product.type,
       categoryId: product.categoryId,
       brandId: product.brandId,
@@ -743,6 +770,8 @@ export class ProductEditorPageComponent implements OnInit {
     this.images.set(product.images.map((image) => toImageAsset(image)));
     this.selectedColors.set(sortColors(product.colors ?? []));
     this.tags.set([...(product.tags ?? [])]);
+    this.selectedPlayers.set([...product.players]);
+    this.playerError.set('');
     this.tagInput.set('');
     this.tagError.set('');
     this.marketingBadgeKind.set(product.marketingBadge?.kind ?? '');
@@ -758,9 +787,7 @@ export class ProductEditorPageComponent implements OnInit {
     this.sizeInput.set('');
     this.sizeError.set('');
     this.flatStock.set('0');
-    this.weight.set(
-      typeof product.weightGrams === 'number' ? String(product.weightGrams) : '',
-    );
+    this.weight.set(typeof product.weightGrams === 'number' ? String(product.weightGrams) : '');
     this.formError.set('');
     this.#saveTried.set(false);
     this.#loadedProduct.set(product);
@@ -869,9 +896,7 @@ export class ProductEditorPageComponent implements OnInit {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
     const value = target.value;
-    this.marketingBadgeKind.set(
-      value === '' ? '' : (value as MarketingBadgeKind),
-    );
+    this.marketingBadgeKind.set(value === '' ? '' : (value as MarketingBadgeKind));
   }
 
   onMarketingBadgeStyleChange(event: Event): void {
@@ -916,15 +941,7 @@ export class ProductEditorPageComponent implements OnInit {
   #newArrivalUntilPayload(): string | null {
     const date = parseDateInputValue(this.newArrivalUntilInput());
     if (!date) return null;
-    const endOfDay = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      23,
-      59,
-      59,
-      999,
-    );
+    const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
     return endOfDay.toISOString();
   }
 
@@ -939,9 +956,8 @@ export class ProductEditorPageComponent implements OnInit {
     return {
       name: collapseSpaces(asText(value.name)),
       summary: asText(value.summary).trim() || null,
-      ...(sendDescription
-        ? { description: descriptionText.length === 0 ? null : descriptionText }
-        : {}),
+      ...(sendDescription ? { description: descriptionText.length === 0 ? null : descriptionText } : {}),
+      details: detailLinesFromText(asText(value.details)),
       type: value.type,
       categoryId: value.categoryId.trim(),
       brandId: value.brandId.trim(),
@@ -949,6 +965,11 @@ export class ProductEditorPageComponent implements OnInit {
       gender: value.gender === '' ? null : value.gender,
       colors: this.selectedColors(),
       tags: this.tags(),
+      // Only players still in the list; a removed player drops off this product on save.
+      // While the list hasn't loaded, leave the key out so the saved players stay.
+      ...(this.#playerList.hasValue()
+        ? { players: this.selectedPlayers().filter((id) => this.#playerList.nameOf(id) !== null) }
+        : {}),
       marketingBadge: this.#marketingBadgePayload(),
       newArrivalUntil: this.#newArrivalUntilPayload(),
       price,
@@ -962,8 +983,7 @@ export class ProductEditorPageComponent implements OnInit {
       })),
       sizes: this.sizes().map((size) => toSizePayload(size, this.isCreate())),
       ...(sendStock ? { stock: Number(this.flatStock().trim()) } : {}),
-      weightGrams:
-        this.weight().trim().length === 0 ? null : parseWeightGrams(this.weight()),
+      weightGrams: this.weight().trim().length === 0 ? null : parseWeightGrams(this.weight()),
     };
   }
 }
@@ -975,6 +995,7 @@ function emptyFields(): EditorFields {
     slug: '',
     summary: '',
     description: '',
+    details: '',
     type,
     categoryId: defaultCategoryForType(type),
     brandId: '',
@@ -991,10 +1012,7 @@ function hasSizeOption(product: Product | null): boolean {
   return product.options.some((option) => option.key === 'size' && option.values.length > 0);
 }
 
-function mergeSizeIds(
-  draft: readonly ProductSizeDraft[],
-  product: Product,
-): ProductSizeDraft[] {
+function mergeSizeIds(draft: readonly ProductSizeDraft[], product: Product): ProductSizeDraft[] {
   const option = product.options.find((item) => item.key === 'size');
   const live = option?.values ?? [];
   const used = new Set<number>();
@@ -1027,10 +1045,7 @@ function sizeDraftsFrom(product: Product): ProductSizeDraft[] {
   }));
 }
 
-function stockDraftFromMap(
-  map: Readonly<Record<string, number>> | undefined,
-  sizeId: string,
-): string {
+function stockDraftFromMap(map: Readonly<Record<string, number>> | undefined, sizeId: string): string {
   if (!map) return '0';
   const count = map[sizeId];
   return typeof count === 'number' ? String(count) : '0';
@@ -1111,7 +1126,11 @@ function plainFromHtml(html: string | null): string {
 }
 
 function collapseSpaces(value: string): string {
-  return value.trim().split(/\s+/).filter((part) => part.length > 0).join(' ');
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
+    .join(' ');
 }
 
 function asText(value: unknown): string {

@@ -22,19 +22,19 @@
               >
                 <ng-container
                   [ngTemplateOutlet]="rowLabel"
-                  [ngTemplateOutletContext]="{ $implicit: item, active: current === idx }"
+                  [ngTemplateOutletContext]="{ $implicit: item, index: idx, active: current === idx }"
                 />
               </button>
             } @else {
               <a
                 class="nav-list-link"
-                [routerLink]="item.link"
+                [routerLink]="item.link | linkTarget"
                 (mouseenter)="activate(idx)"
                 (focusin)="activate(idx)"
               >
                 <ng-container
                   [ngTemplateOutlet]="rowLabel"
-                  [ngTemplateOutletContext]="{ $implicit: item, active: current === idx }"
+                  [ngTemplateOutletContext]="{ $implicit: item, index: idx, active: current === idx }"
                 />
               </a>
             }
@@ -78,14 +78,18 @@
   </div>
 </section>
 
-<ng-template #rowLabel let-item let-active="active">
+<ng-template #rowLabel let-item let-index="index" let-active="active">
   <span class="min-w-0">{{ item.label || 'Untitled' }}</span>
   <span class="lg:hidden" aria-hidden="true">
     <mat-icon name="arrow_forward" />
   </span>
-  @if (active) {
-    <span class="hidden lg:inline-flex" aria-hidden="true">
-      <mat-icon name="arrow_forward" />
-    </span>
-  }
+  <span
+    class="nav-list-arrow hidden lg:inline-flex"
+    data-nav-arrow
+    aria-hidden="true"
+    [attr.data-nav-index]="index"
+    [class.is-active]="active"
+  >
+    <mat-icon name="arrow_right_alt" size="4xl" weight="700" />
+  </span>
 </ng-template>

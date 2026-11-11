@@ -1,8 +1,40 @@
 /**
- * Homepage product rows (AS-73 / AS-83): padel floating tiles + shared scroll nav chrome.
+ * Homepage product rows (AS-73 / AS-83): padel floating tiles (arrows + progress live in `scroll-row.css`).
  * New Arrivals uses portrait media capped to the remaining viewport under top chrome.
  */
 @layer components {
+  /* Home section headings (Shop tiles, Padel, New Arrivals). */
+  .home-section-title {
+    @apply font-headline-md sm:font-headline-lg font-bold!;
+  }
+
+  /* Title that opens the full list (New Arrivals → Shop filtered, Padel, Shop). */
+  .home-section-title-link {
+    @apply w-fit elements-start gap-3 no-underline;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4;
+  }
+
+  /*
+   * Round outlined ↗ after the title. It appears on hover or keyboard focus; on screens
+   * without hover (phones, tablets) it always shows, so the title still looks tappable.
+   */
+  .home-section-title-arrow {
+    @apply size-10 shrink-0 elements-center rounded-full border-[1.5px] border-current;
+    @apply opacity-0 -translate-x-1 transition-[opacity,translate] duration-200 ease-out;
+    @apply motion-reduce:translate-x-0 motion-reduce:transition-opacity;
+  }
+
+  .home-section-title-link:hover .home-section-title-arrow,
+  .home-section-title-link:focus-visible .home-section-title-arrow {
+    @apply opacity-100 translate-x-0;
+  }
+
+  @media (hover: none) {
+    .home-section-title-arrow {
+      @apply opacity-100 translate-x-0;
+    }
+  }
+
   .padel-tile {
     @apply relative block w-full no-underline overflow-hidden aspect-4/5;
     background: linear-gradient(180deg, #f3f3f3 0%, #e6e6e6 100%);
@@ -26,19 +58,6 @@
     @apply block mt-1 h-0.5 w-5 bg-primary;
   }
 
-  .row-scroll-nav {
-    @apply elements-center gap-3 pt-3 sm:pt-4;
-  }
-
-  .row-scroll-nav__progress {
-    @apply relative h-px w-28 sm:w-40 bg-outline-variant overflow-hidden;
-  }
-
-  .row-scroll-nav__progress-fill {
-    @apply absolute inset-y-0 left-0 bg-primary;
-    width: calc(var(--row-scroll-progress, 0) * 100%);
-  }
-
   /**
    * Homepage New Arrivals: tighten section padding (avoid empty bands above/below)
    * and use 4:5 media capped so title + cards + arrows fit one viewport.
@@ -53,10 +72,12 @@
     }
   }
 
+  /* `--row-lock-media-max` is set by `RowScrollLockDirective` on desktop so the locked section fits exactly. */
   .home-new-arrivals .product-card__media {
     aspect-ratio: 4 / 5;
-    max-height: calc(
-      100dvh - var(--storefront-top-chrome, 56px) - var(--home-new-arrivals-chrome, 7.75rem)
+    max-height: var(
+      --row-lock-media-max,
+      calc(100dvh - var(--storefront-top-chrome, 56px) - var(--home-new-arrivals-chrome, 7.75rem))
     );
   }
 

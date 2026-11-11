@@ -1,46 +1,69 @@
 @switch (page().status) {
   @case ('found') {
     @let p = product()!;
-    <article class="container-content elements-start-col gap-6">
-      <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 font-label-sm uppercase">
-        <a routerLink="/" class="hover:underline transition-colors">Home</a>
-        @for (crumb of breadcrumbs(); track crumb.link[1]) {
-          <span aria-hidden="true">/</span>
-          <a [routerLink]="crumb.link" class="hover:underline transition-colors">
-            {{ crumb.label }}
-          </a>
-        }
-        <span aria-hidden="true">/</span>
-        <span aria-current="page" class="line-clamp-1" dir="auto">{{ p.name }}</span>
-      </nav>
-
-      <div class="grid w-full items-start gap-6 md:grid-cols-2">
+    <article class="container-content elements-start-col">
+      <!-- Below xl (1280px): photos, details (with the free gift picker), sections, one column like on a phone. xl+: photos with the sections under them, details beside both. -->
+      <div
+        class="grid w-full grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem] xl:grid-rows-[auto_1fr] xl:gap-8 xl:gap-x-12"
+      >
         <app-product-gallery
+          class="xl:col-start-1 xl:row-start-1"
           [images]="p.images"
           [name]="p.name"
           [activeColourImage]="colourImage()"
         />
 
-        <div class="elements-start-col gap-4">
-          <div class="elements-between w-full gap-2 items-start">
+        <div
+          class="elements-start-col min-w-0 gap-5 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:sticky xl:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)]"
+        >
+          <nav aria-label="Breadcrumb" class="w-full">
+            <ol class="pdp-kicker flex flex-wrap items-center gap-x-2 gap-y-1 list-none m-0 p-0">
+              @for (crumb of breadcrumbs(); track crumb.link.join('/'); let last = $last) {
+                <li class="elements-start gap-2">
+                  <a [routerLink]="crumb.link" class="no-underline hover:underline">{{ crumb.label }}</a>
+                  @if (!last) {
+                    <span aria-hidden="true">›</span>
+                  }
+                </li>
+              }
+            </ol>
+          </nav>
+
+          <div class="elements-start-col gap-2 w-full">
+            <div class="elements-between w-full gap-2 items-start">
+              <h1 class="font-headline-sm font-bold! min-w-0" dir="auto">{{ p.name }}</h1>
+              <button
+                matIconButton
+                type="button"
+                [attr.aria-label]="favoriteLabel()"
+                [attr.aria-pressed]="isFavorite() ? true : false"
+                [disabled]="favoriteBusy()"
+                (click)="onFavoriteClick()"
+              >
+                <mat-icon name="favorite" [type]="isFavorite() ? 'fill' : 'outline'" />
+              </button>
+            </div>
             <a
               [routerLink]="['/brand', p.brandId]"
-              class="font-label-sm uppercase tracking-wider text-on-surface-variant no-underline hover:underline min-w-0"
+              class="font-body-md text-on-surface-variant no-underline hover:underline"
             >
               {{ brandName() }}
             </a>
-            <button
-              matIconButton
-              type="button"
-              [attr.aria-label]="favoriteLabel()"
-              [attr.aria-pressed]="isFavorite() ? true : false"
-              [disabled]="favoriteBusy()"
-              (click)="onFavoriteClick()"
-            >
-              <mat-icon name="favorite" [type]="isFavorite() ? 'fill' : 'outline'" />
-            </button>
+            @for (player of playerLinks(); track player.id) {
+              <a
+                routerLink="/shop"
+                [queryParams]="player.query"
+                class="font-body-md text-on-surface-variant no-underline hover:underline"
+              >
+                More from {{ player.name }}
+              </a>
+            }
           </div>
-          <h1 class="font-headline-sm font-bold!" dir="auto">{{ p.name }}</h1>
+
+          @if (badgeLabel(); as badge) {
+            <p class="pdp-kicker">{{ badge }}</p>
+          }
+
           @if (price(); as pr) {
             <app-product-price
               [price]="pr.price"
@@ -49,48 +72,112 @@
               [partial]="pr.partial"
               [badges]="pr.badges"
             />
+            @for (line of pr.offerLines; track line) {
+              <p class="font-label-lg">{{ line }}</p>
+            }
           }
-          @if (shippingLine(); as line) {
-            <p class="pdp-shipping-line font-label-md text-on-surface-variant">{{ line }}</p>
-          }
+
           @if (!inStock()) {
             <p class="font-label-lg uppercase" role="status">
               {{ removed() ? 'No longer available' : 'Out of stock' }}
             </p>
           }
 
+          @if (hasDescription()) {
+            <div dir="auto" class="pdp-description" [innerHTML]="p.descriptionHtml"></div>
+          }
+
+          @if (p.modelGroup) {
+            @defer (on idle) {
+              <app-product-siblings
+                [modelGroup]="p.modelGroup"
+                [currentId]="p.id"
+                [currentSlug]="p.slug"
+                [currentImage]="p.images[0] ?? null"
+                [currentName]="p.name"
+                [label]="coloursLabel()"
+              />
+            } @placeholder {
+              <div class="w-full min-h-23" aria-hidden="true"></div>
+            }
+          }
+
           <app-product-options
             [product]="p"
             [selection]="selection()"
             [disabled]="!inStock()"
+            [prompt]="choicePrompt()"
             (picked)="select($event.key, $event.valueId)"
           />
-          <app-add-to-bag-button [line]="cartLine()" />
-
-          @if (p.summary) {
-            <p class="font-body-md" dir="auto">{{ p.summary }}</p>
+          @if (giftBox(); as box) {
+            <app-product-gift-box
+              [box]="box"
+              [picks]="giftPicks()"
+              [disabled]="!inStock()"
+              [prompt]="choicePrompt()"
+              (productPicked)="pickGift($event.giftId, $event.productId)"
+              (sizePicked)="pickGiftSize($event.giftId, $event.sizeId)"
+            />
+          } @else if (giftBoxLoading()) {
+            <div class="pdp-gift-box" aria-hidden="true">
+              <app-skeleton class="h-12 w-full" />
+              <div class="elements-start-col gap-2 p-4">
+                <app-skeleton class="h-5 w-40" />
+                <div class="scroll-row pdp-gift-row" aria-hidden="true">
+                  @for (n of [1, 2, 3]; track n) {
+                    <div class="pdp-gift-card">
+                      <app-skeleton class="pdp-gift-card__photo" />
+                      <span class="pdp-gift-card__caption"><app-skeleton class="h-10 w-full" /></span>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
           }
+          <app-add-to-bag-button
+            [line]="cartLine()"
+            [unavailable]="!inStock()"
+            (choiceMissing)="onChoiceMissing()"
+          />
+        </div>
+
+        <div class="w-full border-t border-outline xl:col-start-1 xl:row-start-2">
+          @if (p.details.length > 0) {
+            <details class="pdp-section">
+              <summary>
+                <span>{{ detailsTitle() }}</span>
+                <span class="pdp-section__icon" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
+              </summary>
+              <div class="pdp-section__body">
+                <ul class="pdp-section__list" dir="auto">
+                  @for (line of p.details; track $index) {
+                    <li>{{ line }}</li>
+                  }
+                </ul>
+              </div>
+            </details>
+          }
+
+          <details class="pdp-section">
+            <summary>
+              <span>Shipping</span>
+              <span class="pdp-section__icon" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
+            </summary>
+            <div class="pdp-section__body">
+              @let notes = shippingNotes();
+              @if (notes && notes.length > 0) {
+                <ul class="pdp-section__list pdp-shipping-line">
+                  @for (note of notes; track $index) {
+                    <li>{{ note }}</li>
+                  }
+                </ul>
+              } @else {
+                <p>Shipping is worked out at checkout.</p>
+              }
+            </div>
+          </details>
         </div>
       </div>
-
-      @if (p.descriptionHtml) {
-        <section aria-labelledby="pdp-details" class="elements-start-col gap-3 w-full">
-          <h2 id="pdp-details" class="font-title-md font-bold!">Details</h2>
-          <div
-            dir="auto"
-            class="font-body-md max-w-prose [&_p]:mb-3 [&_ul]:list-disc [&_ul]:ps-5 [&_ol]:list-decimal [&_ol]:ps-5 [&_a]:underline"
-            [innerHTML]="p.descriptionHtml"
-          ></div>
-        </section>
-      }
-
-      @if (p.modelGroup) {
-        @defer (on viewport) {
-          <app-product-siblings [modelGroup]="p.modelGroup" [excludeId]="p.id" />
-        } @placeholder {
-          <div class="h-40 w-full"></div>
-        }
-      }
     </article>
   }
   @case ('missing') {

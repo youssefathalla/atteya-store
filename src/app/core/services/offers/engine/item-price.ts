@@ -23,6 +23,9 @@ export function liveOffers(offers: readonly Offer[], ctx: PricingContext): Offer
     if (offer.schedule.startsAt && nowMs < offer.schedule.startsAt.getTime()) return false;
     if (offer.schedule.endsAt && nowMs >= offer.schedule.endsAt.getTime()) return false;
     if (offer.audience === 'signedIn' && !ctx.signedIn) return false;
+    // A once-per-customer limit needs a real account to count against: a guest's typed email
+    // proves nothing, so these offers are only for signed-in shoppers.
+    if (offer.limits.perCustomer !== null && !ctx.signedIn) return false;
     if (offer.requiresCode || offer.visibility === 'code') {
       const code = offer.code?.trim().toUpperCase();
       if (!code || !normalizedCodes.has(code)) return false;
@@ -136,22 +139,20 @@ export function displayPrice(
   // `partial` means "effective prices differ across the tested variants" (set above). An offer that
   // matches only some variants but leaves every price equal (free shipping, gifts, buy X get Y,
   // tiered, cart offers, or one beaten everywhere by another offer) must not add a "From".
+  // Every live offer the product is in (its conditions match, and it is not a sale item the offer
+  // leaves out), whether or not its badge made the card: the 3-badge cap and the duplicate-text
+  // check only decide what is shown. Shop's `?offer=` page filters on this list.
+  const onSale = productLevel.listPrice > productLevel.basePrice;
   const matchingOfferIds: string[] = [];
   for (const offer of active) {
     if (matchProduct(offer.conditions, offer.exclude, product) === 'none') continue;
-    if (
-      productLevel.appliedOfferId === offer.id ||
-      productLevel.badges.some((b) => b.offerId === offer.id)
-    ) {
-      matchingOfferIds.push(offer.id);
-    }
+    if (onSale && offer.saleItems === 'exclude') continue;
+    matchingOfferIds.push(offer.id);
   }
 
   const listPrice = productLevel.listPrice;
   const maxDiscountPercent =
-    listPrice > 0 && fromPrice < listPrice
-      ? Math.round(((listPrice - fromPrice) / listPrice) * 100)
-      : 0;
+    listPrice > 0 && fromPrice < listPrice ? Math.round(((listPrice - fromPrice) / listPrice) * 100) : 0;
 
   return {
     fromPrice,
@@ -172,8 +173,7 @@ function computeCandidateUnitPrice(
   if (offer.scope !== 'item') return null;
   if (alreadyOnSale && offer.saleItems === 'exclude') return basePrice;
 
-  const referencePrice =
-    alreadyOnSale && offer.saleItems === 'bestOf' ? listPrice : basePrice;
+  const referencePrice = alreadyOnSale && offer.saleItems === 'bestOf' ? listPrice : basePrice;
 
   let rawDiscounted: number | null = null;
   const r = offer.reward;

@@ -1,21 +1,27 @@
-@use "@angular/material" as mat;
+@use '@angular/material' as mat;
 :root {
-  @include mat.expansion-overrides((
-    container-elevation-shadow: 0,
-    header-hover-state-layer-color: var(--mat-sys-surface-container-high),
-    container-shape: var(--border-shape, 2px),
-  ));
+  @include mat.expansion-overrides(
+    (
+      container-elevation-shadow: 0,
+      header-hover-state-layer-color: var(--mat-sys-surface-container-high),
+      container-shape: var(--border-shape, 2px),
+    )
+  );
 }
 .side-nav {
-  @include mat.expansion-overrides((
-    container-background-color: var(--mat-sys-surface),
-  ));
+  @include mat.expansion-overrides(
+    (
+      container-background-color: var(--mat-sys-surface),
+    )
+  );
 }
 .accordion {
-  @include mat.expansion-overrides((
-    container-background-color: var(--mat-sys-surface-container-low),
-    header-text-color: var(--mat-sys-primary),
-  ));
+  @include mat.expansion-overrides(
+    (
+      container-background-color: var(--mat-sys-surface-container-low),
+      header-text-color: var(--mat-sys-primary),
+    )
+  );
 }
 
 @media (max-width: 767.98px) {
@@ -51,7 +57,8 @@
   }
 }
 
-@include mat.checkbox-overrides((
-  label-text-size: 18px,
-));
-
+@include mat.checkbox-overrides(
+  (
+    label-text-size: 18px,
+  )
+);

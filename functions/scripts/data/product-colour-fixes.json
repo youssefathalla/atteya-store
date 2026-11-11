@@ -1,0 +1,22 @@
+{
+  "short-head1": {
+    "id": "eo-469fb614-b46e-4865-987e-0e51e25fc8de",
+    "colors": ["black", "yellow"]
+  },
+  "short-head": {
+    "id": "eo-da985588-a0d3-425b-837c-de256a50fd57",
+    "colors": ["black", "white"]
+  },
+  "adidas-navy-blue": {
+    "id": "eo-a1789aa5-286e-453d-9fdf-9e9654cc52a4",
+    "colors": ["navy"]
+  },
+  "bullpadel-tshirt-navy": {
+    "id": "eo-7d2fcf57-8e4f-4039-9ef2-2ca4ed16db11",
+    "colors": ["navy"]
+  },
+  "bullpadel-tshirt": {
+    "id": "eo-ee64b5b4-9949-4c08-8bea-2b443d543cb0",
+    "colors": ["navy"]
+  }
+}

@@ -1,0 +1,213 @@
+@switch (mode()) {
+  @case ('offer') {
+    <section
+      class="panel-border bg-surface-container-lowest p-5 elements-start-col items-stretch! gap-4"
+      aria-labelledby="guest-account-heading"
+    >
+      <div class="elements-start-col items-stretch! gap-1">
+        <h2 id="guest-account-heading" class="font-title-md font-bold!">Save Your Order to an Account</h2>
+        <p class="font-body-md text-on-surface-variant">
+          Follow your orders in one place and check out faster next time.
+        </p>
+      </div>
+
+      @if (email(); as address) {
+        <form
+          class="elements-start-col items-stretch! gap-4"
+          (submit)="$event.preventDefault(); createAccount()"
+        >
+          <div class="elements-start-col items-stretch! gap-0.5">
+            <span class="font-label-md text-on-surface-variant">Email</span>
+            <span class="font-body-md break-all">{{ address }}</span>
+          </div>
+          <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+            <mat-label>Password</mat-label>
+            <input
+              matInput
+              type="password"
+              autocomplete="new-password"
+              [value]="password()"
+              (input)="password.set($any($event.target).value)"
+            />
+          </mat-form-field>
+          <mat-checkbox [checked]="marketingOptIn()" (change)="marketingOptIn.set($event.checked)">
+            Send me offers and new arrivals by email
+          </mat-checkbox>
+          @if (message()) {
+            <p class="font-body-sm text-error" role="alert">{{ message() }}</p>
+          }
+          <div class="grid gap-3 @xl:flex @xl:flex-wrap @xl:items-center">
+            <button
+              matButton="filled"
+              type="submit"
+              [disabled]="busy() !== null"
+              [attr.aria-label]="busy() === 'create' ? 'Creating account...' : null"
+            >
+              @if (busy() === 'create') {
+                <mat-progress-spinner mode="indeterminate" diameter="18" />
+              } @else {
+                <span>Create Account</span>
+              }
+            </button>
+            <ng-container [ngTemplateOutlet]="googleButton" />
+            <button matButton type="button" (click)="skip()" [disabled]="busy() !== null">Skip</button>
+          </div>
+        </form>
+      } @else {
+        <!-- The link was opened on another device: no email to make an account with here. -->
+        <p class="font-body-md">Sign in with the email you used for this order to save it.</p>
+        @if (message()) {
+          <p class="font-body-sm text-error" role="alert">{{ message() }}</p>
+        }
+        <div class="grid gap-3 @xl:flex @xl:flex-wrap @xl:items-center">
+          <a matButton="filled" routerLink="/login" [queryParams]="{ returnUrl: returnUrl() }">Sign In</a>
+          <ng-container [ngTemplateOutlet]="googleButton" />
+          <button matButton type="button" (click)="skip()" [disabled]="busy() !== null">Skip</button>
+        </div>
+      }
+
+      <p class="font-body-sm text-on-surface-variant">
+        By creating an account, you agree to our
+        <a routerLink="/terms" target="_blank" rel="noopener" class="underline underline-offset-2">Terms</a>
+        and
+        <a routerLink="/privacy" target="_blank" rel="noopener" class="underline underline-offset-2"
+          >Privacy Policy</a
+        >.
+      </p>
+    </section>
+  }
+  @case ('verify') {
+    <section
+      class="panel-border bg-surface-container-lowest p-5 elements-start-col items-stretch! gap-4"
+      aria-labelledby="guest-verify-heading"
+    >
+      <div class="elements-start-col items-stretch! gap-1">
+        <h2 id="guest-verify-heading" class="font-title-md font-bold!">Confirm Your Email</h2>
+        @if (verificationSent()) {
+          <p class="font-body-md text-on-surface-variant" role="status">
+            We sent a confirmation link to <span class="break-all">{{ accountEmail() }}</span
+            >. Open it, then select Save to My Account to save this order.
+          </p>
+        } @else {
+          <p class="font-body-md text-on-surface-variant">
+            To save this order to your account, first confirm
+            <span class="break-all">{{ accountEmail() }}</span
+            >.
+          </p>
+        }
+      </div>
+      @if (message()) {
+        <p class="font-body-sm text-error" role="alert">{{ message() }}</p>
+      }
+      <div class="grid gap-3 @xl:flex @xl:flex-wrap @xl:items-center">
+        @if (verificationSent()) {
+          <button
+            matButton="filled"
+            type="button"
+            (click)="claim()"
+            [disabled]="busy() !== null"
+            [attr.aria-label]="busy() === 'claim' ? 'Saving to your account...' : null"
+          >
+            @if (busy() === 'claim') {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>Save to My Account</span>
+            }
+          </button>
+        }
+        <button
+          matButton="outlined"
+          type="button"
+          (click)="sendVerification()"
+          [disabled]="busy() !== null"
+          [attr.aria-label]="busy() === 'verify' ? 'Sending confirmation email...' : null"
+        >
+          @if (busy() === 'verify') {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>{{ verificationSent() ? 'Resend Email' : 'Send Confirmation Email' }}</span>
+          }
+        </button>
+        @if (!verificationSent()) {
+          <button
+            matButton
+            type="button"
+            (click)="claim()"
+            [disabled]="busy() !== null"
+            [attr.aria-label]="busy() === 'claim' ? 'Saving to your account...' : null"
+          >
+            @if (busy() === 'claim') {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>I've Confirmed It</span>
+            }
+          </button>
+        }
+      </div>
+    </section>
+  }
+  @case ('saved') {
+    <p class="panel-border bg-surface-container-lowest p-5 font-body-md" role="status">
+      Saved to your account.
+    </p>
+  }
+  @case ('exists') {
+    <section
+      class="panel-border bg-surface-container-lowest p-5 elements-start-col items-stretch! gap-4"
+      aria-label="Save your order to an account"
+    >
+      <p class="font-body-md" role="status">You already have an account with this email.</p>
+      <div class="grid gap-3 @xl:flex">
+        <a matButton="filled" routerLink="/login" [queryParams]="{ returnUrl: returnUrl() }">Sign In</a>
+      </div>
+    </section>
+  }
+  @case ('claim') {
+    <section
+      class="panel-border bg-surface-container-lowest p-5 elements-start-col items-stretch! gap-4"
+      aria-labelledby="guest-claim-heading"
+    >
+      <div class="elements-start-col items-stretch! gap-1">
+        <h2 id="guest-claim-heading" class="font-title-md font-bold!">Save Your Order to an Account</h2>
+        <p class="font-body-md text-on-surface-variant">Keep this order with your other orders.</p>
+      </div>
+      @if (message()) {
+        <p class="font-body-sm text-error" role="alert">{{ message() }}</p>
+      }
+      <div class="grid gap-3 @xl:flex">
+        <button
+          matButton="filled"
+          type="button"
+          (click)="claim()"
+          [disabled]="busy() !== null"
+          [attr.aria-label]="busy() === 'claim' ? 'Saving to your account...' : null"
+        >
+          @if (busy() === 'claim') {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Save to My Account</span>
+          }
+        </button>
+      </div>
+    </section>
+  }
+  @case ('message') {
+    <p class="panel-border bg-surface-container-lowest p-5 font-body-md" role="alert">{{ message() }}</p>
+  }
+}
+
+<ng-template #googleButton>
+  <button
+    matButton="outlined"
+    type="button"
+    (click)="continueWithGoogle()"
+    [disabled]="busy() !== null"
+    [attr.aria-label]="busy() === 'google' ? 'Signing in with Google...' : null"
+  >
+    @if (busy() === 'google') {
+      <mat-progress-spinner mode="indeterminate" diameter="18" />
+    } @else {
+      <span>Continue with Google</span>
+    }
+  </button>
+</ng-template>

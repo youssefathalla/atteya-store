@@ -53,10 +53,7 @@ export function resolveCatalogListParams(input: {
   return { kind: 'unsupported', filterId: null };
 }
 
-export function toProductListQuery(
-  params: CatalogListParams,
-  pageSize: number,
-): ProductListQuery | null {
+export function toProductListQuery(params: CatalogListParams, pageSize: number): ProductListQuery | null {
   if (params.kind === 'unsupported') return null;
   if (params.kind === 'all') return { limit: pageSize };
   if (params.kind === 'category' && params.filterId) {

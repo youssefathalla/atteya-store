@@ -10,11 +10,10 @@
   <header class="border-b border-outline-variant pb-6">
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div>
-        <h1 class="font-display-md font-bold! uppercase">
-          Featured Brands
-        </h1>
+        <h1 class="font-display-md font-bold! uppercase">Featured Brands</h1>
         <p class="font-body-md mt-2 max-w-2xl opacity-80">
-          Discover our curated collection of tournament-grade equipment, padel rackets, and performance apparel from the world's most prestigious athletic brands.
+          Discover our curated collection of tournament-grade equipment, padel rackets, and performance
+          apparel from the world's most prestigious athletic brands.
         </p>
       </div>
 
@@ -43,11 +42,13 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           @for (brand of group.brands; track brand.path) {
             <a
-              [routerLink]="brand.path"
+              [routerLink]="brand.path | linkTarget"
               class="group block p-6 bg-surface-container-lowest border border-outline-variant border-shape hover:border-primary transition-all duration-200 hover:shadow-md cursor-pointer"
             >
               <div class="flex items-start justify-between">
-                <div class="size-10 border-shape bg-surface-container-low elements-center border border-outline-variant group-hover:border-primary transition-colors">
+                <div
+                  class="size-10 border-shape bg-surface-container-low elements-center border border-outline-variant group-hover:border-primary transition-colors"
+                >
                   <mat-icon name="verified" size="sm" />
                 </div>
                 <span class="font-label-sm uppercase group-hover:text-primary transition-colors">
@@ -56,12 +57,12 @@
               </div>
 
               <div class="mt-6">
-                <h3 class="font-title-lg font-bold! group-hover:text-primary transition-colors uppercase tracking-tight">
+                <h3
+                  class="font-title-lg font-bold! group-hover:text-primary transition-colors uppercase tracking-tight"
+                >
                   {{ brand.label }}
                 </h3>
-                <p class="font-body-sm opacity-80 mt-1">
-                  Official tournament equipment & apparel
-                </p>
+                <p class="font-body-sm opacity-80 mt-1">Official tournament equipment & apparel</p>
               </div>
             </a>
           }

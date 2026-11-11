@@ -76,7 +76,7 @@ Always use Material M3 typography tokens. Never use arbitrary Tailwind text sizi
 2. **Angular Component Host Sizing**:
    - All section and page components (`app-*-section`, `app-*`) must define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
 3. **Full-Viewport Sections**:
-   - Full-screen heroes directly below the stacked top chrome must use `h-[calc(100dvh-var(--storefront-top-chrome,56px))]`. `--storefront-top-chrome` is measured from the shipping banner + desktop nav stack in `MainLayoutComponent` (falls back to `56px` / `h-14` navbar-only).
+   - Full-screen heroes directly below the stacked top chrome must use `h-[calc(100dvh-var(--storefront-top-chrome,56px))]`. `--storefront-top-chrome` is measured from the announcement bar + desktop nav stack in `MainLayoutComponent` (falls back to `56px` / `h-14` navbar-only).
    - When a full-height hero is specified, do NOT add `aspect-*` (`aspect-video`, `aspect-21/9`) to the slide containers, as `aspect-ratio` overrides height in modern CSS.
 4. **Section Spacing**:
    - Use `.container-content` as the single unified class for page section layout and responsive container padding (`p-[5cqw]`). Do not append `.section-space` to elements that already have `.container-content`.
@@ -109,7 +109,7 @@ Always use Material M3 typography tokens. Never use arbitrary Tailwind text sizi
 
 - **Import (REQUIRED)**: `imports: [SharedIconModule]` from `@shared/ui/mat-icon`.
 - **Usage**: `<mat-icon name="home" />` — content projection (`<mat-icon>home</mat-icon>`) is forbidden.
-- **Inputs**: `name` (required), `iconColor` (`primary | secondary | tertiary | success | warning | error | info`), `size` (`xs` … `7xl`), `type="fill"`, `weight` (`100`–`700`, default `500`).
+- **Inputs**: `name` (required), `iconColor` (`primary | secondary | tertiary | success | warning | error | info`), `size` (`xs` … `7xl`), `type="fill"`, `weight` (`100`–`700`, default `600`; the icon font serves `400`–`700`, so `700` is the heaviest and lighter values stop at `400`).
 - **Button Icons (Auto-Sized)**: Never write `size` on `<mat-icon>` inside buttons — `MatIconDirective` automatically detects button ancestors and applies `DEFAULT_BUTTON_ICON_SIZE` (`lg`). Standalone icons default to `2xl`.
 
 ---

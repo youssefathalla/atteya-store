@@ -5,15 +5,7 @@ export type OfferSaleItemsPolicy = 'bestOf' | 'exclude' | 'stack';
 export type OfferScope = 'item' | 'cart';
 
 export type OfferConditionField =
-  | 'productId'
-  | 'brandId'
-  | 'categoryIds'
-  | 'type'
-  | 'modelGroup'
-  | 'colors'
-  | 'sizes'
-  | 'tags'
-  | 'price';
+  'productId' | 'brandId' | 'categoryIds' | 'type' | 'modelGroup' | 'colors' | 'sizes' | 'tags' | 'price';
 
 export interface OfferSetAtom {
   readonly field: Exclude<OfferConditionField, 'price'>;
@@ -77,13 +69,26 @@ export type OfferReward =
     }
   | {
       readonly kind: 'freeGift';
-      readonly giftProductId: string;
-      readonly giftVariantId?: string | null;
-      readonly quantity: number;
+      /**
+       * One set of these gifts per qualifying item bought. The shopper picks one product from
+       * each gift's `productIds` (and its size when it has sizes). An old offer that held one
+       * fixed `giftProductId` is read as one gift with one choice.
+       */
+      readonly gifts: readonly OfferGift[];
     }
   | {
       readonly kind: 'freeShipping';
     };
+
+/** One free gift of a Free gift offer, e.g. "Free shirt" with 4 shirts to choose from. */
+export interface OfferGift {
+  /** Stable id inside the offer (`gift-1`, …); bag lines and orders point at it. */
+  readonly id: string;
+  /** Short name shoppers see, e.g. "Free shirt". */
+  readonly name: string;
+  /** Products the shopper can choose from. */
+  readonly productIds: readonly string[];
+}
 
 export interface OfferSchedule {
   readonly startsAt: Date | null;
@@ -94,6 +99,20 @@ export interface OfferSchedule {
 export interface OfferLimits {
   readonly totalUses: number | null;
   readonly perCustomer: number | null;
+}
+
+/** When the top banner shows the time left: never, always, or only in the last `countdownDays` days. */
+export type OfferBannerCountdown = 'hide' | 'always' | 'lastDays';
+
+/** How an offer shows in the storefront's top announcement bar. */
+export interface OfferBanner {
+  /** Staff turned the offer on in the top banner (offers for everyone only). */
+  readonly show: boolean;
+  /** Banner text, at most 60 characters; null = the offer's customer title. */
+  readonly text: string | null;
+  readonly countdown: OfferBannerCountdown;
+  /** Used when `countdown` is `lastDays`: 1 to 30, default 7. */
+  readonly countdownDays: number;
 }
 
 export interface OfferDraft {
@@ -118,6 +137,8 @@ export interface OfferDraft {
   readonly limits: OfferLimits;
   readonly requiresCode: boolean;
   readonly code?: string | null;
+  /** Top banner settings; missing (older offers) = not in the banner. */
+  readonly banner?: OfferBanner;
 }
 
 export interface Offer extends OfferDraft {

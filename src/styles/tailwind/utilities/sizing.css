@@ -1,25 +1,65 @@
 /*! SIZING UTILITIES */
 
 /* Direct Viewport Percent Heights */
-@utility dvh-10 { min-height: 10dvh; }
-@utility dvh-20 { min-height: 20dvh; }
-@utility dvh-30 { min-height: 30dvh; }
-@utility dvh-40 { min-height: 40dvh; }
-@utility dvh-50 { min-height: 50dvh; }
-@utility dvh-60 { min-height: 60dvh; }
-@utility dvh-70 { min-height: 70dvh; }
-@utility dvh-80 { min-height: 80dvh; }
-@utility dvh-90 { min-height: 90dvh; }
-@utility dvh-full { min-height: 100dvh; }
+@utility dvh-10 {
+  min-height: 10dvh;
+}
+@utility dvh-20 {
+  min-height: 20dvh;
+}
+@utility dvh-30 {
+  min-height: 30dvh;
+}
+@utility dvh-40 {
+  min-height: 40dvh;
+}
+@utility dvh-50 {
+  min-height: 50dvh;
+}
+@utility dvh-60 {
+  min-height: 60dvh;
+}
+@utility dvh-70 {
+  min-height: 70dvh;
+}
+@utility dvh-80 {
+  min-height: 80dvh;
+}
+@utility dvh-90 {
+  min-height: 90dvh;
+}
+@utility dvh-full {
+  min-height: 100dvh;
+}
 
 /* Page Calculated Heights (Accounts for 56px / h-14 Header and 10cqw Vertical Section Space) */
-@utility dvh-page-10 { @apply min-h-[calc(10dvh-56px-10cqw)]; }
-@utility dvh-page-20 { @apply min-h-[calc(20dvh-56px-10cqw)]; }
-@utility dvh-page-30 { @apply min-h-[calc(30dvh-56px-10cqw)]; }
-@utility dvh-page-40 { @apply min-h-[calc(40dvh-56px-10cqw)]; }
-@utility dvh-page-50 { @apply min-h-[calc(50dvh-56px-10cqw)]; }
-@utility dvh-page-60 { @apply min-h-[calc(60dvh-56px-10cqw)]; }
-@utility dvh-page-70 { @apply min-h-[calc(70dvh-56px-10cqw)]; }
-@utility dvh-page-80 { @apply min-h-[calc(80dvh-56px-10cqw)]; }
-@utility dvh-page-90 { @apply min-h-[calc(90dvh-56px-10cqw)]; }
-@utility dvh-page-full { @apply min-h-[calc(100dvh-56px-10cqw)]; }
+@utility dvh-page-10 {
+  @apply min-h-[calc(10dvh-56px-10cqw)];
+}
+@utility dvh-page-20 {
+  @apply min-h-[calc(20dvh-56px-10cqw)];
+}
+@utility dvh-page-30 {
+  @apply min-h-[calc(30dvh-56px-10cqw)];
+}
+@utility dvh-page-40 {
+  @apply min-h-[calc(40dvh-56px-10cqw)];
+}
+@utility dvh-page-50 {
+  @apply min-h-[calc(50dvh-56px-10cqw)];
+}
+@utility dvh-page-60 {
+  @apply min-h-[calc(60dvh-56px-10cqw)];
+}
+@utility dvh-page-70 {
+  @apply min-h-[calc(70dvh-56px-10cqw)];
+}
+@utility dvh-page-80 {
+  @apply min-h-[calc(80dvh-56px-10cqw)];
+}
+@utility dvh-page-90 {
+  @apply min-h-[calc(90dvh-56px-10cqw)];
+}
+@utility dvh-page-full {
+  @apply min-h-[calc(100dvh-56px-10cqw)];
+}

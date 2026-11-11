@@ -1,10 +1,4 @@
-import {
-  Component,
-  computed,
-  inject,
-  OnInit,
-  resource,
-} from '@angular/core';
+import { Component, computed, inject, OnInit, resource } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '@core/services/auth/auth.service';
@@ -23,13 +17,7 @@ import { SkeletonComponent } from '@shared/ui/skeleton';
 @Component({
   selector: 'app-favorites-page',
   host: { class: 'block w-full min-h-[60vh] container-content' },
-  imports: [
-    RouterLink,
-    MatButtonModule,
-    ProductCardComponent,
-    SharedIconModule,
-    SkeletonComponent,
-  ],
+  imports: [RouterLink, MatButtonModule, ProductCardComponent, SharedIconModule, SkeletonComponent],
   templateUrl: './favorites.page.html',
 })
 export class FavoritesPageComponent implements OnInit {
@@ -43,49 +31,27 @@ export class FavoritesPageComponent implements OnInit {
 
   readonly favoritesReady = this.#favorites.ready;
 
+  /**
+   * Read by product id, never by the slug saved on the favorite: a product's web address can
+   * change (ATS-115), its id never does. The saved `slug` is only a leftover hint.
+   */
   readonly productsResource = resource({
     params: () => {
       if (!this.#favorites.ready()) return undefined;
-      return this.#favorites.items().map((item) => ({
-        productId: item.productId,
-        slug: item.slug,
-      }));
+      return this.#favorites.items().map((item) => item.productId);
     },
     loader: async ({ params }) => {
       if (params.length === 0) return [] as readonly Product[];
-      const loaded = await Promise.all(
-        params.map((item) => this.#products.getBySlug(item.slug)),
-      );
-      const bySlug = new Map<string, Product>();
-      for (const product of loaded) {
-        if (product) bySlug.set(product.slug, product);
-      }
-      // Keep favorite order (newest first from the service). Drop unpublished/missing.
-      return params.flatMap((item) => {
-        const product = bySlug.get(item.slug);
-        return product ? [product] : [];
-      });
+      const loaded = await Promise.all(params.map((id) => this.#products.getById(id)));
+      // Keep favorite order (newest first from the service). Drop unpublished/missing
+      // (an admin can read unpublished products, so check the flag too).
+      return loaded.filter((product): product is Product => product !== null && product.published);
     },
-  });
-
-  readonly #siblingsResource = resource({
-    params: () => {
-      if (!this.productsResource.hasValue()) return undefined;
-      const groups = this.productsResource
-        .value()
-        .map((product) => product.modelGroup?.trim() ?? '')
-        .filter((group) => group.length > 0);
-      return groups.length > 0 ? groups : undefined;
-    },
-    loader: ({ params }) => this.#products.listPublishedByModelGroups(params, 12),
   });
 
   readonly cards = computed(() => {
     if (!this.productsResource.hasValue()) return [];
     const products = this.productsResource.value();
-    const siblings = this.#siblingsResource.hasValue()
-      ? this.#siblingsResource.value()
-      : new Map<string, readonly Product[]>();
     const liveMode = this.#offers.ready() && !this.#offers.failed();
     const offers = liveMode ? this.#offers.all() : [];
     const ctx = {
@@ -95,7 +61,7 @@ export class FavoritesPageComponent implements OnInit {
 
     return products.map((product) => {
       const price = priceFor(product, liveMode, offers, ctx);
-      return productToCardData(product, price, siblings);
+      return productToCardData(product, price);
     });
   });
 
@@ -104,10 +70,7 @@ export class FavoritesPageComponent implements OnInit {
   );
 
   readonly showEmpty = computed(
-    () =>
-      this.favoritesReady() &&
-      this.productsResource.hasValue() &&
-      this.cards().length === 0,
+    () => this.favoritesReady() && this.productsResource.hasValue() && this.cards().length === 0,
   );
 
   ngOnInit(): void {

@@ -23,11 +23,7 @@ export function getSearchClient(): SearchClient {
   return cachedClient;
 }
 
-export async function withRetry<T>(
-  op: () => Promise<T>,
-  label: string,
-  objectID?: string,
-): Promise<T> {
+export async function withRetry<T>(op: () => Promise<T>, label: string, objectID?: string): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= BACKOFF_MS.length; attempt += 1) {
     try {
@@ -61,7 +57,8 @@ export function safeErrorMessage(error: unknown): string {
 
 function readStatus(error: unknown): number | null {
   if (typeof error !== 'object' || error === null) return null;
-  const candidate = (error as { status?: unknown; statusCode?: unknown }).status ??
+  const candidate =
+    (error as { status?: unknown; statusCode?: unknown }).status ??
     (error as { statusCode?: unknown }).statusCode;
   return typeof candidate === 'number' ? candidate : null;
 }

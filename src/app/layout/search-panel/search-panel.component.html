@@ -1,0 +1,122 @@
+<header class="side-panel__header">
+  <div class="search-panel__field">
+    <mat-icon name="search" size="xl" aria-hidden="true" />
+    <input
+      #searchInput
+      id="search-panel-input"
+      class="search-panel__input"
+      type="search"
+      placeholder="Search products"
+      aria-label="Search products"
+      aria-controls="search-panel-results"
+      autocomplete="off"
+      enterkeyhint="search"
+      [value]="draft()"
+      (input)="onInput($event)"
+      (keydown.enter)="seeAll()"
+    />
+    @if (draft()) {
+      <button matButton type="button" (click)="clear(searchInput)">Clear</button>
+    }
+  </div>
+
+  <button matIconButton type="button" aria-label="Close search" (click)="close()">
+    <mat-icon name="close" />
+  </button>
+</header>
+
+<div id="search-panel-results" class="side-panel__body" aria-live="polite">
+  @if (!isConfigured) {
+    <div class="search-panel__message">
+      <p class="font-title-md font-bold!">Search isn't ready yet</p>
+      <p class="font-body-md text-on-surface-variant">
+        You can still browse every category and brand from the menu.
+      </p>
+    </div>
+  } @else if (!hasMinQuery()) {
+    <div class="search-panel__message">
+      <mat-icon name="search" size="4xl" aria-hidden="true" />
+      <p class="font-title-md font-bold!">What are you looking for?</p>
+      <p class="font-body-md text-on-surface-variant">
+        Type at least 2 letters to see matching products, brands or gear.
+      </p>
+    </div>
+  } @else if (results.error()) {
+    <div class="search-panel__message" role="alert">
+      <p class="font-title-md font-bold!">We couldn't load results right now</p>
+      <p class="font-body-md text-on-surface-variant">Please try again in a moment.</p>
+      <button matButton="outlined" type="button" (click)="results.reload()">Try Again</button>
+    </div>
+  } @else if (!shownPage()) {
+    <ul class="search-panel__list" aria-label="Loading results">
+      @for (row of skeletonRows; track row) {
+        <li class="search-panel__result">
+          <app-skeleton class="size-16 shrink-0" />
+          <div class="flex-1 elements-start-col gap-2">
+            <app-skeleton class="h-4 w-3/4" />
+            <app-skeleton class="h-4 w-1/3" />
+          </div>
+        </li>
+      }
+    </ul>
+  } @else if (items().length === 0) {
+    <div class="search-panel__message">
+      <p class="font-title-md font-bold!">No products match '{{ query() }}'</p>
+      <p class="font-body-md text-on-surface-variant">Try a shorter word or check the spelling.</p>
+    </div>
+  } @else {
+    <ul
+      class="search-panel__list"
+      [class.search-panel__list--refreshing]="isRefreshing()"
+      aria-label="Matching products"
+    >
+      @for (item of items(); track item.id) {
+        <li>
+          <a
+            class="search-panel__result"
+            [routerLink]="['/product', item.slug]"
+            [appPrefetchProduct]="item.slug"
+          >
+            <span class="search-panel__thumb">
+              @if (item.imagePath; as path) {
+                <img
+                  [ngSrc]="imagePath(path)"
+                  [appImageFallback]="path"
+                  alt=""
+                  width="64"
+                  height="64"
+                  class="size-full object-contain p-1"
+                />
+              }
+            </span>
+            <span class="min-w-0 flex-1 elements-start-col gap-0.5">
+              <span class="font-label-sm text-on-surface-variant uppercase">{{ item.brandName }}</span>
+              <span class="font-body-md line-clamp-2">{{ item.name }}</span>
+              <app-product-price
+                tone="listing"
+                [price]="item.price.price"
+                [fromPrice]="item.price.fromPrice"
+                [listPrice]="item.price.listPrice"
+                [partial]="item.price.partial"
+              />
+            </span>
+          </a>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+@if (isConfigured && hasMinQuery() && items().length > 0) {
+  <footer class="side-panel__footer">
+    <button matButton="filled" type="button" (click)="seeAll()">See All Results</button>
+    <a
+      href="https://www.algolia.com"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="font-label-sm text-on-surface-variant underline"
+    >
+      Search by Algolia
+    </a>
+  </footer>
+}

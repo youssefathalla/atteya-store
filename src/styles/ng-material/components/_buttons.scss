@@ -29,12 +29,33 @@
   padding-inline-start: 0.5rem !important;
 }
 
+//- Full-width main action (product page Add to Bag)
+.btn-block {
+  width: 100%;
+  @include mat.button-overrides(
+    (
+      filled-container-height: 48px,
+      outlined-container-height: 48px,
+    )
+  );
+}
+
 //-Table buttons
 .table-btn {
   @include mat.button-overrides(
     (
       tonal-container-height: 34px,
       tonal-label-text-size: 12px,
+    )
+  );
+}
+
+//- Row arrows (`app-row-scroll-nav`: home rows, bag): a clear ring when reached with Tab
+.row-scroll-nav {
+  @include mat.strong-focus-indicators(
+    (
+      border-color: var(--mat-sys-primary),
+      border-width: 2px,
     )
   );
 }

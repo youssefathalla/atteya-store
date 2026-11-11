@@ -15,10 +15,7 @@ export const OrderShippingSchema = v.pipe(
     country,
     phone: v.pipe(v.string(), v.trim(), v.minLength(6), v.maxLength(20)),
     governorateId: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(40)), null), null),
-    boxId: v.optional(
-      v.nullable(v.picklist(['box1', 'box2', 'box3']), null),
-      null,
-    ),
+    boxId: v.optional(v.nullable(v.picklist(['box1', 'box2', 'box3']), null), null),
   }),
   v.check(
     (shipping) => shipping.country === 'EG' || shipping.postalCode.length >= 1,
@@ -38,6 +35,32 @@ export const OrderLinePriceSchema = v.object({
   name: v.optional(v.string()),
   optionLabels: v.optional(v.array(v.object({ label: v.string(), value: v.string() }))),
   imagePath: v.optional(v.nullable(v.string())),
+  /** Free gift line (price 0), listed after the line it came with (`forLine`). */
+  gift: v.optional(
+    v.object({
+      offerId: v.string(),
+      giftId: v.string(),
+      giftName: v.string(),
+      forLine: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    }),
+  ),
+  /** Whole EGP a Buy X Get Y offer took off the line (`lineDisplay` is already after it). */
+  discountEgp: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  /**
+   * The line before its Buy X Get Y discount: pieces in a group at the price before per-item
+   * offers. Only on lines with pieces in a group; missing on older orders.
+   */
+  fullEgp: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  deals: v.optional(
+    v.array(
+      v.object({
+        offerId: v.string(),
+        units: v.pipe(v.number(), v.integer(), v.minValue(1)),
+        percent: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
+        discountEgp: v.pipe(v.number(), v.integer(), v.minValue(0)),
+      }),
+    ),
+  ),
 });
 
 export const OrderShippingLineSchema = v.object({
@@ -95,7 +118,8 @@ export const OrderBankTransferSchema = v.object({
 const OrderBaseFields = {
   id: v.string(),
   status: v.picklist(['pending', 'confirmed', 'cancelled', 'failed']),
-  customerId: v.string(),
+  /** `null` on guest orders (placed without signing in). */
+  customerId: v.nullable(v.string(), null),
   customerEmail: v.nullable(v.string(), null),
   shipping: OrderShippingSchema,
   pricing: OrderPricingSnapshotSchema,
@@ -132,3 +156,72 @@ export type OrderDoc = v.InferOutput<typeof OrderSchema>;
 export type StoreOrderDoc = v.InferOutput<typeof StoreOrderSchema>;
 
 export const ORDERS_COLLECTION = 'orders';
+
+/**
+ * `orderViews/{viewKey}`: the public read-by-key copy of a guest order, written by the
+ * `syncOrderView` trigger (`orderViewFields()` in `functions/src/orders/order-view.ts`). It holds
+ * only what the order page reads: never the email, the uid, staff fields or the key.
+ */
+export const OrderViewSchema = v.object({
+  id: v.string(),
+  status: v.picklist(['pending', 'confirmed', 'cancelled', 'failed']),
+  paymentMethod: v.picklist(['paymob', 'cash-on-delivery', 'instapay']),
+  shipping: OrderShippingSchema,
+  pricing: OrderPricingSnapshotSchema,
+  paymob: v.optional(
+    v.nullable(
+      v.object({
+        amountCents: v.optional(v.nullable(v.number()), null),
+        paidAt: v.optional(v.nullable(timestampSchema), null),
+      }),
+    ),
+    null,
+  ),
+  needsReview: v.optional(v.boolean(), false),
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+  confirmedAt: v.optional(v.nullable(timestampSchema), null),
+  cancelledAt: v.optional(v.nullable(timestampSchema), null),
+});
+
+export type OrderViewDoc = v.InferOutput<typeof OrderViewSchema>;
+
+export const ORDER_VIEWS_COLLECTION = 'orderViews';
+
+/** True for a string shaped like a guest order's view key (base64url, 43 characters). */
+export function isOrderViewKey(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
+}
+
+/**
+ * A guest order's view → the order shape the order page reads. The fields the view leaves out
+ * (owner, email, staff ids, Paymob intention ids) are empty: the page never shows them.
+ */
+export function orderFromView(view: OrderViewDoc): StoreOrderDoc {
+  return {
+    id: view.id,
+    status: view.status,
+    customerId: null,
+    customerEmail: null,
+    shipping: view.shipping,
+    pricing: view.pricing,
+    confirmedAt: view.confirmedAt,
+    confirmedBy: null,
+    createdAt: view.createdAt,
+    updatedAt: view.updatedAt,
+    paymentMethod: view.paymentMethod,
+    paymob: view.paymob
+      ? {
+          intentionId: '',
+          intentionOrderId: null,
+          amountCents: view.paymob.amountCents ?? 0,
+          currency: 'EGP',
+          transactionId: null,
+          paidAt: view.paymob.paidAt,
+        }
+      : null,
+    needsReview: view.needsReview,
+    cancelledAt: view.cancelledAt,
+    cancelledBy: null,
+  };
+}

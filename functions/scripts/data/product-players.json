@@ -1,0 +1,272 @@
+[
+  {
+    "id": "eo-603010ed-79b3-4791-bd88-5dabd2413620",
+    "slug": "metalbon-galan2026",
+    "name": "Adidas Metalbone",
+    "players": [
+      "ale-galan"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-8b4ad4f0-7524-4e84-ad4f-1711e2ac5676",
+    "slug": "metalbon-hrd-galan2026",
+    "name": "Adidas Metalbone HRD+",
+    "players": [
+      "ale-galan"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-0d48d712-64cd-4646-82e3-f87e55e03762",
+    "slug": "bullpadel-neuron02",
+    "name": "Bullpadel Neuron 02 Edge",
+    "players": [
+      "fede-chingotto"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-8481b4a5-3682-42e4-adfc-723cc4cb3103",
+    "slug": "ventus-attack",
+    "name": "Nox EA10 Ventus Attack 12K Xtrem",
+    "players": [
+      "edu-alonso"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-1d7ef5e2-8c33-4348-b77b-d5a7407a294d",
+    "slug": "backpack-adidas",
+    "name": "Adidas Multigame Backpack",
+    "players": [
+      "ale-galan"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-e6622ea2-82e6-458e-ad06-87553caab750",
+    "slug": "adidas-bag-red",
+    "name": "Adidas Multigame Racket Bag",
+    "players": [
+      "ale-galan"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-a1fc7e57-29c5-4198-9891-c19ba8f8159d",
+    "slug": "siux-electra-bag",
+    "name": "Siux Electra Stupa Racket Bag",
+    "players": [
+      "franco-stupaczuk"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-e8baf073-8f38-48f5-b5ff-b37473e70e7c",
+    "slug": "nox-set",
+    "name": "Nox Agustín Tapia Set",
+    "players": [
+      "agustin-tapia"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-a1789aa5-286e-453d-9fdf-9e9654cc52a4",
+    "slug": "adidas-navy-blue",
+    "name": "Adidas Ale Galán T-Shirt",
+    "players": [
+      "ale-galan"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-5bdbcf3a-4d9a-4d8a-8d18-1f50ee540c08",
+    "slug": "adidas-orange",
+    "name": "Adidas Ale Galán T-Shirt",
+    "players": [
+      "ale-galan"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-c22d8cdd-cc0a-4b73-a06d-940dd6f6f0f9",
+    "slug": "adidas-shirt-galan",
+    "name": "Adidas Ale Galán T-Shirt",
+    "players": [
+      "ale-galan"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-da3c8d5a-8e43-4295-9b36-1e7dab4091d2",
+    "slug": "adidas-shirt-galan-2",
+    "name": "Adidas Ale Galán T-Shirt",
+    "players": [
+      "ale-galan"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-fc62ec11-6cac-4516-9bf3-53ec9d989236",
+    "slug": "adidas-tshirt-galan",
+    "name": "Adidas Ale Galán T-Shirt",
+    "players": [
+      "ale-galan"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-3b753dfb-da9f-4c29-84ae-1121e76dff13",
+    "slug": "babolat-tshirt",
+    "name": "Babolat Lebrón T-Shirt",
+    "players": [
+      "juan-lebron"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-1e022941-f999-4e09-9ab4-45b8768426a0",
+    "slug": "babolat-tshirt-lobo",
+    "name": "Babolat Lebrón T-Shirt",
+    "players": [
+      "juan-lebron"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-016826d2-9748-4870-ac1c-cefbc03dff0c",
+    "slug": "babolta-lebron",
+    "name": "Babolat Lebrón T-Shirt",
+    "players": [
+      "juan-lebron"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-90096f7f-52be-406e-9391-af7d3fddeb7e",
+    "slug": "lebron-t-shirt2026",
+    "name": "Babolat Lebrón T-Shirt",
+    "players": [
+      "juan-lebron"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-df639bd5-555e-4a6f-94bd-43df14ab1af3",
+    "slug": "bullpadel-oragne",
+    "name": "Bullpadel Chingotto T-Shirt",
+    "players": [
+      "fede-chingotto"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-7d2fcf57-8e4f-4039-9ef2-2ca4ed16db11",
+    "slug": "bullpadel-tshirt-navy",
+    "name": "Bullpadel Chingotto T-Shirt",
+    "players": [
+      "fede-chingotto"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-d7bf5098-f0cc-40ef-bec2-c7d6c4f21eb3",
+    "slug": "bullpadel-white-shirt",
+    "name": "Bullpadel Chingotto T-Shirt",
+    "players": [
+      "fede-chingotto"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-4873e431-c78e-4455-b259-48a6ca257eee",
+    "slug": "coello-tshirt",
+    "name": "Head Arturo Coello T-Shirt",
+    "players": [
+      "arturo-coello"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-e7a1e668-9696-4adf-8731-765299306bf1",
+    "slug": "nox-red",
+    "name": "Nox Agustín Tapia T-Shirt",
+    "players": [
+      "agustin-tapia"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-1b4c3d65-8590-4d64-836d-e57645eae17b",
+    "slug": "nox-tshirttapia",
+    "name": "Nox Agustín Tapia T-Shirt",
+    "players": [
+      "agustin-tapia"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-5a2bb883-d634-4507-b11a-928873bd864d",
+    "slug": "t-shirt-nox-blacktapia",
+    "name": "Nox Agustín Tapia T-Shirt",
+    "players": [
+      "agustin-tapia"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-bc0f34ae-dfcd-4382-addc-1ccef41e7e8e",
+    "slug": "noxshirt-tapia",
+    "name": "Nox Polo",
+    "players": [
+      "agustin-tapia"
+    ],
+    "matchedOn": "link name only: check"
+  },
+  {
+    "id": "eo-bb587ce0-9b89-4529-90a7-4656827b1c48",
+    "slug": "augsburger-siux-tshirt",
+    "name": "Siux Augsburger T-Shirt",
+    "players": [
+      "leo-augsburger"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-d05485c0-4506-4ccf-8e07-c46edd162740",
+    "slug": "siux-t-shirt",
+    "name": "Siux Augsburger T-Shirt",
+    "players": [
+      "leo-augsburger"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-97d60b70-3cb4-44bf-b26f-c90177f7bb97",
+    "slug": "siux-tshirt",
+    "name": "Siux Augsburger T-Shirt",
+    "players": [
+      "leo-augsburger"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-91f1d5e0-436d-40be-bd4f-723dbd029dc3",
+    "slug": "siux-tshirt1",
+    "name": "Siux Augsburger T-Shirt",
+    "players": [
+      "leo-augsburger"
+    ],
+    "matchedOn": "name or summary"
+  },
+  {
+    "id": "eo-ef259bfa-1bdd-4db9-acfb-067bc4a221d2",
+    "slug": "stupa-t-shirt-siux",
+    "name": "Siux Stupa T-Shirt",
+    "players": [
+      "franco-stupaczuk"
+    ],
+    "matchedOn": "name or summary"
+  }
+]

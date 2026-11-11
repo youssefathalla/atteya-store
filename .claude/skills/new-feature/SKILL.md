@@ -163,7 +163,7 @@ src/app/features/[feature-name]/
 4. **Image Optimization & Uploads**:
    - For all storefront images: use Angular `NgOptimizedImage` (`[ngSrc]`). Never use raw `<img [src]>` for media assets.
    - Always wrap with `@if (imagePath())` and use `normalizeImageKitPath(item.imageUrl)` from `@shared/utils/image.utils`.
-   - Provide `fill` (or explicit `width`/`height`), `priority` on above-the-fold/hero elements, and responsive `sizes` (e.g. `sizes="100vw"`).
+   - Provide `fill` (or explicit `width`/`height`), `priority` on above-the-fold/hero elements, and responsive `sizes` (e.g. `sizes="100vw"`). Never put a bare pixel value in `sizes` (`sizes="80px"`): `NgOptimizedImage` throws NG02952 in dev builds and the photo never loads. A small fixed thumbnail (cart line, colour swatch) uses `width`/`height` plus `class="size-full object-contain"` instead of `fill`.
    - For uploading images: inject `StorageUploadService` from `@core/services/storage` and call `await this.storageUpload.uploadImage(file, folder)`.
 
 ---
@@ -200,6 +200,7 @@ Before marking any feature as complete:
 ## Step 1b checklist
 
 - A new Cloud Function must be exported from `functions/src/index.ts` and, if admin-only, call `requireRole(request, 'admin')`.
+- A new one-off data script in `functions/scripts/` (dry run by default, `--apply` to write) ends its header comment with: "On dev the manager agent may run --apply after a dry run; prod needs Youssef's OK (AGENTS.md, Deploy safety)." Never write "Agents never run --apply".
 - Pricing logic belongs in the shared engine (`functions/src/offers/engine/`), then `npm run sync:engine`. Never store offer prices on products.
 - Any new Firestore collection needs an explicit rules entry and an exclusion from the catch-all (rules edits go through the `firestore-rules-author` subagent).
 - `/search` is server-rendered (`RenderMode.Server`, `Cache-Control: private, no-store`). Its results `resource()` runs on the server when `q` has at least 2 characters (search-only Algolia key). Do not switch it back to `RenderMode.Client`.

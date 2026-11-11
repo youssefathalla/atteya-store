@@ -4,12 +4,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { STOREFRONT_URL } from '../paymob/paymob-config.js';
 import { currentProjectId } from '../project-id.js';
 import { STORE_INFO } from '../store/store-info.js';
-import {
-  RESEND_API_KEY,
-  RESEND_FROM,
-  RESEND_REPLY_TO,
-  STORE_ALERT_EMAIL,
-} from './email-config.js';
+import { RESEND_API_KEY, RESEND_FROM, RESEND_REPLY_TO, STORE_ALERT_EMAIL } from './email-config.js';
 import { claimId, orderEmailsForWrite, type OrderEmailKind } from './order-email-events.js';
 import { readOrderForEmail, type OrderEmailOrder } from './order-email-model.js';
 import { renderOrderEmail, type OrderEmailContext } from './order-email-templates.js';
@@ -30,14 +25,8 @@ export const sendOrderEmails = onDocumentWritten(
   },
   async (event) => {
     const orderId = event.params.orderId;
-    const before = readOrderForEmail(
-      orderId,
-      event.data?.before.exists ? event.data.before.data() : null,
-    );
-    const after = readOrderForEmail(
-      orderId,
-      event.data?.after.exists ? event.data.after.data() : null,
-    );
+    const before = readOrderForEmail(orderId, event.data?.before.exists ? event.data.before.data() : null);
+    const after = readOrderForEmail(orderId, event.data?.after.exists ? event.data.after.data() : null);
     const kinds = orderEmailsForWrite(before, after);
     if (!after || kinds.length === 0) return;
 
@@ -137,8 +126,6 @@ async function withMissingNames(db: Firestore, order: OrderEmailOrder): Promise<
   }
   return {
     ...order,
-    lines: order.lines.map((line) =>
-      line.name ? line : { ...line, name: names.get(line.productId) ?? '' },
-    ),
+    lines: order.lines.map((line) => (line.name ? line : { ...line, name: names.get(line.productId) ?? '' })),
   };
 }

@@ -5,7 +5,7 @@ import type {
   ShopBrandOption,
   ShopColorOption,
   ShopFilterState,
-  ShopPriceBounds,
+  ShopPlayerOption,
   ShopSizeOption,
   ShopTabId,
 } from '../../models/shop.model';
@@ -22,9 +22,9 @@ export class ShopFiltersDrawerComponent {
   readonly filters = model.required<ShopFilterState>();
   readonly tab = input.required<ShopTabId>();
   readonly brands = input.required<readonly ShopBrandOption[]>();
+  readonly players = input<readonly ShopPlayerOption[]>([]);
   readonly sizes = input.required<readonly ShopSizeOption[]>();
   readonly colors = input.required<readonly ShopColorOption[]>();
-  readonly priceBounds = input.required<ShopPriceBounds>();
   readonly showGender = input(false);
   readonly showSizes = input(false);
   readonly accessoriesSubOnly = input(false);

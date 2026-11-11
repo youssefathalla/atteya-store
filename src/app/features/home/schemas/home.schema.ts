@@ -51,16 +51,10 @@ export const HomeNavListItemSchema = v.object({
   link: v.pipe(
     v.string(),
     v.trim(),
-    v.check(
-      (value) => value.startsWith('/') && !value.startsWith('//'),
-      'Link must start with /',
-    ),
+    v.check((value) => value.startsWith('/') && !value.startsWith('//'), 'Link must start with /'),
   ),
   imageUrl: v.pipe(v.string(), v.trim()),
-  imageAlt: v.optional(
-    v.pipe(v.string(), v.trim(), v.maxLength(IMAGE_LIMITS.maxAltLength)),
-    '',
-  ),
+  imageAlt: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(IMAGE_LIMITS.maxAltLength)), ''),
 });
 
 export const HomeNavListSchema = v.object({

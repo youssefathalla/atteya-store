@@ -114,8 +114,7 @@ export class ConditionGroupEditorComponent {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
     const field = target.value as OfferConditionField;
-    const nextAtom: OfferConditionAtom =
-      field === 'price' ? { field: 'price' } : { field, in: [] };
+    const nextAtom: OfferConditionAtom = field === 'price' ? { field: 'price' } : { field, in: [] };
     this.#replaceAtom(groupIndex, atomIndex, nextAtom);
   }
 
@@ -179,10 +178,7 @@ export class ConditionGroupEditorComponent {
     }));
   }
 
-  #updateGroup(
-    groupIndex: number,
-    updater: (group: OfferConditionGroup) => OfferConditionGroup,
-  ): void {
+  #updateGroup(groupIndex: number, updater: (group: OfferConditionGroup) => OfferConditionGroup): void {
     const nextGroups = this.conditions()
       .anyOf.map((group, idx) => (idx === groupIndex ? updater(group) : group))
       .filter((group) => group.allOf.length > 0);

@@ -8,11 +8,13 @@
   interpolate-size: allow-keywords;
 
   //! overrides
-  @include mat.progress-bar-overrides((
-    track-height: 10px,
-    active-indicator-height: 8px,
-    track-shape: 12px,
-  ));
+  @include mat.progress-bar-overrides(
+    (
+      track-height: 10px,
+      active-indicator-height: 8px,
+      track-shape: 12px,
+    )
+  );
 
   .mdc-linear-progress__bar-inner {
     border-radius: 12px;
@@ -27,7 +29,9 @@ html[data-cur-pending] app-product-price {
 // The domestic shipping bar is in the server HTML as EGP. Drop it before
 // first paint while a foreign currency is still resolving, so it does not
 // flash and then collapse. Egypt never sets data-cur-pending.
-html[data-cur-pending] app-shipping-banner {
+/* EGP-only shipping message in the announcement bar: hidden while the currency is pending. */
+html[data-cur-pending] app-announcement-bar[data-shipping-only],
+html[data-cur-pending] .announcement-bar__slide--shipping {
   display: none;
 }
 

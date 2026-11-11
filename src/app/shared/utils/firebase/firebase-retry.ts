@@ -24,9 +24,7 @@ export const authRetryConfig = {
   count: 2,
   resetOnSuccess: true,
   delay: (error: { code?: string }) => {
-    const isRetryable = RETRYABLE_AUTH_CODES.includes(
-      error.code as (typeof RETRYABLE_AUTH_CODES)[number],
-    );
+    const isRetryable = RETRYABLE_AUTH_CODES.includes(error.code as (typeof RETRYABLE_AUTH_CODES)[number]);
     return isRetryable ? timer(500) : throwError(() => error);
   },
 };
@@ -58,10 +56,7 @@ export interface RetryOptions {
 /**
  * Retries an idempotent async Promise operation with exponential backoff.
  */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = {},
-): Promise<T> {
+export async function withRetry<T>(operation: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const { maxRetries = 3, initialDelayMs = 500, backoffFactor = 2 } = options;
   let delay = initialDelayMs;
 
@@ -76,4 +71,3 @@ export async function withRetry<T>(
   }
   throw new Error('Retry limit reached');
 }
-

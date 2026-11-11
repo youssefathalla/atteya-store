@@ -11,6 +11,7 @@ import {
   getRedirectResult,
   linkWithCredential,
   onIdTokenChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -24,10 +25,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, filter, firstValueFrom, map, of } from 'rxjs';
 import { injectAuth, injectFirestore } from '@core/firebase';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
-import {
-  UserProfileService,
-  type SignupConsent,
-} from '@core/services/user-profile';
+import { UserProfileService, type SignupConsent } from '@core/services/user-profile';
 import { notifyNotAdmin } from '@features/auth/utils/login-exit';
 import { AUTH_ERROR_MAPPINGS, DEFAULT_AUTH_ERROR } from './auth.errors';
 import { AppRole, GoogleSignInOutcome, roleFromClaims } from './auth.model';
@@ -234,6 +232,31 @@ export class AuthService {
     }
     // A failed write still settles: `#applyUser` awaits it, fails closed and sets the flag.
     await this.#writeConsent(result.user.uid, consent);
+  }
+
+  /**
+   * Emails the signed-in account a link that confirms its address. No-op when signed out.
+   * `continueUrl` (absolute, on this site) is where the confirmation page sends the person next.
+   */
+  async sendVerificationEmail(continueUrl?: string): Promise<void> {
+    const user = this.#auth.currentUser;
+    if (!user || user.emailVerified) return;
+    await sendEmailVerification(user, continueUrl ? { url: continueUrl } : undefined);
+  }
+
+  /**
+   * Reloads the signed-in account so a just-confirmed email shows as confirmed and, when the
+   * ID token was minted before that, gets a fresh one so callables see `email_verified`.
+   * Returns whether the email is confirmed (false when signed out).
+   */
+  async refreshEmailVerified(): Promise<boolean> {
+    const user = this.#auth.currentUser;
+    if (!user) return false;
+    await user.reload();
+    if (!user.emailVerified) return false;
+    const token = await user.getIdTokenResult();
+    if (token.claims['email_verified'] !== true) await user.getIdToken(true);
+    return true;
   }
 
   /**
@@ -582,11 +605,9 @@ export class AuthService {
       if (!raw) return null;
       const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== 'object') return null;
-      const termsAccepted =
-        'termsAccepted' in parsed && parsed.termsAccepted === true;
+      const termsAccepted = 'termsAccepted' in parsed && parsed.termsAccepted === true;
       if (!termsAccepted) return null;
-      const marketingOptIn =
-        'marketingOptIn' in parsed && parsed.marketingOptIn === true;
+      const marketingOptIn = 'marketingOptIn' in parsed && parsed.marketingOptIn === true;
       return { termsAccepted: true, marketingOptIn };
     } catch {
       return null;

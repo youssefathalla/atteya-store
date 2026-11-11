@@ -15,7 +15,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 import {
+  DEFAULT_OFFER_BANNER,
   validateOffer,
+  type OfferBanner,
   type OfferConditions,
   type OfferDraft,
   type OfferMinimum,
@@ -29,12 +31,19 @@ import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { ProductsAdminService } from '../products-manager/services/products-admin.service';
+import { BannerEditorComponent } from './components/banner-editor/banner-editor.component';
 import { ConditionGroupEditorComponent } from './components/condition-group-editor/condition-group-editor.component';
 import { OfferPreviewComponent } from './components/offer-preview/offer-preview.component';
 import { OfferSettingsComponent } from './components/offer-settings/offer-settings.component';
 import { RewardEditorComponent } from './components/reward-editor/reward-editor.component';
 import { ScheduleEditorComponent } from './components/schedule-editor/schedule-editor.component';
-import { createEmptyOfferDraft } from './models/offer-admin.model';
+import {
+  createEmptyOfferDraft,
+  isUnavailableDeal,
+  UNAVAILABLE_DEAL_MESSAGE,
+  withoutEmptyFreeItemRules,
+  withoutStackSaleItems,
+} from './models/offer-admin.model';
 import { OffersAdminService } from './services/offers-admin.service';
 
 @Component({
@@ -50,6 +59,7 @@ import { OffersAdminService } from './services/offers-admin.service';
     RewardEditorComponent,
     ConditionGroupEditorComponent,
     ScheduleEditorComponent,
+    BannerEditorComponent,
     OfferPreviewComponent,
   ],
   templateUrl: './offer-editor.page.html',
@@ -96,9 +106,7 @@ export class OfferEditorPageComponent implements OnInit {
   readonly brands = computed(() => this.editorResource.value()?.brands ?? []);
   readonly otherOffers = computed(() => this.editorResource.value()?.offers ?? []);
 
-  readonly pricedProducts = computed(() =>
-    this.products().map((product) => toPricedProduct(product)),
-  );
+  readonly pricedProducts = computed(() => this.products().map((product) => toPricedProduct(product)));
 
   readonly validation = computed(() =>
     validateOffer(this.draft(), this.pricedProducts(), this.otherOffers(), {
@@ -107,9 +115,13 @@ export class OfferEditorPageComponent implements OnInit {
     }),
   );
 
-  readonly pageHeading = computed(() =>
-    this.offerId() ? 'Edit offer' : 'Create offer',
-  );
+  /** Top banner settings; an offer saved before the banner existed starts switched off. */
+  readonly banner = computed(() => this.draft().banner ?? DEFAULT_OFFER_BANNER);
+
+  /** True for an old offer of a deal type hidden for launch: it opens but Save Offer stays off. */
+  readonly isUnavailableDeal = computed(() => isUnavailableDeal(this.draft().reward, this.draft().scope));
+
+  readonly pageHeading = computed(() => (this.offerId() ? 'Edit offer' : 'Create offer'));
 
   constructor() {
     effect(() => {
@@ -121,7 +133,7 @@ export class OfferEditorPageComponent implements OnInit {
 
       untracked(() => {
         if (value.offer) {
-          this.draft.set({ ...value.offer });
+          this.draft.set(withoutStackSaleItems({ ...value.offer }));
         } else {
           this.draft.set(createEmptyOfferDraft());
         }
@@ -161,8 +173,16 @@ export class OfferEditorPageComponent implements OnInit {
     this.draft.update((prev) => ({ ...prev, schedule }));
   }
 
+  updateBanner(banner: OfferBanner): void {
+    this.draft.update((prev) => ({ ...prev, banner }));
+  }
+
   async save(): Promise<void> {
     if (this.isSaving()) return;
+    if (this.isUnavailableDeal()) {
+      this.#snackbar.error(UNAVAILABLE_DEAL_MESSAGE);
+      return;
+    }
     if (this.validation().errors.length > 0) {
       this.#snackbar.error(this.validation().errors[0].message);
       return;
@@ -170,7 +190,7 @@ export class OfferEditorPageComponent implements OnInit {
 
     this.isSaving.set(true);
     try {
-      await this.#offersAdmin.saveOffer(this.draft());
+      await this.#offersAdmin.saveOffer(withoutEmptyFreeItemRules(this.draft()));
       this.#snackbar.success('Offer saved.');
       await this.#router.navigate(['/admin/offers']);
     } catch {

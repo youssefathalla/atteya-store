@@ -1,6 +1,6 @@
 import { FieldPath, FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { onDocumentWrittenWithAuthContext } from 'firebase-functions/v2/firestore';
 import { getSearchClient, safeErrorMessage, withRetry } from '../search/algolia-client.js';
 import { ALGOLIA_WRITE_KEY, productsIndexName } from '../search/algolia-config.js';
 import { computeProductOfferFields, type SearchOfferFields } from '../search/product-record.js';
@@ -13,7 +13,7 @@ export interface RecomputeOfferPricingResult {
   readonly updated: number;
 }
 
-export const onOfferWritten = onDocumentWritten(
+export const onOfferWritten = onDocumentWrittenWithAuthContext(
   {
     document: 'offers/{offerId}',
     region: 'europe-west3',
@@ -28,18 +28,16 @@ export const onOfferWritten = onDocumentWritten(
     const afterData = afterExists ? event.data?.after.data() : null;
     const beforeData = beforeExists ? event.data?.before.data() : null;
 
-    const action = !beforeExists
-      ? 'offer.create'
-      : !afterExists
-        ? 'offer.delete'
-        : 'offer.update';
+    const action = !beforeExists ? 'offer.create' : !afterExists ? 'offer.delete' : 'offer.update';
 
-    const actorUid =
-      action === 'offer.delete'
-        ? 'unknown'
-        : (typeof afterData?.['updatedBy'] === 'string' && afterData['updatedBy']) ||
-          (typeof beforeData?.['updatedBy'] === 'string' && beforeData['updatedBy']) ||
-          'admin';
+    // A deleted doc has no `updatedBy`, so deletes use the signed-in caller of the write.
+    // `authId` is set for user and service-account writes; `system` and unauthenticated writes have none.
+    const authUid = typeof event.authId === 'string' && event.authId ? event.authId : null;
+    const savedUid =
+      (typeof afterData?.['updatedBy'] === 'string' && afterData['updatedBy']) ||
+      (typeof beforeData?.['updatedBy'] === 'string' && beforeData['updatedBy']) ||
+      null;
+    const actorUid = action === 'offer.delete' ? (authUid ?? 'unknown') : (savedUid ?? authUid ?? 'admin');
 
     const db = getFirestore();
     try {

@@ -1,0 +1,48 @@
+@use '@angular/material' as mat;
+
+:root {
+  @include mat.button-toggle-overrides(
+    (
+      shape: var(--border-shape, 2px),
+      divider-color: var(--mat-sys-outline-variant),
+      selected-state-background-color: var(--mat-sys-primary),
+      selected-state-text-color: var(--mat-sys-on-primary),
+    )
+  );
+}
+
+// InstaPay box on the order confirmation page: two separate options (8px apart) instead of one joined bar.
+// Spacing only; colours come from the tokens above.
+.mat-button-toggle-group.instapay-switch {
+  gap: 8px;
+  // On a very narrow phone the second option goes to its own line instead of cutting its label.
+  flex-wrap: wrap;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+
+  .mat-button-toggle-appearance-standard {
+    border: 1px solid var(--mat-button-toggle-divider-color, var(--mat-sys-outline-variant));
+    border-radius: var(--border-shape, 2px);
+    overflow: hidden;
+
+    &.mat-button-toggle-checked {
+      border-color: var(--mat-sys-primary);
+    }
+
+    .mat-button-toggle-label-content {
+      padding: 10px 16px;
+      line-height: var(--mat-button-toggle-label-text-line-height, 20px);
+    }
+  }
+
+  // Cancel the divider Material draws between joined options.
+  .mat-button-toggle-appearance-standard + .mat-button-toggle-appearance-standard {
+    border-left: 1px solid var(--mat-button-toggle-divider-color, var(--mat-sys-outline-variant));
+  }
+
+  .mat-button-toggle-appearance-standard.mat-button-toggle-checked + .mat-button-toggle-appearance-standard,
+  .mat-button-toggle-appearance-standard + .mat-button-toggle-appearance-standard.mat-button-toggle-checked {
+    border-left-color: var(--mat-sys-primary);
+  }
+}

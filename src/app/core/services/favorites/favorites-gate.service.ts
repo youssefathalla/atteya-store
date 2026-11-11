@@ -34,14 +34,7 @@ export class FavoritesGateService {
       const favoritesReady = this.#favorites.ready();
       const needsConsent = this.#auth.needsConsent();
       const consentReady = this.#auth.consentReady();
-      if (
-        !this.#isBrowser ||
-        !authReady ||
-        !signedIn ||
-        !favoritesReady ||
-        !consentReady ||
-        needsConsent
-      ) {
+      if (!this.#isBrowser || !authReady || !signedIn || !favoritesReady || !consentReady || needsConsent) {
         return;
       }
       untracked(() => void this.#applyPendingFavorite());
@@ -64,14 +57,13 @@ export class FavoritesGateService {
     if (this.#dialogOpen) return;
     this.#dialogOpen = true;
     try {
-      const ref = this.#dialog.open<
+      const ref = this.#dialog.open<FavoritesSignInDialogComponent, void, FavoritesSignInDialogResult>(
         FavoritesSignInDialogComponent,
-        void,
-        FavoritesSignInDialogResult
-      >(FavoritesSignInDialogComponent, {
-        autoFocus: 'first-tabbable',
-        restoreFocus: true,
-      });
+        {
+          autoFocus: 'first-tabbable',
+          restoreFocus: true,
+        },
+      );
       const choice = await firstValueFrom(ref.afterClosed());
       if (choice !== 'sign-in' && choice !== 'create') return;
 

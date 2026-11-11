@@ -1,5 +1,13 @@
 import * as v from 'valibot';
 import { idSchema, timestampSchema } from '@shared/schemas';
+import {
+  DEFAULT_OFFER_BANNER,
+  MAX_GIFT_CHOICES,
+  MAX_GIFT_NAME,
+  MAX_OFFER_GIFTS,
+  parseOfferBanner,
+  type OfferReward,
+} from './engine';
 
 const wholeEgp = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1_000_000));
 const positiveInt = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100_000));
@@ -49,7 +57,16 @@ export const OfferTierSchema = v.object({
   amount: v.optional(wholeEgp),
 });
 
-export const OfferRewardSchema = v.variant('kind', [
+const giftId = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(128));
+
+/** One gift of a Free gift offer: a short name and the products shoppers choose from. */
+export const OfferGiftSchema = v.object({
+  id: giftId,
+  name: v.pipe(v.string(), v.trim(), v.maxLength(MAX_GIFT_NAME)),
+  productIds: v.pipe(v.array(giftId), v.maxLength(MAX_GIFT_CHOICES)),
+});
+
+const RewardVariantSchema = v.variant('kind', [
   v.object({
     kind: v.literal('percentOff'),
     percent: percentValue,
@@ -78,14 +95,41 @@ export const OfferRewardSchema = v.variant('kind', [
   }),
   v.object({
     kind: v.literal('freeGift'),
-    giftProductId: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(128)),
-    giftVariantId: v.optional(v.nullable(v.string(), null), null),
-    quantity: v.optional(positiveInt, 1),
+    gifts: v.optional(v.pipe(v.array(OfferGiftSchema), v.maxLength(MAX_OFFER_GIFTS))),
+    /** Old shape: one fixed gift product. Read as one gift with one choice. */
+    giftProductId: v.optional(v.string()),
   }),
   v.object({
     kind: v.literal('freeShipping'),
   }),
 ]);
+
+/**
+ * The reward as the engine reads it. A Free gift offer always comes out as `gifts`; an old offer
+ * holding one `giftProductId` becomes one "Free gift" with that one choice (same as `parseGifts`
+ * in `functions/src/offers/offer-schema.ts`).
+ */
+export const OfferRewardSchema = v.pipe(
+  RewardVariantSchema,
+  v.transform((reward): OfferReward => {
+    if (reward.kind !== 'freeGift') return reward;
+    if (reward.gifts) {
+      return {
+        kind: 'freeGift',
+        gifts: reward.gifts.map((gift) => ({
+          id: gift.id,
+          name: gift.name || 'Free gift',
+          productIds: Array.from(new Set(gift.productIds)),
+        })),
+      };
+    }
+    const legacy = reward.giftProductId?.trim() ?? '';
+    return {
+      kind: 'freeGift',
+      gifts: legacy ? [{ id: 'gift-1', name: 'Free gift', productIds: [legacy] }] : [],
+    };
+  }),
+);
 
 export const OfferScheduleSchema = v.object({
   startsAt: v.nullable(timestampSchema, null),
@@ -97,6 +141,16 @@ export const OfferLimitsSchema = v.object({
   totalUses: v.nullable(positiveInt, null),
   perCustomer: v.nullable(positiveInt, null),
 });
+
+/**
+ * Top banner settings (`show`, `text`, `countdown`, `countdownDays`). Read leniently with the
+ * engine's `parseOfferBanner`, the same reader Cloud Functions use: an old offer without the field,
+ * or a bad value, is simply not in the banner and never drops the offer.
+ */
+export const OfferBannerSchema = v.pipe(
+  v.optional(v.unknown(), DEFAULT_OFFER_BANNER),
+  v.transform((raw) => parseOfferBanner(raw)),
+);
 
 export const OfferDocSchema = v.object({
   id: idSchema,
@@ -119,6 +173,7 @@ export const OfferDocSchema = v.object({
   reward: OfferRewardSchema,
   limits: v.optional(OfferLimitsSchema, { totalUses: null, perCustomer: null }),
   requiresCode: v.optional(v.boolean(), false),
+  banner: OfferBannerSchema,
   createdAt: v.optional(timestampSchema),
   updatedAt: v.optional(timestampSchema),
   updatedBy: v.optional(v.string()),

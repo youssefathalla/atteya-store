@@ -1,1 +1,96 @@
-<p>footer works!</p>
+<footer class="w-full bg-surface-container-lowest border-t border-outline-variant">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24 lg:pb-12 elements-start-col gap-12">
+    <div class="w-full grid gap-12 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <nav aria-label="Footer" class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-10">
+        <section class="elements-start-col justify-start! gap-4">
+          <h2 class="footer-heading">Shop</h2>
+          <ul class="elements-start-col gap-3">
+            <li><a class="footer-link" routerLink="/shop">Shop All</a></li>
+            @for (category of categoryLinks(); track category.path) {
+              <li>
+                <a class="footer-link" [routerLink]="category.path | linkTarget">{{ category.label }}</a>
+              </li>
+            }
+            <li><a class="footer-link" routerLink="/brands">Brands</a></li>
+          </ul>
+        </section>
+
+        @if (whatsappUrl) {
+          <section class="elements-start-col justify-start! gap-4">
+            <h2 class="footer-heading">Help</h2>
+            <ul class="elements-start-col gap-3">
+              <li>
+                <a class="footer-link" [href]="whatsappUrl" target="_blank" rel="noopener">
+                  Message Us on WhatsApp
+                </a>
+              </li>
+            </ul>
+          </section>
+        }
+
+        <section class="elements-start-col justify-start! gap-4">
+          <h2 class="footer-heading">Account</h2>
+          <ul class="elements-start-col gap-3">
+            @if (accountState() === 'signed-out') {
+              <li>
+                <a class="footer-link" routerLink="/login" [queryParams]="{ returnUrl: returnUrl() }">
+                  Sign In
+                </a>
+              </li>
+              <li>
+                <a
+                  class="footer-link"
+                  routerLink="/login"
+                  [queryParams]="{ intent: 'create', returnUrl: returnUrl() }"
+                >
+                  Create Account
+                </a>
+              </li>
+            }
+            <li><a class="footer-link" routerLink="/favorites">Favorites</a></li>
+            @if (accountState() === 'signed-in') {
+              @if (isAdmin()) {
+                <li><a class="footer-link" routerLink="/admin">Admin Dashboard</a></li>
+              }
+              <li><button type="button" class="footer-link" (click)="signOut()">Sign Out</button></li>
+            }
+          </ul>
+        </section>
+      </nav>
+
+      @if (accountState() === 'signed-out') {
+        <app-footer-signup />
+      }
+    </div>
+
+    <div
+      class="w-full border-t border-outline-variant pt-6 elements-between flex-col-reverse sm:flex-row items-start! sm:items-center! gap-6"
+    >
+      <div class="elements-start flex-wrap gap-x-6 gap-y-2 font-body-sm">
+        <p class="opacity-80">&copy; {{ storeName }} {{ year }}</p>
+        <a class="footer-link font-body-sm!" routerLink="/terms">Terms</a>
+        <a class="footer-link font-body-sm!" routerLink="/privacy">Privacy</a>
+      </div>
+
+      @if (socialLinks.length > 0) {
+        <ul class="elements-start gap-3" aria-label="Follow us">
+          @for (link of socialLinks; track link.name) {
+            <li>
+              <a
+                class="footer-social"
+                [href]="link.url"
+                target="_blank"
+                rel="noopener"
+                [attr.aria-label]="storeName + ' on ' + link.name"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+                  <path [attr.d]="link.iconPath" />
+                </svg>
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+</footer>

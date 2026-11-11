@@ -1,10 +1,10 @@
-/** Homepage New Arrivals row pool size (3 visible + peek; scroll for the rest). */
-export const NEW_ARRIVALS_LIMIT = 10;
+/** Homepage New Arrivals row: at most this many products (scroll for the rest). */
+export const NEW_ARRIVALS_LIMIT = 6;
 
 /** Default window when an admin ticks "New arrival". */
 export const NEW_ARRIVAL_DEFAULT_MONTHS = 2;
 
-/** Over-fetch flagged docs so we can pick the 10 most recently updated client-side. */
+/** Over-fetch flagged docs so we can pick the most recently updated client-side. */
 export const NEW_ARRIVAL_FLAGGED_FETCH = 40;
 
 export function addMonths(from: Date, months: number): Date {
@@ -32,11 +32,7 @@ export function parseDateInputValue(value: string): Date | null {
   const [y, m, d] = trimmed.split('-').map(Number);
   if (!y || !m || !d) return null;
   const date = new Date(y, m - 1, d);
-  if (
-    date.getFullYear() !== y ||
-    date.getMonth() !== m - 1 ||
-    date.getDate() !== d
-  ) {
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
     return null;
   }
   return date;
@@ -62,28 +58,19 @@ export function timestampToMs(value: unknown): number | null {
   return null;
 }
 
-export function isActiveNewArrival(
-  until: unknown,
-  nowMs: number = Date.now(),
-): boolean {
+export function isActiveNewArrival(until: unknown, nowMs: number = Date.now()): boolean {
   const untilMs = timestampToMs(until);
   return untilMs !== null && untilMs > nowMs;
 }
 
 /** Whole days remaining, rounded up. Null when not active. */
-export function newArrivalDaysLeft(
-  until: unknown,
-  nowMs: number = Date.now(),
-): number | null {
+export function newArrivalDaysLeft(until: unknown, nowMs: number = Date.now()): number | null {
   const untilMs = timestampToMs(until);
   if (untilMs === null || untilMs <= nowMs) return null;
   return Math.max(1, Math.ceil((untilMs - nowMs) / 86_400_000));
 }
 
-export function newArrivalCountdownLabel(
-  until: unknown,
-  nowMs: number = Date.now(),
-): string | null {
+export function newArrivalCountdownLabel(until: unknown, nowMs: number = Date.now()): string | null {
   const days = newArrivalDaysLeft(until, nowMs);
   if (days === null) return null;
   return days === 1 ? '1 day left' : `${days} days left`;
@@ -99,9 +86,7 @@ export function mergeNewArrivalPool<T extends { readonly id: string }>(
   updatedAtMs: (item: T) => number,
   limit: number = NEW_ARRIVALS_LIMIT,
 ): readonly T[] {
-  const rankedFlagged = [...flagged].sort(
-    (a, b) => updatedAtMs(b) - updatedAtMs(a),
-  );
+  const rankedFlagged = [...flagged].sort((a, b) => updatedAtMs(b) - updatedAtMs(a));
   const selected = rankedFlagged.slice(0, limit);
   if (selected.length >= limit) return selected;
 

@@ -1,0 +1,44 @@
+<h2 class="account-section__title">
+  <mat-icon name="receipt_long" aria-hidden="true" />
+  <span>Orders</span>
+</h2>
+
+@if (ordersResource.error()) {
+  <div class="w-full elements-start-col gap-3" role="alert">
+    <p class="font-body-md">We couldn't load your orders right now. Please try again in a moment.</p>
+    <button matButton="outlined" type="button" (click)="ordersResource.reload()">Try Again</button>
+  </div>
+} @else if (showLoading()) {
+  <div class="w-full elements-start-col gap-3" aria-label="Loading your orders">
+    @for (row of skeletonRows; track row) {
+      <app-skeleton class="h-16 w-full" />
+    }
+  </div>
+} @else if (rows().length === 0) {
+  <p class="font-body-md text-on-surface-variant">You haven't placed an order yet.</p>
+  <a matButton="outlined" routerLink="/shop">Start Shopping</a>
+} @else {
+  <ul class="w-full elements-start-col">
+    @for (order of rows(); track order.id) {
+      <li class="w-full">
+        <a class="account-order-row" [routerLink]="['/checkout', 'confirmation', order.id]">
+          <span class="elements-start-col gap-1 min-w-0">
+            <span class="font-title-sm font-bold!">Order {{ order.ref }}</span>
+            <span class="font-body-sm text-on-surface-variant">
+              {{ order.placedOn }} · {{ order.itemCount === 1 ? '1 item' : order.itemCount + ' items' }}
+            </span>
+          </span>
+          <span class="elements-end-col gap-1 text-end shrink-0">
+            <span class="font-title-sm">{{ order.total }}</span>
+            <span class="font-body-sm text-on-surface-variant">{{ order.statusName }}</span>
+          </span>
+        </a>
+      </li>
+    }
+  </ul>
+  @if (canShowMore()) {
+    <button matButton="outlined" type="button" [disabled]="ordersResource.isLoading()" (click)="showMore()">
+      Show More Orders
+    </button>
+  }
+}

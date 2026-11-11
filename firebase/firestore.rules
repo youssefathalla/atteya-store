@@ -109,7 +109,14 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    // Per-uid daily checkout counters. Admin SDK only.
+    // Public read-by-key copy of a guest order (only the fields the order page reads), written by
+    // the syncOrderView trigger. The 43-character random key is the secret; listing is denied.
+    match /orderViews/{viewKey} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    // Per-uid and guest daily checkout counters. Admin SDK only.
     match /orderRateLimits/{id} {
       allow read, write: if false;
     }
@@ -124,6 +131,17 @@ service cloud.firestore {
     match /orderEmails/{emailId} {
       allow read: if isAdmin();
       allow write: if false;
+    }
+
+    // Footer email sign-ups (new arrivals and offers) and their per-connection daily counters.
+    // Only the subscribeToEmails callable (Admin SDK) reads or writes them. No client access,
+    // admins included: the list holds personal emails and is exported from the console.
+    match /emailSignups/{id} {
+      allow read, write: if false;
+    }
+
+    match /emailSignupRateLimits/{id} {
+      allow read, write: if false;
     }
 
     // Per-shopper favorites. Only that signed-in person can read or change their list.
@@ -147,13 +165,73 @@ service cloud.firestore {
       }
     }
 
-    // Shopper profile (signup consent). Owner creates once at account creation.
-    // Fields: termsAcceptedAt, termsVersion, marketingOptIn, marketingOptInAt.
+    // Per-shopper bag. Only that signed-in person can read or save it; admins get no access.
+    // carts/{uid}: lines (product id, variant id, choices, quantity and picked gifts per line; never prices)
+    // and updatedAt. Guests keep their bag in the browser instead.
+    match /carts/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validCart(request.resource.data);
+      allow delete: if false;
+    }
+
+    // At most 20 lines, the order callables' limit. Rules have no loops, so each index is checked on its own;
+    // indexes past the end stop at the size check.
+    function validCart(data) {
+      return data.keys().hasOnly(['lines', 'updatedAt'])
+        && data.lines is list
+        && data.lines.size() <= 20
+        && data.updatedAt == request.time
+        && cartLineAt(data.lines, 0)
+        && cartLineAt(data.lines, 1)
+        && cartLineAt(data.lines, 2)
+        && cartLineAt(data.lines, 3)
+        && cartLineAt(data.lines, 4)
+        && cartLineAt(data.lines, 5)
+        && cartLineAt(data.lines, 6)
+        && cartLineAt(data.lines, 7)
+        && cartLineAt(data.lines, 8)
+        && cartLineAt(data.lines, 9)
+        && cartLineAt(data.lines, 10)
+        && cartLineAt(data.lines, 11)
+        && cartLineAt(data.lines, 12)
+        && cartLineAt(data.lines, 13)
+        && cartLineAt(data.lines, 14)
+        && cartLineAt(data.lines, 15)
+        && cartLineAt(data.lines, 16)
+        && cartLineAt(data.lines, 17)
+        && cartLineAt(data.lines, 18)
+        && cartLineAt(data.lines, 19);
+    }
+
+    function cartLineAt(lines, i) {
+      return lines.size() <= i || validCartLine(lines[i]);
+    }
+
+    // Quantity 1-20 per line. Choices are option id -> value id, at most 10 options.
+    // Optional gifts: the free gifts picked for the line (at most 5); checkout re-checks each one.
+    function validCartLine(line) {
+      return line is map
+        && line.keys().hasOnly(['productId', 'variantId', 'selection', 'quantity', 'gifts'])
+        && (!('gifts' in line) || (line.gifts is list && line.gifts.size() <= 5))
+        && line.productId is string
+        && line.productId.size() > 0
+        && line.productId.size() <= 128
+        && (line.variantId == null || (line.variantId is string && line.variantId.size() <= 128))
+        && line.selection is map
+        && line.selection.size() <= 10
+        && line.quantity is int
+        && line.quantity >= 1
+        && line.quantity <= 20;
+    }
+
+    // Shopper profile. Owner creates it once with signup consent (termsAcceptedAt, termsVersion,
+    // marketingOptIn, marketingOptInAt). Later the owner may update only the /account fields:
+    // name, phone, the one saved address, and the marketing choice. The terms fields never change.
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
       allow create: if isOwner(uid) && validSignupConsent(request.resource.data);
-      // Signup consent is create-once; marketing changes later can widen this.
-      allow update, delete: if false;
+      allow update: if isOwner(uid) && validProfileUpdate();
+      allow delete: if false;
     }
 
     function validSignupConsent(data) {
@@ -171,12 +249,52 @@ service cloud.firestore {
         && data.marketingOptInAt == request.time;
     }
 
+    function validProfileUpdate() {
+      let data = request.resource.data;
+      let changed = data.diff(resource.data).affectedKeys();
+      return changed.hasOnly(['name', 'phone', 'address', 'marketingOptIn', 'marketingOptInAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'termsAcceptedAt',
+          'termsVersion',
+          'marketingOptIn',
+          'marketingOptInAt',
+          'name',
+          'phone',
+          'address',
+          'updatedAt',
+        ])
+        && data.updatedAt == request.time
+        && data.marketingOptIn is bool
+        && (!changed.hasAny(['marketingOptIn', 'marketingOptInAt']) || data.marketingOptInAt == request.time)
+        && (!('name' in data) || data.name == null || (data.name is string && data.name.size() <= 120))
+        && (!('phone' in data) || data.phone == null || (data.phone is string && data.phone.size() <= 20))
+        && (!('address' in data) || data.address == null || validSavedAddress(data.address));
+    }
+
+    function optionalText(map, key, max) {
+      return !(key in map) || map[key] == null || (map[key] is string && map[key].size() <= max);
+    }
+
+    function validSavedAddress(address) {
+      return address is map
+        && address.keys().hasOnly(['fullName', 'line1', 'line2', 'city', 'region', 'postalCode', 'country', 'phone'])
+        && address.keys().hasAll(['fullName', 'line1', 'city', 'country', 'phone'])
+        && address.fullName is string && address.fullName.size() >= 1 && address.fullName.size() <= 120
+        && address.line1 is string && address.line1.size() >= 1 && address.line1.size() <= 200
+        && optionalText(address, 'line2', 200)
+        && address.city is string && address.city.size() >= 1 && address.city.size() <= 80
+        && optionalText(address, 'region', 80)
+        && optionalText(address, 'postalCode', 20)
+        && address.country is string && address.country.size() == 2
+        && address.phone is string && address.phone.size() >= 6 && address.phone.size() <= 20;
+    }
+
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // and intlPricing stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'users']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits']);
     }
   }
 }

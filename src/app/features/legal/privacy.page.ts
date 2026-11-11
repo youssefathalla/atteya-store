@@ -14,8 +14,7 @@ export class PrivacyPage implements OnInit {
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Privacy Policy | Atteya Store',
-      description:
-        'Draft Privacy Policy for Atteya Store. This policy is being finalized and may change.',
+      description: 'Draft Privacy Policy for Atteya Store. This policy is being finalized and may change.',
       noindex: true,
     });
   }

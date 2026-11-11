@@ -1,11 +1,8 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { collapseSpaces, PRODUCT_TYPES, type ProductTypeId } from './catalog-mapping.js';
 import { COLOR_IDS, type ColorId } from './catalog-taxonomy.js';
-import {
-  isMarketingBadgeKind,
-  isMarketingBadgeStyle,
-  type MarketingBadge,
-} from './marketing-badge.js';
+import { isMarketingBadgeKind, isMarketingBadgeStyle, type MarketingBadge } from './marketing-badge.js';
+import { isPlayerId, MAX_PRODUCT_PLAYERS } from './players.js';
 import { nextSlug } from './slug.js';
 
 const CREATE_ID = /^[A-Za-z0-9]{20}$/;
@@ -14,6 +11,9 @@ const TAG_PATTERN = /^[a-z0-9-]{1,32}$/;
 const MAX_NAME = 200;
 const MAX_SUMMARY = 300;
 const MAX_DESCRIPTION = 5_000;
+/** Details list: one fact per line (materials, racket specs). */
+export const MAX_DETAIL_LINES = 20;
+export const MAX_DETAIL_LINE = 200;
 const MAX_SLUG = 80;
 const MIN_SLUG = 3;
 const MAX_ID = 80;
@@ -53,6 +53,8 @@ export interface ProductFormInput {
   readonly name: string;
   readonly summary: string | null;
   readonly description?: string | null;
+  /** One fact per line. Missing = leave the saved list as it is. */
+  readonly details?: readonly string[];
   readonly type: ProductTypeId;
   readonly categoryId: string;
   readonly brandId: string;
@@ -60,6 +62,8 @@ export interface ProductFormInput {
   readonly gender: ProductGenderId | null;
   readonly colors: readonly ColorId[];
   readonly tags: readonly string[];
+  /** Player ids from `settings/players`. Missing = leave the saved list as it is. */
+  readonly players?: readonly string[];
   readonly marketingBadge: MarketingBadge | null;
   /** End of New Arrivals window, or null when not flagged. */
   readonly newArrivalUntil: Date | null;
@@ -134,9 +138,7 @@ export function descriptionToHtml(text: string | null): string | null {
   if (current.length > 0) paragraphs.push(current);
   if (paragraphs.length === 0) return null;
 
-  return paragraphs
-    .map((lines) => `<p>${lines.map((line) => escapeHtml(line)).join('<br>')}</p>`)
-    .join('');
+  return paragraphs.map((lines) => `<p>${lines.map((line) => escapeHtml(line)).join('<br>')}</p>`).join('');
 }
 
 /**
@@ -201,7 +203,11 @@ function parseForm(raw: Record<string, unknown>): ProductFormInput {
   };
   const stock = readStock(raw, sizes.length);
   const weightGrams = readWeightGrams(raw);
-  const withStock = stock === undefined ? form : { ...form, stock };
+  const details = readDetails(raw);
+  const players = readPlayers(raw);
+  const withPlayers = players === undefined ? form : { ...form, players };
+  const withDetails = details === undefined ? withPlayers : { ...withPlayers, details };
+  const withStock = stock === undefined ? withDetails : { ...withDetails, stock };
   return weightGrams === undefined ? withStock : { ...withStock, weightGrams };
 }
 
@@ -265,12 +271,7 @@ function readCreateId(value: unknown): string {
 }
 
 function readUpdateId(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value.length > 200 ||
-    value.includes('/')
-  ) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 200 || value.includes('/')) {
     invalid('Choose a product and try again.');
   }
   return value;
@@ -316,6 +317,34 @@ function readDescription(raw: Record<string, unknown>): string | null | undefine
     invalid('The description must be 5,000 characters or fewer.');
   }
   return description.length === 0 ? null : description;
+}
+
+/**
+ * Details lines: trimmed, blanks dropped, a leading "•" removed (pasted bullet lists).
+ * Missing key = undefined (the saved list stays); null = clear.
+ */
+function readDetails(raw: Record<string, unknown>): string[] | undefined {
+  if (!Object.hasOwn(raw, 'details')) return undefined;
+  const value = raw['details'];
+  if (value === null) return [];
+  if (!Array.isArray(value)) invalid('Write the details as a list, one per line.');
+  const lines: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'string') invalid('Write the details as a list, one per line.');
+    const line = detailLine(entry);
+    if (line.length === 0) continue;
+    if (line.length > MAX_DETAIL_LINE) {
+      invalid('Keep each line of details to 200 characters or fewer.');
+    }
+    lines.push(line);
+  }
+  if (lines.length > MAX_DETAIL_LINES) invalid('Add up to 20 lines of details.');
+  return lines;
+}
+
+/** One details line without a leading bullet and with single spaces. */
+export function detailLine(value: string): string {
+  return collapseSpaces(value.trim().replace(/^•\s*/u, ''));
 }
 
 function readType(value: unknown): ProductTypeId {
@@ -400,6 +429,22 @@ function readTags(value: unknown): string[] {
     tags.push(tag);
   }
   return tags;
+}
+
+/** Player ids picked from the list. Missing key = undefined (the saved list stays); null = clear. */
+function readPlayers(raw: Record<string, unknown>): string[] | undefined {
+  if (!Object.hasOwn(raw, 'players')) return undefined;
+  const value = raw['players'];
+  if (value === null) return [];
+  if (!Array.isArray(value)) invalid('Choose players from the list.');
+  if (value.length > MAX_PRODUCT_PLAYERS) invalid('Choose up to 10 players.');
+  const players: string[] = [];
+  for (const entry of value) {
+    if (!isPlayerId(entry)) invalid('Choose players from the list.');
+    if (players.includes(entry)) invalid('Each player can only be chosen once.');
+    players.push(entry);
+  }
+  return players;
 }
 
 function readMarketingBadge(value: unknown): MarketingBadge | null {

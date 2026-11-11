@@ -1,22 +1,12 @@
-import { Component, computed, effect, inject, input, resource, signal } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { AuthService } from '@core/services/auth/auth.service';
-import { displayPrice, type PricedProduct } from '@core/services/offers/engine';
 import { OffersService } from '@core/services/offers/offers.service';
-import type { Product } from '@core/services/products/product.model';
-import { ProductCacheService, ProductService } from '@core/services/products';
 import type { SearchHit } from '@core/services/search';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
-import type {
-  ProductCardPrice,
-  ProductCardSibling,
-} from '@shared/components/product-card/product-card.model';
-import {
-  searchHitToCardData,
-  siblingGroupsMap,
-  toSiblingGroupsRecord,
-  uniqueModelGroups,
-} from '@shared/components/product-card/product-card.utils';
+import type { ProductCardPrice } from '@shared/components/product-card/product-card.model';
+import { searchHitCardPrice, searchHitToCardData } from '@shared/components/product-card/product-card.utils';
 import { SkeletonComponent } from '@shared/ui/skeleton';
+import { injectFirstRowCount } from '@shared/utils/first-row.utils';
 
 @Component({
   selector: 'app-shop-grid',
@@ -31,32 +21,11 @@ export class ShopGridComponent {
   readonly nowMs = input(Date.now());
 
   readonly skeletonSlots = [0, 1, 2, 3, 4, 5] as const;
+  /** Photos that load first: one row (2 phone, 3 from tablet up), matching `.shop-product-grid`. */
+  readonly firstRow = injectFirstRowCount({ base: 2, md: 3 });
 
-  readonly #products = inject(ProductService);
-  readonly #cache = inject(ProductCacheService);
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);
-
-  /** Keep last sibling map while the resource reloads so cards do not flash empty. */
-  readonly #stableSiblings = signal<ReadonlyMap<string, readonly ProductCardSibling[]>>(
-    new Map(),
-  );
-
-  readonly #siblingsResource = resource({
-    params: () => uniqueModelGroups(this.hits().map((hit) => hit.modelGroup)),
-    loader: async ({ params }) => {
-      const map = await this.#products.listPublishedByModelGroups(params, 12);
-      const all: Product[] = [];
-      for (const list of map.values()) all.push(...list);
-      this.#cache.seed(all);
-      return toSiblingGroupsRecord(map);
-    },
-    id: 'shop-product-siblings',
-  });
-
-  readonly siblingsByGroup = computed(
-    (): ReadonlyMap<string, readonly ProductCardSibling[]> => this.#stableSiblings(),
-  );
 
   readonly cardPrices = computed<ReadonlyMap<string, ProductCardPrice>>(() => {
     const hits = this.hits();
@@ -69,68 +38,17 @@ export class ShopGridComponent {
 
     const map = new Map<string, ProductCardPrice>();
     for (const hit of hits) {
-      if (liveMode) {
-        const priced: PricedProduct = {
-          productId: hit.objectID,
-          name: hit.name,
-          brandId: hit.brandId,
-          categoryIds: hit.categoryIds,
-          type: hit.type,
-          modelGroup: hit.modelGroup,
-          colors: hit.colors,
-          sizes: hit.sizes,
-          tags: hit.tags,
-          price: hit.price,
-          compareAtPrice: hit.compareAtPrice,
-        };
-        const d = displayPrice(priced, offers, ctx);
-        map.set(hit.objectID, {
-          price: d.partial ? hit.price : d.fromPrice,
-          fromPrice: d.partial ? d.fromPrice : null,
-          listPrice: d.listPrice,
-          partial: d.partial,
-          badges: [],
-        });
-      } else {
-        const shown = hit.displayPrice ?? hit.price;
-        const varies = hit.pricePartial ?? shown !== hit.price;
-        map.set(
-          hit.objectID,
-          varies
-            ? {
-                price: hit.price,
-                fromPrice: shown,
-                listPrice: hit.listPrice ?? hit.compareAtPrice,
-                partial: true,
-                badges: [],
-              }
-            : {
-                price: shown,
-                fromPrice: null,
-                listPrice: hit.listPrice ?? hit.compareAtPrice,
-                partial: false,
-                badges: [],
-              },
-        );
-      }
+      map.set(hit.objectID, searchHitCardPrice(hit, liveMode ? offers : null, ctx));
     }
     return map;
   });
 
   readonly cards = computed(() => {
     const prices = this.cardPrices();
-    const siblings = this.siblingsByGroup();
     return this.hits().flatMap((hit) => {
       const price = prices.get(hit.objectID);
       if (!price) return [];
-      return [searchHitToCardData(hit, price, siblings)];
+      return [searchHitToCardData(hit, price)];
     });
   });
-
-  constructor() {
-    effect(() => {
-      if (!this.#siblingsResource.hasValue()) return;
-      this.#stableSiblings.set(siblingGroupsMap(this.#siblingsResource.value()));
-    });
-  }
 }

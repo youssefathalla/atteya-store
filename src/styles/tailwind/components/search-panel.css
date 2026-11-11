@@ -1,0 +1,50 @@
+@layer components {
+  /*! search panel (app-search-panel, opened by SearchPanelService; shell is .side-panel) */
+
+  .search-panel__field {
+    @apply flex-1 min-w-0 elements-start gap-2 h-12 pl-3 pr-1 border border-outline-variant border-shape bg-surface;
+  }
+
+  .search-panel__field:focus-within {
+    @apply border-primary;
+  }
+
+  .search-panel__input {
+    @apply flex-1 min-w-0 h-full bg-transparent font-body-lg outline-none;
+  }
+
+  /* Hide the browser's own clear cross: the panel has a Clear button. */
+  .search-panel__input::-webkit-search-cancel-button {
+    appearance: none;
+  }
+
+  .search-panel__message {
+    @apply h-full min-h-48 elements-center-col gap-2 text-center px-4;
+  }
+
+  .search-panel__list {
+    @apply elements-start-col gap-1 w-full;
+    transition: opacity 160ms ease;
+  }
+
+  .search-panel__list > li {
+    @apply w-full;
+  }
+
+  .search-panel__list--refreshing {
+    @apply opacity-70;
+  }
+
+  .search-panel__result {
+    @apply w-full elements-start gap-3 p-2 border-shape no-underline;
+  }
+
+  a.search-panel__result:hover,
+  a.search-panel__result:focus-visible {
+    @apply bg-surface-container-low;
+  }
+
+  .search-panel__thumb {
+    @apply size-16 shrink-0 overflow-hidden border-shape bg-surface-container-high;
+  }
+}

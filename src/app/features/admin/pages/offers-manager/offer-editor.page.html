@@ -20,7 +20,7 @@
       <button
         matButton="filled"
         type="button"
-        [disabled]="isSaving() || validation().errors.length > 0"
+        [disabled]="isSaving() || isUnavailableDeal() || validation().errors.length > 0"
         [attr.aria-label]="isSaving() ? 'Saving offer' : null"
         (click)="save()"
       >
@@ -50,6 +50,8 @@
       [scope]="draft().scope"
       [minimum]="draft().minimum"
       [products]="products()"
+      [categories]="categories()"
+      [brands]="brands()"
       (rewardChange)="updateReward($event)"
       (scopeChange)="updateScope($event)"
       (minimumChange)="updateMinimum($event)"
@@ -75,15 +77,17 @@
       (conditionsChange)="updateExclude($event)"
     />
 
-    <app-schedule-editor
-      [schedule]="draft().schedule"
-      (scheduleChange)="updateSchedule($event)"
+    <app-schedule-editor [schedule]="draft().schedule" (scheduleChange)="updateSchedule($event)" />
+
+    <app-banner-editor
+      [banner]="banner()"
+      [audience]="draft().audience"
+      [requiresCode]="draft().requiresCode && !!draft().code?.trim()"
+      [title]="draft().title"
+      [hasEndDate]="draft().schedule.endsAt !== null"
+      (bannerChange)="updateBanner($event)"
     />
 
-    <app-offer-preview
-      [draft]="draft()"
-      [products]="products()"
-      [validation]="validation()"
-    />
+    <app-offer-preview [draft]="draft()" [products]="products()" [validation]="validation()" />
   }
 </div>

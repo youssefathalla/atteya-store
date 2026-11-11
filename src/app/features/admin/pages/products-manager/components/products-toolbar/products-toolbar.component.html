@@ -5,12 +5,7 @@
       <p class="font-body-md">Add and edit products here.</p>
     </div>
     <div class="elements-end flex-wrap gap-2">
-      <button
-        matButton="filled"
-        type="button"
-        [disabled]="activity() !== null"
-        (click)="addProduct.emit()"
-      >
+      <button matButton="filled" type="button" [disabled]="activity() !== null" (click)="addProduct.emit()">
         <mat-icon name="add" />
         <span>Add Product</span>
       </button>

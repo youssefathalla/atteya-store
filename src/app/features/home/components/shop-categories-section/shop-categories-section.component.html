@@ -3,8 +3,17 @@
 <section class="container-content select-none" [attr.aria-label]="sectionTitle">
   @if (sectionTitle) {
     <header class="pb-4 sm:pb-6">
-      <h2 class="font-headline-md sm:font-headline-lg font-bold!">
-        {{ sectionTitle }}
+      <h2 class="home-section-title">
+        @if (previewMode()) {
+          {{ sectionTitle }}
+        } @else {
+          <a class="home-section-title-link" routerLink="/shop">
+            <span>{{ sectionTitle }}</span>
+            <span class="home-section-title-arrow">
+              <mat-icon name="arrow_outward" size="lg" />
+            </span>
+          </a>
+        }
       </h2>
     </header>
   }
@@ -93,7 +102,7 @@
               {{ card.buttonLabel }}
             </button>
           } @else {
-            <a [routerLink]="card.buttonLink" matButton="elevated">
+            <a [routerLink]="card.buttonLink | linkTarget" matButton="elevated">
               {{ card.buttonLabel }}
             </a>
           }

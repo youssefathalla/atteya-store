@@ -1,0 +1,71 @@
+@layer components {
+  /*! checkout payment options: one bordered row per method, with the method's mark in a small box and numbered steps under the chosen one */
+
+  /* One payment method row (holds its mat-radio-button and the note under it). */
+  .pay-option {
+    @apply relative p-2 border border-outline-variant border-shape;
+  }
+
+  /* An empty span inside the radio's label, stretched over the whole row: a click anywhere on the row (the mark, the
+     price, the steps) goes to the label and picks the method. The radio itself stays the keyboard control. */
+  .pay-option__hit {
+    @apply absolute inset-0 cursor-pointer;
+  }
+
+  /* The chosen row: a 2px black border (1px border + 1px inset ring, so the row doesn't move). */
+  .pay-option--selected {
+    @apply border-primary ring-1 ring-inset ring-primary;
+  }
+
+  /* Not offered yet: dashed outline. The disabled radio already greys its own circle and label; the mark box and the
+     "Coming soon" tag are shown at 40% opacity so the whole row reads the same as the bag's Coming soon tile. */
+  .pay-option--soon {
+    @apply border-dashed;
+  }
+
+  .pay-option--soon .pay-option__mark,
+  .pay-option--soon > span {
+    @apply opacity-40;
+  }
+
+  /* About 56×40: the method's mark (app-payment-mark) before its name. */
+  .pay-option__mark {
+    @apply w-14 h-10 shrink-0 elements-center border border-outline-variant border-shape bg-surface-container-lowest;
+  }
+
+  /* How to pay, under the chosen method: a timeline of numbered steps joined by a line, each with a bold title, a short
+     grey note and its amount on the right (an <ol>; the numbers come from a CSS counter). */
+  .pay-steps {
+    @apply elements-start-col items-stretch! ps-3 sm:ps-12 pe-2 sm:pe-3 pt-2 pb-2 list-none;
+    counter-reset: pay-step;
+  }
+
+  .pay-step {
+    @apply relative elements-start items-start! gap-3.5 pb-4 last:pb-0;
+    counter-increment: pay-step;
+  }
+
+  /* The step number in a black circle. */
+  .pay-step::before {
+    @apply size-6.5 shrink-0 elements-center rounded-full bg-primary text-on-primary font-label-md font-bold!;
+    content: counter(pay-step);
+  }
+
+  /* The line down to the next step, under the number; not after the last step. */
+  .pay-step::after {
+    @apply absolute start-3 top-8 bottom-1 w-0.5 bg-outline;
+    content: '';
+  }
+
+  .pay-step:last-child::after {
+    @apply hidden;
+  }
+
+  .pay-step__text {
+    @apply min-w-0 flex-1 elements-start-col;
+  }
+
+  .pay-step__amount {
+    @apply shrink-0 font-body-md font-bold! whitespace-nowrap;
+  }
+}

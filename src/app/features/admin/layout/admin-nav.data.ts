@@ -86,6 +86,14 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         description: 'Egypt and abroad delivery boxes, free shipping, and promotions',
       },
       {
+        id: 'players',
+        label: 'Players',
+        path: '/admin/settings/players',
+        icon: 'sports_tennis',
+        badge: 'Live',
+        description: 'Pro players shoppers can filter Shop by',
+      },
+      {
         id: 'international',
         label: 'Outside Egypt',
         path: '/admin/settings/international',

@@ -37,14 +37,16 @@ export interface ShopBrandOption {
   readonly count: number;
 }
 
-export interface ShopSizeOption {
-  readonly label: string;
+export interface ShopPlayerOption {
+  /** Link name from `settings/players` (`?player=ale-galan`). */
+  readonly id: string;
+  readonly name: string;
   readonly count: number;
 }
 
-export interface ShopPriceBounds {
-  readonly min: number;
-  readonly max: number;
+export interface ShopSizeOption {
+  readonly label: string;
+  readonly count: number;
 }
 
 /** URL / UI filter state for the shop listing. */
@@ -52,11 +54,13 @@ export interface ShopFilterState {
   readonly sort: CatalogSort;
   readonly categories: readonly ShopCategoryFilterId[];
   readonly brands: readonly string[];
+  /** Player ids (`?player=ale-galan,agustin-tapia`). */
+  readonly players: readonly string[];
   readonly sizes: readonly string[];
   readonly colors: readonly ColorId[];
   readonly genders: readonly ShopGenderFilterId[];
-  readonly priceMin: number | null;
-  readonly priceMax: number | null;
+  /** Only products still in their New arrival period (`?newArrivals=1`). */
+  readonly newArrivals: boolean;
   readonly onSale: boolean;
   readonly inStock: boolean;
   readonly page: number;
@@ -92,15 +96,7 @@ export const SHOP_COLOR_IDS = [
   'multi',
 ] as const satisfies readonly ColorId[];
 
-export const APPAREL_LETTER_SIZES = [
-  'S',
-  'M',
-  'L',
-  'XL',
-  '2XL',
-  '3XL',
-  '4XL',
-] as const;
+export const APPAREL_LETTER_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'] as const;
 
 export const SHOP_SORT_OPTIONS: readonly {
   readonly value: CatalogSort;
@@ -125,11 +121,11 @@ export const DEFAULT_SHOP_FILTERS: ShopFilterState = {
   sort: 'featured',
   categories: [],
   brands: [],
+  players: [],
   sizes: [],
   colors: [],
   genders: [],
-  priceMin: null,
-  priceMax: null,
+  newArrivals: false,
   onSale: false,
   inStock: false,
   page: 0,

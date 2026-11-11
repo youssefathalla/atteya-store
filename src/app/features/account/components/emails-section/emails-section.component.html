@@ -1,0 +1,13 @@
+<h2 class="account-section__title">
+  <mat-icon name="mail" aria-hidden="true" />
+  <span>Emails</span>
+</h2>
+
+@if (loading()) {
+  <app-skeleton class="h-10 w-full" />
+} @else {
+  <mat-slide-toggle [checked]="optedIn()" [disabled]="isSaving()" (change)="toggle($event)">
+    Get offers and new arrivals by email
+  </mat-slide-toggle>
+  <p class="font-body-sm text-on-surface-variant">We'll still email you about your orders.</p>
+}

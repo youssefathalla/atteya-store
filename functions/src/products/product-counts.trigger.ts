@@ -9,10 +9,7 @@ export const onProductCountsChange = onDocumentWritten(
     const after = event.data?.after.data();
     if (!countsFieldsChanged(before, after)) return;
 
-    const categoryIds = new Set<string>([
-      ...readCategoryIds(before),
-      ...readCategoryIds(after),
-    ]);
+    const categoryIds = new Set<string>([...readCategoryIds(before), ...readCategoryIds(after)]);
     const brandIds = new Set<string>();
     const beforeBrand = readBrandId(before);
     const afterBrand = readBrandId(after);
@@ -33,10 +30,7 @@ export const onProductCountsChange = onDocumentWritten(
   },
 );
 
-function countsFieldsChanged(
-  before: DocumentData | undefined,
-  after: DocumentData | undefined,
-): boolean {
+function countsFieldsChanged(before: DocumentData | undefined, after: DocumentData | undefined): boolean {
   const beforePub = before?.['published'] === true;
   const afterPub = after?.['published'] === true;
   if (!beforePub && !afterPub) return false;

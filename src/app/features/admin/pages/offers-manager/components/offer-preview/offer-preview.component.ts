@@ -16,7 +16,7 @@ import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { EgpPricePipe } from '@shared/pipes/egp-price.pipe';
 import { normalizeImageKitPath } from '@shared/utils/image';
 
-export type PreviewViewMode = 'visitor' | 'signedIn' | 'withCode';
+export type PreviewViewMode = 'visitor' | 'signedIn';
 
 export interface PreviewSampleRow {
   readonly id: string;
@@ -40,7 +40,7 @@ export class OfferPreviewComponent {
   readonly products = input.required<readonly Product[]>();
   readonly validation = input.required<OfferValidationResult>();
 
-  readonly viewMode = signal<PreviewViewMode>('withCode');
+  readonly viewMode = signal<PreviewViewMode>('signedIn');
   readonly customAt = signal<Date | null>(null);
 
   readonly atInput = computed(() =>
@@ -51,8 +51,7 @@ export class OfferPreviewComponent {
     const draft = this.draft();
     const products = this.products();
     const mode = this.viewMode();
-    const evalTime =
-      this.customAt() ?? draft.schedule.startsAt ?? new Date();
+    const evalTime = this.customAt() ?? draft.schedule.startsAt ?? new Date();
 
     const simulatedOffer: Offer = {
       ...draft,
@@ -63,11 +62,7 @@ export class OfferPreviewComponent {
 
     const ctx: PricingContext = {
       now: evalTime,
-      signedIn: mode === 'signedIn' || mode === 'withCode',
-      codes:
-        mode === 'withCode' && draft.code?.trim()
-          ? [draft.code.trim().toUpperCase()]
-          : [],
+      signedIn: mode === 'signedIn',
     };
 
     let fullCount = 0;

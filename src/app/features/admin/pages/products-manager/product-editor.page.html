@@ -7,12 +7,7 @@
       </p>
     </div>
     <div class="elements-center gap-2">
-      <button
-        matButton="text"
-        type="button"
-        [disabled]="isSaving()"
-        (click)="cancel()"
-      >
+      <button matButton="text" type="button" [disabled]="isSaving()" (click)="cancel()">
         <span>Cancel</span>
       </button>
       <button
@@ -70,19 +65,21 @@
         }
         <app-text-field-input [formField]="editForm.summary" label="Short summary" />
         <p class="font-body-sm text-on-surface-variant">Up to 300 characters.</p>
-        <app-text-field-input
-          [formField]="editForm.description"
-          label="Description"
-          [minRows]="6"
-        />
+        <app-text-field-input [formField]="editForm.description" label="Description" [minRows]="3" />
         <p class="font-body-sm text-on-surface-variant">
-          Plain text. Leave a blank line between paragraphs.
+          One or two sentences, shown under the price. Leave a blank line between paragraphs.
         </p>
         @if (easyOrdersDescription()) {
           <p class="font-body-sm text-on-surface-variant">
-            This description came from the old store with formatting. If you change it here, it's saved as plain text.
+            This description came from the old store with formatting. If you change it here, it's saved as
+            plain text.
           </p>
         }
+        <app-text-field-input [formField]="editForm.details" label="Details" [minRows]="5" />
+        <p class="font-body-sm text-on-surface-variant">
+          One fact per line, such as "63% cotton, 37% polyester" or "Shape: Diamond". Shown under Materials
+          for clothing and Specifications for gear. Up to 20 lines.
+        </p>
       </section>
 
       <app-image-gallery-editor
@@ -98,21 +95,14 @@
 
       <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-price">
         <h2 id="product-price" class="font-title-md font-bold!">Price</h2>
-        <app-text-input
-          [formField]="editForm.price"
-          label="Price (EGP)"
-          type="number"
-          inputMode="numeric"
-        />
+        <app-text-input [formField]="editForm.price" label="Price (EGP)" type="number" inputMode="numeric" />
         <app-text-input
           [formField]="editForm.compareAtPrice"
           label="Original price"
           type="number"
           inputMode="numeric"
         />
-        <p class="font-body-sm text-on-surface-variant">
-          Shown crossed out when it's higher than the price.
-        </p>
+        <p class="font-body-sm text-on-surface-variant">Shown crossed out when it's higher than the price.</p>
       </section>
 
       <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-weight">
@@ -138,8 +128,8 @@
           }
         </label>
         <p id="product-weight-hint" class="font-body-sm text-on-surface-variant">
-          Sets the delivery fee at checkout. Use 0 for small items like socks that don't add to the
-          parcel. Left empty, each one counts as 500 g at checkout. Shoppers don't see it.
+          Sets the delivery fee at checkout. Use 0 for small items like socks that don't add to the parcel.
+          Left empty, each one counts as 500 g at checkout. Shoppers don't see it.
         </p>
       </section>
 
@@ -167,11 +157,7 @@
           valueKey="id"
           labelKey="label"
         />
-        <app-text-input
-          [formField]="editForm.modelGroup"
-          label="Model group"
-          placeholder="on-cloud-short"
-        />
+        <app-text-input [formField]="editForm.modelGroup" label="Model group" placeholder="on-cloud-short" />
         <p class="font-body-sm text-on-surface-variant">{{ groupHint() }}</p>
         <app-select-input
           [formField]="editForm.gender"
@@ -193,24 +179,48 @@
             @for (color of colorPalette; track color.id) {
               <button
                 type="button"
-                class="border-shape border px-2.5 py-1 elements-center gap-1.5 font-label-sm cursor-pointer"
-                [class.border-primary]="hasColor(color.id)"
-                [class.bg-surface-container-highest]="hasColor(color.id)"
-                [class.border-outline-variant]="!hasColor(color.id)"
+                class="toggle-pill"
                 [attr.aria-pressed]="hasColor(color.id)"
                 (click)="toggleColor(color.id)"
               >
-                <app-color-swatch
-                  class="size-3"
-                  [colorId]="color.id"
-                  [swatch]="color.swatch"
-                />
+                <app-color-swatch class="size-3" [colorId]="color.id" [swatch]="color.swatch" />
                 <span>{{ color.label }}</span>
               </button>
             }
           </div>
           @if (colorError()) {
             <p class="font-body-sm" role="alert">{{ colorError() }}</p>
+          }
+        </div>
+
+        <div class="w-full elements-start-col gap-2">
+          <span class="font-label-md">Players</span>
+          <p class="font-body-sm text-on-surface-variant">
+            Pick the pro players this product belongs to. Shoppers can filter Shop by player.
+          </p>
+          @if (playersLoading() && playerOptions().length === 0) {
+            <app-skeleton class="h-8 w-full" />
+          } @else if (playerOptions().length === 0) {
+            <p class="font-body-sm">
+              No players yet. Add them in
+              <a routerLink="/admin/settings/players" class="underline">Settings → Players</a>.
+            </p>
+          } @else {
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Product players">
+              @for (player of playerOptions(); track player.id) {
+                <button
+                  type="button"
+                  class="toggle-pill"
+                  [attr.aria-pressed]="hasPlayer(player.id)"
+                  (click)="togglePlayer(player.id)"
+                >
+                  <span>{{ player.name }}</span>
+                </button>
+              }
+            </div>
+          }
+          @if (playerError()) {
+            <p class="font-body-sm" role="alert">{{ playerError() }}</p>
           }
         </div>
 
@@ -291,14 +301,11 @@
         <div class="w-full elements-start-col gap-2">
           <span class="font-label-md">New arrival</span>
           <p class="font-body-sm text-on-surface-variant">
-            Puts this product at the front of the homepage New arrivals row until the end date. Separate
-            from the NEW marketing badge.
+            Puts this product at the front of the homepage New Arrivals row until the end date. Separate from
+            the NEW marketing badge.
           </p>
-          <mat-checkbox
-            [checked]="newArrivalChecked()"
-            (change)="onNewArrivalToggle($event.checked)"
-          >
-            Show in New arrivals
+          <mat-checkbox [checked]="newArrivalChecked()" (change)="onNewArrivalToggle($event.checked)">
+            Show in New Arrivals
           </mat-checkbox>
           @if (newArrivalChecked()) {
             <label class="elements-start-col gap-1.5 w-full max-w-xs">
@@ -476,16 +483,12 @@
               <p id="product-stock-error" class="font-body-sm" role="alert">{{ flatStockError() }}</p>
             }
           </label>
-          <p class="font-body-sm text-on-surface-variant">
-            This replaces the size counts with one number.
-          </p>
+          <p class="font-body-sm text-on-surface-variant">This replaces the size counts with one number.</p>
         } @else if (replacingFlatStock()) {
           <p class="font-body-sm text-on-surface-variant">{{ flatReplacementNote() }}</p>
         } @else if (showStockReadout()) {
           <p class="font-body-md">{{ stockReadout() }}</p>
-          <p class="font-body-sm text-on-surface-variant">
-            Change counts with Stock on the products list.
-          </p>
+          <p class="font-body-sm text-on-surface-variant">Change counts with Stock on the products list.</p>
         }
       </section>
 

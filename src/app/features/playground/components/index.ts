@@ -11,4 +11,3 @@ export * from './dialogs-tab/dialogs-tab.component';
 export * from './loaders-tab/loaders-tab.component';
 export * from './branding-tab/branding-tab.component';
 export * from './gsap-tab/gsap-tab.component';
-

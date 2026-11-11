@@ -6,7 +6,9 @@
     [opened]="isDesktop() && drawerService.activeDrawer() === 'cart'"
     (closed)="drawerService.close()"
   >
-    <app-cart-drawer />
+    <!-- The server has no saved bag, so its HTML is always the empty bag. The browser fills the bag
+         before hydration, so skip hydration here: the server copy is replaced, not reused. -->
+    <app-cart-drawer placement="side" ngSkipHydration />
   </mat-drawer>
 
   <!-- 2. MAIN PAGE CONTENT -->
@@ -19,11 +21,7 @@
       ></div>
     }
     @if (showInitialShellLoader()) {
-      <div
-        class="fixed inset-0 z-40 bg-surface/90 elements-center"
-        role="status"
-        aria-label="Loading store"
-      >
+      <div class="fixed inset-0 z-40 bg-surface/90 elements-center" role="status" aria-label="Loading store">
         <app-loader [sectionSpace]="false" minHeight="40" [showMessage]="false" bg="surface" />
       </div>
     }
@@ -34,7 +32,7 @@
       </header>
     } @else if (chromeReady()) {
       <!-- No wrappers around desktop-nav — a short parent becomes the sticky containing block. -->
-      <app-shipping-banner #shippingChrome />
+      <app-announcement-bar #bannerChrome />
       <app-desktop-nav #navChrome />
     }
 
@@ -44,36 +42,10 @@
     </main>
 
     @if (!focusChrome()) {
-      <!-- Store Minimal Footer -->
-      <footer
-        class="w-full bg-surface-container-lowest border-t border-outline-variant py-10 pb-24 lg:pb-10 px-4 sm:px-6 lg:px-8 mt-auto select-none"
-      >
-        <div class="max-w-7xl mx-auto elements-between flex-col sm:flex-row gap-6">
-          <div class="flex items-center gap-2">
-            <span class="font-display-sm font-bold! tracking-widest uppercase"> ATTEYA. </span>
-            <span class="font-label-sm font-mono opacity-80"> | Premier Padel & Sports Store </span>
-          </div>
-
-          <div class="flex items-center gap-6 font-label-md font-bold! tracking-wider uppercase opacity-80">
-            <span>Official Dealer</span>
-            <span>100% Authentic</span>
-            <span>Express Shipping</span>
-          </div>
-
-          <div class="flex items-center gap-3 font-label-sm opacity-80">
-            <p>&copy; 2026 Atteya Store. All rights reserved.</p>
-            <span>&bull;</span>
-            <a
-              routerLink="/login"
-              [queryParams]="{ returnUrl: '/admin' }"
-              rel="nofollow"
-              class="transition-colors underline-offset-4 hover:underline"
-            >
-              Admin Portal
-            </a>
-          </div>
-        </div>
-      </footer>
+      <!-- Below the fold: rendered on the server, hydrated when it scrolls into view. -->
+      @defer (hydrate on viewport) {
+        <app-footer />
+      }
 
       <!-- Persistent Mobile Navigation (Bottom bar + slide-up menu + slide-up cart) -->
       @if (chromeReady()) {

@@ -9,13 +9,14 @@ import {
   signal,
 } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavCategory } from '@core/services/navigation';
 
 @Component({
   selector: 'app-nav-links',
-  imports: [RouterLink],
+  imports: [RouterLink, LinkTargetPipe],
   templateUrl: './nav-links.component.html',
   host: {
     class: 'h-full hidden lg:flex items-center z-20',

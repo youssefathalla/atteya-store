@@ -9,7 +9,12 @@ export interface FirebaseError {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isFirebaseError = (err: unknown): err is FirebaseError => {
-  return typeof err === 'object' && err !== null && 'code' in err;
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    typeof (err as { code?: unknown }).code === 'string'
+  );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,3 +89,42 @@ export const firebaseErrors = (error: unknown): string => {
 
 export const mapFirebaseError = firebaseErrors;
 export const handleFirebaseError = firebaseErrors;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Callable (Cloud Functions) messages
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The Functions SDK ends every callable error message with the HTTP status
+ * (`"One item in your bag is out of stock. [400]"`). Exactly one space, then
+ * three digits in brackets, so this pattern has no backtracking.
+ */
+const SDK_HTTP_STATUS_SUFFIX = / \[\d{3}\]$/;
+
+/** True when the message is the SDK's own status text, not one our server wrote. */
+function isSdkStatusText(message: string, bareCode: string): boolean {
+  const normalized = message.toLowerCase();
+  const code = bareCode.toLowerCase();
+  return (
+    normalized === code ||
+    normalized.startsWith(`${code} (`) ||
+    normalized.startsWith(`${code}:`) ||
+    normalized.startsWith('backend error status:') ||
+    normalized.startsWith('unknown backend error status:')
+  );
+}
+
+/**
+ * The plain message a callable's `HttpsError` carried, with the SDK's
+ * `[400]`-style status removed. Returns null when the error is not from a
+ * callable, or when it holds only the SDK's status text (an uncaught server
+ * error, a network failure, a timeout), so the caller shows its own fallback.
+ */
+export function callableMessage(error: unknown): string | null {
+  if (!isFirebaseError(error) || !error.code.startsWith('functions/')) return null;
+  const raw = (error as { message?: unknown }).message;
+  if (typeof raw !== 'string') return null;
+  const message = raw.trim().replace(SDK_HTTP_STATUS_SUFFIX, '').trim();
+  if (message.length === 0) return null;
+  return isSdkStatusText(message, error.code.slice('functions/'.length)) ? null : message;
+}

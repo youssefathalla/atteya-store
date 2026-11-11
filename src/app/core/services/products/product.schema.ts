@@ -3,21 +3,13 @@ import { idSchema, slugSchema, timestampSchema } from '@shared/schemas';
 import { ImageAssetSchema } from '@shared/schemas/image.schema';
 import { COLOR_IDS } from './catalog-taxonomy';
 import { MARKETING_BADGE_KINDS, MARKETING_BADGE_STYLES } from './marketing-badge';
-import {
-  LOCKABLE_PRODUCT_FIELDS,
-  PRODUCT_GENDER_IDS,
-  PRODUCT_TYPE_IDS,
-} from './product.constants';
+import { MAX_PRODUCT_PLAYERS, PlayerIdSchema } from './player.schema';
+import { MAX_DETAIL_LINE, MAX_DETAIL_LINES } from './utils/product-details';
+import { LOCKABLE_PRODUCT_FIELDS, PRODUCT_GENDER_IDS, PRODUCT_TYPE_IDS } from './product.constants';
 
 const wholeNumber = v.pipe(v.number(), v.integer(), v.minValue(0));
 const countMap = v.record(v.string(), wholeNumber);
-const tagSlugSchema = v.pipe(
-  v.string(),
-  v.trim(),
-  v.minLength(1),
-  v.maxLength(32),
-  v.regex(/^[a-z0-9-]+$/),
-);
+const tagSlugSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(32), v.regex(/^[a-z0-9-]+$/));
 
 export const MarketingBadgeSchema = v.object({
   kind: v.picklist(MARKETING_BADGE_KINDS),
@@ -27,6 +19,19 @@ export const MarketingBadgeSchema = v.object({
 export const ProductImageSchema = v.object({
   ...ImageAssetSchema.entries,
   sourceUrl: v.optional(v.pipe(v.string(), v.trim(), v.minLength(1))),
+});
+
+/**
+ * One colour of the same model, kept on every product of that model by the
+ * `onProductColorSiblingsChange` function (functions/src/products/color-siblings.ts).
+ * Product cards read it, so a grid needs no extra read to show the other colours.
+ */
+export const ColorSiblingSchema = v.object({
+  id: idSchema,
+  slug: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+  imagePath: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(512)), ''),
+  imageAlt: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ''),
+  inStock: v.optional(v.boolean(), false),
 });
 
 export const ProductOptionValueSchema = v.object({
@@ -67,6 +72,17 @@ export const ProductSchema = v.pipe(
     name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
     summary: v.nullable(v.pipe(v.string(), v.maxLength(300))),
     descriptionHtml: v.nullable(v.string()),
+    /** Facts for the Materials / Specifications section, one per line. A bad list never drops the product. */
+    details: v.optional(
+      v.fallback(
+        v.pipe(
+          v.array(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(MAX_DETAIL_LINE))),
+          v.maxLength(MAX_DETAIL_LINES),
+        ),
+        [],
+      ),
+      [],
+    ),
     detailImages: v.pipe(v.array(ProductImageSchema), v.maxLength(8)),
     categoryId: slugSchema,
     categoryIds: v.pipe(v.array(slugSchema), v.minLength(1), v.maxLength(10)),
@@ -74,6 +90,8 @@ export const ProductSchema = v.pipe(
     brandId: slugSchema,
     modelGroup: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80))),
     gender: v.optional(v.picklist(PRODUCT_GENDER_IDS)),
+    /** Every colour of the model in a fixed order (this product included). A bad list never drops the product. */
+    colorSiblings: v.optional(v.fallback(v.pipe(v.array(ColorSiblingSchema), v.maxLength(12)), []), []),
     currency: v.literal('EGP'),
     price: wholeNumber,
     compareAtPrice: v.nullable(wholeNumber),
@@ -81,6 +99,11 @@ export const ProductSchema = v.pipe(
     options: v.pipe(v.array(ProductOptionSchema), v.maxLength(8)),
     colors: v.optional(v.pipe(v.array(v.picklist(COLOR_IDS)), v.maxLength(12)), []),
     tags: v.optional(v.pipe(v.array(tagSlugSchema), v.maxLength(20)), []),
+    /** Player ids from `settings/players` (Shop's Player filter). A bad list never drops the product. */
+    players: v.optional(
+      v.fallback(v.pipe(v.array(PlayerIdSchema), v.maxLength(MAX_PRODUCT_PLAYERS)), []),
+      [],
+    ),
     /** Merchandising badge (NEW / BESTSELLER / LIMITED EDITION). Distinct from freeform `tags`. */
     marketingBadge: v.optional(v.nullable(MarketingBadgeSchema), null),
     /**

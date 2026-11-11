@@ -1,5 +1,16 @@
 @if (showSection()) {
-  <section class="container-content select-none" aria-label="Padel rackets">
+  <section class="container-content select-none" aria-labelledby="padel-heading">
+    <header class="pb-2 sm:pb-3">
+      <h2 id="padel-heading" class="home-section-title">
+        <a class="home-section-title-link" routerLink="/category/rackets">
+          <span>Padel</span>
+          <span class="home-section-title-arrow">
+            <mat-icon name="arrow_outward" size="lg" />
+          </span>
+        </a>
+      </h2>
+    </header>
+
     @if (isLoading()) {
       <div
         class="scroll-row [--scroll-peek:2.5rem] md:[--scroll-cols:3] md:[--scroll-peek:3rem] xl:[--scroll-cols:5] xl:[--scroll-peek:2.5rem]"
@@ -16,6 +27,10 @@
         #scrollRow
         class="scroll-row [--scroll-peek:2.5rem] md:[--scroll-cols:3] md:[--scroll-peek:3rem] xl:[--scroll-cols:5] xl:[--scroll-peek:2.5rem]"
         appHorizontalScroll
+        appRowScrollLock
+        #lock="rowScrollLock"
+        [enableWheel]="false"
+        [snapToItems]="!lock.enabled()"
       >
         @for (product of products(); track product.id) {
           @let path = imagePath(product.images[0]?.path);
@@ -47,8 +62,8 @@
           [progress]="progress()"
           [canPrev]="canPrev()"
           [canNext]="canNext()"
-          (prev)="prev()"
-          (next)="next()"
+          (prev)="lock.step(-1)"
+          (next)="lock.step(1)"
         />
       }
     }

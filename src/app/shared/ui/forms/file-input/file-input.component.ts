@@ -1,12 +1,4 @@
-import {
-  Component,
-  computed,
-  ElementRef,
-  input,
-  output,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, computed, ElementRef, input, output, signal, viewChild } from '@angular/core';
 import { generateId } from '@shared/utils/id.utils';
 import { MatButtonModule } from '@angular/material/button';
 import { SafeUrl } from '@angular/platform-browser';

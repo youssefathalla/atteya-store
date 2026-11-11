@@ -1,4 +1,5 @@
 import { HttpsError } from 'firebase-functions/v2/https';
+import * as v from 'valibot';
 import { isEgyptMobile } from '../store/order-messages.js';
 
 const COUNTRY_CODE = /^[A-Z]{2}$/;
@@ -10,6 +11,10 @@ const MAX_CITY = 80;
 const MAX_POSTAL = 20;
 const MAX_PHONE = 20;
 const MAX_SELECTION_KEYS = 8;
+/** Most gift picks on one bag line; matches `MAX_OFFER_GIFTS` in the offer engine. */
+const MAX_LINE_GIFTS = 5;
+/** Most offer ids in one of checkout's offer id lists. */
+const MAX_ENDED_OFFERS = 20;
 export type StorePaymentMethod = 'paymob' | 'cash-on-delivery' | 'instapay';
 
 export interface OrderLineInput {
@@ -17,6 +22,31 @@ export interface OrderLineInput {
   readonly variantId: string | null;
   readonly quantity: number;
   readonly selection: Readonly<Record<string, string>>;
+  /** Free gifts the shopper picked for this line (one set per piece). Re-checked on the server. */
+  readonly gifts: readonly OrderGiftPickInput[];
+  /**
+   * The price of one piece checkout showed (whole EGP, after per-item offers, before Buy X Get Y),
+   * or null when checkout didn't send one (older pages). When the server's price is higher, the
+   * order is refused instead of charging more than the shopper saw. Never lowers a price.
+   */
+  readonly shownUnitEgp: number | null;
+  /** The per-item offer checkout priced that piece with, or null for none. */
+  readonly shownOfferId: string | null;
+  /**
+   * The price of one piece before per-item offers checkout showed (whole EGP), or null. Pieces in
+   * a Buy X Get Y group pay this price, so the order is refused when it went up. Never lowers a
+   * price.
+   */
+  readonly shownBaseEgp: number | null;
+}
+
+/** One free gift picked on a bag line: which offer and gift, which product, and its size. */
+export interface OrderGiftPickInput {
+  readonly offerId: string;
+  readonly giftId: string;
+  readonly productId: string;
+  /** Size value id when the gift product has sizes, else null. */
+  readonly sizeId: string | null;
 }
 
 export interface OrderShippingInput {
@@ -36,6 +66,48 @@ export interface CreateStoreOrderRequest {
   readonly lines: readonly OrderLineInput[];
   readonly shipping: OrderShippingInput;
   readonly paymentMethod: StorePaymentMethod;
+  /**
+   * Buy X Get Y offers checkout already told the shopper have ended (from an earlier refusal) and
+   * left out of the total it shows. The server leaves one out only when its usage counts confirm it has
+   * no use left for this shopper (`confirmedEndedOfferIds`); any other id is ignored.
+   */
+  readonly endedOfferIds: readonly string[];
+  /**
+   * Buy X Get Y offers the bag priced this order with. One the server doesn't apply (after reading
+   * the offers again without the cache) refuses the order (`details.changedOfferId`) instead of
+   * charging more than the shopper saw. Never adds a discount.
+   */
+  readonly dealOfferIds: readonly string[];
+  /**
+   * The shipping fee checkout showed (whole EGP), or null when it didn't send one (older pages, or
+   * a large order whose fee is agreed later). The order is refused when the server's fee is higher.
+   * Never lowers a price.
+   */
+  readonly shownShippingEgp: number | null;
+  /**
+   * The order total checkout showed (whole EGP, items plus shipping), or null. The order is refused
+   * when the server's `totalEgp` is higher. Never lowers a price.
+   */
+  readonly shownTotalEgp: number | null;
+}
+
+/** Longest email address a guest can order with (RFC 5321 path limit). */
+const MAX_GUEST_EMAIL = 254;
+
+/**
+ * The `guest` block of a call with no sign-in: `{ email }`, trimmed and lower-cased so the same
+ * address always gives the same rate-limit and offer-limit keys.
+ */
+export const GuestCheckoutSchema = v.object({
+  email: v.pipe(v.string(), v.trim(), v.toLowerCase(), v.maxLength(MAX_GUEST_EMAIL), v.email()),
+});
+
+export type GuestCheckoutInput = v.InferOutput<typeof GuestCheckoutSchema>;
+
+/** The guest's email from a call with no sign-in, or null when the block is missing or invalid. */
+export function parseGuestCheckout(raw: unknown): GuestCheckoutInput | null {
+  const result = v.safeParse(GuestCheckoutSchema, raw);
+  return result.success ? result.output : null;
 }
 
 export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderRequest {
@@ -47,12 +119,40 @@ export function parseCreateStoreOrderRequest(data: unknown): CreateStoreOrderReq
   const paymentMethod = parsePaymentMethod(data['paymentMethod'], shipping.country);
   // Staff reach Egypt shoppers on WhatsApp (InstaPay screenshot, cash-on-delivery fee).
   if (shipping.country === 'EG' && !isEgyptMobile(shipping.phone)) {
-    throw new HttpsError(
-      'invalid-argument',
-      'Enter an Egyptian mobile number, e.g. 010 1234 5678.',
-    );
+    throw new HttpsError('invalid-argument', 'Enter an Egyptian mobile number, e.g. 010 1234 5678.');
   }
-  return { lines, shipping, paymentMethod };
+  const endedOfferIds = parseOfferIds(data['endedOfferIds']);
+  const dealOfferIds = parseOfferIds(data['dealOfferIds']);
+  const shownShippingEgp = parseShownAmountEgp(data['shownShippingEgp']);
+  const shownTotalEgp = parseShownAmountEgp(data['shownTotalEgp']);
+  return { lines, shipping, paymentMethod, endedOfferIds, dealOfferIds, shownShippingEgp, shownTotalEgp };
+}
+
+/** Most whole EGP a shown shipping fee or order total can be; anything above is read as not sent. */
+const MAX_SHOWN_AMOUNT_EGP = 1_000_000_000;
+
+/**
+ * The shipping fee or order total checkout showed, or null when it is missing or unreadable (the
+ * comparison is then skipped). Rounded down, and only ever used to refuse an order, so a wrong value
+ * can't lower a price.
+ */
+export function parseShownAmountEgp(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0 || raw > MAX_SHOWN_AMOUNT_EGP) return null;
+  return Math.floor(raw);
+}
+
+/**
+ * A list of offer ids from checkout (`endedOfferIds`, `dealOfferIds`); anything unreadable is left
+ * out. The server checks each id itself before it changes anything.
+ */
+export function parseOfferIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = new Set<string>();
+  for (const entry of raw) {
+    if (ids.size >= MAX_ENDED_OFFERS) break;
+    if (typeof entry === 'string' && entry.length >= 1 && entry.length <= 128) ids.add(entry);
+  }
+  return Array.from(ids);
 }
 
 function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {
@@ -66,10 +166,7 @@ function parsePaymentMethod(raw: unknown, country: string): StorePaymentMethod {
     );
   }
   if (raw === 'instapay' && country !== 'EG') {
-    throw new HttpsError(
-      'failed-precondition',
-      'InstaPay is only available for orders delivered in Egypt.',
-    );
+    throw new HttpsError('failed-precondition', 'InstaPay is only available for orders delivered in Egypt.');
   }
   return raw;
 }
@@ -87,9 +184,87 @@ function parseLines(raw: unknown): OrderLineInput[] {
     const variantId = readOptionalId(entry['variantId']);
     const quantity = readQuantity(entry['quantity']);
     const selection = parseSelection(entry['selection']);
-    lines.push({ productId, variantId, quantity, selection });
+    const gifts = parseGiftPicks(entry['gifts']);
+    const shownUnitEgp = parseShownUnitEgp(entry['shownUnitEgp']);
+    const shownOfferId = parseShownOfferId(entry['shownOfferId']);
+    const shownBaseEgp = parseShownUnitEgp(entry['shownBaseEgp']);
+    lines.push({
+      productId,
+      variantId,
+      quantity,
+      selection,
+      gifts,
+      shownUnitEgp,
+      shownOfferId,
+      shownBaseEgp,
+    });
   }
   return lines;
+}
+
+/** Most whole EGP one piece can show at checkout; anything above is read as not sent. */
+const MAX_SHOWN_UNIT_EGP = 10_000_000;
+
+/**
+ * The unit price checkout showed for a line, or null when it is missing or unreadable (the
+ * comparison is then skipped). Only ever used to refuse an order, so a wrong value can't lower a
+ * price.
+ */
+export function parseShownUnitEgp(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0 || raw > MAX_SHOWN_UNIT_EGP) return null;
+  // Rounded down, so a fraction can never let the order cost more than the page showed.
+  return Math.floor(raw);
+}
+
+/** The per-item offer id checkout showed for a line, or null. */
+export function parseShownOfferId(raw: unknown): string | null {
+  return typeof raw === 'string' && raw.length >= 1 && raw.length <= 128 ? raw : null;
+}
+
+/** Gift picks of one line. Every pick on a line must name the same offer. */
+export function parseGiftPicks(raw: unknown): OrderGiftPickInput[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.length > MAX_LINE_GIFTS) {
+    throw new HttpsError(
+      'invalid-argument',
+      'The free gifts in your bag could not be read. Choose them again.',
+    );
+  }
+  const picks: OrderGiftPickInput[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) {
+      throw new HttpsError(
+        'invalid-argument',
+        'The free gifts in your bag could not be read. Choose them again.',
+      );
+    }
+    picks.push({
+      offerId: readGiftId(entry['offerId']),
+      giftId: readGiftId(entry['giftId']),
+      productId: readGiftId(entry['productId']),
+      sizeId:
+        entry['sizeId'] === null || entry['sizeId'] === undefined || entry['sizeId'] === ''
+          ? null
+          : readGiftId(entry['sizeId']),
+    });
+  }
+  if (picks.some((pick) => pick.offerId !== picks[0]?.offerId)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'The free gifts in your bag could not be read. Choose them again.',
+    );
+  }
+  return picks;
+}
+
+function readGiftId(raw: unknown): string {
+  if (typeof raw !== 'string' || raw.length < 1 || raw.length > 128) {
+    throw new HttpsError(
+      'invalid-argument',
+      'The free gifts in your bag could not be read. Choose them again.',
+    );
+  }
+  return raw;
 }
 
 function parseSelection(raw: unknown): Readonly<Record<string, string>> {

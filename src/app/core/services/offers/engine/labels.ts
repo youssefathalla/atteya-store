@@ -72,7 +72,7 @@ export function describeOfferReward(offer: OfferDraft): string {
         ? `Buy ${r.buy.quantity}, get ${r.get.quantity} free`
         : `Buy ${r.buy.quantity}, get ${r.get.quantity} at ${r.get.percent}% off`;
     case 'freeGift':
-      return `Free gift (${r.quantity})`;
+      return r.gifts.map((gift) => gift.name).join(' + ') || 'Free gift';
     case 'freeShipping':
       return 'Free shipping';
   }
@@ -137,7 +137,7 @@ function appendPartialContext(baseText: string, offer: Offer, facts: ProductFact
   const colors = partialColorSummary(offer.conditions, facts);
   if (colors.length === 1) {
     const label = COLOR_DISPLAY_LABELS[colors[0]] ?? colors[0];
-    return `${baseText} in ${label}`;
+    return `${baseText} · ${label} only`;
   }
   return baseText;
 }

@@ -87,8 +87,7 @@ export class CurrencyService {
     }
     const headers = this.#request?.headers ?? null;
     const preset = headers ? countryFromServerVisitorHeader(headers) : null;
-    const resolved =
-      preset ?? (headers ? await resolveVisitorCountry(headers) : null);
+    const resolved = preset ?? (headers ? await resolveVisitorCountry(headers) : null);
     const country = applyDevLocalGeoFallback(resolved, !environment.production);
     this.#visitorCountry.set(country);
     const code = currencyFromCountry(country);

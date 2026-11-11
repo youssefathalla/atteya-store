@@ -9,13 +9,7 @@ import { ImageAsset } from '@shared/schemas';
 
 @Component({
   selector: 'app-loaders-tab',
-  imports: [
-    FormsModule,
-    SharedIconModule,
-    LoaderComponent,
-    SkeletonComponent,
-    ImageGalleryEditorComponent,
-  ],
+  imports: [FormsModule, SharedIconModule, LoaderComponent, SkeletonComponent, ImageGalleryEditorComponent],
   templateUrl: './loaders-tab.component.html',
 })
 export class LoadersTabComponent {

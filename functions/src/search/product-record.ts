@@ -1,21 +1,16 @@
-import {
-  displayPrice,
-  type Offer,
-  type PricedProduct,
-} from '../offers/engine/index.js';
+import { displayPrice, type Offer, type OfferReward, type PricedProduct } from '../offers/engine/index.js';
 import { cardShortDescription } from '../products/card-short-description.js';
 import { PRODUCT_TYPES, sizeRank, type ProductTypeId } from '../products/catalog-mapping.js';
 import { categoryIdsFor, DEFAULT_CATEGORY_FOR_TYPE } from '../products/catalog-taxonomy.js';
+import { type ColorSibling } from '../products/color-siblings.js';
 import {
   isMarketingBadgeKind,
   isMarketingBadgeStyle,
   type MarketingBadgeKind,
   type MarketingBadgeStyle,
 } from '../products/marketing-badge.js';
-import {
-  PRODUCT_GENDER_IDS,
-  type ProductGenderId,
-} from '../products/product-form.js';
+import { PRODUCT_GENDER_IDS, type ProductGenderId } from '../products/product-form.js';
+import { readProductPlayerIds } from '../products/players.js';
 import type { CachedBrandInfo, CachedCategoryInfo } from './catalog-cache.js';
 
 export interface SearchRecordImage {
@@ -36,6 +31,12 @@ export interface SearchOfferFields {
   readonly offerBadges: readonly string[];
   readonly maxDiscountPercent: number;
   readonly pricePartial: boolean;
+  /**
+   * Shop's Sale filter (`?onSale=1`): an old (compare-at) price above the price, or a card price
+   * lowered by a live public price offer for everyone (Percent off, Amount off, Set price).
+   * Buy X Get Y, Free gift, Free shipping and tiered offers never put a product in Sale.
+   */
+  readonly onSale: boolean;
   readonly [key: string]: unknown;
 }
 
@@ -48,15 +49,21 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly type: string;
   readonly typeLabel: string;
   readonly modelGroup: string | null;
+  /** Main (leaf) category, for the card's "Men – T-shirts" line. */
+  readonly categoryId: string | null;
   readonly categoryIds: readonly string[];
   readonly hierarchicalCategories: SearchHierarchicalCategories;
   readonly price: number;
   readonly compareAtPrice: number | null;
+  /** Percent off the old (compare-at) price; 0 without one. Offers don't change it. */
   readonly discountPercent: number;
-  readonly onSale: boolean;
   readonly colors: readonly string[];
   readonly sizes: readonly string[];
   readonly tags: readonly string[];
+  /** Player ids (Shop's Player filter facet, `?player=`). */
+  readonly players: readonly string[];
+  /** Player names, searchable so "Galan" or "Tapia" finds their gear. */
+  readonly playerNames: readonly string[];
   readonly gender?: ProductGenderId;
   readonly marketingBadgeKind: MarketingBadgeKind | null;
   readonly marketingBadgeStyle: MarketingBadgeStyle | null;
@@ -64,15 +71,17 @@ export interface ProductSearchRecord extends SearchOfferFields {
   readonly shortDescription: string;
   readonly inStock: boolean;
   readonly image: SearchRecordImage | null;
+  /** Every colour of the model, copied from the product's `colorSiblings` (card colour row). */
+  readonly colorSiblings: readonly ColorSibling[];
   readonly createdAtMs: number;
+  /** End of the New arrival period in ms; 0 when the product is not marked as one. */
+  readonly newArrivalUntilMs: number;
   readonly [key: string]: unknown;
 }
 
 const PRODUCT_GENDER_SET = new Set<string>(PRODUCT_GENDER_IDS);
 
-const TYPE_LABEL_BY_ID = new Map<string, string>(
-  PRODUCT_TYPES.map((entry) => [entry.id, entry.label]),
-);
+const TYPE_LABEL_BY_ID = new Map<string, string>(PRODUCT_TYPES.map((entry) => [entry.id, entry.label]));
 
 export function toSearchRecord(
   productId: string,
@@ -81,6 +90,7 @@ export function toSearchRecord(
   brandsById: ReadonlyMap<string, CachedBrandInfo>,
   offers: readonly Offer[] = [],
   now: Date = new Date(),
+  playerNamesById: ReadonlyMap<string, string> = new Map(),
 ): ProductSearchRecord | null {
   if (!data || data['published'] !== true) {
     return null;
@@ -97,11 +107,11 @@ export function toSearchRecord(
   const brandName = brandsById.get(brandId)?.name ?? brandId;
   const typeLabel = TYPE_LABEL_BY_ID.get(type) ?? type;
   const modelGroup =
-    typeof data['modelGroup'] === 'string' && data['modelGroup'].trim()
-      ? data['modelGroup'].trim()
-      : null;
+    typeof data['modelGroup'] === 'string' && data['modelGroup'].trim() ? data['modelGroup'].trim() : null;
 
   const categoryIds = resolveCategoryIds(data, type);
+  const mainCategory = readString(data['categoryId']);
+  const categoryId = mainCategory && categoryIds.includes(mainCategory) ? mainCategory : null;
   const hierarchicalCategories = buildHierarchicalCategories(categoryIds, categoriesById);
 
   const price = readWholeEgp(data['price']);
@@ -111,15 +121,18 @@ export function toSearchRecord(
       ? Math.round(rawCompare)
       : null;
 
-  const onSale = compareAtPrice !== null && compareAtPrice > price && price > 0;
+  const compareAtSale = hasCompareAtSale(price, compareAtPrice);
   const discountPercent =
-    onSale && compareAtPrice !== null
+    compareAtSale && compareAtPrice !== null
       ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
       : 0;
 
   const colors = readStringArray(data['colors']);
   const sizes = extractSizes(data['options']);
   const tags = readStringArray(data['tags']);
+  // Only players still in the list: a removed player drops out of the filter on the next sync.
+  const players = readProductPlayerIds(data['players']).filter((id) => playerNamesById.has(id));
+  const playerNames = players.map((id) => playerNamesById.get(id) ?? id);
   const gender = readGender(data['gender']);
   const marketingBadge = readMarketingBadge(data['marketingBadge']);
   const summary = readNullableString(data['summary']);
@@ -127,30 +140,24 @@ export function toSearchRecord(
   const shortDescription = cardShortDescription(summary, descriptionHtml);
   const rawStock = data['stock'];
   const inStock =
-    typeof rawStock === 'number' && Number.isFinite(rawStock)
-      ? rawStock > 0
-      : data['inStock'] === true;
+    typeof rawStock === 'number' && Number.isFinite(rawStock) ? rawStock > 0 : data['inStock'] === true;
   const image = extractPrimaryImage(data['images'], name);
+  const colorSiblings = readColorSiblings(data['colorSiblings']);
   const createdAtMs = extractTimestampMs(data['createdAt']);
+  const newArrivalUntilMs = extractTimestampMs(data['newArrivalUntil']);
 
-  const offerFields = computeProductOfferFields(
-    productId,
-    data,
-    offers,
-    now,
-    {
-      name,
-      brandId,
-      categoryIds,
-      type,
-      modelGroup,
-      colors,
-      sizes,
-      tags,
-      price,
-      compareAtPrice,
-    },
-  );
+  const offerFields = computeProductOfferFields(productId, data, offers, now, {
+    name,
+    brandId,
+    categoryIds,
+    type,
+    modelGroup,
+    colors,
+    sizes,
+    tags,
+    price,
+    compareAtPrice,
+  });
 
   return {
     objectID: productId,
@@ -161,15 +168,17 @@ export function toSearchRecord(
     type,
     typeLabel,
     modelGroup,
+    categoryId,
     categoryIds,
     hierarchicalCategories,
     price,
     compareAtPrice,
     discountPercent,
-    onSale,
     colors,
     sizes,
     tags,
+    players,
+    playerNames,
     ...(gender ? { gender } : {}),
     marketingBadgeKind: marketingBadge?.kind ?? null,
     marketingBadgeStyle: marketingBadge?.style ?? null,
@@ -177,7 +186,9 @@ export function toSearchRecord(
     shortDescription,
     inStock,
     image,
+    colorSiblings,
     createdAtMs,
+    newArrivalUntilMs,
     ...offerFields,
   };
 }
@@ -248,6 +259,9 @@ export function computeProductOfferFields(
 
   const offerBadges = result.badges.map((badge) => badge.text).slice(0, 3);
   const hasOffer = result.offerIds.length > 0;
+  const onSale =
+    hasCompareAtSale(price, compareAtPrice) ||
+    (result.fromPrice < price && priceOfferLowersPrice(pricedProduct, publicEveryoneOffers, now));
 
   return {
     listPrice: result.listPrice,
@@ -257,7 +271,26 @@ export function computeProductOfferFields(
     offerBadges,
     maxDiscountPercent: result.maxDiscountPercent,
     pricePartial: result.partial,
+    onSale,
   };
+}
+
+/** Offer kinds that can put a product in Sale: they lower the card price itself. */
+const SALE_OFFER_KINDS: ReadonlySet<OfferReward['kind']> = new Set(['percentOff', 'amountOff', 'fixedPrice']);
+
+function hasCompareAtSale(price: number, compareAtPrice: number | null): boolean {
+  return compareAtPrice !== null && compareAtPrice > price && price > 0;
+}
+
+/**
+ * True when the live price offers alone (Percent off, Amount off, Set price) bring the card's
+ * price below the product's price. Called only when every offer together already does, so a
+ * product with no lower card price never prices twice.
+ */
+function priceOfferLowersPrice(product: PricedProduct, offers: readonly Offer[], now: Date): boolean {
+  const priceOffers = offers.filter((offer) => SALE_OFFER_KINDS.has(offer.reward.kind));
+  if (priceOffers.length === 0) return false;
+  return displayPrice(product, priceOffers, { now, signedIn: false }).fromPrice < product.price;
 }
 
 export function searchRecordsEqual(
@@ -272,15 +305,12 @@ export function searchRecordsEqual(
 function resolveCategoryIds(data: Record<string, unknown>, type: string): string[] {
   const raw = data['categoryIds'];
   if (Array.isArray(raw)) {
-    const cleaned = raw.filter(
-      (id): id is string => typeof id === 'string' && id.trim().length > 0,
-    );
+    const cleaned = raw.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
     if (cleaned.length > 0) {
       return Array.from(new Set(cleaned));
     }
   }
-  const defaultLeaf =
-    DEFAULT_CATEGORY_FOR_TYPE[type as ProductTypeId] ?? readString(data['categoryId']);
+  const defaultLeaf = DEFAULT_CATEGORY_FOR_TYPE[type as ProductTypeId] ?? readString(data['categoryId']);
   return defaultLeaf ? categoryIdsFor(defaultLeaf) : [];
 }
 
@@ -358,8 +388,7 @@ function extractTimestampMs(raw: unknown): number {
       if (typeof ms === 'number' && Number.isFinite(ms)) return ms;
     }
     const seconds =
-      (raw as { _seconds?: unknown; seconds?: unknown })._seconds ??
-      (raw as { seconds?: unknown }).seconds;
+      (raw as { _seconds?: unknown; seconds?: unknown })._seconds ?? (raw as { seconds?: unknown }).seconds;
     if (typeof seconds === 'number' && Number.isFinite(seconds)) {
       return Math.round(seconds * 1000);
     }
@@ -370,6 +399,26 @@ function extractTimestampMs(raw: unknown): number {
     if (Number.isFinite(parsed)) return parsed;
   }
   return 0;
+}
+
+function readColorSiblings(raw: unknown): ColorSibling[] {
+  if (!Array.isArray(raw)) return [];
+  const list: ColorSibling[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'object' || item === null) continue;
+    const entry = item as Record<string, unknown>;
+    const id = readString(entry['id']);
+    const slug = readString(entry['slug']);
+    if (!id || !slug) continue;
+    list.push({
+      id,
+      slug,
+      imagePath: readString(entry['imagePath']),
+      imageAlt: readString(entry['imageAlt']),
+      inStock: entry['inStock'] === true,
+    });
+  }
+  return list;
 }
 
 function readGender(raw: unknown): ProductGenderId | null {

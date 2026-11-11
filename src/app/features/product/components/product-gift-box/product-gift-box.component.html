@@ -1,0 +1,132 @@
+@let current = box();
+<section class="pdp-gift-box" [attr.aria-labelledby]="'pdp-gift-heading-' + current.offerId">
+  <header class="pdp-gift-box__header">
+    <h2 [id]="'pdp-gift-heading-' + current.offerId" class="font-title-sm font-bold!">
+      {{ current.heading }}
+    </h2>
+  </header>
+
+  <div class="elements-start-col min-w-0 gap-5 p-4">
+    <p class="font-body-md">Pick them below. They ship in the same parcel.</p>
+
+    @for (step of steps(); track step.key; let lastStep = $last) {
+      @let promptHere = prompt()?.key === step.key;
+      @let messageId = 'pdp-gift-msg-' + step.key;
+      <fieldset
+        class="pdp-gift-step"
+        [class.pdp-gift-step--prompt]="promptHere"
+        [attr.data-gift-step]="step.key"
+        [attr.aria-describedby]="promptHere ? messageId : null"
+      >
+        <legend class="sr-only">{{ step.number }}. {{ step.title }}</legend>
+        @if (step.kind === 'gift') {
+          <div class="elements-between w-full gap-3 pb-2">
+            <span class="font-label-lg" aria-hidden="true">{{ step.number }}. {{ step.title }}</span>
+            @if (giftRow.canPrev() || giftRow.canNext()) {
+              <app-row-scroll-nav
+                class="pdp-gift-nav"
+                [showProgress]="false"
+                [canPrev]="giftRow.canPrev()"
+                [canNext]="giftRow.canNext()"
+                (prev)="giftRow.step(-1)"
+                (next)="giftRow.step(1)"
+              />
+            }
+          </div>
+          <div class="w-full min-w-0">
+            <div
+              class="scroll-row pdp-gift-row"
+              appHorizontalScroll
+              #giftRow="horizontalScroll"
+              [enableWheel]="false"
+              [trackScroll]="true"
+            >
+              @for (choice of step.gift.choices; track choice.productId) {
+                <button
+                  type="button"
+                  data-choice
+                  class="pdp-gift-card"
+                  [disabled]="disabled()"
+                  [attr.aria-label]="choice.label"
+                  [attr.aria-pressed]="isProductPicked(step.gift.id, choice.productId)"
+                  (click)="productPicked.emit({ giftId: step.gift.id, productId: choice.productId })"
+                >
+                  <span class="pdp-gift-card__photo">
+                    @if (choice.imagePath) {
+                      <img
+                        [ngSrc]="path(choice.imagePath)"
+                        [appImageFallback]="choice.imagePath"
+                        alt=""
+                        fill
+                        sizes="(max-width: 1023px) 45vw, 12vw"
+                        class="object-cover"
+                      />
+                    }
+                    @if (isProductPicked(step.gift.id, choice.productId)) {
+                      <span class="pdp-gift-card__picked" aria-hidden="true">
+                        <mat-icon name="check" size="xs" weight="700" />
+                        Picked
+                      </span>
+                    }
+                  </span>
+                  <span class="pdp-gift-card__caption" aria-hidden="true">
+                    <span class="pdp-gift-card__name">{{ choice.cardName }}</span>
+                    @if (choice.cardColours.length > 0) {
+                      <span class="pdp-gift-card__colour">
+                        @for (colour of choice.cardColours; track colour.id) {
+                          <app-color-swatch class="size-2.5" [colorId]="colour.id" round />
+                        }
+                        <span class="truncate">{{ colourNames(choice.cardColours) }}</span>
+                      </span>
+                    }
+                  </span>
+                </button>
+              }
+            </div>
+            @if (giftRow.canPrev() || giftRow.canNext()) {
+              <div
+                class="pdp-gift-progress"
+                role="progressbar"
+                aria-label="Position in the list"
+                [attr.aria-valuemin]="0"
+                [attr.aria-valuemax]="100"
+                [attr.aria-valuenow]="Math.round(giftRow.progress() * 100)"
+                [style.--row-scroll-progress]="giftRow.progress()"
+              >
+                <div class="row-scroll-nav__progress-fill" aria-hidden="true"></div>
+              </div>
+            } @else if (!lastStep) {
+              <!-- The row fits (wide screens): the same thin line, without the fill, keeps the steps apart. -->
+              <div class="pdp-gift-progress" aria-hidden="true"></div>
+            }
+          </div>
+        } @else {
+          <div class="elements-between w-full gap-3 pb-2" aria-hidden="true">
+            <span class="font-label-lg">{{ step.number }}. {{ step.title }}</span>
+            @if (step.chosen) {
+              <span class="font-label-lg text-end">{{ step.chosen }} ✓</span>
+            }
+          </div>
+          <div class="grid w-full grid-cols-3 gap-2">
+            @for (size of step.sizes; track size.id) {
+              <button
+                type="button"
+                data-choice
+                class="pdp-choice"
+                [disabled]="disabled()"
+                [attr.aria-pressed]="isSizePicked(step.gift.id, size.id)"
+                (click)="sizePicked.emit({ giftId: step.gift.id, sizeId: size.id })"
+              >
+                {{ size.label }}
+              </button>
+            }
+          </div>
+        }
+
+        @if (promptHere) {
+          <p [id]="messageId" class="font-body-sm text-error pt-2" role="alert">{{ prompt()!.message }}</p>
+        }
+      </fieldset>
+    }
+  </div>
+</section>

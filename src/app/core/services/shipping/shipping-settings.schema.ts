@@ -86,9 +86,7 @@ export const DEFAULT_INTERNATIONAL_BOXES = [
 export const ShippingSettingsSchema = v.object({
   currency: v.optional(v.literal('EGP'), 'EGP'),
   egyptBoxes: v.optional(boxList, () => DEFAULT_EGYPT_BOXES.map((box) => ({ ...box }))),
-  internationalBoxes: v.optional(boxList, () =>
-    DEFAULT_INTERNATIONAL_BOXES.map((box) => ({ ...box })),
-  ),
+  internationalBoxes: v.optional(boxList, () => DEFAULT_INTERNATIONAL_BOXES.map((box) => ({ ...box }))),
   freeOver: v.optional(
     v.object({
       active: v.boolean(),

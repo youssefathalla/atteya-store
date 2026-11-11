@@ -1,6 +1,7 @@
 import { inject, Service } from '@angular/core';
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -14,14 +15,19 @@ import {
 } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
-import type { Offer, OfferDraft } from '@core/services/offers/engine';
 import {
-  OFFER_CODES_COLLECTION,
-  OFFERS_COLLECTION,
-  toEngineOffer,
-} from '@core/services/offers/offer.model';
+  clampBannerCountdownDays,
+  DEFAULT_OFFER_BANNER,
+  MAX_BANNER_TEXT,
+  type Offer,
+  type OfferDraft,
+} from '@core/services/offers/engine';
+import { OFFER_CODES_COLLECTION, OFFERS_COLLECTION, toEngineOffer } from '@core/services/offers/offer.model';
 import { OfferCodeDocSchema, OfferDocSchema } from '@core/services/offers/offer.schema';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
+import { withoutStackSaleItems } from '../models/offer-admin.model';
+
+const COPY_SUFFIX = ' (copy)';
 
 @Service()
 export class OffersAdminService {
@@ -80,6 +86,8 @@ export class OffersAdminService {
     const visibility = requiresCode ? 'code' : 'public';
     const normalizedCode = draft.code?.trim().toUpperCase() ?? '';
 
+    const isGift = draft.reward.kind === 'freeGift';
+    const banner = draft.banner ?? DEFAULT_OFFER_BANNER;
     const payload: Record<string, unknown> = {
       id: offerId,
       name: draft.name.trim(),
@@ -97,14 +105,30 @@ export class OffersAdminService {
       },
       priority: Math.max(-100, Math.min(100, Math.round(draft.priority))),
       stacking: draft.stacking,
-      saleItems: draft.saleItems,
-      scope: draft.scope,
+      saleItems: withoutStackSaleItems(draft).saleItems,
+      // A Free gift offer gives one set of gifts per qualifying item, so it is never a cart offer.
+      scope: isGift ? 'item' : draft.scope,
       conditions: draft.conditions,
       exclude: draft.exclude,
-      minimum: draft.minimum,
-      reward: draft.reward,
+      minimum: isGift ? null : draft.minimum,
+      // The merge would keep an old one-product gift's fields next to `gifts`; drop them.
+      reward: isGift
+        ? {
+            ...draft.reward,
+            giftProductId: deleteField(),
+            giftVariantId: deleteField(),
+            quantity: deleteField(),
+          }
+        : draft.reward,
       limits: draft.limits,
       requiresCode,
+      // Top announcement bar. Only offers for everyone (no code) can show there.
+      banner: {
+        show: banner.show && draft.audience === 'everyone' && !requiresCode,
+        text: banner.text?.trim().slice(0, MAX_BANNER_TEXT) || null,
+        countdown: banner.countdown,
+        countdownDays: clampBannerCountdownDays(banner.countdownDays),
+      },
       updatedAt: serverTimestamp(),
       updatedBy: uid,
     };
@@ -134,7 +158,8 @@ export class OffersAdminService {
     const copyDraft: OfferDraft = {
       ...source,
       id: undefined,
-      name: `${source.name} (copy)`.slice(0, 80),
+      // The name is at most 80 characters, so shorten the original first to keep the " (copy)" ending.
+      name: `${source.name.slice(0, 80 - COPY_SUFFIX.length)}${COPY_SUFFIX}`,
       active: false,
       archived: false,
       visibility: 'public',

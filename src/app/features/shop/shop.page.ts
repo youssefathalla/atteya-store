@@ -13,6 +13,11 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
+import type { Offer } from '@core/services/offers/engine';
+import { offerShopSubtitle, offerTitleVisible } from '@core/services/offers/offer-shop';
+import { CurrencyService } from '@core/services/currency/currency.service';
+import { OffersService } from '@core/services/offers/offers.service';
+import { PlayerListService } from '@core/services/products/player-list.service';
 import { SeoService } from '@core/services/seo';
 import { SearchService, type SearchHit } from '@core/services/search';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -20,12 +25,7 @@ import { ShopFiltersDrawerComponent } from './components/shop-filters-drawer/sho
 import { ShopFiltersComponent } from './components/shop-filters/shop-filters.component';
 import { ShopGridComponent } from './components/shop-grid/shop-grid.component';
 import { ShopHeaderComponent } from './components/shop-header/shop-header.component';
-import {
-  DEFAULT_SHOP_FILTERS,
-  SHOP_TABS,
-  type ShopFilterState,
-  type ShopPriceBounds,
-} from './models/shop.model';
+import { DEFAULT_SHOP_FILTERS, SHOP_TABS, type ShopFilterState } from './models/shop.model';
 import {
   brandOptionsFromFacets,
   buildCatalogBrowseOptions,
@@ -33,13 +33,14 @@ import {
   filtersEqual,
   genderFacetHasData,
   hasApparelSizes,
+  newArrivalCutoffMs,
+  parseOfferParam,
   parseShopFilterState,
+  playerOptionsFromFacets,
   resolveShopTab,
   shopFiltersToQueryParams,
   sizeOptionsFromFacets,
 } from './utils/shop-filters';
-
-const DEFAULT_PRICE_BOUNDS: ShopPriceBounds = { min: 99, max: 19_499 };
 
 interface ShopCatalogSnapshot {
   readonly hits: readonly SearchHit[];
@@ -70,36 +71,40 @@ export class ShopPage {
   readonly sort = input<string>();
   readonly category = input<string>();
   readonly brand = input<string>();
+  readonly player = input<string>();
   readonly size = input<string>();
   readonly color = input<string>();
   readonly gender = input<string>();
-  readonly priceMin = input<string>();
-  readonly priceMax = input<string>();
+  readonly newArrivals = input<string>();
   readonly onSale = input<string>();
   readonly inStock = input<string>();
   readonly page = input<string>();
+  /** `?offer=<id>`: only the products in that offer (the bag's Shop the Offer link). */
+  readonly offer = input<string>();
 
   readonly #router = inject(Router);
   readonly #search = inject(SearchService);
   readonly #seo = inject(SeoService);
+  readonly #playerList = inject(PlayerListService);
+  readonly #offers = inject(OffersService);
+  readonly #currency = inject(CurrencyService);
   readonly #destroyRef = inject(DestroyRef);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #document = inject(DOCUMENT);
+  readonly #isBrowser = isPlatformBrowser(this.#platformId);
 
   readonly #hydrated = signal(false);
   readonly #nowMs = signal(Date.now());
+  /** Changes once an hour, so the New arrivals query is not rebuilt every minute. */
+  readonly #newArrivalCutoffMs = computed(() => newArrivalCutoffMs(this.#nowMs()));
   readonly filtersOpen = signal(false);
 
   /** Last successful browse result — kept while the resource reloads (anti-flicker). */
   readonly #snapshot = signal<ShopCatalogSnapshot | null>(null);
-  /** Catalogue price range frozen after the first stats read so the slider does not collapse. */
-  readonly #frozenPriceBounds = signal<ShopPriceBounds | null>(null);
   /** Tracks shop tab/bags scope so we only clear the snapshot on a real tab change. */
   readonly #tabScopeKey = signal('');
 
-  readonly activeTab = computed(() =>
-    resolveShopTab(this.shopCategory(), this.shopSubcategory()),
-  );
+  readonly activeTab = computed(() => resolveShopTab(this.shopCategory(), this.shopSubcategory()));
 
   readonly forceBags = computed(() => {
     const cat = (this.shopCategory() ?? '').toLowerCase();
@@ -107,11 +112,56 @@ export class ShopPage {
     return sub === 'bags' || cat === 'bags';
   });
 
+  /** The player's name when exactly one player is chosen in the Player filter. */
+  readonly #playerName = computed(() => {
+    const chosen = this.filterState().players;
+    return chosen.length === 1 ? this.#playerList.nameOf(chosen[0]!) : null;
+  });
+
+  readonly #offerId = computed(() => parseOfferParam(this.offer()));
+
+  /**
+   * The offer the page is filtered to. `undefined` while offers are still loading (always on the
+   * server, which has no offers listener), `null` once they are loaded and the offer is not live.
+   */
+  readonly #offer = computed((): Offer | null | undefined => {
+    const id = this.#offerId();
+    if (!id) return null;
+    // The server has no offers listener (its list is always empty), so it renders "loading".
+    if (!this.#isBrowser || !this.#offers.ready()) return undefined;
+    return this.#offers.live().find((offer) => offer.id === id) ?? null;
+  });
+
+  /** The offer has ended (or never existed): the page lists the whole store instead. */
+  readonly offerEnded = computed(() => this.#offerId() !== null && this.#offer() === null);
+
+  /**
+   * The offer whose title the heading may show. A Free shipping offer abroad is left out: the page
+   * still lists its products, under the normal Shop title (Free shipping is for Egypt orders only).
+   */
+  readonly #titledOffer = computed((): Offer | null | undefined => {
+    const offer = this.#offer();
+    return offer && !offerTitleVisible(offer, this.#currency.visitorCountry()) ? null : offer;
+  });
+
+  readonly pageSubtitle = computed(() => {
+    const offer = this.#titledOffer();
+    if (offer) return offerShopSubtitle(offer);
+    return this.offerEnded() ? 'This offer has ended. Here is everything else in the store.' : null;
+  });
+
   readonly pageTitle = computed(() => {
+    const offer = this.#titledOffer();
+    if (offer) return offer.title;
+    // Offers still loading: the header shows a placeholder instead of a title that would change.
+    if (offer === undefined) return '';
     const tab = this.activeTab();
+    const playerName = this.#playerName();
+    if (playerName) return playerName;
     if (this.forceBags()) return 'Bags';
+    if (tab === 'all' && this.filterState().newArrivals) return 'New Arrivals';
     return SHOP_TABS.find((t) => t.id === tab)?.label === 'All'
-      ? 'Shop all'
+      ? 'Shop All'
       : (SHOP_TABS.find((t) => t.id === tab)?.label ?? 'Shop');
   });
 
@@ -120,24 +170,29 @@ export class ShopPage {
       sort: this.sort(),
       category: this.category(),
       brand: this.brand(),
+      player: this.player(),
       size: this.size(),
       color: this.color(),
       gender: this.gender(),
-      priceMin: this.priceMin(),
-      priceMax: this.priceMax(),
+      newArrivals: this.newArrivals(),
       onSale: this.onSale(),
       inStock: this.inStock(),
       page: this.page(),
     }),
   );
 
-  readonly browseParams = computed(() =>
-    buildCatalogBrowseOptions({
+  readonly browseParams = computed(() => {
+    const filters = this.filterState();
+    return buildCatalogBrowseOptions({
       tab: this.activeTab(),
-      filters: this.filterState(),
+      filters,
       forceBags: this.forceBags(),
-    }),
-  );
+      // Read the clock only when the filter is on, so other filters never reload on the hour.
+      nowMs: filters.newArrivals ? this.#newArrivalCutoffMs() : undefined,
+      // Kept while offers load, so the server render and the first browser render ask the same.
+      offerId: this.offerEnded() ? null : this.#offerId(),
+    });
+  });
 
   readonly resultsResource = resource({
     params: () => {
@@ -160,24 +215,15 @@ export class ShopPage {
 
   readonly facets = computed(() => this.#snapshot()?.facets ?? {});
 
-  readonly brands = computed(() =>
-    brandOptionsFromFacets(this.facets(), this.filterState().brands),
+  readonly brands = computed(() => brandOptionsFromFacets(this.facets(), this.filterState().brands));
+  readonly players = computed(() =>
+    playerOptionsFromFacets(this.facets(), this.#playerList.players(), this.filterState().players),
   );
-  readonly sizes = computed(() =>
-    sizeOptionsFromFacets(this.facets(), this.filterState().sizes),
-  );
-  readonly colors = computed(() =>
-    colorOptionsFromFacets(this.facets(), this.filterState().colors),
-  );
+  readonly sizes = computed(() => sizeOptionsFromFacets(this.facets(), this.filterState().sizes));
+  readonly colors = computed(() => colorOptionsFromFacets(this.facets(), this.filterState().colors));
   readonly showGender = computed(() => genderFacetHasData(this.facets()));
   readonly showSizes = computed(() => hasApparelSizes(this.facets()));
-  readonly accessoriesSubOnly = computed(
-    () => this.activeTab() === 'accessories' && !this.forceBags(),
-  );
-
-  readonly priceBounds = computed(
-    () => this.#frozenPriceBounds() ?? DEFAULT_PRICE_BOUNDS,
-  );
+  readonly accessoriesSubOnly = computed(() => this.activeTab() === 'accessories' && !this.forceBags());
 
   readonly isConfigured = computed(() => this.#search.isConfigured());
 
@@ -190,9 +236,7 @@ export class ShopPage {
       this.resultsResource.isLoading(),
   );
 
-  readonly isRefreshing = computed(
-    () => this.#snapshot() !== null && this.resultsResource.isLoading(),
-  );
+  readonly isRefreshing = computed(() => this.#snapshot() !== null && this.resultsResource.isLoading());
 
   readonly showEmpty = computed(
     () =>
@@ -220,13 +264,6 @@ export class ShopPage {
         totalPages: value.totalPages,
         facets: value.facets ?? {},
       });
-      if (this.#frozenPriceBounds()) return;
-      const stats = value.facetStats?.['price'];
-      if (!stats) return;
-      this.#frozenPriceBounds.set({
-        min: Number.isFinite(stats.min) ? Math.floor(stats.min) : DEFAULT_PRICE_BOUNDS.min,
-        max: Number.isFinite(stats.max) ? Math.ceil(stats.max) : DEFAULT_PRICE_BOUNDS.max,
-      });
     });
 
     // Clear the stale snapshot only when the shop tab/bags scope actually changes.
@@ -235,16 +272,18 @@ export class ShopPage {
       const prev = this.#tabScopeKey();
       if (prev !== '' && prev !== key) {
         this.#snapshot.set(null);
-        this.#frozenPriceBounds.set(null);
       }
       this.#tabScopeKey.set(key);
     });
 
     effect(() => {
-      const title = this.pageTitle();
+      const title = this.pageTitle() || 'Offer';
+      const playerName = this.#playerName();
       this.#seo.setPageMetadata({
         title: `${title} | Atteya Store`,
-        description: `Shop ${title.toLowerCase()} at Atteya Store — padel rackets, apparel, bags, and accessories.`,
+        description: playerName
+          ? `Shop ${playerName}'s padel gear at Atteya Store — rackets, apparel, bags, and accessories.`
+          : `Shop ${title.toLowerCase()} at Atteya Store — padel rackets, apparel, bags, and accessories.`,
       });
     });
 
@@ -312,14 +351,13 @@ export class ShopPage {
 
   /**
    * @param preserveScroll When true (default), skip router scroll restoration so
-   * filter tweaks (esp. price drag) do not jump the viewport to the top.
+   * filter tweaks do not jump the viewport to the top.
    */
   async #navigate(state: ShopFilterState, preserveScroll = true): Promise<void> {
     const tab = this.activeTab();
-    const path =
-      this.forceBags()
-        ? '/category/accessories/bags'
-        : (SHOP_TABS.find((t) => t.id === tab)?.path ?? '/shop');
+    const path = this.forceBags()
+      ? '/category/accessories/bags'
+      : (SHOP_TABS.find((t) => t.id === tab)?.path ?? '/shop');
 
     await this.#router.navigate([path], {
       queryParams: shopFiltersToQueryParams(state),

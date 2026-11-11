@@ -22,8 +22,7 @@ export interface ProductTableRow {
 }
 
 export type StockChange =
-  | { readonly stockBySize: Readonly<Record<string, number>> }
-  | { readonly stock: number };
+  { readonly stockBySize: Readonly<Record<string, number>> } | { readonly stock: number };
 
 export interface StockResult {
   readonly stock: number;
@@ -48,6 +47,8 @@ export interface ProductFormPayload {
   readonly name: string;
   readonly summary: string | null;
   readonly description?: string | null;
+  /** One fact per line; always sent, so clearing the box clears the list. */
+  readonly details: readonly string[];
   readonly type: ProductTypeId;
   readonly categoryId: string;
   readonly brandId: string;
@@ -55,6 +56,8 @@ export interface ProductFormPayload {
   readonly gender: ProductGenderId | null;
   readonly colors: readonly ColorId[];
   readonly tags: readonly string[];
+  /** Player ids; left out while the player list hasn't loaded, so the saved list stays. */
+  readonly players?: readonly string[];
   readonly marketingBadge: MarketingBadge | null;
   /** ISO timestamp or null when not flagged for New Arrivals. */
   readonly newArrivalUntil: string | null;

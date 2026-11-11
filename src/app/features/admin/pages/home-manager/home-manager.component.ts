@@ -171,11 +171,7 @@ export class HomeManagerComponent {
       await this.#homeService.resetDefaultHomeSettings();
       await this.#storageUpload.deleteImages(orphanedPaths);
 
-      this.draft.resetDraftFromSource(
-        DEFAULT_HOME_HERO,
-        DEFAULT_HOME_SHOP_CATEGORIES,
-        DEFAULT_HOME_NAV_LIST,
-      );
+      this.draft.resetDraftFromSource(DEFAULT_HOME_HERO, DEFAULT_HOME_SHOP_CATEGORIES, DEFAULT_HOME_NAV_LIST);
       this.#snackbar.success('Default homepage sections restored.');
     } catch (err) {
       await this.#reportWriteError(err, 'Unable to restore default sections. Please try again.');

@@ -8,7 +8,7 @@ import {
 } from '../store/order-messages.js';
 import { whatsappChatUrl } from '../store/store-info.js';
 import type { OrderEmailKind } from './order-email-events.js';
-import type { OrderEmailLine, OrderEmailOrder } from './order-email-model.js';
+import { orderConfirmationUrl, type OrderEmailLine, type OrderEmailOrder } from './order-email-model.js';
 
 /**
  * Order email copy. Agreed wording lives on the "Order emails with Resend" Linear issue (ATS-10);
@@ -146,8 +146,7 @@ function instapayPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): Rendere
       subject: `We got your order ${order.ref}`,
       heading: `Thanks for your order, ${firstName(order)}`,
       intro: [`We've received your order ${order.ref}. ${FEE_TO_AGREE}`],
-      highlight:
-        "Once we agree it, transfer the total by InstaPay and we'll confirm your order.",
+      highlight: "Once we agree it, transfer the total by InstaPay and we'll confirm your order.",
       showTotals: true,
       showAddress: true,
       button: orderButton(order, ctx),
@@ -156,9 +155,7 @@ function instapayPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): Rendere
   return shopperEmail(order, ctx, {
     subject: `We got your order ${order.ref}`,
     heading: `Thanks for your order, ${firstName(order)}`,
-    intro: [
-      `We've received your order ${order.ref}. We'll confirm it as soon as we receive your payment.`,
-    ],
+    intro: [`We've received your order ${order.ref}. We'll confirm it as soon as we receive your payment.`],
     highlight: null,
     payment: payBox(order, ctx),
     showTotals: true,
@@ -186,11 +183,7 @@ function instapayConfirmed(order: OrderEmailOrder, ctx: OrderEmailContext): Rend
  * Staff saved the delivery fee they agreed with the shopper on a large order (`changed` = a
  * later correction of that fee; the amounts to pay are the new ones).
  */
-function deliveryFeeSet(
-  order: OrderEmailOrder,
-  ctx: OrderEmailContext,
-  changed: boolean,
-): RenderedEmail {
+function deliveryFeeSet(order: OrderEmailOrder, ctx: OrderEmailContext, changed: boolean): RenderedEmail {
   const fee = order.shippingEgp > 0 ? formatEgp(order.shippingEgp) : null;
   const intro = [
     fee
@@ -198,9 +191,7 @@ function deliveryFeeSet(
       : `Good news: delivery is ${changed ? 'now ' : ''}free on your order ${order.ref}.`,
   ];
   if (changed) {
-    intro.push(
-      "If you've already sent a different amount, message us on WhatsApp and we'll sort it out.",
-    );
+    intro.push("If you've already sent a different amount, message us on WhatsApp and we'll sort it out.");
   }
   let highlight: string | null;
   if (order.paymentMethod === 'cash-on-delivery') {
@@ -337,11 +328,9 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
   const warning = order.needsReview
     ? 'One item sold out before this payment came in. Please check this order.'
     : null;
-  const customer = [
-    order.address.fullName,
-    order.address.phone,
-    order.customerEmail,
-  ].filter((part): part is string => Boolean(part?.trim()));
+  const customer = [order.address.fullName, order.address.phone, order.customerEmail].filter(
+    (part): part is string => Boolean(part?.trim()),
+  );
   const button = ctx.storefrontUrl
     ? { label: 'Open Orders in the Dashboard', url: `${ctx.storefrontUrl}/admin/orders` }
     : null;
@@ -414,16 +403,12 @@ function storePayment(order: OrderEmailOrder): StorePayment {
         note: 'Confirm the payment in the dashboard once you see it in your bank app.',
       };
     default:
-      return { method: 'Card or Wallet', rows: [['Paid', total]], note: null };
+      return { method: 'Card', rows: [['Paid', total]], note: null };
   }
 }
 
 function storePaymentText(payment: StorePayment): string {
-  return [
-    payment.method,
-    ...payment.rows.map(([label, value]) => `${label}: ${value}`),
-    payment.note,
-  ]
+  return [payment.method, ...payment.rows.map(([label, value]) => `${label}: ${value}`), payment.note]
     .filter((line): line is string => Boolean(line))
     .join('\n');
 }
@@ -502,17 +487,13 @@ function payBox(order: OrderEmailOrder, ctx: OrderEmailContext): PayBox | null {
   } else {
     lines.push(`Pay ${what} by InstaPay.`);
     lines.push(
-      waUrl
-        ? "We'll send you the InstaPay details on WhatsApp."
-        : "We'll send you the InstaPay details.",
+      waUrl ? "We'll send you the InstaPay details on WhatsApp." : "We'll send you the InstaPay details.",
     );
   }
 
   return {
     lines,
-    whatsapp: waUrl
-      ? { label: details ? 'Send on WhatsApp' : 'Message Us on WhatsApp', url: waUrl }
-      : null,
+    whatsapp: waUrl ? { label: details ? 'Send on WhatsApp' : 'Message Us on WhatsApp', url: waUrl } : null,
   };
 }
 
@@ -530,7 +511,7 @@ function orderButton(order: OrderEmailOrder, ctx: OrderEmailContext): EmailButto
   if (!ctx.storefrontUrl) return null;
   return {
     label: 'View Your Order',
-    url: `${ctx.storefrontUrl}/checkout/confirmation/${encodeURIComponent(order.id)}`,
+    url: orderConfirmationUrl(ctx.storefrontUrl, order.id, order.viewKey),
   };
 }
 
@@ -597,7 +578,11 @@ function totalsRows(order: OrderEmailOrder, totalLabel: string): [string, string
 
 function itemsText(lines: readonly OrderEmailLine[]): string {
   return lines
-    .map((line) => `- ${lineTitle(line)} (${lineDetails(line)}): ${formatEgp(line.lineEgp)}`)
+    .map((line) =>
+      line.giftName !== null
+        ? `  + ${line.giftName}: ${lineTitle(line)} (${lineDetails(line)}): Free`
+        : `- ${lineTitle(line)} (${lineDetails(line)}): ${formatEgp(line.lineEgp)}${line.dealTag ? ` (${line.dealTag})` : ''}`,
+    )
     .join('\n');
 }
 
@@ -684,13 +669,20 @@ function itemsTable(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): s
       const photoCell = src
         ? `<td width="84" valign="top" style="padding:12px 0 12px 12px;"><img src="${escapeHtml(src)}" width="72" alt="" style="display:block;width:72px;height:auto;border:0;border-radius:2px;"></td>\n`
         : '';
-      const tags = lineTags(line)
+      const gift = line.giftName !== null;
+      const tags = [
+        ...(gift ? [line.giftName!] : []),
+        ...(line.dealTag ? [line.dealTag] : []),
+        ...lineTags(line),
+      ]
         .map(
           (tag) =>
             `<span style="display:inline-block;margin:6px 6px 0 0;padding:1px 8px;border:1px solid #d4d4d4;font-size:12px;color:#444444;">${escapeHtml(tag)}</span>`,
         )
         .join('');
-      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;border:1px solid ${LINE};border-radius:2px;${FONT}font-size:14px;color:${INK};">
+      // A gift sits indented under the item it came with, priced "Free".
+      const indent = gift ? 'margin-left:24px;width:auto;' : '';
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;${indent}border:1px solid ${LINE};border-radius:2px;${FONT}font-size:14px;color:${INK};">
 <tr>
 ${photoCell}<td valign="top" style="padding:12px;">
 <div style="font-weight:600;">${escapeHtml(lineTitle(line))}</div>${tags ? `\n<div>${tags}</div>` : ''}
@@ -699,7 +691,7 @@ ${photoCell}<td valign="top" style="padding:12px;">
 <tr><td${src ? ' colspan="2"' : ''} style="padding:8px 12px;border-top:1px solid ${LINE};background:#fafafa;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${FONT}font-size:14px;color:${INK};"><tr>
 <td style="color:${MUTED};">Qty ${line.quantity}</td>
-<td align="right" style="font-weight:700;white-space:nowrap;">${escapeHtml(formatEgp(line.lineEgp))}</td>
+<td align="right" style="font-weight:700;white-space:nowrap;">${escapeHtml(gift ? 'Free' : formatEgp(line.lineEgp))}</td>
 </tr></table>
 </td></tr>
 </table>`;

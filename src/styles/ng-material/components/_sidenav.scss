@@ -5,24 +5,36 @@ $handset-landscape: '(max-width: 959.98px) and (orientation: landscape)';
 
 :root {
   //* sidenav
-  @include mat.sidenav-overrides((
-    container-shape: 0,
-    container-width: 18rem,
-    container-background-color: var(--mat-sys-primary-container),
-    container-text-color: var(--mat-sys-on-primary-container),
-  ));
+  @include mat.sidenav-overrides(
+    (
+      container-shape: 0,
+      container-width: 18rem,
+      container-background-color: var(--mat-sys-primary-container),
+      container-text-color: var(--mat-sys-on-primary-container),
+    )
+  );
 }
 
 @media #{$handset-portrait}, #{$handset-landscape} {
   :root {
-    @include mat.sidenav-overrides((
-      container-width: min(100%, 37.5rem),
-    ));
+    @include mat.sidenav-overrides(
+      (
+        container-width: min(100%, 37.5rem),
+      )
+    );
   }
 }
 
 // Storefront: Allow sticky positioning by letting the window handle the scroll
 app-main-layout {
+  // The bag drawer is 840px wide on desktop, never wider than the window minus 64px so a strip of
+  // the page stays visible (a click on it closes the bag). The search and account panels stay 28rem.
+  @include mat.sidenav-overrides(
+    (
+      container-width: min(840px, calc(100vw - 64px)),
+    )
+  );
+
   mat-drawer-container,
   .mat-drawer-container {
     overflow: clip !important;
@@ -37,6 +49,7 @@ app-main-layout {
   // that grows with page content. That stretches app-cart-drawer past the viewport
   // so Subtotal/Checkout sit below the fold in empty flex space. Pin to the viewport.
   mat-drawer.mat-drawer-end {
+    max-width: min(840px, calc(100vw - 64px));
     position: fixed;
     top: 0;
     bottom: 0;
@@ -60,13 +73,15 @@ mat-drawer {
 }
 
 app-admin-layout {
-  @include mat.sidenav-overrides((
-    container-shape: 0,
-    container-elevation-shadow: none,
-    container-background-color: var(--mat-sys-surface-container-lowest),
-    container-divider-color: var(--mat-sys-outline-variant),
-    content-background-color: var(--mat-sys-surface-container-lowest),
-  ));
+  @include mat.sidenav-overrides(
+    (
+      container-shape: 0,
+      container-elevation-shadow: none,
+      container-background-color: var(--mat-sys-surface-container-lowest),
+      container-divider-color: var(--mat-sys-outline-variant),
+      content-background-color: var(--mat-sys-surface-container-lowest),
+    )
+  );
 
   mat-sidenav {
     background-color: var(--mat-sys-surface-container-lowest);
@@ -79,4 +94,3 @@ app-admin-layout {
     overflow-y: auto !important;
   }
 }
-

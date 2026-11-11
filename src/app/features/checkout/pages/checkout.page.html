@@ -1,296 +1,539 @@
-<section class="container-content max-w-3xl mx-auto space-y-8 py-8">
-  <header class="space-y-2">
-    <h1 class="font-headline-md font-bold!">Checkout</h1>
-    <p class="font-body-md opacity-80">
-      Add your delivery address, then choose how to pay.
-    </p>
-  </header>
+<section class="container-content max-w-6xl mx-auto">
+  <h1 class="font-headline-sm font-bold! mb-6">Checkout</h1>
 
-  <section class="surface-card p-5 space-y-4" aria-labelledby="bag-heading">
-    <h2 id="bag-heading" class="font-title-md font-bold!">Your bag</h2>
-    @if (productsResource.isLoading()) {
-      <p class="font-body-sm opacity-70">Loading items…</p>
-    } @else {
-      <ul class="space-y-3">
-        @for (line of lines(); track $index) {
-          <li class="elements-between gap-4">
-            <div>
-              <p class="font-title-sm font-bold!">{{ productName(line.productId) }}</p>
-              <p class="font-label-sm opacity-70">Qty {{ line.quantity }}</p>
-            </div>
-          </li>
-        }
-      </ul>
-    }
-  </section>
+  <!-- An offer that stopped applying during this visit (above the summary, also on phones where it folds). -->
+  <app-bag-offer-notes spacing="mb-6" />
 
-  <form class="surface-card p-5 space-y-4" (submit)="$event.preventDefault(); placeOrder()">
-    <h2 class="font-title-md font-bold!">Delivery address</h2>
-
-    <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-      <mat-label>Full name</mat-label>
-      <mat-icon matPrefix name="person" />
-      <input
-        matInput
-        [value]="shipping().fullName"
-        (input)="patchShipping('fullName', $any($event.target).value)"
-        autocomplete="name"
-      />
-    </mat-form-field>
-
-    @if (isEgypt()) {
-      <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-        <mat-label>City</mat-label>
-        <mat-icon matPrefix name="location_city" />
-        <input
-          matInput
-          [value]="shipping().city"
-          (input)="patchShipping('city', $any($event.target).value)"
-          autocomplete="address-level2"
-        />
-      </mat-form-field>
-
-      <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-        <mat-label>Address</mat-label>
-        <mat-icon matPrefix name="home" />
-        <input
-          matInput
-          [value]="shipping().line1"
-          (input)="patchShipping('line1', $any($event.target).value)"
-          autocomplete="address-line1"
-        />
-      </mat-form-field>
-    } @else {
-      <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-        <mat-label>Address line 1</mat-label>
-        <mat-icon matPrefix name="home" />
-        <input
-          matInput
-          [value]="shipping().line1"
-          (input)="patchShipping('line1', $any($event.target).value)"
-          autocomplete="address-line1"
-        />
-      </mat-form-field>
-
-      <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-        <mat-label>Address line 2 (optional)</mat-label>
-        <mat-icon matPrefix name="layers" />
-        <input
-          matInput
-          [value]="shipping().line2 ?? ''"
-          (input)="patchShipping('line2', $any($event.target).value || null)"
-          autocomplete="address-line2"
-        />
-      </mat-form-field>
-
-      <div class="grid gap-4 md:grid-cols-2">
-        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-          <mat-label>City</mat-label>
-          <mat-icon matPrefix name="location_city" />
-          <input
-            matInput
-            [value]="shipping().city"
-            (input)="patchShipping('city', $any($event.target).value)"
-            autocomplete="address-level2"
-          />
-        </mat-form-field>
-
-        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-          <mat-label>Region (optional)</mat-label>
-          <mat-icon matPrefix name="grid_view" />
-          <input
-            matInput
-            [value]="shipping().region ?? ''"
-            (input)="patchShipping('region', $any($event.target).value || null)"
-            autocomplete="address-level1"
-          />
-        </mat-form-field>
-      </div>
-
-      <div class="grid gap-4 md:grid-cols-2">
-        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-          <mat-label>Postal code</mat-label>
-          <mat-icon matPrefix name="markunread_mailbox" />
-          <input
-            matInput
-            [value]="shipping().postalCode"
-            (input)="patchShipping('postalCode', $any($event.target).value)"
-            autocomplete="postal-code"
-          />
-        </mat-form-field>
-
-        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-          <mat-label>Country</mat-label>
-          <mat-icon matPrefix name="public" />
-          <input
-            matInput
-            [matAutocomplete]="countryAutoIntl"
-            [value]="countryQuery()"
-            (input)="onCountryQueryInput($event)"
-            (blur)="onCountryBlur()"
-            autocomplete="country-name"
-            placeholder="Start typing a country"
-          />
-          <mat-autocomplete
-            #countryAutoIntl="matAutocomplete"
-            [displayWith]="displayCountryLabel"
-            (opened)="onCountryAutocompleteOpened()"
-            (closed)="onCountryAutocompleteClosed()"
-            (optionSelected)="onCountrySelected($event)"
-          >
-            @for (country of filteredCountries(); track country.code) {
-              <mat-option
-                [value]="country.code"
-                (mousedown)="$event.preventDefault()"
-                (pointerdown)="onCountryOptionActivate()"
-              >
-                {{ country.label }}
-              </mat-option>
-            }
-          </mat-autocomplete>
-        </mat-form-field>
-      </div>
-    }
-
-    <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-      <mat-label>Phone</mat-label>
-      <mat-icon matPrefix name="call" />
-      <input
-        matInput
-        [value]="shipping().phone"
-        (input)="patchShipping('phone', $any($event.target).value)"
-        autocomplete="tel"
-        inputmode="tel"
-      />
-      @if (isEgypt()) {
-        <mat-hint>Your WhatsApp mobile number, e.g. 010 1234 5678</mat-hint>
-      } @else {
-        <mat-hint>Include your country code, e.g. +971 50 123 4567</mat-hint>
-      }
-    </mat-form-field>
-
-    @if (orderSummary(); as summary) {
-      @if (summary.state !== 'need-country') {
-        <section class="space-y-3 pt-2" aria-label="Order total">
-          @if (summary.state === 'ready') {
-            <div class="elements-between gap-4">
-              <span class="font-body-md">Subtotal</span>
-              <span class="font-title-sm font-bold!">{{ summary.subtotal }}</span>
-            </div>
-            <div class="elements-between gap-4">
-              <span class="font-body-md">Shipping</span>
-              <span class="font-title-sm font-bold!">{{ summary.shipping }}</span>
-            </div>
-            <div class="elements-between gap-4">
-              <span class="font-body-md">Total</span>
-              <span class="font-title-sm font-bold!">{{ summary.total }}</span>
-            </div>
-            @if (summary.feeToBeAgreed) {
-              <p class="font-body-sm" aria-live="polite">
-                This is a large order, so we'll message you on WhatsApp to agree the delivery fee
-                before we send it.
-              </p>
-            } @else {
-              <p class="font-label-sm opacity-70">
-                Your total is calculated in Egyptian pounds when you place the order.
-              </p>
-            }
-          } @else if (summary.state === 'too-heavy') {
-            <p class="font-body-sm text-error" role="alert">
-              This order is too heavy to send abroad. Remove an item or message us.
-            </p>
-          } @else if (summary.state === 'missing-item') {
-            <p class="font-body-sm text-error" role="alert">One item in your bag is no longer available.</p>
-          } @else if (summary.state === 'unavailable') {
-            <p class="font-body-sm text-error" role="alert">
-              We could not work out delivery for this order. Please try again later.
-            </p>
-          } @else {
-            <p class="font-body-sm opacity-70">Working out shipping…</p>
-          }
-        </section>
-      }
-    }
-
-    <fieldset class="space-y-3 pt-2">
-      <legend class="font-title-md font-bold!">Payment</legend>
-      <mat-radio-group
-        class="elements-start-col gap-3"
-        [value]="paymentMethod()"
-        (change)="setPaymentMethod($event.value)"
-        aria-label="Payment method"
+  <div class="grid gap-6 lg:grid-cols-2 lg:gap-12 items-start">
+    <!-- Order summary: a folding bar above the form on phones, the right half on desktop. -->
+    <aside class="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-6" aria-labelledby="summary-heading">
+      <div
+        class="bg-surface-container-low border border-outline-variant border-shape lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto"
       >
-        @if (localMethodsAvailable()) {
-          <mat-radio-button value="instapay">InstaPay</mat-radio-button>
-          @if (paymentMethod() === 'instapay') {
-            @if (orderSummary(); as summary) {
-              @if (summary.state === 'ready') {
-                <p class="font-body-sm opacity-80" aria-live="polite">
-                  @if (summary.feeToBeAgreed) {
-                    Once we agree the delivery fee on WhatsApp, transfer the total by InstaPay and
-                    send us a screenshot. We'll confirm your payment and send your order.
-                  } @else {
-                    After you place your order, transfer {{ summary.instapayTotal }} by InstaPay and
-                    send us a screenshot on WhatsApp. We'll confirm your payment and send your order.
-                  }
+        <button
+          type="button"
+          class="lg:hidden w-full elements-between gap-3 p-4 text-start"
+          (click)="toggleSummary()"
+          [attr.aria-expanded]="summaryOpen()"
+          aria-controls="order-summary-body"
+        >
+          <span class="elements-start gap-2 font-label-lg">
+            <mat-icon name="shopping_bag" />
+            <span>{{ summaryOpen() ? 'Hide Order Summary' : 'Show Order Summary' }}</span>
+            <span
+              class="elements-center transition-transform"
+              [class]="summaryOpen() ? '-rotate-90' : 'rotate-90'"
+              aria-hidden="true"
+            >
+              <mat-icon name="chevron_right" />
+            </span>
+          </span>
+          <span class="font-title-md font-bold!">{{ summaryBarAmount() }}</span>
+        </button>
+
+        <div
+          id="order-summary-body"
+          class="p-5 space-y-5 max-lg:border-t max-lg:border-outline-variant"
+          [class]="summaryOpen() ? '' : 'max-lg:hidden'"
+        >
+          <h2 id="summary-heading" class="font-title-md font-bold!">Order Summary</h2>
+
+          @if (productsResource.isLoading() && !productsResource.hasValue()) {
+            <ul class="space-y-4" aria-hidden="true">
+              @for (line of lines(); track $index) {
+                <li class="elements-start gap-4">
+                  <div class="skeleton size-16 shrink-0"></div>
+                  <div class="flex-1 space-y-2">
+                    <div class="skeleton h-4 w-3/4"></div>
+                    <div class="skeleton h-3 w-1/3"></div>
+                  </div>
+                </li>
+              }
+            </ul>
+          } @else {
+            <ul class="space-y-4">
+              @for (item of summaryItems(); track $index) {
+                @if (item.unavailable) {
+                  <li class="elements-start gap-4">
+                    <div
+                      class="size-16 shrink-0 bg-surface-container-high border border-outline-variant border-shape"
+                      aria-hidden="true"
+                    ></div>
+                    <div class="min-w-0 flex-1">
+                      <p class="font-title-sm font-bold!">{{ item.name }}</p>
+                      <p class="font-label-md text-on-surface-variant">Please remove it from your bag.</p>
+                    </div>
+                    <div class="elements-end shrink-0 self-start">
+                      <button
+                        matIconButton
+                        type="button"
+                        (click)="removeLine($index)"
+                        aria-label="Remove item"
+                      >
+                        <mat-icon name="delete" />
+                      </button>
+                    </div>
+                  </li>
+                } @else {
+                  <li>
+                    <div class="elements-start gap-4">
+                      <div class="relative shrink-0">
+                        <div
+                          class="size-16 overflow-hidden bg-surface border border-outline-variant border-shape"
+                        >
+                          @if (item.imagePath; as path) {
+                            <img
+                              [ngSrc]="item.imageSrc"
+                              [appImageFallback]="path"
+                              [alt]="item.imageAlt"
+                              width="64"
+                              height="64"
+                              class="size-full object-contain p-1"
+                            />
+                          }
+                        </div>
+                        <span
+                          class="absolute -top-2 -right-2 size-5 elements-center rounded-full bg-primary text-on-primary font-label-sm"
+                          aria-hidden="true"
+                        >
+                          {{ item.quantity }}
+                        </span>
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <p class="font-title-sm font-bold! line-clamp-2">{{ item.name }}</p>
+                        @if (item.options) {
+                          <p class="font-label-md text-on-surface-variant">{{ item.options }}</p>
+                        }
+                        <p class="sr-only">Quantity {{ item.quantity }}</p>
+                        @if (item.deal) {
+                          <span class="deal-tag">{{ item.deal }}</span>
+                        }
+                        @for (note of item.giftNotes; track $index) {
+                          <p class="gift-note mt-1">
+                            <mat-icon name="info" size="base" />
+                            <span>{{ note }}</span>
+                          </p>
+                        }
+                      </div>
+                      <div class="shrink-0 elements-end-col text-end">
+                        <p class="font-body-md">{{ item.price }}</p>
+                        @if (item.was) {
+                          <p class="font-body-sm text-on-surface-variant line-through">{{ item.was }}</p>
+                        }
+                      </div>
+                    </div>
+                    @if (item.gifts.length) {
+                      <ul class="gift-tree" aria-label="Free gifts with this item">
+                        @for (gift of item.gifts; track gift.key) {
+                          <li class="gift-tree__item">
+                            <div class="gift-tree__photo" aria-hidden="true">
+                              @if (gift.imagePath; as giftPath) {
+                                <img
+                                  [ngSrc]="gift.imageSrc"
+                                  [appImageFallback]="giftPath"
+                                  alt=""
+                                  width="40"
+                                  height="40"
+                                  class="size-full object-contain p-0.5"
+                                />
+                              }
+                            </div>
+                            <div class="min-w-0 flex-1">
+                              <p class="font-label-lg break-words">{{ gift.name }}</p>
+                              @if (gift.details) {
+                                <p class="font-label-md text-on-surface-variant">{{ gift.details }}</p>
+                              }
+                            </div>
+                            <span class="gift-tree__tag" [title]="gift.tag">{{ gift.tag }}</span>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </li>
+                }
+              }
+            </ul>
+          }
+
+          @if (orderSummary(); as summary) {
+            @if (summary.state === 'ready') {
+              <dl class="space-y-2 border-t border-outline-variant pt-4">
+                <div class="elements-between gap-4">
+                  <dt class="font-body-md">Subtotal</dt>
+                  <dd class="font-body-md">{{ summary.subtotal }}</dd>
+                </div>
+                <div class="elements-between gap-4">
+                  <dt class="font-body-md">Shipping</dt>
+                  <dd class="font-body-md">{{ summary.shipping }}</dd>
+                </div>
+                <div class="elements-between gap-4 pt-2">
+                  <dt class="font-title-md font-bold!">Total</dt>
+                  <dd class="font-title-md font-bold!">{{ summary.total }}</dd>
+                </div>
+              </dl>
+              @if (summary.feeToBeAgreed) {
+                <p class="font-body-sm" aria-live="polite">
+                  This is a large order, so we'll message you on WhatsApp to agree the delivery fee before we
+                  send it.
+                </p>
+              } @else if (!abroadOrderingClosed()) {
+                <p class="font-label-sm opacity-70">
+                  Your total is calculated in Egyptian pounds when you place the order.
                 </p>
               }
+            } @else if (summary.state === 'loading') {
+              <p class="font-body-sm opacity-70 border-t border-outline-variant pt-4">
+                Working out shipping…
+              </p>
             }
           }
-        }
-        @if (!feeToBeAgreed()) {
-          <mat-radio-button value="paymob">Card or Wallet</mat-radio-button>
-        }
-        @if (localMethodsAvailable()) {
-          <mat-radio-button value="cash-on-delivery">Cash on Delivery</mat-radio-button>
-          @if (paymentMethod() === 'cash-on-delivery') {
-            @if (orderSummary(); as summary) {
-              @if (summary.state === 'ready') {
-                <p class="font-body-sm opacity-80" aria-live="polite">
-                  @if (summary.feeToBeAgreed) {
-                    Once we agree the delivery fee on WhatsApp, pay it by InstaPay. You'll pay
-                    {{ summary.codCash }} for your items in cash when they arrive.
-                  } @else if (summary.codShippingEgp > 0) {
-                    Pay the {{ summary.codShipping }} shipping fee by InstaPay first. You'll pay
-                    the rest, {{ summary.codCash }}, in cash when it arrives.
-                  } @else {
-                    Shipping is free, so there's nothing to pay before delivery. You'll pay
-                    {{ summary.codCash }} in cash when it arrives.
+        </div>
+      </div>
+    </aside>
+
+    <form class="lg:col-start-1 lg:row-start-1 space-y-8" (submit)="$event.preventDefault(); placeOrder()">
+      @if (accountEmail(); as email) {
+        <p class="font-body-md elements-start gap-2 pb-6 border-b border-outline-variant">
+          <mat-icon name="person" size="lg" />
+          <span class="min-w-0 break-all"
+            >Signed in as <span class="font-bold!">{{ email }}</span></span
+          >
+        </p>
+      }
+
+      <section class="space-y-4" aria-labelledby="delivery-heading">
+        <div class="elements-between items-baseline! gap-4">
+          <h2 id="delivery-heading" class="font-title-lg font-bold!">Delivery</h2>
+          @if (isGuest()) {
+            <p class="font-body-sm">
+              Have an account?
+              <a
+                routerLink="/login"
+                [queryParams]="{ returnUrl: '/checkout' }"
+                class="underline underline-offset-2"
+                >Sign In</a
+              >
+            </p>
+          }
+        </div>
+
+        <div class="grid gap-4">
+          @if (isGuest()) {
+            <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+              <mat-label>Email</mat-label>
+              <input
+                matInput
+                type="email"
+                inputmode="email"
+                required
+                [value]="guestEmailInput()"
+                (input)="guestEmailInput.set($any($event.target).value)"
+                autocomplete="email"
+              />
+            </mat-form-field>
+          }
+          <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+            <mat-label>Full name</mat-label>
+            <input
+              matInput
+              [value]="shipping().fullName"
+              (input)="patchShipping('fullName', $any($event.target).value)"
+              autocomplete="name"
+            />
+          </mat-form-field>
+
+          @if (isEgypt()) {
+            <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+              <mat-label>City</mat-label>
+              <input
+                matInput
+                [value]="shipping().city"
+                (input)="patchShipping('city', $any($event.target).value)"
+                autocomplete="address-level2"
+              />
+            </mat-form-field>
+
+            <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+              <mat-label>Address</mat-label>
+              <input
+                matInput
+                [value]="shipping().line1"
+                (input)="patchShipping('line1', $any($event.target).value)"
+                autocomplete="address-line1"
+              />
+            </mat-form-field>
+          } @else {
+            <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+              <mat-label>Address line 1</mat-label>
+              <input
+                matInput
+                [value]="shipping().line1"
+                (input)="patchShipping('line1', $any($event.target).value)"
+                autocomplete="address-line1"
+              />
+            </mat-form-field>
+
+            <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+              <mat-label>Address line 2 (optional)</mat-label>
+              <input
+                matInput
+                [value]="shipping().line2 ?? ''"
+                (input)="patchShipping('line2', $any($event.target).value || null)"
+                autocomplete="address-line2"
+              />
+            </mat-form-field>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+                <mat-label>City</mat-label>
+                <input
+                  matInput
+                  [value]="shipping().city"
+                  (input)="patchShipping('city', $any($event.target).value)"
+                  autocomplete="address-level2"
+                />
+              </mat-form-field>
+
+              <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+                <mat-label>Region (optional)</mat-label>
+                <input
+                  matInput
+                  [value]="shipping().region ?? ''"
+                  (input)="patchShipping('region', $any($event.target).value || null)"
+                  autocomplete="address-level1"
+                />
+              </mat-form-field>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+                <mat-label>Postal code</mat-label>
+                <input
+                  matInput
+                  [value]="shipping().postalCode"
+                  (input)="patchShipping('postalCode', $any($event.target).value)"
+                  autocomplete="postal-code"
+                />
+              </mat-form-field>
+
+              <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+                <mat-label>Country</mat-label>
+                <input
+                  matInput
+                  [matAutocomplete]="countryAutoIntl"
+                  [value]="countryQuery()"
+                  (input)="onCountryQueryInput($event)"
+                  (blur)="onCountryBlur()"
+                  autocomplete="country-name"
+                  placeholder="Start typing a country"
+                />
+                <mat-autocomplete
+                  #countryAutoIntl="matAutocomplete"
+                  [displayWith]="displayCountryLabel"
+                  (opened)="onCountryAutocompleteOpened()"
+                  (closed)="onCountryAutocompleteClosed()"
+                  (optionSelected)="onCountrySelected($event)"
+                >
+                  @for (country of filteredCountries(); track country.code) {
+                    <mat-option
+                      [value]="country.code"
+                      (mousedown)="$event.preventDefault()"
+                      (pointerdown)="onCountryOptionActivate()"
+                    >
+                      {{ country.label }}
+                    </mat-option>
                   }
-                </p>
-              }
-            }
+                </mat-autocomplete>
+              </mat-form-field>
+            </div>
           }
-        } @else {
+
+          <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+            <mat-label>Phone</mat-label>
+            <input
+              matInput
+              [value]="shipping().phone"
+              (input)="patchShipping('phone', $any($event.target).value)"
+              autocomplete="tel"
+              inputmode="tel"
+            />
+            @if (isEgypt()) {
+              <mat-hint>Your WhatsApp mobile number, e.g. 010 1234 5678</mat-hint>
+            } @else {
+              <mat-hint>Include your country code, e.g. +971 50 123 4567</mat-hint>
+            }
+          </mat-form-field>
+        </div>
+      </section>
+
+      <fieldset class="space-y-3">
+        <legend class="font-title-lg font-bold! mb-4">Payment</legend>
+        <mat-radio-group
+          [value]="paymentMethod()"
+          (change)="setPaymentMethod($event.value)"
+          aria-label="Payment method"
+        >
+          <div class="space-y-2">
+            @let ready = readySummary();
+            @if (localMethodsAvailable()) {
+              <div class="pay-option space-y-2" [class.pay-option--selected]="paymentMethod() === 'instapay'">
+                <div class="elements-between gap-3 pe-3">
+                  <mat-radio-button value="instapay">
+                    <span class="elements-start gap-3">
+                      <!-- Stretches the label over the whole row, so a click anywhere on it picks this method. -->
+                      <span class="pay-option__hit" aria-hidden="true"></span>
+                      <span class="pay-option__mark"><app-payment-mark method="instapay" /></span>
+                      <span>InstaPay</span>
+                    </span>
+                  </mat-radio-button>
+                  @if (paymentMethod() === 'instapay' && ready && !ready.feeToBeAgreed) {
+                    <span class="font-body-lg font-bold!">{{ ready.instapayTotal }}</span>
+                  }
+                </div>
+                @if (paymentMethod() === 'instapay' && ready) {
+                  <ol class="pay-steps" aria-label="How to pay by InstaPay" aria-live="polite">
+                    @for (step of instapaySteps(); track $index) {
+                      <ng-container *ngTemplateOutlet="payStep; context: { $implicit: step }" />
+                    }
+                  </ol>
+                }
+              </div>
+            }
+            @if (cardOrWalletLive && !feeToBeAgreed()) {
+              <div class="pay-option" [class.pay-option--selected]="paymentMethod() === 'paymob'">
+                <mat-radio-button value="paymob">
+                  <span class="elements-start gap-3">
+                    <!-- Stretches the label over the whole row, so a click anywhere on it picks this method. -->
+                    <span class="pay-option__hit" aria-hidden="true"></span>
+                    <span class="pay-option__mark"><app-payment-mark method="paymob" /></span>
+                    <span>Card</span>
+                  </span>
+                </mat-radio-button>
+              </div>
+            }
+            @if (localMethodsAvailable()) {
+              <div
+                class="pay-option space-y-2"
+                [class.pay-option--selected]="paymentMethod() === 'cash-on-delivery'"
+              >
+                <!-- Same header box as InstaPay's, so the steps start the same distance below it. -->
+                <div class="elements-start">
+                  <mat-radio-button value="cash-on-delivery">
+                    <span class="elements-start gap-3">
+                      <!-- Stretches the label over the whole row, so a click anywhere on it picks this method. -->
+                      <span class="pay-option__hit" aria-hidden="true"></span>
+                      <span class="pay-option__mark"><app-payment-mark method="cash-on-delivery" /></span>
+                      <span>Cash on Delivery</span>
+                    </span>
+                  </mat-radio-button>
+                </div>
+                @if (paymentMethod() === 'cash-on-delivery' && ready) {
+                  <ol class="pay-steps" aria-label="How to pay with Cash on Delivery" aria-live="polite">
+                    @for (step of cashOnDeliverySteps(); track $index) {
+                      <ng-container *ngTemplateOutlet="payStep; context: { $implicit: step }" />
+                    }
+                  </ol>
+                }
+              </div>
+            }
+            <!-- Not offered yet: last, after the methods shoppers can use today. -->
+            @if (!cardOrWalletLive) {
+              <div class="pay-option pay-option--soon elements-between gap-3 pe-3">
+                <mat-radio-button value="paymob" disabled>
+                  <span class="elements-start gap-3">
+                    <span class="pay-option__mark"><app-payment-mark method="paymob" /></span>
+                    <span>Card</span>
+                  </span>
+                </mat-radio-button>
+                <span class="font-body-sm text-on-surface-variant">Coming soon</span>
+              </div>
+            }
+          </div>
+        </mat-radio-group>
+        @if (!localMethodsAvailable()) {
           <p class="font-label-sm opacity-70">
             InstaPay and Cash on Delivery are available when shipping to Egypt.
           </p>
         }
-        @if (feeToBeAgreed()) {
+        @if (cardOrWalletLive && feeToBeAgreed()) {
           <p class="font-label-sm opacity-70">
-            Card or Wallet isn't available for large orders, because we agree the delivery fee with
-            you first.
+            Card isn't available for large orders, because we agree the delivery fee with you first.
           </p>
         }
-      </mat-radio-group>
-    </fieldset>
+      </fieldset>
 
-    <div class="elements-end gap-3 pt-2">
-      <a matButton="text" routerLink="/">Keep Shopping</a>
-      <button
-        matButton="filled"
-        type="submit"
-        [disabled]="isSubmitting() || isEmpty()"
-        [attr.aria-label]="isSubmitting() ? 'Placing order' : null"
-      >
-        @if (isSubmitting()) {
-          <mat-progress-spinner mode="indeterminate" diameter="18" />
-        } @else if (paymentMethod() === 'paymob') {
-          <span>Pay Online</span>
-        } @else {
-          <span>Place Order</span>
+      @if (unavailableMessage(); as message) {
+        <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+      } @else if (orderSummary(); as summary) {
+        @if (summary.state === 'too-heavy') {
+          <p class="font-body-sm text-error" role="alert">
+            This order is too heavy to send abroad. Remove an item or message us.
+          </p>
+        } @else if (summary.state === 'missing-item') {
+          <p class="font-body-sm text-error" role="alert">One item in your bag is no longer available.</p>
+        } @else if (summary.state === 'unavailable') {
+          <p class="font-body-sm text-error" role="alert">
+            We could not work out delivery for this order. Please try again later.
+          </p>
         }
-      </button>
-    </div>
-  </form>
+      }
+
+      @if (abroadOrderingClosed()) {
+        <p class="font-body-md" role="status">
+          Ordering from outside Egypt is coming soon.
+          @if (whatsappUrl) {
+            Message us on WhatsApp and we'll help you order.
+          }
+        </p>
+      }
+
+      <div class="grid gap-3 [&>a]:w-full [&>button]:w-full">
+        @if (abroadOrderingClosed()) {
+          @if (whatsappUrl) {
+            <a matButton="filled" theme="success" [href]="whatsappUrl" target="_blank" rel="noopener">
+              <mat-icon name="chat_bubble" />
+              <span>Message Us on WhatsApp</span>
+            </a>
+          }
+        } @else {
+          <button
+            matButton="filled"
+            type="submit"
+            [disabled]="isSubmitting() || isEmpty()"
+            [attr.aria-label]="isSubmitting() ? 'Placing order' : null"
+          >
+            @if (isSubmitting()) {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else if (paymentMethod() === 'paymob') {
+              <span>Pay Online</span>
+            } @else {
+              <span>Place Order</span>
+            }
+          </button>
+        }
+        <p class="font-body-sm text-on-surface-variant text-center">
+          By placing your order, you agree to our
+          <a routerLink="/terms" target="_blank" rel="noopener" class="underline underline-offset-2">Terms</a>
+          and
+          <a routerLink="/privacy" target="_blank" rel="noopener" class="underline underline-offset-2"
+            >Privacy Policy</a
+          >.
+        </p>
+        <a matButton="text" routerLink="/">Keep Shopping</a>
+      </div>
+    </form>
+  </div>
 </section>
+
+<!-- One "how to pay" step: number and line come from CSS, then title, note and the amount on the right. -->
+<ng-template #payStep let-step>
+  <li class="pay-step">
+    <span class="pay-step__text">
+      <span class="font-body-md font-bold!">{{ step.title }}</span>
+      <span class="font-body-sm text-on-surface-variant">{{ step.note }}</span>
+    </span>
+    @if (step.amount) {
+      <span class="pay-step__amount">{{ step.amount }}</span>
+    }
+  </li>
+</ng-template>

@@ -1,5 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import { SEED_BRANDS, SEED_CATEGORIES } from '../products/catalog-taxonomy.js';
+import { PLAYERS_DOC_PATH, readPlayerList } from '../products/players.js';
 
 export interface CachedCategoryInfo {
   readonly id: string;
@@ -17,24 +18,24 @@ export interface CachedBrandInfo {
 export interface CatalogLookupMaps {
   readonly categoriesById: ReadonlyMap<string, CachedCategoryInfo>;
   readonly brandsById: ReadonlyMap<string, CachedBrandInfo>;
+  /** Player id -> display name, from `settings/players` (Shop's Player filter). */
+  readonly playerNamesById: ReadonlyMap<string, string>;
 }
 
 const TTL_MS = 5 * 60 * 1000;
 let cachedAt = 0;
 let cachedLookup: CatalogLookupMaps | null = null;
 
-export async function getCatalogLookup(
-  db: Firestore,
-  forceRefresh = false,
-): Promise<CatalogLookupMaps> {
+export async function getCatalogLookup(db: Firestore, forceRefresh = false): Promise<CatalogLookupMaps> {
   const now = Date.now();
   if (!forceRefresh && cachedLookup && now - cachedAt < TTL_MS) {
     return cachedLookup;
   }
 
-  const [catSnap, brandSnap] = await Promise.all([
+  const [catSnap, brandSnap, playersSnap] = await Promise.all([
     db.collection('categories').limit(200).get(),
     db.collection('brands').limit(200).get(),
+    db.doc(PLAYERS_DOC_PATH).get(),
   ]);
 
   const categoriesById = new Map<string, CachedCategoryInfo>(
@@ -71,7 +72,11 @@ export async function getCatalogLookup(
     brandsById.set(doc.id, { id: doc.id, name });
   }
 
-  cachedLookup = { categoriesById, brandsById };
+  const playerNamesById = new Map<string, string>(
+    readPlayerList(playersSnap.data()).map((player) => [player.id, player.name]),
+  );
+
+  cachedLookup = { categoriesById, brandsById, playerNamesById };
   cachedAt = now;
   return cachedLookup;
 }

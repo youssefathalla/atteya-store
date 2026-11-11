@@ -18,10 +18,7 @@
       <h2 class="shop-filters-heading">Shop for</h2>
       <div class="elements-start-col gap-1">
         @for (opt of genderOptions; track opt.id) {
-          <mat-checkbox
-            [checked]="filters().genders.includes(opt.id)"
-            (change)="toggleGender(opt.id)"
-          >
+          <mat-checkbox [checked]="filters().genders.includes(opt.id)" (change)="toggleGender(opt.id)">
             {{ opt.label }}
           </mat-checkbox>
         }
@@ -34,10 +31,7 @@
       <h2 class="shop-filters-heading">Category</h2>
       <div class="elements-start-col gap-1">
         @for (opt of categoryOptions(); track opt.id) {
-          <mat-checkbox
-            [checked]="filters().categories.includes(opt.id)"
-            (change)="toggleCategory(opt.id)"
-          >
+          <mat-checkbox [checked]="filters().categories.includes(opt.id)" (change)="toggleCategory(opt.id)">
             {{ opt.label }}
           </mat-checkbox>
         }
@@ -50,12 +44,21 @@
       <h2 class="shop-filters-heading">Brand</h2>
       <div class="elements-start-col gap-1">
         @for (brand of brands(); track brand.name) {
-          <mat-checkbox
-            [checked]="filters().brands.includes(brand.name)"
-            (change)="toggleBrand(brand.name)"
-          >
+          <mat-checkbox [checked]="filters().brands.includes(brand.name)" (change)="toggleBrand(brand.name)">
             {{ brand.name }}
-            <span class="opacity-60">({{ brand.count }})</span>
+          </mat-checkbox>
+        }
+      </div>
+    </section>
+  }
+
+  @if (players().length > 0) {
+    <section class="shop-filters-section">
+      <h2 class="shop-filters-heading">Player</h2>
+      <div class="elements-start-col gap-1">
+        @for (player of players(); track player.id) {
+          <mat-checkbox [checked]="filters().players.includes(player.id)" (change)="togglePlayer(player.id)">
+            {{ player.name }}
           </mat-checkbox>
         }
       </div>
@@ -95,9 +98,11 @@
           >
             <app-color-swatch class="shop-color-swatch" [colorId]="color.id" />
             <span class="font-label-md truncate">{{ color.label }}</span>
-            @if (color.count > 0) {
-              <span class="font-label-sm opacity-60 shrink-0">{{ color.count }}</span>
-            }
+            <span class="shop-color-tick">
+              @if (filters().colors.includes(color.id)) {
+                <mat-icon name="check" />
+              }
+            </span>
           </button>
         }
       </div>
@@ -105,43 +110,12 @@
   }
 
   <section class="shop-filters-section">
-    <h2 class="shop-filters-heading">Price</h2>
-    <p class="font-label-sm opacity-70">
-      {{ priceMinLabel() }} – {{ priceMaxLabel() }}
-    </p>
-    <div class="shop-price-inputs">
-      <mat-slider
-        [min]="priceBounds().min"
-        [max]="priceBounds().max"
-        [step]="1"
-        [discrete]="true"
-        [displayWith]="displayPrice"
-        aria-label="Price range in Egyptian pounds"
-      >
-        <input
-          matSliderStartThumb
-          [value]="draftMin()"
-          (valueChange)="onPriceMinInput($event)"
-          (dragEnd)="onPriceDragEnd()"
-          aria-label="Minimum price in Egyptian pounds"
-        />
-        <input
-          matSliderEndThumb
-          [value]="draftMax()"
-          (valueChange)="onPriceMaxInput($event)"
-          (dragEnd)="onPriceDragEnd()"
-          aria-label="Maximum price in Egyptian pounds"
-        />
-      </mat-slider>
-    </div>
-  </section>
-
-  <section class="shop-filters-section">
     <h2 class="shop-filters-heading">Availability</h2>
     <div class="elements-start-col gap-1">
-      <mat-checkbox [checked]="filters().onSale" (change)="setOnSale($event.checked)">
-        On sale
+      <mat-checkbox [checked]="filters().newArrivals" (change)="setNewArrivals($event.checked)">
+        New Arrivals
       </mat-checkbox>
+      <mat-checkbox [checked]="filters().onSale" (change)="setOnSale($event.checked)"> On sale </mat-checkbox>
       <mat-checkbox [checked]="filters().inStock" (change)="setInStock($event.checked)">
         In stock
       </mat-checkbox>

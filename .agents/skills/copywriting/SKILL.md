@@ -12,7 +12,7 @@ Every rule here came from a real correction by Youssef. Follow it the first time
 | What | Style | Examples |
 | :--- | :--- | :--- |
 | Buttons, menu items, dialog actions, email buttons | **Title case** | Place Order, Add to Bag, Send on WhatsApp, Message Us on WhatsApp, Back to the Store, Open Orders in the Dashboard |
-| Payment method and order status names (anywhere, also inside sentences) | **Title case** | InstaPay, Card or Wallet, Cash on Delivery, Waiting for Payment, Waiting for Transfer, Payment Failed |
+| Payment method and order status names (anywhere, also inside sentences) | **Title case** | InstaPay, Card, Cash on Delivery, Waiting for Payment, Waiting for Transfer, Payment Failed |
 | Email headings, labels and row names | **Title case** | New Order #A1B2C3, Delivery Address, Customer, Shipping Fee, Cash at the Door |
 | Sentences, hints, snackbars, helper text, aria-labels | Sentence case | "We'll confirm your order as soon as we receive your payment." |
 | Stock badges and table values | Sentence case | In stock, Out of stock, Not set |
@@ -54,7 +54,17 @@ All payment wording comes from `orderStage()` / `paymentDue()` in `functions/src
 - Website, admin and emails: English.
 - Pre-written WhatsApp messages (`shopperWhatsappText`, `staffWhatsappText`): Egyptian Arabic, English digits, greeting with the first name and the order ref.
 
-## 7. Before you finish
+## 7. Product names and descriptions
+
+Set by the catalogue copy cleanup (Nov 8, 2026); keep new products in the same style in the admin product form.
+
+- **Name**: brand + model only, title case, no year and no colour (the colour picker shows the colour): "Adidas Simple Polo", "Bullpadel Neuron 02 Edge". A player's own shirt or set carries the player: "Adidas Ale Galán T-Shirt", "Nox Agustín Tapia Set".
+- **Short description** (`summary`, "Short summary" in the form): 7 words at most, no full stop, for cards, the bag and search: "Ale Galán's adjustable power racket", "Keeps drinks hot or cold, 550 ml". Name the player here when the product has its own model name.
+- **Description** (`descriptionHtml`, "Description" in the form): one or two plain sentences about what the product is for, shown on the product page under the price. Prose only: no bullet lines, no specs.
+- **Details** (`details`, "Details" in the form, one fact per line, at most 20 lines of 200 characters): shown on the product page in its own section, titled **Materials** for clothing, socks and supports and **Specifications** for gear. Materials with percentages ("63% cotton, 33% polyamide, 4% elastane"), capacity, size, pockets; rackets list Shape, Balance, Weight, Core, Face, Level and Playing style as "Shape: Diamond". No "• " in front (the page lays out the list; a pasted bullet is removed). Only facts we know; no marketing claims or "like original".
+- Option labels and values use title case too ("Choose Your Pair", "Nox Black"); sizes stay as they are (M, 2XL, T2 (M)).
+
+## 8. Before you finish
 
 - Read every new string out loud next to what's around it: is anything said twice?
 - Check capitals against the table in section 1.

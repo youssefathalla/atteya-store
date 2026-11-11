@@ -6,7 +6,7 @@ import {
   staffWhatsappText,
 } from '@core/config/order-messages';
 import { whatsappChatUrl } from '@core/config/store-info';
-import { displayDecimals } from '@core/services/offers/engine';
+import { dealTag, displayDecimals } from '@core/services/offers/engine';
 import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
 import type { OrderDoc } from '@core/services/orders/order.schema';
@@ -24,7 +24,7 @@ export function paymentLabel(order: OrderDoc): string {
     case 'instapay':
       return 'InstaPay';
     case 'paymob':
-      return 'Card or Wallet (Paymob)';
+      return 'Card (Paymob)';
     case 'international-bank-transfer':
       return 'Bank Transfer (legacy)';
   }
@@ -105,7 +105,9 @@ export function selectionLabel(
  * Order-level actions, decided by the order's current stage. The WhatsApp text always matches
  * the status loaded now (the list reloads after every confirm or cancel).
  */
-export function orderActions(order: OrderDoc): Pick<
+export function orderActions(
+  order: OrderDoc,
+): Pick<
   OrderLineAdminRow,
   | 'stage'
   | 'whatsappUrl'
@@ -137,13 +139,8 @@ export function orderActions(order: OrderDoc): Pick<
           : null,
     canCancel: open && manual,
     amountDueLabel: due?.amountEgp != null ? formatMoney(due.amountEgp, 'EGP', 0) : null,
-    deliveryFeeAction: agreedLine
-      ? isDeliveryFeeToBeAgreed(shipping)
-        ? 'set'
-        : 'change'
-      : null,
-    deliveryFeeEgp:
-      agreedLine && !isDeliveryFeeToBeAgreed(shipping) ? (shipping?.priceEgp ?? null) : null,
+    deliveryFeeAction: agreedLine ? (isDeliveryFeeToBeAgreed(shipping) ? 'set' : 'change') : null,
+    deliveryFeeEgp: agreedLine && !isDeliveryFeeToBeAgreed(shipping) ? (shipping?.priceEgp ?? null) : null,
   };
 }
 
@@ -178,6 +175,8 @@ export function toOrderLineAdminRows(
         productId: line.productId,
         // Prefer what was saved on the order; older orders fall back to the live product.
         productName: line.name || product?.name || 'Product unavailable',
+        giftName: line.gift ? line.gift.giftName || 'Free gift' : null,
+        dealLabel: line.deals?.length ? dealTag(line.deals, line.quantity) || null : null,
         selectionLabel: line.optionLabels?.length
           ? line.optionLabels.map((opt) => `${opt.label}: ${opt.value}`).join(' · ')
           : selectionLabel(product, selection),
