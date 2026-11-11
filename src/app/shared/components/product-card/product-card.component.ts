@@ -61,7 +61,10 @@ export class ProductCardComponent {
     return genderCategoryLine(product.gender, category?.name ?? null) ?? product.shortDescription;
   });
 
-  /** The photo opens the colour it shows. */
+  /**
+   * The photo opens the colour it shows. The name, badge and price link keeps the card's own product,
+   * since those details belong to it (a colour sibling may have its own price and offers).
+   */
   readonly photoSlug = computed(() => this.#preview()?.slug ?? this.product().slug);
 
   readonly displayImagePath = computed(() => {
