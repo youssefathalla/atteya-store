@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal } from '@angular/core';
+import { Component, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
@@ -40,8 +40,9 @@ function stepBackMessage(status: string): string {
 
 /**
  * The order's actions: WhatsApp (or Copy Number), Set / Change Delivery Fee and Change Status.
- * Used by the opened row on the Orders list and by the order page. `changed` fires after a save,
- * so the parent reloads the order.
+ * Used by the opened row on the Orders list and by the order page. `afterChange` runs after a save,
+ * so the parent reloads the order. It is a callback, not an output: staff can close the list row
+ * while a save is running, which destroys this component, and an output emitted then is dropped.
  */
 @Component({
   selector: 'app-order-actions',
@@ -114,7 +115,8 @@ export class OrderActionsComponent {
   readonly #dialog = inject(MatDialog);
 
   readonly row = input.required<OrderLineAdminRow>();
-  readonly changed = output<void>();
+  /** The parent's reload; still called when this component was destroyed meanwhile. */
+  readonly afterChange = input.required<() => void>();
 
   readonly busy = signal<OrderAction | null>(null);
 
@@ -216,7 +218,7 @@ export class OrderActionsComponent {
     this.busy.set(action);
     try {
       await work();
-      this.changed.emit();
+      this.afterChange()();
     } catch (error: unknown) {
       this.#snackbar.error(orderActionError(error));
     } finally {

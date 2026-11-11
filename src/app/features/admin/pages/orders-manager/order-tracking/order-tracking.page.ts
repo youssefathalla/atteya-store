@@ -88,7 +88,8 @@ export class OrderTrackingPageComponent implements OnInit {
     });
   }
 
-  reload(): void {
+  /** Passed to `app-order-actions`, which calls it after a save. */
+  readonly reloadFn = (): void => {
     this.dataResource.reload();
-  }
+  };
 }

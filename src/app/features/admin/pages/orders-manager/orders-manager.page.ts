@@ -110,7 +110,8 @@ export class OrdersManagerPageComponent implements OnInit {
     this.openOrderId.update((open) => (open === orderId ? null : orderId));
   }
 
-  reload(): void {
+  /** Passed to `app-order-actions`, which calls it after a save. */
+  readonly reloadFn = (): void => {
     this.dataResource.reload();
-  }
+  };
 }
