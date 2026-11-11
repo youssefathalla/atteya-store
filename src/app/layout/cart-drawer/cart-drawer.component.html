@@ -169,7 +169,7 @@
                         <button
                           matButton="outlined"
                           type="button"
-                          (click)="addMore($index, nudge.hint.missing)"
+                          (click)="addMore(lineIndex, nudge.hint.missing)"
                           [attr.aria-label]="'Add ' + nudge.hint.missing + ' more ' + product.name"
                         >
                           Add {{ nudge.hint.missing }}
