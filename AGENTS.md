@@ -48,6 +48,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 1. **Top-Level Query Container**:
    - `<main>` inside `main.component.html` carries `@container`. Page-level sections and cards must use `cqw` to remain fluid relative to drawer open/close and responsive main layouts.
    - Never place `@container` on the same element where `cqw` padding is declared (CSS cannot query itself).
+   - The admin `<main>` in `admin-layout.component.html` carries `@container` too, so admin pages' `@3xl` / `@5xl` rules measure the content width (before, nothing on admin pages had a container and those rules never applied).
 2. **Angular Component Host Sizing**:
    - All section and page components (`app-*-section`, `app-*`) must define `host: { class: 'block w-full' }` in `@Component()` to prevent `display: inline` height/width collapse.
 3. **Full-Viewport Sections**:

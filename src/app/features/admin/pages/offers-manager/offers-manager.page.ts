@@ -53,9 +53,7 @@ import { OffersAdminService } from './services/offers-admin.service';
 
 @Component({
   selector: 'app-offers-manager-page',
-  // The admin layout has no query container, so the page is its own: the @3xl / @5xl rules on
-  // the count boxes and the card grid measure the page width.
-  host: { class: 'block w-full @container' },
+  host: { class: 'block w-full' },
   imports: [
     RouterLink,
     MatButtonModule,
