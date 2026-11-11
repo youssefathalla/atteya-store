@@ -160,7 +160,11 @@ jobs:
             // review; waiting for them made the merge skip with nothing to start it again (a round
             // that pushes nothing triggers no other workflow). A real fix round is still covered:
             // Bugbot's check, the open security threads and the Claude verdict all hold the merge.
-            const IGNORED = new Set([OWN_JOB, 'Merge when clean', 'Claude Review (Trial)', 'Claude review (trial)', 'Claim a Fix Round', 'Fix Review Findings']);
+            // "Fix Conflicting PRs" (conflict-watch.yml) runs on PR events through pull_request_target,
+            // so GitHub lists it on the PR's commit, but it checks every open PR, not this one. Its
+            // repo-wide queue cancels a waiting run when a newer one starts, and a cancelled or still
+            // running watcher must never hold a merge (a conflict already shows as not mergeable).
+            const IGNORED = new Set([OWN_JOB, 'Merge when clean', 'Claude Review (Trial)', 'Claude review (trial)', 'Claim a Fix Round', 'Fix Review Findings', 'Fix Conflicting PRs']);
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
             let sha = context.payload.check_run?.head_sha || context.payload.workflow_run?.head_sha || '';
