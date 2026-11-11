@@ -85,7 +85,10 @@ jobs:
       - name: Install Playwright and Chromium
         run: |
           npm install --no-save --no-audit --no-fund --ignore-scripts "playwright@${PLAYWRIGHT_VERSION}"
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
+          # Chromium's system packages come from Ubuntu's servers. When the runner can't reach them,
+          # carry on with the packages the runner already has instead of failing before any page opens.
+          npx playwright install-deps chromium || echo "::warning::Could not install Chromium's system packages (Ubuntu servers unreachable); running with the runner's own packages."
 
       - name: App build (development)
         run: npx ng build --configuration development
