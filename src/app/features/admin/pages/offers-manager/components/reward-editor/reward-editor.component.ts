@@ -94,7 +94,8 @@ export class RewardEditorComponent {
         break;
       case 'freeShipping':
         this.scope.set('cart');
-        this.minimum.set({ subtotal: 3000 });
+        // The minimum is optional: start empty so the offer covers every Egypt order unless staff type one.
+        this.minimum.set(null);
         this.reward.set({ kind: 'freeShipping' });
         break;
     }
