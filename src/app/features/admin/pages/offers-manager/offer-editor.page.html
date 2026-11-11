@@ -1,93 +1,520 @@
-<div class="elements-start-col gap-6 w-full">
-  <header class="surface-card p-5 w-full elements-between flex-wrap gap-3">
-    <div class="elements-start-col gap-1">
-      <div class="elements-center gap-2">
-        <a matButton="text" routerLink="/admin/offers">
+<div class="elements-start-col items-stretch! gap-6 w-full">
+  <header class="surface-card w-full">
+    <div class="elements-between gap-3 p-4 @3xl:px-5">
+      <div class="elements-start items-center! gap-3 min-w-0">
+        <a matIconButton routerLink="/admin/offers" aria-label="Back to Offers">
           <mat-icon name="arrow_back" />
-          <span>Offers</span>
         </a>
+        <h1 class="font-title-lg font-bold! truncate">{{ pageHeading() }}</h1>
       </div>
-      <h1 class="font-title-lg font-bold!">{{ pageHeading() }}</h1>
-      <p class="font-body-md text-on-surface-variant">
-        Build your pricing rule and check matching products in the live preview below.
-      </p>
-    </div>
-
-    <div class="elements-center gap-2">
-      <a matButton="outlined" routerLink="/admin/offers">
-        <span>Cancel</span>
-      </a>
       <button
-        matButton="filled"
+        matButton="outlined"
         type="button"
-        [disabled]="isSaving() || isUnavailableDeal() || validation().errors.length > 0"
+        [disabled]="isSaving() || !editorResource.hasValue()"
         [attr.aria-label]="isSaving() ? 'Saving offer' : null"
-        (click)="save()"
+        (click)="save(false)"
       >
         @if (isSaving()) {
           <mat-progress-spinner mode="indeterminate" diameter="18" />
         } @else {
-          <mat-icon name="check" />
-        }
-        @if (!isSaving()) {
-          <span>Save Offer</span>
+          <span>Save as Draft</span>
         }
       </button>
+    </div>
+    <div class="border-t border-outline-variant px-4 py-4">
+      <app-editor-steps [current]="step()" [done]="doneSteps()" (stepClick)="goTo($event)" />
     </div>
   </header>
 
   @if (editorResource.isLoading() && !editorResource.hasValue()) {
-    <div class="w-full elements-start-col gap-4" aria-hidden="true">
-      <app-skeleton class="h-44 w-full" />
-      <app-skeleton class="h-44 w-full" />
-      <app-skeleton class="h-44 w-full" />
+    <div class="offer-editor" aria-hidden="true">
+      <app-skeleton class="h-96 w-full" />
+      <app-skeleton class="h-64 w-full" />
     </div>
+  } @else if (editorResource.error()) {
+    <p class="surface-card p-5 font-body-md" role="alert">
+      We couldn't load this offer. Please refresh the page to try again.
+    </p>
   } @else {
-    <app-offer-settings [(draft)]="draft" />
+    <div class="offer-editor">
+      <section class="offer-editor__card" [attr.aria-label]="'Step ' + step()">
+        @switch (step()) {
+          @case (1) {
+            <div>
+              <h2 #stepHeading tabindex="-1" class="font-headline-sm font-bold! outline-none">
+                What do shoppers get?
+              </h2>
+              <p class="font-body-md text-on-surface-variant">Pick one. You can change it later.</p>
+            </div>
 
-    <app-reward-editor
-      [reward]="draft().reward"
-      [scope]="draft().scope"
-      [minimum]="draft().minimum"
-      [products]="products()"
-      [categories]="categories()"
-      [brands]="brands()"
-      (rewardChange)="updateReward($event)"
-      (scopeChange)="updateScope($event)"
-      (minimumChange)="updateMinimum($event)"
-    />
+            <mat-radio-group
+              class="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 gap-3 w-full"
+              aria-label="What do shoppers get?"
+              [value]="pickedDeal()"
+              (change)="pickDeal($event.value)"
+            >
+              @for (card of dealCards; track card.id) {
+                <div class="offer-choice" [class.offer-choice--on]="pickedDeal() === card.id">
+                  <mat-radio-button [value]="card.id">
+                    <span class="offer-choice__hit" aria-hidden="true"></span>
+                    @if (card.symbol) {
+                      <span class="offer-choice__symbol" aria-hidden="true">{{ card.symbol }}</span>
+                    } @else if (card.icon) {
+                      <mat-icon [name]="card.icon" size="xl" aria-hidden="true" />
+                    }
+                    <span class="block font-title-sm font-bold!">{{ card.label }}</span>
+                    <span class="offer-choice__hint">{{ card.example }}</span>
+                  </mat-radio-button>
+                </div>
+              }
+            </mat-radio-group>
 
-    <app-condition-group-editor
-      heading="Products that match any of these groups"
-      hint="Leave empty to include every product in the store."
-      [conditions]="draft().conditions"
-      [brands]="brands()"
-      [categories]="categories()"
-      [products]="products()"
-      (conditionsChange)="updateConditions($event)"
-    />
+            <div class="w-full border-t border-outline-variant pt-6 elements-start-col items-stretch! gap-4">
+              <app-reward-editor
+                [reward]="draft().reward"
+                [scope]="draft().scope"
+                [minimum]="draft().minimum"
+                [products]="products()"
+                [categories]="categories()"
+                [brands]="brands()"
+                (rewardChange)="updateReward($event)"
+                (scopeChange)="updateScope($event)"
+                (minimumChange)="updateMinimum($event)"
+              />
+              @for (message of dealErrors(); track message) {
+                <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+              }
 
-    <app-condition-group-editor
-      heading="Except products that match any of these groups"
-      hint="Optional: exclude specific brands, categories, or products."
-      [conditions]="draft().exclude"
-      [brands]="brands()"
-      [categories]="categories()"
-      [products]="products()"
-      (conditionsChange)="updateExclude($event)"
-    />
+              <mat-form-field class="w-full" appearance="outline">
+                <mat-label>What shoppers read</mat-label>
+                <input
+                  matInput
+                  type="text"
+                  maxlength="60"
+                  [value]="offer().title"
+                  (input)="onTitleInput($event)"
+                />
+                <mat-hint>Shown on product pages and in the bag. We filled it in for you.</mat-hint>
+              </mat-form-field>
+              @for (message of titleErrors(); track message) {
+                <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+              }
+            </div>
+          }
 
-    <app-schedule-editor [schedule]="draft().schedule" (scheduleChange)="updateSchedule($event)" />
+          @case (2) {
+            <div>
+              <h2 #stepHeading tabindex="-1" class="font-headline-sm font-bold! outline-none">
+                Which products get {{ dealHeadline() }}?
+              </h2>
+              <p class="font-body-md text-on-surface-variant">
+                Pick whole groups. New products that join a group get the offer too.
+              </p>
+            </div>
 
-    <app-banner-editor
-      [banner]="banner()"
-      [audience]="draft().audience"
-      [requiresCode]="draft().requiresCode && !!draft().code?.trim()"
-      [title]="draft().title"
-      [hasEndDate]="draft().schedule.endsAt !== null"
-      (bannerChange)="updateBanner($event)"
-    />
+            @if (draft().reward.kind === 'freeShipping') {
+              <p class="offer-note">Free shipping covers the whole order, for orders shipped in Egypt.</p>
+            }
 
-    <app-offer-preview [draft]="draft()" [products]="products()" [validation]="validation()" />
+            <mat-radio-group
+              class="grid grid-cols-1 @3xl:grid-cols-2 gap-3 w-full"
+              aria-label="Which products"
+              [value]="productsMode()"
+              (change)="setProductsMode($event.value)"
+            >
+              <div class="offer-choice" [class.offer-choice--on]="productsMode() === 'all'">
+                <mat-radio-button value="all">
+                  <span class="offer-choice__hit" aria-hidden="true"></span>
+                  <span class="block font-title-sm font-bold!">Every product</span>
+                  <span class="offer-choice__hint">The whole store</span>
+                </mat-radio-button>
+              </div>
+              <div class="offer-choice" [class.offer-choice--on]="productsMode() === 'some'">
+                <mat-radio-button value="some">
+                  <span class="offer-choice__hit" aria-hidden="true"></span>
+                  <span class="block font-title-sm font-bold!">Only some products</span>
+                  <span class="offer-choice__hint">By category, brand or one by one</span>
+                </mat-radio-button>
+              </div>
+            </mat-radio-group>
+
+            @if (productsMode() === 'some') {
+              <app-product-targets
+                heading="Include"
+                addLabel="Add Category, Brand or Product"
+                [conditions]="draft().conditions"
+                [categories]="categories()"
+                [brands]="brands()"
+                [products]="products()"
+                [names]="names()"
+                (conditionsChange)="updateConditions($event)"
+              />
+            }
+            <app-product-targets
+              heading="Leave out"
+              addLabel="Leave Something Out"
+              [optional]="true"
+              [conditions]="draft().exclude"
+              [categories]="categories()"
+              [brands]="brands()"
+              [products]="products()"
+              [names]="names()"
+              (conditionsChange)="updateExclude($event)"
+            />
+            @for (message of productErrors(); track message) {
+              <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+            }
+
+            <div>
+              <button
+                matButton="text"
+                type="button"
+                [attr.aria-expanded]="showAdvanced()"
+                (click)="showAdvanced.set(!showAdvanced())"
+              >
+                <span>{{ showAdvanced() ? 'Hide Advanced Rules' : 'Advanced Rules' }}</span>
+              </button>
+            </div>
+            @if (showAdvanced()) {
+              <div
+                class="w-full border-shape border border-outline-variant p-4 elements-start-col items-stretch! gap-6"
+              >
+                @if (productsMode() === 'some') {
+                  <app-condition-group-editor
+                    heading="Include products that match any of these groups"
+                    hint="Each group can combine rules on brand, category, size, colour, price and more."
+                    [conditions]="draft().conditions"
+                    [brands]="brands()"
+                    [categories]="categories()"
+                    [products]="products()"
+                    (conditionsChange)="updateConditions($event)"
+                  />
+                }
+                <app-condition-group-editor
+                  heading="Leave out products that match any of these groups"
+                  [conditions]="draft().exclude"
+                  [brands]="brands()"
+                  [categories]="categories()"
+                  [products]="products()"
+                  (conditionsChange)="updateExclude($event)"
+                />
+              </div>
+            }
+
+            <div
+              class="offer-dark-box elements-start-col items-stretch! gap-4 @3xl:flex-row! @3xl:items-center!"
+            >
+              <div class="shrink-0">
+                <p class="font-label-lg opacity-80">Affected products</p>
+                <p class="font-display-sm font-bold!">{{ stats().total.toLocaleString('en-US') }}</p>
+              </div>
+              <div class="grow font-body-md elements-start-col items-start! gap-1">
+                <p>
+                  {{ stats().inStock.toLocaleString('en-US') }} in stock ·
+                  {{ stats().soldOut.toLocaleString('en-US') }} sold out
+                </p>
+                @if (stats().onSale > 0) {
+                  <p>
+                    {{ stats().onSale.toLocaleString('en-US') }} already on sale:
+                    {{
+                      draft().saleItems === 'exclude'
+                        ? 'they keep their sale price'
+                        : 'they get the bigger saving'
+                    }}
+                  </p>
+                }
+              </div>
+              <div class="shrink-0">
+                <button
+                  type="button"
+                  class="border border-on-primary border-shape px-4 py-2 font-label-lg font-bold! cursor-pointer"
+                  [attr.aria-expanded]="showProducts()"
+                  (click)="showProducts.set(!showProducts())"
+                >
+                  {{ showProducts() ? 'Hide the Products' : 'See the Products' }}
+                </button>
+              </div>
+            </div>
+            @if (showProducts()) {
+              <app-offer-preview [draft]="offer()" [products]="products()" />
+            }
+
+            @if (overlapWarnings().length > 0) {
+              <div class="offer-note">
+                @for (warning of overlapWarnings(); track warning.code) {
+                  <p class="elements-start gap-2">
+                    <mat-icon name="info" size="lg" aria-hidden="true" />
+                    <span>{{ warning.message }}</span>
+                  </p>
+                }
+              </div>
+            }
+          }
+
+          @case (3) {
+            <div>
+              <h2 #stepHeading tabindex="-1" class="font-headline-sm font-bold! outline-none">
+                Who gets it, and when?
+              </h2>
+              <p class="font-body-md text-on-surface-variant">All times are Cairo time.</p>
+            </div>
+
+            <div class="elements-start-col items-stretch! gap-2">
+              <p class="font-title-sm font-bold!" id="offer-who-label">Who</p>
+              <mat-radio-group
+                class="grid grid-cols-1 @3xl:grid-cols-2 gap-3 w-full"
+                aria-labelledby="offer-who-label"
+                [value]="draft().audience"
+                (change)="setAudience($event.value)"
+              >
+                <div class="offer-choice" [class.offer-choice--on]="draft().audience === 'everyone'">
+                  <mat-radio-button value="everyone">
+                    <span class="offer-choice__hit" aria-hidden="true"></span>
+                    <span class="block font-title-sm font-bold!">Everyone</span>
+                    <span class="offer-choice__hint">Guests and signed-in shoppers</span>
+                  </mat-radio-button>
+                </div>
+                <div class="offer-choice" [class.offer-choice--on]="draft().audience === 'signedIn'">
+                  <mat-radio-button value="signedIn">
+                    <span class="offer-choice__hit" aria-hidden="true"></span>
+                    <span class="block font-title-sm font-bold!">Signed-in shoppers only</span>
+                    <span class="offer-choice__hint">A reward for having an account</span>
+                  </mat-radio-button>
+                </div>
+              </mat-radio-group>
+            </div>
+
+            <div class="w-full border-t border-outline-variant pt-6 elements-start-col items-stretch! gap-4">
+              <app-schedule-editor [schedule]="draft().schedule" (scheduleChange)="updateSchedule($event)" />
+              @for (message of whenErrors(); track message) {
+                <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+              }
+              @let run = runLine();
+              <p class="offer-note">
+                <span>
+                  {{ run.lead }}
+                  @if (run.bold) {
+                    <strong>{{ run.bold }}</strong>
+                  }
+                  {{ run.rest }}
+                </span>
+              </p>
+            </div>
+
+            <div class="w-full border-t border-outline-variant pt-6 elements-start-col items-stretch! gap-5">
+              <p class="font-title-md font-bold!">
+                Extras <span class="font-body-md text-on-surface-variant">(optional)</span>
+              </p>
+
+              <app-banner-editor
+                [banner]="banner()"
+                [audience]="draft().audience"
+                [requiresCode]="draft().requiresCode && !!draft().code?.trim()"
+                [hasPerCustomerLimit]="draft().limits.perCustomer !== null"
+                [title]="offer().title"
+                [hasEndDate]="draft().schedule.endsAt !== null"
+                (bannerChange)="updateBanner($event)"
+              />
+
+              <div
+                class="w-full border-t border-outline-variant pt-5 elements-start-col items-stretch! gap-3"
+              >
+                <div class="offer-extra">
+                  <div class="min-w-0">
+                    <p class="font-title-sm font-bold!">Limit how many times it's used</p>
+                    <p class="font-body-sm text-on-surface-variant">{{ limitsText() }}</p>
+                  </div>
+                  @if (!limitOpen()) {
+                    <button matButton="outlined" type="button" (click)="limitOpen.set(true)">
+                      <span>Set a Limit</span>
+                    </button>
+                  }
+                </div>
+                @if (limitOpen()) {
+                  <div class="grid grid-cols-1 @3xl:grid-cols-2 gap-3 w-full">
+                    <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+                      <mat-label>Uses in total</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        min="1"
+                        placeholder="No limit"
+                        [value]="draft().limits.totalUses ?? ''"
+                        (input)="onLimitChange('totalUses', $event)"
+                      />
+                    </mat-form-field>
+                    <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+                      <mat-label>Uses per shopper</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        min="1"
+                        placeholder="No limit"
+                        [value]="draft().limits.perCustomer ?? ''"
+                        (input)="onLimitChange('perCustomer', $event)"
+                      />
+                    </mat-form-field>
+                  </div>
+                  <p class="font-body-sm text-on-surface-variant">
+                    Only signed-in shoppers can get an offer with a per-customer limit. Leave it empty to
+                    offer it to everyone, guests included.
+                  </p>
+                }
+              </div>
+
+              <div
+                class="w-full border-t border-outline-variant pt-5 elements-start-col items-stretch! gap-3"
+              >
+                <div class="offer-extra">
+                  <div class="min-w-0">
+                    <p class="font-title-sm font-bold!">More settings</p>
+                    <p class="font-body-sm text-on-surface-variant">
+                      Priority, products already on sale and the badge.
+                    </p>
+                  </div>
+                  <button
+                    matButton="text"
+                    type="button"
+                    [attr.aria-expanded]="moreOpen()"
+                    (click)="moreOpen.set(!moreOpen())"
+                  >
+                    <span>{{ moreOpen() ? 'Hide' : 'Show' }}</span>
+                  </button>
+                </div>
+                @if (moreOpen()) {
+                  <app-offer-settings [(draft)]="draft" />
+                }
+              </div>
+
+              @for (message of extrasErrors(); track message) {
+                <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+              }
+            </div>
+          }
+
+          @case (4) {
+            <div>
+              <h2 #stepHeading tabindex="-1" class="font-headline-sm font-bold! outline-none">
+                Check your offer
+              </h2>
+              <p class="font-body-md text-on-surface-variant">
+                Everything in one place. Tap Change to fix anything.
+              </p>
+            </div>
+
+            <div class="offer-dark-box elements-start-col items-stretch! gap-2">
+              <p class="font-display-sm font-bold! break-words">{{ dealHeadline() }}</p>
+              <p class="font-title-md">{{ checkSentence() }}</p>
+            </div>
+
+            <dl class="w-full border border-outline-variant border-shape">
+              @for (row of checkRows(); track row.label) {
+                <div class="offer-check-row">
+                  <dt class="font-body-md text-on-surface-variant col-span-2 @3xl:col-span-1">
+                    {{ row.label }}
+                  </dt>
+                  <dd class="font-body-md font-bold! min-w-0 break-words">{{ row.value }}</dd>
+                  <dd>
+                    <button
+                      type="button"
+                      class="font-label-lg font-bold! underline cursor-pointer"
+                      [attr.aria-label]="'Change ' + row.label"
+                      (click)="goTo(row.step)"
+                    >
+                      Change
+                    </button>
+                  </dd>
+                </div>
+              }
+            </dl>
+
+            @if (goodToKnow().length > 0) {
+              <div class="elements-start-col items-stretch! gap-2">
+                <p class="font-title-sm font-bold!">Good to know</p>
+                <div class="offer-note">
+                  @for (line of goodToKnow(); track $index) {
+                    <p class="elements-start gap-2">
+                      <mat-icon name="info" size="lg" aria-hidden="true" />
+                      <span>{{ line }}</span>
+                    </p>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="elements-start-col items-stretch! gap-1">
+              <mat-form-field class="w-full" appearance="outline">
+                <mat-label>Name for your team</mat-label>
+                <input
+                  matInput
+                  type="text"
+                  maxlength="80"
+                  [value]="offer().name"
+                  (input)="onNameInput($event)"
+                />
+                <mat-hint>Only staff see this name. We filled it in for you.</mat-hint>
+              </mat-form-field>
+              @for (message of nameErrors(); track message) {
+                <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+              }
+            </div>
+          }
+        }
+
+        <div class="offer-editor__actions">
+          @if (step() === 1) {
+            <a matButton="outlined" routerLink="/admin/offers">
+              <span>Cancel</span>
+            </a>
+          } @else {
+            <button matButton="outlined" type="button" (click)="back()">
+              <mat-icon name="arrow_back" />
+              <span>Back</span>
+            </button>
+          }
+
+          @if (step() < 4) {
+            <button matButton="filled" type="button" [disabled]="!stepValid()(step())" (click)="next()">
+              <span>{{ nextLabel() }}</span>
+              <mat-icon name="arrow_forward" />
+            </button>
+          } @else {
+            <div class="elements-end flex-wrap gap-2">
+              <button
+                matButton="outlined"
+                type="button"
+                [disabled]="isSaving()"
+                [attr.aria-label]="isSaving() ? 'Saving offer' : null"
+                (click)="save(false)"
+              >
+                @if (isSaving()) {
+                  <mat-progress-spinner mode="indeterminate" diameter="18" />
+                } @else {
+                  <span>Save, Don't Start</span>
+                }
+              </button>
+              <button
+                matButton="filled"
+                type="button"
+                [disabled]="isSaving()"
+                [attr.aria-label]="isSaving() ? 'Saving offer' : null"
+                (click)="save(true)"
+              >
+                @if (isSaving()) {
+                  <mat-progress-spinner mode="indeterminate" diameter="18" />
+                } @else {
+                  <span>{{ mainLabel() }}</span>
+                }
+              </button>
+            </div>
+          }
+        </div>
+        @if (step() === 4 && startNote(); as note) {
+          <p class="font-body-sm text-on-surface-variant text-end -mt-3">{{ note }}</p>
+        }
+      </section>
+
+      <app-offer-summary-panel [sentence]="sentence()" [sample]="sample()" [bannerText]="bannerText()" />
+    </div>
   }
 </div>

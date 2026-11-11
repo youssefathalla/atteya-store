@@ -1,4 +1,6 @@
 import {
+  cairoWallTimeToDate,
+  dateToCairoWallTime,
   DEFAULT_OFFER_BANNER,
   describeOfferReward,
   matchProduct,
@@ -517,4 +519,559 @@ export function groupOfferCards(items: readonly OfferCardItem[], productCount: n
 /** One offer as its own card (Open Group shows each offer this way). */
 export function singleOfferCard(item: OfferCardItem, productCount: number): OfferCardView {
   return groupOfferCards([item], productCount)[0];
+}
+
+// ---------------------------------------------------------------------------------------------
+// 4-step offer editor (ATS-220): deal cards, product tags, the summary sentence, auto names, dates.
+// ---------------------------------------------------------------------------------------------
+
+/** The editor's steps, in order. */
+export type OfferEditorStep = 1 | 2 | 3 | 4;
+
+export const OFFER_EDITOR_STEPS: readonly { readonly id: OfferEditorStep; readonly label: string }[] = [
+  { id: 1, label: 'The deal' },
+  { id: 2, label: 'Which products' },
+  { id: 3, label: 'Who and when' },
+  { id: 4, label: 'Check and start' },
+];
+
+/** The Next button's label for each step ("Next: Which Products"). */
+export const NEXT_STEP_LABEL: Readonly<Record<OfferEditorStep, string>> = {
+  1: 'Next: Which Products',
+  2: 'Next: Who and When',
+  3: 'Next: Check and Start',
+  4: '',
+};
+
+/** One deal card on step 1. */
+export interface DealCard {
+  readonly id: RewardPickerKind;
+  /** Large symbol on the card ("%", "−EGP"); null shows `icon` instead. */
+  readonly symbol: string | null;
+  readonly icon: string | null;
+  readonly label: string;
+  readonly example: string;
+}
+
+const ALL_DEAL_CARDS: readonly DealCard[] = [
+  { id: 'percentOff', symbol: '%', icon: null, label: 'Percent off', example: '20% off rackets' },
+  { id: 'amountOff', symbol: '−EGP', icon: null, label: 'Money off', example: 'EGP 200 off each bag' },
+  { id: 'fixedPrice', symbol: '=EGP', icon: null, label: 'New price', example: 'All shirts at EGP 499' },
+  { id: 'bundlePrice', symbol: '2 for', icon: null, label: 'Bundle price', example: '2 socks for EGP 200' },
+  {
+    id: 'buyXGetY',
+    symbol: '2+1',
+    icon: null,
+    label: 'Buy some, get one free',
+    example: 'Buy 2 balls, get 1 free',
+  },
+  { id: 'freeGift', symbol: '+ Free', icon: null, label: 'Free gift', example: 'Free socks with a bag' },
+  {
+    id: 'freeShipping',
+    symbol: null,
+    icon: 'local_shipping',
+    label: 'Free shipping',
+    example: 'Egypt orders only',
+  },
+];
+
+/** The deal cards, only for the deal types the form allows (hidden ones stay hidden). */
+export const DEAL_CARDS: readonly DealCard[] = ALL_DEAL_CARDS.filter((card) =>
+  REWARD_PICKER_OPTIONS.some((option) => option.id === card.id),
+);
+
+/** Quick buttons under Percent off. */
+export const QUICK_PERCENTS: readonly number[] = [10, 20, 30, 50];
+
+/** The reward, scope and minimum a deal card starts with (same defaults the old Deal type list used). */
+export function defaultDealFor(kind: RewardPickerKind): {
+  readonly reward: OfferReward;
+  readonly scope: OfferScope;
+  readonly minimum: null;
+} {
+  switch (kind) {
+    case 'amountOff':
+      return { reward: { kind: 'amountOff', amount: 200 }, scope: 'item', minimum: null };
+    case 'fixedPrice':
+      return { reward: { kind: 'fixedPrice', price: 1000 }, scope: 'item', minimum: null };
+    case 'buyXGetY':
+      return {
+        reward: {
+          kind: 'buyXGetY',
+          buy: { quantity: 2 },
+          get: { quantity: 1, percent: 100 },
+          getConditions: null,
+          cheapestFree: true,
+          repeat: true,
+          maxApplications: null,
+        },
+        scope: 'item',
+        minimum: null,
+      };
+    case 'bundlePrice':
+      // An item offer with no minimum: the bag groups the qualifying pieces into the rows.
+      return {
+        reward: { kind: 'bundlePrice', rows: [{ quantity: 2, price: 200 }] },
+        scope: 'item',
+        minimum: null,
+      };
+    case 'freeGift':
+      // One set of gifts per qualifying item bought, so it is an item offer with no minimum.
+      return {
+        reward: { kind: 'freeGift', gifts: [{ id: 'gift-1', name: 'Free gift', productIds: [] }] },
+        scope: 'item',
+        minimum: null,
+      };
+    case 'freeShipping':
+      // The minimum is optional: start empty so the offer covers every Egypt order unless staff type one.
+      return { reward: { kind: 'freeShipping' }, scope: 'cart', minimum: null };
+    default:
+      return { reward: { kind: 'percentOff', percent: 10 }, scope: 'item', minimum: null };
+  }
+}
+
+/** A field the Include / Leave out tags can hold. */
+export type TargetField = 'categoryIds' | 'brandId' | 'productId';
+
+export const TARGET_FIELD_LABEL: Readonly<Record<TargetField, string>> = {
+  categoryIds: 'Category',
+  brandId: 'Brand',
+  productId: 'Product',
+};
+
+const TARGET_FIELDS: readonly TargetField[] = ['categoryIds', 'brandId', 'productId'];
+
+/** One Include or Leave out tag: "Category T-shirts". */
+export interface TargetTag {
+  readonly field: TargetField;
+  readonly value: string;
+}
+
+/** Condition groups read as simple tags, plus the groups that don't fit a tag ("Advanced rule"). */
+export interface TargetView {
+  readonly tags: readonly TargetTag[];
+  readonly advanced: readonly OfferConditionGroup[];
+}
+
+function isTargetField(field: OfferConditionField): field is TargetField {
+  return (TARGET_FIELDS as readonly string[]).includes(field);
+}
+
+/** A group fits a tag when it has one "is one of" rule on category, brand or product with values. */
+function simpleGroup(group: OfferConditionGroup): { field: TargetField; values: readonly string[] } | null {
+  if (group.allOf.length !== 1) return null;
+  const atom = group.allOf[0];
+  if (atom.field === 'price' || !isTargetField(atom.field)) return null;
+  if (atom.notIn !== undefined || !atom.in || atom.in.length === 0) return null;
+  return { field: atom.field, values: atom.in };
+}
+
+/** Reads saved condition groups as tags; the rest stay as they are. */
+export function readTargets(conditions: OfferConditions): TargetView {
+  const tags: TargetTag[] = [];
+  const advanced: OfferConditionGroup[] = [];
+  const seen = new Set<string>();
+  for (const group of conditions.anyOf) {
+    const simple = simpleGroup(group);
+    if (!simple) {
+      advanced.push(group);
+      continue;
+    }
+    for (const value of simple.values) {
+      const key = `${simple.field}:${value}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tags.push({ field: simple.field, value });
+    }
+  }
+  return { tags, advanced };
+}
+
+/**
+ * Builds condition groups from tags: one "is one of" group per field (values of the same field
+ * merged, category, brand, product), then the advanced groups as they were.
+ */
+export function writeTargets(view: TargetView): OfferConditions {
+  const groups: OfferConditionGroup[] = [];
+  for (const field of TARGET_FIELDS) {
+    const values = view.tags.filter((tag) => tag.field === field).map((tag) => tag.value);
+    if (values.length > 0) {
+      // More than 200 values is refused by validateOffer ("Each rule can pick up to 200 values.").
+      groups.push({ allOf: [{ field, in: values }] });
+    }
+  }
+  return { anyOf: [...groups, ...view.advanced] };
+}
+
+/** Names for the ids the tags and sentences show. */
+export interface CatalogNames {
+  readonly categories: ReadonlyMap<string, string>;
+  readonly brands: ReadonlyMap<string, string>;
+  readonly products: ReadonlyMap<string, string>;
+}
+
+export function targetName(tag: TargetTag, names: CatalogNames): string {
+  const map =
+    tag.field === 'categoryIds' ? names.categories : tag.field === 'brandId' ? names.brands : names.products;
+  return map.get(tag.value) ?? `${TARGET_FIELD_LABEL[tag.field]} not found`;
+}
+
+const FIELD_WORD: Readonly<Record<OfferConditionField, string>> = {
+  brandId: 'brand',
+  categoryIds: 'category',
+  type: 'type',
+  colors: 'colour',
+  sizes: 'size',
+  modelGroup: 'model',
+  tags: 'tag',
+  productId: 'product',
+  price: 'price',
+};
+
+function atomValueName(field: OfferConditionField, value: string, names: CatalogNames): string {
+  if (field === 'categoryIds') return names.categories.get(value) ?? value;
+  if (field === 'brandId') return names.brands.get(value) ?? value;
+  if (field === 'productId') return names.products.get(value) ?? value;
+  return value;
+}
+
+function listNames(values: readonly string[], joiner: 'or' | 'and'): string {
+  if (values.length <= 1) return values[0] ?? '';
+  if (values.length <= 3) return `${values.slice(0, -1).join(', ')} ${joiner} ${values[values.length - 1]}`;
+  return `${values.slice(0, 2).join(', ')} ${joiner} ${values.length - 2} more`;
+}
+
+/** An advanced group in plain words: "brand is Adidas and size is not M or L". */
+export function describeConditionGroup(group: OfferConditionGroup, names: CatalogNames): string {
+  const parts = group.allOf.map((atom) => {
+    const word = FIELD_WORD[atom.field];
+    if (atom.field === 'price') {
+      if (atom.min !== undefined && atom.max !== undefined) {
+        return `price from EGP ${atom.min.toLocaleString('en-US')} to EGP ${atom.max.toLocaleString('en-US')}`;
+      }
+      if (atom.min !== undefined) return `price EGP ${atom.min.toLocaleString('en-US')} or more`;
+      if (atom.max !== undefined) return `price up to EGP ${atom.max.toLocaleString('en-US')}`;
+      return 'any price';
+    }
+    const not = atom.notIn !== undefined;
+    const values = (atom.in ?? atom.notIn ?? []).map((value) => atomValueName(atom.field, value, names));
+    if (values.length === 0) return `${word} not picked yet`;
+    return `${word} ${not ? 'is not' : 'is'} ${listNames(values, 'or')}`;
+  });
+  return parts.join(' and ') || 'Empty rule';
+}
+
+/** The products part of the sentence, or null for every product: "T-shirts except Bullpadel". */
+export function offerTargetPhrase(
+  conditions: OfferConditions,
+  exclude: OfferConditions,
+  names: CatalogNames,
+): string | null {
+  const include = readTargets(conditions);
+  const leaveOut = readTargets(exclude);
+  const includeNames = include.tags.map((tag) => targetName(tag, names));
+  if (include.advanced.length > 0) includeNames.push('selected products');
+  const excludeNames = leaveOut.tags.map((tag) => targetName(tag, names));
+  if (leaveOut.advanced.length > 0) excludeNames.push('some products');
+  const base = includeNames.length > 0 ? listNames(includeNames, 'and') : null;
+  if (excludeNames.length === 0) return base;
+  return `${base ?? 'everything'} except ${listNames(excludeNames, 'and')}`;
+}
+
+/** "1 product", "12 products". */
+export function productCountLabel(count: number): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'product' : 'products'}`;
+}
+
+function egp(amount: number): string {
+  return `EGP ${amount.toLocaleString('en-US')}`;
+}
+
+/** The deal in a few words for the sentence and the step 4 box: "15% off", "Buy 2, get 1 free". */
+export function offerDealPhrase(draft: OfferDraft): string {
+  const r = draft.reward;
+  switch (r.kind) {
+    case 'fixedPrice':
+      return `New price ${egp(r.price)}`;
+    case 'freeGift':
+      return (
+        r.gifts
+          .map((gift) => gift.name.trim())
+          .filter(Boolean)
+          .join(' + ') || 'Free gift'
+      );
+    default:
+      return describeOfferReward(draft);
+  }
+}
+
+/** The customer title filled in from the deal and products, at most 60 characters: "20% off Rackets". */
+export function autoOfferTitle(draft: OfferDraft, names: CatalogNames): string {
+  const target = offerTargetPhrase(draft.conditions, draft.exclude, names);
+  const r = draft.reward;
+  let title: string;
+  switch (r.kind) {
+    case 'percentOff':
+    case 'amountOff':
+      title = target ? `${describeOfferReward(draft)} ${target}` : describeOfferReward(draft);
+      break;
+    case 'fixedPrice':
+      title = `${target ?? 'Everything'} at ${egp(r.price)}`;
+      break;
+    case 'freeGift': {
+      const gifts = offerDealPhrase(draft);
+      title = target ? `${gifts} with ${target}` : gifts;
+      break;
+    }
+    case 'freeShipping':
+      title = 'Free shipping';
+      break;
+    default:
+      title = target ? `${describeOfferReward(draft)} on ${target}` : describeOfferReward(draft);
+  }
+  return title.length > 60 ? `${title.slice(0, 59).trimEnd()}…` : title;
+}
+
+/** Short deal words for the team name: "15%", "EGP 200 off", "2 for EGP 200". */
+function teamDealWords(draft: OfferDraft): string {
+  const r = draft.reward;
+  switch (r.kind) {
+    case 'percentOff':
+      return `${r.percent}%`;
+    case 'amountOff':
+      return `${egp(r.amount)} off`;
+    case 'fixedPrice':
+      return egp(r.price);
+    case 'buyXGetY':
+      return `Buy ${r.buy.quantity} get ${r.get.quantity}`;
+    case 'freeGift':
+      return 'free gift';
+    case 'freeShipping':
+      return 'free shipping';
+    default:
+      return describeOfferReward(draft);
+  }
+}
+
+const CAIRO_DAY_PARTS = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Africa/Cairo',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+});
+
+interface CairoDay {
+  readonly weekday: string;
+  readonly day: number;
+  readonly month: string;
+  readonly year: number;
+}
+
+function cairoDay(date: Date): CairoDay {
+  const parts = CAIRO_DAY_PARTS.formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((item) => item.type === type)?.value ?? '';
+  return {
+    weekday: part('weekday'),
+    day: Number.parseInt(part('day'), 10),
+    month: part('month'),
+    year: Number.parseInt(part('year'), 10),
+  };
+}
+
+/** The internal name filled in for staff, at most 80 characters: "T-shirts 15% · late November". */
+export function autoTeamName(draft: OfferDraft, names: CatalogNames, now: Date): string {
+  const target = offerTargetPhrase(draft.conditions, draft.exclude, names);
+  const lead =
+    draft.reward.kind === 'freeShipping'
+      ? 'Free shipping'
+      : `${target ?? 'Everything'} ${teamDealWords(draft)}`;
+  const start = cairoDay(draft.schedule.startsAt ?? now);
+  const part = start.day <= 9 ? 'early' : start.day <= 19 ? 'mid' : 'late';
+  const name = `${lead} · ${part} ${start.month}`;
+  return name.length > 80 ? `${name.slice(0, 79).trimEnd()}…` : name;
+}
+
+/** "20 November", or "Friday 20 November" when `long`; the year only when it isn't this year's. */
+function dayText(date: Date, now: Date, long: boolean): string {
+  const day = cairoDay(date);
+  const year = day.year !== cairoDay(now).year ? ` ${day.year}` : '';
+  return `${long ? `${day.weekday} ` : ''}${day.day} ${day.month}${year}`;
+}
+
+/** The when part of the sentence: "from 20 to 29 November", "until 29 November", "from now on". */
+export function offerWhenPhrase(schedule: OfferDraft['schedule'], now: Date, long = false): string {
+  const { startsAt, endsAt } = schedule;
+  if (!startsAt && !endsAt) return 'from now on';
+  if (!startsAt) return `until ${dayText(endsAt as Date, now, long)}`;
+  if (!endsAt) return `from ${dayText(startsAt, now, long)}`;
+  const start = cairoDay(startsAt);
+  const end = cairoDay(endsAt);
+  if (!long && start.month === end.month && start.year === end.year) {
+    if (start.day === end.day) return `on ${dayText(endsAt, now, false)}`;
+    return `from ${start.day} to ${dayText(endsAt, now, false)}`;
+  }
+  return `from ${dayText(startsAt, now, long)} to ${dayText(endsAt, now, long)}`;
+}
+
+/** "everyone" or "signed-in shoppers". */
+export function offerWhoPhrase(draft: OfferDraft): string {
+  return draft.audience === 'signedIn' ? 'signed-in shoppers' : 'everyone';
+}
+
+/** One piece of the "Your offer so far" sentence; a placeholder shows grey until its step is done. */
+export interface SentencePart {
+  readonly text: string;
+  readonly placeholder: boolean;
+}
+
+/**
+ * "15% off T-shirts except Bullpadel, for everyone, from 20 to 29 November." Parts of steps
+ * not reached yet show as "[which products]", "[who]", "[when]".
+ */
+export function offerSentence(
+  draft: OfferDraft,
+  names: CatalogNames,
+  doneUpTo: number,
+  now: Date,
+): SentencePart[] {
+  const parts: SentencePart[] = [{ text: offerDealPhrase(draft), placeholder: false }];
+  if (draft.reward.kind !== 'freeShipping') {
+    if (doneUpTo >= 2) {
+      const target = offerTargetPhrase(draft.conditions, draft.exclude, names);
+      parts.push({
+        text: ` ${target ? (draft.reward.kind === 'freeGift' ? `with ${target}` : target) : 'on every product'}`,
+        placeholder: false,
+      });
+    } else {
+      parts.push({ text: ' ', placeholder: false }, { text: '[which products]', placeholder: true });
+    }
+  }
+  parts.push({ text: ', for ', placeholder: false });
+  if (doneUpTo >= 3) {
+    parts.push({
+      text: `${offerWhoPhrase(draft)}, ${offerWhenPhrase(draft.schedule, now)}`,
+      placeholder: false,
+    });
+  } else {
+    parts.push(
+      { text: '[who]', placeholder: true },
+      { text: ', ', placeholder: false },
+      { text: '[when]', placeholder: true },
+    );
+  }
+  parts.push({ text: '.', placeholder: false });
+  return parts;
+}
+
+/** The step 4 sentence under the deal: "T-shirts except Bullpadel, for everyone, from Friday 20 November to Sunday 29 November." */
+export function offerCheckSentence(draft: OfferDraft, names: CatalogNames, now: Date): string {
+  const target = offerTargetPhrase(draft.conditions, draft.exclude, names);
+  const products =
+    draft.reward.kind === 'freeShipping' ? 'Egypt orders' : target ? capitalise(target) : 'Every product';
+  return `${products}, for ${offerWhoPhrase(draft)}, ${offerWhenPhrase(draft.schedule, now, true)}.`;
+}
+
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+const DAY_MS_CAIRO = 24 * 60 * 60 * 1000;
+
+/** Calendar days in Cairo from the first day to the last, both counted (20 to 29 November = 10). */
+export function runDays(startsAt: Date, endsAt: Date): number {
+  const dayNumber = (date: Date): number => {
+    const wall = dateToCairoWallTime(date);
+    return Math.round(Date.UTC(wall.year, wall.month - 1, wall.day) / DAY_MS_CAIRO);
+  };
+  return Math.max(1, dayNumber(endsAt) - dayNumber(startsAt) + 1);
+}
+
+/** "10 days", "1 day". */
+export function daysLabel(days: number): string {
+  return `${days} ${days === 1 ? 'day' : 'days'}`;
+}
+
+/** The line under the dates: lead text, the bold part (days) and the rest. */
+export interface RunLine {
+  readonly lead: string;
+  readonly bold: string;
+  readonly rest: string;
+}
+
+export function offerRunLine(schedule: OfferDraft['schedule'], now: Date): RunLine {
+  const { startsAt, endsAt } = schedule;
+  if (!endsAt) {
+    return startsAt
+      ? { lead: `Starts ${dayText(startsAt, now, true)} and runs until you turn it off.`, bold: '', rest: '' }
+      : { lead: 'Runs from the moment you start it until you turn it off.', bold: '', rest: '' };
+  }
+  const days = daysLabel(runDays(startsAt ?? now, endsAt));
+  if (!startsAt) return { lead: 'Runs for ', bold: days, rest: `, until ${dayText(endsAt, now, true)}.` };
+  return {
+    lead: 'Runs for ',
+    bold: days,
+    rest: `, from ${dayText(startsAt, now, true)} to ${dayText(endsAt, now, true)}.`,
+  };
+}
+
+/** Quick end-date buttons on step 3. */
+export type QuickEnd = '3d' | '1w' | '2w' | 'month';
+
+export const QUICK_ENDS: readonly { readonly id: QuickEnd; readonly label: string }[] = [
+  { id: '3d', label: '3 days' },
+  { id: '1w', label: '1 week' },
+  { id: '2w', label: '2 weeks' },
+  { id: 'month', label: 'End of month' },
+];
+
+/**
+ * The end a quick button sets, at 23:59:59 Cairo time: the start day counts as day 1, so
+ * "1 week" from Friday 20 November ends Thursday 26 November. End of month = the start's month.
+ */
+export function quickEndDate(quick: QuickEnd, from: Date): Date {
+  const wall = dateToCairoWallTime(from);
+  let year = wall.year;
+  let month = wall.month;
+  let day = wall.day;
+  if (quick === 'month') {
+    day = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  } else {
+    const add = quick === '3d' ? 2 : quick === '1w' ? 6 : 13;
+    const next = new Date(Date.UTC(year, month - 1, day + add));
+    year = next.getUTCFullYear();
+    month = next.getUTCMonth() + 1;
+    day = next.getUTCDate();
+  }
+  return cairoWallTimeToDate({ year, month, day, hour: 23, minute: 59, second: 59 });
+}
+
+/** Which step each validation message belongs to, so it shows on that step. */
+export function issueStep(code: string): OfferEditorStep {
+  if (code === 'title' || code.startsWith('reward.')) return 1;
+  if (code.startsWith('conditions.') || code.startsWith('exclude.')) return 2;
+  if (code === 'name') return 4;
+  return 3;
+}
+
+/** Products a draft reaches: how many, in stock, sold out and already on sale. */
+export interface AffectedStats {
+  readonly total: number;
+  readonly inStock: number;
+  readonly soldOut: number;
+  readonly onSale: number;
+}
+
+/** Counts for the products a draft reaches (already matched): in stock, sold out, already on sale. */
+export function affectedStats(
+  matched: readonly { readonly priced: PricedProduct; readonly inStock: boolean }[],
+): AffectedStats {
+  let inStock = 0;
+  let onSale = 0;
+  for (const { priced, inStock: available } of matched) {
+    if (available) inStock += 1;
+    if (priced.compareAtPrice !== null && priced.compareAtPrice > priced.price) onSale += 1;
+  }
+  return { total: matched.length, inStock, soldOut: matched.length - inStock, onSale };
 }

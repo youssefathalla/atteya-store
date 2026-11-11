@@ -1,0 +1,76 @@
+<div class="w-full elements-start-col items-stretch! gap-2">
+  <p class="font-title-sm font-bold!" [id]="headingId()">
+    {{ heading() }}
+    @if (optional()) {
+      <span class="font-body-md text-on-surface-variant">(optional)</span>
+    }
+  </p>
+
+  <div class="elements-start items-center! flex-wrap gap-2">
+    @if (view().tags.length > 0 || view().advanced.length > 0) {
+      <mat-chip-grid #grid [attr.aria-labelledby]="headingId()">
+        @for (tag of view().tags; track tag.field + ':' + tag.value) {
+          <mat-chip-row (removed)="removeTag(tag)">
+            <span class="text-on-surface-variant">{{ fieldLabel[tag.field] }}</span>
+            <span class="font-bold!">&nbsp;{{ nameOf(tag) }}</span>
+            <button matChipRemove type="button" [attr.aria-label]="'Remove ' + nameOf(tag)">
+              <mat-icon name="close" />
+            </button>
+          </mat-chip-row>
+        }
+        @for (group of view().advanced; track $index) {
+          <mat-chip-row (removed)="removeAdvanced($index)">
+            <span class="text-on-surface-variant">Advanced rule</span>
+            <span class="font-bold!">&nbsp;{{ describe(group) }}</span>
+            <button matChipRemove type="button" aria-label="Remove this advanced rule">
+              <mat-icon name="close" />
+            </button>
+          </mat-chip-row>
+        }
+      </mat-chip-grid>
+    }
+
+    @if (!picking()) {
+      <button type="button" class="offer-add-tag" (click)="openPicker()">
+        <span>+ {{ addLabel() }}</span>
+      </button>
+    }
+  </div>
+
+  @if (picking()) {
+    <div class="elements-start items-center! flex-wrap gap-2 w-full">
+      <mat-form-field class="w-full @3xl:w-96" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Search categories, brands and products</mat-label>
+        <mat-icon matPrefix name="search" />
+        <input
+          #searchInput
+          matInput
+          type="search"
+          autocomplete="off"
+          [matAutocomplete]="auto"
+          [value]="query()"
+          (input)="query.set($any($event.target).value)"
+          (keydown.escape)="closePicker()"
+        />
+        <mat-autocomplete
+          #auto="matAutocomplete"
+          [displayWith]="emptyDisplay"
+          (optionSelected)="onPicked($event)"
+        >
+          @for (group of options(); track group.label) {
+            <mat-optgroup [label]="group.label">
+              @for (option of group.options; track option.field + ':' + option.value) {
+                <mat-option [value]="option">{{ option.name }}</mat-option>
+              }
+            </mat-optgroup>
+          } @empty {
+            <mat-option disabled [value]="null">Nothing found</mat-option>
+          }
+        </mat-autocomplete>
+      </mat-form-field>
+      <button matButton="text" type="button" (click)="closePicker()">
+        <span>Done</span>
+      </button>
+    </div>
+  }
+</div>
