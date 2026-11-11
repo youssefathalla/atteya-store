@@ -26,7 +26,7 @@ import {
   shortItemWord,
 } from '@core/services/offers/offer-shop';
 import { CatalogService } from '@core/services/products/catalog.service';
-import { isCardOrWalletLive } from '@core/config/store-info';
+import { isBankTransferLive, isCardOrWalletLive } from '@core/config/store-info';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { giftLineLabel, giftNameFor, giftProductLabel } from '@core/services/cart/cart-gifts';
@@ -202,7 +202,11 @@ export class CartDrawerComponent {
    * known yet, the same fallback checkout uses).
    */
   readonly paymentMethods = computed(() =>
-    bagPaymentMethods((this.#currency.visitorCountry() ?? 'EG') === 'EG', isCardOrWalletLive()),
+    bagPaymentMethods(
+      (this.#currency.visitorCountry() ?? 'EG') === 'EG',
+      isCardOrWalletLive(),
+      isBankTransferLive(),
+    ),
   );
   /** Rows are tracked by product + chosen options, so removing one row leaves the others in place. */
   readonly lineKey = cartLineKey;
