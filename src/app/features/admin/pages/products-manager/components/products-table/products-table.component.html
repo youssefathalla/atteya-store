@@ -198,33 +198,50 @@
   <div class="products-line elements-start">
     @if (row.colours.length === 1) {
       <ng-container
-        [ngTemplateOutlet]="statusDot"
-        [ngTemplateOutletContext]="{ $implicit: row.liveCount === 1 }"
+        [ngTemplateOutlet]="statusSwitch"
+        [ngTemplateOutletContext]="{ $implicit: row.colours[0] }"
       />
     } @else {
-      <span class="products-status font-body-md" [class.products-status--live]="row.liveCount > 0">
-        <mat-icon [name]="row.liveCount > 0 ? 'visibility' : 'visibility_off'" size="lg" />
+      <button
+        type="button"
+        class="products-status products-status--button font-body-md"
+        [class.products-status--live]="row.liveCount > 0"
+        [attr.aria-expanded]="isOpen(row)"
+        [attr.aria-label]="
+          row.liveCount + ' of ' + row.colours.length + ' colours live. Show colours to switch them.'
+        "
+        (click)="toggle(row)"
+      >
+        <mat-icon [name]="row.liveCount > 0 ? 'visibility' : 'visibility_off'" />
         {{ row.liveCount }} of {{ row.colours.length }} live
-      </span>
+      </button>
     }
   </div>
   @if (isOpen(row)) {
     @for (colour of row.colours; track colour.id) {
       <div class="products-sub-line elements-start">
-        <ng-container
-          [ngTemplateOutlet]="statusDot"
-          [ngTemplateOutletContext]="{ $implicit: colour.published }"
-        />
+        <ng-container [ngTemplateOutlet]="statusSwitch" [ngTemplateOutletContext]="{ $implicit: colour }" />
       </div>
     }
   }
 </ng-template>
 
-<ng-template #statusDot let-live>
-  <span class="products-status font-body-md" [class.products-status--live]="live">
-    <mat-icon [name]="live ? 'visibility' : 'visibility_off'" size="lg" />
-    {{ live ? 'Live' : 'Hidden' }}
-  </span>
+<ng-template #statusSwitch [templateType]="sampleColour" let-colour>
+  <button
+    type="button"
+    class="products-status products-status--button font-body-md"
+    [class.products-status--live]="colour.published"
+    [disabled]="switchingId() !== null"
+    [attr.aria-label]="statusLabel(colour)"
+    (click)="switchPublished.emit(colour)"
+  >
+    @if (switchingId() === colour.id) {
+      <mat-progress-spinner mode="indeterminate" diameter="18" />
+    } @else {
+      <mat-icon [name]="colour.published ? 'visibility' : 'visibility_off'" />
+      {{ colour.published ? 'Live' : 'Hidden' }}
+    }
+  </button>
 </ng-template>
 
 <ng-template #actionsCell [templateType]="sampleGroup" let-row>

@@ -5,6 +5,7 @@ initializeApp();
 export { importImageFromUrl } from './import-image.fn.js';
 export { migrateCatalogStructure } from './products/migrate-catalog.fn.js';
 export { setProductStock } from './products/set-product-stock.fn.js';
+export { setProductPublished } from './products/set-product-published.fn.js';
 export { productWeights } from './products/product-weights.fn.js';
 export { createProduct, updateProduct } from './products/product-form.fn.js';
 export { getProductModel, saveProductModel } from './products/product-model.fn.js';

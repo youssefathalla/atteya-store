@@ -26,6 +26,8 @@
     [hasActiveFilters]="hasActiveFilters()"
     [catalogueEmpty]="catalogueEmpty()"
     (edit)="editProduct($event)"
+    [switchingId]="switchingId()"
     (stock)="editStock($event)"
+    (switchPublished)="switchPublished($event)"
   />
 </div>

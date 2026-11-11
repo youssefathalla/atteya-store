@@ -56,6 +56,30 @@
   color: var(--color-success);
 }
 
+.products-status--button {
+  margin-inline-start: -0.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--border-shape, 2px);
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
+}
+
+.products-status--button:hover:not(:disabled) {
+  border-color: currentColor;
+}
+
+.products-status--button:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+.products-status--button:disabled {
+  cursor: default;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .products-toggle {
     transition: none;
