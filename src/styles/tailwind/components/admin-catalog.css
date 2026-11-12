@@ -1,0 +1,32 @@
+@layer components {
+  /*! admin Categories & Brands (ATS-245) */
+
+  /* One category or brand row: drag handle, name and details, then the actions. */
+  .catalog-row {
+    @apply w-full elements-between flex-wrap gap-2 p-3 bg-surface-container-lowest border border-outline-variant border-shape;
+  }
+
+  /* Name, address and live count; takes the free width and wraps under the handle on phone. */
+  .catalog-row__info {
+    @apply elements-start-col gap-0.5 min-w-0 grow basis-48;
+  }
+
+  .catalog-row__meta {
+    @apply font-body-sm text-on-surface-variant;
+  }
+
+  /* Hidden rows read lighter so the shown ones stand out. */
+  .catalog-row--hidden .catalog-row__info {
+    @apply opacity-60;
+  }
+
+  /* A top-level category's sub-categories sit indented under it. */
+  .catalog-children {
+    @apply w-full elements-start-col items-stretch! gap-2 pl-6 @3xl:pl-10;
+  }
+
+  /* Dialog buttons: stacked full width on phone, side by side from sm. */
+  .catalog-dialog-actions {
+    @apply flex flex-col-reverse items-stretch gap-2 px-6 pb-4 sm:flex-row sm:justify-end sm:items-center;
+  }
+}

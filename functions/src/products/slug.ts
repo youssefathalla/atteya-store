@@ -29,3 +29,8 @@ function kebab(value: string): string {
   }
   return out;
 }
+
+/** Lowercase kebab link name from any text (`a-z 0-9` joined by `-`); empty when there is none. */
+export function kebabSlug(value: string): string {
+  return kebab(value);
+}

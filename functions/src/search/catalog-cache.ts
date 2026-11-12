@@ -25,17 +25,35 @@ export interface CatalogLookupMaps {
 const TTL_MS = 5 * 60 * 1000;
 let cachedAt = 0;
 let cachedLookup: CatalogLookupMaps | null = null;
+let cachedNamesStamp = 0;
+
+/**
+ * `settings/catalog` field the Categories & Brands callables stamp (ms) after a category or
+ * brand is added, renamed or deleted. A cached lookup built before a different stamp is read
+ * again, so no function instance keeps sending an old name to search.
+ */
+export const NAMES_CHANGED_FIELD = 'namesChangedAtMs';
+
+async function readNamesStamp(db: Firestore): Promise<number> {
+  try {
+    const value = (await db.doc('settings/catalog').get()).get(NAMES_CHANGED_FIELD);
+    return typeof value === 'number' ? value : 0;
+  } catch {
+    return 0;
+  }
+}
 
 export async function getCatalogLookup(db: Firestore, forceRefresh = false): Promise<CatalogLookupMaps> {
   const now = Date.now();
   if (!forceRefresh && cachedLookup && now - cachedAt < TTL_MS) {
-    return cachedLookup;
+    if ((await readNamesStamp(db)) === cachedNamesStamp) return cachedLookup;
   }
 
-  const [catSnap, brandSnap, playersSnap] = await Promise.all([
+  const [catSnap, brandSnap, playersSnap, namesStamp] = await Promise.all([
     db.collection('categories').limit(200).get(),
     db.collection('brands').limit(200).get(),
     db.doc(PLAYERS_DOC_PATH).get(),
+    readNamesStamp(db),
   ]);
 
   const categoriesById = new Map<string, CachedCategoryInfo>(
@@ -78,5 +96,6 @@ export async function getCatalogLookup(db: Firestore, forceRefresh = false): Pro
 
   cachedLookup = { categoriesById, brandsById, playerNamesById };
   cachedAt = now;
+  cachedNamesStamp = namesStamp;
   return cachedLookup;
 }
