@@ -50,14 +50,20 @@ export const catalogPageResolver: ResolveFn<CatalogPageState | RedirectCommand> 
     const sub =
       route.paramMap.get('subSlug') ??
       (typeof data['shopSubcategory'] === 'string' ? data['shopSubcategory'] : null);
+    const list = await shopCategories.load();
     decision = decideCategoryPage({
       slug,
       subSlug: sub,
-      published: await shopCategories.load(),
+      published: shopCategories.isRealList() ? list : null,
       counts,
       deletedBuiltInIds,
     });
   }
+
+  // The Shop routes (`shopCategoryMatch`, Bags) only open known categories, and Shop has no Page Not
+  // Found state: a category with no count yet opens as before instead of answering 404.
+  const shopRoute = data['categoryShop'] === true || typeof data['shopCategory'] === 'string';
+  if (decision.kind === 'missing' && shopRoute) decision = { kind: 'ok' };
 
   if (decision.kind === 'missing') {
     markNotFound(responseInit);
@@ -76,15 +82,21 @@ export const catalogPageResolver: ResolveFn<CatalogPageState | RedirectCommand> 
   return 'ok';
 };
 
-/** The shown brand with this address (the live list in the browser, else one small read); null when unknown. */
+/**
+ * The shown brand with this address: the live list in the browser when it has it (by slug or id), else
+ * one small read by slug (brand ids are their slugs). Null when it couldn't be read.
+ */
 async function publishedBrands(
   slug: string,
   live: readonly PublishedBrandRef[] | undefined,
   firestore: Firestore,
 ): Promise<readonly PublishedBrandRef[] | null> {
-  if (live && live.length > 0) return live;
   const target = slug.trim().toLowerCase();
   if (!target) return null;
+  const inLive = live?.filter(
+    (item) => item.slug.toLowerCase() === target || item.id.toLowerCase() === target,
+  );
+  if (inLive && inLive.length > 0) return inLive;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const snap = await Promise.race([

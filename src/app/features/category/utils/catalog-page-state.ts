@@ -39,7 +39,8 @@ const PSEUDO_SEGMENTS = new Set(['all', 'sale']);
 export function decideCategoryPage(input: {
   readonly slug: string;
   readonly subSlug: string | null;
-  readonly published: readonly PublishedCategoryRef[];
+  /** Null when the shown categories couldn't be read (the built-in list stood in): nothing is decided then. */
+  readonly published: readonly PublishedCategoryRef[] | null;
   readonly counts: CatalogCountsRef | null;
   readonly deletedBuiltInIds: ReadonlySet<string>;
 }): CatalogPageDecision {
@@ -50,28 +51,38 @@ export function decideCategoryPage(input: {
     return OK;
   }
   const counts = input.counts;
-  if (!counts) return OK;
+  const published = input.published;
+  if (!counts || !published) return OK;
 
   const bySlug = (value: string) =>
-    input.published.find((item) => item.slug.toLowerCase() === value || item.id.toLowerCase() === value);
-  const parentPath = (): CatalogPageDecision => {
-    if (sub) return { kind: 'redirect', path: `/category/${slug}` };
-    return SHOP;
+    published.find((item) => item.slug.toLowerCase() === value || item.id.toLowerCase() === value);
+  // Not shown: hidden when it still has a count (every category doc has one), else gone.
+  const isHidden = (value: string) =>
+    Object.hasOwn(counts.categories, value) && !input.deletedBuiltInIds.has(value);
+  const mainPage = (main: PublishedCategoryRef | undefined): CatalogPageDecision => {
+    if (!main) return SHOP;
+    const count = counts.categories[main.id];
+    return count === 0 ? SHOP : { kind: 'redirect', path: `/category/${main.slug}` };
   };
+
+  if (sub) {
+    // The main category in the address must exist too (shown or hidden).
+    const main = bySlug(slug);
+    if (!main && !isHidden(slug)) return MISSING;
+  }
 
   const found = bySlug(target);
   if (found) {
     const count = counts.categories[found.id];
     if (count === undefined || count > 0) return OK;
-    if (sub) return parentPath();
-    // `/category/<sub-category>` on its own: its main category, when that is shown.
-    const parent = found.parentId ? input.published.find((item) => item.id === found.parentId) : undefined;
-    return parent ? { kind: 'redirect', path: `/category/${parent.slug}` } : SHOP;
+    // Empty: its own main category (by its parent, not the address), else Shop.
+    const parent = found.parentId ? published.find((item) => item.id === found.parentId) : undefined;
+    return found.parentId ? mainPage(parent) : SHOP;
   }
 
-  // Not shown: hidden when it still has a count (every category doc has one), else gone.
-  const hidden = Object.hasOwn(counts.categories, target) && !input.deletedBuiltInIds.has(target);
-  return hidden ? parentPath() : MISSING;
+  if (!isHidden(target)) return MISSING;
+  // Hidden: the main category in the address when it is shown, else Shop.
+  return sub ? mainPage(bySlug(slug)) : SHOP;
 }
 
 /** Brand page (`/brand/<slug>`): shown with live products opens; empty or hidden goes to Shop; gone is Page Not Found. */

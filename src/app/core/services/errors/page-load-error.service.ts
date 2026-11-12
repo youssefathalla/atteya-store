@@ -1,9 +1,9 @@
 import { inject, Service, signal } from '@angular/core';
-import { NavigationEnd, Router } from '@angular/router';
+import { NavigationCancel, NavigationEnd, NavigationSkipped, NavigationStart, Router } from '@angular/router';
 
 /**
  * A store page whose code couldn't be downloaded (ATS-268). `MainLayoutComponent` shows Something Went
- * Wrong in place of the page while `failedUrl` is set; the next finished navigation clears it.
+ * Wrong in place of the page while `failedUrl` is set; the next navigation clears it.
  */
 @Service()
 export class PageLoadErrorService {
@@ -14,7 +14,16 @@ export class PageLoadErrorService {
 
   constructor() {
     inject(Router).events.subscribe((event) => {
-      if (event instanceof NavigationEnd) this.#failedUrl.set(null);
+      // A new, finished, cancelled or skipped navigation leaves the error behind; a failed download
+      // reports after its own NavigationStart, so it stays.
+      if (
+        event instanceof NavigationStart ||
+        event instanceof NavigationEnd ||
+        event instanceof NavigationCancel ||
+        event instanceof NavigationSkipped
+      ) {
+        this.#failedUrl.set(null);
+      }
     });
   }
 

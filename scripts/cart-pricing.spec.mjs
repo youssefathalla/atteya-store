@@ -1321,6 +1321,20 @@ describe('category and brand pages never open empty (ATS-268)', () => {
     });
   });
 
+  it('checks the main category in the address and uses the real parent', () => {
+    assert.deepEqual(category('gone', 't-shirts'), { kind: 'missing' });
+    assert.deepEqual(category('padel', 'hoodies'), { kind: 'redirect', path: '/category/apparel' });
+    const emptyMain = { ...counts, categories: { ...counts.categories, apparel: 0 } };
+    assert.deepEqual(category('apparel', 'hoodies', { counts: emptyMain }), {
+      kind: 'redirect',
+      path: '/shop',
+    });
+  });
+
+  it('decides nothing while the built-in category list stands in', () => {
+    assert.deepEqual(category('apparel', 'hoodies', { published: null }), { kind: 'ok' });
+  });
+
   it('decides nothing without counts or for pages that are not categories', () => {
     assert.deepEqual(category('apparel', 'hoodies', { counts: null }), { kind: 'ok' });
     assert.deepEqual(category('sale'), { kind: 'ok' });
