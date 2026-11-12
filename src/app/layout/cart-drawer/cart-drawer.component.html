@@ -253,20 +253,14 @@
                   <div class="bag-card__strip bag-card__strip--hint bag-card__strip--wrap">
                     <span class="min-w-0">{{ nudgeText }}</span>
                     <span class="bag-card__strip-actions">
-                      @if (box.shopQuery; as query) {
-                        <a
-                          matButton="outlined"
-                          routerLink="/shop"
-                          [queryParams]="query"
-                          (click)="drawerService.close()"
-                        >
-                          {{ box.button }}
-                        </a>
-                      } @else {
-                        <a matButton="outlined" routerLink="/shop" (click)="drawerService.close()">
-                          {{ box.button }}
-                        </a>
-                      }
+                      <a
+                        matButton="outlined"
+                        routerLink="/shop"
+                        [queryParams]="box.shopQuery"
+                        (click)="drawerService.close()"
+                      >
+                        {{ box.button }}
+                      </a>
                     </span>
                   </div>
                 }

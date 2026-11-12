@@ -1,4 +1,5 @@
 import {
+  bundleSetMatch,
   bundleSetSlots,
   bundleSetVariantMatch,
   freeItemWins,
@@ -155,6 +156,9 @@ function setNudgeLoses(
   const presentNeeded = perSet - set.missing.reduce((sum, entry) => sum + entry.quantity, 0);
   const savings: number[] = [];
   facts.forEach((line, n) => {
+    // The same pieces the engine counts (`qualifies`): sale items left out when the offer says so.
+    if (line.onSale && offer.saleItems === 'exclude') return;
+    if (bundleSetMatch(offer, line.product) === 'none') return;
     if (!bundleSetVariantMatch(offer, line.product, line.variant)) return;
     const free = line.quantity - (lines[n]?.dealUnits ?? 0);
     const saving = Math.max(0, line.basePrice - line.offerPrice);

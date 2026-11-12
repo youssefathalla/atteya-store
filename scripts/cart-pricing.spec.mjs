@@ -487,6 +487,13 @@ describe('Bundle & Save wording (ATS-254)', () => {
       ),
       'Add an Overgrip and 2 × Ball to complete another bundle and get the cheapest one free',
     );
+    assert.equal(
+      bundleSetNudgeText(
+        { sets: 0, missing: [{ slotId: 'slot-2', name: 'Shorts', quantity: 1 }] },
+        { type: 'percent', percent: 10 },
+      ),
+      'Add Shorts to complete your bundle and save 10%',
+    );
     assert.equal(bundleSetNudgeText({ sets: 1, missing: [] }, { type: 'cheapestFree' }), null);
   });
 

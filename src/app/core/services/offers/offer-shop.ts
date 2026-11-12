@@ -179,7 +179,9 @@ function bundleSetNudgeReward(reward: OfferBundleSetReward, money: (egp: number)
 
 function missingPiece(missing: Pick<BagBundleSetMissing, 'name' | 'quantity'>): string {
   if (missing.quantity > 1) return `${missing.quantity} × ${missing.name}`;
-  return `${/^[aeiou]/i.test(missing.name) ? 'an' : 'a'} ${missing.name}`;
+  // A plural name ("Shorts", "Socks") takes no article.
+  if (/s$/i.test(missing.name)) return missing.name;
+  return `${/^[aeio]/i.test(missing.name) ? 'an' : 'a'} ${missing.name}`;
 }
 
 function joinWithAnd(parts: readonly string[]): string {
