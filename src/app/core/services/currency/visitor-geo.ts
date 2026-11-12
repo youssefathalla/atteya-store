@@ -96,7 +96,12 @@ export async function resolveVisitorCountry(
   const fromHeader = countryFromGeoHeaders(enriched);
   if (fromHeader) return fromHeader;
   const ip = clientIpFromHeaders(enriched);
-  if (!ip) return null;
+  if (!ip) {
+    if (remoteAddress !== undefined && enriched.has('x-forwarded-for')) {
+      console.warn('Visitor country lookup skipped: no public IP in X-Forwarded-For');
+    }
+    return null;
+  }
   return lookupCountryByIp(ip);
 }
 
@@ -166,11 +171,22 @@ async function lookupCountryByIp(ip: string): Promise<string | null> {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     });
-    if (!response.ok) return null;
-    const parsed = v.safeParse(IpWhoCountrySchema, await response.json());
-    if (!parsed.success) return null;
+    if (!response.ok) {
+      console.warn(`Visitor country lookup failed: ipwho.is answered ${response.status}`);
+      return null;
+    }
+    const body: unknown = await response.json();
+    const parsed = v.safeParse(IpWhoCountrySchema, body);
+    if (!parsed.success) {
+      console.warn(
+        'Visitor country lookup failed: unexpected ipwho.is answer',
+        JSON.stringify(body).slice(0, 300),
+      );
+      return null;
+    }
     return parsed.output.country_code;
-  } catch {
+  } catch (error) {
+    console.warn('Visitor country lookup failed:', error instanceof Error ? error.message : error);
     return null;
   } finally {
     clearTimeout(timer);

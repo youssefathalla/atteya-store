@@ -240,7 +240,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 - **`CurrencyService`** (`src/app/core/services/currency/currency.service.ts`):
   - `selected()`, `entry()` (`CurrencyEntry`, starts as `EGP_ENTRY`), `ready()`.
   - No switcher and no saved currency. `?cur=` applies for one visit, then the query is removed.
-  - **Geo, not timezone:** CDN/platform headers and optional IP lookup (`visitor-geo.ts`) pick ISO country; `currencyFromCountry()` maps country → currency (`country-currency.ts`, CLDR). Egypt stays EGP. SSR `prepareForServerRender()` loads factors and renders converted prices when possible; boot crosses `TransferState` (`currency-boot`). Client-only routes call `/api/visitor-location`.
+  - **Geo, not timezone:** CDN/platform headers and optional IP lookup (`visitor-geo.ts`) pick ISO country; `currencyFromCountry()` maps country → currency (`country-currency.ts`, CLDR). Egypt, and an unknown country, get EGP. SSR `prepareForServerRender()` loads factors and renders converted prices when possible; boot crosses `TransferState` (`currency-boot`). Client-only routes call `/api/visitor-location`.
   - `toDisplayAmount` and `displayDecimals` live in the shared pricing engine (`functions/src/offers/engine/currency.ts`).
 - **`ImageSourceService`** (`src/app/core/services/storage/image-source.service.ts`):
   - **Primary entry point for admin image uploads & URL resolution.**

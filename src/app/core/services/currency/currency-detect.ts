@@ -37,10 +37,11 @@ export function readTimeZone(): string | undefined {
 
 /**
  * ISO country → display currency from CLDR tender data.
- * Egypt stays EGP. Unknown or unreliable codes become USD.
+ * Egypt, and a visitor whose country could not be found, get EGP.
+ * Unknown or unreliable currency codes become USD.
  */
 export function currencyFromCountry(country: string | null | undefined): string {
-  if (!country) return 'USD';
+  if (!country) return 'EGP';
   const iso = country.trim().toUpperCase();
   if (iso === 'EG') return 'EGP';
   const code = COUNTRY_CURRENCY[iso];
