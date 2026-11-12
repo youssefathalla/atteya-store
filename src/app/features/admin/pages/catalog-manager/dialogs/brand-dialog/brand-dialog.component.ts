@@ -51,6 +51,12 @@ export class BrandDialogComponent {
   readonly isSaving = signal(false);
   readonly error = signal('');
 
+  readonly savedName = this.#data.brand?.name ?? '';
+  readonly renamed = computed(
+    () =>
+      !this.isNew && this.name().replace(/\s+/g, ' ').trim() !== this.savedName && this.name().trim() !== '',
+  );
+
   readonly slug = computed(() =>
     this.isNew
       ? previewSlug(

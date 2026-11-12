@@ -34,7 +34,7 @@
         <li class="w-full elements-start-col items-stretch! gap-2" cdkDrag cdkDragLockAxis="y">
           <app-catalog-row
             [name]="row.category.name"
-            [address]="'/category/' + row.category.slug"
+            [address]="'/category/' + row.category.path"
             [details]="details(row.category, null)"
             [published]="row.category.published"
             [busy]="busyId() === row.category.id"
@@ -54,7 +54,7 @@
                 <li cdkDrag cdkDragLockAxis="y">
                   <app-catalog-row
                     [name]="child.name"
-                    [address]="'/category/' + child.slug"
+                    [address]="'/category/' + child.path"
                     [details]="details(child, row.category)"
                     [published]="child.published"
                     [busy]="busyId() === child.id"

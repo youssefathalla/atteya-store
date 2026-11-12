@@ -12,7 +12,7 @@ import {
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
-import { callableMessage } from '@shared/utils/firebase/firebase-errors';
+import { callableMessage, isFirebaseError } from '@shared/utils/firebase/firebase-errors';
 import {
   CategoryDialogComponent,
   type CategoryDialogData,
@@ -79,7 +79,7 @@ export class CategoriesTabComponent {
       });
       this.#snackbar.success(
         category.published
-          ? `${category.name} is hidden from shoppers.`
+          ? `${category.name} is hidden from the store’s menus and lists.`
           : `${category.name} is shown on the store.`,
       );
       this.listResource.reload();
@@ -114,6 +114,15 @@ export class CategoriesTabComponent {
       this.#snackbar.success(`${category.name} was deleted.`);
       this.listResource.reload();
     } catch (error: unknown) {
+      // The server also checks offers; its reason gets the same Hide offer.
+      if (isFirebaseError(error) && error.code === 'functions/failed-precondition') {
+        const reason = callableMessage(error);
+        if (reason) {
+          this.busyId.set(null);
+          await this.#offerHide(category, reason);
+          return;
+        }
+      }
       this.#snackbar.error(callableMessage(error) ?? "We couldn't delete that category. Please try again.");
     } finally {
       this.busyId.set(null);
@@ -129,7 +138,11 @@ export class CategoriesTabComponent {
         : (this.tree().find((row) => row.category.id === parentId)?.children ?? []);
     const ordered = [...level];
     moveItemInArray(ordered, event.previousIndex, event.currentIndex);
-    const positions = new Map(ordered.map((item, index) => [item.id, (index + 1) * 10]));
+    // A sub-category whose parent is missing is listed at the top level, but it is not part of
+    // that level on the server, so it keeps its place and is left out of the save.
+    const sameLevel = ordered.filter((item) => (item.parentId ?? null) === parentId);
+    const positions = new Map(sameLevel.map((item, index) => [item.id, (index + 1) * 10]));
+    if (sameLevel.length === 0) return;
     this.items.update((list) =>
       list.map((item) =>
         positions.has(item.id) ? { ...item, sortOrder: positions.get(item.id) ?? 0 } : item,
@@ -138,7 +151,7 @@ export class CategoriesTabComponent {
     try {
       await this.#catalog.reorder(
         'categories',
-        ordered.map((item) => item.id),
+        sameLevel.map((item) => item.id),
       );
     } catch (error: unknown) {
       this.#snackbar.error(callableMessage(error) ?? "We couldn't save the new order. Please try again.");

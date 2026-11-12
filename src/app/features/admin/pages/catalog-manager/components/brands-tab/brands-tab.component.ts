@@ -12,7 +12,7 @@ import {
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
-import { callableMessage } from '@shared/utils/firebase/firebase-errors';
+import { callableMessage, isFirebaseError } from '@shared/utils/firebase/firebase-errors';
 import {
   BrandDialogComponent,
   type BrandDialogData,
@@ -68,7 +68,9 @@ export class BrandsTabComponent {
         published: !brand.published,
       });
       this.#snackbar.success(
-        brand.published ? `${brand.name} is hidden from shoppers.` : `${brand.name} is shown on the store.`,
+        brand.published
+          ? `${brand.name} is hidden from the store’s menus and lists.`
+          : `${brand.name} is shown on the store.`,
       );
       this.listResource.reload();
     } catch (error: unknown) {
@@ -101,6 +103,15 @@ export class BrandsTabComponent {
       this.#snackbar.success(`${brand.name} was deleted.`);
       this.listResource.reload();
     } catch (error: unknown) {
+      // The server also checks offers; its reason gets the same Hide offer.
+      if (isFirebaseError(error) && error.code === 'functions/failed-precondition') {
+        const reason = callableMessage(error);
+        if (reason) {
+          this.busyId.set(null);
+          await this.#offerHide(brand, reason);
+          return;
+        }
+      }
       this.#snackbar.error(callableMessage(error) ?? "We couldn't delete that brand. Please try again.");
     } finally {
       this.busyId.set(null);

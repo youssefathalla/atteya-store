@@ -15,8 +15,8 @@
     </mat-form-field>
 
     <p class="font-body-sm text-on-surface-variant">
-      @if (slug()) {
-        Address: /category/{{ slug() }}
+      @if (address()) {
+        Address: {{ address() }}
       } @else {
         The address comes from the name.
       }
@@ -79,12 +79,14 @@
       @if (weightError()) {
         <mat-hint>{{ weightError() }}</mat-hint>
       } @else {
-        <mat-hint>Products in this category get this weight when they have none.</mat-hint>
+        <mat-hint
+          >Products in this category get this weight when they have none. Leave empty for none.</mat-hint
+        >
       }
     </mat-form-field>
 
     <mat-slide-toggle [checked]="published()" (change)="published.set($event.checked)">
-      {{ published() ? 'Shown on the store' : 'Hidden from shoppers' }}
+      {{ published() ? 'Shown on the store' : 'Hidden from the store’s menus and lists' }}
     </mat-slide-toggle>
 
     @if (error()) {

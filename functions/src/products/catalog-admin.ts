@@ -100,7 +100,7 @@ export function categoryPlacement(
 /** Why a category can't be deleted, or null when it can. */
 export function categoryDeleteBlockedReason(
   id: string,
-  usage: { readonly products: number; readonly subCategories: number },
+  usage: { readonly products: number; readonly subCategories: number; readonly offers?: number },
 ): string | null {
   if (SEED_CATEGORY_IDS.has(id)) {
     return 'This is one of the store’s built-in categories. You can hide it instead.';
@@ -113,11 +113,14 @@ export function categoryDeleteBlockedReason(
       ? '1 product is in this category. Move it to another category first, or hide it instead.'
       : `${usage.products} products are in this category. Move them to another category first, or hide it instead.`;
   }
+  if ((usage.offers ?? 0) > 0) {
+    return 'An offer uses this category. Change that offer first, or hide the category instead.';
+  }
   return null;
 }
 
 /** Why a brand can't be deleted, or null when it can. */
-export function brandDeleteBlockedReason(id: string, products: number): string | null {
+export function brandDeleteBlockedReason(id: string, products: number, offers = 0): string | null {
   if (SEED_BRAND_IDS.has(id)) {
     return 'This is one of the store’s built-in brands. You can hide it instead.';
   }
@@ -126,7 +129,29 @@ export function brandDeleteBlockedReason(id: string, products: number): string |
       ? '1 product uses this brand. Change its brand first, or hide it instead.'
       : `${products} products use this brand. Change their brand first, or hide it instead.`;
   }
+  if (offers > 0) return 'An offer uses this brand. Change that offer first, or hide the brand instead.';
   return null;
+}
+
+/**
+ * True when an offer's rules name this category or brand: any condition (anywhere in the offer,
+ * so reward and gift rules count too) with `field` set to `categoryIds` / `brandId` whose `in`
+ * or `notIn` list holds the id.
+ */
+export function offerNamesCatalogId(offer: unknown, field: 'categoryIds' | 'brandId', id: string): boolean {
+  const seen = new Set<unknown>();
+  const visit = (value: unknown, depth: number): boolean => {
+    if (depth > 12 || typeof value !== 'object' || value === null || seen.has(value)) return false;
+    seen.add(value);
+    if (Array.isArray(value)) return value.some((item) => visit(item, depth + 1));
+    const record = value as Record<string, unknown>;
+    if (record['field'] === field) {
+      const lists = [record['in'], record['notIn']];
+      if (lists.some((list) => Array.isArray(list) && list.includes(id))) return true;
+    }
+    return Object.values(record).some((item) => visit(item, depth + 1));
+  };
+  return visit(offer, 0);
 }
 
 export function readSaveCategoryRequest(raw: unknown): SaveCategoryRequest | string {

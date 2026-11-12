@@ -6,6 +6,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { DEFAULT_WEIGHT_GRAMS_BY_CATEGORY } from '@core/services/products/catalog-taxonomy';
 import type { Category } from '@core/services/products/product.model';
 import type { ImageAsset } from '@shared/schemas';
 import { ImagePickerComponent } from '@shared/ui/image-picker';
@@ -66,6 +67,15 @@ export class CategoryDialogComponent {
   readonly parentOptions = this.#data.categories
     .filter((item) => item.depth === 0 && item.id !== this.#data.category?.id)
     .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  /** `/category/caps` or `/category/apparel/caps`: the canonical address the store uses. */
+  readonly address = computed(() => {
+    if (!this.isNew) return `/category/${this.#data.category?.path ?? ''}`;
+    const slug = this.slug();
+    if (!slug) return '';
+    const parent = this.#data.categories.find((item) => item.id === this.parentId());
+    return parent ? `/category/${parent.path}/${slug}` : `/category/${slug}`;
+  });
 
   readonly parentName = computed(() => {
     const id = this.parentId();
@@ -137,8 +147,14 @@ export class CategoryDialogComponent {
     }
   }
 
+  /** The saved weight, else the built-in one this category uses today, so the field never looks empty by mistake. */
   #initialWeight(): string {
-    const saved = this.#data.category?.defaultWeightGrams;
-    return typeof saved === 'number' ? String(saved) : '';
+    const category = this.#data.category;
+    if (!category) return '';
+    const saved = category.defaultWeightGrams;
+    if (saved === null) return '';
+    if (typeof saved === 'number') return String(saved);
+    const builtIn = DEFAULT_WEIGHT_GRAMS_BY_CATEGORY[category.id];
+    return typeof builtIn === 'number' ? String(builtIn) : '';
   }
 }

@@ -8,8 +8,10 @@ import { getSearchClient, safeErrorMessage, withRetry } from '../search/algolia-
 import { ALGOLIA_WRITE_KEY, productsIndexName } from '../search/algolia-config.js';
 import { getCatalogLookup } from '../search/catalog-cache.js';
 import { toSearchRecord, type ProductSearchRecord } from '../search/product-record.js';
+import { NAMES_CHANGED_FIELD } from '../search/catalog-cache.js';
 import {
   brandDeleteBlockedReason,
+  offerNamesCatalogId,
   categoryDeleteBlockedReason,
   categoryPlacement,
   newCatalogId,
@@ -77,8 +79,16 @@ export const saveCategory = onCall(
         return { id: input.id, created: false, renamed, shownChanged };
       }
 
-      const all = await tx.get(collection.select('path', 'depth', 'sortOrder', 'parentId').limit(MAX_LIST));
-      const taken = new Set<string>([...RESERVED_CATEGORY_SLUGS, ...all.docs.map((doc) => doc.id)]);
+      const [all, brands] = await Promise.all([
+        tx.get(collection.select('path', 'depth', 'sortOrder', 'parentId').limit(MAX_LIST)),
+        tx.get(db.collection('brands').select().limit(MAX_LIST)),
+      ]);
+      // Category and brand ids share one set of counts in settings/catalog, so they never repeat.
+      const taken = new Set<string>([
+        ...RESERVED_CATEGORY_SLUGS,
+        ...all.docs.map((doc) => doc.id),
+        ...brands.docs.map((doc) => doc.id),
+      ]);
       const id = newCatalogId(input.name, taken);
       if (!id) {
         throw new HttpsError('invalid-argument', 'Use at least one letter or number in the name.');
@@ -127,6 +137,7 @@ export const saveCategory = onCall(
       return { id, created: true, renamed: false, shownChanged: false };
     });
 
+    if (result.created || result.renamed) await markNamesChanged(db);
     if (result.created || result.renamed || result.shownChanged) {
       await refreshCounts(db, { categoryIds: [result.id] });
     }
@@ -151,9 +162,11 @@ export const deleteCategory = onCall(
         tx.get(db.collection('products').where('categoryIds', 'array-contains', input.id).count()),
         tx.get(db.collection('categories').where('parentId', '==', input.id).count()),
       ]);
+      const offers = await offersNaming(db, 'categoryIds', input.id);
       const blocked = categoryDeleteBlockedReason(input.id, {
         products: products.data().count,
         subCategories: subCategories.data().count,
+        offers,
       });
       if (blocked) throw new HttpsError('failed-precondition', blocked);
       tx.delete(ref);
@@ -167,6 +180,7 @@ export const deleteCategory = onCall(
       });
     });
 
+    await markNamesChanged(db);
     await removeCountKey(db, 'categories', input.id);
     return { id: input.id };
   },
@@ -200,8 +214,14 @@ export const saveBrand = onCall(
         return { id: input.id, created: false, renamed, shownChanged };
       }
 
-      const all = await tx.get(collection.select('sortOrder').limit(MAX_LIST));
-      const id = newCatalogId(input.name, new Set(all.docs.map((doc) => doc.id)));
+      const [all, categories] = await Promise.all([
+        tx.get(collection.select('sortOrder').limit(MAX_LIST)),
+        tx.get(db.collection('categories').select().limit(MAX_LIST)),
+      ]);
+      const id = newCatalogId(
+        input.name,
+        new Set([...all.docs.map((doc) => doc.id), ...categories.docs.map((doc) => doc.id)]),
+      );
       if (!id) throw new HttpsError('invalid-argument', 'Use at least one letter or number in the name.');
       const lastSort = all.docs.reduce((max, doc) => {
         const value = doc.get('sortOrder');
@@ -224,6 +244,7 @@ export const saveBrand = onCall(
       return { id, created: true, renamed: false, shownChanged: false };
     });
 
+    if (result.created || result.renamed) await markNamesChanged(db);
     if (result.created || result.renamed || result.shownChanged) {
       await refreshCounts(db, { brandIds: [result.id] });
     }
@@ -245,7 +266,8 @@ export const deleteBrand = onCall(
       const snap = await tx.get(ref);
       if (!snap.exists) return;
       const products = await tx.get(db.collection('products').where('brandId', '==', input.id).count());
-      const blocked = brandDeleteBlockedReason(input.id, products.data().count);
+      const offers = await offersNaming(db, 'brandId', input.id);
+      const blocked = brandDeleteBlockedReason(input.id, products.data().count, offers);
       if (blocked) throw new HttpsError('failed-precondition', blocked);
       tx.delete(ref);
       tx.create(db.collection('auditLogs').doc(), {
@@ -258,6 +280,7 @@ export const deleteBrand = onCall(
       });
     });
 
+    await markNamesChanged(db);
     await removeCountKey(db, 'brands', input.id);
     return { id: input.id };
   },
@@ -323,6 +346,24 @@ function audit(
     after: { ...after, id: targetId },
     at: FieldValue.serverTimestamp(),
   };
+}
+
+/** Offers (any state) whose rules name this category or brand. */
+async function offersNaming(db: Firestore, field: 'categoryIds' | 'brandId', id: string): Promise<number> {
+  const snap = await db.collection('offers').limit(MAX_LIST).get();
+  return snap.docs.filter((doc) => offerNamesCatalogId(doc.data(), field, id)).length;
+}
+
+/**
+ * Tells every function instance that a category or brand name changed, so the search sync
+ * reads the new names instead of its cached ones (`getCatalogLookup` compares this stamp).
+ */
+async function markNamesChanged(db: Firestore): Promise<void> {
+  try {
+    await db.doc('settings/catalog').set({ [NAMES_CHANGED_FIELD]: Date.now() }, { merge: true });
+  } catch (error: unknown) {
+    logger.error('Marking catalogue names as changed failed', { message: safeErrorMessage(error) });
+  }
 }
 
 /** Scoped `settings/catalog` refresh. A failure is logged: the next product write recounts anyway. */

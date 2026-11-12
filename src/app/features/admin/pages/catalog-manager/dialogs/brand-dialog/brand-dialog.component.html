@@ -14,6 +14,13 @@
       <mat-hint>{{ name().length }} / {{ maxName }}</mat-hint>
     </mat-form-field>
 
+    @if (renamed()) {
+      <p class="font-body-sm" role="status">
+        Shop filters by the brand's name, so menu or home page links to Shop filtered by "{{ savedName }}"
+        stop showing products. Update those links in Navigation and Home Page after you save.
+      </p>
+    }
+
     <p class="font-body-sm text-on-surface-variant">
       @if (slug()) {
         Address: /brand/{{ slug() }}
@@ -39,7 +46,7 @@
     </div>
 
     <mat-slide-toggle [checked]="published()" (change)="published.set($event.checked)">
-      {{ published() ? 'Shown on the store' : 'Hidden from shoppers' }}
+      {{ published() ? 'Shown on the store' : 'Hidden from the store’s menus and lists' }}
     </mat-slide-toggle>
 
     @if (error()) {

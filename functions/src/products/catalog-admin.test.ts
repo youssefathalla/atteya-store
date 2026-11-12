@@ -7,6 +7,7 @@ import {
   categoryDeleteBlockedReason,
   categoryPlacement,
   newCatalogId,
+  offerNamesCatalogId,
   readReorderRequest,
   readSaveBrandRequest,
   readSaveCategoryRequest,
@@ -164,5 +165,40 @@ describe('readReorderRequest', () => {
     assert.equal(typeof readReorderRequest({ kind: 'products', ids: ['nox'] }), 'string');
     assert.equal(sortOrderFor(0), 10);
     assert.equal(sortOrderFor(2), 30);
+  });
+});
+
+describe('offerNamesCatalogId', () => {
+  const offer = {
+    conditions: {
+      anyOf: [
+        {
+          allOf: [
+            { field: 'brandId', in: ['nox'] },
+            { field: 'price', min: 100 },
+          ],
+        },
+      ],
+    },
+    reward: { kind: 'buyXGetY', get: { anyOf: [{ allOf: [{ field: 'categoryIds', notIn: ['socks'] }] }] } },
+  };
+
+  it('finds a brand or category named in any rule', () => {
+    assert.equal(offerNamesCatalogId(offer, 'brandId', 'nox'), true);
+    assert.equal(offerNamesCatalogId(offer, 'categoryIds', 'socks'), true);
+  });
+
+  it('ignores other ids and other fields', () => {
+    assert.equal(offerNamesCatalogId(offer, 'brandId', 'head'), false);
+    assert.equal(offerNamesCatalogId(offer, 'categoryIds', 'nox'), false);
+    assert.equal(offerNamesCatalogId(null, 'brandId', 'nox'), false);
+  });
+
+  it('blocks deleting a category or brand an offer uses', () => {
+    assert.match(
+      categoryDeleteBlockedReason('caps', { products: 0, subCategories: 0, offers: 1 }) ?? '',
+      /offer/,
+    );
+    assert.match(brandDeleteBlockedReason('kuikma', 0, 2) ?? '', /offer/);
   });
 });
