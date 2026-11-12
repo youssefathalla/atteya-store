@@ -1,9 +1,15 @@
 import { isPlatformBrowser } from '@angular/common';
 import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal, TransferState } from '@angular/core';
+import * as v from 'valibot';
 import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
-import { HomeSettingsSchema } from '../schemas/home.schema';
+import {
+  HomeHeroSchema,
+  HomeNavListSchema,
+  HomeSettingsSchema,
+  HomeShopCategoriesSchema,
+} from '../schemas/home.schema';
 import { HOME_SETTINGS_KEY, HomeSettingsSeed, toHomeSettingsSeed } from '../resolvers/home-settings.state';
 import { HomeHero, HomeNavList, HomeSettings, HomeShopCategories } from '../models/home.model';
 import { DEFAULT_HOME_HERO, DEFAULT_HOME_NAV_LIST, DEFAULT_HOME_SHOP_CATEGORIES } from '../data/home.data';
@@ -18,77 +24,48 @@ export interface HomeSettingsUpdate {
   readonly navList: HomeNavList;
 }
 
-function readStoredHero(): HomeHero | null {
-  if (typeof window === 'undefined') return null;
+/**
+ * Reads one saved copy and checks it against its schema. A copy that is
+ * missing, unreadable or no longer matches is dropped (and removed), so an
+ * old or broken copy never reaches the page.
+ */
+function readStored<TSchema extends v.GenericSchema>(
+  key: string,
+  schema: TSchema,
+): v.InferOutput<TSchema> | null {
   try {
-    const raw = localStorage.getItem(HERO_STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.layoutCount === 'number' && Array.isArray(parsed.slides)) {
-      return parsed as HomeHero;
-    }
+    const result = v.safeParse(schema, JSON.parse(raw));
+    if (result.success) return result.output;
   } catch {
-    // Ignore storage parse issues
+    // Unreadable copy: fall through and remove it.
+  }
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Storage blocked: nothing to remove.
   }
   return null;
 }
 
-function persistStoredHero(hero: HomeHero): void {
-  if (typeof window === 'undefined') return;
+function persistStored(key: string, value: unknown): void {
   try {
-    localStorage.setItem(HERO_STORAGE_KEY, JSON.stringify(hero));
+    localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // Ignore storage quota issues
+    // Ignore storage quota or blocked storage.
   }
 }
 
-function readStoredShopCategories(): HomeShopCategories | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(SHOP_CATEGORIES_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.title === 'string' && Array.isArray(parsed.cards)) {
-      return parsed as HomeShopCategories;
-    }
-  } catch {
-    // Ignore storage parse issues
-  }
-  return null;
+/** Saves the sections the live document has, for the next visit. */
+function persistStoredSettings(settings: HomeSettingsSeed): void {
+  persistStored(HERO_STORAGE_KEY, settings.hero);
+  if (settings.shopCategories) persistStored(SHOP_CATEGORIES_STORAGE_KEY, settings.shopCategories);
+  if (settings.navList) persistStored(NAV_LIST_STORAGE_KEY, settings.navList);
 }
 
-function persistStoredShopCategories(shopCategories: HomeShopCategories): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(SHOP_CATEGORIES_STORAGE_KEY, JSON.stringify(shopCategories));
-  } catch {
-    // Ignore storage quota issues
-  }
-}
-
-function readStoredNavList(): HomeNavList | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(NAV_LIST_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.title === 'string' && Array.isArray(parsed.items)) {
-      return parsed as HomeNavList;
-    }
-  } catch {
-    // Ignore storage parse issues
-  }
-  return null;
-}
-
-function persistStoredNavList(navList: HomeNavList): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(NAV_LIST_STORAGE_KEY, JSON.stringify(navList));
-  } catch {
-    // Ignore storage quota issues
-  }
-}
+/** How long a client navigation to `/` waits for settings/home before showing the built-in sections. */
+const FIRST_SNAPSHOT_WAIT_MS = 3000;
 
 @Service()
 export class HomeService {
@@ -105,6 +82,20 @@ export class HomeService {
   /** undefined while the first browser snapshot is still outstanding. */
   readonly #homeDoc = signal<HomeSettingsSeed | null | undefined>(undefined);
 
+  /** Copies saved on an earlier visit, read and checked once in the browser. */
+  readonly #storedHero: HomeHero | null = this.#isBrowser
+    ? readStored(HERO_STORAGE_KEY, HomeHeroSchema)
+    : null;
+  readonly #storedShopCategories: HomeShopCategories | null = this.#isBrowser
+    ? readStored(SHOP_CATEGORIES_STORAGE_KEY, HomeShopCategoriesSchema)
+    : null;
+  readonly #storedNavList: HomeNavList | null = this.#isBrowser
+    ? readStored(NAV_LIST_STORAGE_KEY, HomeNavListSchema)
+    : null;
+
+  #markFirstAnswer: () => void = () => undefined;
+  readonly #firstAnswer = new Promise<void>((resolve) => (this.#markFirstAnswer = resolve));
+
   constructor() {
     if (this.#transfer.hasKey(HOME_SETTINGS_KEY)) {
       this.#homeDoc.set(this.#transfer.get(HOME_SETTINGS_KEY, null));
@@ -119,13 +110,31 @@ export class HomeService {
     const unsubscribe = onSnapshot(
       this.#homeDocRef,
       (snapshot) => {
-        this.#homeDoc.set(snapshot.exists() ? toHomeSettingsSeed(snapshot.data()) : null);
+        const seed = snapshot.exists() ? toHomeSettingsSeed(snapshot.data()) : null;
+        if (seed) persistStoredSettings(seed);
+        this.#homeDoc.set(seed);
+        this.#markFirstAnswer();
       },
       () => {
         this.#homeDoc.set(null);
+        this.#markFirstAnswer();
       },
     );
     this.#destroyRef.onDestroy(unsubscribe);
+  }
+
+  /**
+   * Resolves once the home page has something real to show: the server seed,
+   * a saved copy from an earlier visit, or the first live answer. Gives up
+   * after a few seconds, so a slow connection still opens the page (with the
+   * built-in sections) instead of hanging on the old one.
+   */
+  whenReady(): Promise<void> {
+    if (this.#homeDoc() !== undefined || this.#storedHero) return Promise.resolve();
+    return Promise.race([
+      this.#firstAnswer,
+      new Promise<void>((resolve) => setTimeout(resolve, FIRST_SNAPSHOT_WAIT_MS)),
+    ]);
   }
 
   /**
@@ -134,44 +143,25 @@ export class HomeService {
   readonly isLoading = computed<boolean>(() => this.#homeDoc() === undefined);
 
   /**
-   * Evaluates to live hero configuration from Firestore;
-   * Falls back gracefully to cached hero or DEFAULT_HOME_HERO when unseeded or loading.
+   * Live hero from Firestore; falls back to the saved copy, then DEFAULT_HOME_HERO.
    */
-  readonly hero = computed<HomeHero>(() => {
-    const docData = this.#homeDoc();
-    if (docData?.hero) {
-      persistStoredHero(docData.hero);
-      return docData.hero;
-    }
-    return readStoredHero() ?? DEFAULT_HOME_HERO;
-  });
+  readonly hero = computed<HomeHero>(() => this.#homeDoc()?.hero ?? this.#storedHero ?? DEFAULT_HOME_HERO);
 
   /**
-   * Evaluates to live Section 2 (Shop Categories) configuration from Firestore;
-   * Falls back gracefully to cached configuration or DEFAULT_HOME_SHOP_CATEGORIES.
+   * Live Section 2 (Shop Categories) from Firestore; falls back to the saved
+   * copy, then DEFAULT_HOME_SHOP_CATEGORIES.
    */
-  readonly shopCategories = computed<HomeShopCategories>(() => {
-    const docData = this.#homeDoc();
-    if (docData?.shopCategories) {
-      persistStoredShopCategories(docData.shopCategories);
-      return docData.shopCategories;
-    }
-    return readStoredShopCategories() ?? DEFAULT_HOME_SHOP_CATEGORIES;
-  });
+  readonly shopCategories = computed<HomeShopCategories>(
+    () => this.#homeDoc()?.shopCategories ?? this.#storedShopCategories ?? DEFAULT_HOME_SHOP_CATEGORIES,
+  );
 
   /**
-   * Evaluates to live Section 3 (category list) configuration from Firestore.
-   * A settings/home document without navList falls through to the cached list,
-   * then to DEFAULT_HOME_NAV_LIST.
+   * Live Section 3 (category list) from Firestore. A settings/home document
+   * without navList falls through to the saved list, then DEFAULT_HOME_NAV_LIST.
    */
-  readonly navList = computed<HomeNavList>(() => {
-    const docData = this.#homeDoc();
-    if (docData?.navList) {
-      persistStoredNavList(docData.navList);
-      return docData.navList;
-    }
-    return readStoredNavList() ?? DEFAULT_HOME_NAV_LIST;
-  });
+  readonly navList = computed<HomeNavList>(
+    () => this.#homeDoc()?.navList ?? this.#storedNavList ?? DEFAULT_HOME_NAV_LIST,
+  );
 
   /**
    * Publishes the homepage hero, shop cards, and category list together.

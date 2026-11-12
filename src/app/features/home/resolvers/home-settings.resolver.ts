@@ -1,5 +1,5 @@
 import { isPlatformServer } from '@angular/common';
-import { inject, PLATFORM_ID, RESPONSE_INIT, TransferState } from '@angular/core';
+import { inject, Injector, PLATFORM_ID, RESPONSE_INIT, TransferState } from '@angular/core';
 import type { ResolveFn } from '@angular/router';
 import { doc, getDoc } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
@@ -12,9 +12,18 @@ import { HOME_SETTINGS_KEY, toHomeSettingsSeed } from './home-settings.state';
  * Same client SDK path as the product page: getDoc on injectFirestore(),
  * with no App Check token (App Check stays browser-only). A failed read
  * stores null, sets no-store, and the page renders the built-in defaults.
+ *
+ * In the browser (client navigation to `/`) it waits for HomeService to have
+ * real settings (seed, saved copy or first snapshot, at most a few seconds),
+ * so the built-in hero never flashes before the saved one.
  */
 export const homeSettingsResolver: ResolveFn<void> = async () => {
-  if (!isPlatformServer(inject(PLATFORM_ID))) return;
+  if (!isPlatformServer(inject(PLATFORM_ID))) {
+    const injector = inject(Injector);
+    const { HomeService } = await import('../services/home.service');
+    await injector.get(HomeService).whenReady();
+    return;
+  }
 
   const transfer = inject(TransferState);
   const responseInit = inject(RESPONSE_INIT, { optional: true });
