@@ -811,6 +811,40 @@ export function bundleOffersForItem(
     .sort(compareOffers);
 }
 
+/**
+ * The Bundle & Save offers the bag would put one item in, in the bag's order (highest priority,
+ * then the newest edit): live for this shopper, per item with no minimum, and the item fits the
+ * offer's own rules and at least one of its groups (`bundleSetSlotFits`). The product page's
+ * Bundle & Save section shows the first one.
+ */
+export function bundleSetOffersForItem(
+  offers: readonly Offer[],
+  ctx: PricingContext,
+  item: Pick<BagLineFacts, 'product' | 'variant' | 'onSale'>,
+): Offer[] {
+  return liveOffers(offers, ctx)
+    .filter(
+      (offer) =>
+        offer.reward.kind === 'bundleSet' &&
+        appliesToBag(offer) &&
+        bundleSetSlots(offer.reward).some((slot) => bundleSetSlotFits(offer, slot, item)),
+    )
+    .sort(compareOffers);
+}
+
+/**
+ * True when the bag would count this item as a piece of `slot` in the Bundle & Save `offer`: the
+ * same rules the bag prices with (offer and group rules, size or colour when `variant` is known,
+ * sale items when the offer leaves them out).
+ */
+export function bundleSetSlotFits(
+  offer: Offer,
+  slot: Pick<OfferBundleSlot, 'conditions'>,
+  item: Pick<BagLineFacts, 'product' | 'variant' | 'onSale'>,
+): boolean {
+  return qualifies(offer, offer.conditions, item) && qualifies(offer, slot.conditions, item);
+}
+
 function qualifies(
   offer: Offer,
   conditions: OfferConditions,

@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 // Runs against the compiled engine (`npm test` builds first); engine files import `./x.js`.
 import {
+  bundleSetOffersForItem,
   bundleSetShares,
+  bundleSetSlotFits,
   bundleSetTotal,
   dealTag,
   displayPrice,
@@ -482,5 +484,30 @@ describe('Bundle & Save: checks and reading', () => {
       ),
       'Bundle & Save · 1 free',
     );
+  });
+});
+
+describe('Bundle & Save: the product page offer (bundleSetOffersForItem)', () => {
+  const item = (facts, onSale = false) => ({ product: facts, variant: null, onSale });
+
+  it('lists the offers an item fits a group of, highest priority first', () => {
+    const low = offer('low', reward({ type: 'percent', percent: 10 }), { priority: 1 });
+    const high = offer('high', reward({ type: 'percent', percent: 20 }), { priority: 5 });
+    const ids = bundleSetOffersForItem([low, high], CTX, item(TEE)).map((entry) => entry.id);
+    assert.deepEqual(ids, ['high', 'low']);
+  });
+
+  it('leaves out an item no group takes, a sale item when sale items are left out, and a paused offer', () => {
+    assert.deepEqual(bundleSetOffersForItem([SET_600], CTX, item(SOCKS)), []);
+    const noSale = offer('no-sale', reward({ type: 'percent', percent: 10 }), { saleItems: 'exclude' });
+    assert.deepEqual(bundleSetOffersForItem([noSale], CTX, item(TEE, true)), []);
+    const paused = offer('paused', reward({ type: 'percent', percent: 10 }), { active: false });
+    assert.deepEqual(bundleSetOffersForItem([paused], CTX, item(TEE)), []);
+  });
+
+  it('tells which group an item fills', () => {
+    assert.equal(bundleSetSlotFits(SET_600, TEE_SLOT, item(TEE)), true);
+    assert.equal(bundleSetSlotFits(SET_600, SHORTS_SLOT, item(TEE)), false);
+    assert.equal(bundleSetSlotFits(SET_600, SHORTS_SLOT, item(SHORTS)), true);
   });
 });

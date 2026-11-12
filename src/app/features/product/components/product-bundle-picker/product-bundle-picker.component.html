@@ -55,26 +55,14 @@
               (picked)="productPicked.emit({ piece: step.piece, productId: $event })"
             />
           } @else {
-            <div class="elements-between w-full gap-3 pb-2" aria-hidden="true">
-              <span class="font-label-lg">{{ step.title }}</span>
-              @if (step.chosen) {
-                <span class="font-label-lg text-end">{{ step.chosen }} ✓</span>
-              }
-            </div>
-            <div class="grid w-full grid-cols-3 gap-2">
-              @for (size of step.sizes; track size.id) {
-                <button
-                  type="button"
-                  data-choice
-                  class="pdp-choice"
-                  [disabled]="disabled()"
-                  [attr.aria-pressed]="step.pickedId === size.id"
-                  (click)="sizePicked.emit({ piece: step.piece, sizeId: size.id })"
-                >
-                  {{ size.label }}
-                </button>
-              }
-            </div>
+            <app-choice-size-row
+              [title]="step.title"
+              [sizes]="step.sizes"
+              [pickedId]="step.pickedId"
+              [chosen]="step.chosen"
+              [disabled]="disabled()"
+              (picked)="sizePicked.emit({ piece: step.piece, sizeId: $event })"
+            />
           }
 
           @if (promptHere) {

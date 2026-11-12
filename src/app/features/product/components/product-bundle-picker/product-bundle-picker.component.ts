@@ -15,6 +15,7 @@ import type { OfferBundleRow } from '@core/services/offers/engine';
 import type { ChoicePrompt } from '../../models/product-page.model';
 import type { BundleStep } from '../../utils/product-bundle';
 import { ChoiceCardRowComponent } from '../choice-card-row/choice-card-row.component';
+import { ChoiceSizeRowComponent } from '../choice-size-row/choice-size-row.component';
 
 /** One quantity row as the picker shows it, amounts already written in the visitor's currency. */
 export interface BundleRowView {
@@ -36,7 +37,7 @@ export interface BundleRowView {
  */
 @Component({
   selector: 'app-product-bundle-picker',
-  imports: [MatRadioModule, ChoiceCardRowComponent],
+  imports: [MatRadioModule, ChoiceCardRowComponent, ChoiceSizeRowComponent],
   templateUrl: './product-bundle-picker.component.html',
   host: { class: 'block w-full' },
 })
