@@ -85,6 +85,12 @@ export function addLinkToMenu(
   const menu = categories.find((category) => category.id === menuId);
   const column = menu?.megaMenu?.[columnIndex];
   if (!menu || !column || column.auto) return null;
+  // Already there (a slow save that landed after it timed out, then a retry): add nothing twice.
+  const already = column.links.some(
+    (item) =>
+      item.target?.kind === link.target.kind && 'id' in item.target && item.target.id === link.target.id,
+  );
+  if (already) return categories;
 
   const added: MegaMenuLink = {
     label: link.label,

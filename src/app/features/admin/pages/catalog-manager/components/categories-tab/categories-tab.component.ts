@@ -200,7 +200,7 @@ export class CategoriesTabComponent {
       if (!result) return;
       if (result.menuFailed) {
         this.#snackbar.warning(
-          "Saved the category, but couldn't add it to the menu. Add it in Navigation.",
+          "Saved the category, but the menu didn't confirm the new link. Check Navigation and add it there only if it's missing.",
           'Close',
           8000,
         );
