@@ -54,14 +54,23 @@ export class FavoritesPageComponent implements OnInit {
    * list of ids (after a heart is removed), so this keeps the other cards on screen instead of
    * flashing skeletons. Skeletons show only before the first list arrives.
    */
-  readonly #shownProducts = linkedSignal<readonly Product[] | undefined, readonly Product[] | undefined>({
-    source: () => (this.productsResource.hasValue() ? this.productsResource.value() : undefined),
-    computation: (next, previous) => next ?? previous?.value,
+  readonly #shownProducts = linkedSignal<
+    { ready: boolean; products: readonly Product[] | undefined },
+    readonly Product[] | undefined
+  >({
+    source: () => ({
+      ready: this.#favorites.ready(),
+      products: this.productsResource.hasValue() ? this.productsResource.value() : undefined,
+    }),
+    computation: (next, previous) => (next.ready ? (next.products ?? previous?.value) : undefined),
   });
 
   readonly cards = computed(() => {
-    const products = this.#shownProducts();
-    if (!products) return [];
+    const shown = this.#shownProducts();
+    if (!shown) return [];
+    // A heart just removed leaves the page at once, even while the list is still reloading.
+    const saved = new Set(this.#favorites.items().map((item) => item.productId));
+    const products = shown.filter((product) => saved.has(product.id));
     const liveMode = this.#offers.ready() && !this.#offers.failed();
     const offers = liveMode ? this.#offers.all() : [];
     const ctx = {
