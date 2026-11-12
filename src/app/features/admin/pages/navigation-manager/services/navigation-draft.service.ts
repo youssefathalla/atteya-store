@@ -89,6 +89,12 @@ export class NavigationDraftService {
     }
   }
 
+  /** Opens a saved version as an unsaved draft (Previous Versions, ATS-251). */
+  loadVersion(source: readonly NavCategory[]): void {
+    this.resetDraftFromSource(source);
+    this.isDraftDirty.set(true);
+  }
+
   // --- Category Management ---
   selectCategory(id: string): void {
     this.selectedCategoryId.set(id);

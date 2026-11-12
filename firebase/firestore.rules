@@ -52,6 +52,17 @@ service cloud.firestore {
       allow write: if canManageStore() && docId != 'currency';
     }
 
+    // Previous Versions of settings/navigation and settings/home (ATS-251). Written only by the
+    // onSettingsHistoryWrite trigger (Admin SDK); dashboard staff read them, nobody writes from a client.
+    match /settingsHistory/{docId} {
+      allow read, write: if false;
+    }
+
+    match /settingsHistory/{docId}/versions/{versionId} {
+      allow read: if canManageStore();
+      allow write: if false;
+    }
+
     // Markup and raw exchange rates. Admin SDK (callables and the daily schedule) is the only writer.
     // Clients, including admins, cannot create or edit these docs.
     match /intlPricing/{docId} {
@@ -323,9 +334,9 @@ service cloud.firestore {
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
-    // intlPricing, offerState and searchSyncErrors stay on the rules written for them.
+    // intlPricing, offerState, searchSyncErrors and settingsHistory stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if canManageStore() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends', 'offerState', 'searchSyncErrors']);
+      allow read, write: if canManageStore() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends', 'offerState', 'searchSyncErrors', 'settingsHistory']);
     }
   }
 }

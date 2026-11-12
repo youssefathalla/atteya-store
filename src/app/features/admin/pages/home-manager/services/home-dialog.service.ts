@@ -2,6 +2,11 @@ import { Service, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import {
+  PreviousVersionsDialogComponent,
+  type PreviousVersionsDialogData,
+  type PreviousVersionsDialogResult,
+} from '@shared/ui/dialogs/previous-versions-dialog';
+import {
   ConfirmDialogComponent,
   ConfirmDialogData,
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
@@ -91,6 +96,23 @@ export class HomeDialogService {
 
     const confirmed = await firstValueFrom(dialogRef.afterClosed());
     return !!confirmed;
+  }
+
+  async openPreviousVersions(data: PreviousVersionsDialogData): Promise<PreviousVersionsDialogResult | null> {
+    const dialogRef = this.#dialog.open<
+      PreviousVersionsDialogComponent,
+      PreviousVersionsDialogData,
+      PreviousVersionsDialogResult
+    >(PreviousVersionsDialogComponent, {
+      data,
+      width: '640px',
+      maxWidth: '92vw',
+      panelClass: 'previous-versions-pane',
+      autoFocus: 'dialog',
+    });
+
+    const result = await firstValueFrom(dialogRef.afterClosed());
+    return result ?? null;
   }
 
   async confirmResetDefaults(): Promise<boolean> {

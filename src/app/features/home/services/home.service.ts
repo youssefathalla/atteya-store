@@ -18,6 +18,20 @@ const HERO_STORAGE_KEY = 'atteya_store_home_hero';
 const SHOP_CATEGORIES_STORAGE_KEY = 'atteya_store_home_shop_categories';
 const NAV_LIST_STORAGE_KEY = 'atteya_store_home_nav_list';
 
+/**
+ * A saved Previous Versions copy of `settings/home` (ATS-251) through today's schema, with the
+ * built-in sections standing in for missing ones; null when it no longer fits.
+ */
+export function homeSettingsFromVersion(data: unknown): HomeSettingsUpdate | null {
+  const parsed = v.safeParse(HomeSettingsSchema, data);
+  if (!parsed.success) return null;
+  return {
+    hero: parsed.output.hero,
+    shopCategories: parsed.output.shopCategories ?? DEFAULT_HOME_SHOP_CATEGORIES,
+    navList: parsed.output.navList ?? DEFAULT_HOME_NAV_LIST,
+  };
+}
+
 export interface HomeSettingsUpdate {
   readonly hero: HomeHero;
   readonly shopCategories: HomeShopCategories;
@@ -175,15 +189,17 @@ export class HomeService {
   );
 
   /**
-   * Publishes the homepage hero, shop cards, and category list together.
+   * Publishes the homepage hero, shop cards, and category list together. `updatedBy` (the saver's
+   * uid) goes on the doc so Previous Versions can say who saved each version (ATS-251).
    */
-  async updateHomeSettings(settings: HomeSettingsUpdate): Promise<void> {
+  async updateHomeSettings(settings: HomeSettingsUpdate, updatedBy: string | null): Promise<void> {
     const payload: HomeSettings = {
       id: 'home',
       hero: settings.hero,
       shopCategories: settings.shopCategories,
       navList: settings.navList,
       updatedAt: serverTimestamp(),
+      ...(updatedBy ? { updatedBy } : {}),
     };
     await setDoc(this.#homeDocRef, payload, { merge: true });
   }
@@ -191,11 +207,14 @@ export class HomeService {
   /**
    * Resets all home page sections to factory defaults.
    */
-  async resetDefaultHomeSettings(): Promise<void> {
-    await this.updateHomeSettings({
-      hero: DEFAULT_HOME_HERO,
-      shopCategories: DEFAULT_HOME_SHOP_CATEGORIES,
-      navList: DEFAULT_HOME_NAV_LIST,
-    });
+  async resetDefaultHomeSettings(updatedBy: string | null): Promise<void> {
+    await this.updateHomeSettings(
+      {
+        hero: DEFAULT_HOME_HERO,
+        shopCategories: DEFAULT_HOME_SHOP_CATEGORIES,
+        navList: DEFAULT_HOME_NAV_LIST,
+      },
+      updatedBy,
+    );
   }
 }

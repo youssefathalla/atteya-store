@@ -1,10 +1,14 @@
 <app-nav-manager-header
   [isSaving]="isSaving()"
   [isResetting]="isResetting()"
-  (resetDefaults)="resetToDefaults()"
+  (previousVersions)="openPreviousVersions()"
   (discard)="discardDraft()"
   (publish)="publishChanges()"
 />
+
+@if (restoredNote(); as note) {
+  <p class="surface-card p-4 font-body-md font-bold! mt-6" role="status">{{ note }}</p>
+}
 
 <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start pt-6">
   <!-- Left Panel: Category Tree List (4 cols on xl, 3 cols on 2xl) -->

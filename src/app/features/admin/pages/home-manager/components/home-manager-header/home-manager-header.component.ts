@@ -13,7 +13,7 @@ export class HomeManagerHeaderComponent {
   readonly isResetting = input<boolean>(false);
   readonly isDirty = input<boolean>(false);
 
-  readonly resetDefaults = output<void>();
+  readonly previousVersions = output<void>();
   readonly discard = output<void>();
   readonly publish = output<void>();
 }
