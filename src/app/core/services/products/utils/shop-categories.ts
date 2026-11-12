@@ -50,9 +50,6 @@ export const BUILT_IN_SHOP_LABELS: Readonly<Record<string, string>> = {
 /** Built-in top-level categories that always open the Shop page, even while hidden. */
 export const BUILT_IN_SHOP_CATEGORY_IDS: readonly string[] = ['apparel', 'accessories', 'rackets'];
 
-/** Old address words that mean a built-in category (`/category/padel` → Rackets). */
-const SHOP_CATEGORY_ALIASES: Readonly<Record<string, string>> = { padel: 'rackets' };
-
 /** Tab (and filter) name: the saved `shopLabel`, else the built-in name, else the category name. */
 export function shopTabLabel(category: Pick<ShopCategorySource, 'id' | 'name' | 'shopLabel'>): string {
   const saved = category.shopLabel?.trim();
@@ -117,15 +114,14 @@ export function shopCategoryOptionsFrom(
 
 /**
  * The category id a `/category/<slug>` Shop page is for: a top-level category matched by
- * slug or id (any letter case), a built-in one, or an old alias. Null for anything else.
+ * slug or id (any letter case), or a built-in one. Null for anything else.
  */
 export function shopCategoryIdForSlug(
   slug: string | null | undefined,
   categories: readonly ShopCategorySource[],
 ): string | null {
-  const raw = (slug ?? '').trim().toLowerCase();
-  if (!raw) return null;
-  const target = SHOP_CATEGORY_ALIASES[raw] ?? raw;
+  const target = (slug ?? '').trim().toLowerCase();
+  if (!target) return null;
   const match = categories.find(
     (category) =>
       category.parentId === null &&
@@ -143,6 +139,36 @@ export function shopTabFor(id: string, categories: readonly ShopCategorySource[]
     return { id, label: shopTabLabel(category), path: shopCategoryPath(category) };
   }
   return { id, label: BUILT_IN_SHOP_LABELS[id] ?? id, path: `/category/${id}` };
+}
+
+/**
+ * Every category id `?category=` may name: the published categories (shown or empty) plus the
+ * built-in ones, so a saved link to an empty category still filters (to nothing) instead of
+ * quietly showing everything.
+ */
+export function shopCategoryFilterIds(categories: readonly ShopCategorySource[]): ReadonlySet<string> {
+  return new Set<string>([
+    ...categories.filter((category) => category.published !== false).map((category) => category.id),
+    ...Object.keys(BUILT_IN_SHOP_LABELS),
+  ]);
+}
+
+/** Filter options plus any chosen category the list leaves out (empty), so it can be unticked. */
+export function withChosenCategories(
+  options: readonly ShopCategoryOption[],
+  chosen: readonly string[],
+  categories: readonly ShopCategorySource[],
+): readonly ShopCategoryOption[] {
+  const missing = chosen.filter((id) => !options.some((option) => option.id === id));
+  if (missing.length === 0) return options;
+  return [
+    ...options,
+    ...missing.map((id) => {
+      const category = categories.find((item) => item.id === id);
+      const label = category ? shopTabLabel(category) : (BUILT_IN_SHOP_LABELS[id] ?? id);
+      return { id, label, categoryId: id };
+    }),
+  ];
 }
 
 function optionFor(category: ShopCategorySource): ShopCategoryOption {

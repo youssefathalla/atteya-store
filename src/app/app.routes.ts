@@ -5,7 +5,11 @@ import { accountAuthGuard } from '@core/guards/account/account-auth.guard';
 import { favoritesAuthGuard } from '@core/guards/favorites/favorites-auth.guard';
 import { serverCurrencyResolver } from '@core/services/currency/server-currency.resolver';
 import { catalogSettingsResolver } from '@core/services/products/catalog-settings.resolver';
-import { shopCategoriesResolver, shopCategoryMatch } from '@core/services/products/shop-category.match';
+import {
+  shopCategoriesResolver,
+  shopCategoryMatch,
+  shopCategoryTitle,
+} from '@core/services/products/shop-category.match';
 import { navigationSettingsResolver } from '@core/services/navigation/navigation-settings.resolver';
 import { shippingSettingsResolver } from '@core/services/shipping/shipping-settings.resolver';
 import { bannerOffersResolver } from '@core/services/offers/banner-offers.resolver';
@@ -67,8 +71,8 @@ export const routes: Routes = [
         path: 'category/:slug',
         canMatch: [shopCategoryMatch],
         loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
-        title: 'Shop | Atteya Store',
-        data: { preload: true },
+        title: shopCategoryTitle,
+        data: { categoryShop: true, preload: true },
       },
       {
         path: 'category/:slug',

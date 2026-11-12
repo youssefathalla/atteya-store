@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
+  shopCategoryFilterIds,
   shopCategoryIdForSlug,
   shopCategoryOptionsFrom,
   shopTabFor,
   shopTabLabel,
   shopTabsFrom,
+  withChosenCategories,
 } from '../src/app/core/services/products/utils/shop-categories.ts';
 import {
   navTargetFromPath,
@@ -915,14 +917,35 @@ describe('Shop tabs and Category filter from the category list (ATS-249)', () =>
     );
   });
 
-  it('matches a top-level category by address, a built-in one or an old alias, never a sub-category', () => {
+  it('matches a top-level category by address or a built-in one, never a sub-category', () => {
     assert.equal(shopCategoryIdForSlug('caps', categories), 'caps');
     assert.equal(shopCategoryIdForSlug('Shoes', categories), 'shoes');
-    assert.equal(shopCategoryIdForSlug('padel', categories), 'rackets');
+    assert.equal(shopCategoryIdForSlug('padel', categories), null);
+    assert.equal(
+      shopCategoryIdForSlug('padel', [
+        { id: 'padel', slug: 'padel', name: 'Padel', parentId: null, sortOrder: 60 },
+      ]),
+      'padel',
+    );
     assert.equal(shopCategoryIdForSlug('apparel', []), 'apparel');
     assert.equal(shopCategoryIdForSlug('bags', categories), null);
     assert.equal(shopCategoryIdForSlug('unknown', categories), null);
     assert.equal(shopCategoryIdForSlug('', categories), null);
+  });
+
+  it('accepts any published or built-in category in ?category= and keeps a chosen empty one tickable', () => {
+    const ids = shopCategoryFilterIds(categories);
+    assert.equal(ids.has('shoes'), true);
+    assert.equal(ids.has('grips'), true);
+    assert.equal(ids.has('hidden'), false);
+    assert.equal(ids.has('zzz'), false);
+    const options = shopCategoryOptionsFrom(categories, counts);
+    assert.deepEqual(withChosenCategories(options, ['shoes'], categories).at(-1), {
+      id: 'shoes',
+      label: 'Shoes',
+      categoryId: 'shoes',
+    });
+    assert.equal(withChosenCategories(options, ['apparel'], categories), options);
   });
 
   it('builds a tab for an empty category so its page keeps its title and address', () => {

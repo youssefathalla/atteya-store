@@ -19,9 +19,11 @@ import { CurrencyService } from '@core/services/currency/currency.service';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { ShopCategoriesService } from '@core/services/products/shop-categories.service';
 import {
+  shopCategoryFilterIds,
   shopCategoryOptionsFrom,
   shopTabFor,
   shopTabsFrom,
+  withChosenCategories,
 } from '@core/services/products/utils/shop-categories';
 import { OffersService } from '@core/services/offers/offers.service';
 import { PlayerListService } from '@core/services/products/player-list.service';
@@ -75,6 +77,8 @@ export class ShopPage {
   readonly shopCategory = input<string>();
   /** `/category/:slug`: a top-level category (the route only matches those, `shopCategoryMatch`). */
   readonly slug = input<string>();
+  /** Route `data.categoryShop`, set only on `/category/:slug`, so `/shop?slug=…` changes nothing. */
+  readonly categoryShop = input<boolean>(false);
   /** From route `data.shopSubcategory` (e.g. bags). */
   readonly shopSubcategory = input<string>();
 
@@ -123,16 +127,21 @@ export class ShopPage {
   readonly tabs = computed(() => shopTabsFrom(this.#shopCategories.categories(), this.#categoryCounts()));
 
   readonly categoryOptions = computed(() =>
-    shopCategoryOptionsFrom(this.#shopCategories.categories(), this.#categoryCounts()),
+    withChosenCategories(
+      shopCategoryOptionsFrom(this.#shopCategories.categories(), this.#categoryCounts()),
+      this.filterState().categories,
+      this.#shopCategories.categories(),
+    ),
   );
 
-  readonly #categoryOptionIds = computed(
-    () => new Set<string>(this.categoryOptions().map((option) => option.id)),
-  );
+  /** Ids `?category=` may name. Compared by content, so a new counts snapshot sends no new search. */
+  readonly #categoryFilterIds = computed(() => shopCategoryFilterIds(this.#shopCategories.categories()), {
+    equal: sameSet,
+  });
 
   readonly activeTab = computed(() =>
     resolveShopTab(
-      this.shopCategory() ?? this.slug(),
+      this.shopCategory() ?? (this.categoryShop() ? this.slug() : undefined),
       this.shopSubcategory(),
       this.#shopCategories.categories(),
     ),
@@ -203,21 +212,23 @@ export class ShopPage {
     return shopTabFor(tab, this.#shopCategories.categories()).label;
   });
 
-  readonly filterState = computed(() =>
-    parseShopFilterState({
-      sort: this.sort(),
-      category: this.category(),
-      brand: this.brand(),
-      player: this.player(),
-      size: this.size(),
-      color: this.color(),
-      gender: this.gender(),
-      newArrivals: this.newArrivals(),
-      onSale: this.onSale(),
-      inStock: this.inStock(),
-      page: this.page(),
-      categoryIds: this.#categoryOptionIds(),
-    }),
+  readonly filterState = computed(
+    () =>
+      parseShopFilterState({
+        sort: this.sort(),
+        category: this.category(),
+        brand: this.brand(),
+        player: this.player(),
+        size: this.size(),
+        color: this.color(),
+        gender: this.gender(),
+        newArrivals: this.newArrivals(),
+        onSale: this.onSale(),
+        inStock: this.inStock(),
+        page: this.page(),
+        categoryIds: this.#categoryFilterIds(),
+      }),
+    { equal: filtersEqual },
   );
 
   readonly browseParams = computed(() => {
@@ -405,4 +416,8 @@ export class ShopPage {
       ...(preserveScroll ? { scroll: 'manual' as const } : {}),
     });
   }
+}
+
+function sameSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  return left.size === right.size && [...left].every((id) => right.has(id));
 }

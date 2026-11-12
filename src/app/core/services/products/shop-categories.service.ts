@@ -72,15 +72,25 @@ export class ShopCategoriesService {
     return this.#seed() ?? BUILT_IN;
   });
 
-  /** Resolves once the list is known (one read at most); never rejects. */
+  /** Resolves once the list is known (one read at most while it works); never rejects. */
   load(): Promise<readonly ShopCategorySource[]> {
-    if (this.#seed() !== null) return Promise.resolve(this.categories());
-    this.#loading ??= this.#read().then(() => this.categories());
+    if (this.#seed() !== null || this.#liveLoaded()) return Promise.resolve(this.categories());
+    this.#loading ??= this.#read().then((ok) => {
+      // A failed browser read is tried again on the next navigation instead of sticking.
+      if (!ok && this.#isBrowser) this.#loading = null;
+      return this.categories();
+    });
     return this.#loading;
   }
 
-  async #read(): Promise<void> {
+  #liveLoaded(): boolean {
+    return this.#isBrowser && (this.#injector.get(CatalogService).categories()?.length ?? 0) > 0;
+  }
+
+  /** True when the list was read; false when the built-in list stands in. */
+  async #read(): Promise<boolean> {
     let list: readonly ShopCategorySource[] = BUILT_IN;
+    let ok = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const snap = await Promise.race([
@@ -102,6 +112,7 @@ export class ShopCategoriesService {
           return result.success ? [toSource(result.output)] : [];
         });
         if (parsed.length > 0) list = parsed;
+        ok = true;
       } else {
         this.#noStore();
       }
@@ -110,9 +121,14 @@ export class ShopCategoriesService {
     } finally {
       clearTimeout(timer);
     }
-    this.#seed.set(list);
-    // The browser uses the same list for its first render, so the server HTML matches.
-    if (this.#isServer) this.#transfer.set(SHOP_CATEGORIES_KEY, list);
+    if (this.#isServer) {
+      this.#seed.set(list);
+      // The browser uses the same list for its first render, so the server HTML matches.
+      this.#transfer.set(SHOP_CATEGORIES_KEY, list);
+    } else if (ok) {
+      this.#seed.set(list);
+    }
+    return ok;
   }
 
   /** A server render built on the built-in list must not be kept by a cache. */
