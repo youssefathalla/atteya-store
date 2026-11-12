@@ -2,6 +2,11 @@ import { Service, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import {
+  openPreviousVersionsDialog,
+  type PreviousVersionsDialogData,
+  type PreviousVersionsDialogResult,
+} from '@shared/ui/dialogs/previous-versions-dialog';
+import {
   ConfirmDialogComponent,
   ConfirmDialogData,
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
@@ -138,15 +143,19 @@ export class NavigationDialogService {
     return !!confirmed;
   }
 
+  openPreviousVersions(data: PreviousVersionsDialogData): Promise<PreviousVersionsDialogResult | null> {
+    return openPreviousVersionsDialog(this.#dialog, data);
+  }
+
   async confirmResetDefaults(): Promise<boolean> {
     const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
       ConfirmDialogComponent,
       {
         data: {
-          title: 'Reset to Defaults',
+          title: 'Restore the Built-in Menu?',
           message:
-            'Are you sure you want to reset the navigation? This will restore the default store catalog.',
-          confirmText: 'Reset to Defaults',
+            'The menu goes back to the one the store started with, live on the store straight away. The menu you have now stays in Previous Versions.',
+          confirmText: 'Restore and Publish',
           cancelText: 'Cancel',
           theme: 'primary',
         },

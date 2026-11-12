@@ -37,3 +37,12 @@ export const NavSettingsSchema = v.object({
   updatedAt: v.optional(v.unknown()),
   updatedBy: v.optional(v.string()),
 });
+
+/**
+ * A saved Previous Versions copy of `settings/navigation` (ATS-251) through today's schema, or
+ * null when it no longer fits.
+ */
+export function navigationFromVersion(data: unknown): v.InferOutput<typeof NavCategorySchema>[] | null {
+  const parsed = v.safeParse(NavSettingsSchema, data);
+  return parsed.success ? parsed.output.categories : null;
+}

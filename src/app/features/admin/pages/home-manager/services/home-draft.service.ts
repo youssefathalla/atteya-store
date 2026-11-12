@@ -365,13 +365,13 @@ export class HomeDraftService {
     this.#assetTracker.register(path);
   }
 
-  getOrphanedPathsForPublish(
-    previousLiveHero: HomeHero,
-    previousLiveShop: HomeShopCategories,
-    previousLiveNav: HomeNavList,
-  ): string[] {
+  /**
+   * Photos uploaded in this session that the published draft doesn't use. Photos that were live
+   * before stay in Storage, because a Previous Versions copy may still show them (ATS-251).
+   */
+  getOrphanedPathsForPublish(): string[] {
     return this.#assetTracker.orphansOnPublish(
-      this.#imageUrls(previousLiveHero, previousLiveShop, previousLiveNav),
+      [],
       this.#imageUrls(this.draftHero(), this.draftShopCategories(), this.draftNavList()),
     );
   }
@@ -384,11 +384,27 @@ export class HomeDraftService {
     return this.#assetTracker.orphansOnDiscard(this.#imageUrls(liveHero, liveShop, liveNav));
   }
 
-  getOrphanedPathsForReset(liveHero: HomeHero, liveShop: HomeShopCategories, liveNav: HomeNavList): string[] {
-    return this.#assetTracker.orphansOnReset(this.#imageUrls(liveHero, liveShop, liveNav));
+  /** Photos uploaded in this session; the replaced live photos stay for Previous Versions. */
+  getOrphanedPathsForReset(): string[] {
+    return this.#assetTracker.orphansOnReset([]);
   }
 
   resetDraftFromSource(hero: HomeHero, shopCategories: HomeShopCategories, navList: HomeNavList): void {
+    this.#applySource(hero, shopCategories, navList);
+    this.#assetTracker.clear();
+    this.#isDirty.set(false);
+  }
+
+  /**
+   * Opens a saved version as an unsaved draft (Previous Versions, ATS-251). Photos uploaded in
+   * this session stay tracked, so the ones the version doesn't use are still cleaned up.
+   */
+  loadVersion(hero: HomeHero, shopCategories: HomeShopCategories, navList: HomeNavList): void {
+    this.#applySource(hero, shopCategories, navList);
+    this.#isDirty.set(true);
+  }
+
+  #applySource(hero: HomeHero, shopCategories: HomeShopCategories, navList: HomeNavList): void {
     this.#layoutCount.set(hero.layoutCount);
     this.#slots.set(buildThreeHeroSlots(hero));
     this.#activeSlotIndex.set(0);
@@ -400,9 +416,6 @@ export class HomeDraftService {
     this.#navTitle.set(navList.title.trim() || DEFAULT_HOME_NAV_LIST.title);
     this.#navItems.set(buildNavItems(navList));
     this.#activeNavIndex.set(0);
-
-    this.#assetTracker.clear();
-    this.#isDirty.set(false);
   }
 
   discardDraft(sourceHero: HomeHero, sourceShop: HomeShopCategories, sourceNav: HomeNavList): void {

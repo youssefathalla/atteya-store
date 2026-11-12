@@ -12,7 +12,7 @@ export class NavManagerHeaderComponent {
   readonly isSaving = input<boolean>(false);
   readonly isResetting = input<boolean>(false);
 
-  readonly resetDefaults = output<void>();
+  readonly previousVersions = output<void>();
   readonly discard = output<void>();
   readonly publish = output<void>();
 }

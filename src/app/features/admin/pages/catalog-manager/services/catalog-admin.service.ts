@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import * as v from 'valibot';
 import { callableFrom, injectFirestore, injectFunctionsAsync } from '@core/firebase';
+import { AuthService } from '@core/services/auth/auth.service';
 import { NavService } from '@core/services/navigation/nav.service';
 import { NavSettingsSchema } from '@core/services/navigation/nav.schema';
 import type { NavCategory } from '@core/services/navigation/nav.model';
@@ -61,6 +62,7 @@ export class CatalogAdminService {
   readonly #functions = injectFunctionsAsync();
   readonly #search = inject(SearchService);
   readonly #nav = inject(NavService);
+  readonly #auth = inject(AuthService);
 
   async listCategories(): Promise<readonly Category[]> {
     const snap = await getDocs(
@@ -119,7 +121,7 @@ export class CatalogAdminService {
         link,
       );
       if (!next) throw new Error('That menu column is no longer there.');
-      await this.#nav.updateNavigation(next);
+      await this.#nav.updateNavigation(next, this.#auth.user()?.uid ?? '');
     };
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {

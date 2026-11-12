@@ -203,20 +203,32 @@ export class NavService {
     );
   }
 
-  async resetDefaultNavigation(categories: readonly NavCategory[] = NAV_CATEGORIES): Promise<void> {
-    await this.updateNavigation(categories);
+  async resetDefaultNavigation(
+    updatedBy: string,
+    categories: readonly NavCategory[] = NAV_CATEGORIES,
+  ): Promise<void> {
+    await this.updateNavigation(categories, updatedBy);
   }
 
-  async seedDefaultNavigation(categories: readonly NavCategory[] = NAV_CATEGORIES): Promise<void> {
-    await this.resetDefaultNavigation(categories);
+  async seedDefaultNavigation(
+    updatedBy: string,
+    categories: readonly NavCategory[] = NAV_CATEGORIES,
+  ): Promise<void> {
+    await this.resetDefaultNavigation(updatedBy, categories);
   }
 
-  async updateNavigation(categories: readonly NavCategory[]): Promise<void> {
+  /**
+   * Saves the menu. `updatedBy` (the saver's uid) goes on the doc so Previous Versions can say
+   * who saved each version (ATS-251; the rules require it to be the caller's uid). The
+   * `onNavigationSettingsWrite` trigger keeps the version it replaced.
+   */
+  async updateNavigation(categories: readonly NavCategory[], updatedBy: string): Promise<void> {
     const payload: NavSettings = {
       id: 'navigation',
       categories: [...categories],
       version: 1,
       updatedAt: serverTimestamp(),
+      updatedBy,
     };
     await setDoc(this.#navDocRef, payload, { merge: true });
   }

@@ -4,7 +4,8 @@ import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { firebaseErrors } from '@shared/utils/firebase/firebase-errors';
-import { NAV_CATEGORIES, NavService } from '@core/services/navigation';
+import { NAV_CATEGORIES, NavService, navigationFromVersion } from '@core/services/navigation';
+import { restoredVersionNote, type SettingsVersion } from '@core/services/settings-history';
 import { NavManagerHeaderComponent } from './components/nav-manager-header/nav-manager-header.component';
 import { NavCategoryListComponent } from './components/nav-category-list/nav-category-list.component';
 import { NavCategoryDetailsComponent } from './components/nav-category-details/nav-category-details.component';
@@ -41,6 +42,8 @@ export class NavigationManagerComponent {
   readonly #allCatalog = inject(NavigationCatalogService);
   readonly isSaving = signal<boolean>(false);
   readonly isResetting = signal<boolean>(false);
+  /** "Restored the version from …" while a restored version is still a draft. */
+  readonly restoredNote = signal<string | null>(null);
 
   /** Per column of the open menu: what a Fill Automatically column shows on the store now. */
   readonly autoPreviews = computed(() =>
@@ -141,8 +144,9 @@ export class NavigationManagerComponent {
 
     this.isSaving.set(true);
     try {
-      await this.#navService.updateNavigation(categories);
+      await this.#navService.updateNavigation(categories, this.#auth.user()?.uid ?? '');
       this.draft.markSaved();
+      this.restoredNote.set(null);
       if (check.warnings.length > 0) {
         this.#snackbar.warning(hiddenTargetsMessage(check.warnings), 'Close', 8000);
       } else {
@@ -155,14 +159,40 @@ export class NavigationManagerComponent {
     }
   }
 
+  /** Previous Versions (ATS-251): a saved version opens as a draft; the built-in one publishes as before. */
+  async openPreviousVersions(): Promise<void> {
+    const choice = await this.#dialogs.openPreviousVersions({
+      docId: 'navigation',
+      builtInHint: 'The menu the store started with. It goes live straight away.',
+      canRestore: (data) => navigationFromVersion(data) !== null,
+    });
+    if (!choice) return;
+    if (choice.kind === 'built-in') {
+      await this.resetToDefaults();
+      return;
+    }
+    this.#restoreVersion(choice.version);
+  }
+
+  #restoreVersion(version: SettingsVersion): void {
+    const categories = navigationFromVersion(version.data);
+    if (!categories) {
+      this.#snackbar.error("Can't restore this version.");
+      return;
+    }
+    this.draft.loadVersion(categories);
+    this.restoredNote.set(restoredVersionNote(version.savedAtMs));
+  }
+
   async resetToDefaults(): Promise<void> {
     const confirmed = await this.#dialogs.confirmResetDefaults();
     if (!confirmed) return;
 
     this.isResetting.set(true);
     try {
-      await this.#navService.resetDefaultNavigation();
+      await this.#navService.resetDefaultNavigation(this.#auth.user()?.uid ?? '');
       this.draft.markSaved();
+      this.restoredNote.set(null);
       this.#snackbar.success('Default navigation restored successfully!');
       this.draft.resetDraftFromSource(NAV_CATEGORIES);
     } catch (err) {
@@ -178,6 +208,7 @@ export class NavigationManagerComponent {
       if (!confirmed) return;
     }
     this.draft.discardDraft(this.#navService.categories());
+    this.restoredNote.set(null);
   }
 
   async #reportWriteError(err: unknown, fallback: string): Promise<void> {
