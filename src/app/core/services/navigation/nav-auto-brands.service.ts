@@ -61,10 +61,19 @@ export class NavAutoBrandsService {
   readonly brands = computed((): readonly NavAutoBrand[] => {
     if (this.#isBrowser) {
       const live = this.#injector.get(CatalogService).brands();
-      if (live && (live.length > 0 || this.#seed() === null)) return live.map(toBrand);
+      if (live) return live.map(toNavAutoBrand);
     }
     return this.#seed() ?? [];
   });
+
+  /**
+   * True once the brands are known: the server's list, or the live list in the browser. A page
+   * rendered only in the browser waits for it before showing a brand column (no pop-in).
+   */
+  readonly ready = computed(
+    () =>
+      this.#seed() !== null || (this.#isBrowser && this.#injector.get(CatalogService).brands() !== undefined),
+  );
 
   /** Server only: reads the published brands once for this request; never rejects. */
   load(): Promise<void> {
@@ -93,7 +102,7 @@ export class NavAutoBrandsService {
       if (snap) {
         list = snap.docs.flatMap((doc) => {
           const result = v.safeParse(BrandSourceSchema, { ...doc.data(), id: doc.id });
-          return result.success ? [toBrand(result.output)] : [];
+          return result.success ? [toNavAutoBrand(result.output)] : [];
         });
       } else {
         this.#noStore();
@@ -117,7 +126,8 @@ export class NavAutoBrandsService {
   }
 }
 
-function toBrand(brand: {
+/** A brand doc as an auto column needs it (also the admin preview's mapping). */
+export function toNavAutoBrand(brand: {
   readonly id: string;
   readonly slug: string;
   readonly name: string;

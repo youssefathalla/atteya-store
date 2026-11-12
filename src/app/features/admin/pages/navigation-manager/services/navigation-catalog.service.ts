@@ -4,6 +4,7 @@ import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
 import {
   timeToMs,
+  toNavAutoBrand,
   type NavAutoSources,
   type NavTargetCatalog,
   type NavTargetEntry,
@@ -126,13 +127,7 @@ export class NavigationCatalogService {
         parentId: entry.parentId,
         sortOrder: entry.sortOrder,
       })),
-      brands: (this.#published.brands() ?? []).map((entry) => ({
-        id: entry.id,
-        slug: entry.slug,
-        name: entry.name,
-        sortOrder: entry.sortOrder,
-        createdAtMs: timeToMs(entry.createdAt),
-      })),
+      brands: (this.#published.brands() ?? []).map(toNavAutoBrand),
     };
   });
 

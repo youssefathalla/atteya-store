@@ -10,7 +10,7 @@ import { NavCategory, NavSettings } from './nav.model';
 import { NAV_CATEGORIES } from './nav.data';
 import { resolveStorefrontTargets, visibleStorefrontCategories } from './nav-visibility';
 import type { NavTargetCatalog } from './nav-target';
-import { expandAutoColumns, type NavAutoSources } from './nav-auto-columns';
+import { expandAutoColumns, navNeedsBrands, type NavAutoSources } from './nav-auto-columns';
 import { NavAutoBrandsService } from './nav-auto-brands.service';
 import {
   NAVIGATION_SETTINGS_KEY,
@@ -130,7 +130,8 @@ export class NavService {
     if (!this.#catalog.shellReady()) return false;
     const docData = this.#navDoc();
     if (docData === undefined) return false;
-    if (docHasCategories(docData)) return true;
+    // A brand column that fills itself waits for the brands, so it never pops in (ATS-247).
+    if (docHasCategories(docData)) return !navNeedsBrands(docData.categories) || this.#autoBrands.ready();
     return this.#bootstrapSettled();
   });
 
@@ -181,11 +182,26 @@ export class NavService {
   );
 
   readonly storefrontCategories = computed<readonly NavCategory[]>(() =>
-    visibleStorefrontCategories(
-      resolveStorefrontTargets(this.expandedCategories(), this.#targetCatalog()),
-      (path) => this.#catalog.isEmpty(path),
+    this.#visible(this.expandedCategories()),
+  );
+
+  /**
+   * Like `storefrontCategories`, but a column that fills itself lists everything, ignoring
+   * "Show at most": the Brands page is the full list of brands (ATS-247).
+   */
+  readonly directoryCategories = computed<readonly NavCategory[]>(() =>
+    this.#visible(
+      expandAutoColumns(this.categories(), this.#autoSources(), (path) => this.#catalog.isEmpty(path), {
+        noLimit: true,
+      }),
     ),
   );
+
+  #visible(categories: readonly NavCategory[]): readonly NavCategory[] {
+    return visibleStorefrontCategories(resolveStorefrontTargets(categories, this.#targetCatalog()), (path) =>
+      this.#catalog.isEmpty(path),
+    );
+  }
 
   async resetDefaultNavigation(categories: readonly NavCategory[] = NAV_CATEGORIES): Promise<void> {
     await this.updateNavigation(categories);

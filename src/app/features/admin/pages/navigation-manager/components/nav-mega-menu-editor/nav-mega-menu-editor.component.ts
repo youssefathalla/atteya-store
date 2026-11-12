@@ -108,11 +108,12 @@ export class NavMegaMenuEditorComponent {
     if (categoryId) this.columnAutoChange.emit({ colIndex, auto: { kind: 'children', categoryId } });
   }
 
-  /** "Show at most": a whole number from 1 to 20; anything else leaves the saved number. */
+  /** "Show at most": rounded and kept between 1 and 20; an empty box leaves the saved number. */
   changeLimit(colIndex: number, current: NavAutoColumn, value: unknown): void {
-    if (current.kind === 'children') return;
-    const limit = Number(value);
-    if (!Number.isInteger(limit) || limit < 1 || limit > NAV_AUTO_MAX_LIMIT) return;
+    if (current.kind === 'children' || value === null || value === '') return;
+    const typed = Number(value);
+    if (!Number.isFinite(typed)) return;
+    const limit = Math.min(NAV_AUTO_MAX_LIMIT, Math.max(1, Math.round(typed)));
     this.columnAutoChange.emit({ colIndex, auto: { kind: current.kind, limit } });
   }
 

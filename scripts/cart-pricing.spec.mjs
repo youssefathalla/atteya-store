@@ -1123,6 +1123,14 @@ describe('navigation columns that fill themselves (ATS-247)', () => {
     ]);
   });
 
+  it('shows no sub-categories of a hidden category, and the Brands page ignores the limit', () => {
+    assert.deepEqual(navAutoColumnLinks({ kind: 'children', categoryId: 'accessories' }, sources, none), []);
+    assert.equal(
+      navAutoColumnLinks({ kind: 'brands', limit: 1 }, sources, none, { noLimit: true }).length,
+      3,
+    );
+  });
+
   it('replaces only auto columns and keeps the saved navigation as it was', () => {
     const saved = [
       {

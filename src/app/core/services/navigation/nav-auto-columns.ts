@@ -65,6 +65,11 @@ export interface NavAutoSources {
 /** True when the store has nothing published at that address (from `settings/catalog`). */
 export type NavPathIsEmpty = (path: string) => boolean;
 
+export interface NavAutoOptions {
+  /** Ignore "Show at most" (the Brands page lists every brand of a brand column). */
+  readonly noLimit?: boolean;
+}
+
 /** The "Show at most" number for an auto column (sub-categories always stop at the max). */
 export function navAutoLimit(auto: NavAutoColumn): number {
   if (auto.kind === 'children') return NAV_AUTO_MAX_LIMIT;
@@ -103,8 +108,9 @@ export function navAutoColumnLinks(
   auto: NavAutoColumn,
   sources: NavAutoSources,
   isEmpty: NavPathIsEmpty,
+  options: NavAutoOptions = {},
 ): MegaMenuLink[] {
-  const limit = navAutoLimit(auto);
+  const limit = options.noLimit ? Number.POSITIVE_INFINITY : navAutoLimit(auto);
   switch (auto.kind) {
     case 'brands':
       return [...sources.brands]
@@ -119,6 +125,8 @@ export function navAutoColumnLinks(
         .filter((link) => !isEmpty(link.path))
         .slice(0, limit);
     case 'children':
+      // A hidden or deleted category shows none of its sub-categories.
+      if (!sources.categories.some((category) => category.id === auto.categoryId)) return [];
       return sources.categories
         .filter((category) => category.parentId === auto.categoryId)
         .sort(bySortOrder)
@@ -145,6 +153,7 @@ export function expandAutoColumns(
   categories: readonly NavCategory[],
   sources: NavAutoSources,
   isEmpty: NavPathIsEmpty,
+  options: NavAutoOptions = {},
 ): readonly NavCategory[] {
   const hasAuto = categories.some((category) => category.megaMenu?.some((column) => column.auto));
   if (!hasAuto) return categories;
@@ -153,7 +162,9 @@ export function expandAutoColumns(
     return {
       ...category,
       megaMenu: category.megaMenu.map((column) =>
-        column.auto ? { ...column, links: navAutoColumnLinks(column.auto, sources, isEmpty) } : column,
+        column.auto
+          ? { ...column, links: navAutoColumnLinks(column.auto, sources, isEmpty, options) }
+          : column,
       ),
     };
   });
