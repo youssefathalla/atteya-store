@@ -1,17 +1,26 @@
-import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { firebaseErrors } from '@shared/utils/firebase/firebase-errors';
-import { NAV_CATEGORIES, NavService } from '@core/services/navigation';
+import { NAV_CATEGORIES, NavService, navigationFromVersion } from '@core/services/navigation';
+import { restoredVersionNote, type SettingsVersion } from '@core/services/settings-history';
 import { NavManagerHeaderComponent } from './components/nav-manager-header/nav-manager-header.component';
 import { NavCategoryListComponent } from './components/nav-category-list/nav-category-list.component';
 import { NavCategoryDetailsComponent } from './components/nav-category-details/nav-category-details.component';
-import { NavMegaMenuEditorComponent } from './components/nav-mega-menu-editor/nav-mega-menu-editor.component';
+import {
+  NavMegaMenuEditorComponent,
+  type NavAutoParentOption,
+} from './components/nav-mega-menu-editor/nav-mega-menu-editor.component';
 import { NavigationDraftService } from './services/navigation-draft.service';
 import { NavigationDialogService } from './services/navigation-dialog.service';
-import { validateNavigationDraft } from './utils/navigation-manager.validator';
+import { NavigationCatalogService } from './services/navigation-catalog.service';
+import {
+  draftProblemsMessage,
+  hiddenTargetsMessage,
+  validateNavigationDraft,
+} from './utils/navigation-manager.validator';
 
 @Component({
   selector: 'app-navigation-manager',
@@ -30,10 +39,36 @@ export class NavigationManagerComponent {
   readonly #auth = inject(AuthService);
   readonly #router = inject(Router);
   readonly draft = inject(NavigationDraftService);
+  readonly #allCatalog = inject(NavigationCatalogService);
   readonly isSaving = signal<boolean>(false);
   readonly isResetting = signal<boolean>(false);
+  /** "Restored the version from …" while a restored version is still a draft. */
+  readonly restoredNote = signal<string | null>(null);
+
+  /** Per column of the open menu: what a Fill Automatically column shows on the store now. */
+  readonly autoPreviews = computed(() =>
+    (this.draft.selectedCategory()?.megaMenu ?? []).map((column) =>
+      column.auto ? this.draft.autoPreview(column.auto) : [],
+    ),
+  );
+
+  /** Top-level categories for "Sub-categories of …" (hidden ones marked, like Links To). */
+  readonly autoParentOptions = computed<readonly NavAutoParentOption[]>(() => {
+    const full = this.#allCatalog.catalog()?.categories;
+    if (full) {
+      return full
+        .filter((entry) => entry.parentId === null)
+        .map((entry) => ({ id: entry.id, name: entry.published ? entry.name : `${entry.name} (hidden)` }));
+    }
+    return this.#allCatalog
+      .autoSources()
+      .categories.filter((entry) => entry.parentId === null)
+      .map((entry) => ({ id: entry.id, name: entry.name }));
+  });
 
   constructor() {
+    // Read every category and brand again on each visit, so new or hidden ones show up.
+    this.#allCatalog.refresh();
     effect(() => {
       if (this.#navService.isLoading()) return;
 
@@ -86,11 +121,7 @@ export class NavigationManagerComponent {
       colTitle.includes('brand') ||
       (isBrandCategory && !colTitle.includes('discover'));
 
-    const result = await this.#dialogs.openAddLink(
-      col?.title || `Column ${colIndex + 1}`,
-      current?.path,
-      isBrandContext,
-    );
+    const result = await this.#dialogs.openAddLink(col?.title || `Column ${colIndex + 1}`, isBrandContext);
     if (result) this.draft.addLink(colIndex, result);
   }
 
@@ -103,24 +134,56 @@ export class NavigationManagerComponent {
 
   // --- Header Persistence Actions ---
   async publishChanges(): Promise<void> {
-    const categories = this.draft.draftCategories();
+    const categories = this.draft.categoriesToSave();
 
-    const validationError = validateNavigationDraft(categories);
-    if (validationError) {
-      this.#snackbar.error(validationError);
+    const check = validateNavigationDraft(categories, this.#allCatalog.targetCatalog());
+    if (check.errors.length > 0) {
+      this.#snackbar.error(draftProblemsMessage(check.errors), 'Close', 10000);
       return;
     }
 
     this.isSaving.set(true);
     try {
-      await this.#navService.updateNavigation(categories);
+      await this.#navService.updateNavigation(categories, this.#auth.user()?.uid ?? '');
       this.draft.markSaved();
-      this.#snackbar.success('Published! Navigation updated successfully.');
+      this.restoredNote.set(null);
+      if (check.warnings.length > 0) {
+        this.#snackbar.warning(hiddenTargetsMessage(check.warnings), 'Close', 8000);
+      } else {
+        this.#snackbar.success('Published! Navigation updated successfully.');
+      }
     } catch (err) {
       await this.#reportWriteError(err, 'Failed to save changes. Please try again.');
     } finally {
       this.isSaving.set(false);
     }
+  }
+
+  /** Previous Versions (ATS-251): a saved version opens as a draft; the built-in one publishes as before. */
+  async openPreviousVersions(): Promise<void> {
+    const choice = await this.#dialogs.openPreviousVersions({
+      docId: 'navigation',
+      builtInHint: 'The menu the store started with. It goes live straight away.',
+      canRestore: (data) => navigationFromVersion(data) !== null,
+    });
+    if (!choice) return;
+    if (choice.kind === 'built-in') {
+      await this.resetToDefaults();
+      return;
+    }
+    // Restoring replaces the draft: ask first when there are unpublished edits.
+    if (this.draft.isDraftDirty() && !(await this.#dialogs.confirmRestoreOverDraft())) return;
+    this.#restoreVersion(choice.version);
+  }
+
+  #restoreVersion(version: SettingsVersion): void {
+    const categories = navigationFromVersion(version.data);
+    if (!categories) {
+      this.#snackbar.error("Can't restore this version.");
+      return;
+    }
+    this.draft.loadVersion(categories);
+    this.restoredNote.set(restoredVersionNote(version.savedAtMs));
   }
 
   async resetToDefaults(): Promise<void> {
@@ -129,8 +192,9 @@ export class NavigationManagerComponent {
 
     this.isResetting.set(true);
     try {
-      await this.#navService.resetDefaultNavigation();
+      await this.#navService.resetDefaultNavigation(this.#auth.user()?.uid ?? '');
       this.draft.markSaved();
+      this.restoredNote.set(null);
       this.#snackbar.success('Default navigation restored successfully!');
       this.draft.resetDraftFromSource(NAV_CATEGORIES);
     } catch (err) {
@@ -146,6 +210,7 @@ export class NavigationManagerComponent {
       if (!confirmed) return;
     }
     this.draft.discardDraft(this.#navService.categories());
+    this.restoredNote.set(null);
   }
 
   async #reportWriteError(err: unknown, fallback: string): Promise<void> {

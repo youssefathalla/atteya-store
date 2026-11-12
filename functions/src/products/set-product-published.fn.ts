@@ -12,7 +12,7 @@ export interface SetProductPublishedResponse {
 export const setProductPublished = onCall(
   adminCallableOptions(),
   async (request): Promise<SetProductPublishedResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = readSetProductPublishedRequest(request.data);
     if (typeof input === 'string') throw new HttpsError('invalid-argument', input);
 

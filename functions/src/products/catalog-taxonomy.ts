@@ -560,3 +560,28 @@ export function readCategoryWeight(raw: unknown): number | null | undefined {
   if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0 || raw > 100_000) return undefined;
   return raw;
 }
+
+/** Which Size & Fit chart a category's product pages show (ATS-250). */
+export const CATEGORY_SIZE_CHARTS = ['clothing', 'none'] as const;
+export type CategorySizeChart = (typeof CATEGORY_SIZE_CHARTS)[number];
+
+/** What a category's product pages call the details box (ATS-250). */
+export const CATEGORY_DETAILS_TITLES = ['materials', 'specifications'] as const;
+export type CategoryDetailsTitle = (typeof CATEGORY_DETAILS_TITLES)[number];
+
+export interface CategoryPageDefaults {
+  readonly sizeChart?: CategorySizeChart;
+  readonly detailsTitle?: CategoryDetailsTitle;
+}
+
+/**
+ * Product page settings the built-in categories had before staff could choose them (ATS-250).
+ * A category doc without the field uses this; a sub-category with no value anywhere uses its
+ * parent's; nothing anywhere = no size chart and Specifications. The catalogue migration writes
+ * these onto the docs when the field is missing and never replaces a saved choice.
+ */
+export const BUILT_IN_CATEGORY_PAGE: Readonly<Record<string, CategoryPageDefaults>> = {
+  apparel: { sizeChart: 'clothing', detailsTitle: 'materials' },
+  socks: { sizeChart: 'none' },
+  supports: { detailsTitle: 'materials' },
+};

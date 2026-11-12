@@ -2,12 +2,23 @@
   <section class="surface-card p-4 @5xl:p-5 w-full elements-start-col gap-4" aria-label="Orders toolbar">
     <h1 class="font-title-lg font-bold!">Orders</h1>
 
-    <div class="flex flex-wrap gap-2" role="tablist" aria-label="Filter orders by status">
+    <app-orders-filter-bar
+      [search]="searchText()"
+      (searchChange)="onSearchChange($event)"
+      [date]="dateFilter()"
+      (dateChange)="onDateChange($event)"
+    />
+
+    <div
+      class="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 @3xl:flex-wrap @3xl:overflow-visible @3xl:pb-0 @3xl:mx-0 @3xl:px-0"
+      role="tablist"
+      aria-label="Filter orders by status"
+    >
       @for (tab of filterTabs; track tab.id) {
         <button
           type="button"
           role="tab"
-          class="border-shape border px-3 py-1.5 font-label-md cursor-pointer"
+          class="shrink-0 border-shape border px-3 py-1.5 font-label-md cursor-pointer"
           [class.border-primary]="statusFilter() === tab.id"
           [class.bg-surface-container-highest]="statusFilter() === tab.id"
           [class.border-outline-variant]="statusFilter() !== tab.id"
@@ -18,6 +29,37 @@
         </button>
       }
     </div>
+
+    @if (hasFilters()) {
+      <div class="elements-start flex-wrap gap-2 pt-3 border-t border-outline-variant">
+        <span class="font-label-lg font-bold! me-1" role="status">
+          @if (dataResource.isLoading()) {
+            Searching…
+          } @else {
+            {{ countLabel() }}
+          }
+        </span>
+        <mat-chip-set aria-label="Filters in use">
+          @if (searchTerms().length > 0) {
+            <mat-chip (removed)="clearSearch()">
+              Search: <span dir="auto">{{ searchText().trim() }}</span>
+              <button matChipRemove type="button" aria-label="Remove the search">
+                <mat-icon name="close" />
+              </button>
+            </mat-chip>
+          }
+          @if (dateChipLabel(); as label) {
+            <mat-chip (removed)="onDateChange(null)">
+              {{ label }}
+              <button matChipRemove type="button" aria-label="Remove the dates">
+                <mat-icon name="close" />
+              </button>
+            </mat-chip>
+          }
+        </mat-chip-set>
+        <button matButton="text" type="button" (click)="clearAll()">Clear All</button>
+      </div>
+    }
   </section>
 
   <section class="w-full" aria-label="Orders list">
@@ -30,7 +72,18 @@
     } @else if (loadErrorMessage(); as message) {
       <p class="surface-card p-5 font-body-md break-words" role="alert">{{ message }}</p>
     } @else if (cards().length === 0) {
-      <p class="surface-card p-5 font-body-md">No orders in this view yet.</p>
+      @if (hasFilters() && hitLimit()) {
+        <p class="surface-card p-5 font-body-md">
+          No match among the newest {{ dataResource.value()?.orders.length }} orders checked. Older orders may
+          still match: search by phone number or order number, or pick other dates.
+        </p>
+      } @else if (hasFilters()) {
+        <p class="surface-card p-5 font-body-md">
+          No orders match this search. Check the spelling, try the phone number, or pick other dates.
+        </p>
+      } @else {
+        <p class="surface-card p-5 font-body-md">No orders in this view yet.</p>
+      }
     } @else {
       <div class="surface-card w-full">
         <div class="admin-order-row__head" aria-hidden="true">

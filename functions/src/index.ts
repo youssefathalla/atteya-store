@@ -6,7 +6,15 @@ export { importImageFromUrl } from './import-image.fn.js';
 export { migrateCatalogStructure } from './products/migrate-catalog.fn.js';
 export { setProductStock } from './products/set-product-stock.fn.js';
 export { setProductPublished } from './products/set-product-published.fn.js';
+export { deleteProduct } from './products/delete-product.fn.js';
 export { productWeights } from './products/product-weights.fn.js';
+export {
+  deleteBrand,
+  deleteCategory,
+  reorderCatalog,
+  saveBrand,
+  saveCategory,
+} from './products/catalog-admin.fn.js';
 export { createProduct, updateProduct } from './products/product-form.fn.js';
 export { getProductModel, saveProductModel } from './products/product-model.fn.js';
 export { onProductCountsChange } from './products/product-counts.trigger.js';
@@ -27,6 +35,7 @@ export {
 } from './orders/create-manual-order.fn.js';
 export { confirmCodOrder } from './orders/confirm-cod-order.fn.js';
 export { cancelOrder } from './orders/cancel-order.fn.js';
+export { deleteOrder } from './orders/delete-order.fn.js';
 export { setOrderStatus } from './orders/set-order-status.fn.js';
 export { setDeliveryFee } from './orders/set-delivery-fee.fn.js';
 export { paymobWebhook } from './orders/paymob-webhook.fn.js';
@@ -37,3 +46,4 @@ export { deleteMyAccount } from './auth/delete-account.fn.js';
 export { syncOrderView } from './orders/order-view.trigger.js';
 export { sendOrderEmails } from './email/send-order-emails.trigger.js';
 export { subscribeToEmails } from './marketing/subscribe-to-emails.fn.js';
+export { onHomeSettingsWrite, onNavigationSettingsWrite } from './settings/settings-history.trigger.js';

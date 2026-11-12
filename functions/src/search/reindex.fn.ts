@@ -21,7 +21,7 @@ export interface ReindexSearchResponse {
 export const reindexSearch = onCall(
   adminCallableOptions({ timeoutSeconds: 300, secrets: [ALGOLIA_WRITE_KEY] }),
   async (request): Promise<ReindexSearchResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const dryRun = parseDryRun(request.data);
 
     const db = getFirestore();

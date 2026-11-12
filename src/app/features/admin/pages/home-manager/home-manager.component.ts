@@ -8,7 +8,8 @@ import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { StorageUploadService } from '@core/services/storage';
 import { NavService } from '@core/services/navigation';
 import { firebaseErrors } from '@shared/utils/firebase/firebase-errors';
-import { HomeService } from '@features/home/services/home.service';
+import { HomeService, homeSettingsFromVersion } from '@features/home/services/home.service';
+import { restoredVersionNote, type SettingsVersion } from '@core/services/settings-history';
 import {
   DEFAULT_HOME_HERO,
   DEFAULT_HOME_NAV_LIST,
@@ -61,6 +62,8 @@ export class HomeManagerComponent {
   readonly isLoading = this.#homeService.isLoading;
   readonly isSaving = this.#isSaving.asReadonly();
   readonly isResetting = this.#isResetting.asReadonly();
+  /** "Restored the version from …" while a restored version is still a draft. */
+  readonly restoredNote = signal<string | null>(null);
 
   constructor() {
     effect(() => {
@@ -106,7 +109,7 @@ export class HomeManagerComponent {
       const confirmed = await this.#dialogs.confirmImportNavFromMenu();
       if (!confirmed) return;
     }
-    const imported = this.draft.importNavItems(this.#navService.categories());
+    const imported = this.draft.importNavItems(this.#navService.expandedCategories());
     if (imported === 0) {
       this.#snackbar.info('No menu links are ready to import yet.');
     }
@@ -140,15 +143,16 @@ export class HomeManagerComponent {
 
     this.#isSaving.set(true);
     try {
-      const oldHero = this.#homeService.hero();
-      const oldShop = this.#homeService.shopCategories();
-      const oldNav = this.#homeService.navList();
-      const orphanedPaths = this.draft.getOrphanedPathsForPublish(oldHero, oldShop, oldNav);
+      const orphanedPaths = this.draft.getOrphanedPathsForPublish();
 
-      await this.#homeService.updateHomeSettings({ hero, shopCategories, navList });
+      await this.#homeService.updateHomeSettings(
+        { hero, shopCategories, navList },
+        this.#auth.user()?.uid ?? '',
+      );
       await this.#storageUpload.deleteImages(orphanedPaths);
 
       this.draft.markSaved();
+      this.restoredNote.set(null);
       this.#snackbar.success('Published! Your homepage sections are now live.');
     } catch (err) {
       await this.#reportWriteError(err, 'Unable to publish changes. Please try again.');
@@ -157,21 +161,47 @@ export class HomeManagerComponent {
     }
   }
 
+  /** Previous Versions (ATS-251): a saved version opens as a draft; the built-in one publishes as before. */
+  async openPreviousVersions(): Promise<void> {
+    const choice = await this.#dialogs.openPreviousVersions({
+      docId: 'home',
+      builtInHint:
+        'The hero, shop cards and category list the store started with. It goes live straight away.',
+      canRestore: (data) => homeSettingsFromVersion(data) !== null,
+    });
+    if (!choice) return;
+    if (choice.kind === 'built-in') {
+      await this.resetToDefaults();
+      return;
+    }
+    // Restoring replaces the draft: ask first when there are unpublished edits.
+    if (this.draft.isDirty() && !(await this.#dialogs.confirmRestoreOverDraft())) return;
+    this.#restoreVersion(choice.version);
+  }
+
+  #restoreVersion(version: SettingsVersion): void {
+    const settings = homeSettingsFromVersion(version.data);
+    if (!settings) {
+      this.#snackbar.error("Can't restore this version.");
+      return;
+    }
+    this.draft.loadVersion(settings.hero, settings.shopCategories, settings.navList);
+    this.restoredNote.set(restoredVersionNote(version.savedAtMs));
+  }
+
   async resetToDefaults(): Promise<void> {
     const confirmed = await this.#dialogs.confirmResetDefaults();
     if (!confirmed) return;
 
     this.#isResetting.set(true);
     try {
-      const oldHero = this.#homeService.hero();
-      const oldShop = this.#homeService.shopCategories();
-      const oldNav = this.#homeService.navList();
-      const orphanedPaths = this.draft.getOrphanedPathsForReset(oldHero, oldShop, oldNav);
+      const orphanedPaths = this.draft.getOrphanedPathsForReset();
 
-      await this.#homeService.resetDefaultHomeSettings();
+      await this.#homeService.resetDefaultHomeSettings(this.#auth.user()?.uid ?? '');
       await this.#storageUpload.deleteImages(orphanedPaths);
 
       this.draft.resetDraftFromSource(DEFAULT_HOME_HERO, DEFAULT_HOME_SHOP_CATEGORIES, DEFAULT_HOME_NAV_LIST);
+      this.restoredNote.set(null);
       this.#snackbar.success('Default homepage sections restored.');
     } catch (err) {
       await this.#reportWriteError(err, 'Unable to restore default sections. Please try again.');
@@ -191,6 +221,7 @@ export class HomeManagerComponent {
     const orphanedPaths = this.draft.getOrphanedPathsForDiscard(liveHero, liveShop, liveNav);
     await this.#storageUpload.deleteImages(orphanedPaths);
     this.draft.discardDraft(liveHero, liveShop, liveNav);
+    this.restoredNote.set(null);
   }
 
   async #reportWriteError(err: unknown, fallback: string): Promise<void> {

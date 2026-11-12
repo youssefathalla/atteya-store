@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { adminGuard } from '@core/guards/admin/admin.guard';
+import { adminGuard, adminOnlyGuard } from '@core/guards/admin/admin.guard';
 
 export const ADMIN_ROUTES: Routes = [
   {
@@ -66,6 +66,12 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Edit Offer | Atteya Admin',
       },
       {
+        path: 'categories',
+        loadComponent: () =>
+          import('./pages/catalog-manager/catalog-manager.page').then((m) => m.CatalogManagerPageComponent),
+        title: 'Categories & Brands | Atteya Admin',
+      },
+      {
         path: 'orders',
         loadComponent: () =>
           import('./pages/orders-manager/orders-manager.page').then((m) => m.OrdersManagerPageComponent),
@@ -87,13 +93,14 @@ export const ADMIN_ROUTES: Routes = [
           {
             path: '',
             pathMatch: 'full',
-            redirectTo: 'admins',
+            redirectTo: 'shipping',
           },
           {
             path: 'admins',
+            canActivate: [adminOnlyGuard],
             loadComponent: () =>
               import('./pages/settings/admins/admins-tab.component').then((m) => m.AdminsTabComponent),
-            title: 'Admins | Atteya Admin',
+            title: 'Team | Atteya Admin',
           },
           {
             path: 'shipping',

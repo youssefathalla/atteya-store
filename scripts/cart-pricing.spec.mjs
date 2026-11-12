@@ -2,6 +2,27 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
+  shopCategoryFilterIds,
+  shopCategoryIdForSlug,
+  shopCategoryOptionsFrom,
+  shopTabFor,
+  shopTabLabel,
+  shopTabsFrom,
+  withChosenCategories,
+} from '../src/app/core/services/products/utils/shop-categories.ts';
+import {
+  navTargetFromPath,
+  navTargetName,
+  navTargetPath,
+  resolveNavTarget,
+} from '../src/app/core/services/navigation/nav-target.ts';
+import {
+  expandAutoColumns,
+  navAutoColumnLinks,
+  navNeedsBrands,
+  timeToMs,
+} from '../src/app/core/services/navigation/nav-auto-columns.ts';
+import {
   canCheckout,
   cartSubtotalDisplay,
   lineDisplayAmount,
@@ -44,6 +65,10 @@ import {
   EARNED_LABEL_MAX,
   earnedItemLabel,
   bundleNudgeText,
+  bundleSetNudgeButton,
+  bundleSetNudgeLoses,
+  bundleSetNudgeText,
+  bundleSetStripTitle,
   bundleStripTitle,
   offerShopSubtitle,
   offerTitleVisible,
@@ -399,6 +424,107 @@ describe('Bundle price wording', () => {
       'Add 2 more to get 3 for EGP 275',
     );
     assert.equal(bundleNudgeText(bagBundle({})), null);
+  });
+});
+
+describe('Bundle & Save wording (ATS-254)', () => {
+  const slots = [
+    { id: 'slot-1', name: 'Racket', quantity: 1, conditions: { anyOf: [] } },
+    { id: 'slot-2', name: 'Bag', quantity: 1, conditions: { anyOf: [] } },
+    { id: 'slot-3', name: 'Grip', quantity: 1, conditions: { anyOf: [] } },
+  ];
+  const setOffer = (setReward) => ({
+    id: 'kit',
+    title: 'Padel kit',
+    reward: { kind: 'bundleSet', slots, setReward, maxSets: null },
+  });
+  const usd = (egp) => `USD ${egp}`;
+
+  it('the Shop heading lists the groups and the saving', () => {
+    assert.equal(
+      offerShopSubtitle(setOffer({ type: 'percent', percent: 15 })),
+      'Racket + Bag + Grip · Save 15%',
+    );
+    assert.equal(
+      offerShopSubtitle(setOffer({ type: 'amount', amount: 500 }), usd),
+      'Racket + Bag + Grip · Save USD 500',
+    );
+    assert.equal(
+      offerShopSubtitle(setOffer({ type: 'total', price: 4500 })),
+      'Racket + Bag + Grip · All for EGP 4,500',
+    );
+    assert.equal(
+      offerShopSubtitle(setOffer({ type: 'cheapestFree' })),
+      'Racket + Bag + Grip · Cheapest one free',
+    );
+    const two = { ...setOffer({ type: 'percent', percent: 10 }) };
+    two.reward = { ...two.reward, slots: [slots[0], { ...slots[1], name: 'Ball', quantity: 2 }] };
+    assert.equal(offerShopSubtitle(two), 'Racket + 2 × Ball · Save 10%');
+    const broken = setOffer({ type: 'percent', percent: 10 });
+    broken.reward = { ...broken.reward, slots: [] };
+    assert.equal(offerShopSubtitle(broken), null);
+  });
+
+  it('the bag strip names the offer, and how many bundles with more than one', () => {
+    assert.equal(bundleSetStripTitle({ title: 'Padel kit', sets: 1 }), 'Padel kit');
+    assert.equal(bundleSetStripTitle({ title: 'Padel kit', sets: 2 }), 'Padel kit · 2 bundles');
+    assert.equal(bundleSetStripTitle({ title: 'Padel kit', sets: 0 }), null);
+  });
+
+  it('the nudge names what is missing and what the set saves', () => {
+    const bag = { sets: 0, missing: [{ slotId: 'slot-2', name: 'Bag', quantity: 1 }] };
+    assert.equal(
+      bundleSetNudgeText(bag, { type: 'amount', amount: 300 }),
+      'Add a Bag to complete your bundle and save EGP 300',
+    );
+    assert.equal(
+      bundleSetNudgeText(bag, { type: 'amount', amount: 300 }, usd),
+      'Add a Bag to complete your bundle and save USD 300',
+    );
+    assert.equal(
+      bundleSetNudgeText(bag, { type: 'percent', percent: 15 }),
+      'Add a Bag to complete your bundle and save 15%',
+    );
+    assert.equal(
+      bundleSetNudgeText(bag, { type: 'total', price: 4500 }),
+      'Add a Bag to complete your bundle and get it for EGP 4,500',
+    );
+    assert.equal(
+      bundleSetNudgeText(
+        {
+          sets: 1,
+          missing: [
+            { slotId: 'slot-1', name: 'Overgrip', quantity: 1 },
+            { slotId: 'slot-2', name: 'Ball', quantity: 2 },
+          ],
+        },
+        { type: 'cheapestFree' },
+      ),
+      'Add an Overgrip and 2 × Ball to complete another bundle and get the cheapest one free',
+    );
+    assert.equal(
+      bundleSetNudgeText(
+        { sets: 0, missing: [{ slotId: 'slot-2', name: 'Shorts', quantity: 1 }] },
+        { type: 'percent', percent: 10 },
+      ),
+      'Add Shorts to complete your bundle and save 10%',
+    );
+    assert.equal(bundleSetNudgeText({ sets: 1, missing: [] }, { type: 'cheapestFree' }), null);
+  });
+
+  it('the nudge button names the one missing group', () => {
+    assert.equal(bundleSetNudgeButton([{ name: 'Bag' }]), 'Choose Bag');
+    assert.equal(bundleSetNudgeButton([{ name: 'Bag' }, { name: 'Grip' }]), 'Choose Items');
+  });
+
+  it('no nudge when the pieces own offers already save the amount off', () => {
+    const amount = { type: 'amount', amount: 300 };
+    assert.equal(bundleSetNudgeLoses(amount, [200, 150], 2), true);
+    assert.equal(bundleSetNudgeLoses(amount, [200, 50], 2), false);
+    // Only the smallest savings count: the set may use the other pieces.
+    assert.equal(bundleSetNudgeLoses(amount, [400, 100, 50], 2), false);
+    assert.equal(bundleSetNudgeLoses(amount, [400], 2), false);
+    assert.equal(bundleSetNudgeLoses({ type: 'percent', percent: 15 }, [900, 900], 2), false);
   });
 });
 
@@ -787,5 +913,251 @@ describe('onePerModel (one card per model in product lists)', () => {
       'a2',
     );
     assert.equal(onePerModel([p('a1', 'a', { stock: 0 }), p('a2', 'a', { stock: 0 })])[0].id, 'a1');
+  });
+});
+
+describe('navTargetPath (navigation links built from what they point at, ATS-246)', () => {
+  const catalog = {
+    categories: [
+      { id: 'socks', slug: 'socks', name: 'Socks', published: true },
+      { id: 'old-cat', slug: 'old-cat', name: 'Old', published: false },
+    ],
+    brands: [
+      { id: 'nox', slug: 'nox', name: 'Nox', published: true },
+      { id: 'siux', slug: 'siux-padel', name: 'Siux', published: false },
+    ],
+  };
+
+  it('builds category, brand and page addresses', () => {
+    assert.equal(navTargetPath({ kind: 'category', id: 'socks' }, catalog), '/category/socks');
+    assert.equal(navTargetPath({ kind: 'brand', id: 'siux' }, catalog), '/brand/siux-padel');
+    assert.equal(navTargetPath({ kind: 'page', page: 'sale' }, catalog), '/shop?onSale=1');
+    assert.equal(navTargetPath({ kind: 'page', page: 'new-arrivals' }, catalog), '/shop?newArrivals=1');
+    assert.equal(navTargetPath({ kind: 'page', page: 'brands' }, catalog), '/brands');
+    assert.equal(navTargetPath({ kind: 'url', url: '/shop?sort=newest' }, catalog), '/shop?sort=newest');
+  });
+
+  it('uses Shop query names, with the brand name like the Brand filter', () => {
+    const path = navTargetPath(
+      { kind: 'shop', filters: { brand: 'nox', category: 'apparel', gender: 'women', onSale: true } },
+      catalog,
+    );
+    assert.equal(path, '/shop?category=apparel&brand=Nox&gender=women&onSale=1');
+    assert.equal(navTargetPath({ kind: 'shop', filters: {} }, catalog), '/shop');
+  });
+
+  it('reports hidden and missing targets', () => {
+    assert.deepEqual(resolveNavTarget({ kind: 'category', id: 'old-cat' }, catalog), {
+      path: '/category/old-cat',
+      problem: 'hidden',
+    });
+    assert.deepEqual(resolveNavTarget({ kind: 'category', id: 'gone' }, catalog), {
+      path: null,
+      problem: 'missing',
+    });
+    assert.equal(resolveNavTarget({ kind: 'shop', filters: { brand: 'gone' } }, catalog).problem, 'missing');
+  });
+
+  it('turns an exact address back into a target, anything else stays typed', () => {
+    assert.deepEqual(navTargetFromPath('/category/socks', catalog), { kind: 'category', id: 'socks' });
+    assert.deepEqual(navTargetFromPath('/brand/siux-padel', catalog), { kind: 'brand', id: 'siux' });
+    assert.deepEqual(navTargetFromPath('/shop?onSale=1', catalog), { kind: 'page', page: 'sale' });
+    assert.deepEqual(navTargetFromPath('/category/socks?onSale=1', catalog), {
+      kind: 'url',
+      url: '/category/socks?onSale=1',
+    });
+    assert.equal(navTargetFromPath('  ', catalog), null);
+  });
+
+  it('names a target for an empty label', () => {
+    assert.equal(navTargetName({ kind: 'brand', id: 'nox' }, catalog), 'Nox');
+    assert.equal(navTargetName({ kind: 'page', page: 'sale' }, catalog), 'Sale');
+  });
+});
+
+describe('Shop tabs and Category filter from the category list (ATS-249)', () => {
+  const categories = [
+    { id: 'apparel', slug: 'apparel', name: 'Apparel', parentId: null, sortOrder: 20 },
+    { id: 'rackets', slug: 'rackets', name: 'Rackets', parentId: null, sortOrder: 10 },
+    { id: 'accessories', slug: 'accessories', name: 'Accessories', parentId: null, sortOrder: 30 },
+    { id: 'bags', slug: 'bags', name: 'Bags & gear', parentId: 'accessories', sortOrder: 10 },
+    { id: 'grips', slug: 'grips', name: 'Grips', parentId: 'accessories', sortOrder: 20 },
+    { id: 'caps', slug: 'caps', name: 'Caps', parentId: null, sortOrder: 40, shopLabel: 'Hats & Caps' },
+    { id: 'shoes', slug: 'shoes', name: 'Shoes', parentId: null, sortOrder: 50 },
+    { id: 'hidden', slug: 'hidden', name: 'Hidden', parentId: null, sortOrder: 5, published: false },
+  ];
+  const counts = { apparel: 3, rackets: 4, accessories: 2, bags: 2, grips: 0, caps: 1, shoes: 0, hidden: 9 };
+
+  it('names a tab by its saved name, else the built-in name, else the category name', () => {
+    assert.equal(shopTabLabel({ id: 'rackets', name: 'Rackets' }), 'Padel');
+    assert.equal(shopTabLabel({ id: 'rackets', name: 'Rackets', shopLabel: 'Rackets' }), 'Rackets');
+    assert.equal(shopTabLabel({ id: 'caps', name: 'Caps', shopLabel: '  ' }), 'Caps');
+    assert.equal(shopTabLabel({ id: 'caps', name: 'Caps', shopLabel: 'Hats & Caps' }), 'Hats & Caps');
+  });
+
+  it('lists All, then shown top-level categories with products in their order', () => {
+    assert.deepEqual(
+      shopTabsFrom(categories, counts).map((tab) => [tab.id, tab.label, tab.path]),
+      [
+        ['all', 'All', '/shop'],
+        ['rackets', 'Padel', '/category/rackets'],
+        ['apparel', 'Apparel', '/category/apparel'],
+        ['accessories', 'Accessories', '/category/accessories'],
+        ['caps', 'Hats & Caps', '/category/caps'],
+      ],
+    );
+  });
+
+  it('keeps every shown category while counts are unknown', () => {
+    assert.deepEqual(
+      shopTabsFrom(categories, null).map((tab) => tab.id),
+      ['all', 'rackets', 'apparel', 'accessories', 'caps', 'shoes'],
+    );
+  });
+
+  it('offers shown categories with products, each top level followed by its sub-categories', () => {
+    assert.deepEqual(
+      shopCategoryOptionsFrom(categories, counts).map((option) => [option.id, option.label]),
+      [
+        ['rackets', 'Padel'],
+        ['apparel', 'Apparel'],
+        ['accessories', 'Accessories'],
+        ['bags', 'Bags'],
+        ['caps', 'Hats & Caps'],
+      ],
+    );
+  });
+
+  it('matches a top-level category by address or a built-in one, never a sub-category', () => {
+    assert.equal(shopCategoryIdForSlug('caps', categories), 'caps');
+    assert.equal(shopCategoryIdForSlug('Shoes', categories), 'shoes');
+    assert.equal(shopCategoryIdForSlug('padel', categories), null);
+    assert.equal(
+      shopCategoryIdForSlug('padel', [
+        { id: 'padel', slug: 'padel', name: 'Padel', parentId: null, sortOrder: 60 },
+      ]),
+      'padel',
+    );
+    assert.equal(shopCategoryIdForSlug('apparel', []), 'apparel');
+    assert.equal(shopCategoryIdForSlug('bags', categories), null);
+    assert.equal(shopCategoryIdForSlug('unknown', categories), null);
+    assert.equal(shopCategoryIdForSlug('', categories), null);
+  });
+
+  it('accepts any published or built-in category in ?category= and keeps a chosen empty one tickable', () => {
+    const ids = shopCategoryFilterIds(categories);
+    assert.equal(ids.has('shoes'), true);
+    assert.equal(ids.has('grips'), true);
+    assert.equal(ids.has('hidden'), false);
+    assert.equal(ids.has('zzz'), false);
+    const options = shopCategoryOptionsFrom(categories, counts);
+    assert.deepEqual(withChosenCategories(options, ['shoes'], categories).at(-1), {
+      id: 'shoes',
+      label: 'Shoes',
+      categoryId: 'shoes',
+    });
+    assert.equal(withChosenCategories(options, ['apparel'], categories), options);
+  });
+
+  it('builds a tab for an empty category so its page keeps its title and address', () => {
+    assert.deepEqual(shopTabFor('shoes', categories), {
+      id: 'shoes',
+      label: 'Shoes',
+      path: '/category/shoes',
+    });
+    assert.deepEqual(shopTabFor('all', categories), { id: 'all', label: 'All', path: '/shop' });
+  });
+});
+
+describe('navigation columns that fill themselves (ATS-247)', () => {
+  const sources = {
+    brands: [
+      { id: 'nox', slug: 'nox', name: 'Nox', sortOrder: 20, createdAtMs: 100 },
+      { id: 'head', slug: 'head', name: 'Head', sortOrder: 10, createdAtMs: 300 },
+      { id: 'siux', slug: 'siux', name: 'Siux', sortOrder: 30, createdAtMs: 200 },
+    ],
+    categories: [
+      { id: 'apparel', slug: 'apparel', name: 'Apparel', parentId: null, sortOrder: 10 },
+      { id: 'caps', slug: 'caps', name: 'Caps', parentId: 'apparel', sortOrder: 20 },
+      { id: 'socks', slug: 'socks', name: 'Socks', parentId: 'apparel', sortOrder: 10 },
+      { id: 'grips', slug: 'grips', name: 'Grips', parentId: 'accessories', sortOrder: 10 },
+    ],
+  };
+  const none = () => false;
+
+  it('lists every brand in its order, with the picked-target link shape', () => {
+    const links = navAutoColumnLinks({ kind: 'brands' }, sources, none);
+    assert.deepEqual(
+      links.map((link) => link.path),
+      ['/brand/head', '/brand/nox', '/brand/siux'],
+    );
+    assert.deepEqual(links[0], {
+      label: 'Head',
+      path: '/brand/head',
+      target: { kind: 'brand', id: 'head' },
+      isBrand: true,
+    });
+  });
+
+  it('lists the newest brands first and stops at the limit', () => {
+    const links = navAutoColumnLinks({ kind: 'newest-brands', limit: 2 }, sources, none);
+    assert.deepEqual(
+      links.map((link) => link.label),
+      ['Head', 'Siux'],
+    );
+  });
+
+  it('leaves out empty brands before the limit', () => {
+    const links = navAutoColumnLinks({ kind: 'brands', limit: 2 }, sources, (path) => path === '/brand/head');
+    assert.deepEqual(
+      links.map((link) => link.label),
+      ['Nox', 'Siux'],
+    );
+  });
+
+  it('lists the sub-categories of one category in their order', () => {
+    const links = navAutoColumnLinks({ kind: 'children', categoryId: 'apparel' }, sources, none);
+    assert.deepEqual(links, [
+      { label: 'Socks', path: '/category/socks', target: { kind: 'category', id: 'socks' } },
+      { label: 'Caps', path: '/category/caps', target: { kind: 'category', id: 'caps' } },
+    ]);
+  });
+
+  it('shows no sub-categories of a hidden category, and the Brands page ignores the limit', () => {
+    assert.deepEqual(navAutoColumnLinks({ kind: 'children', categoryId: 'accessories' }, sources, none), []);
+    assert.equal(
+      navAutoColumnLinks({ kind: 'brands', limit: 1 }, sources, none, { noLimit: true }).length,
+      3,
+    );
+  });
+
+  it('replaces only auto columns and keeps the saved navigation as it was', () => {
+    const saved = [
+      {
+        id: 'brands',
+        label: 'Brands',
+        megaMenu: [
+          { title: 'Top', links: [{ label: 'Old', path: '/brand/old' }], auto: { kind: 'brands', limit: 1 } },
+          { title: 'Hand', links: [{ label: 'Nox', path: '/brand/nox' }] },
+        ],
+      },
+    ];
+    const expanded = expandAutoColumns(saved, sources, none);
+    assert.deepEqual(
+      expanded[0].megaMenu[0].links.map((link) => link.label),
+      ['Head'],
+    );
+    assert.equal(expanded[0].megaMenu[1], saved[0].megaMenu[1]);
+    assert.equal(saved[0].megaMenu[0].links[0].label, 'Old');
+    assert.equal(navNeedsBrands(saved), true);
+    assert.equal(navNeedsBrands([{ id: 'x', label: 'X', megaMenu: [{ links: [] }] }]), false);
+  });
+
+  it('reads times from numbers, dates, strings and Timestamps', () => {
+    assert.equal(timeToMs(5), 5);
+    assert.equal(timeToMs(new Date(10)), 10);
+    assert.equal(timeToMs('1970-01-01T00:00:00.020Z'), 20);
+    assert.equal(timeToMs({ toMillis: () => 30 }), 30);
+    assert.equal(timeToMs(null), 0);
   });
 });

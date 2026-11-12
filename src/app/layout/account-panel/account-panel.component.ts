@@ -49,7 +49,7 @@ export class AccountPanelComponent {
     stream: ({ params: uid }) => (uid ? this.#orders.watch(uid, 1) : of([])),
   });
 
-  readonly isAdmin = this.#auth.isAdmin;
+  readonly canManageStore = this.#auth.canManageStore;
   readonly email = computed(() => this.#auth.user()?.email ?? '');
   readonly name = computed(() =>
     accountDisplayName(

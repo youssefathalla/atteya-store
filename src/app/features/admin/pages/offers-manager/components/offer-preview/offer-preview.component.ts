@@ -1,6 +1,12 @@
 import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, input } from '@angular/core';
-import { displayPrice, matchProduct, type Offer, type OfferDraft } from '@core/services/offers/engine';
+import {
+  displayPrice,
+  offerMatch,
+  type Offer,
+  type OfferDraft,
+  type PricedProduct,
+} from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import type { Product } from '@core/services/products/product.model';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
@@ -30,6 +36,12 @@ export interface PreviewRow {
 export class OfferPreviewComponent {
   readonly draft = input.required<OfferDraft>();
   readonly products = input.required<readonly Product[]>();
+  /**
+   * Which products the list shows: the engine's `offerMatch()` by default; the editor passes
+   * `editorOfferMatch()` so the list follows the same count as its Affected products box.
+   */
+  readonly match =
+    input<(draft: OfferDraft, product: PricedProduct) => 'full' | 'partial' | 'none'>(offerMatch);
 
   readonly #matched = computed(() => {
     const draft = this.draft();
@@ -39,7 +51,7 @@ export class OfferPreviewComponent {
     let total = 0;
     for (const product of this.products()) {
       const priced = toPricedProduct(product);
-      const level = matchProduct(draft.conditions, draft.exclude, priced);
+      const level = this.match()(draft, priced);
       if (level === 'none') continue;
       total += 1;
       if (rows.length >= MAX_ROWS) continue;

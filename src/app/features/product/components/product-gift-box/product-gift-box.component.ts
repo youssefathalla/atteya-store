@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import type { ChoicePrompt } from '../../models/product-page.model';
 import { ChoiceCardRowComponent } from '../choice-card-row/choice-card-row.component';
+import { ChoiceSizeRowComponent } from '../choice-size-row/choice-size-row.component';
 import { type GiftBoxView, type GiftPicks, giftSteps } from '../../utils/product-gifts';
 
 /**
@@ -20,7 +21,7 @@ import { type GiftBoxView, type GiftPicks, giftSteps } from '../../utils/product
  */
 @Component({
   selector: 'app-product-gift-box',
-  imports: [ChoiceCardRowComponent],
+  imports: [ChoiceCardRowComponent, ChoiceSizeRowComponent],
   templateUrl: './product-gift-box.component.html',
   host: { class: 'block w-full' },
 })
@@ -47,10 +48,6 @@ export class ProductGiftBoxComponent {
         afterNextRender({ write: () => this.#focusStep(prompt.key) }, { injector: this.#injector }),
       );
     });
-  }
-
-  isSizePicked(giftId: string, sizeId: string): boolean {
-    return this.picks()[giftId]?.sizeId === sizeId;
   }
 
   #focusStep(key: string): void {

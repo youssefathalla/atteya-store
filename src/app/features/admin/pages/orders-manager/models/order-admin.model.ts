@@ -4,6 +4,15 @@ import type { OrderDoc } from '@core/services/orders/order.schema';
 
 export type OrderStatusFilter = OrderDoc['status'] | 'all';
 
+/** What the Orders list asks Firestore for. */
+export interface OrderListQuery {
+  readonly status: OrderStatusFilter;
+  /** One search word (the longest typed); the others are checked in the browser. */
+  readonly term: string | null;
+  /** Placed from `start` up to (not including) `end`. */
+  readonly placed: { readonly start: Date; readonly end: Date } | null;
+}
+
 /** One choice in the status dropdown. */
 export interface OrderStatusMove {
   readonly status: StaffOrderStatus;

@@ -74,6 +74,8 @@ export function describeOfferReward(offer: OfferDraft): string {
         : `Buy ${r.buy.quantity}, get ${r.get.quantity} at ${r.get.percent}% off`;
     case 'bundlePrice':
       return bundleRowsText(bundleRows(r)) || 'Bundle price';
+    case 'bundleSet':
+      return 'Bundle & Save';
     case 'freeGift':
       return r.gifts.map((gift) => gift.name).join(' + ') || 'Free gift';
     case 'freeShipping':
@@ -104,6 +106,7 @@ function defaultLabelOnlyText(offer: Offer): string {
     case 'freeShipping':
       return 'Free shipping';
     case 'bundlePrice':
+    case 'bundleSet':
       return offer.title;
     case 'freeGift':
       return 'Free gift';

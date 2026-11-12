@@ -27,7 +27,7 @@ const IMPORT_LOCK_MS = 15 * 60 * 1000;
 const SLUG_ATTEMPTS = 30;
 
 export const createProduct = onCall(adminCallableOptions(), async (request): Promise<SaveProductResponse> => {
-  const actor = await requireRole(request, 'admin');
+  const actor = await requireRole(request, 'staff');
   const input = parseCreateProductRequest(request.data);
   const db = getFirestore();
   const ref = db.collection('products').doc(input.productId);
@@ -92,7 +92,7 @@ export const createProduct = onCall(adminCallableOptions(), async (request): Pro
 });
 
 export const updateProduct = onCall(adminCallableOptions(), async (request): Promise<SaveProductResponse> => {
-  const actor = await requireRole(request, 'admin');
+  const actor = await requireRole(request, 'staff');
   const input = parseUpdateProductRequest(request.data);
   const db = getFirestore();
   const ref = db.collection('products').doc(input.productId);

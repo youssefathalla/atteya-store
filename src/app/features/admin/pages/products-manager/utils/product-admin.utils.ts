@@ -5,7 +5,7 @@ import {
   SEED_BRANDS,
   SEED_CATEGORIES,
 } from '@core/services/products/catalog-taxonomy';
-import { PRODUCT_BRANDS, PRODUCT_TYPES } from '@core/services/products/product.constants';
+import { PRODUCT_TYPES } from '@core/services/products/product.constants';
 import type { Brand, Category, Product, ProductTypeId } from '@core/services/products/product.model';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import type {
@@ -17,10 +17,8 @@ import type {
 
 const COLOR_LABELS = new Map<string, string>(COLOR_PALETTE.map((color) => [color.id, color.label]));
 const TYPE_LABELS = new Map(PRODUCT_TYPES.map((type) => [type.id, type.label]));
-const SEED_BRAND_LABELS = new Map<string, string>([
-  ...PRODUCT_BRANDS.map((brand) => [brand.id, brand.label] as const),
-  ...SEED_BRANDS.map((brand) => [brand.id, brand.name] as const),
-]);
+/** Fallback only: rows pass the live brand names from Categories & Brands. */
+const SEED_BRAND_LABELS = new Map<string, string>(SEED_BRANDS.map((brand) => [brand.id, brand.name]));
 const SEED_CATEGORY_LABELS = new Map<string, string>(
   SEED_CATEGORIES.map((category) => [category.id, category.name]),
 );
@@ -43,17 +41,18 @@ export function categoryLabel(id: string, categories?: ReadonlyMap<string, strin
 
 export function buildLeafCategoryOptions(categories: readonly Category[]): readonly CategoryOptionView[] {
   const source = categories.length > 0 ? categories : SEED_CATEGORIES;
-  const parentIds = new Set(source.flatMap((cat) => (cat.parentId ? [cat.parentId] : [])));
   const byId = new Map(source.map((cat) => [cat.id, cat]));
-  const leaves = source.filter((cat) => cat.depth === 1 || !parentIds.has(cat.id));
-
-  return leaves.map((leaf) => {
+  // Every category is pickable, top-level ones with sub-categories too: products can sit directly
+  // in a top-level category (all rackets are in `rackets`), and adding a sub-category under it in
+  // Categories & Brands must not leave those products with an empty Category box.
+  return source.map((leaf) => {
     const parent = leaf.parentId ? byId.get(leaf.parentId) : undefined;
     const branch = leaf.parentId ? [leaf.parentId, leaf.id] : categoryIdsFor(leaf.id);
     return {
       id: leaf.id,
-      label: leaf.name,
-      group: parent ? parent.name : '',
+      // Hidden categories are listed too, so staff can fill one before showing it.
+      label: leaf.published ? leaf.name : `${leaf.name} (hidden)`,
+      group: parent ? `${parent.name}${parent.published ? '' : ' (hidden)'}` : '',
       categoryIds: branch,
     };
   });
@@ -61,7 +60,10 @@ export function buildLeafCategoryOptions(categories: readonly Category[]): reado
 
 export function buildBrandOptions(brands: readonly Brand[]): readonly BrandOptionView[] {
   if (brands.length > 0) {
-    return brands.map((brand) => ({ id: brand.id, label: brand.name }));
+    return brands.map((brand) => ({
+      id: brand.id,
+      label: brand.published ? brand.name : `${brand.name} (hidden)`,
+    }));
   }
   return SEED_BRANDS.map((brand) => ({ id: brand.id, label: brand.name }));
 }

@@ -24,7 +24,6 @@ import { Router, RouterLink } from '@angular/router';
 import {
   DEFAULT_OFFER_BANNER,
   displayPrice,
-  matchProduct,
   validateOffer,
   type Offer,
   type OfferAudience,
@@ -60,9 +59,12 @@ import {
   affectedStats,
   autoOfferTitle,
   autoTeamName,
+  bundleGroupsPhrase,
+  bundleSetIssueField,
   createEmptyOfferDraft,
   DEAL_CARDS,
   defaultDealFor,
+  editorOfferMatch,
   isUnavailableDeal,
   issueStep,
   NEXT_STEP_LABEL,
@@ -151,6 +153,10 @@ export class OfferEditorPageComponent implements OnInit {
   readonly wasActive = signal(false);
   readonly isSaving = signal(false);
   #hydratedOfferId: string | null = null;
+  /** Picking Bundle & Save switched "Only some products" off; picking another card turns it back on. */
+  #includeMovedForBundle = false;
+  /** The step 2 product list follows the same match as its Affected products count. */
+  readonly matchForEditor = editorOfferMatch;
 
   readonly editorResource = resource({
     params: () => ({ offerId: this.offerId() ?? null }),
@@ -214,6 +220,8 @@ export class OfferEditorPageComponent implements OnInit {
   readonly pickedDeal = computed<RewardPickerKind>(() =>
     rewardPickerKind(this.draft().reward, this.draft().scope),
   );
+  /** Bundle & Save: its groups (step 1) pick the products, so step 2 only leaves some out. */
+  readonly isBundleSet = computed(() => this.draft().reward.kind === 'bundleSet');
 
   readonly pageHeading = computed(() => (this.offerId() ? 'Edit Offer' : 'New Offer'));
 
@@ -226,7 +234,8 @@ export class OfferEditorPageComponent implements OnInit {
     const list = this.validation().errors.map((issue) => ({ ...issue, step: issueStep(issue.code) }));
     if (this.isUnavailableDeal())
       list.unshift({ code: 'deal.unavailable', message: UNAVAILABLE_DEAL_MESSAGE, step: 1 });
-    if (this.productsMode() === 'some' && this.draft().conditions.anyOf.length === 0) {
+    // Bundle & Save hides the Every / Only some choice, so its own rules may be removed to nothing.
+    if (!this.isBundleSet() && this.productsMode() === 'some' && this.draft().conditions.anyOf.length === 0) {
       list.push({ code: 'conditions.none', message: PICK_PRODUCTS_MESSAGE, step: 2 });
     }
     return list;
@@ -237,7 +246,16 @@ export class OfferEditorPageComponent implements OnInit {
     return (step: OfferEditorStep): boolean => !errors.some((issue) => issue.step === step);
   });
 
-  readonly dealErrors = computed(() => this.#errorsWhere((code, step) => step === 1 && code !== 'title'));
+  /** Step 1 errors the reward editor shows under its own fields (Bundle & Save groups, saving, limit). */
+  readonly rewardIssues = computed(() =>
+    this.isBundleSet() ? this.#errors().filter((issue) => bundleSetIssueField(issue.code) !== null) : [],
+  );
+  readonly dealErrors = computed(() =>
+    this.#errorsWhere(
+      (code, step) =>
+        step === 1 && code !== 'title' && !(this.isBundleSet() && bundleSetIssueField(code) !== null),
+    ),
+  );
   readonly titleErrors = computed(() => this.#errorsWhere((code) => code === 'title'));
   readonly productErrors = computed(() => this.#errorsWhere((_, step) => step === 2));
   readonly whenErrors = computed(() => this.#errorsWhere((code) => code.startsWith('schedule.')));
@@ -268,8 +286,9 @@ export class OfferEditorPageComponent implements OnInit {
 
   /** Products the offer reaches; recomputed only when the product rules change. */
   readonly #matched = computed(() => {
-    const { conditions, exclude } = this.draft();
-    return this.pricedEntries().filter((entry) => matchProduct(conditions, exclude, entry.priced) !== 'none');
+    const { conditions, exclude, reward } = this.draft();
+    const rules = { conditions, exclude, reward };
+    return this.pricedEntries().filter((entry) => editorOfferMatch(rules, entry.priced) !== 'none');
   });
 
   readonly sample = computed<SampleProduct | null>(() => {
@@ -342,7 +361,10 @@ export class OfferEditorPageComponent implements OnInit {
   /** Step 4 rows: label, value and the step its Change link opens. */
   readonly checkRows = computed(() => {
     const offer = this.offer();
-    const target = offerTargetPhrase(offer.conditions, offer.exclude, this.names());
+    const target =
+      offer.reward.kind === 'bundleSet'
+        ? bundleGroupsPhrase(offer.reward.slots, offer.exclude, this.names())
+        : offerTargetPhrase(offer.conditions, offer.exclude, this.names());
     const { startsAt, endsAt } = offer.schedule;
     const start = startsAt ? cairoShort(startsAt) : 'Right away';
     const end = endsAt ? cairoShort(endsAt) : 'until turned off';
@@ -419,6 +441,7 @@ export class OfferEditorPageComponent implements OnInit {
           this.limitOpen.set(false);
         }
         this.#savedInclude.set({ anyOf: [] });
+        this.#includeMovedForBundle = false;
         this.showAdvanced.set(false);
         this.showProducts.set(false);
         this.moreOpen.set(false);
@@ -474,6 +497,15 @@ export class OfferEditorPageComponent implements OnInit {
   pickDeal(kind: RewardPickerKind): void {
     if (kind === this.pickedDeal()) return;
     const { reward, scope, minimum } = defaultDealFor(kind);
+    // Bundle & Save picks its products in its groups: keep the include tags aside so they don't
+    // narrow the groups without showing on step 2, and bring them back when another card is picked.
+    if (kind === 'bundleSet' && this.productsMode() === 'some') {
+      this.setProductsMode('all');
+      this.#includeMovedForBundle = true;
+    } else if (kind !== 'bundleSet' && this.#includeMovedForBundle) {
+      this.#includeMovedForBundle = false;
+      this.setProductsMode('some');
+    }
     this.draft.update((prev) => ({ ...prev, reward, scope, minimum }));
   }
 

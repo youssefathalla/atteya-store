@@ -77,6 +77,16 @@ export type OfferReward =
       readonly rows: readonly OfferBundleRow[];
     }
   | {
+      /**
+       * Bundle & Save: 2 to 4 groups of products (`slots`), each with how many pieces; one piece
+       * set from every group gets `setReward`. Sets repeat, up to `maxSets` (null = no cap).
+       */
+      readonly kind: 'bundleSet';
+      readonly slots: readonly OfferBundleSlot[];
+      readonly setReward: OfferBundleSetReward;
+      readonly maxSets: number | null;
+    }
+  | {
       readonly kind: 'freeGift';
       /**
        * One set of these gifts per qualifying item bought. The shopper picks one product from
@@ -94,6 +104,28 @@ export interface OfferBundleRow {
   readonly quantity: number;
   readonly price: number;
 }
+
+/** One group of a Bundle & Save offer, e.g. "T-shirt" × 1 from the T-shirts category. */
+export interface OfferBundleSlot {
+  /** Stable id inside the offer (`slot-1`, …). */
+  readonly id: string;
+  /** Short name shoppers see, e.g. "T-shirt". */
+  readonly name: string;
+  /** Pieces of this group in one set: 1 to 5. */
+  readonly quantity: number;
+  /** Which products count for this group (exact products, a category or a brand). */
+  readonly conditions: OfferConditions;
+}
+
+/**
+ * What one complete Bundle & Save set gets: a whole-EGP total for the set, a percent or an EGP
+ * amount off the set, or the cheapest piece of the set free.
+ */
+export type OfferBundleSetReward =
+  | { readonly type: 'total'; readonly price: number }
+  | { readonly type: 'percent'; readonly percent: number }
+  | { readonly type: 'amount'; readonly amount: number }
+  | { readonly type: 'cheapestFree' };
 
 /** One free gift of a Free gift offer, e.g. "Free shirt" with 4 shirts to choose from. */
 export interface OfferGift {

@@ -67,7 +67,7 @@
       <mat-label>Brand</mat-label>
       <mat-select [value]="brandId()" (selectionChange)="brandId.set($event.value)">
         <mat-option value="all">All brands</mat-option>
-        @for (brand of brands; track brand.id) {
+        @for (brand of brands(); track brand.id) {
           <mat-option [value]="brand.id">{{ brand.label }}</mat-option>
         }
       </mat-select>

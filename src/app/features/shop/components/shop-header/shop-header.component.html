@@ -11,7 +11,7 @@
   </div>
 
   <nav aria-label="Shop categories" class="flex items-center gap-2 flex-wrap">
-    @for (tab of tabs; track tab.id) {
+    @for (tab of tabs(); track tab.id) {
       @if (activeTab() === tab.id) {
         <a matButton="tonal" [routerLink]="tab.path" [attr.aria-current]="'page'">
           <span>{{ tab.label }}</span>

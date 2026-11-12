@@ -1,9 +1,11 @@
 rules_version = '2';
 
-// Three roles:
+// Four roles:
 //  - Visitor (signed out): public storefront reads only.
-//  - Normal user (signed in, no admin claim): same as a visitor, plus read of their own roles/{uid} mirror.
-//  - Admin (token.role == 'admin' AND session not revoked): manage store content.
+//  - Normal user (signed in, no admin or staff claim): same as a visitor, plus read of their own roles/{uid} mirror.
+//  - Staff (token.role == 'staff' AND session not revoked): manage store content (canManageStore()).
+//  - Admin (token.role == 'admin' AND session not revoked): same as staff, plus the Team list,
+//    its audit trail, and (through callables) deleting orders and changing roles.
 // roles/ and auditLogs/ are written only by the Admin SDK (Cloud Functions / scripts).
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,11 +13,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Admin: the whole dashboard, plus deleting orders and managing who has access (both through callables).
     function isAdmin() {
       return isSignedIn() && request.auth.token.role == 'admin' && sessionIsCurrent();
     }
 
-    // An ID token keeps role:admin until it expires. After refresh tokens are
+    // Admin or staff: everything the dashboard reads and writes from the browser.
+    function canManageStore() {
+      return isSignedIn() && request.auth.token.role in ['admin', 'staff'] && sessionIsCurrent();
+    }
+
+    // An ID token keeps its role claim until it expires. After refresh tokens are
     // revoked, roles/{uid}.revokeTimeMs is the Auth tokensValidAfterTime in
     // milliseconds. Sessions that started before that time are rejected.
     // A missing mirror, or a mirror with no revokeTimeMs, stays allowed.
@@ -39,15 +47,30 @@ service cloud.firestore {
     // Visitors and normal users can read these. Only an admin with a current session can write them.
     // settings/currency holds combined display factors and is written only by Cloud Functions.
     // Subcollections under settings are denied. The app does not write them.
+    // settings/navigation and settings/home must name their saver in updatedBy (ATS-251), so
+    // Previous Versions can't be credited to someone else.
     match /settings/{docId} {
       allow read: if true;
-      allow write: if isAdmin() && docId != 'currency';
+      allow create, update: if canManageStore() && docId != 'currency'
+        && (!(docId in ['navigation', 'home']) || request.resource.data.updatedBy == request.auth.uid);
+      allow delete: if canManageStore() && docId != 'currency';
+    }
+
+    // Previous Versions of settings/navigation and settings/home (ATS-251). Written only by the
+    // onSettingsHistoryWrite trigger (Admin SDK); dashboard staff read them, nobody writes from a client.
+    match /settingsHistory/{docId} {
+      allow read, write: if false;
+    }
+
+    match /settingsHistory/{docId}/versions/{versionId} {
+      allow read: if canManageStore();
+      allow write: if false;
     }
 
     // Markup and raw exchange rates. Admin SDK (callables and the daily schedule) is the only writer.
     // Clients, including admins, cannot create or edit these docs.
     match /intlPricing/{docId} {
-      allow read: if isAdmin();
+      allow read: if canManageStore();
       allow write: if false;
     }
 
@@ -71,48 +94,48 @@ service cloud.firestore {
     // stockBySize and inStock consistent via stockFields(). Clients, including admins,
     // cannot write product docs directly.
     match /products/{productId} {
-      allow get, list: if resource.data.published == true || isAdmin();
+      allow get, list: if resource.data.published == true || canManageStore();
       allow write: if false;
     }
 
     // Categories and brands: storefront can read published docs; only admins write.
     // Public queries MUST include where('published', '==', true) or they are rejected.
     match /categories/{categoryId} {
-      allow get, list: if resource.data.published == true || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow get, list: if resource.data.published == true || canManageStore();
+      allow create, update, delete: if canManageStore();
     }
 
     match /brands/{brandId} {
-      allow get, list: if resource.data.published == true || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow get, list: if resource.data.published == true || canManageStore();
+      allow create, update, delete: if canManageStore();
     }
 
     // Offers: public active offers can be read by shoppers; only admins write.
     // Coupon codes (offerCodes) are admin-only; usage counters (offerUsage) are Admin SDK only.
     match /offers/{offerId} {
-      allow get, list: if (resource.data.active == true && resource.data.visibility == 'public') || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow get, list: if (resource.data.active == true && resource.data.visibility == 'public') || canManageStore();
+      allow create, update, delete: if canManageStore();
     }
 
     match /offerCodes/{offerId} {
-      allow read, write: if isAdmin();
+      allow read, write: if canManageStore();
     }
 
     match /offerUsage/{offerId} {
-      allow read: if isAdmin();
+      allow read: if canManageStore();
       allow write: if false;
     }
 
     match /orders/{orderId} {
-      allow get: if isOwner(resource.data.customerId) || isAdmin();
-      allow list: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid);
+      allow get: if isOwner(resource.data.customerId) || canManageStore();
+      allow list: if canManageStore() || (isSignedIn() && resource.data.customerId == request.auth.uid);
       allow create, update, delete: if false;
     }
 
     // Staff-only side of an order (status history with staff emails, cancel reason), kept off
     // orders/{id} because the owner can read that doc. Written by the Admin SDK only.
     match /orderStaffNotes/{orderId} {
-      allow read: if isAdmin();
+      allow read: if canManageStore();
       allow write: if false;
     }
 
@@ -136,7 +159,7 @@ service cloud.firestore {
     // One doc per order email (`{orderId}_{kind}`): sent / failed status for admins.
     // Only the sendOrderEmails trigger (Admin SDK) writes it.
     match /orderEmails/{emailId} {
-      allow read: if isAdmin();
+      allow read: if canManageStore();
       allow write: if false;
     }
 
@@ -240,7 +263,7 @@ service cloud.firestore {
     // marketingOptIn, marketingOptInAt). Later the owner may update only the /account fields:
     // name, phone, the one saved address, and the marketing choice. The terms fields never change.
     match /users/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow read: if isOwner(uid) || canManageStore();
       allow create: if isOwner(uid) && validSignupConsent(request.resource.data);
       allow update: if isOwner(uid) && validProfileUpdate();
       allow delete: if false;
@@ -308,16 +331,16 @@ service cloud.firestore {
 
     // Written only by Cloud Functions (products that failed to reach search). Admins read the count.
     match /searchSyncErrors/{id} {
-      allow read: if isAdmin();
+      allow read: if canManageStore();
       allow write: if false;
     }
 
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
-    // intlPricing, offerState and searchSyncErrors stay on the rules written for them.
+    // intlPricing, offerState, searchSyncErrors and settingsHistory stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends', 'offerState', 'searchSyncErrors']);
+      allow read, write: if canManageStore() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends', 'offerState', 'searchSyncErrors', 'settingsHistory']);
     }
   }
 }

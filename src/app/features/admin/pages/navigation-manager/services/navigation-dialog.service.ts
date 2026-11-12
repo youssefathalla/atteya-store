@@ -2,6 +2,11 @@ import { Service, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import {
+  openPreviousVersionsDialog,
+  type PreviousVersionsDialogData,
+  type PreviousVersionsDialogResult,
+} from '@shared/ui/dialogs/previous-versions-dialog';
+import {
   ConfirmDialogComponent,
   ConfirmDialogData,
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
@@ -100,11 +105,7 @@ export class NavigationDialogService {
     return !!confirmed;
   }
 
-  async openAddLink(
-    columnTitle?: string,
-    categoryPath?: string,
-    isBrand?: boolean,
-  ): Promise<AddLinkDialogResult | null> {
+  async openAddLink(columnTitle?: string, isBrand?: boolean): Promise<AddLinkDialogResult | null> {
     const dialogRef = this.#dialog.open<
       AddLinkDialogComponent,
       AddLinkDialogData,
@@ -112,7 +113,6 @@ export class NavigationDialogService {
     >(AddLinkDialogComponent, {
       data: {
         columnTitle,
-        categoryPath,
         isBrand,
       },
       width: '480px',
@@ -143,15 +143,19 @@ export class NavigationDialogService {
     return !!confirmed;
   }
 
+  openPreviousVersions(data: PreviousVersionsDialogData): Promise<PreviousVersionsDialogResult | null> {
+    return openPreviousVersionsDialog(this.#dialog, data);
+  }
+
   async confirmResetDefaults(): Promise<boolean> {
     const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
       ConfirmDialogComponent,
       {
         data: {
-          title: 'Reset to Defaults',
+          title: 'Restore the Built-in Menu?',
           message:
-            'Are you sure you want to reset the navigation? This will restore the default store catalog.',
-          confirmText: 'Reset to Defaults',
+            'The menu goes back to the one the store started with, live on the store straight away. The menu you have now stays in Previous Versions.',
+          confirmText: 'Restore and Publish',
           cancelText: 'Cancel',
           theme: 'primary',
         },
@@ -172,6 +176,28 @@ export class NavigationDialogService {
           title: 'Discard Draft Changes',
           message: 'Are you sure you want to discard your unsaved changes? All modifications will be lost.',
           confirmText: 'Discard Changes',
+          cancelText: 'Keep Editing',
+          theme: 'warning',
+        },
+        width: '450px',
+        maxWidth: '90vw',
+      },
+    );
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
+
+  /** Restore This Version over unpublished edits (ATS-251): the edits go, the chosen version loads. */
+  async confirmRestoreOverDraft(): Promise<boolean> {
+    const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Replace Your Unpublished Changes?',
+          message:
+            "Restoring loads the version you picked into the editor, and the changes you haven't published yet will be lost. Nothing goes live until you publish.",
+          confirmText: 'Restore This Version',
           cancelText: 'Keep Editing',
           theme: 'warning',
         },

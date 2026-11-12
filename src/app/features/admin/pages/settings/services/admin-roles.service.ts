@@ -58,7 +58,8 @@ const roleAuditConverter: FirestoreDataConverter<RoleAudit | null> = {
     return {};
   },
   fromFirestore(snapshot: QueryDocumentSnapshot): RoleAudit | null {
-    const parsed = v.safeParse(RoleAuditSchema, { ...snapshot.data(), id: snapshot.id });
+    // Early role changes were saved without `action`.
+    const parsed = v.safeParse(RoleAuditSchema, { action: 'role.set', ...snapshot.data(), id: snapshot.id });
     return parsed.success ? parsed.output : null;
   },
 };

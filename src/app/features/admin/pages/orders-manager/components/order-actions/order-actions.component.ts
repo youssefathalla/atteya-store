@@ -1,10 +1,12 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { orderStatusLabel as statusName } from '@core/config/order-status';
+import { AuthService } from '@core/services/auth/auth.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import {
   ConfirmDialogComponent,
@@ -24,7 +26,7 @@ import type { OrderLineAdminRow, OrderStatusMove } from '../../models/order-admi
 import { OrdersAdminService } from '../../services/orders-admin.service';
 import { orderActionError } from '../../utils/order-action-error';
 
-type OrderAction = 'status' | 'fee';
+type OrderAction = 'status' | 'fee' | 'delete';
 
 /** What a step back does, said before staff confirm it. */
 function stepBackMessage(status: string): string {
@@ -39,7 +41,8 @@ function stepBackMessage(status: string): string {
 }
 
 /**
- * The order's actions: WhatsApp (or Copy Number), Set / Change Delivery Fee and Change Status.
+ * The order's actions: WhatsApp (or Copy Number), Set / Change Delivery Fee, Change Status, and
+ * Delete Order (admins only, on Cancelled or Payment Failed orders).
  * Used by the opened row on the Orders list and by the order page. `afterChange` runs after a save,
  * so the parent reloads the order. It is a callback, not an output: staff can close the list row
  * while a save is running, which destroys this component, and an output emitted then is dropped.
@@ -107,18 +110,41 @@ function stepBackMessage(status: string): string {
         }
       </mat-menu>
     }
+    @if (canDelete()) {
+      <button
+        matButton="text"
+        theme="error"
+        type="button"
+        [disabled]="busy() !== null"
+        [attr.aria-label]="busy() === 'delete' ? 'Deleting order…' : 'Delete order ' + r.orderRef"
+        (click)="deleteOrder()"
+      >
+        @if (busy() === 'delete') {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <span>Delete Order</span>
+        }
+      </button>
+    }
   `,
 })
 export class OrderActionsComponent {
   readonly #ordersAdmin = inject(OrdersAdminService);
   readonly #snackbar = inject(SnackbarService);
   readonly #dialog = inject(MatDialog);
+  readonly #auth = inject(AuthService);
+  readonly #router = inject(Router);
 
   readonly row = input.required<OrderLineAdminRow>();
   /** The parent's reload; still called when this component was destroyed meanwhile. */
   readonly afterChange = input.required<() => void>();
 
   readonly busy = signal<OrderAction | null>(null);
+
+  /** Same rule as the server's `deleteOrder`: admins only, and only a finished-for-good order. */
+  readonly canDelete = computed(
+    () => this.#auth.isAdmin() && (this.row().status === 'cancelled' || this.row().status === 'failed'),
+  );
 
   /** The number can't be turned into a WhatsApp link safely: let staff copy and check it. */
   showCopyPhone(): boolean {
@@ -212,6 +238,36 @@ export class OrderActionsComponent {
       await this.#ordersAdmin.setDeliveryFee(row.orderId, fee);
       this.#snackbar.success('Delivery fee saved.');
     });
+  }
+
+  /** Asks first, then deletes the order for good. On the order's own page, goes back to the list. */
+  async deleteOrder(): Promise<void> {
+    const row = this.row();
+    if (!this.canDelete() || this.busy()) return;
+    const ok = await this.#ask({
+      title: `Delete order ${row.orderRef}?`,
+      message:
+        "The order disappears from Orders and from the customer's account, and its order link stops working. This can't be undone.",
+      confirmText: 'Delete Order',
+      cancelText: 'Keep Order',
+      theme: 'error',
+    });
+    if (!ok) return;
+    const onOrderPage = this.#router.url.startsWith(`/admin/orders/${row.orderId}`);
+    this.busy.set('delete');
+    try {
+      await this.#ordersAdmin.deleteOrder(row.orderId);
+      this.#snackbar.success(`Order ${row.orderRef} deleted.`);
+      if (onOrderPage) {
+        await this.#router.navigateByUrl('/admin/orders');
+      } else {
+        this.afterChange()();
+      }
+    } catch (error: unknown) {
+      this.#snackbar.error(orderActionError(error));
+    } finally {
+      this.busy.set(null);
+    }
   }
 
   async #run(action: OrderAction, work: () => Promise<void>): Promise<void> {

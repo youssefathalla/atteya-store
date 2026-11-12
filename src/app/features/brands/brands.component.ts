@@ -46,8 +46,9 @@ export class BrandsComponent implements OnInit {
   readonly isReady = this.#navService.navLinksReady;
 
   readonly brandGroups = computed<readonly BrandGroup[]>(() => {
+    // Every brand of a column that fills itself, not only its "Show at most" (ATS-247).
     const brandsCategory = this.#navService
-      .storefrontCategories()
+      .directoryCategories()
       .find((c) => c.id.toLowerCase() === 'brands' || c.path === '/brands');
 
     return (brandsCategory?.megaMenu ?? [])

@@ -1,10 +1,14 @@
 <app-nav-manager-header
   [isSaving]="isSaving()"
   [isResetting]="isResetting()"
-  (resetDefaults)="resetToDefaults()"
+  (previousVersions)="openPreviousVersions()"
   (discard)="discardDraft()"
   (publish)="publishChanges()"
 />
+
+@if (restoredNote(); as note) {
+  <p class="surface-card p-4 font-body-md font-bold! mt-6" role="status">{{ note }}</p>
+}
 
 <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start pt-6">
   <!-- Left Panel: Category Tree List (4 cols on xl, 3 cols on 2xl) -->
@@ -26,12 +30,15 @@
       <app-nav-category-details
         [category]="category"
         (labelChange)="draft.updateCategoryBasic('label', $event)"
-        (pathChange)="draft.updateCategoryPath($event)"
+        (targetChange)="draft.updateCategoryTarget($event)"
         (generatePath)="draft.generateCategoryPath()"
       />
 
       <app-nav-mega-menu-editor
         [columns]="category.megaMenu ?? []"
+        [previews]="autoPreviews()"
+        [parentOptions]="autoParentOptions()"
+        (columnAutoChange)="draft.setColumnAuto($event.colIndex, $event.auto)"
         (columnAdd)="openAddColumnDialog()"
         (columnDelete)="confirmDeleteColumn($event)"
         (columnTitleChange)="draft.updateColumnTitle($event.colIndex, $event.title)"
@@ -41,6 +48,7 @@
         (linkFieldChange)="
           draft.updateLinkField($event.colIndex, $event.linkIndex, $event.field, $event.value)
         "
+        (linkTargetChange)="draft.updateLinkTarget($event.colIndex, $event.linkIndex, $event.change)"
         (linkDrop)="draft.dropLink($event.colIndex, $event.event)"
         (linkGenerateSlug)="draft.generateLinkSlug($event.colIndex, $event.linkIndex)"
       />

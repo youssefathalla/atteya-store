@@ -5,9 +5,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { PRODUCT_BRANDS, PRODUCT_TYPES } from '@core/services/products/product.constants';
+import { PRODUCT_TYPES } from '@core/services/products/product.constants';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import type { ProductListCounts, ProductListView } from '../../models/product-admin.model';
+import type { BrandOptionView, ProductListCounts, ProductListView } from '../../models/product-admin.model';
 
 @Component({
   selector: 'app-products-toolbar',
@@ -32,6 +32,8 @@ export class ProductsToolbarComponent {
   readonly counts = input<ProductListCounts>({ all: 0, live: 0, hidden: 0, low: 0, out: 0 });
   readonly countsReady = input(false);
   readonly activity = input<'tools' | null>(null);
+  /** Every brand doc (hidden ones marked), from Categories & Brands (`buildBrandOptions()`). */
+  readonly brands = input<readonly BrandOptionView[]>([]);
 
   readonly views: readonly { readonly id: ProductListView; readonly label: string }[] = [
     { id: 'all', label: 'All' },
@@ -47,8 +49,8 @@ export class ProductsToolbarComponent {
   readonly rebuildSearch = output<void>();
   readonly shippingWeights = output<void>();
 
+  /** Product types are a fixed list (they are not categories). */
   readonly types = PRODUCT_TYPES;
-  readonly brands = PRODUCT_BRANDS;
 
   onSearch(event: Event): void {
     const target = event.target;

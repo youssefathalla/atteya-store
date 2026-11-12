@@ -41,16 +41,18 @@
             <div class="elements-between gap-3 w-full pl-8 md:pl-0">
               <!-- Mobile Actions (< md) -->
               <div class="elements-between gap-2 md:hidden w-full">
-                <button
-                  matIconButton
-                  type="button"
-                  theme="success"
-                  (click)="$event.stopPropagation(); panel.open(); linkAdd.emit(colIdx)"
-                  matTooltip="Add link"
-                  aria-label="Add link"
-                >
-                  <mat-icon name="add" iconColor="success" />
-                </button>
+                @if (!column.auto) {
+                  <button
+                    matIconButton
+                    type="button"
+                    theme="success"
+                    (click)="$event.stopPropagation(); panel.open(); linkAdd.emit(colIdx)"
+                    matTooltip="Add link"
+                    aria-label="Add link"
+                  >
+                    <mat-icon name="add" iconColor="success" />
+                  </button>
+                }
 
                 <button
                   matIconButton
@@ -64,26 +66,36 @@
                 </button>
 
                 <span class="font-label-md">
-                  {{ column.links.length }} {{ column.links.length === 1 ? 'link' : 'links' }}
+                  @if (column.auto) {
+                    Fills automatically
+                  } @else {
+                    {{ column.links.length }} {{ column.links.length === 1 ? 'link' : 'links' }}
+                  }
                 </span>
               </div>
 
               <!-- Desktop Actions (>= md) -->
               <div class="hidden md:elements-between w-full">
                 <span class="font-label-md">
-                  {{ column.links.length }} {{ column.links.length === 1 ? 'link' : 'links' }}
+                  @if (column.auto) {
+                    Fills automatically
+                  } @else {
+                    {{ column.links.length }} {{ column.links.length === 1 ? 'link' : 'links' }}
+                  }
                 </span>
 
                 <div class="flex items-center gap-2 shrink-0">
-                  <button
-                    matButton="tonal"
-                    type="button"
-                    theme="success"
-                    (click)="$event.stopPropagation(); panel.open(); linkAdd.emit(colIdx)"
-                  >
-                    <mat-icon name="add" />
-                    <span>Add Link</span>
-                  </button>
+                  @if (!column.auto) {
+                    <button
+                      matButton="tonal"
+                      type="button"
+                      theme="success"
+                      (click)="$event.stopPropagation(); panel.open(); linkAdd.emit(colIdx)"
+                    >
+                      <mat-icon name="add" />
+                      <span>Add Link</span>
+                    </button>
+                  }
                   <button
                     matButton="tonal"
                     theme="error"
@@ -100,170 +112,234 @@
           </mat-panel-description>
         </mat-expansion-panel-header>
 
-        <!-- Links List -->
-        <div
-          cdkDropList
-          (cdkDropListDropped)="linkDrop.emit({ colIndex: colIdx, event: $event })"
-          class="space-y-4 pt-4 pb-2"
-        >
-          @for (link of column.links; track $index; let linkIdx = $index) {
-            <div cdkDrag class="flex items-center gap-2 p-3 sm:p-4 panel-border">
-              <!-- Drag Handle -->
-              <span cdkDragHandle class="drag-handle-wrapper" matTooltip="Drag to reorder link">
-                <mat-icon name="drag_indicator" size="base" />
-              </span>
+        <!-- Fill Automatically (ATS-247) -->
+        <div class="space-y-4 pt-4">
+          <mat-slide-toggle
+            [id]="'col-auto-' + colIdx"
+            [checked]="!!column.auto"
+            (change)="toggleAuto(colIdx, $event.checked)"
+          >
+            Fill Automatically
+          </mat-slide-toggle>
 
-              <!-- Link Form Fields Grid (adaptive 2-row on compact, 1-row on 2xl) -->
-              <div class="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center flex-1 pt-4">
-                <!-- Link Label -->
-                <mat-form-field
-                  appearance="outline"
-                  class="w-full sm:col-span-6 2xl:col-span-4"
-                  subscriptSizing="dynamic"
+          @if (column.auto; as auto) {
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
+              <mat-form-field appearance="outline" class="w-full sm:col-span-5" subscriptSizing="dynamic">
+                <mat-label>Fill With</mat-label>
+                <mat-select
+                  [id]="'col-auto-kind-' + colIdx"
+                  [value]="auto.kind"
+                  (selectionChange)="changeKind(colIdx, auto, $event.value)"
                 >
-                  <mat-label>Link Label</mat-label>
-                  <input
-                    matInput
-                    [id]="'link-label-' + colIdx + '-' + linkIdx"
-                    [name]="'link-label-' + colIdx + '-' + linkIdx"
-                    autocomplete="off"
-                    aria-label="Link Label"
-                    [ngModel]="link.label"
-                    (ngModelChange)="
-                      linkFieldChange.emit({
-                        colIndex: colIdx,
-                        linkIndex: linkIdx,
-                        field: 'label',
-                        value: $event,
-                      })
-                    "
-                    placeholder="Link Label"
-                  />
-                </mat-form-field>
-
-                <!-- Link Path -->
-                <mat-form-field
-                  appearance="outline"
-                  class="w-full sm:col-span-6 2xl:col-span-4"
-                  subscriptSizing="dynamic"
-                >
-                  <mat-label>Target Path</mat-label>
-                  <input
-                    matInput
-                    [id]="'link-path-' + colIdx + '-' + linkIdx"
-                    [name]="'link-path-' + colIdx + '-' + linkIdx"
-                    autocomplete="off"
-                    aria-label="Target Path"
-                    [ngModel]="link.path"
-                    (ngModelChange)="
-                      linkFieldChange.emit({
-                        colIndex: colIdx,
-                        linkIndex: linkIdx,
-                        field: 'path',
-                        value: $event,
-                      })
-                    "
-                    placeholder="/category/path"
-                  />
-                  <button
-                    matIconButton
-                    matSuffix
-                    type="button"
-                    (click)="
-                      linkGenerateSlug.emit({
-                        colIndex: colIdx,
-                        linkIndex: linkIdx,
-                      })
-                    "
-                    matTooltip="Link to the category or brand this label matches"
-                    aria-label="Link to the matching category or brand"
-                  >
-                    <mat-icon name="auto_fix_high" />
-                  </button>
-                </mat-form-field>
-
-                <!-- Badge tag (optional) -->
-                <mat-form-field
-                  appearance="outline"
-                  class="w-full sm:col-span-5 2xl:col-span-2"
-                  subscriptSizing="dynamic"
-                >
-                  <mat-label>Badge</mat-label>
-                  <input
-                    matInput
-                    [id]="'link-badge-' + colIdx + '-' + linkIdx"
-                    [name]="'link-badge-' + colIdx + '-' + linkIdx"
-                    autocomplete="off"
-                    aria-label="Badge"
-                    [ngModel]="link.badge ?? ''"
-                    (ngModelChange)="
-                      linkFieldChange.emit({
-                        colIndex: colIdx,
-                        linkIndex: linkIdx,
-                        field: 'badge',
-                        value: $event,
-                      })
-                    "
-                    placeholder="NEW"
-                  />
-                </mat-form-field>
-
-                <!-- Brand Link Checkbox -->
-                <div class="w-full sm:col-span-4 2xl:col-span-1 elements-center">
-                  <mat-checkbox
-                    [id]="'link-is-brand-' + colIdx + '-' + linkIdx"
-                    [name]="'link-is-brand-' + colIdx + '-' + linkIdx"
-                    [ngModel]="link.isBrand ?? false"
-                    (ngModelChange)="
-                      linkFieldChange.emit({
-                        colIndex: colIdx,
-                        linkIndex: linkIdx,
-                        field: 'isBrand',
-                        value: $event || undefined,
-                      })
-                    "
-                  >
-                    <span>Brand</span>
-                  </mat-checkbox>
-                </div>
-
-                <!-- Delete Link -->
-                <div class="w-full sm:w-auto sm:col-span-3 2xl:col-span-1 elements-center icon-btn-md">
-                  <!-- Mobile Full Width (< sm) -->
-                  <div class="w-full sm:hidden [&>button]:w-full">
-                    <button
-                      matButton="tonal"
-                      theme="error"
-                      type="button"
-                      (click)="linkDelete.emit({ colIndex: colIdx, linkIndex: linkIdx })"
-                      aria-label="Delete link"
+                  @for (kind of autoKinds; track kind) {
+                    <mat-option
+                      [value]="kind"
+                      [disabled]="kind === 'children' && parentOptions().length === 0"
                     >
-                      <mat-icon name="delete" iconColor="error" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
+                      {{ autoKindLabels[kind] }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-                  <!-- Desktop Icon Button (>= sm) -->
-                  <div class="hidden sm:block">
-                    <button
-                      matIconButton
-                      theme="error"
-                      type="button"
-                      (click)="linkDelete.emit({ colIndex: colIdx, linkIndex: linkIdx })"
-                      aria-label="Delete link"
-                    >
-                      <mat-icon name="delete" iconColor="error" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              @if (auto.kind === 'children') {
+                <mat-form-field appearance="outline" class="w-full sm:col-span-5" subscriptSizing="dynamic">
+                  <mat-label>Category</mat-label>
+                  <mat-select
+                    [id]="'col-auto-category-' + colIdx"
+                    [value]="auto.categoryId"
+                    (selectionChange)="changeCategory(colIdx, $event.value)"
+                  >
+                    @for (option of parentOptions(); track option.id) {
+                      <mat-option [value]="option.id">{{ option.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              } @else {
+                <mat-form-field appearance="outline" class="w-full sm:col-span-3" subscriptSizing="dynamic">
+                  <mat-label>Show at most</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="1"
+                    [max]="maxLimit"
+                    step="1"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    [id]="'col-auto-limit-' + colIdx"
+                    [name]="'col-auto-limit-' + colIdx"
+                    [ngModel]="limitOf(auto)"
+                    (ngModelChange)="changeLimit(colIdx, auto, $event)"
+                  />
+                  <mat-hint>1 to {{ maxLimit }}</mat-hint>
+                </mat-form-field>
+              }
             </div>
-          } @empty {
-            <div class="p-3 text-center font-body-sm opacity-70 italic">
-              No links in this column. Click "Add Link" above.
+
+            <div class="p-3 sm:p-4 panel-border space-y-2">
+              <p class="font-label-md font-bold!">What the store shows now</p>
+              @let preview = previews()[colIdx] ?? [];
+              @if (preview.length > 0) {
+                <ul class="flex flex-wrap gap-2">
+                  @for (link of preview; track link.path) {
+                    <li class="px-3 py-1 border-shape border border-outline-variant font-label-sm">
+                      {{ link.label }}
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="font-body-sm opacity-70">
+                  Nothing to show yet. This column stays off the store until it has something in it.
+                </p>
+              }
+              @if (column.links.length > 0) {
+                <p class="font-body-sm opacity-70">
+                  The {{ column.links.length }} {{ column.links.length === 1 ? 'link' : 'links' }} you added
+                  by hand come back if you turn this off.
+                </p>
+              }
             </div>
           }
         </div>
+
+        <!-- Links List -->
+        @if (!column.auto) {
+          <div
+            cdkDropList
+            (cdkDropListDropped)="linkDrop.emit({ colIndex: colIdx, event: $event })"
+            class="space-y-4 pt-4 pb-2"
+          >
+            @for (link of column.links; track $index; let linkIdx = $index) {
+              <div cdkDrag class="flex items-center gap-2 p-3 sm:p-4 panel-border">
+                <!-- Drag Handle -->
+                <span cdkDragHandle class="drag-handle-wrapper" matTooltip="Drag to reorder link">
+                  <mat-icon name="drag_indicator" size="base" />
+                </span>
+
+                <!-- Link Form Fields Grid (adaptive 2-row on compact, 1-row on 2xl) -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-6 items-start flex-1 pt-4">
+                  <!-- Link Label -->
+                  <mat-form-field
+                    appearance="outline"
+                    class="w-full sm:col-span-6 2xl:col-span-4"
+                    subscriptSizing="dynamic"
+                  >
+                    <mat-label>Link Label</mat-label>
+                    <input
+                      matInput
+                      [id]="'link-label-' + colIdx + '-' + linkIdx"
+                      [name]="'link-label-' + colIdx + '-' + linkIdx"
+                      autocomplete="off"
+                      aria-label="Link Label"
+                      [ngModel]="link.label"
+                      (ngModelChange)="
+                        linkFieldChange.emit({
+                          colIndex: colIdx,
+                          linkIndex: linkIdx,
+                          field: 'label',
+                          value: $event,
+                        })
+                      "
+                      placeholder="Link Label"
+                    />
+                  </mat-form-field>
+
+                  <!-- Links To -->
+                  <div class="w-full sm:col-span-6 2xl:col-span-4">
+                    <app-nav-target-field
+                      [fieldId]="'link-' + colIdx + '-' + linkIdx"
+                      [target]="link.target"
+                      [path]="link.path"
+                      (targetChange)="
+                        linkTargetChange.emit({ colIndex: colIdx, linkIndex: linkIdx, change: $event })
+                      "
+                      (suggest)="linkGenerateSlug.emit({ colIndex: colIdx, linkIndex: linkIdx })"
+                    />
+                  </div>
+
+                  <!-- Badge tag (optional) -->
+                  <mat-form-field
+                    appearance="outline"
+                    class="w-full sm:col-span-5 2xl:col-span-2"
+                    subscriptSizing="dynamic"
+                  >
+                    <mat-label>Badge</mat-label>
+                    <input
+                      matInput
+                      [id]="'link-badge-' + colIdx + '-' + linkIdx"
+                      [name]="'link-badge-' + colIdx + '-' + linkIdx"
+                      autocomplete="off"
+                      aria-label="Badge"
+                      [ngModel]="link.badge ?? ''"
+                      (ngModelChange)="
+                        linkFieldChange.emit({
+                          colIndex: colIdx,
+                          linkIndex: linkIdx,
+                          field: 'badge',
+                          value: $event,
+                        })
+                      "
+                      placeholder="NEW"
+                    />
+                  </mat-form-field>
+
+                  <!-- Brand Link Checkbox -->
+                  <div class="w-full sm:col-span-4 2xl:col-span-1 elements-center">
+                    <mat-checkbox
+                      [id]="'link-is-brand-' + colIdx + '-' + linkIdx"
+                      [name]="'link-is-brand-' + colIdx + '-' + linkIdx"
+                      [ngModel]="link.isBrand ?? false"
+                      (ngModelChange)="
+                        linkFieldChange.emit({
+                          colIndex: colIdx,
+                          linkIndex: linkIdx,
+                          field: 'isBrand',
+                          value: $event || undefined,
+                        })
+                      "
+                    >
+                      <span>Brand</span>
+                    </mat-checkbox>
+                  </div>
+
+                  <!-- Delete Link -->
+                  <div class="w-full sm:w-auto sm:col-span-3 2xl:col-span-1 elements-center icon-btn-md">
+                    <!-- Mobile Full Width (< sm) -->
+                    <div class="w-full sm:hidden [&>button]:w-full">
+                      <button
+                        matButton="tonal"
+                        theme="error"
+                        type="button"
+                        (click)="linkDelete.emit({ colIndex: colIdx, linkIndex: linkIdx })"
+                        aria-label="Delete link"
+                      >
+                        <mat-icon name="delete" iconColor="error" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+
+                    <!-- Desktop Icon Button (>= sm) -->
+                    <div class="hidden sm:block">
+                      <button
+                        matIconButton
+                        theme="error"
+                        type="button"
+                        (click)="linkDelete.emit({ colIndex: colIdx, linkIndex: linkIdx })"
+                        aria-label="Delete link"
+                      >
+                        <mat-icon name="delete" iconColor="error" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            } @empty {
+              <div class="p-3 text-center font-body-sm opacity-70 italic">
+                No links in this column. Click "Add Link" above.
+              </div>
+            }
+          </div>
+        }
       </mat-expansion-panel>
       @if (colIdx !== columns().length - 1) {
         <mat-divider />

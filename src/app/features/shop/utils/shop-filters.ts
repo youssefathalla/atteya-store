@@ -2,9 +2,12 @@ import { COLOR_PALETTE, type ColorId } from '@core/services/products/catalog-tax
 import { isPlayerId, type Player } from '@core/services/products/player.schema';
 import type { CatalogBrowseOptions } from '@core/services/search';
 import {
+  shopCategoryIdForSlug,
+  type ShopCategorySource,
+} from '@core/services/products/utils/shop-categories';
+import {
   APPAREL_LETTER_SIZES,
   DEFAULT_SHOP_FILTERS,
-  SHOP_CATEGORY_OPTIONS,
   SHOP_COLOR_IDS,
   type ShopBrandOption,
   type ShopCategoryFilterId,
@@ -17,7 +20,6 @@ import {
 } from '../models/shop.model';
 
 const COLOR_ID_SET = new Set<string>(SHOP_COLOR_IDS);
-const CATEGORY_ID_SET = new Set<string>(SHOP_CATEGORY_OPTIONS.map((o) => o.id));
 const GENDER_ID_SET = new Set<string>(['women', 'men']);
 const LETTER_SIZE_SET = new Set<string>(APPAREL_LETTER_SIZES);
 
@@ -27,17 +29,19 @@ export function tabCategoryIds(tab: ShopTabId): readonly string[] {
   return [tab];
 }
 
+/**
+ * The active tab from the route: `data.shopCategory` / `data.shopSubcategory` (the Bags page)
+ * or the `/category/:slug` address, matched against the live category list.
+ */
 export function resolveShopTab(
   shopCategory: string | undefined,
   shopSubcategory: string | undefined,
+  categories: readonly ShopCategorySource[],
 ): ShopTabId {
   const cat = (shopCategory ?? '').trim().toLowerCase();
   const sub = (shopSubcategory ?? '').trim().toLowerCase();
   if (sub === 'bags' || cat === 'bags') return 'accessories';
-  if (cat === 'apparel') return 'apparel';
-  if (cat === 'accessories') return 'accessories';
-  if (cat === 'rackets' || cat === 'padel') return 'rackets';
-  return 'all';
+  return shopCategoryIdForSlug(cat, categories) ?? 'all';
 }
 
 export function parseShopFilterState(input: {
@@ -53,14 +57,16 @@ export function parseShopFilterState(input: {
   readonly inStock?: string | null;
   readonly page?: string | null;
   readonly bags?: string | null;
+  /** Category ids the Category filter offers; any other `?category=` value is dropped. */
+  readonly categoryIds: ReadonlySet<string>;
 }): ShopFilterState {
   const sort =
     input.sort === 'newest' || input.sort === 'price-asc' || input.sort === 'price-desc'
       ? input.sort
       : 'featured';
 
-  const categories = parseList(input.category).filter((id): id is ShopCategoryFilterId =>
-    CATEGORY_ID_SET.has(id),
+  const categories = unique(parseList(input.category)).filter((id): id is ShopCategoryFilterId =>
+    input.categoryIds.has(id),
   );
   if (isTruthyParam(input.bags) && !categories.includes('bags')) {
     categories.push('bags');
@@ -138,9 +144,8 @@ export function buildCatalogBrowseOptions(input: {
     filterParts.push(`categoryIds:${id}`);
   }
 
-  const panelCategoryIds = filters.categories
-    .map((id) => SHOP_CATEGORY_OPTIONS.find((o) => o.id === id)?.categoryId)
-    .filter((id): id is string => Boolean(id));
+  // Filter ids are category ids (`shopCategoryOptionsFrom()`); parsing already dropped unknown ones.
+  const panelCategoryIds = filters.categories.filter((id) => /^[a-z0-9-]{1,120}$/.test(id));
 
   if (panelCategoryIds.length > 0 && scopedIds.length === 0) {
     // Parenthesize OR so AND with onSale/inStock/gender does not widen the match.

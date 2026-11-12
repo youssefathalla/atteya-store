@@ -3,6 +3,7 @@
     [title]="pageTitle()"
     [subtitle]="pageSubtitle()"
     [activeTab]="activeTab()"
+    [tabs]="tabs()"
     [filtersOpen]="filtersOpen()"
     [resultCount]="totalHits()"
     [showFiltersToggle]="isConfigured()"
@@ -36,6 +37,7 @@
             [showGender]="showGender()"
             [showSizes]="showSizes()"
             [accessoriesSubOnly]="accessoriesSubOnly()"
+            [categoryOptions]="categoryOptions()"
           />
         </aside>
       }
@@ -107,6 +109,7 @@
     [showGender]="showGender()"
     [showSizes]="showSizes()"
     [accessoriesSubOnly]="accessoriesSubOnly()"
+    [categoryOptions]="categoryOptions()"
     (closed)="closeMobileFilters()"
   />
 </div>

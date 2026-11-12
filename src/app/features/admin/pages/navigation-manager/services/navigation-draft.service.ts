@@ -1,7 +1,16 @@
 import { computed, inject, Service, signal } from '@angular/core';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
-import { MegaMenuColumn, MegaMenuLink, NavCategory } from '@core/services/navigation';
+import {
+  MegaMenuColumn,
+  MegaMenuLink,
+  NavCategory,
+  navAutoColumnLinks,
+  navTargetFromPath,
+  type NavAutoColumn,
+  type NavTarget,
+  type NavTargetCatalog,
+} from '@core/services/navigation';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { SEED_BRANDS, SEED_CATEGORIES } from '@core/services/products/catalog-taxonomy';
 import {
@@ -10,11 +19,46 @@ import {
   suggestNavPath,
   type NavCatalog,
 } from '../utils/navigation-manager.utils';
+import { withTargetPaths } from '../utils/navigation-targets.utils';
+import { NavigationCatalogService } from './navigation-catalog.service';
+import type { NavTargetChange } from '../components/nav-target-field/nav-target-field.component';
+
+/** What an add dialog hands back for a menu or link destination. */
+export interface NavDestination {
+  readonly target: NavTarget | null;
+  readonly path: string;
+}
 
 @Service()
 export class NavigationDraftService {
   readonly #snackbar = inject(SnackbarService);
   readonly #catalog = inject(CatalogService);
+  readonly #allCatalog = inject(NavigationCatalogService);
+
+  /**
+   * Every category and brand (shown and hidden) once loaded, else the published lists,
+   * for turning a ✨ address into a target.
+   */
+  #targetCatalog(): NavTargetCatalog {
+    const best = this.#allCatalog.bestCatalog();
+    if (best.categories.length > 0) return best;
+    const published = this.catalogForPaths();
+    return {
+      categories: published.categories.map((entry) => ({ ...entry, published: true })),
+      brands: published.brands.map((entry) => ({ ...entry, published: true })),
+    };
+  }
+
+  /** A ✨ address as a target when it names exactly a category, brand or page. */
+  destinationFromPath(path: string): NavDestination {
+    const target = navTargetFromPath(path, this.#targetCatalog());
+    return { target, path };
+  }
+
+  /** The categories to save: each target's address rebuilt, typed addresses tidied. */
+  categoriesToSave(): NavCategory[] {
+    return withTargetPaths(this.draftCategories(), this.#allCatalog.bestCatalog());
+  }
 
   /** Live published categories and brands (the built-in list until they load). */
   catalogForPaths(): NavCatalog {
@@ -45,21 +89,29 @@ export class NavigationDraftService {
     }
   }
 
+  /** Opens a saved version as an unsaved draft (Previous Versions, ATS-251). */
+  loadVersion(source: readonly NavCategory[]): void {
+    this.resetDraftFromSource(source);
+    this.isDraftDirty.set(true);
+  }
+
   // --- Category Management ---
   selectCategory(id: string): void {
     this.selectedCategoryId.set(id);
   }
 
-  addCategory(data?: { label: string; path: string }): void {
+  addCategory(data?: { label: string } & Partial<NavDestination>): void {
     this.isDraftDirty.set(true);
     const newId = `cat-${crypto.randomUUID().slice(0, 8)}`;
     const label = data?.label?.trim() ?? '';
-    const path = data?.path?.trim() ? normalizePath(data.path) : `/category/${newId}`;
+    const path = data?.path?.trim() ? normalizePath(data.path) : '';
 
+    // No target and no path: the name only opens its menu.
     const newCat: NavCategory = {
       id: newId,
       label,
-      path,
+      ...(path ? { path } : {}),
+      ...(data?.target ? { target: data.target } : {}),
       megaMenu: [],
     };
 
@@ -117,11 +169,17 @@ export class NavigationDraftService {
     this.#updateSelectedCategory((cat) => ({ ...cat, [field]: value }));
   }
 
-  updateCategoryPath(rawPath: string): void {
-    this.#updateSelectedCategory((cat) => ({
-      ...cat,
-      path: normalizePath(rawPath),
-    }));
+  /** Links To changed: save the target and its address; an empty label takes the target's name. */
+  updateCategoryTarget(change: NavTargetChange): void {
+    this.#updateSelectedCategory((cat) => {
+      const next: NavCategory = { ...cat };
+      if (change.target) next.target = change.target;
+      else delete next.target;
+      if (change.path) next.path = change.path;
+      else delete next.path;
+      if (!next.label.trim() && change.name) next.label = change.name;
+      return next;
+    });
   }
 
   generateCategoryPath(): void {
@@ -133,7 +191,7 @@ export class NavigationDraftService {
       this.#snackbar.error(noNavPathMessage(current.label));
       return;
     }
-    this.updateCategoryPath(newPath);
+    this.updateCategoryTarget({ ...this.destinationFromPath(newPath), name: null });
     this.#snackbar.info(`Address set to "${newPath}".`);
   }
 
@@ -152,6 +210,27 @@ export class NavigationDraftService {
     this.#updateColumns((cols) => cols.map((col, idx) => (idx === colIndex ? { ...col, title } : col)));
   }
 
+  /**
+   * Fill Automatically on (an auto setting) or off (null). The column's own links stay in the
+   * draft either way, so turning it off brings them back (ATS-247).
+   */
+  setColumnAuto(colIndex: number, auto: NavAutoColumn | null): void {
+    this.#updateColumns((cols) =>
+      cols.map((col, idx) => {
+        if (idx !== colIndex) return col;
+        const next: MegaMenuColumn = { ...col };
+        if (auto) next.auto = auto;
+        else delete next.auto;
+        return next;
+      }),
+    );
+  }
+
+  /** What a Fill Automatically column shows on the store now, for the editor's preview. */
+  autoPreview(auto: NavAutoColumn): MegaMenuLink[] {
+    return navAutoColumnLinks(auto, this.#allCatalog.autoSources(), (path) => this.#catalog.isEmpty(path));
+  }
+
   dropColumn(event: CdkDragDrop<MegaMenuColumn[]>): void {
     if (event.previousIndex === event.currentIndex) return;
     this.#updateColumns((cols) => {
@@ -162,7 +241,10 @@ export class NavigationDraftService {
   }
 
   // --- Link Management ---
-  addLink(colIndex: number, data?: { label: string; path: string; badge?: string; isBrand?: boolean }): void {
+  addLink(
+    colIndex: number,
+    data?: { label: string; badge?: string; isBrand?: boolean } & Partial<NavDestination>,
+  ): void {
     const label = data?.label?.trim() ?? '';
     const path = data?.path?.trim() ? normalizePath(data.path) : '';
     const badge = data?.badge?.trim() ? data.badge.trim() : undefined;
@@ -171,6 +253,7 @@ export class NavigationDraftService {
     const newLink: MegaMenuLink = {
       label,
       path,
+      ...(data?.target ? { target: data.target } : {}),
       ...(badge ? { badge } : {}),
       ...(isBrand ? { isBrand: true } : {}),
     };
@@ -212,8 +295,26 @@ export class NavigationDraftService {
       this.#snackbar.error(noNavPathMessage(link.label || 'this link'));
       return;
     }
-    this.updateLinkField(colIndex, linkIndex, 'path', newPath);
+    this.updateLinkTarget(colIndex, linkIndex, { ...this.destinationFromPath(newPath), name: null });
     this.#snackbar.info(`Address set to "${newPath}".`);
+  }
+
+  /** Links To changed on a link: save the target and its address; an empty label takes its name. */
+  updateLinkTarget(colIndex: number, linkIndex: number, change: NavTargetChange): void {
+    this.#updateColumns((cols) =>
+      cols.map((col, cIdx) => {
+        if (cIdx !== colIndex) return col;
+        const links = col.links.map((link, lIdx) => {
+          if (lIdx !== linkIndex) return link;
+          const next: MegaMenuLink = { ...link, path: change.path };
+          if (change.target) next.target = change.target;
+          else delete next.target;
+          if (!next.label.trim() && change.name) next.label = change.name;
+          return next;
+        });
+        return { ...col, links };
+      }),
+    );
   }
 
   updateLinkField(colIndex: number, linkIndex: number, field: keyof MegaMenuLink, value: unknown): void {

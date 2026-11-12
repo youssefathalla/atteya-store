@@ -30,7 +30,7 @@
     <section class="shop-filters-section">
       <h2 class="shop-filters-heading">Category</h2>
       <div class="elements-start-col gap-1">
-        @for (opt of categoryOptions(); track opt.id) {
+        @for (opt of visibleCategoryOptions(); track opt.id) {
           <mat-checkbox [checked]="filters().categories.includes(opt.id)" (change)="toggleCategory(opt.id)">
             {{ opt.label }}
           </mat-checkbox>

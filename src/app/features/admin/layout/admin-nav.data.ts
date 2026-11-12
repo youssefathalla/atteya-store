@@ -55,12 +55,11 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
       },
       {
         id: 'categories',
-        label: 'Categories & Taxonomy',
+        label: 'Categories & Brands',
         path: '/admin/categories',
         icon: 'category',
-        badge: 'Soon',
-        disabled: true,
-        description: 'Product taxonomy, filters, and attributes',
+        badge: 'Live',
+        description: 'Add, rename, reorder, show and hide categories and brands',
       },
     ],
   },
@@ -71,11 +70,12 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
     subItems: [
       {
         id: 'admins',
-        label: 'Admins',
+        label: 'Team',
         path: '/admin/settings/admins',
         icon: 'admin_panel_settings',
         badge: 'Live',
-        description: 'Choose who can manage the store',
+        description: 'Choose who can manage the store, as Admin or Staff',
+        adminOnly: true,
       },
       {
         id: 'shipping',
