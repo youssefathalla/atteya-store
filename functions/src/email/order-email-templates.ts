@@ -27,6 +27,7 @@ import {
   infoBoxes,
   INK,
   itemGrid,
+  type ItemGift,
   mainButton,
   nextStepBox,
   outlinedButton,
@@ -570,7 +571,7 @@ function orderShipped(order: OrderEmailOrder, ctx: OrderEmailContext): RenderedE
           ])
         : null,
       boxesRow([{ label: 'On its way to', lines: addressLines(order) }], 32),
-      itemsRow('In This Delivery', order.lines, ctx, { perRow: 3, prices: false }),
+      itemsRow('In This Delivery', order.lines, ctx, { prices: false }),
       view ? buttonRow(view, 8) : null,
     ],
   });
@@ -641,7 +642,7 @@ function paymentFailed(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
         },
       ]),
       ctx.storefrontUrl ? buttonRow({ label: 'Shop Again', url: `${ctx.storefrontUrl}/shop` }) : null,
-      itemsRow('Still Want These?', bought.length ? bought : order.lines, ctx, { perRow: 2, prices: true }),
+      itemsRow('Still Want These?', bought.length ? bought : order.lines, ctx, { prices: true }),
     ],
   });
 }
@@ -849,12 +850,15 @@ function itemsRow(
   title: string,
   lines: readonly OrderEmailLine[],
   ctx: OrderEmailContext,
-  opts: { perRow: 2 | 3; prices: boolean },
+  opts: { prices: boolean },
 ): Block {
-  const compactAfter = opts.perRow === 2 ? 4 : 6;
+  const compactAfter = 4;
+  const cards = itemCards(lines, ctx, opts.prices, 520);
   // Twice the shown width: big photos in the grid, 64px thumbnails in the compact list.
-  const width = lines.length > compactAfter ? 128 : opts.perRow === 2 ? 520 : 360;
-  const grid = itemGrid(itemCards(lines, ctx, opts.prices, width), opts.perRow, compactAfter);
+  const grid = itemGrid(
+    cards.length > compactAfter ? itemCards(lines, ctx, opts.prices, 128) : cards,
+    compactAfter,
+  );
   return {
     html: section(`${sectionTitle(title)}${grid}`, 40),
     text: `${title}:\n${itemsText(lines, opts.prices)}`,
@@ -883,7 +887,7 @@ function orderSummary(order: OrderEmailOrder, ctx: OrderEmailContext, opts: Summ
   if (opts.payment) boxes.push({ label: 'Payment', lines: opts.payment });
   const view = orderButton(order, ctx);
   const out: Block[] = [
-    itemsRow('Your Items', order.lines, ctx, { perRow: 2, prices: true }),
+    itemsRow('Your Items', order.lines, ctx, { prices: true }),
     {
       html: section(totals(rows, after), 8),
       text: [...rows, ...after].map(([label, value]) => `${label}: ${value}`).join('\n'),
@@ -939,16 +943,37 @@ function itemCards(
   prices: boolean,
   photoWidth: number,
 ): ItemCard[] {
-  return lines.map((line) => {
-    const gift = line.giftName !== null;
-    return {
+  return foldGifts(
+    lines,
+    (line) => ({
       name: lineTitle(line),
       details: lineDetails(line),
-      price: prices ? (gift ? 'Free' : formatEgp(line.lineEgp)) : null,
+      price: prices ? formatEgp(line.lineEgp) : null,
       imageSrc: imageUrl(line.imagePath, ctx, photoWidth),
-      tags: gift ? ['Free gift'] : line.dealTag ? [line.dealTag] : [],
-    };
-  });
+      tags: line.dealTag ? [line.dealTag] : [],
+    }),
+    (line) => ({ name: lineTitle(line), details: lineDetails(line) }),
+  );
+}
+
+/**
+ * One card per bought line; a free gift line (listed right after its item) becomes a strip under
+ * that item. A gift with no item before it (should not happen) stays a card of its own.
+ */
+function foldGifts(
+  lines: readonly OrderEmailLine[],
+  buildCard: (line: OrderEmailLine) => Omit<ItemCard, 'gifts'>,
+  buildGift: (line: OrderEmailLine) => ItemGift,
+): ItemCard[] {
+  const cards: { card: Omit<ItemCard, 'gifts'>; gifts: ItemGift[] }[] = [];
+  for (const line of lines) {
+    if (line.giftName !== null && cards.length > 0) {
+      cards[cards.length - 1]!.gifts.push(buildGift(line));
+      continue;
+    }
+    cards.push({ card: buildCard(line), gifts: [] });
+  }
+  return cards.map(({ card, gifts }) => (gifts.length ? { ...card, gifts } : card));
 }
 
 /** `14 Nov` in Cairo time, or null. */
@@ -1229,21 +1254,25 @@ ${wa ? `<div style="margin-top:18px;">${outlinedButton(wa)}</div>` : ''}`,
   return { html, text };
 }
 
-/** Pack List: 3 photos per row with a ×2 tag on each; 7 or more lines use the compact list. */
+/** Pack List: 2 photos per row with a ×2 tag on each, gifts under their item; 5 or more items use the compact list. */
 function packList(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): Block {
-  const compactAfter = 6;
-  const width = lines.length > compactAfter ? 128 : 360;
-  const cards: ItemCard[] = lines.map((line) => {
-    const gift = line.giftName !== null;
-    const options = lineTags(line).join(' · ');
-    return {
+  const compactAfter = 4;
+  const bought = lines.filter((line, index) => line.giftName === null || index === 0).length;
+  const width = bought > compactAfter ? 128 : 520;
+  const cards: ItemCard[] = foldGifts(
+    lines,
+    (line) => ({
       name: lineTitle(line),
-      details: gift ? joinWith([options, line.giftName], ' · ') : options,
-      price: gift ? null : formatEgp(line.lineEgp),
+      details: lineTags(line).join(' · '),
+      price: formatEgp(line.lineEgp),
       imageSrc: imageUrl(line.imagePath, ctx, width),
-      tags: [`×${line.quantity}`, ...(line.dealTag && !gift ? [line.dealTag] : [])],
-    };
-  });
+      tags: [`×${line.quantity}`, ...(line.dealTag ? [line.dealTag] : [])],
+    }),
+    (line) => ({
+      name: lineTitle(line),
+      details: joinWith([line.giftName, `×${line.quantity}`, lineTags(line).join(' · ')], ' · '),
+    }),
+  );
   const text = lines
     .map((line) => {
       const gift = line.giftName !== null;
@@ -1255,7 +1284,7 @@ function packList(lines: readonly OrderEmailLine[], ctx: OrderEmailContext): Blo
     })
     .join('\n');
   return {
-    html: section(`${sectionTitle('Pack List')}${itemGrid(cards, 3, compactAfter)}`, 40),
+    html: section(`${sectionTitle('Pack List')}${itemGrid(cards, compactAfter)}`, 40),
     text: `Pack List:\n${text}`,
   };
 }
