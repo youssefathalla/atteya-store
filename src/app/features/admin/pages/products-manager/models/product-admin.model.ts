@@ -213,3 +213,10 @@ export interface ReindexSearchReport {
   readonly indexed: number;
   readonly deleted: number;
 }
+
+/** What `moveProductsToCategory` changed (ATS-266). */
+export interface MoveProductsResult {
+  readonly moved: number;
+  readonly unchanged: number;
+  readonly missing: number;
+}

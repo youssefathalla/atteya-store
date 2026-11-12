@@ -23,6 +23,22 @@
   }
 </section>
 
+<ng-template #selectCell [templateType]="sampleGroup" let-row>
+  <div class="products-line elements-start">
+    <mat-checkbox
+      [checked]="selectionState(row) === 'all'"
+      [indeterminate]="selectionState(row) === 'some'"
+      [aria-label]="'Select ' + row.name"
+      (change)="toggleSelected.emit(row)"
+    />
+  </div>
+  @if (isOpen(row)) {
+    @for (colour of row.colours; track colour.id) {
+      <div class="products-sub-line"></div>
+    }
+  }
+</ng-template>
+
 <ng-template #productCell [templateType]="sampleGroup" let-row>
   <div class="products-line elements-start gap-3">
     @if (row.colours.length > 1) {

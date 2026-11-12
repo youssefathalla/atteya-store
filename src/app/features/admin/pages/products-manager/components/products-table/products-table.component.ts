@@ -1,6 +1,7 @@
 import { Component, computed, input, output, signal, TemplateRef, viewChild } from '@angular/core';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
@@ -19,6 +20,7 @@ import type { ProductGroupRow, ProductStockStatus, ProductTableRow } from '../..
     NgOptimizedImage,
     NgTemplateOutlet,
     MatButtonModule,
+    MatCheckboxModule,
     MatMenuModule,
     MatProgressSpinnerModule,
     AppImageFallbackDirective,
@@ -43,9 +45,14 @@ export class ProductsTableComponent {
   readonly stock = output<string>();
   readonly switchingId = input<string | null>(null);
   readonly switchPublished = output<ProductTableRow>();
+  /** Ticked product (colour) ids, for Move to Category (ATS-266). */
+  readonly selectedIds = input<ReadonlySet<string>>(new Set());
+  /** A row's tick box: every colour of that row goes in or out together. */
+  readonly toggleSelected = output<ProductGroupRow>();
 
   readonly #open = signal<ReadonlySet<string>>(new Set());
 
+  private readonly selectCell = viewChild<TemplateRef<unknown>>('selectCell');
   private readonly productCell = viewChild<TemplateRef<unknown>>('productCell');
   private readonly coloursCell = viewChild<TemplateRef<unknown>>('coloursCell');
   private readonly categoryCell = viewChild<TemplateRef<unknown>>('categoryCell');
@@ -101,6 +108,7 @@ export class ProductsTableComponent {
   });
 
   readonly columns = computed((): TableColumn<ProductGroupRow>[] => [
+    { key: 'id', label: '', sortable: false, customCellTpl: this.selectCell() },
     { key: 'name', label: 'Product', sortable: true, customCellTpl: this.productCell() },
     { key: 'colours', label: 'Colours', sortable: false, customCellTpl: this.coloursCell() },
     { key: 'categoryLabel', label: 'Category', sortable: true, customCellTpl: this.categoryCell() },
@@ -109,6 +117,13 @@ export class ProductsTableComponent {
     { key: 'liveCount', label: 'Status', sortable: true, customCellTpl: this.statusCell() },
     { key: 'anchorId', label: '', sortable: false, customCellTpl: this.actionsCell() },
   ]);
+
+  selectionState(row: ProductGroupRow): 'all' | 'some' | 'none' {
+    const selected = this.selectedIds();
+    const ticked = row.colours.filter((colour) => selected.has(colour.id)).length;
+    if (ticked === 0) return 'none';
+    return ticked === row.colours.length ? 'all' : 'some';
+  }
 
   isOpen(row: ProductGroupRow): boolean {
     return row.colours.length > 1 && this.#open().has(row.id);

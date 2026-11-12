@@ -1,0 +1,43 @@
+<h2 mat-dialog-title class="font-title-lg font-bold!">Move to Category</h2>
+<form novalidate (submit)="onMove($event)">
+  <mat-dialog-content class="elements-start-col gap-4">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+      <mat-label>New category</mat-label>
+      <mat-select [value]="categoryId()" [disabled]="isMoving()" (selectionChange)="pick($event.value)">
+        @for (option of data.options; track option.id) {
+          <mat-option [value]="option.id">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    @if (summary(); as text) {
+      <p class="font-body-md">{{ text }}</p>
+    } @else {
+      <p class="font-body-md text-on-surface-variant">
+        Pick where {{ count === 1 ? 'it goes' : 'they go' }}.
+      </p>
+    }
+    <p class="font-body-sm text-on-surface-variant">
+      Their weight, photos and everything else stay as they are.
+    </p>
+    @if (errorMessage()) {
+      <p class="font-body-md text-error" role="alert">{{ errorMessage() }}</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions>
+    <div class="grid w-full gap-2 sm:flex sm:justify-end">
+      <button matButton="outlined" type="button" [disabled]="isMoving()" (click)="cancel()">Cancel</button>
+      <button
+        matButton="filled"
+        type="submit"
+        [disabled]="!categoryId() || isMoving()"
+        [attr.aria-label]="isMoving() ? 'Moving products' : null"
+      >
+        @if (isMoving()) {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <span>{{ moveLabel }}</span>
+        }
+      </button>
+    </div>
+  </mat-dialog-actions>
+</form>
