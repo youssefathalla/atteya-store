@@ -81,7 +81,7 @@
         </div>
 
         <!-- Quick Utilities & Playground (admins only) -->
-        @if (isAdmin()) {
+        @if (canManageStore()) {
           <div class="pt-4 pb-2 space-y-2">
             <a
               routerLink="/playground"

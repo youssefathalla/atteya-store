@@ -17,7 +17,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function parseSetUserRoleInput(data: unknown): SetUserRoleInput {
   if (!isRecord(data) || typeof data['email'] !== 'string' || typeof data['role'] !== 'string') {
-    throw new HttpsError('invalid-argument', 'Enter an email address and choose admin or regular access.');
+    throw new HttpsError('invalid-argument', 'Enter an email address and choose Admin, Staff or no access.');
   }
 
   const email = data['email'].trim().toLowerCase();
@@ -27,8 +27,8 @@ export function parseSetUserRoleInput(data: unknown): SetUserRoleInput {
     throw new HttpsError('invalid-argument', 'Enter a valid email address.');
   }
 
-  if (role !== 'admin' && role !== 'user') {
-    throw new HttpsError('invalid-argument', 'Choose admin or regular access.');
+  if (role !== 'admin' && role !== 'staff' && role !== 'user') {
+    throw new HttpsError('invalid-argument', 'Choose Admin, Staff or no access.');
   }
 
   return { email, role };

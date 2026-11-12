@@ -21,7 +21,7 @@ export class MobileMenuComponent {
   readonly #auth = inject(AuthService);
   readonly categories = this.#navService.storefrontCategories;
   /** The design playground is admin-only, so its link shows only for admins. */
-  readonly isAdmin = this.#auth.isAdmin;
+  readonly canManageStore = this.#auth.canManageStore;
   /** The search row was tapped; the mobile bar opens the search panel (it also closes this menu). */
   readonly searchRequested = output<void>();
 

@@ -45,6 +45,25 @@ export class ProductsDialogService {
     });
   }
 
+  /** Delete one colour of a product for good. */
+  async confirmDeleteColour(name: string, onlyColour: boolean): Promise<boolean> {
+    const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: onlyColour ? 'Delete This Product?' : 'Delete This Colour?',
+          message: `${name} leaves the store, search and this list for good. Past orders keep their copy, and shoppers who saved it see it as no longer available. Changes you haven't saved on this page are lost. This can't be undone.`,
+          confirmText: onlyColour ? 'Delete Product' : 'Delete Colour',
+          cancelText: 'Keep It',
+          theme: 'error',
+        },
+        width: '480px',
+        maxWidth: '92vw',
+      },
+    );
+    return !!(await firstValueFrom(dialogRef.afterClosed()));
+  }
+
   async confirmReindex(preview: ReindexSearchReport): Promise<boolean> {
     const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
       ConfirmDialogComponent,
