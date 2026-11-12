@@ -347,7 +347,9 @@ async function backfillProducts(
     // Never file a product under a built-in category staff deleted (ATS-265).
     const deletedCategory =
       categoryIds.some((id) => deletedBuiltIns.has(id)) && existingCategoryIds.length === 0;
-    if (!brandId || categoryIds.length === 0 || !categoryId || deletedCategory) {
+    // Nor point a product's brand at a deleted built-in from its old `brand` text.
+    const deletedBrand = !existingBrandId && deletedBuiltIns.has(brandId);
+    if (!brandId || categoryIds.length === 0 || !categoryId || deletedCategory || deletedBrand) {
       counts.missingNewFields += 1;
       return;
     }

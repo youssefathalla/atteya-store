@@ -140,6 +140,15 @@ export class CategoriesTabComponent {
     await this.#saveOrder(next);
   }
 
+  /**
+   * True when the row has a neighbour on that side in its own level (a sub-category whose parent
+   * is missing is listed at the top level but is not part of it).
+   */
+  canMove(category: Category, step: -1 | 1): boolean {
+    const ids = this.#level(category.parentId ?? null).map((item) => item.id);
+    return moveWithinLevel(ids, category.id, step) !== null;
+  }
+
   /** Drag within one level: the top level (`parentId` null) or the categories inside one. */
   async drop(parentId: string | null, event: CdkDragDrop<unknown>): Promise<void> {
     if (event.previousIndex === event.currentIndex) return;

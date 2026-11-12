@@ -10,6 +10,7 @@ import {
   hasEnglishLetterOrDigit,
   isBuiltInCatalogId,
   newCatalogId,
+  offerCatalogIds,
   offerDisplayName,
   offerNamesCatalogId,
   productCountPhrase,
@@ -321,6 +322,20 @@ describe('offerNamesCatalogId', () => {
     assert.equal(offerNamesCatalogId(offer, 'brandId', 'head'), false);
     assert.equal(offerNamesCatalogId(offer, 'categoryIds', 'nox'), false);
     assert.equal(offerNamesCatalogId(null, 'brandId', 'nox'), false);
+  });
+
+  it('lists every category and brand id an offer names, so a new one never reuses them', () => {
+    const offer = {
+      rules: [{ field: 'categoryIds', in: ['caps', 'Bad Id'] }],
+      reward: {
+        conditions: [
+          { field: 'brandId', notIn: ['nox'] },
+          { field: 'type', in: ['balls'] },
+        ],
+      },
+    };
+    assert.deepEqual([...offerCatalogIds(offer)].sort(), ['caps', 'nox']);
+    assert.equal(newCatalogId('Caps', new Set(offerCatalogIds(offer))), 'caps-2');
   });
 
   it('names an offer by its name, then its title, then its id', () => {

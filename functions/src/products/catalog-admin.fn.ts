@@ -20,8 +20,10 @@ import {
   categoryDeleteBlockedReason,
   DELETED_BUILT_IN_FIELD,
   isBuiltInCatalogId,
+  offerCatalogIds,
   offerDisplayName,
   offerNamesCatalogId,
+  readDeletedBuiltInIds,
   type CatalogProductUsage,
   categoryPlacement,
   newCatalogId,
@@ -65,9 +67,6 @@ interface DeleteOutcome {
   readonly builtIn: boolean;
   readonly products: number;
 }
-
-/** A category or brand with more products than this can't be deleted anyway; the count stops here. */
-const MAX_USAGE = 5_000;
 
 export interface ReorderCatalogResponse {
   readonly updated: number;
@@ -122,6 +121,7 @@ export const saveCategory = onCall(
         ...RESERVED_CATEGORY_SLUGS,
         ...all.docs.map((doc) => doc.id),
         ...brands.docs.map((doc) => doc.id),
+        ...(await idsNotToReuse(db, tx)),
       ]);
       const id = newCatalogId(input.name, taken);
       if (!id) {
@@ -197,17 +197,13 @@ export const deleteCategory = onCall(
     const result = await db.runTransaction(async (tx): Promise<DeleteOutcome> => {
       const snap = await tx.get(ref);
       if (!snap.exists) return { exists: false, blocked: null, builtIn: false, products: 0 };
-      const [products, subCategories] = await Promise.all([
-        tx.get(
-          db
-            .collection('products')
-            .where('categoryIds', 'array-contains', input.id)
-            .select('published')
-            .limit(MAX_USAGE),
-        ),
+      const productsInIt = db.collection('products').where('categoryIds', 'array-contains', input.id);
+      const [all, live, subCategories] = await Promise.all([
+        tx.get(productsInIt.count()),
+        tx.get(productsInIt.where('published', '==', true).count()),
         tx.get(db.collection('categories').where('parentId', '==', input.id).count()),
       ]);
-      const usage = usageOf(products.docs);
+      const usage = usageFrom(all.data().count, live.data().count);
       const blocked = categoryDeleteBlockedReason(catalogName(snap.data(), input.id), {
         products: usage,
         subCategories: subCategories.data().count,
@@ -268,7 +264,11 @@ export const saveBrand = onCall(
       ]);
       const id = newCatalogId(
         input.name,
-        new Set([...all.docs.map((doc) => doc.id), ...categories.docs.map((doc) => doc.id)]),
+        new Set([
+          ...all.docs.map((doc) => doc.id),
+          ...categories.docs.map((doc) => doc.id),
+          ...(await idsNotToReuse(db, tx)),
+        ]),
       );
       if (!id) throw new HttpsError('invalid-argument', ENGLISH_NAME_MESSAGE);
       const lastSort = all.docs.reduce((max, doc) => {
@@ -314,10 +314,12 @@ export const deleteBrand = onCall(
     const result = await db.runTransaction(async (tx): Promise<DeleteOutcome> => {
       const snap = await tx.get(ref);
       if (!snap.exists) return { exists: false, blocked: null, builtIn: false, products: 0 };
-      const products = await tx.get(
-        db.collection('products').where('brandId', '==', input.id).select('published').limit(MAX_USAGE),
-      );
-      const usage = usageOf(products.docs);
+      const ofBrand = db.collection('products').where('brandId', '==', input.id);
+      const [all, live] = await Promise.all([
+        tx.get(ofBrand.count()),
+        tx.get(ofBrand.where('published', '==', true).count()),
+      ]);
+      const usage = usageFrom(all.data().count, live.data().count);
       const blocked = brandDeleteBlockedReason(catalogName(snap.data(), input.id), usage);
       const builtIn = isBuiltInCatalogId('brands', input.id);
       const count = usage.live + usage.hidden;
@@ -436,11 +438,25 @@ async function finishDelete(
   return { ...base, deleted: true, blocked: null };
 }
 
-/** Live and hidden products from a `select('published')` read. */
-function usageOf(docs: readonly { get(field: string): unknown }[]): CatalogProductUsage {
-  let live = 0;
-  for (const doc of docs) if (doc.get('published') === true) live += 1;
-  return { live, hidden: docs.length - live };
+/** Live and hidden products from two counts (all of them, and the published ones). */
+function usageFrom(total: number, live: number): CatalogProductUsage {
+  const shown = Math.min(live, total);
+  return { live: shown, hidden: total - shown };
+}
+
+/**
+ * Ids a new category or brand must not take besides the existing docs (ATS-265): built-ins staff
+ * deleted, and every id an offer names, so an old offer never covers a new category or brand that
+ * happens to get a deleted one's id.
+ */
+async function idsNotToReuse(db: Firestore, tx: Transaction): Promise<ReadonlySet<string>> {
+  const [catalog, offers] = await Promise.all([
+    tx.get(db.doc('settings/catalog')),
+    db.collection('offers').limit(MAX_LIST).get(),
+  ]);
+  const ids = new Set<string>(readDeletedBuiltInIds(catalog.get(DELETED_BUILT_IN_FIELD)));
+  for (const doc of offers.docs) for (const id of offerCatalogIds(doc.data())) ids.add(id);
+  return ids;
 }
 
 function catalogName(data: Record<string, unknown> | undefined, id: string): string {

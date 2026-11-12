@@ -1242,6 +1242,33 @@ describe('removeFromMenu (ATS-265)', () => {
     );
   });
 
+  it('takes out a Shop with Filters link for the deleted brand', () => {
+    const withFilters = [
+      {
+        id: 'padel',
+        label: 'PADEL',
+        megaMenu: [
+          {
+            title: 'Shop',
+            links: [
+              {
+                label: 'Nox Rackets',
+                path: '/shop?brand=Nox',
+                target: { kind: 'shop', filters: { brand: 'nox' } },
+              },
+              { label: 'Sale', path: '/shop?onSale=1', target: { kind: 'shop', filters: { onSale: true } } },
+            ],
+          },
+        ],
+      },
+    ];
+    const { next } = removeFromMenu(withFilters, { kind: 'brand', id: 'nox', address: '/brand/nox' });
+    assert.deepEqual(
+      next[0].megaMenu[0].links.map((link) => link.label),
+      ['Sale'],
+    );
+  });
+
   it('changes nothing when the menu never mentioned it', () => {
     const result = removeFromMenu(menu, { kind: 'brand', id: 'siux', address: '/brand/siux' });
     assert.equal(result.changed, false);

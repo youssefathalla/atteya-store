@@ -80,7 +80,13 @@ export class CatalogDeleteFlowService {
       // Something was added to it between the check and the delete: same reason, same choices.
       if (isFirebaseError(error) && error.code === 'functions/failed-precondition') {
         const reason = callableMessage(error);
-        if (reason) return this.#blocked(kind, item, reason, kind === 'categories');
+        if (reason) {
+          const products = await this.#catalog
+            .checkDelete(kind, item.id)
+            .then((check) => check.products > 0)
+            .catch(() => false);
+          return this.#blocked(kind, item, reason, products);
+        }
       }
       const noun = kind === 'categories' ? 'category' : 'brand';
       this.#snackbar.error(callableMessage(error) ?? `We couldn't delete that ${noun}. Please try again.`);

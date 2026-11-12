@@ -238,6 +238,33 @@ export function offerNamesCatalogId(offer: unknown, field: 'categoryIds' | 'bran
   return visit(offer, 0);
 }
 
+/**
+ * Every category or brand id named in an offer's rules (any `categoryIds` / `brandId` condition's
+ * `in` or `notIn` list). A new category or brand never takes one of these, so an offer that named a
+ * deleted one never starts covering a new one with the same name (ATS-265).
+ */
+export function offerCatalogIds(offer: unknown): ReadonlySet<string> {
+  const ids = new Set<string>();
+  const seen = new Set<unknown>();
+  const visit = (value: unknown, depth: number): void => {
+    if (depth > 12 || typeof value !== 'object' || value === null || seen.has(value)) return;
+    seen.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, depth + 1);
+      return;
+    }
+    const record = value as Record<string, unknown>;
+    if (record['field'] === 'categoryIds' || record['field'] === 'brandId') {
+      for (const list of [record['in'], record['notIn']]) {
+        if (Array.isArray(list)) for (const id of list) if (isCatalogId(id)) ids.add(id);
+      }
+    }
+    for (const item of Object.values(record)) visit(item, depth + 1);
+  };
+  visit(offer, 0);
+  return ids;
+}
+
 export function readSaveCategoryRequest(raw: unknown): SaveCategoryRequest | string {
   if (!isRecord(raw)) return 'Fill in the category and try again.';
   const id = readOptionalId(raw['id']);

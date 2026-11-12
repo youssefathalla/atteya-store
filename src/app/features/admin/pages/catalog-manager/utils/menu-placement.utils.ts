@@ -173,6 +173,11 @@ export function removeFromMenu(
   let changed = false;
   const opensIt = (target: NavTarget | undefined, path: string | undefined): boolean => {
     if (target?.kind === item.kind && 'id' in target && target.id === item.id) return true;
+    // Shop with Filters for that brand or category (Navigation refuses to save one whose brand is gone).
+    if (target?.kind === 'shop') {
+      const named = item.kind === 'brand' ? target.filters.brand : target.filters.category;
+      return named === item.id;
+    }
     // A typed address (or an older link with no target) that is exactly its address.
     if (target && target.kind !== 'url') return false;
     const address = target?.kind === 'url' ? target.url : path;
