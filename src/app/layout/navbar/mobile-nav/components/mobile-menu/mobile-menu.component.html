@@ -7,6 +7,8 @@
   [class.translate-y-full]="!isOpen()"
   [class.pointer-events-auto]="isOpen()"
   [class.pointer-events-none]="!isOpen()"
+  [attr.inert]="isOpen() ? null : ''"
+  [attr.aria-hidden]="isOpen() ? null : 'true'"
   aria-label="Mobile navigation"
 >
   <!-- Viewport for Horizontal Drill-Down Navigation -->
@@ -28,19 +30,18 @@
         </div>
       </div>
 
-      <!-- Search Input Bar -->
+      <!-- Search: opens the search panel, same as the bottom bar's search icon -->
       <div class="p-4 border-b border-outline-variant bg-surface">
-        <div
-          class="flex items-center gap-2.5 border-shape border border-outline-variant bg-surface-container-high px-3 py-2"
+        <button
+          type="button"
+          (click)="openSearch()"
+          aria-label="Search products"
+          aria-haspopup="dialog"
+          class="w-full elements-start gap-2.5 border-shape border border-outline-variant bg-surface-container-high px-3 py-2 text-left"
         >
-          <mat-icon name="search" size="sm" />
-          <input
-            type="text"
-            placeholder="Search rackets, apparel, gear..."
-            aria-label="Search store"
-            class="w-full bg-transparent font-body-md placeholder:opacity-60 focus:outline-none"
-          />
-        </div>
+          <mat-icon name="search" />
+          <span class="font-body-md opacity-60">Search rackets, apparel, gear...</span>
+        </button>
       </div>
 
       <!-- Main Categories List -->

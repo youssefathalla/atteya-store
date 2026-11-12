@@ -6,6 +6,7 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 import { AuthService } from '@core/services/auth/auth.service';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 import { NavCategory, NavService } from '@core/services/navigation';
+import { SearchPanelService } from '../../../../search-panel/services/search-panel.service';
 
 @Component({
   selector: 'app-mobile-menu',
@@ -19,6 +20,7 @@ export class MobileMenuComponent {
   readonly drawerService = inject(DrawerService);
   readonly #navService = inject(NavService);
   readonly #auth = inject(AuthService);
+  readonly #searchPanel = inject(SearchPanelService);
   readonly categories = this.#navService.storefrontCategories;
   /** The design playground is admin-only, so its link shows only for admins. */
   readonly isAdmin = this.#auth.isAdmin;
@@ -48,6 +50,13 @@ export class MobileMenuComponent {
 
   goBack(): void {
     this.selectedCategory.set(null);
+  }
+
+  /** Closes the menu and opens the search panel, like the bottom bar's search icon. */
+  openSearch(): void {
+    this.closeMenu();
+    // The menu goes inert once closed, so focus returns to the page, not to this button.
+    void this.#searchPanel.open();
   }
 
   closeMenu(): void {
