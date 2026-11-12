@@ -3,6 +3,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
 import { readDocIdRequest } from '../orders/order-delete.js';
+import { isManualPayment, orderStockTaken } from '../store/order-status.js';
 
 export interface DeleteProductResponse {
   readonly productId: string;
@@ -31,6 +32,23 @@ export const deleteProduct = onCall(
     return db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) return { productId, deleted: false };
+      // Cash on Delivery, InstaPay and Bank Transfer orders take stock only when confirmed, and
+      // confirming refuses when a product is gone: keep the product while such an order needs it.
+      const pending = await tx.get(db.collection('orders').where('status', '==', 'pending'));
+      const blockingOrder = pending.docs.find((doc) => {
+        const order = doc.data();
+        return (
+          isManualPayment(order['paymentMethod']) &&
+          !orderStockTaken(order) &&
+          orderHasProduct(order, productId)
+        );
+      });
+      if (blockingOrder) {
+        throw new HttpsError(
+          'failed-precondition',
+          'An open order still has this product and needs it to be confirmed. Confirm or cancel that order first.',
+        );
+      }
       const data = snap.data() ?? {};
       tx.delete(ref);
       tx.set(auditRef, {
@@ -47,3 +65,16 @@ export const deleteProduct = onCall(
     });
   },
 );
+
+function orderHasProduct(order: Record<string, unknown>, productId: string): boolean {
+  const pricing = order['pricing'];
+  if (typeof pricing !== 'object' || pricing === null || Array.isArray(pricing)) return false;
+  const lines = (pricing as Record<string, unknown>)['lines'];
+  if (!Array.isArray(lines)) return false;
+  return lines.some(
+    (line) =>
+      typeof line === 'object' &&
+      line !== null &&
+      (line as Record<string, unknown>)['productId'] === productId,
+  );
+}

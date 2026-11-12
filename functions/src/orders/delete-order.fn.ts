@@ -1,8 +1,12 @@
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
-import { orderDeleteBlockedReason, readDocIdRequest } from './order-delete.js';
+import {
+  orderDeleteBlockedReason,
+  paymobFailedDeleteBlockedReason,
+  readDocIdRequest,
+} from './order-delete.js';
 import { orderStaffNotesRef } from './order-staff-notes.js';
 
 export interface DeleteOrderResponse {
@@ -31,6 +35,16 @@ export const deleteOrder = onCall(adminCallableOptions(), async (request): Promi
     const order = snap.data() ?? {};
     const blocked = orderDeleteBlockedReason(order['status']);
     if (blocked) throw new HttpsError('failed-precondition', blocked);
+    const createdAt = order['createdAt'];
+    const tooSoon = paymobFailedDeleteBlockedReason(
+      {
+        status: order['status'],
+        paymentMethod: order['paymentMethod'],
+        createdAtMs: createdAt instanceof Timestamp ? createdAt.toMillis() : null,
+      },
+      Date.now(),
+    );
+    if (tooSoon) throw new HttpsError('failed-precondition', tooSoon);
 
     const pricing = typeof order['pricing'] === 'object' && order['pricing'] !== null ? order['pricing'] : {};
     const totalEgp = (pricing as Record<string, unknown>)['totalEgp'];
