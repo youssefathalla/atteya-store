@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 import type { MegaMenuLink, NavCategory } from './nav.model';
-import type { ShareImage } from '@core/services/products/utils/shop-categories';
+import type { ShareImage } from '@core/services/products/utils/share-image';
 
 /**
  * Navigation columns that fill themselves (ATS-247): a column with `auto` shows the store's

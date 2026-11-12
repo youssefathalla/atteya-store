@@ -16,8 +16,8 @@ import { injectFirestore } from '@core/firebase';
 import { CATEGORY_DETAILS_TITLES, CATEGORY_SIZE_CHARTS, SEED_CATEGORIES } from './catalog-taxonomy';
 import { CatalogService } from './catalog.service';
 import { CATEGORIES_COLLECTION } from './product.constants';
-import type { ShareImage, ShopCategorySource } from './utils/shop-categories';
-import { ShareImageSchema, toShareImage } from './utils/share-image';
+import type { ShopCategorySource } from './utils/shop-categories';
+import { ShareImageSchema, toShareImage, type ShareImage } from './utils/share-image';
 
 /** Published categories the Shop page needs, sent from the server render to the browser. */
 export const SHOP_CATEGORIES_KEY = makeStateKey<readonly ShopCategorySource[]>('shop-categories');

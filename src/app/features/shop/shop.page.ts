@@ -18,7 +18,7 @@ import { offerShopSubtitle, offerTitleVisible } from '@core/services/offers/offe
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { ShopCategoriesService } from '@core/services/products/shop-categories.service';
-import type { ShareImage } from '@core/services/products/utils/shop-categories';
+import { sameShareImage, shareImageFor, type ShareImage } from '@core/services/products/utils/share-image';
 import {
   shopCategoryFilterIds,
   shopCategoryOptionsFrom,
@@ -158,14 +158,14 @@ export class ShopPage {
    * Share-preview picture (ATS-263): on a category's Shop page (`/category/:slug`, the Bags page),
    * that category's photo from the server-seeded `shop-categories` list; none on `/shop`.
    */
-  readonly #shareImage = computed((): ShareImage | null => {
-    const slug = (this.shopSubcategory() || (this.categoryShop() ? this.slug() : '') || '').toLowerCase();
-    if (!slug) return null;
-    const category = this.#shopCategories
-      .categories()
-      .find((item) => item.published !== false && item.slug.toLowerCase() === slug);
-    return category?.image ?? null;
-  });
+  readonly #shareImage = computed(
+    (): ShareImage | null =>
+      shareImageFor(
+        this.#shopCategories.categories(),
+        this.shopSubcategory() || (this.categoryShop() ? this.slug() : null),
+      ),
+    { equal: sameShareImage },
+  );
 
   /** The player's name when exactly one player is chosen in the Player filter. */
   readonly #playerName = computed(() => {

@@ -15,8 +15,7 @@ import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { BRANDS_COLLECTION } from '@core/services/products/product.constants';
-import { ShareImageSchema, toShareImage } from '@core/services/products/utils/share-image';
-import type { ShareImage } from '@core/services/products/utils/shop-categories';
+import { ShareImageSchema, toShareImage, type ShareImage } from '@core/services/products/utils/share-image';
 import { timeToMs, type NavAutoBrand } from './nav-auto-columns';
 
 /** Published brands for auto navigation columns, sent from the server render to the browser. */
