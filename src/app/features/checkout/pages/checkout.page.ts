@@ -547,7 +547,13 @@ export class CheckoutPageComponent implements OnInit {
         imageAlt: info?.imageAlt ?? '',
         options: info ? selectionLabel(info.options, line.selection) : '',
         quantity: line.quantity,
-        price: display == null ? '' : formatMoney(display, entry.code, decimals),
+        // A piece a Bundle & Save set makes free reads "Free", as in the bag.
+        price:
+          display == null
+            ? ''
+            : display === 0 && priced?.deals.deals.some((d) => d.set && d.units > 0)
+              ? 'Free'
+              : formatMoney(display, entry.code, decimals),
         // The line before its Buy X Get Y discount: pieces in a group at the price before per-item offers.
         was: deal ? formatMoney(toDisplayAmount(deal.fullEgp, entry), entry.code, decimals) : '',
         deal: deal ? dealTag(deal.deals.deals, line.quantity) : '',
