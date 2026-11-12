@@ -114,7 +114,7 @@
               </span>
 
               <!-- Link Form Fields Grid (adaptive 2-row on compact, 1-row on 2xl) -->
-              <div class="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center flex-1 pt-4">
+              <div class="grid grid-cols-1 sm:grid-cols-12 gap-6 items-start flex-1 pt-4">
                 <!-- Link Label -->
                 <mat-form-field
                   appearance="outline"
@@ -141,46 +141,18 @@
                   />
                 </mat-form-field>
 
-                <!-- Link Path -->
-                <mat-form-field
-                  appearance="outline"
-                  class="w-full sm:col-span-6 2xl:col-span-4"
-                  subscriptSizing="dynamic"
-                >
-                  <mat-label>Target Path</mat-label>
-                  <input
-                    matInput
-                    [id]="'link-path-' + colIdx + '-' + linkIdx"
-                    [name]="'link-path-' + colIdx + '-' + linkIdx"
-                    autocomplete="off"
-                    aria-label="Target Path"
-                    [ngModel]="link.path"
-                    (ngModelChange)="
-                      linkFieldChange.emit({
-                        colIndex: colIdx,
-                        linkIndex: linkIdx,
-                        field: 'path',
-                        value: $event,
-                      })
+                <!-- Links To -->
+                <div class="w-full sm:col-span-6 2xl:col-span-4">
+                  <app-nav-target-field
+                    [fieldId]="'link-' + colIdx + '-' + linkIdx"
+                    [target]="link.target"
+                    [path]="link.path"
+                    (targetChange)="
+                      linkTargetChange.emit({ colIndex: colIdx, linkIndex: linkIdx, change: $event })
                     "
-                    placeholder="/category/path"
+                    (suggest)="linkGenerateSlug.emit({ colIndex: colIdx, linkIndex: linkIdx })"
                   />
-                  <button
-                    matIconButton
-                    matSuffix
-                    type="button"
-                    (click)="
-                      linkGenerateSlug.emit({
-                        colIndex: colIdx,
-                        linkIndex: linkIdx,
-                      })
-                    "
-                    matTooltip="Link to the category or brand this label matches"
-                    aria-label="Link to the matching category or brand"
-                  >
-                    <mat-icon name="auto_fix_high" />
-                  </button>
-                </mat-form-field>
+                </div>
 
                 <!-- Badge tag (optional) -->
                 <mat-form-field

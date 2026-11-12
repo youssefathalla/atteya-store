@@ -1,46 +1,104 @@
-import { MegaMenuColumn, MegaMenuLink, NavCategory } from '@core/services/navigation';
+import {
+  resolveNavTarget,
+  type MegaMenuLink,
+  type NavCategory,
+  type NavTarget,
+  type NavTargetCatalog,
+} from '@core/services/navigation';
 
-function validateLink(link: MegaMenuLink): string | null {
-  if (!link.label.trim()) return 'A link is missing a label.';
-  if (!link.path.trim()) return `Link "${link.label}" is missing a target path.`;
-  return null;
+export interface NavigationDraftCheck {
+  /** Problems that stop the save, one per link or menu. */
+  readonly errors: readonly string[];
+  /** Links that save but stay off the store (their category or brand is hidden). */
+  readonly warnings: readonly string[];
 }
 
-function validateColumn(col: MegaMenuColumn, categoryLabel: string): string | null {
-  for (const link of col.links) {
-    const error = validateLink(link);
-    if (error) {
-      return error === 'A link is missing a label.'
-        ? `A link in category "${categoryLabel}" is missing a label.`
-        : error;
-    }
-  }
-  return null;
+type TargetState = 'ok' | 'hidden' | 'missing' | 'none';
+
+function targetState(
+  target: NavTarget | undefined,
+  path: string,
+  catalog: NavTargetCatalog | null,
+): TargetState {
+  if (target?.kind === 'url') return target.url.trim() ? 'ok' : 'none';
+  if (!target) return path.trim() ? 'ok' : 'none';
+  // Until every category and brand has loaded, a target can't be checked; the store still hides it.
+  if (!catalog) return 'ok';
+  const { problem } = resolveNavTarget(target, catalog);
+  return problem ?? 'ok';
 }
 
-function validateCategory(cat: NavCategory): string | null {
-  if (!cat.label.trim()) return `Category "${cat.id}" is missing a label.`;
-  if (!cat.megaMenu) return null;
+function goneWhat(target: NavTarget | undefined): string {
+  return target?.kind === 'category' ? 'category' : 'brand';
+}
 
-  for (const col of cat.megaMenu) {
-    const error = validateColumn(col, cat.label);
-    if (error) return error;
+function checkLink(
+  link: MegaMenuLink,
+  menuLabel: string,
+  catalog: NavTargetCatalog | null,
+  errors: string[],
+  warnings: string[],
+): void {
+  const name = link.label.trim();
+  if (!name) {
+    errors.push(`A link in "${menuLabel}" has no label.`);
+    return;
   }
+  const state = targetState(link.target, link.path, catalog);
+  if (state === 'none') errors.push(`"${name}" in "${menuLabel}" doesn't link anywhere yet.`);
+  if (state === 'missing') {
+    errors.push(`"${name}" in "${menuLabel}" links to a ${goneWhat(link.target)} that no longer exists.`);
+  }
+  if (state === 'hidden') warnings.push(`"${name}" in "${menuLabel}"`);
+}
 
-  return null;
+function checkMenu(
+  menu: NavCategory,
+  catalog: NavTargetCatalog | null,
+  errors: string[],
+  warnings: string[],
+): void {
+  const label = menu.label.trim();
+  if (!label) {
+    errors.push('A menu has no name.');
+    return;
+  }
+  // No target and no path is fine for a menu: its name only opens the menu.
+  const state = targetState(menu.target, menu.path ?? '', catalog);
+  if (state === 'missing') {
+    errors.push(`The "${label}" menu links to a ${goneWhat(menu.target)} that no longer exists.`);
+  }
+  if (state === 'hidden') warnings.push(`"${label}" menu`);
+  for (const column of menu.megaMenu ?? []) {
+    for (const link of column.links) checkLink(link, label, catalog, errors, warnings);
+  }
 }
 
 /**
- * Validates the navigation draft before publishing.
- * Reduces cognitive complexity by breaking category, column, and link validations
- * into focused, single-purpose functions.
- *
- * @returns Error message if validation fails, or null if valid.
+ * Checks the navigation draft before it is saved (ATS-246): every problem is listed, a
+ * missing target or a link to nowhere stops the save, a hidden target only warns.
  */
-export function validateNavigationDraft(categories: readonly NavCategory[]): string | null {
-  for (const cat of categories) {
-    const error = validateCategory(cat);
-    if (error) return error;
-  }
-  return null;
+export function validateNavigationDraft(
+  categories: readonly NavCategory[],
+  catalog: NavTargetCatalog | null,
+): NavigationDraftCheck {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  for (const menu of categories) checkMenu(menu, catalog, errors, warnings);
+  return { errors, warnings };
+}
+
+/** One message for the snackbar: the first few problems, then how many more. */
+export function draftProblemsMessage(problems: readonly string[], shown = 3): string {
+  const head = problems.slice(0, shown).join(' ');
+  const rest = problems.length - shown;
+  return rest > 0 ? `${head} And ${rest} more.` : head;
+}
+
+export function hiddenTargetsMessage(warnings: readonly string[]): string {
+  const list =
+    warnings.length > 3
+      ? `${warnings.slice(0, 3).join(', ')} and ${warnings.length - 3} more`
+      : warnings.join(', ');
+  return `Saved. ${list} ${warnings.length === 1 ? 'links' : 'link'} to something hidden on the store, so shoppers won't see ${warnings.length === 1 ? 'it' : 'them'} yet.`;
 }

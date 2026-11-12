@@ -7,7 +7,8 @@ import { createValibotConverter } from '@shared/utils/firebase/firestore-convert
 import { NavSettingsSchema } from './nav.schema';
 import { NavCategory, NavSettings } from './nav.model';
 import { NAV_CATEGORIES } from './nav.data';
-import { visibleStorefrontCategories } from './nav-visibility';
+import { resolveStorefrontTargets, visibleStorefrontCategories } from './nav-visibility';
+import type { NavTargetCatalog } from './nav-target';
 import {
   NAVIGATION_SETTINGS_KEY,
   navigationSeedToDoc,
@@ -141,8 +142,21 @@ export class NavService {
     return NAV_CATEGORIES;
   });
 
+  /**
+   * Published categories and brands for building link addresses from their targets, or null
+   * on the server and until both lists have loaded (links then use their saved `path`).
+   */
+  readonly #targetCatalog = computed<NavTargetCatalog | null>(() => {
+    const categories = this.#catalog.categories();
+    const brands = this.#catalog.brands();
+    if (!categories?.length || !brands?.length) return null;
+    return { categories, brands };
+  });
+
   readonly storefrontCategories = computed<readonly NavCategory[]>(() =>
-    visibleStorefrontCategories(this.categories(), (path) => this.#catalog.isEmpty(path)),
+    visibleStorefrontCategories(resolveStorefrontTargets(this.categories(), this.#targetCatalog()), (path) =>
+      this.#catalog.isEmpty(path),
+    ),
   );
 
   async resetDefaultNavigation(categories: readonly NavCategory[] = NAV_CATEGORIES): Promise<void> {

@@ -25,32 +25,15 @@
       <mat-hint>Visible navigation text</mat-hint>
     </mat-form-field>
 
-    <!-- Route Path -->
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Route / URL Path</mat-label>
-      <input
-        matInput
-        id="new-cat-path"
-        name="new-cat-path"
-        autocomplete="off"
-        aria-label="Route / URL Path"
-        [ngModel]="path()"
-        (ngModelChange)="onPathChange($event)"
-        placeholder="/category/rackets"
-        required
-      />
-      <button
-        matIconButton
-        matSuffix
-        type="button"
-        (click)="generateSlug()"
-        matTooltip="Link to the category this name matches"
-        aria-label="Link to the matching category or brand"
-      >
-        <mat-icon name="auto_fix_high" />
-      </button>
-      <mat-hint>Destination link path</mat-hint>
-    </mat-form-field>
+    <!-- Links To -->
+    <app-nav-target-field
+      fieldId="new-cat"
+      [target]="target() ?? undefined"
+      [path]="path()"
+      [allowMenuOnly]="true"
+      (targetChange)="onTargetChange($event)"
+      (suggest)="generateSlug()"
+    />
   </mat-dialog-content>
 
   <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">
