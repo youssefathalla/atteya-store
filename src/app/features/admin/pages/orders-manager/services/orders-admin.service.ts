@@ -1,5 +1,16 @@
 import { Service } from '@angular/core';
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+  type QueryConstraint,
+} from 'firebase/firestore';
 import * as v from 'valibot';
 import type { StaffOrderStatus } from '@core/config/order-status';
 import { callableFrom, injectFirestore, injectFunctionsAsync } from '@core/firebase';
@@ -13,7 +24,7 @@ import {
 } from '@core/services/orders/order.schema';
 import { PRODUCTS_COLLECTION } from '@core/services/products/product.constants';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
-import type { OrderStatusFilter, ProductStockLookup } from '../models/order-admin.model';
+import type { OrderListQuery, ProductStockLookup } from '../models/order-admin.model';
 import { productIdsFromOrders } from '../utils/order-admin.utils';
 
 const wholeNumber = v.pipe(v.number(), v.integer(), v.minValue(0));
@@ -41,7 +52,7 @@ const ProductStockLookupSchema = v.object({
   ),
 });
 
-const ORDERS_PAGE_SIZE = 50;
+export const ORDERS_PAGE_SIZE = 50;
 const PRODUCT_LOOKUP_CHUNK = 20;
 
 export interface SetOrderStatusResult {
@@ -64,23 +75,28 @@ export class OrdersAdminService {
   readonly #firestore = injectFirestore();
   readonly #functions = injectFunctionsAsync();
 
-  async listOrders(status: OrderStatusFilter): Promise<readonly OrderDoc[]> {
+  /**
+   * Up to `ORDERS_PAGE_SIZE` orders. With no search and no dates: last changed first. With a search
+   * word (`searchTokens`, ATS-256) or dates (`createdAt`, whole days): newest placed first.
+   */
+  async listOrders(filter: OrderListQuery): Promise<readonly OrderDoc[]> {
     const ordersCol = collection(this.#firestore, ORDERS_COLLECTION).withConverter(
       createValibotConverter(OrderSchema),
     );
 
-    const snap =
-      status === 'all'
-        ? await getDocs(query(ordersCol, orderBy('updatedAt', 'desc'), limit(ORDERS_PAGE_SIZE)))
-        : await getDocs(
-            query(
-              ordersCol,
-              where('status', '==', status),
-              orderBy('updatedAt', 'desc'),
-              limit(ORDERS_PAGE_SIZE),
-            ),
-          );
+    const constraints: QueryConstraint[] = [];
+    if (filter.status !== 'all') constraints.push(where('status', '==', filter.status));
+    if (filter.term) constraints.push(where('searchTokens', 'array-contains', filter.term));
+    if (filter.placed) {
+      constraints.push(
+        where('createdAt', '>=', Timestamp.fromDate(filter.placed.start)),
+        where('createdAt', '<', Timestamp.fromDate(filter.placed.end)),
+      );
+    }
+    const byPlaced = filter.term !== null || filter.placed !== null;
+    constraints.push(orderBy(byPlaced ? 'createdAt' : 'updatedAt', 'desc'), limit(ORDERS_PAGE_SIZE));
 
+    const snap = await getDocs(query(ordersCol, ...constraints));
     return snap.docs.map((item) => item.data());
   }
 
