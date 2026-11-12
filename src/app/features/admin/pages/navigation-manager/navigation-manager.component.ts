@@ -171,6 +171,8 @@ export class NavigationManagerComponent {
       await this.resetToDefaults();
       return;
     }
+    // Restoring replaces the draft: ask first when there are unpublished edits.
+    if (this.draft.isDraftDirty() && !(await this.#dialogs.confirmRestoreOverDraft())) return;
     this.#restoreVersion(choice.version);
   }
 

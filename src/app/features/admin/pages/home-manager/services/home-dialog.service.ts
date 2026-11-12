@@ -143,4 +143,26 @@ export class HomeDialogService {
     const confirmed = await firstValueFrom(dialogRef.afterClosed());
     return !!confirmed;
   }
+
+  /** Restore This Version over unpublished edits (ATS-251): the edits go, the chosen version loads. */
+  async confirmRestoreOverDraft(): Promise<boolean> {
+    const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Replace Your Unpublished Changes?',
+          message:
+            "Restoring loads the version you picked into the editor, and the changes you haven't published yet will be lost. Nothing goes live until you publish.",
+          confirmText: 'Restore This Version',
+          cancelText: 'Keep Editing',
+          theme: 'warning',
+        },
+        width: '450px',
+        maxWidth: '90vw',
+      },
+    );
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
 }
