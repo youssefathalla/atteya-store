@@ -85,6 +85,7 @@
                 [categories]="categories()"
                 [brands]="brands()"
                 [issues]="rewardIssues()"
+                [names]="names()"
                 (rewardChange)="updateReward($event)"
                 (scopeChange)="updateScope($event)"
                 (minimumChange)="updateMinimum($event)"
@@ -120,7 +121,11 @@
                 }
               </h2>
               <p class="font-body-md text-on-surface-variant">
-                Pick whole groups. New products that join a group get the offer too.
+                @if (isBundleSet()) {
+                  New products that join a category or brand in a group are in the bundle too.
+                } @else {
+                  Pick whole groups. New products that join a group get the offer too.
+                }
               </p>
             </div>
 
@@ -132,6 +137,19 @@
               <p class="offer-note">
                 The groups you picked on the first step decide the products. You can still leave some out.
               </p>
+              @if (draft().conditions.anyOf.length > 0) {
+                <!-- Only an offer saved with rules of its own: shown so staff can see and remove them. -->
+                <app-product-targets
+                  heading="Only these products"
+                  addLabel="Add Category, Brand or Product"
+                  [conditions]="draft().conditions"
+                  [categories]="categories()"
+                  [brands]="brands()"
+                  [products]="products()"
+                  [names]="names()"
+                  (conditionsChange)="updateConditions($event)"
+                />
+              }
             } @else {
               <mat-radio-group
                 class="grid grid-cols-1 @3xl:grid-cols-2 gap-3 w-full"
@@ -254,7 +272,7 @@
               </div>
             </div>
             @if (showProducts()) {
-              <app-offer-preview [draft]="offer()" [products]="products()" />
+              <app-offer-preview [draft]="offer()" [products]="products()" [match]="matchForEditor" />
             }
 
             @if (overlapWarnings().length > 0) {

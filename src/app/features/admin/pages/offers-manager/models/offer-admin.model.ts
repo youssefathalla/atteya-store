@@ -4,6 +4,7 @@ import {
   DEFAULT_OFFER_BANNER,
   describeOfferReward,
   matchProduct,
+  MAX_BUNDLE_SET_PERCENT,
   MAX_BUNDLE_SLOTS,
   offerMatch,
   type Offer,
@@ -1186,11 +1187,17 @@ export function bundleSetDealPhrase(reward: BundleSetReward): string {
   const groups = bundleSlotsPhrase(reward.slots);
   switch (set.type) {
     case 'total':
-      return set.price > 0 ? `${groups} for ${egp(set.price)}` : `${groups} for a set price`;
+      return Number.isInteger(set.price) && set.price > 0
+        ? `${groups} for ${egp(set.price)}`
+        : `${groups} for a set price`;
     case 'percent':
-      return `${groups}: save ${set.percent}%`;
+      return Number.isInteger(set.percent) && set.percent >= 1 && set.percent <= MAX_BUNDLE_SET_PERCENT
+        ? `${groups}: save ${set.percent}%`
+        : `${groups}: save on the set`;
     case 'amount':
-      return set.amount > 0 ? `${groups}: save ${egp(set.amount)}` : `${groups}: save on the set`;
+      return Number.isInteger(set.amount) && set.amount > 0
+        ? `${groups}: save ${egp(set.amount)}`
+        : `${groups}: save on the set`;
     case 'cheapestFree':
       return `Buy ${joinAll(reward.slots.map(slotWithArticle))}, get the cheapest free`;
   }

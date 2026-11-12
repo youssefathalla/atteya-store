@@ -153,6 +153,10 @@ export class OfferEditorPageComponent implements OnInit {
   readonly wasActive = signal(false);
   readonly isSaving = signal(false);
   #hydratedOfferId: string | null = null;
+  /** Picking Bundle & Save switched "Only some products" off; picking another card turns it back on. */
+  #includeMovedForBundle = false;
+  /** The step 2 product list follows the same match as its Affected products count. */
+  readonly matchForEditor = editorOfferMatch;
 
   readonly editorResource = resource({
     params: () => ({ offerId: this.offerId() ?? null }),
@@ -436,6 +440,7 @@ export class OfferEditorPageComponent implements OnInit {
           this.limitOpen.set(false);
         }
         this.#savedInclude.set({ anyOf: [] });
+        this.#includeMovedForBundle = false;
         this.showAdvanced.set(false);
         this.showProducts.set(false);
         this.moreOpen.set(false);
@@ -491,9 +496,15 @@ export class OfferEditorPageComponent implements OnInit {
   pickDeal(kind: RewardPickerKind): void {
     if (kind === this.pickedDeal()) return;
     const { reward, scope, minimum } = defaultDealFor(kind);
-    // Bundle & Save picks its products in its groups: keep the include tags aside (Only some
-    // products brings them back) so they don't narrow the groups without showing on step 2.
-    if (kind === 'bundleSet') this.setProductsMode('all');
+    // Bundle & Save picks its products in its groups: keep the include tags aside so they don't
+    // narrow the groups without showing on step 2, and bring them back when another card is picked.
+    if (kind === 'bundleSet' && this.productsMode() === 'some') {
+      this.setProductsMode('all');
+      this.#includeMovedForBundle = true;
+    } else if (kind !== 'bundleSet' && this.#includeMovedForBundle) {
+      this.#includeMovedForBundle = false;
+      this.setProductsMode('some');
+    }
     this.draft.update((prev) => ({ ...prev, reward, scope, minimum }));
   }
 

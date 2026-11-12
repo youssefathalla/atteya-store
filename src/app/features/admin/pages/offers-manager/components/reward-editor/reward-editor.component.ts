@@ -316,11 +316,8 @@ export class RewardEditorComponent {
   readonly bundleQuickPercents = BUNDLE_QUICK_PERCENTS;
   readonly bundleSavingOptions = BUNDLE_SAVING_OPTIONS;
 
-  readonly catalogNames = computed<CatalogNames>(() => ({
-    categories: this.categoryNames(),
-    brands: this.brandNames(),
-    products: this.productNames(),
-  }));
+  /** Names for the group tag pickers; the page passes the ones it already built. */
+  readonly names = input.required<CatalogNames>();
 
   /** Errors for each part of the Bundle & Save form (groups, saving, limit). */
   readonly bundleIssues = computed(() => {
