@@ -14,7 +14,7 @@ import { parseSetOrderStatusRequest } from '../store/order-status.js';
 export const setOrderStatus = onCall(
   adminCallableOptions(),
   async (request): Promise<OrderStatusChangeResult> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const parsed = parseSetOrderStatusRequest(request.data);
     if (!parsed) {
       throw new HttpsError(

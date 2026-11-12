@@ -23,7 +23,7 @@ const MAX_FEE_EGP = 100_000;
 export const setDeliveryFee = onCall(
   adminCallableOptions(),
   async (request): Promise<SetDeliveryFeeResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const { orderId, feeEgp } = parseInput(request.data);
     const db = getFirestore();
     const orderRef = db.collection('orders').doc(orderId);

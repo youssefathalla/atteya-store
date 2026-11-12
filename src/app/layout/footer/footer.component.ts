@@ -66,7 +66,7 @@ export class FooterComponent {
     }
     return this.#auth.isAuthenticated() ? ('signed-in' as const) : ('signed-out' as const);
   });
-  readonly isAdmin = this.#auth.isAdmin;
+  readonly canManageStore = this.#auth.canManageStore;
 
   /**
    * Where Sign In / Create Account bring the visitor back to. A signal, because the footer

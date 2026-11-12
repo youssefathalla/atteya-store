@@ -18,7 +18,7 @@ export interface SetInternationalPricingResponse {
 export const setInternationalPricing = onCall(
   adminCallableOptions(),
   async (request): Promise<SetInternationalPricingResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const markupPercent = parseMarkup(readMarkupInput(request.data));
     if (markupPercent === null) {
       throw new HttpsError(
@@ -69,7 +69,7 @@ export const setInternationalPricing = onCall(
 export const refreshExchangeRatesNow = onCall(
   adminCallableOptions({ timeoutSeconds: 60 }),
   async (request): Promise<RefreshRatesResult> => {
-    await requireRole(request, 'admin');
+    await requireRole(request, 'staff');
     return refreshRates(getFirestore(), { manual: true });
   },
 );

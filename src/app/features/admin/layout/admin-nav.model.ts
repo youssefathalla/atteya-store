@@ -6,6 +6,8 @@ export interface AdminNavSubItem {
   readonly badge?: string;
   readonly disabled?: boolean;
   readonly description?: string;
+  /** Only admins see it (staff don't). */
+  readonly adminOnly?: boolean;
 }
 
 export interface AdminNavCategory {

@@ -52,7 +52,7 @@
           }
           <li><a class="footer-link" routerLink="/favorites">Favorites</a></li>
           @if (accountState() === 'signed-in') {
-            @if (isAdmin()) {
+            @if (canManageStore()) {
               <li><a class="footer-link" routerLink="/admin">Admin Dashboard</a></li>
             }
             <li><button type="button" class="footer-link" (click)="signOut()">Sign Out</button></li>

@@ -2,7 +2,7 @@ import * as v from 'valibot';
 
 /** `roles/{uid}` mirror written by the Admin SDK. The claim stays the source of truth. */
 export const RoleMirrorSchema = v.object({
-  role: v.picklist(['admin', 'user']),
+  role: v.picklist(['admin', 'staff', 'user']),
   email: v.optional(v.string(), ''),
 });
 
