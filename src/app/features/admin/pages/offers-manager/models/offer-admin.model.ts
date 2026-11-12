@@ -3,11 +3,14 @@ import {
   dateToCairoWallTime,
   DEFAULT_OFFER_BANNER,
   describeOfferReward,
+  matchProduct,
+  MAX_BUNDLE_SLOTS,
   offerMatch,
   type Offer,
   type OfferConditionAtom,
   type OfferConditionField,
   type OfferConditionGroup,
+  type OfferBundleSlot,
   type OfferConditions,
   type OfferDraft,
   type OfferReward,
@@ -55,6 +58,7 @@ export const REWARD_PICKER_OPTIONS: readonly RewardPickerOption[] = [
   { id: 'fixedPrice', label: 'Set price' },
   { id: 'buyXGetY', label: 'Buy X get Y' },
   { id: 'bundlePrice', label: 'Bundle price' },
+  { id: 'bundleSet', label: 'Bundle & Save' },
   { id: 'freeGift', label: 'Free gift' },
   { id: 'freeShipping', label: 'Free shipping' },
 ];
@@ -62,10 +66,9 @@ export const REWARD_PICKER_OPTIONS: readonly RewardPickerOption[] = [
 /**
  * Deal types kept in the engine but hidden from the Deal type list for launch ("Buy more, save
  * more" and "Spend X, get…" don't take the promised money off yet, ATS-135). An old offer of one of
- * these still opens, but it can't be saved. Bundle & Save (`bundleSet`) is priced by the engine and
- * the order callables but has no editor yet (ATS-253), so it is hidden the same way until then.
+ * these still opens, but it can't be saved.
  */
-const HIDDEN_REWARD_KINDS: readonly RewardPickerKind[] = ['tiered', 'cartThreshold', 'bundleSet'];
+const HIDDEN_REWARD_KINDS: readonly RewardPickerKind[] = ['tiered', 'cartThreshold'];
 
 export const UNAVAILABLE_DEAL_MESSAGE = "This deal type isn't available yet. Pause or archive this offer.";
 
@@ -272,6 +275,7 @@ export function matchesDealFilter(offer: Offer, filter: OfferDealFilter): boolea
 export function offerDealHeadline(offer: Offer): string {
   const r = offer.reward;
   if (r.kind === 'fixedPrice') return `New price EGP ${r.price.toLocaleString('en-US')}`;
+  if (r.kind === 'bundleSet') return bundleSetDealPhrase(r);
   if (r.kind === 'freeGift' && r.gifts.length > 0) {
     return r.gifts
       .map((gift, index) => (index > 0 ? gift.name.replace(/^Free /, 'free ') : gift.name))
@@ -561,6 +565,13 @@ const ALL_DEAL_CARDS: readonly DealCard[] = [
   { id: 'fixedPrice', symbol: '=EGP', icon: null, label: 'New price', example: 'All shirts at EGP 499' },
   { id: 'bundlePrice', symbol: '2 for', icon: null, label: 'Bundle price', example: '2 socks for EGP 200' },
   {
+    id: 'bundleSet',
+    symbol: 'A+B',
+    icon: null,
+    label: 'Bundle & Save',
+    example: 'Racket + bag, save 15%',
+  },
+  {
     id: 'buyXGetY',
     symbol: '2+1',
     icon: null,
@@ -614,6 +625,19 @@ export function defaultDealFor(kind: RewardPickerKind): {
       // An item offer with no minimum: the bag groups the qualifying pieces into the rows.
       return {
         reward: { kind: 'bundlePrice', rows: [{ quantity: 2, price: 200 }] },
+        scope: 'item',
+        minimum: null,
+      };
+    case 'bundleSet':
+      // An item offer with no minimum: the bag finds the full sets. Staff name the groups, pick
+      // their products and type the set price (empty until then, so the form asks for it).
+      return {
+        reward: {
+          kind: 'bundleSet',
+          slots: [newBundleSlot([]), newBundleSlot([newBundleSlot([])])],
+          setReward: { type: 'total', price: 0 },
+          maxSets: null,
+        },
         scope: 'item',
         minimum: null,
       };
@@ -795,6 +819,8 @@ export function offerDealPhrase(draft: OfferDraft): string {
   switch (r.kind) {
     case 'fixedPrice':
       return `New price ${egp(r.price)}`;
+    case 'bundleSet':
+      return bundleSetDealPhrase(r);
     case 'freeGift':
       return (
         r.gifts
@@ -827,6 +853,10 @@ export function autoOfferTitle(draft: OfferDraft, names: CatalogNames): string {
     }
     case 'freeShipping':
       title = 'Free shipping';
+      break;
+    case 'bundleSet':
+      // The groups already name the products, so the title is the deal itself.
+      title = bundleSetDealPhrase(r);
       break;
     default:
       title = target ? `${describeOfferReward(draft)} on ${target}` : describeOfferReward(draft);
@@ -885,10 +915,13 @@ function cairoDay(date: Date): CairoDay {
 /** The internal name filled in for staff, at most 80 characters: "T-shirts 15% · late November". */
 export function autoTeamName(draft: OfferDraft, names: CatalogNames, now: Date): string {
   const target = offerTargetPhrase(draft.conditions, draft.exclude, names);
+  const r = draft.reward;
   const lead =
-    draft.reward.kind === 'freeShipping'
+    r.kind === 'freeShipping'
       ? 'Free shipping'
-      : `${target ?? 'Everything'} ${teamDealWords(draft)}`;
+      : r.kind === 'bundleSet'
+        ? `${bundleSlotsPhrase(r.slots)} Bundle & Save`
+        : `${target ?? 'Everything'} ${teamDealWords(draft)}`;
   const start = cairoDay(draft.schedule.startsAt ?? now);
   const part = start.day <= 9 ? 'early' : start.day <= 19 ? 'mid' : 'late';
   const name = `${lead} · ${part} ${start.month}`;
@@ -939,7 +972,11 @@ export function offerSentence(
   now: Date,
 ): SentencePart[] {
   const parts: SentencePart[] = [{ text: offerDealPhrase(draft), placeholder: false }];
-  if (draft.reward.kind !== 'freeShipping') {
+  if (draft.reward.kind === 'bundleSet') {
+    // The groups (step 1) name the products; step 2 can only leave some out.
+    const leftOut = leaveOutPhrase(draft.exclude, names);
+    if (leftOut) parts.push({ text: `, ${leftOut}`, placeholder: false });
+  } else if (draft.reward.kind !== 'freeShipping') {
     if (doneUpTo >= 2) {
       const target = offerTargetPhrase(draft.conditions, draft.exclude, names);
       parts.push({
@@ -971,7 +1008,13 @@ export function offerSentence(
 export function offerCheckSentence(draft: OfferDraft, names: CatalogNames, now: Date): string {
   const target = offerTargetPhrase(draft.conditions, draft.exclude, names);
   const products =
-    draft.reward.kind === 'freeShipping' ? 'Egypt orders' : target ? capitalise(target) : 'Every product';
+    draft.reward.kind === 'freeShipping'
+      ? 'Egypt orders'
+      : draft.reward.kind === 'bundleSet'
+        ? capitalise(bundleGroupsPhrase(draft.reward.slots, draft.exclude, names))
+        : target
+          ? capitalise(target)
+          : 'Every product';
   return `${products}, for ${offerWhoPhrase(draft)}, ${offerWhenPhrase(draft.schedule, now, true)}.`;
 }
 
@@ -1076,4 +1119,141 @@ export function affectedStats(
     if (priced.compareAtPrice !== null && priced.compareAtPrice > priced.price) onSale += 1;
   }
   return { total: matched.length, inStock, soldOut: matched.length - inStock, onSale };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Bundle & Save (ATS-253): groups, the deal in plain words and which form field an error is about.
+// ---------------------------------------------------------------------------------------------
+
+type BundleSetReward = Extract<OfferReward, { kind: 'bundleSet' }>;
+
+/** Quick buttons under a Bundle & Save percent. */
+export const BUNDLE_QUICK_PERCENTS: readonly number[] = [10, 20, 30];
+
+/** What one full set saves, as the radio list shows it. */
+export const BUNDLE_SAVING_OPTIONS: readonly {
+  readonly id: BundleSetReward['setReward']['type'];
+  readonly label: string;
+}[] = [
+  { id: 'total', label: 'Set price' },
+  { id: 'percent', label: 'Percent off' },
+  { id: 'amount', label: 'Amount off' },
+  { id: 'cheapestFree', label: 'Cheapest item free' },
+];
+
+/** A new empty group with the next free id (`slot-1`, `slot-2`, …): 1 piece, nothing picked yet. */
+export function newBundleSlot(existing: readonly OfferBundleSlot[]): OfferBundleSlot {
+  const used = new Set(existing.map((slot) => slot.id));
+  let index = existing.length + 1;
+  while (used.has(`slot-${index}`)) index++;
+  return { id: `slot-${index}`, name: '', quantity: 1, conditions: { anyOf: [] } };
+}
+
+/** True while another group can be added (up to `MAX_BUNDLE_SLOTS`). */
+export function canAddBundleSlot(slots: readonly OfferBundleSlot[]): boolean {
+  return slots.length < MAX_BUNDLE_SLOTS;
+}
+
+/** The group's name, or "Group 2" while it has none. */
+function slotName(slot: OfferBundleSlot, index: number): string {
+  return slot.name.trim() || `Group ${index + 1}`;
+}
+
+/** "Racket", or "2 × Ball" for a group of 2 pieces. */
+function slotLabel(slot: OfferBundleSlot, index: number): string {
+  const name = slotName(slot, index);
+  return slot.quantity > 1 ? `${slot.quantity} × ${name}` : name;
+}
+
+/** "Racket + Bag + Grip". */
+export function bundleSlotsPhrase(slots: readonly OfferBundleSlot[]): string {
+  return slots.map(slotLabel).join(' + ') || 'Bundle';
+}
+
+/** "a Racket", "an Apron", "2 Balls" is written "2 × Ball" to keep the staff's own word. */
+function slotWithArticle(slot: OfferBundleSlot, index: number): string {
+  if (slot.quantity > 1) return slotLabel(slot, index);
+  const name = slotName(slot, index);
+  return `${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name}`;
+}
+
+/**
+ * The deal in plain words: "Racket + Bag for EGP 4,500", "Racket + Bag + Grip: save 15%",
+ * "Racket + Bag: save EGP 500", "Buy a Racket and a Bag, get the cheapest free".
+ */
+export function bundleSetDealPhrase(reward: BundleSetReward): string {
+  const set = reward.setReward;
+  const groups = bundleSlotsPhrase(reward.slots);
+  switch (set.type) {
+    case 'total':
+      return set.price > 0 ? `${groups} for ${egp(set.price)}` : `${groups} for a set price`;
+    case 'percent':
+      return `${groups}: save ${set.percent}%`;
+    case 'amount':
+      return set.amount > 0 ? `${groups}: save ${egp(set.amount)}` : `${groups}: save on the set`;
+    case 'cheapestFree':
+      return `Buy ${joinAll(reward.slots.map(slotWithArticle))}, get the cheapest free`;
+  }
+}
+
+/** Every name, "a, b and c" (a Bundle & Save offer has at most 4 groups, so none are cut). */
+function joinAll(values: readonly string[]): string {
+  return values.length <= 1 ? (values[0] ?? '') : `${values.slice(0, -1).join(', ')} and ${values.at(-1)}`;
+}
+
+/** "leaving out Bullpadel", or null when nothing is left out. */
+function leaveOutPhrase(exclude: OfferConditions, names: CatalogNames): string | null {
+  const leftOut = offerTargetPhrase({ anyOf: [] }, exclude, names);
+  return leftOut ? `leaving out ${leftOut.replace(/^everything except /, '')}` : null;
+}
+
+/** Each group and its products: "Racket from Rackets, Bag from Bags and Adidas, leaving out Bullpadel". */
+export function bundleGroupsPhrase(
+  slots: readonly OfferBundleSlot[],
+  exclude: OfferConditions,
+  names: CatalogNames,
+): string {
+  const groups = slots.map((slot, index) => {
+    const from = offerTargetPhrase(slot.conditions, { anyOf: [] }, names);
+    return `${slotLabel(slot, index)} from ${from ?? 'nothing picked yet'}`;
+  });
+  const leftOut = leaveOutPhrase(exclude, names);
+  return [...groups, ...(leftOut ? [leftOut] : [])].join(', ');
+}
+
+/**
+ * How a product fits the draft while it is being edited. Like the engine's `offerMatch()`, except
+ * that a Bundle & Save draft that can't be saved yet still counts the products of the groups that
+ * have something picked, so the count on step 2 follows the groups as staff fill them in.
+ */
+export function editorOfferMatch(
+  draft: Pick<OfferDraft, 'conditions' | 'exclude' | 'reward'>,
+  product: PricedProduct,
+): 'full' | 'partial' | 'none' {
+  const r = draft.reward;
+  if (r.kind !== 'bundleSet') return offerMatch(draft, product);
+  const own = matchProduct(draft.conditions, draft.exclude, product);
+  if (own === 'none') return 'none';
+  let best: 'full' | 'partial' | 'none' = 'none';
+  for (const slot of r.slots) {
+    if (slot.conditions.anyOf.length === 0) continue;
+    const level = matchProduct(slot.conditions, draft.exclude, product);
+    if (level === 'full') {
+      best = 'full';
+      break;
+    }
+    if (level === 'partial') best = 'partial';
+  }
+  if (best === 'none') return 'none';
+  return own === 'full' && best === 'full' ? 'full' : 'partial';
+}
+
+/** Which part of the Bundle & Save form an error is about, so it shows under that part. */
+export type BundleSetIssueField = 'groups' | 'saving' | 'limit';
+
+export function bundleSetIssueField(code: string): BundleSetIssueField | null {
+  if (code === 'reward.bundleSlots' || code.startsWith('reward.bundleSlot')) return 'groups';
+  if (code.startsWith('reward.bundleSet')) return 'saving';
+  if (code === 'reward.bundleMaxSets') return 'limit';
+  return null;
 }
