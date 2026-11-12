@@ -12,6 +12,7 @@ import {
 import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
+import { NavAutoBrandsService } from '@core/services/navigation/nav-auto-brands.service';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { signalCollection } from '@shared/utils/firebase/firestore-signals';
 import { CATALOG_SETTINGS_KEY, catalogSeedToRaw } from './catalog-settings.state';
@@ -180,6 +181,12 @@ export class CatalogService {
       ...SEED_BRANDS.map((brand) => brand.slug),
     ]);
     for (const brand of this.brands() ?? []) {
+      set.add(brand.id);
+      set.add(brand.slug);
+    }
+    // The server-read list too, so a brand added in Categories & Brands counts as known on the
+    // server and in the first browser render, before the live list arrives.
+    for (const brand of this.#injector.get(NavAutoBrandsService).brands()) {
       set.add(brand.id);
       set.add(brand.slug);
     }
