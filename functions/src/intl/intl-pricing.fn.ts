@@ -4,7 +4,7 @@ import { adminCallableOptions } from '../auth/callable-options.js';
 import { requireRole } from '../auth/require-role.js';
 import { parseMarkup } from './currency-config.js';
 import {
-  queuePublicCurrency,
+  setPublicCurrency,
   readStoredRates,
   readTimestamp,
   refreshRates,
@@ -29,37 +29,39 @@ export const setInternationalPricing = onCall(
 
     const db = getFirestore();
     const configRef = db.doc('intlPricing/config');
-    const ratesSnap = await db.doc('intlPricing/rates').get();
-    const configSnap = await configRef.get();
-    const before = parseMarkup(configSnap.data()?.['markupPercent']);
-    const storedRates = readStoredRates(ratesSnap.data());
-    const ratesUpdatedAt =
-      readTimestamp(ratesSnap.data()?.['providerUpdatedAt']) ??
-      readTimestamp(ratesSnap.data()?.['fetchedAt']) ??
-      Timestamp.now();
-    const now = Timestamp.now();
-    const batch = db.batch();
-    batch.set(
-      configRef,
-      {
-        markupPercent,
-        currencies: FieldValue.delete(),
-        updatedAt: now,
-        updatedBy: actor.uid,
-      },
-      { merge: true },
-    );
-    if (storedRates) {
-      queuePublicCurrency(batch, db, markupPercent, storedRates, ratesUpdatedAt, now);
-    }
-    batch.set(db.collection('auditLogs').doc(), {
-      action: 'intlPricing.update',
-      actorUid: actor.uid,
-      at: now,
-      before: before === null ? null : { markupPercent: before },
-      after: { markupPercent },
+    const ratesRef = db.doc('intlPricing/rates');
+    // One transaction for the reads and the writes, so a rate refresh at the same moment can
+    // never leave settings/currency built from mixed inputs.
+    await db.runTransaction(async (tx) => {
+      const [ratesSnap, configSnap] = await Promise.all([tx.get(ratesRef), tx.get(configRef)]);
+      const before = parseMarkup(configSnap.data()?.['markupPercent']);
+      const storedRates = readStoredRates(ratesSnap.data());
+      const ratesUpdatedAt =
+        readTimestamp(ratesSnap.data()?.['providerUpdatedAt']) ??
+        readTimestamp(ratesSnap.data()?.['fetchedAt']) ??
+        Timestamp.now();
+      const now = Timestamp.now();
+      tx.set(
+        configRef,
+        {
+          markupPercent,
+          currencies: FieldValue.delete(),
+          updatedAt: now,
+          updatedBy: actor.uid,
+        },
+        { merge: true },
+      );
+      if (storedRates) {
+        setPublicCurrency(tx, db, markupPercent, storedRates, ratesUpdatedAt, now);
+      }
+      tx.set(db.collection('auditLogs').doc(), {
+        action: 'intlPricing.update',
+        actorUid: actor.uid,
+        at: now,
+        before: before === null ? null : { markupPercent: before },
+        after: { markupPercent },
+      });
     });
-    await batch.commit();
     return { markupPercent };
   },
 );

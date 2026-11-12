@@ -12,9 +12,11 @@ export interface ConfirmCodOrderResponse {
 }
 
 /**
- * Admin confirmation for Egypt orders paid outside Paymob:
+ * Admin confirmation for orders paid outside Paymob:
  * - cash on delivery: the shipping fee was received (or shipping is free);
- * - InstaPay: the full transfer was seen in the bank app.
+ * - InstaPay: the full transfer was seen in the bank app;
+ * - Bank Transfer: the transfer from abroad arrived.
+ * A refusal uses `changeOrderStatus()`'s own message for the order's real status.
  * Kept (under its original name, so deploys never delete or rename a live function) as a thin
  * wrapper over `changeOrderStatus`, the same code the status dropdown (`setOrderStatus`) uses:
  * pending → confirmed only, idempotent when already confirmed, stock taken once.
@@ -27,7 +29,6 @@ export const confirmCodOrder = onCall(
     const result = await changeOrderStatus(getFirestore(), orderId, 'confirmed', actor, {
       idempotent: true,
       onlyFrom: ['pending'],
-      onlyFromMessage: 'Only open Cash on Delivery or InstaPay orders can be confirmed.',
     });
     return { orderId, status: 'confirmed', stockDecremented: result.stock === 'take' };
   },

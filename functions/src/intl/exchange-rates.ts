@@ -3,7 +3,7 @@ import {
   type DocumentData,
   type DocumentReference,
   type Firestore,
-  type WriteBatch,
+  type Transaction,
 } from 'firebase-admin/firestore';
 import {
   DEFAULT_MARKUP_PERCENT,
@@ -53,28 +53,31 @@ export async function refreshRates(
   const now = Timestamp.now();
   try {
     const fetched = await fetchEgpRates();
-    const existing = await ratesRef.get();
-    const previous = readStoredRates(existing.data());
-    const guarded = applyJumpGuard(previous, fetched.rates, options.manual);
-    const markupPercent = await readMarkupOrDefault(db);
     const providerUpdatedAt = Timestamp.fromMillis(fetched.updatedAtUnix * 1000);
-    const batch = db.batch();
-    batch.set(ratesRef, {
-      base: 'EGP',
-      rates: guarded.rates,
-      provider: 'open.er-api.com',
-      providerUpdatedAt,
-      fetchedAt: now,
-      lastAttemptAt: now,
-      lastError: guarded.warnings.length > 0 ? guarded.warnings.join(' ') : null,
-      rateCount: Object.keys(guarded.rates).length,
+    // Read rates + markup and write both docs in one transaction, so a markup save at the same
+    // moment can never leave settings/currency built from mixed inputs.
+    const warnings = await db.runTransaction(async (tx) => {
+      const [existing, configSnap] = await Promise.all([tx.get(ratesRef), tx.get(db.doc(CONFIG_DOC))]);
+      const previous = readStoredRates(existing.data());
+      const guarded = applyJumpGuard(previous, fetched.rates, options.manual);
+      const markupPercent = markupOrDefault(configSnap.data());
+      tx.set(ratesRef, {
+        base: 'EGP',
+        rates: guarded.rates,
+        provider: 'open.er-api.com',
+        providerUpdatedAt,
+        fetchedAt: now,
+        lastAttemptAt: now,
+        lastError: guarded.warnings.length > 0 ? guarded.warnings.join(' ') : null,
+        rateCount: Object.keys(guarded.rates).length,
+      });
+      setPublicCurrency(tx, db, markupPercent, guarded.rates, providerUpdatedAt, now);
+      return guarded.warnings;
     });
-    queuePublicCurrency(batch, db, markupPercent, guarded.rates, providerUpdatedAt, now);
-    await batch.commit();
     return {
       ok: true,
       fetchedAt: now.toDate().toISOString(),
-      warnings: guarded.warnings,
+      warnings,
       error: null,
     };
   } catch (error: unknown) {
@@ -84,9 +87,8 @@ export async function refreshRates(
   }
 }
 
-export async function readMarkupOrDefault(db: Firestore): Promise<number> {
-  const snap = await db.doc(CONFIG_DOC).get();
-  return parseMarkup(snap.data()?.['markupPercent']) ?? DEFAULT_MARKUP_PERCENT;
+function markupOrDefault(data: DocumentData | undefined): number {
+  return parseMarkup(data?.['markupPercent']) ?? DEFAULT_MARKUP_PERCENT;
 }
 
 export function readStoredRates(data: DocumentData | undefined): Readonly<Record<string, number>> | null {
@@ -100,8 +102,8 @@ export function readTimestamp(value: unknown): Timestamp | null {
   return value instanceof Timestamp ? value : null;
 }
 
-export function queuePublicCurrency(
-  batch: WriteBatch,
+export function setPublicCurrency(
+  tx: Transaction,
   db: Firestore,
   markupPercent: number,
   rates: Readonly<Record<string, number>>,
@@ -109,7 +111,7 @@ export function queuePublicCurrency(
   updatedAt: Timestamp,
 ): void {
   const body = buildPublicCurrencyDoc(markupPercent, rates, ratesUpdatedAt);
-  batch.set(db.doc(PUBLIC_DOC), { ...body, updatedAt });
+  tx.set(db.doc(PUBLIC_DOC), { ...body, updatedAt });
 }
 
 export function applyJumpGuard(
