@@ -41,11 +41,7 @@ function readStored<TSchema extends v.GenericSchema>(
   } catch {
     // Unreadable copy: fall through and remove it.
   }
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // Storage blocked: nothing to remove.
-  }
+  removeStored(key);
   return null;
 }
 
@@ -57,11 +53,25 @@ function persistStored(key: string, value: unknown): void {
   }
 }
 
-/** Saves the sections the live document has, for the next visit. */
-function persistStoredSettings(settings: HomeSettingsSeed): void {
-  persistStored(HERO_STORAGE_KEY, settings.hero);
-  if (settings.shopCategories) persistStored(SHOP_CATEGORIES_STORAGE_KEY, settings.shopCategories);
-  if (settings.navList) persistStored(NAV_LIST_STORAGE_KEY, settings.navList);
+function removeStored(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Storage blocked: nothing to remove.
+  }
+}
+
+/**
+ * Saves the sections the live document has, for the next visit, and drops a
+ * saved section the document no longer has (the built-in one is right then).
+ */
+function persistStoredSettings(settings: HomeSettingsSeed | null): void {
+  if (settings) persistStored(HERO_STORAGE_KEY, settings.hero);
+  else removeStored(HERO_STORAGE_KEY);
+  if (settings?.shopCategories) persistStored(SHOP_CATEGORIES_STORAGE_KEY, settings.shopCategories);
+  else removeStored(SHOP_CATEGORIES_STORAGE_KEY);
+  if (settings?.navList) persistStored(NAV_LIST_STORAGE_KEY, settings.navList);
+  else removeStored(NAV_LIST_STORAGE_KEY);
 }
 
 /** How long a client navigation to `/` waits for settings/home before showing the built-in sections. */
@@ -82,16 +92,14 @@ export class HomeService {
   /** undefined while the first browser snapshot is still outstanding. */
   readonly #homeDoc = signal<HomeSettingsSeed | null | undefined>(undefined);
 
-  /** Copies saved on an earlier visit, read and checked once in the browser. */
-  readonly #storedHero: HomeHero | null = this.#isBrowser
-    ? readStored(HERO_STORAGE_KEY, HomeHeroSchema)
-    : null;
-  readonly #storedShopCategories: HomeShopCategories | null = this.#isBrowser
-    ? readStored(SHOP_CATEGORIES_STORAGE_KEY, HomeShopCategoriesSchema)
-    : null;
-  readonly #storedNavList: HomeNavList | null = this.#isBrowser
-    ? readStored(NAV_LIST_STORAGE_KEY, HomeNavListSchema)
-    : null;
+  /**
+   * Copies saved on an earlier visit, read and checked once in the browser.
+   * Left empty when the server sent its own seed (even an empty one), so
+   * hydration always matches the server HTML.
+   */
+  #storedHero: HomeHero | null = null;
+  #storedShopCategories: HomeShopCategories | null = null;
+  #storedNavList: HomeNavList | null = null;
 
   #markFirstAnswer: () => void = () => undefined;
   readonly #firstAnswer = new Promise<void>((resolve) => (this.#markFirstAnswer = resolve));
@@ -103,6 +111,10 @@ export class HomeService {
       if (this.#isBrowser) this.#transfer.remove(HOME_SETTINGS_KEY);
     } else if (!this.#isBrowser) {
       this.#homeDoc.set(null);
+    } else {
+      this.#storedHero = readStored(HERO_STORAGE_KEY, HomeHeroSchema);
+      this.#storedShopCategories = readStored(SHOP_CATEGORIES_STORAGE_KEY, HomeShopCategoriesSchema);
+      this.#storedNavList = readStored(NAV_LIST_STORAGE_KEY, HomeNavListSchema);
     }
 
     if (!this.#isBrowser) return;
@@ -111,7 +123,7 @@ export class HomeService {
       this.#homeDocRef,
       (snapshot) => {
         const seed = snapshot.exists() ? toHomeSettingsSeed(snapshot.data()) : null;
-        if (seed) persistStoredSettings(seed);
+        persistStoredSettings(seed);
         this.#homeDoc.set(seed);
         this.#markFirstAnswer();
       },
@@ -131,10 +143,9 @@ export class HomeService {
    */
   whenReady(): Promise<void> {
     if (this.#homeDoc() !== undefined || this.#storedHero) return Promise.resolve();
-    return Promise.race([
-      this.#firstAnswer,
-      new Promise<void>((resolve) => setTimeout(resolve, FIRST_SNAPSHOT_WAIT_MS)),
-    ]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<void>((resolve) => (timer = setTimeout(resolve, FIRST_SNAPSHOT_WAIT_MS)));
+    return Promise.race([this.#firstAnswer, timeout]).finally(() => clearTimeout(timer));
   }
 
   /**

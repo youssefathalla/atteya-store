@@ -20,8 +20,12 @@ import { HOME_SETTINGS_KEY, toHomeSettingsSeed } from './home-settings.state';
 export const homeSettingsResolver: ResolveFn<void> = async () => {
   if (!isPlatformServer(inject(PLATFORM_ID))) {
     const injector = inject(Injector);
-    const { HomeService } = await import('../services/home.service');
-    await injector.get(HomeService).whenReady();
+    try {
+      const { HomeService } = await import('../services/home.service');
+      await injector.get(HomeService).whenReady();
+    } catch {
+      // Never hold up the page: it still opens and loads its settings itself.
+    }
     return;
   }
 
