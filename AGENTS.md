@@ -109,8 +109,17 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 - **LIFT Structure**: Feature modules live in `src/app/features/[feature-name]/`. Co-locate template and style files inside `<name>/<name>.component.*`. When a feature or page has dedicated services, utils, dialogs, or subcomponents, organize them in explicit subfolders (`services/`, `utils/`, `dialogs/`, `components/`) to eliminate root folder clutter. Do NOT generate or write `.spec.ts` test files.
 - **SEO Metadata**: Inject and configure `SeoService` ONLY inside top-level Route/Page components in `ngOnInit()`.
-- **Canonical and share tags (<KEY>-243)**: `SeoService.setPageMetadata()` writes one `<link rel="canonical">` plus `og:*` and `twitter:card` tags into the server HTML from `environment.baseUrl` + the route path (no query, so filtered Shop URLs point at `/shop`); `noindex` pages get none, Search passes `canonical: false`, product pages pass `type: 'product'`, the first photo (ImageKit, 1200 px) and the summary; share tags never carry prices. Dev `baseUrl` is the dev hosted.app address. `/terms` and `/privacy` are indexable.
-- **Sitemap (<KEY>-243)**: `GET /sitemap.xml` (`src/sitemap.ts`, registered in `src/server.ts` before static files and Angular) lists `/`, `/shop`, `/brands`, `/terms`, `/privacy` and every published category (`/category/<path>`), brand (`/brand/<slug>`) and product (`/product/<slug>`) with `<lastmod>` from `updatedAt`, read with the client SDK on its own `sitemap` Firebase app (`published == true`, 500 per page by document id), kept in memory for an hour and sent with `Cache-Control: public, max-age=3600`; a failed or slow (20 s) read answers 503, never an empty sitemap. `public/robots.txt` names it.
+- **Canonical and share tags (<KEY>-243)**: `SeoService.setPageMetadata()` writes one `<link rel="canonical">` into the server HTML: `environment.baseUrl` + the route path, no query string (filtered Shop URLs point at `/shop`), no trailing slash except `/`.
+- Every page that is not `noindex` also gets `og:title`, `og:description`, `og:url` (= canonical), `og:type`, `og:site_name`, `og:image` and `twitter:card`; a `noindex` page (account, checkout, favorites, login, search, sold-out or missing products) gets no canonical and no share tags.
+- Product pages pass `type: 'product'`, the first photo (ImageKit, 1200 px wide) and the summary (fallback: description text); other pages share `public/img/hero/default-hero.jpg`. Share tags never carry prices.
+- `/terms` and `/privacy` are indexable (no `noindex`).
+- Dev `baseUrl` is the dev hosted.app address, and every dev response carries `X-Robots-Tag: noindex, nofollow` (`src/server.ts`, when `!environment.production`), so the dev copy is never indexed.
+- **Sitemap (<KEY>-243)**: `GET /sitemap.xml` (`src/sitemap.ts`, registered in `src/server.ts` before static files and Angular) lists `/`, `/shop`, `/brands`, `/terms`, `/privacy` and every published category (`/category/<path>`), brand (`/brand/<slug>`) and in-stock product (`/product/<slug>`).
+- Sitemap `<lastmod>` comes from `updatedAt`; `<loc>` uses the same `canonicalUrl()` as the pages (`seo-urls.ts`).
+- The sitemap reads Firestore with the client SDK on its own `sitemap` Firebase app (`published == true`, 500 per page by document id, at most 20,000 per collection).
+- The sitemap is built once per hour per server (one read at a time) and sent with `Cache-Control: public, max-age=3600`.
+- A failed or slow (20 s) sitemap read answers 503, never an empty sitemap.
+- `public/robots.txt` names `https://atteyastore.com/sitemap.xml`.
 - **Performance (@defer)**:
   - Below-the-fold content: `@defer (hydrate on viewport)`.
   - Completely static content: `@defer (hydrate never)`.

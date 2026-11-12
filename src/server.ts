@@ -56,6 +56,17 @@ function staticCacheControl(urlPath: string): string {
 app.use(compression({ threshold: 1024 }));
 
 /**
+ * The dev site carries canonical and share tags for testing, but must never be
+ * indexed as a copy of the live store.
+ */
+if (!environment.production) {
+  app.use((_req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    next();
+  });
+}
+
+/**
  * Firebase Auth helper pages for our own `authDomain` (prod: atteyastore.com).
  * Passed to `<projectId>.firebaseapp.com` before static files and Angular, so
  * the store never renders these paths. The body arrives decoded, so compression

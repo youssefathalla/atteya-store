@@ -19,7 +19,7 @@ export interface SeoMetadata {
   readonly shareDescription?: string | null;
   /**
    * Writes `<link rel="canonical">` and `og:url` from `environment.baseUrl` plus the
-   * route path (no query string). Defaults to true; pages such as search turn it off.
+   * route path (no query string). Defaults to true; pass false for a page that should not claim its own address.
    */
   readonly canonical?: boolean;
 }

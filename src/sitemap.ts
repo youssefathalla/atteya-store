@@ -18,6 +18,7 @@ import {
   where,
 } from 'firebase/firestore';
 import * as v from 'valibot';
+import { canonicalUrl } from './app/core/services/seo/seo-urls.js';
 import { cdnCacheControlHeader } from './cdn-cache-control.mjs';
 
 /** Same for every visitor (no prices), so the CDN may keep it for an hour. */
@@ -31,16 +32,14 @@ const READ_TIMEOUT_MS = 20_000;
 const SITEMAP_APP_NAME = 'sitemap';
 
 /** Public pages that always exist. */
-const STATIC_PATHS = ['/', '/shop', '/brands', '/terms', '/privacy'] as const;
+const STATIC_PATHS = ['', 'shop', 'brands', 'terms', 'privacy'] as const;
 
-const UpdatedAtSchema = v.optional(v.nullable(v.instance(Timestamp)), null);
-const SlugDocSchema = v.object({
-  slug: v.pipe(v.string(), v.trim(), v.minLength(1)),
-  updatedAt: UpdatedAtSchema,
-});
-const CategoryDocSchema = v.object({
-  path: v.pipe(v.string(), v.trim(), v.minLength(1)),
-  updatedAt: UpdatedAtSchema,
+const SlugDocSchema = v.object({ slug: v.pipe(v.string(), v.trim(), v.minLength(1)) });
+const CategoryDocSchema = v.object({ path: v.pipe(v.string(), v.trim(), v.minLength(1)) });
+/** Same availability rule as the product page: a stock count wins, else the `inStock` flag (missing = in stock). */
+const ProductStockSchema = v.object({
+  stock: v.optional(v.unknown()),
+  inStock: v.optional(v.unknown()),
 });
 
 interface SitemapEntry {
@@ -49,6 +48,8 @@ interface SitemapEntry {
 }
 
 let cached: { readonly xml: string; readonly expiresAt: number } | null = null;
+/** One catalogue read at a time: requests that arrive while it runs wait for the same read. */
+let inflight: Promise<string> | null = null;
 
 /**
  * `GET /sitemap.xml`: home, Shop, Brands, Terms, Privacy, every published category,
@@ -58,16 +59,12 @@ let cached: { readonly xml: string; readonly expiresAt: number } | null = null;
 export function sitemapHandler(baseUrl: string, firebase: FirebaseOptions) {
   return async (_req: Request, res: Response): Promise<void> => {
     try {
-      const now = Date.now();
-      if (!cached || cached.expiresAt <= now) {
-        const entries = await withTimeout(readSitemapEntries(sitemapFirestore(firebase)), READ_TIMEOUT_MS);
-        cached = { xml: sitemapXml(baseUrl, entries), expiresAt: now + CACHE_MS };
-      }
+      const xml = await sitemapXmlCached(baseUrl, firebase);
       res.setHeader('Content-Type', 'application/xml; charset=utf-8');
       res.setHeader('Cache-Control', SITEMAP_CACHE_CONTROL);
       const cdn = cdnCacheControlHeader(SITEMAP_CACHE_CONTROL);
       if (cdn) res.setHeader('CDN-Cache-Control', cdn);
-      res.send(cached.xml);
+      res.send(xml);
     } catch (error) {
       console.error('sitemap.xml: catalogue read failed', error);
       res.setHeader('Cache-Control', 'no-store');
@@ -77,6 +74,20 @@ export function sitemapHandler(baseUrl: string, firebase: FirebaseOptions) {
         .send('The sitemap is not available right now. Please try again shortly.');
     }
   };
+}
+
+async function sitemapXmlCached(baseUrl: string, firebase: FirebaseOptions): Promise<string> {
+  if (cached && cached.expiresAt > Date.now()) return cached.xml;
+  inflight ??= readSitemapEntries(sitemapFirestore(firebase))
+    .then((entries) => {
+      const xml = sitemapXml(baseUrl, entries);
+      cached = { xml, expiresAt: Date.now() + CACHE_MS };
+      return xml;
+    })
+    .finally(() => {
+      inflight = null;
+    });
+  return withTimeout(inflight, READ_TIMEOUT_MS);
 }
 
 function sitemapFirestore(options: FirebaseOptions): Firestore {
@@ -90,21 +101,16 @@ async function readSitemapEntries(db: Firestore): Promise<SitemapEntry[]> {
   const [categories, brands, products] = await Promise.all([
     readPublished(db, 'categories', (doc) => {
       const parsed = v.safeParse(CategoryDocSchema, doc.data());
-      return parsed.success
-        ? entry(`/category/${encodePath(parsed.output.path)}`, parsed.output.updatedAt)
-        : null;
+      return parsed.success ? entry(`/category/${parsed.output.path}`, doc) : null;
     }),
     readPublished(db, 'brands', (doc) => {
       const parsed = v.safeParse(SlugDocSchema, doc.data());
-      return parsed.success
-        ? entry(`/brand/${encodePath(parsed.output.slug)}`, parsed.output.updatedAt)
-        : null;
+      return parsed.success ? entry(`/brand/${parsed.output.slug}`, doc) : null;
     }),
+    // A sold-out product page is noindex, so it stays out of the sitemap.
     readPublished(db, 'products', (doc) => {
       const parsed = v.safeParse(SlugDocSchema, doc.data());
-      return parsed.success
-        ? entry(`/product/${encodePath(parsed.output.slug)}`, parsed.output.updatedAt)
-        : null;
+      return parsed.success && isInStock(doc.data()) ? entry(`/product/${parsed.output.slug}`, doc) : null;
     }),
   ]);
   const all = [
@@ -145,25 +151,35 @@ async function readPublished(
   return entries;
 }
 
-function entry(path: string, updatedAt: Timestamp | null): SitemapEntry {
-  return { path, lastmod: updatedAt ? updatedAt.toDate().toISOString() : null };
+function isInStock(data: DocumentData): boolean {
+  const parsed = v.safeParse(ProductStockSchema, data);
+  if (!parsed.success) return false;
+  const { stock, inStock } = parsed.output;
+  if (typeof stock === 'number') return stock > 0;
+  return inStock !== false;
 }
 
-/** `accessories/bags` → `accessories/bags` with each segment URL-encoded. */
-function encodePath(path: string): string {
-  return path
-    .split('/')
-    .filter((segment) => segment.length > 0)
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
+/** The page's address and `<lastmod>` from `updatedAt` when it is a Timestamp, Date or date string. */
+function entry(path: string, doc: QueryDocumentSnapshot<DocumentData>): SitemapEntry {
+  return { path: path.split('/').filter(Boolean).join('/'), lastmod: lastModified(doc.get('updatedAt')) };
+}
+
+function lastModified(value: unknown): string | null {
+  const date =
+    value instanceof Timestamp
+      ? value.toDate()
+      : value instanceof Date
+        ? value
+        : typeof value === 'string'
+          ? new Date(value)
+          : null;
+  return date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
 function sitemapXml(baseUrl: string, entries: readonly SitemapEntry[]): string {
-  let origin = baseUrl.trim();
-  while (origin.endsWith('/')) origin = origin.slice(0, -1);
   const urls = entries.map((item) => {
     const lastmod = item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : '';
-    return `  <url><loc>${escapeXml(`${origin}${item.path}`)}</loc>${lastmod}</url>`;
+    return `  <url><loc>${escapeXml(canonicalUrl(baseUrl, item.path.split('/')))}</loc>${lastmod}</url>`;
   });
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',

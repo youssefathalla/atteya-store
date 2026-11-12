@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { Service, inject, untracked } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
-import { PRIMARY_OUTLET, Router, UrlTree } from '@angular/router';
+import { PRIMARY_OUTLET, Router } from '@angular/router';
 import { environment } from '@env/environment';
 import { buildImageKitUrl } from '@shared/utils/image';
 import { SeoMetadata } from './seo.model';
@@ -64,10 +64,12 @@ export class SeoService {
     this.updateTag({ name: 'robots', content: noindex ? 'noindex, nofollow' : 'index, follow' });
   }
 
-  /** The URL being rendered: the navigation in progress (SSR, first render), else the current one. */
+  /**
+   * The current route. The router sets its URL before it creates the new page, so
+   * `ngOnInit()` (server and browser) and later effects all read the page's own URL.
+   */
   #canonicalUrl(): string {
-    const tree: UrlTree =
-      this.#router.currentNavigation()?.finalUrl ?? this.#router.parseUrl(this.#router.url);
+    const tree = this.#router.parseUrl(this.#router.url);
     const segments = tree.root.children[PRIMARY_OUTLET]?.segments.map((segment) => segment.path) ?? [];
     return canonicalUrl(environment.baseUrl, segments);
   }
