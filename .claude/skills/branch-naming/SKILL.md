@@ -53,7 +53,7 @@ Follow all four rules:
 
 1. **PR title starts with the issue id**: `<KEY>-123 Clear sign-in errors on mode switch`. Several issues: `<KEY>-31 <KEY>-32 Shipping weights and box sizes`. The `PR title` check (`.github/workflows/pr-title.yml`) reads `teamKey` from `linear.config.json` and fails any PR into `develop` or `main` whose title has no `<KEY>-` followed by a number (PRs from `develop` or `main` themselves are skipped).
 2. **PR description's first line is `Linear: [<KEY>-123](https://linear.app/<workspace>/issue/<KEY>-123)`**, a clickable link to the issue (`workspace` and `teamKey` from `linear.config.json`). GitHub autolinks need a paid plan on a private repo and a PR title can't hold a link, so this line is where the click is. Linear still reads the id inside the link, so it also works as a backup link. Never write closing words such as "Fixes <KEY>-123", "Closes <KEY>-123" or "Resolves <KEY>-123": they mark the issue Done when the PR merges into `develop`, which skips QA.
-3. **After opening the PR, comment on the issue** with the PR link and a one-line summary, and move it to To Review (`AGENTS.md` section 2, step 3).
+3. **After opening the PR, comment on the issue** with the PR link and a one-line summary, and move it to To Review (`AGENTS.md` section 2, step 3). The PR body also has a `## How to Test on Dev` section (rough time, `Setup:`, 3 to 6 `- [ ]` steps), copied to the end of the issue description (`AGENTS.md`, "How to Test on Dev").
 4. **Commit messages start with the issue id**: `<KEY>-123 Short summary`.
 
 Ignore Linear's "Copy git branch name" suggestion (`youssefathalla/<key>-123-…`).
