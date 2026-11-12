@@ -1,5 +1,15 @@
 // Type-only imports: `npm run test:cart` loads this file straight from source.
-import type { BagBundle, BagDealHint, Offer, OfferBundleRow, OfferConditions } from './engine';
+import type {
+  BagBundle,
+  BagBundleSet,
+  BagBundleSetMissing,
+  BagDealHint,
+  Offer,
+  OfferBundleRow,
+  OfferBundleSetReward,
+  OfferBundleSlot,
+  OfferConditions,
+} from './engine';
 
 /**
  * True when Shop can list this offer's products (`/shop?offer=<id>`): the search index keeps the
@@ -32,14 +42,19 @@ export function offerShopQuery(offerId: string): { readonly offer: string } {
 
 /**
  * The line under the offer's Shop heading: which piece is free in a Buy X Get Y offer whose free
- * pieces come from the same items ("The cheapest one is free."), or a Bundle price offer's rows
- * ("2 for EGP 200 · 3 for EGP 275", amounts written by `money`). Null for every other offer.
+ * pieces come from the same items ("The cheapest one is free."), a Bundle price offer's rows
+ * ("2 for EGP 200 · 3 for EGP 275", amounts written by `money`), or a Bundle & Save offer's
+ * groups and saving ("Racket + Bag + Grip · Save 15%"). Null for every other offer.
  */
 export function offerShopSubtitle(offer: Offer, money: (egp: number) => string = egpText): string | null {
   const reward = offer.reward;
   if (reward.kind === 'bundlePrice') {
     const rows = [...reward.rows].sort((a, b) => a.quantity - b.quantity);
     return rows.length > 0 ? rows.map((row) => bundleRowLabel(row, money)).join(' · ') : null;
+  }
+  if (reward.kind === 'bundleSet') {
+    if (reward.slots.length === 0) return null;
+    return `${bundleSetGroupsLabel(reward.slots)} · ${bundleSetSavingLabel(reward.setReward, money)}`;
   }
   if (reward.kind !== 'buyXGetY' || reward.getConditions !== null) return null;
   const many = reward.get.quantity > 1;
@@ -71,6 +86,107 @@ export function bundleNudgeText(bundle: BagBundle, money: (egp: number) => strin
   const next = bundle.next;
   if (!next) return null;
   return `Add ${next.missing} more to get ${bundleRowLabel(next, money)}`;
+}
+
+/** A Bundle & Save offer's groups: "Racket + Bag + Grip" ("2 × Ball" for a group of 2). */
+export function bundleSetGroupsLabel(slots: readonly Pick<OfferBundleSlot, 'name' | 'quantity'>[]): string {
+  return slots.map((slot) => (slot.quantity > 1 ? `${slot.quantity} × ${slot.name}` : slot.name)).join(' + ');
+}
+
+/**
+ * What a full Bundle & Save set saves, for Shop's heading: "Save 15%", "Save EGP 500",
+ * "All for EGP 4,500" or "Cheapest one free".
+ */
+export function bundleSetSavingLabel(
+  reward: OfferBundleSetReward,
+  money: (egp: number) => string = egpText,
+): string {
+  switch (reward.type) {
+    case 'percent':
+      return `Save ${reward.percent}%`;
+    case 'amount':
+      return `Save ${money(reward.amount)}`;
+    case 'total':
+      return `All for ${money(reward.price)}`;
+    case 'cheapestFree':
+      return 'Cheapest one free';
+  }
+}
+
+/**
+ * The bag's grey strip for a Bundle & Save offer: the offer title, plus "2 bundles" with more
+ * than one complete set. Null while no set is complete.
+ */
+export function bundleSetStripTitle(set: Pick<BagBundleSet, 'title' | 'sets'>): string | null {
+  if (set.sets <= 0) return null;
+  return set.sets === 1 ? set.title : `${set.title} · ${set.sets} bundles`;
+}
+
+/**
+ * The bag's Bundle & Save nudge while a set is missing a group: "Add a Bag to complete your
+ * bundle and save EGP 300" ("Add a Bag and 2 × Ball …", "… and save 15%", "… and get it for
+ * EGP 4,500", "… and get the cheapest one free"); "another bundle" once a set is complete.
+ * Null when nothing is missing.
+ */
+export function bundleSetNudgeText(
+  set: Pick<BagBundleSet, 'sets' | 'missing'>,
+  reward: OfferBundleSetReward,
+  money: (egp: number) => string = egpText,
+): string | null {
+  if (set.missing.length === 0) return null;
+  const items = joinWithAnd(set.missing.map(missingPiece));
+  const which = set.sets > 0 ? 'another bundle' : 'your bundle';
+  return `Add ${items} to complete ${which} and ${bundleSetNudgeReward(reward, money)}`;
+}
+
+/** The nudge's button: "Choose Bag" when one group is missing, "Choose Items" otherwise. */
+export function bundleSetNudgeButton(missing: readonly Pick<BagBundleSetMissing, 'name'>[]): string {
+  return missing.length === 1 ? `Choose ${missing[0]!.name}` : 'Choose Items';
+}
+
+/**
+ * True when completing the next set can't beat its pieces' own offers, so the bag shows no
+ * nudge. Only certain for an amount off: the pieces already in the bag (`presentSavings`, what
+ * each piece's own per-item offer saves) fill `presentNeeded` places of the set, and when even
+ * their smallest savings add up to the amount, the set loses whatever piece is added.
+ */
+export function bundleSetNudgeLoses(
+  reward: OfferBundleSetReward,
+  presentSavings: readonly number[],
+  presentNeeded: number,
+): boolean {
+  if (reward.type !== 'amount' || presentNeeded <= 0) return false;
+  if (presentSavings.length < presentNeeded) return false;
+  const least = [...presentSavings]
+    .sort((a, b) => a - b)
+    .slice(0, presentNeeded)
+    .reduce((sum, saving) => sum + saving, 0);
+  return least >= reward.amount;
+}
+
+function bundleSetNudgeReward(reward: OfferBundleSetReward, money: (egp: number) => string): string {
+  switch (reward.type) {
+    case 'percent':
+      return `save ${reward.percent}%`;
+    case 'amount':
+      return `save ${money(reward.amount)}`;
+    case 'total':
+      return `get it for ${money(reward.price)}`;
+    case 'cheapestFree':
+      return 'get the cheapest one free';
+  }
+}
+
+function missingPiece(missing: Pick<BagBundleSetMissing, 'name' | 'quantity'>): string {
+  if (missing.quantity > 1) return `${missing.quantity} × ${missing.name}`;
+  // A plural name ("Shorts", "Socks") takes no article.
+  if (/s$/i.test(missing.name)) return missing.name;
+  return `${/^[aeio]/i.test(missing.name) ? 'an' : 'a'} ${missing.name}`;
+}
+
+function joinWithAnd(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts[0] ?? '';
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
 function egpText(egp: number): string {

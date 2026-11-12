@@ -238,6 +238,33 @@
                   </div>
                 }
               }
+
+              <!-- Bundle & Save: one strip for its complete sets, then the nudge to complete the next one. -->
+              @for (box of setBoxes(lineIndex); track box.offerId) {
+                @if (box.strip; as stripTitle) {
+                  <div class="bag-card__strip">
+                    <span class="min-w-0">{{ stripTitle }}</span>
+                    @if (box.saving) {
+                      <span class="shrink-0 font-bold!">{{ box.saving }}</span>
+                    }
+                  </div>
+                }
+                @if (box.nudge; as nudgeText) {
+                  <div class="bag-card__strip bag-card__strip--hint bag-card__strip--wrap">
+                    <span class="min-w-0">{{ nudgeText }}</span>
+                    <span class="bag-card__strip-actions">
+                      <a
+                        matButton="outlined"
+                        routerLink="/shop"
+                        [queryParams]="box.shopQuery"
+                        (click)="drawerService.close()"
+                      >
+                        {{ box.button }}
+                      </a>
+                    </span>
+                  </div>
+                }
+              }
             } @else {
               <div class="bag-card__body">
                 <div class="bag-card__photo" aria-hidden="true"></div>

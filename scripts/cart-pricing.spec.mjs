@@ -50,6 +50,10 @@ import {
   EARNED_LABEL_MAX,
   earnedItemLabel,
   bundleNudgeText,
+  bundleSetNudgeButton,
+  bundleSetNudgeLoses,
+  bundleSetNudgeText,
+  bundleSetStripTitle,
   bundleStripTitle,
   offerShopSubtitle,
   offerTitleVisible,
@@ -405,6 +409,107 @@ describe('Bundle price wording', () => {
       'Add 2 more to get 3 for EGP 275',
     );
     assert.equal(bundleNudgeText(bagBundle({})), null);
+  });
+});
+
+describe('Bundle & Save wording (ATS-254)', () => {
+  const slots = [
+    { id: 'slot-1', name: 'Racket', quantity: 1, conditions: { anyOf: [] } },
+    { id: 'slot-2', name: 'Bag', quantity: 1, conditions: { anyOf: [] } },
+    { id: 'slot-3', name: 'Grip', quantity: 1, conditions: { anyOf: [] } },
+  ];
+  const setOffer = (setReward) => ({
+    id: 'kit',
+    title: 'Padel kit',
+    reward: { kind: 'bundleSet', slots, setReward, maxSets: null },
+  });
+  const usd = (egp) => `USD ${egp}`;
+
+  it('the Shop heading lists the groups and the saving', () => {
+    assert.equal(
+      offerShopSubtitle(setOffer({ type: 'percent', percent: 15 })),
+      'Racket + Bag + Grip · Save 15%',
+    );
+    assert.equal(
+      offerShopSubtitle(setOffer({ type: 'amount', amount: 500 }), usd),
+      'Racket + Bag + Grip · Save USD 500',
+    );
+    assert.equal(
+      offerShopSubtitle(setOffer({ type: 'total', price: 4500 })),
+      'Racket + Bag + Grip · All for EGP 4,500',
+    );
+    assert.equal(
+      offerShopSubtitle(setOffer({ type: 'cheapestFree' })),
+      'Racket + Bag + Grip · Cheapest one free',
+    );
+    const two = { ...setOffer({ type: 'percent', percent: 10 }) };
+    two.reward = { ...two.reward, slots: [slots[0], { ...slots[1], name: 'Ball', quantity: 2 }] };
+    assert.equal(offerShopSubtitle(two), 'Racket + 2 × Ball · Save 10%');
+    const broken = setOffer({ type: 'percent', percent: 10 });
+    broken.reward = { ...broken.reward, slots: [] };
+    assert.equal(offerShopSubtitle(broken), null);
+  });
+
+  it('the bag strip names the offer, and how many bundles with more than one', () => {
+    assert.equal(bundleSetStripTitle({ title: 'Padel kit', sets: 1 }), 'Padel kit');
+    assert.equal(bundleSetStripTitle({ title: 'Padel kit', sets: 2 }), 'Padel kit · 2 bundles');
+    assert.equal(bundleSetStripTitle({ title: 'Padel kit', sets: 0 }), null);
+  });
+
+  it('the nudge names what is missing and what the set saves', () => {
+    const bag = { sets: 0, missing: [{ slotId: 'slot-2', name: 'Bag', quantity: 1 }] };
+    assert.equal(
+      bundleSetNudgeText(bag, { type: 'amount', amount: 300 }),
+      'Add a Bag to complete your bundle and save EGP 300',
+    );
+    assert.equal(
+      bundleSetNudgeText(bag, { type: 'amount', amount: 300 }, usd),
+      'Add a Bag to complete your bundle and save USD 300',
+    );
+    assert.equal(
+      bundleSetNudgeText(bag, { type: 'percent', percent: 15 }),
+      'Add a Bag to complete your bundle and save 15%',
+    );
+    assert.equal(
+      bundleSetNudgeText(bag, { type: 'total', price: 4500 }),
+      'Add a Bag to complete your bundle and get it for EGP 4,500',
+    );
+    assert.equal(
+      bundleSetNudgeText(
+        {
+          sets: 1,
+          missing: [
+            { slotId: 'slot-1', name: 'Overgrip', quantity: 1 },
+            { slotId: 'slot-2', name: 'Ball', quantity: 2 },
+          ],
+        },
+        { type: 'cheapestFree' },
+      ),
+      'Add an Overgrip and 2 × Ball to complete another bundle and get the cheapest one free',
+    );
+    assert.equal(
+      bundleSetNudgeText(
+        { sets: 0, missing: [{ slotId: 'slot-2', name: 'Shorts', quantity: 1 }] },
+        { type: 'percent', percent: 10 },
+      ),
+      'Add Shorts to complete your bundle and save 10%',
+    );
+    assert.equal(bundleSetNudgeText({ sets: 1, missing: [] }, { type: 'cheapestFree' }), null);
+  });
+
+  it('the nudge button names the one missing group', () => {
+    assert.equal(bundleSetNudgeButton([{ name: 'Bag' }]), 'Choose Bag');
+    assert.equal(bundleSetNudgeButton([{ name: 'Bag' }, { name: 'Grip' }]), 'Choose Items');
+  });
+
+  it('no nudge when the pieces own offers already save the amount off', () => {
+    const amount = { type: 'amount', amount: 300 };
+    assert.equal(bundleSetNudgeLoses(amount, [200, 150], 2), true);
+    assert.equal(bundleSetNudgeLoses(amount, [200, 50], 2), false);
+    // Only the smallest savings count: the set may use the other pieces.
+    assert.equal(bundleSetNudgeLoses(amount, [400, 100, 50], 2), false);
+    assert.equal(bundleSetNudgeLoses(amount, [400], 2), false);
+    assert.equal(bundleSetNudgeLoses({ type: 'percent', percent: 15 }, [900, 900], 2), false);
   });
 });
 

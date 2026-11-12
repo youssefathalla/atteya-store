@@ -1,4 +1,7 @@
 import {
+  bundleSetMatch,
+  bundleSetSlots,
+  bundleSetVariantMatch,
   freeItemWins,
   priceBagDeals,
   priceItem,
@@ -12,6 +15,7 @@ import {
   type PricingContext,
   type VariantFacts,
 } from '@core/services/offers/engine';
+import { bundleSetNudgeLoses } from '@core/services/offers/offer-shop';
 import type { Product, ProductVariant } from '@core/services/products/product.model';
 import { toVariantFacts } from '@core/services/products/utils/priced-product.utils';
 import type { CartLineDraft } from './cart.model';
@@ -124,10 +128,43 @@ export function priceBag(
     lines: priced,
     hints: deals.hints.map((hint) => ({ ...hint, lineIndex: toBagLine(hint.lineIndex) })),
     bundles: deals.bundles.map((bundle) => ({ ...bundle, lineIndex: toBagLine(bundle.lineIndex) })),
-    sets: deals.sets.map((set) => ({ ...set, lineIndex: toBagLine(set.lineIndex) })),
+    sets: deals.sets.map((set) => ({
+      ...set,
+      lineIndex: toBagLine(set.lineIndex),
+      missing: setNudgeLoses(set, facts, deals.lines, offers) ? [] : set.missing,
+    })),
     wouldDiscount: (offerId, product, quantity) =>
       freeItemWins(facts, offers, ctx, offerId, extraLineFacts(product, quantity, offers, ctx)),
   };
+}
+
+/**
+ * True when the next Bundle & Save set can't beat its pieces' own offers whatever piece is added,
+ * so the bag drops its nudge (`bundleSetNudgeLoses`). The pieces already in the bag are those of
+ * lines that fit the offer and are in no deal yet, each saving what its per-item offer saves.
+ */
+function setNudgeLoses(
+  set: BagBundleSet,
+  facts: readonly BagLineFacts[],
+  lines: readonly BagLineDeals[],
+  offers: readonly Offer[],
+): boolean {
+  if (set.missing.length === 0) return false;
+  const offer = offers.find((item) => item.id === set.offerId);
+  if (!offer || offer.reward.kind !== 'bundleSet') return false;
+  const perSet = bundleSetSlots(offer.reward).reduce((sum, slot) => sum + slot.quantity, 0);
+  const presentNeeded = perSet - set.missing.reduce((sum, entry) => sum + entry.quantity, 0);
+  const savings: number[] = [];
+  facts.forEach((line, n) => {
+    // The same pieces the engine counts (`qualifies`): sale items left out when the offer says so.
+    if (line.onSale && offer.saleItems === 'exclude') return;
+    if (bundleSetMatch(offer, line.product) === 'none') return;
+    if (!bundleSetVariantMatch(offer, line.product, line.variant)) return;
+    const free = line.quantity - (lines[n]?.dealUnits ?? 0);
+    const saving = Math.max(0, line.basePrice - line.offerPrice);
+    for (let i = 0; i < free; i++) savings.push(saving);
+  });
+  return bundleSetNudgeLoses(offer.reward.setReward, savings, presentNeeded);
 }
 
 /** A product not in the bag yet as one more bag line (no size chosen, no gifts). */

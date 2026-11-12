@@ -398,8 +398,10 @@ export class ProductComponent {
         if (offer && !offerTitleVisible(offer, country)) continue;
         const title = offer?.title.trim() || badge.text;
         if (lines.some((line) => line.text === title) || (hideEgp && /\bEGP\b/.test(title))) continue;
-        // A Bundle price line opens the offer's Shop page, where the shopper picks the other pieces.
-        const shopOfferId = offer && kind === 'bundlePrice' && canShopOffer(offer) ? offer.id : null;
+        // A Bundle price or Bundle & Save line opens the offer's Shop page, where the shopper
+        // picks the other pieces.
+        const bundle = kind === 'bundlePrice' || kind === 'bundleSet';
+        const shopOfferId = offer && bundle && canShopOffer(offer) ? offer.id : null;
         lines.push({ text: title, shopOfferId });
         continue;
       }

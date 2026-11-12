@@ -20,6 +20,9 @@ import { BagOfferNotesService } from '@core/services/cart/bag-offer-notes.servic
 import { bagOfferLook, type BagNotesProduct } from '@core/services/cart/bag-offer-state';
 import {
   bundleNudgeText,
+  bundleSetNudgeButton,
+  bundleSetNudgeText,
+  bundleSetStripTitle,
   bundleStripTitle,
   canShopOffer,
   dealHintAction,
@@ -126,6 +129,23 @@ interface CartBundleBox {
   readonly nudge: string | null;
   readonly missing: number;
   /** Query params of Choose Another: the offer's Shop page, or plain Shop when it can't be filtered. */
+  readonly shopQuery: { readonly offer: string } | null;
+}
+
+/**
+ * A Bundle & Save offer under the last item that counts toward it: the grey strip ("Racket
+ * Bundle", "You save EGP 300") once a set is complete, and the dashed nudge while the next set is
+ * missing a group ("Add a Bag to complete your bundle and save EGP 300", **Choose Bag**).
+ */
+interface CartSetBox {
+  readonly offerId: string;
+  /** Strip title; null while no set is complete. */
+  readonly strip: string | null;
+  readonly saving: string;
+  /** Null when no group is missing (or completing the set would lose to the items' own offers). */
+  readonly nudge: string | null;
+  readonly button: string;
+  /** Query params of the button: the offer's Shop page, or plain Shop when it can't be filtered. */
   readonly shopQuery: { readonly offer: string } | null;
 }
 
@@ -398,8 +418,10 @@ export class CartDrawerComponent {
       const total = this.#lineDisplay(priced, line.quantity);
       const listUnit = Math.max(info.price, info.compareAtPrice ?? 0);
       const wasAmount = lineDisplayAmount(toDisplayAmount(listUnit, entry), line.quantity);
+      // A piece a Bundle & Save set makes free reads "Free", not "EGP 0".
+      const free = total === 0 && priced.deals.deals.some((deal) => deal.set && deal.units > 0);
       return {
-        total: formatMoney(total, entry.code, decimals),
+        total: free ? 'Free' : formatMoney(total, entry.code, decimals),
         was: wasAmount > total ? formatMoney(wasAmount, entry.code, decimals) : '',
         deal: dealTag(priced.deals.deals, line.quantity),
         giftUnits: priced.deals.giftUnits,
@@ -496,6 +518,36 @@ export class CartDrawerComponent {
     }
     return map;
   });
+
+  /** Bundle & Save strips and nudges, by the bag line they sit under. */
+  readonly #setsByLine = computed(() => {
+    const entry = this.#currency.entry();
+    const decimals = displayDecimals(entry.code);
+    const money = (egp: number): string => formatMoney(toDisplayAmount(egp, entry), entry.code, decimals);
+    const offers = new Map(this.#offers.all().map((offer) => [offer.id, offer]));
+    const map = new Map<number, CartSetBox[]>();
+    for (const set of this.#pricedBag().sets) {
+      const offer = offers.get(set.offerId);
+      const strip = bundleSetStripTitle(set);
+      const nudge =
+        offer?.reward.kind === 'bundleSet' ? bundleSetNudgeText(set, offer.reward.setReward, money) : null;
+      if (!strip && !nudge) continue;
+      const box: CartSetBox = {
+        offerId: set.offerId,
+        strip,
+        saving: strip && set.saving > 0 ? `You save ${money(set.saving)}` : '',
+        nudge,
+        button: bundleSetNudgeButton(set.missing),
+        shopQuery: offer && canShopOffer(offer) ? offerShopQuery(offer.id) : null,
+      };
+      map.set(set.lineIndex, [...(map.get(set.lineIndex) ?? []), box]);
+    }
+    return map;
+  });
+
+  setBoxes(index: number): readonly CartSetBox[] {
+    return this.#setsByLine().get(index) ?? [];
+  }
 
   bundleBoxes(index: number): readonly CartBundleBox[] {
     return this.#bundlesByLine().get(index) ?? [];
