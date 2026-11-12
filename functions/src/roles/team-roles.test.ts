@@ -5,6 +5,7 @@ import { canManageStore, roleFromClaim } from '../../lib/auth/require-role.js';
 import {
   canDeleteOrderStatus,
   orderDeleteBlockedReason,
+  paymobFailedDeleteBlockedReason,
   readDocIdRequest,
 } from '../../lib/orders/order-delete.js';
 import { endsSession, isLastAdminRemoval, isTeamRole } from '../../lib/roles/team-roles.js';
@@ -69,6 +70,36 @@ describe('orderDeleteBlockedReason', () => {
       assert.equal(canDeleteOrderStatus(status), false);
       assert.match(orderDeleteBlockedReason(status) ?? '', /Cancel the order first/);
     }
+  });
+});
+
+describe('paymobFailedDeleteBlockedReason', () => {
+  const placed = Date.UTC(2026, 10, 12, 10, 0);
+  const hour = 3_600_000;
+  it('waits out the card payment window on a failed card order', () => {
+    const order = { status: 'failed', paymentMethod: 'paymob', createdAtMs: placed };
+    assert.match(paymobFailedDeleteBlockedReason(order, placed + hour) ?? '', /retry/);
+    assert.equal(paymobFailedDeleteBlockedReason(order, placed + 2 * hour), null);
+  });
+  it('refuses when the placed time is missing', () => {
+    const order = { status: 'failed', paymentMethod: 'paymob', createdAtMs: null };
+    assert.notEqual(paymobFailedDeleteBlockedReason(order, placed), null);
+  });
+  it('never holds cancelled or non-card orders', () => {
+    assert.equal(
+      paymobFailedDeleteBlockedReason(
+        { status: 'cancelled', paymentMethod: 'paymob', createdAtMs: placed },
+        placed,
+      ),
+      null,
+    );
+    assert.equal(
+      paymobFailedDeleteBlockedReason(
+        { status: 'failed', paymentMethod: 'instapay', createdAtMs: placed },
+        placed,
+      ),
+      null,
+    );
   });
 });
 
