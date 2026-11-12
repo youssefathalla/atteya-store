@@ -1,4 +1,4 @@
-import type { Product } from '@core/services/products';
+import type { CategoryPageSettings, Product } from '@core/services/products';
 import type { TransferOffer } from '@core/services/offers/offer-transfer';
 
 /** JSON-safe subset sent from server to browser (no Firestore Timestamps). */
@@ -38,6 +38,8 @@ export type ProductPageResult =
       readonly product: ProductView;
       /** Active public offers that can match this product; null = the offers read failed. */
       readonly offers: readonly TransferOffer[] | null;
+      /** Size chart and details title saved on the product's categories (ATS-250); read on the server. */
+      readonly categorySettings: CategoryPageSettings;
       /** Clock used for the first render (server render time, or client time on client navigation). */
       readonly renderedAtMs: number;
     }

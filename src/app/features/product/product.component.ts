@@ -44,6 +44,7 @@ import {
   marketingBadgeLabel,
   PlayerListService,
   type Product,
+  categoryPageFor,
   productDetailsTitle,
   ProductService,
 } from '@core/services/products';
@@ -290,13 +291,21 @@ export class ProductComponent {
     }),
   ]);
 
-  /** Section title for `details`: Materials for clothing, socks and supports, Specifications for gear. */
-  readonly detailsTitle = computed(() => productDetailsTitle(this.product()?.categoryIds ?? []));
+  /** Size chart and details title from the product's categories (ATS-250), as read on the server. */
+  readonly #categoryPage = computed(() => {
+    const p = this.page();
+    return p.status === 'found' ? categoryPageFor(p.product, p.categorySettings) : null;
+  });
 
-  /** Size & Fit charts (adult clothing with sizes); empty hides the section. */
+  /** Section title for `details`: Materials or Specifications, set per category. */
+  readonly detailsTitle = computed(() =>
+    productDetailsTitle(this.#categoryPage()?.detailsTitle ?? 'specifications'),
+  );
+
+  /** Size & Fit charts (clothing size chart categories, products with sizes); empty hides the section. */
   readonly sizeGuides = computed(() => {
     const p = this.product();
-    return p ? sizeGuidesFor(p) : [];
+    return p ? sizeGuidesFor(p, this.#categoryPage()?.sizeChart ?? 'none') : [];
   });
 
   /** Description with real words in it (some imported products only have `<p></p>`). */

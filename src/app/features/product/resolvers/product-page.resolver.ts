@@ -1,7 +1,7 @@
 import { isPlatformServer } from '@angular/common';
 import { inject, Injector, makeStateKey, PLATFORM_ID, RESPONSE_INIT, TransferState } from '@angular/core';
 import type { ResolveFn } from '@angular/router';
-import { ProductCacheService, ProductService } from '@core/services/products';
+import { CategoryPageSettingsReader, ProductCacheService, ProductService } from '@core/services/products';
 import { offerMatch, type Offer } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { type TransferOffer, toTransferOffer } from '@core/services/offers/offer-transfer';
@@ -14,6 +14,7 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   const products = inject(ProductService);
   const cache = inject(ProductCacheService);
   const offersReader = inject(PublicOffersReader);
+  const categoryReader = inject(CategoryPageSettingsReader);
   const transfer = inject(TransferState);
   const isServer = isPlatformServer(inject(PLATFORM_ID));
   const injector = inject(Injector);
@@ -39,11 +40,13 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
         result = { status: 'missing' };
       } else {
         const view = toProductView(product);
+        const categorySettings = await categoryReader.read([view.categoryId, ...view.categoryIds]);
         const renderedAtMs = Date.now();
         result = {
           status: 'found',
           product: view,
           offers: relevantOffers(view, await offersPromise, renderedAtMs),
+          categorySettings,
           renderedAtMs,
         };
       }
