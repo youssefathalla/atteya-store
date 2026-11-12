@@ -5,6 +5,7 @@ import { liveOffers } from '../../lib/offers/engine/index.js';
 import {
   confirmedClaimEmail,
   isClaimableGuestOrder,
+  isGuestOrder,
   MAX_GUEST_ORDERS_PER_CLAIM,
 } from '../../lib/orders/guest-order-claim.js';
 import { offerPricingSignedIn } from '../../lib/orders/offer-signed-in.js';
@@ -49,6 +50,15 @@ describe('claiming guest orders by email', () => {
     const email = 'shopper@example.com';
     assert.equal(isClaimableGuestOrder({ customerId: null, customerEmail: email }, email), false);
     assert.equal(isClaimableGuestOrder({ customerEmail: email, guest: {} }, email), false);
+  });
+
+  it('claimOrder accepts only guest checkout orders', () => {
+    const guest = { termsVersion: '2026-11', termsAcceptedAt: 'x' };
+    assert.equal(isGuestOrder({ customerId: null, customerEmail: 'a@b.co', viewKey: 'k', guest }), true);
+    assert.equal(isGuestOrder({ customerId: 'uid', customerEmail: 'a@b.co', viewKey: 'k' }), false);
+    assert.equal(isGuestOrder({ customerId: null, guest: null }), false);
+    assert.equal(isGuestOrder({ customerId: null, guest: 'yes' }), false);
+    assert.equal(isGuestOrder(undefined), false);
   });
 
   it('links at most 50 orders per call', () => {
