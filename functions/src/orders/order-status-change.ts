@@ -83,7 +83,10 @@ export async function changeOrderStatus(
       return { orderId, status: target, changed: false, stock: 'none' as const, notReturned: 0 };
     }
     if (opts.onlyFrom && !opts.onlyFrom.includes(current)) {
-      throw new HttpsError('failed-precondition', opts.onlyFromMessage ?? moveRefusal(order, target));
+      throw new HttpsError(
+        'failed-precondition',
+        opts.onlyFromMessage ?? onlyFromRefusal(order, target, opts.onlyFrom),
+      );
     }
     if (!canMoveStatus(order as { status: unknown; paymentMethod: unknown }, target)) {
       throw new HttpsError('failed-precondition', moveRefusal(order, target));
@@ -237,6 +240,22 @@ function assertConfirmable(order: DocumentData): void {
       'Set the delivery fee you agreed with the customer before confirming this order.',
     );
   }
+}
+
+/**
+ * `onlyFrom` refused: when the move itself is allowed (say Shipped → Confirmed through the menu),
+ * name the statuses this call accepts instead of claiming the move is never possible.
+ */
+function onlyFromRefusal(
+  order: DocumentData,
+  target: StaffOrderStatus,
+  onlyFrom: readonly OrderStatus[],
+): string {
+  if (!canMoveStatus(order as { status: unknown; paymentMethod: unknown }, target)) {
+    return moveRefusal(order, target);
+  }
+  const names = onlyFrom.map((status) => orderStatusLabel(status)).join(' or ');
+  return `Only orders that are ${names} can be marked as ${orderStatusLabel(target)} here. Use Change Status instead.`;
 }
 
 function moveRefusal(order: DocumentData, target: StaffOrderStatus): string {
