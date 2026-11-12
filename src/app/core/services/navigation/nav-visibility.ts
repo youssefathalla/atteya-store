@@ -1,20 +1,22 @@
 import type { MegaMenuLink, NavCategory } from './nav.model';
-import { navTargetPath, type NavTarget, type NavTargetCatalog } from './nav-target';
+import { resolveNavTarget, type NavTarget, type NavTargetCatalog } from './nav-target';
 
 /**
  * The store address for a saved target, or null to leave the link out (its category or
- * brand is hidden or gone). A typed address (`url`) is kept as typed. Without a catalog
+ * brand is hidden or gone, or its offer isn't running). A typed address (`url`) is kept as typed. Without a catalog
  * (on the server, or before the published categories and brands load) the saved `path`
  * is used, so the server HTML and the first browser render match.
  */
-function storefrontPath(
+export function storefrontTargetPath(
   target: NavTarget | undefined,
   savedPath: string | undefined,
   catalog: NavTargetCatalog | null,
 ): string | null | undefined {
   if (!target || !catalog) return savedPath;
   if (target.kind === 'url') return target.url;
-  return navTargetPath(target, catalog);
+  const { path, problem } = resolveNavTarget(target, catalog);
+  // An offer link whose offer isn't running is left out (only when the running offers are known).
+  return problem === 'ended' ? null : path;
 }
 
 /**
@@ -29,11 +31,11 @@ export function resolveStorefrontTargets(
 ): readonly NavCategory[] {
   if (!catalog) return categories;
   return categories.map((category) => {
-    const path = storefrontPath(category.target, category.path, catalog);
+    const path = storefrontTargetPath(category.target, category.path, catalog);
     const megaMenu = category.megaMenu?.map((column) => ({
       ...column,
       links: column.links.flatMap((link): MegaMenuLink[] => {
-        const linkPath = storefrontPath(link.target, link.path, catalog);
+        const linkPath = storefrontTargetPath(link.target, link.path, catalog);
         return linkPath ? [{ ...link, path: linkPath }] : [];
       }),
     }));

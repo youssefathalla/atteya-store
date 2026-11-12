@@ -13,6 +13,14 @@ import {
 import { HOME_SETTINGS_KEY, HomeSettingsSeed, toHomeSettingsSeed } from '../resolvers/home-settings.state';
 import { HomeHero, HomeNavList, HomeSettings, HomeShopCategories } from '../models/home.model';
 import { DEFAULT_HOME_HERO, DEFAULT_HOME_NAV_LIST, DEFAULT_HOME_SHOP_CATEGORIES } from '../data/home.data';
+import {
+  heroWithoutDeleted,
+  navListWithoutDeleted,
+  shopCardsWithoutDeleted,
+} from '../utils/home-defaults.utils';
+import { CatalogService } from '@core/services/products/catalog.service';
+import { NavService } from '@core/services/navigation/nav.service';
+import { heroWithTargets, navListWithTargets, shopCardsWithTargets } from '../utils/home-link-targets.utils';
 
 const HERO_STORAGE_KEY = 'atteya_store_home_hero';
 const SHOP_CATEGORIES_STORAGE_KEY = 'atteya_store_home_shop_categories';
@@ -101,6 +109,8 @@ export class HomeService {
 
   readonly #transfer = inject(TransferState);
   readonly #destroyRef = inject(DestroyRef);
+  readonly #catalog = inject(CatalogService);
+  readonly #nav = inject(NavService);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /** undefined while the first browser snapshot is still outstanding. */
@@ -170,14 +180,22 @@ export class HomeService {
   /**
    * Live hero from Firestore; falls back to the saved copy, then DEFAULT_HOME_HERO.
    */
-  readonly hero = computed<HomeHero>(() => this.#homeDoc()?.hero ?? this.#storedHero ?? DEFAULT_HOME_HERO);
+  readonly hero = computed<HomeHero>(
+    () =>
+      this.#homeDoc()?.hero ??
+      this.#storedHero ??
+      heroWithoutDeleted(DEFAULT_HOME_HERO, this.#catalog.deletedBuiltInIds()),
+  );
 
   /**
    * Live Section 2 (Shop Categories) from Firestore; falls back to the saved
    * copy, then DEFAULT_HOME_SHOP_CATEGORIES.
    */
   readonly shopCategories = computed<HomeShopCategories>(
-    () => this.#homeDoc()?.shopCategories ?? this.#storedShopCategories ?? DEFAULT_HOME_SHOP_CATEGORIES,
+    () =>
+      this.#homeDoc()?.shopCategories ??
+      this.#storedShopCategories ??
+      shopCardsWithoutDeleted(DEFAULT_HOME_SHOP_CATEGORIES, this.#catalog.deletedBuiltInIds()),
   );
 
   /**
@@ -185,7 +203,24 @@ export class HomeService {
    * without navList falls through to the saved list, then DEFAULT_HOME_NAV_LIST.
    */
   readonly navList = computed<HomeNavList>(
-    () => this.#homeDoc()?.navList ?? this.#storedNavList ?? DEFAULT_HOME_NAV_LIST,
+    () =>
+      this.#homeDoc()?.navList ??
+      this.#storedNavList ??
+      navListWithoutDeleted(DEFAULT_HOME_NAV_LIST, this.#catalog.deletedBuiltInIds()),
+  );
+
+  /**
+   * The three sections as shoppers see them (ATS-267): each button and link built from what it
+   * points at, like the menus, so a renamed category's button follows it and a hidden or deleted
+   * one is left out (a shop card opens Shop All instead). The admin edits the saved `hero`,
+   * `shopCategories` and `navList` above.
+   */
+  readonly storefrontHero = computed<HomeHero>(() => heroWithTargets(this.hero(), this.#nav.targetCatalog()));
+  readonly storefrontShopCategories = computed<HomeShopCategories>(() =>
+    shopCardsWithTargets(this.shopCategories(), this.#nav.targetCatalog()),
+  );
+  readonly storefrontNavList = computed<HomeNavList>(() =>
+    navListWithTargets(this.navList(), this.#nav.targetCatalog()),
   );
 
   /**

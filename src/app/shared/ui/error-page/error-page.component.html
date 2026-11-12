@@ -1,0 +1,56 @@
+<section
+  class="elements-center-col gap-6 py-16 text-center"
+  [attr.role]="kind() === 'failed' ? 'alert' : null"
+>
+  <div class="elements-center-col gap-3 max-w-xl">
+    @if (kicker(); as text) {
+      <p class="font-label-lg tracking-widest text-on-surface-variant">{{ text }}</p>
+    }
+    @if (level() === 1) {
+      <h1 class="font-headline-lg font-bold! uppercase">{{ heading() }}</h1>
+    } @else {
+      <h2 class="font-headline-lg font-bold! uppercase">{{ heading() }}</h2>
+    }
+    <p class="font-body-lg">
+      @if (kind() === 'not-found') {
+        This page moved or no longer exists. Let's get you back to the gear.
+      } @else {
+        We couldn't load this page. Check your internet and try again. Your bag is safe.
+      }
+    </p>
+  </div>
+
+  @if (kind() === 'not-found') {
+    <form
+      class="error-page__search"
+      role="search"
+      action="/search"
+      method="get"
+      (submit)="search($event, searchField)"
+    >
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+        <mat-label>Search products</mat-label>
+        <mat-icon matPrefix name="search" />
+        <input #searchField matInput type="search" name="q" autocomplete="off" enterkeyhint="search" />
+      </mat-form-field>
+    </form>
+  }
+
+  <div class="error-page__actions">
+    @if (kind() === 'not-found') {
+      <a matButton="filled" class="btn-block-phone" routerLink="/shop">Continue Shopping</a>
+    } @else {
+      <button matButton="filled" type="button" class="btn-block-phone" (click)="tryAgain()">Try Again</button>
+    }
+    <a matButton="outlined" class="btn-block-phone" routerLink="/">Back to the Home Page</a>
+  </div>
+
+  @if (whatsappUrl) {
+    <p class="font-body-md">
+      {{ kind() === 'not-found' ? 'Need help finding something?' : 'Still not working?' }}
+      <a class="underline font-bold!" [href]="whatsappUrl" target="_blank" rel="noopener"
+        >Message Us on WhatsApp</a
+      >
+    </p>
+  }
+</section>

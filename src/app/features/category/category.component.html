@@ -1,96 +1,96 @@
-<div class="space-y-8 select-none">
-  <!-- Breadcrumb Navigation -->
-  <nav aria-label="Breadcrumb" class="flex items-center gap-2 font-label-sm">
-    <a routerLink="/" class="hover:underline transition-colors">Home</a>
-    <span>/</span>
-    @if (isBrand()) {
-      <a routerLink="/brands" class="hover:underline transition-colors uppercase">Brands</a>
+@if (catalogPage() === 'missing') {
+  <app-error-page kind="not-found" />
+} @else {
+  <div class="space-y-8 select-none">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="Breadcrumb" class="flex items-center gap-2 font-label-sm">
+      <a routerLink="/" class="hover:underline transition-colors">Home</a>
       <span>/</span>
-      <span class="font-bold! uppercase">
-        {{ displayTitle() }}
-      </span>
-    } @else {
-      <a [routerLink]="'/category/' + slug()" class="hover:underline transition-colors uppercase">
-        {{ category()?.label || slug() }}
-      </a>
-      @if (subSlug()) {
+      @if (isBrand()) {
+        <a routerLink="/brands" class="hover:underline transition-colors uppercase">Brands</a>
         <span>/</span>
         <span class="font-bold! uppercase">
           {{ displayTitle() }}
         </span>
+      } @else {
+        <a [routerLink]="'/category/' + slug()" class="hover:underline transition-colors uppercase">
+          {{ category()?.label || slug() }}
+        </a>
+        @if (subSlug()) {
+          <span>/</span>
+          <span class="font-bold! uppercase">
+            {{ displayTitle() }}
+          </span>
+        }
       }
-    }
-  </nav>
+    </nav>
 
-  <!-- Category Hero Header -->
-  <header class="border-b border-outline-variant pb-6">
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-      <div>
-        <h1 class="font-display-md font-bold! capitalize">
-          {{ displayTitle() }}
-        </h1>
-        <p class="font-body-md mt-2 max-w-2xl opacity-80">
-          @if (isBrand()) {
-            Discover official tournament equipment and performance gear from
-            {{ displayTitle() }} at Atteya Store.
-          } @else {
-            Discover our curated collection of tournament-grade
-            {{ displayTitle().toLowerCase() }} designed for elite padel and tennis players.
-          }
-        </p>
-      </div>
+    <!-- Category Hero Header -->
+    <header class="border-b border-outline-variant pb-6">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 class="font-display-md font-bold! capitalize">
+            {{ displayTitle() }}
+          </h1>
+          <p class="font-body-md mt-2 max-w-2xl opacity-80">
+            @if (isBrand()) {
+              Discover official tournament equipment and performance gear from
+              {{ displayTitle() }} at Atteya Store.
+            } @else {
+              Discover our curated collection of tournament-grade
+              {{ displayTitle().toLowerCase() }} designed for elite padel and tennis players.
+            }
+          </p>
+        </div>
 
-      @if (productsResource.hasValue() && products().length > 0) {
-        <p class="font-label-sm opacity-80">
-          {{ products().length }}
-          {{ products().length === 1 ? 'product' : 'products' }}
-        </p>
-      }
-    </div>
-
-    <!-- Subcategory Quick Pills (from Mega Menu if available) -->
-    @if (category()?.megaMenu; as columns) {
-      <div class="flex items-center gap-2 mt-6 overflow-x-auto pb-2 scrollbar-none">
-        @for (col of columns; track col.title || $index) {
-          @for (link of col.links; track link.path) {
-            <a
-              [routerLink]="link.path | linkTarget"
-              class="px-3.5 py-1.5 border-shape border border-outline-variant font-label-sm hover:bg-surface-container transition-colors shrink-0"
-            >
-              {{ link.label }}
-            </a>
-          }
+        @if (productsResource.hasValue() && products().length > 0) {
+          <p class="font-label-sm opacity-80">
+            {{ products().length }}
+            {{ products().length === 1 ? 'product' : 'products' }}
+          </p>
         }
       </div>
-    }
-  </header>
 
-  @if (productsResource.error()) {
-    <section class="py-12 text-center surface-card p-8" role="alert">
-      <h2 class="font-title-md font-bold! mb-1">We couldn't load products</h2>
-      <p class="font-body-sm opacity-80 max-w-md mx-auto mb-6">Please try again in a moment.</p>
-      <button matButton="outlined" type="button" (click)="productsResource.reload()">
-        <span>Try Again</span>
-      </button>
-    </section>
-  } @else if (showEmpty()) {
-    <section class="py-12 text-center surface-card p-8">
-      <div class="size-16 border-shape bg-surface-container elements-center mx-auto mb-4">
-        <mat-icon [name]="isBrand() ? 'verified' : 'category'" size="3xl" />
+      <!-- Subcategory Quick Pills (from Mega Menu if available) -->
+      @if (category()?.megaMenu; as columns) {
+        <div class="flex items-center gap-2 mt-6 overflow-x-auto pb-2 scrollbar-none">
+          @for (col of columns; track col.title || $index) {
+            @for (link of col.links; track link.path) {
+              @if (!isOutside(link.path)) {
+                <a
+                  [routerLink]="link.path | linkTarget"
+                  class="px-3.5 py-1.5 border-shape border border-outline-variant font-label-sm hover:bg-surface-container transition-colors shrink-0"
+                >
+                  {{ link.label }}
+                </a>
+              }
+            }
+          }
+        </div>
+      }
+    </header>
+
+    @if (productsResource.error()) {
+      <app-error-page kind="failed" [level]="2" />
+    } @else if (showEmpty()) {
+      <section class="py-12 text-center surface-card p-8">
+        <div class="size-16 border-shape bg-surface-container elements-center mx-auto mb-4">
+          <mat-icon [name]="isBrand() ? 'verified' : 'category'" size="3xl" />
+        </div>
+        <h2 class="font-title-md font-bold! mb-1">{{ displayTitle() }}</h2>
+        <p class="font-body-sm opacity-80 max-w-md mx-auto mb-6">
+          {{ emptyMessage() }}
+        </p>
+        <a matButton="outlined" routerLink="/">
+          <span>Return to Home</span>
+        </a>
+      </section>
+    } @else if (isLoading()) {
+      <div class="py-20 elements-center w-full" role="status" aria-label="Loading products">
+        <app-loader [sectionSpace]="false" minHeight="20" [showMessage]="false" />
       </div>
-      <h2 class="font-title-md font-bold! mb-1">{{ displayTitle() }}</h2>
-      <p class="font-body-sm opacity-80 max-w-md mx-auto mb-6">
-        {{ emptyMessage() }}
-      </p>
-      <a matButton="outlined" routerLink="/">
-        <span>Return to Home</span>
-      </a>
-    </section>
-  } @else if (isLoading()) {
-    <div class="py-20 elements-center w-full" role="status" aria-label="Loading products">
-      <app-loader [sectionSpace]="false" minHeight="20" [showMessage]="false" />
-    </div>
-  } @else {
-    <app-catalog-product-grid [products]="products()" [prices]="cardPrices()" [loading]="false" />
-  }
-</div>
+    } @else {
+      <app-catalog-product-grid [products]="products()" [prices]="cardPrices()" [loading]="false" />
+    }
+  </div>
+}

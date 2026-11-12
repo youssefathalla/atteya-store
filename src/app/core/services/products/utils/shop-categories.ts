@@ -1,3 +1,5 @@
+import type { ShareImage } from './share-image';
+
 /**
  * Shop tabs and Shop's Category filter, built from the category list staff edit in
  * Categories & Brands (ATS-249). Pure: no Angular, no Firestore (tested by `npm run test:cart`).
@@ -18,6 +20,8 @@ export interface ShopCategorySource {
   readonly sizeChart?: 'clothing' | 'none' | null;
   /** Product page Details Title (ATS-250): null and missing as for `sizeChart`. */
   readonly detailsTitle?: 'materials' | 'specifications' | null;
+  /** Categories & Brands → Photo: the picture shown when someone shares the category's link (ATS-263). */
+  readonly image?: ShareImage;
 }
 
 export interface ShopTab {
@@ -118,11 +122,12 @@ export function shopCategoryOptionsFrom(
 
 /**
  * The category id a `/category/<slug>` Shop page is for: a top-level category matched by
- * slug or id (any letter case), or a built-in one. Null for anything else.
+ * slug or id (any letter case), or a built-in one staff haven't deleted. Null for anything else.
  */
 export function shopCategoryIdForSlug(
   slug: string | null | undefined,
   categories: readonly ShopCategorySource[],
+  deletedBuiltIns: ReadonlySet<string> = new Set(),
 ): string | null {
   const target = (slug ?? '').trim().toLowerCase();
   if (!target) return null;
@@ -132,7 +137,7 @@ export function shopCategoryIdForSlug(
       (category.slug.toLowerCase() === target || category.id.toLowerCase() === target),
   );
   if (match) return match.id;
-  return BUILT_IN_SHOP_CATEGORY_IDS.includes(target) ? target : null;
+  return BUILT_IN_SHOP_CATEGORY_IDS.includes(target) && !deletedBuiltIns.has(target) ? target : null;
 }
 
 /** The Shop tab for a category id, built even when the tab itself is left out (empty or hidden). */

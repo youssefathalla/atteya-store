@@ -1,32 +1,157 @@
 @layer components {
-  /*! admin Categories & Brands (ATS-245) */
+  /*! admin Categories & Brands (ATS-245, compact rows ATS-264) */
 
-  /* One category or brand row: drag handle, name and details, then the actions. */
-  .catalog-row {
-    @apply w-full elements-between flex-wrap gap-2 p-3 bg-surface-container-lowest border border-outline-variant border-shape;
+  /* The bordered list box; rows are split by a light line. */
+  .catalog-list {
+    @apply w-full list-none m-0 p-0 bg-surface-container-lowest border border-outline-variant border-shape;
   }
 
-  /* Name, address and live count; takes the free width and wraps under the handle on phone. */
+  .catalog-list > li + li {
+    @apply border-t border-outline-variant;
+  }
+
+  /* One compact row (56px on phone, 52px from @3xl): handle, arrow, name, count, switch, ⋮. */
+  .catalog-row {
+    @apply w-full elements-start gap-1 min-h-14 pl-1 pr-1 @3xl:min-h-13 @3xl:gap-3 @3xl:pl-2;
+  }
+
+  .catalog-row__handle {
+    @apply elements-center shrink-0 p-1 text-on-surface-variant;
+  }
+
+  /* The open arrow (native button) and the empty space that keeps names lined up without one. */
+  .catalog-row__arrow,
+  .catalog-row__spacer {
+    @apply elements-center shrink-0 size-10 border-shape;
+  }
+
+  .catalog-row__arrow {
+    @apply cursor-pointer bg-transparent border-0 p-0 hover:bg-surface-container focus-visible:outline-2 focus-visible:outline-primary;
+  }
+
+  .catalog-row__chevron {
+    @apply elements-center transition-transform motion-reduce:transition-none;
+  }
+
+  .catalog-row__chevron--open {
+    @apply rotate-90;
+  }
+
+  /* Name with "6 inside"; on phone the live count and "6 inside" go on a second line. */
   .catalog-row__info {
-    @apply elements-start-col gap-0.5 min-w-0 grow basis-48;
+    @apply elements-start-col items-stretch! gap-0.5 min-w-0 grow py-2;
+  }
+
+  .catalog-row__title {
+    @apply elements-start items-baseline! gap-2 min-w-0;
+  }
+
+  .catalog-row__name {
+    @apply font-body-lg font-bold! truncate text-left bg-transparent border-0 p-0;
+  }
+
+  button.catalog-row__name {
+    @apply cursor-pointer hover:underline focus-visible:outline-2 focus-visible:outline-primary;
   }
 
   .catalog-row__meta {
-    @apply font-body-sm text-on-surface-variant;
+    @apply font-body-sm text-on-surface-variant whitespace-nowrap;
   }
 
-  /* Hidden rows read lighter so the shown ones stand out. */
-  .catalog-row--hidden .catalog-row__info {
+  /* Shown but nothing to buy yet (ATS-268): why shoppers can't see it. Wraps on phone. */
+  .catalog-row__tag {
+    @apply self-start font-label-sm text-on-surface-variant bg-surface-container border-shape px-2 py-0.5;
+  }
+
+  .catalog-row__wide {
+    @apply hidden @3xl:inline;
+  }
+
+  .catalog-row__narrow {
+    @apply @3xl:hidden;
+  }
+
+  .catalog-row__count {
+    @apply shrink-0 w-20 text-right;
+  }
+
+  /* The switch and the word next to it; the word stays on phone only from @sm. */
+  .catalog-row__switch {
+    @apply elements-start gap-2 shrink-0 @3xl:w-28;
+  }
+
+  .catalog-row__state {
+    @apply hidden @sm:inline;
+  }
+
+  /* Hidden rows are greyed out so the shown ones stand out. */
+  .catalog-row--hidden .catalog-row__info,
+  .catalog-row--hidden .catalog-row__count,
+  .catalog-row--hidden .catalog-row__state {
     @apply opacity-60;
   }
 
-  /* A top-level category's sub-categories sit indented under it. */
+  /* The categories inside an open one: indented on a light grey band. */
   .catalog-children {
-    @apply w-full elements-start-col items-stretch! gap-2 pl-6 @3xl:pl-10;
+    @apply w-full list-none m-0 p-0 bg-surface-container-low border-t border-outline-variant;
+  }
+
+  .catalog-children > li {
+    @apply pl-8 @3xl:pl-12 border-b border-outline-variant;
+  }
+
+  .catalog-row--inside .catalog-row__name {
+    @apply font-body-md font-bold!;
+  }
+
+  /* "+ Add to Apparel" at the end of an open category. */
+  .catalog-add-inside {
+    @apply elements-start gap-2 min-h-11 pl-10 @3xl:pl-24 pr-4 font-label-lg font-bold! bg-transparent border-0 cursor-pointer hover:underline focus-visible:outline-2 focus-visible:outline-primary;
+  }
+
+  /* Dialog body: a column that can fill a phone screen. */
+  .catalog-dialog {
+    @apply elements-start-col items-stretch! h-full;
+  }
+
+  /* A bordered group inside the dialog (Show in the menu). */
+  .catalog-dialog-box {
+    @apply w-full elements-start-col items-stretch! gap-3 p-4 border border-outline-variant border-shape;
+  }
+
+  /* Words on the left, switch on the right. */
+  .catalog-switch-row {
+    @apply w-full elements-between gap-3;
+  }
+
+  /* The closed "More Options" section (native details). */
+  .catalog-more {
+    @apply w-full border-t border-outline-variant pt-3;
+  }
+
+  .catalog-more > summary {
+    @apply elements-start gap-2 cursor-pointer list-none py-1 focus-visible:outline-2 focus-visible:outline-primary;
+  }
+
+  .catalog-more > summary::-webkit-details-marker {
+    @apply hidden;
+  }
+
+  .catalog-more[open] .catalog-row__chevron {
+    @apply rotate-90;
+  }
+
+  .catalog-more__body {
+    @apply elements-start-col items-stretch! gap-4 pt-4;
   }
 
   /* Dialog buttons: stacked full width on phone, side by side from sm. */
   .catalog-dialog-actions {
     @apply flex flex-col-reverse items-stretch gap-2 px-6 pb-4 sm:flex-row sm:justify-end sm:items-center;
+  }
+
+  /* Delete sits on the left of the buttons from sm, at the bottom on phone. */
+  .catalog-dialog-actions__delete {
+    @apply sm:mr-auto;
   }
 }

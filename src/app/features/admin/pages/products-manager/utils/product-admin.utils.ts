@@ -10,6 +10,7 @@ import type { Brand, Category, Product, ProductTypeId } from '@core/services/pro
 import { normalizeImageKitPath } from '@shared/utils/image';
 import type {
   BrandOptionView,
+  CategoryFilterOptionView,
   CategoryOptionView,
   ProductStockStatus,
   ProductTableRow,
@@ -68,6 +69,33 @@ export function buildBrandOptions(brands: readonly Brand[]): readonly BrandOptio
   return SEED_BRANDS.map((brand) => ({ id: brand.id, label: brand.name }));
 }
 
+/**
+ * The Products Category filter (ATS-265): every main category in its order, each followed by the
+ * ones inside it ("Apparel › Socks"); hidden ones are marked "(hidden)". A sub-category whose
+ * parent is gone is listed on its own at the end.
+ */
+export function buildCategoryFilterOptions(
+  categories: readonly Category[],
+): readonly CategoryFilterOptionView[] {
+  const bySort = (left: Category, right: Category): number =>
+    left.sortOrder - right.sortOrder || left.name.localeCompare(right.name);
+  const ids = new Set(categories.map((item) => item.id));
+  const mark = (category: Category, label: string): string =>
+    category.published ? label : `${label} (hidden)`;
+  const options: CategoryFilterOptionView[] = [];
+  const roots = categories.filter((item) => !item.parentId).sort(bySort);
+  for (const root of roots) {
+    options.push({ id: root.id, label: mark(root, root.name) });
+    for (const child of categories.filter((item) => item.parentId === root.id).sort(bySort)) {
+      options.push({ id: child.id, label: mark(child, `${root.name} › ${child.name}`) });
+    }
+  }
+  for (const orphan of categories.filter((item) => item.parentId && !ids.has(item.parentId)).sort(bySort)) {
+    options.push({ id: orphan.id, label: mark(orphan, orphan.name) });
+  }
+  return options;
+}
+
 export function toProductTableRow(
   product: Product,
   categoryNames?: ReadonlyMap<string, string>,
@@ -78,6 +106,7 @@ export function toProductTableRow(
     id: product.id,
     name: product.name,
     categoryId: product.categoryId,
+    categoryIds: product.categoryIds?.length ? product.categoryIds : [product.categoryId],
     categoryLabel: categoryLabel(product.categoryId, categoryNames),
     type: product.type,
     typeLabel: typeLabel(product.type),
@@ -109,11 +138,14 @@ export function filterProductRows(
   search: string,
   typeId: string,
   brandId: string,
+  categoryId = 'all',
 ): ProductTableRow[] {
   const needle = search.trim().toLowerCase();
   return rows.filter((row) => {
     if (typeId !== 'all' && row.type !== typeId) return false;
     if (brandId !== 'all' && row.brandId !== brandId) return false;
+    // A main category includes the ones inside it: products list their parents in categoryIds.
+    if (categoryId !== 'all' && !row.categoryIds.includes(categoryId)) return false;
     if (!needle) return true;
     return (
       row.name.toLowerCase().includes(needle) ||
@@ -147,4 +179,53 @@ function isSlugPart(part: string): boolean {
     if (!digit && !letter) return false;
   }
   return true;
+}
+
+/** "Apparel › Hoodies" for a sub-category, the name for a main one, without the hidden mark (ATS-266). */
+export function categoryPathLabel(categories: readonly Category[], id: string): string {
+  const category = categories.find((item) => item.id === id);
+  if (!category) return categoryLabel(id);
+  const parent = category.parentId ? categories.find((item) => item.id === category.parentId) : undefined;
+  return parent ? `${parent.name} › ${category.name}` : category.name;
+}
+
+/** "5 products" / "1 product". */
+export function productCountLabel(count: number): string {
+  return `${count} ${count === 1 ? 'product' : 'products'}`;
+}
+
+/**
+ * Move to Category summary (ATS-266): "These 5 products will be in Apparel › Hoodies instead of
+ * Apparel › T-shirts & polos." Several current categories read "instead of their current categories".
+ */
+export function moveSummary(count: number, targetLabel: string, currentLabels: readonly string[]): string {
+  const subject = count === 1 ? 'This product' : `These ${count} products`;
+  const distinct = [...new Set(currentLabels)];
+  if (distinct.length === 1 && distinct[0] === targetLabel) {
+    return `${count === 1 ? 'This product is' : `These ${count} products are`} already in ${targetLabel}.`;
+  }
+  const from =
+    distinct.length === 1 ? distinct[0] : count === 1 ? 'its current category' : 'their current categories';
+  return `${subject} will be in ${targetLabel} instead of ${from}.`;
+}
+
+/** Same cap as `MAX_MOVE_PRODUCTS` in functions/src/products/move-products.ts. */
+export const MAX_MOVE_PRODUCTS = 200;
+
+/** The snackbar after Move to Category: "Moved 5 products to Apparel › Hoodies." */
+export function moveResultMessage(
+  result: { readonly moved: number; readonly unchanged: number; readonly missing: number },
+  targetLabel: string,
+): string {
+  const parts: string[] = [];
+  if (result.moved > 0) parts.push(`Moved ${productCountLabel(result.moved)} to ${targetLabel}.`);
+  if (result.unchanged > 0) {
+    parts.push(
+      `${productCountLabel(result.unchanged).replace(/^./, (c) => c.toUpperCase())} ${result.unchanged === 1 ? 'was' : 'were'} already there.`,
+    );
+  }
+  if (result.missing > 0) {
+    parts.push(`${productCountLabel(result.missing)} no longer existed.`);
+  }
+  return parts.join(' ') || `Nothing to move to ${targetLabel}.`;
 }

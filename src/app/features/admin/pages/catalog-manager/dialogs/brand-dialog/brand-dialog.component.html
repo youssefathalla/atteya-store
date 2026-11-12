@@ -1,6 +1,6 @@
-<h2 mat-dialog-title class="font-title-lg font-bold!">{{ title }}</h2>
-<form (submit)="$event.preventDefault(); save()">
-  <mat-dialog-content class="elements-start-col gap-4">
+<form class="catalog-dialog" (submit)="$event.preventDefault(); save()">
+  <h2 mat-dialog-title class="font-title-lg font-bold!">{{ title }}</h2>
+  <mat-dialog-content class="elements-start-col items-stretch! gap-5">
     <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
       <mat-label>Name</mat-label>
       <input
@@ -11,7 +11,14 @@
         [value]="name()"
         (input)="name.set(textFrom($event)); error.set('')"
       />
-      <mat-hint>{{ name().length }} / {{ maxName }}</mat-hint>
+      <mat-hint>
+        @if (slug()) {
+          Address: /brand/{{ slug() }}
+        } @else {
+          The address comes from the name.
+        }
+      </mat-hint>
+      <mat-hint align="end">{{ name().length }} / {{ maxName }}</mat-hint>
     </mat-form-field>
 
     @if (renamed()) {
@@ -21,22 +28,11 @@
       </p>
     }
 
-    <p class="font-body-sm text-on-surface-variant">
-      @if (slug()) {
-        Address: /brand/{{ slug() }}
-      } @else {
-        The address comes from the name.
-      }
-      @if (isNew) {
-        <span class="block">The address can't be changed after you add it.</span>
-      }
-    </p>
-
     <div class="w-full">
       <app-image-picker
         [folder]="logoFolder()"
         label="Logo"
-        subtitle="Optional. Upload the logo or paste a web link."
+        subtitle="Shown when someone shares this brand's link."
         altPlaceholder="e.g. NOX logo"
         aspectClass="aspect-square"
         [allowRemove]="true"
@@ -55,15 +51,28 @@
       />
     }
 
-    <mat-slide-toggle [checked]="published()" (change)="published.set($event.checked)">
-      {{ published() ? 'Shown on the store' : 'Hidden from the store’s menus and lists' }}
-    </mat-slide-toggle>
+    <div class="catalog-switch-row">
+      <span id="brand-shown-label" class="font-body-md font-bold!">Shown on the store</span>
+      <mat-slide-toggle
+        aria-labelledby="brand-shown-label"
+        [checked]="published()"
+        (change)="published.set($event.checked)"
+      />
+    </div>
 
     @if (error()) {
       <p class="font-body-sm text-error" role="alert">{{ error() }}</p>
     }
   </mat-dialog-content>
   <mat-dialog-actions class="catalog-dialog-actions">
+    @if (!isNew) {
+      <span class="catalog-dialog-actions__delete">
+        <button matButton="text" type="button" class="btn-block-phone" (click)="requestDelete()">
+          <mat-icon name="delete" />
+          <span>Delete</span>
+        </button>
+      </span>
+    }
     <button matButton="text" type="button" [mat-dialog-close]="undefined">Cancel</button>
     <button
       matButton="filled"

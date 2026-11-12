@@ -109,3 +109,116 @@ export function addLinkToMenu(
       : category,
   );
 }
+
+/**
+ * The top menu that opens a category (ATS-264): its target is that category, or its typed or
+ * saved address is the category's `/category/…` address. Null when no menu opens it.
+ */
+export function menuForCategory(
+  categories: readonly NavCategory[],
+  category: { readonly id: string; readonly path: string },
+): NavCategory | null {
+  const addresses = new Set([`/category/${category.path}`, `/category/${category.id}`]);
+  return (
+    categories.find(
+      (menu) =>
+        (menu.target?.kind === 'category' && menu.target.id === category.id) ||
+        (menu.target?.kind === 'url' && addresses.has(menu.target.url)) ||
+        (!menu.target && !!menu.path && addresses.has(menu.path)),
+    ) ?? null
+  );
+}
+
+/** The top menu that opens the Brands page, or null (ATS-264). */
+export function menuForBrands(categories: readonly NavCategory[]): NavCategory | null {
+  return (
+    categories.find(
+      (menu) =>
+        (menu.target?.kind === 'page' && menu.target.page === 'brands') ||
+        (menu.target?.kind === 'url' && menu.target.url === '/brands') ||
+        (!menu.target && menu.path === '/brands'),
+    ) ?? null
+  );
+}
+
+/** A menu name as staff read it in a sentence: "APPAREL" → "Apparel", "BAGS & GEAR" → "Bags & Gear". */
+export function menuDisplayName(label: string): string {
+  const text = label.replace(/\s+/g, ' ').trim();
+  if (text !== text.toUpperCase()) return text;
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+    .join(' ');
+}
+
+/** A category or brand being deleted, as the menu refers to it (ATS-265). */
+export interface DeletedMenuItem {
+  readonly kind: 'category' | 'brand';
+  readonly id: string;
+  /** Its store address: `/category/<path>` or `/brand/<slug>`. */
+  readonly address: string;
+}
+
+/**
+ * The navigation with every reference to a deleted category or brand taken out (ATS-265): links
+ * that open it, a menu name that opens it (the menu then only opens its dropdown, or goes when
+ * nothing is left in it), and a "Sub-categories of" column for it (switched back to its own
+ * links). `changed` is false when the menu never mentioned it, so nothing needs saving.
+ */
+export function removeFromMenu(
+  categories: readonly NavCategory[],
+  item: DeletedMenuItem,
+): { readonly next: readonly NavCategory[]; readonly changed: boolean } {
+  let changed = false;
+  const opensIt = (target: NavTarget | undefined, path: string | undefined): boolean => {
+    if (target?.kind === item.kind && 'id' in target && target.id === item.id) return true;
+    // Shop with Filters for that brand or category (Navigation refuses to save one whose brand is gone).
+    if (target?.kind === 'shop') {
+      const named = item.kind === 'brand' ? target.filters.brand : target.filters.category;
+      return named === item.id;
+    }
+    // A typed address (or an older link with no target) that is exactly its address.
+    if (target && target.kind !== 'url') return false;
+    const address = target?.kind === 'url' ? target.url : path;
+    return !!address && sameAddress(address, item.address);
+  };
+
+  const next = categories.flatMap((category): NavCategory[] => {
+    const megaMenu = category.megaMenu?.map((column) => {
+      let links = column.links;
+      if (links.some((link) => opensIt(link.target, link.path))) {
+        changed = true;
+        links = links.filter((link) => !opensIt(link.target, link.path));
+      }
+      if (
+        item.kind === 'category' &&
+        column.auto?.kind === 'children' &&
+        column.auto.categoryId === item.id
+      ) {
+        changed = true;
+        const manual = { ...column, links };
+        delete manual.auto;
+        return manual;
+      }
+      return links === column.links ? column : { ...column, links };
+    });
+    let result: NavCategory = megaMenu ? { ...category, megaMenu } : category;
+    if (opensIt(category.target, category.path)) {
+      changed = true;
+      result = { ...result };
+      delete result.target;
+      delete result.path;
+      const hasLinks = (result.megaMenu ?? []).some((column) => column.links.length > 0 || !!column.auto);
+      if (!hasLinks) return [];
+    }
+    return [result];
+  });
+  return { next: changed ? next : categories, changed };
+}
+
+function sameAddress(left: string, right: string): boolean {
+  const clean = (value: string): string =>
+    (value.split(/[?#]/, 1)[0] ?? '').replace(/\/+$/, '').toLowerCase();
+  return clean(left) === clean(right);
+}

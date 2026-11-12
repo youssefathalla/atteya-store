@@ -2,6 +2,15 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
+  decideBrandPage,
+  decideCategoryPage,
+} from '../src/app/features/category/utils/catalog-page-state.ts';
+import {
+  pathOpensDeletedBuiltIn,
+  readDeletedBuiltInIds,
+} from '../src/app/core/services/products/utils/deleted-built-ins.ts';
+import { removeFromMenu } from '../src/app/features/admin/pages/catalog-manager/utils/menu-placement.utils.ts';
+import {
   shopCategoryFilterIds,
   shopCategoryIdForSlug,
   shopCategoryOptionsFrom,
@@ -11,9 +20,12 @@ import {
   withChosenCategories,
 } from '../src/app/core/services/products/utils/shop-categories.ts';
 import {
+  effectiveNavTarget,
+  isOutsideAddress,
   navTargetFromPath,
   navTargetName,
   navTargetPath,
+  outsideLinkProblem,
   resolveNavTarget,
 } from '../src/app/core/services/navigation/nav-target.ts';
 import {
@@ -958,15 +970,107 @@ describe('navTargetPath (navigation links built from what they point at, ATS-246
     assert.equal(resolveNavTarget({ kind: 'shop', filters: { brand: 'gone' } }, catalog).problem, 'missing');
   });
 
-  it('turns an exact address back into a target, anything else stays typed', () => {
+  it('turns an address back into a target, null when it cannot be matched (ATS-267)', () => {
     assert.deepEqual(navTargetFromPath('/category/socks', catalog), { kind: 'category', id: 'socks' });
+    assert.deepEqual(navTargetFromPath('/category/apparel/socks/', catalog), {
+      kind: 'category',
+      id: 'socks',
+    });
     assert.deepEqual(navTargetFromPath('/brand/siux-padel', catalog), { kind: 'brand', id: 'siux' });
     assert.deepEqual(navTargetFromPath('/shop?onSale=1', catalog), { kind: 'page', page: 'sale' });
-    assert.deepEqual(navTargetFromPath('/category/socks?onSale=1', catalog), {
-      kind: 'url',
-      url: '/category/socks?onSale=1',
+    assert.deepEqual(navTargetFromPath('/shop', catalog), { kind: 'page', page: 'shop' });
+    assert.deepEqual(navTargetFromPath('/shop?offer=summer', catalog), { kind: 'offer', id: 'summer' });
+    assert.deepEqual(navTargetFromPath('/shop?brand=Nox&gender=women&onSale=1', catalog), {
+      kind: 'shop',
+      filters: { brand: 'nox', gender: 'women', onSale: true },
     });
+    assert.deepEqual(navTargetFromPath('https://atteyastore.com/brand/nox', catalog), {
+      kind: 'brand',
+      id: 'nox',
+    });
+    assert.deepEqual(navTargetFromPath('https://instagram.com/atteya', catalog), {
+      kind: 'url',
+      url: 'https://instagram.com/atteya',
+    });
+    assert.equal(navTargetFromPath('/category/socks?onSale=1', catalog), null);
+    assert.equal(navTargetFromPath('/shop?sort=newest', catalog), null);
+    assert.equal(navTargetFromPath('/category/gone', catalog), null);
+    assert.equal(navTargetFromPath('/shop?brand=Unknown', catalog), null);
     assert.equal(navTargetFromPath('  ', catalog), null);
+  });
+
+  it('reads a top-level Shop category with filters as Shop with filters', () => {
+    const withApparel = {
+      ...catalog,
+      categories: [
+        ...catalog.categories,
+        { id: 'apparel', slug: 'apparel', name: 'Apparel', published: true },
+      ],
+    };
+    assert.deepEqual(navTargetFromPath('/category/apparel?gender=men', withApparel), {
+      kind: 'shop',
+      filters: { category: 'apparel', gender: 'men' },
+    });
+  });
+
+  it('opens an old typed address as its target, keeps Outside Links (ATS-267)', () => {
+    assert.deepEqual(effectiveNavTarget(undefined, '/category/socks', catalog), {
+      kind: 'category',
+      id: 'socks',
+    });
+    assert.deepEqual(effectiveNavTarget({ kind: 'url', url: '/brand/nox' }, '/brand/nox', catalog), {
+      kind: 'brand',
+      id: 'nox',
+    });
+    assert.deepEqual(effectiveNavTarget({ kind: 'url', url: 'https://tiktok.com/@atteya' }, '', catalog), {
+      kind: 'url',
+      url: 'https://tiktok.com/@atteya',
+    });
+    assert.deepEqual(effectiveNavTarget({ kind: 'page', page: 'sale' }, '/old', catalog), {
+      kind: 'page',
+      page: 'sale',
+    });
+    assert.deepEqual(
+      effectiveNavTarget({ kind: 'url', url: 'https://atteyastore.com/brand/nox' }, '', catalog),
+      {
+        kind: 'brand',
+        id: 'nox',
+      },
+    );
+    assert.equal(effectiveNavTarget(undefined, '/somewhere-else', catalog), null);
+    assert.equal(effectiveNavTarget(undefined, '', catalog), null);
+  });
+
+  it('accepts only a full https address on another site as an Outside Link', () => {
+    assert.equal(outsideLinkProblem('https://instagram.com/atteya'), null);
+    assert.equal(outsideLinkProblem('https://wa.me/201000000000'), null);
+    assert.equal(outsideLinkProblem('/shop'), 'Enter the full address, starting with https://.');
+    assert.equal(
+      outsideLinkProblem('http://instagram.com'),
+      'Enter the full address, starting with https://.',
+    );
+    assert.equal(outsideLinkProblem('https://localhost'), 'Enter the full address, starting with https://.');
+    assert.equal(outsideLinkProblem('https://atteyastore.com/shop'), 'Pick it from the list instead.');
+    assert.equal(outsideLinkProblem('https://WWW.atteyastore.com'), 'Pick it from the list instead.');
+    assert.equal(
+      outsideLinkProblem('https://atteya-store--atteya-store-dev.europe-west4.hosted.app/shop'),
+      'Pick it from the list instead.',
+    );
+    assert.equal(
+      outsideLinkProblem(`https://instagram.com/${'a'.repeat(500)}`),
+      'Use a shorter address (500 characters at most).',
+    );
+    assert.equal(isOutsideAddress('https://instagram.com'), true);
+    assert.equal(isOutsideAddress('/shop'), false);
+  });
+
+  it('builds an offer link and flags an offer that is not running', () => {
+    assert.equal(navTargetPath({ kind: 'offer', id: 'summer' }, catalog), '/shop?offer=summer');
+    const withOffers = { ...catalog, offers: [{ id: 'summer', name: 'Summer Sale' }] };
+    assert.equal(resolveNavTarget({ kind: 'offer', id: 'summer' }, withOffers).problem, null);
+    assert.equal(resolveNavTarget({ kind: 'offer', id: 'old' }, withOffers).problem, 'ended');
+    assert.equal(resolveNavTarget({ kind: 'offer', id: 'old' }, catalog).problem, null);
+    assert.equal(navTargetName({ kind: 'offer', id: 'summer' }, withOffers), 'Summer Sale');
   });
 
   it('names a target for an empty label', () => {
@@ -1159,5 +1263,194 @@ describe('navigation columns that fill themselves (ATS-247)', () => {
     assert.equal(timeToMs('1970-01-01T00:00:00.020Z'), 20);
     assert.equal(timeToMs({ toMillis: () => 30 }), 30);
     assert.equal(timeToMs(null), 0);
+  });
+});
+
+describe('deleted built-in categories and brands (ATS-265)', () => {
+  const deleted = new Set(['bottles', 'nox', 'apparel']);
+
+  it('reads the saved list, ignoring anything that is not an id', () => {
+    assert.deepEqual(readDeletedBuiltInIds(['bottles', 2, 'Bad Id']), ['bottles']);
+    assert.deepEqual(readDeletedBuiltInIds(null), []);
+  });
+
+  it('knows which store addresses open a deleted built-in', () => {
+    assert.equal(pathOpensDeletedBuiltIn('/category/accessories/bottles', deleted), true);
+    assert.equal(pathOpensDeletedBuiltIn('/category/apparel?sort=newest', deleted), true);
+    assert.equal(pathOpensDeletedBuiltIn('/brand/nox', deleted), true);
+    assert.equal(pathOpensDeletedBuiltIn('/category/accessories', deleted), false);
+    assert.equal(pathOpensDeletedBuiltIn('/shop?category=apparel', deleted), false);
+    assert.equal(pathOpensDeletedBuiltIn(undefined, deleted), false);
+  });
+
+  it('stops opening a deleted built-in Shop category', () => {
+    assert.equal(shopCategoryIdForSlug('apparel', []), 'apparel');
+    assert.equal(shopCategoryIdForSlug('apparel', [], deleted), null);
+    assert.equal(shopCategoryIdForSlug('rackets', [], deleted), 'rackets');
+  });
+});
+
+describe('removeFromMenu (ATS-265)', () => {
+  const menu = [
+    {
+      id: 'accessories',
+      label: 'ACCESSORIES',
+      path: '/category/accessories',
+      target: { kind: 'category', id: 'accessories' },
+      megaMenu: [
+        {
+          title: 'Gear',
+          links: [
+            {
+              label: 'Bottles',
+              path: '/category/accessories/bottles',
+              target: { kind: 'category', id: 'bottles' },
+            },
+            { label: 'Old bottles link', path: '/category/accessories/bottles' },
+            { label: 'Bags', path: '/category/accessories/bags', target: { kind: 'category', id: 'bags' } },
+          ],
+        },
+        { title: 'Inside', links: [], auto: { kind: 'children', categoryId: 'bottles' } },
+      ],
+    },
+    { id: 'nox', label: 'NOX', path: '/brand/nox', target: { kind: 'brand', id: 'nox' } },
+  ];
+
+  it('takes out links, typed addresses and a sub-categories column for a deleted category', () => {
+    const { next, changed } = removeFromMenu(menu, {
+      kind: 'category',
+      id: 'bottles',
+      address: '/category/accessories/bottles',
+    });
+    assert.equal(changed, true);
+    const columns = next[0].megaMenu;
+    assert.deepEqual(
+      columns[0].links.map((link) => link.label),
+      ['Bags'],
+    );
+    assert.equal(columns[1].auto, undefined);
+    assert.equal(next.length, 2);
+  });
+
+  it('drops a menu that only opened the deleted brand', () => {
+    const { next, changed } = removeFromMenu(menu, { kind: 'brand', id: 'nox', address: '/brand/nox' });
+    assert.equal(changed, true);
+    assert.deepEqual(
+      next.map((item) => item.id),
+      ['accessories'],
+    );
+  });
+
+  it('takes out a Shop with Filters link for the deleted brand', () => {
+    const withFilters = [
+      {
+        id: 'padel',
+        label: 'PADEL',
+        megaMenu: [
+          {
+            title: 'Shop',
+            links: [
+              {
+                label: 'Nox Rackets',
+                path: '/shop?brand=Nox',
+                target: { kind: 'shop', filters: { brand: 'nox' } },
+              },
+              { label: 'Sale', path: '/shop?onSale=1', target: { kind: 'shop', filters: { onSale: true } } },
+            ],
+          },
+        ],
+      },
+    ];
+    const { next } = removeFromMenu(withFilters, { kind: 'brand', id: 'nox', address: '/brand/nox' });
+    assert.deepEqual(
+      next[0].megaMenu[0].links.map((link) => link.label),
+      ['Sale'],
+    );
+  });
+
+  it('changes nothing when the menu never mentioned it', () => {
+    const result = removeFromMenu(menu, { kind: 'brand', id: 'siux', address: '/brand/siux' });
+    assert.equal(result.changed, false);
+    assert.equal(result.next, menu);
+  });
+});
+
+describe('category and brand pages never open empty (ATS-268)', () => {
+  const published = [
+    { id: 'apparel', slug: 'apparel', parentId: null },
+    { id: 'hoodies', slug: 'hoodies', parentId: 'apparel' },
+    { id: 't-shirts', slug: 't-shirts', parentId: 'apparel' },
+    { id: 'padel', slug: 'padel', parentId: null },
+  ];
+  const counts = {
+    categories: { apparel: 12, hoodies: 0, 't-shirts': 12, padel: 0, caps: 3, rackets: 4 },
+    brands: { nox: 5, head: 0, wilson: 2 },
+  };
+  const none = new Set();
+  const category = (slug, subSlug = null, extra = {}) =>
+    decideCategoryPage({ slug, subSlug, published, counts, deletedBuiltInIds: none, ...extra });
+
+  it('opens a shown category with live products', () => {
+    assert.deepEqual(category('apparel', 't-shirts'), { kind: 'ok' });
+    assert.deepEqual(category('apparel'), { kind: 'ok' });
+  });
+
+  it('sends an empty sub-category to its main category', () => {
+    assert.deepEqual(category('apparel', 'hoodies'), { kind: 'redirect', path: '/category/apparel' });
+    assert.deepEqual(category('hoodies'), { kind: 'redirect', path: '/category/apparel' });
+  });
+
+  it('sends a hidden sub-category to its main category and a hidden main one to Shop', () => {
+    assert.deepEqual(category('apparel', 'caps'), { kind: 'redirect', path: '/category/apparel' });
+    assert.deepEqual(category('rackets'), { kind: 'redirect', path: '/shop' });
+  });
+
+  it('sends an empty main category to Shop', () => {
+    assert.deepEqual(category('padel'), { kind: 'redirect', path: '/shop' });
+  });
+
+  it('shows Page Not Found for a deleted or unknown category', () => {
+    assert.deepEqual(category('apparel', 'scarves'), { kind: 'missing' });
+    assert.deepEqual(category('rackets', null, { deletedBuiltInIds: new Set(['rackets']) }), {
+      kind: 'missing',
+    });
+  });
+
+  it('checks the main category in the address and uses the real parent', () => {
+    assert.deepEqual(category('gone', 't-shirts'), { kind: 'missing' });
+    assert.deepEqual(category('padel', 'hoodies'), { kind: 'redirect', path: '/category/apparel' });
+    const emptyMain = { ...counts, categories: { ...counts.categories, apparel: 0 } };
+    assert.deepEqual(category('apparel', 'hoodies', { counts: emptyMain }), {
+      kind: 'redirect',
+      path: '/shop',
+    });
+  });
+
+  it('decides nothing while the built-in category list stands in', () => {
+    assert.deepEqual(category('apparel', 'hoodies', { published: null }), { kind: 'ok' });
+  });
+
+  it('decides nothing without counts or for pages that are not categories', () => {
+    assert.deepEqual(category('apparel', 'hoodies', { counts: null }), { kind: 'ok' });
+    assert.deepEqual(category('sale'), { kind: 'ok' });
+    assert.deepEqual(category('apparel', 'new'), { kind: 'ok' });
+  });
+
+  const brands = [
+    { id: 'nox', slug: 'nox' },
+    { id: 'head', slug: 'head' },
+  ];
+  const brand = (slug, extra = {}) =>
+    decideBrandPage({ slug, published: brands, counts, deletedBuiltInIds: none, ...extra });
+
+  it('opens a brand with live products and sends an empty or hidden one to Shop', () => {
+    assert.deepEqual(brand('nox'), { kind: 'ok' });
+    assert.deepEqual(brand('head'), { kind: 'redirect', path: '/shop' });
+    assert.deepEqual(brand('wilson'), { kind: 'redirect', path: '/shop' });
+  });
+
+  it('shows Page Not Found for a deleted brand and decides nothing when brands could not load', () => {
+    assert.deepEqual(brand('babolat'), { kind: 'missing' });
+    assert.deepEqual(brand('babolat', { published: null }), { kind: 'ok' });
   });
 });

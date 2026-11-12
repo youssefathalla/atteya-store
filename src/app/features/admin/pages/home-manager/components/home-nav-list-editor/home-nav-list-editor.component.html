@@ -72,7 +72,9 @@
             <span class="font-label-sm w-4 shrink-0 opacity-60">{{ idx + 1 }}</span>
             <span class="min-w-0 flex-1">
               <span class="block truncate font-body-sm">{{ item.label || 'Untitled' }}</span>
-              <span class="block truncate font-label-sm opacity-70">{{ item.link || 'No link yet' }}</span>
+              <span class="block truncate font-label-sm opacity-70">{{
+                item.link || 'Pick where this goes'
+              }}</span>
             </span>
           </button>
 
@@ -129,7 +131,7 @@
           <span class="block font-label-md font-bold! uppercase tracking-wider opacity-80">
             Link {{ activeItemIndex() + 1 }}
           </span>
-          <p class="font-body-sm opacity-70">Name the link and choose the page it opens.</p>
+          <p class="font-body-sm opacity-70">Name the link and pick where it goes.</p>
         </div>
 
         <mat-form-field appearance="outline" class="w-full">
@@ -149,21 +151,13 @@
           <mat-hint>Shown on the homepage. Up to 40 characters.</mat-hint>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>Page link</mat-label>
-          <input
-            matInput
-            id="nav-list-link-input"
-            name="nav-list-link-input"
-            autocomplete="off"
-            aria-label="Page link"
-            [ngModel]="activeItem().link"
-            (ngModelChange)="linkChange.emit($event)"
-            placeholder="/category/rackets"
-            required
-          />
-          <mat-hint>A page on this site, starting with /.</mat-hint>
-        </mat-form-field>
+        <app-nav-target-field
+          [fieldId]="'nav-list-' + activeItemIndex()"
+          [target]="activeItem().target"
+          [path]="activeItem().link"
+          [allowOutside]="false"
+          (targetChange)="targetChange.emit($event)"
+        />
       </div>
     </div>
   }

@@ -1,7 +1,5 @@
 import {
   BUILT_IN_CATEGORY_PAGE,
-  SEED_BRANDS,
-  SEED_CATEGORIES,
   type CategoryDetailsTitle,
   type CategorySizeChart,
 } from '@core/services/products/catalog-taxonomy';
@@ -42,24 +40,12 @@ export interface CategoryTreeRow {
 }
 
 export const MAX_CATALOG_NAME = 60;
-export const MAX_CATEGORY_DESCRIPTION = 500;
 /** Same limit as `MAX_SHOP_LABEL` in `functions/src/products/catalog-admin.ts`. */
 export const MAX_SHOP_LABEL = 30;
 export const MAX_WEIGHT_GRAMS = 100_000;
 
 /** Same words `saveCategory` keeps free (`RESERVED_CATEGORY_SLUGS` in functions). */
 const RESERVED_CATEGORY_SLUGS: ReadonlySet<string> = new Set(['all', 'shop', 'new', 'sale', 'best-sellers']);
-const SEED_CATEGORY_IDS: ReadonlySet<string> = new Set(SEED_CATEGORIES.map((item) => item.id));
-const SEED_BRAND_IDS: ReadonlySet<string> = new Set(SEED_BRANDS.map((item) => item.id));
-
-export function isSeedCategory(id: string): boolean {
-  return SEED_CATEGORY_IDS.has(id);
-}
-
-export function isSeedBrand(id: string): boolean {
-  return SEED_BRAND_IDS.has(id);
-}
-
 /** Top-level categories in order, each with its sub-categories in order. */
 export function buildCategoryTree(categories: readonly Category[]): readonly CategoryTreeRow[] {
   const sorted = [...categories].sort(bySortOrder);
@@ -92,38 +78,64 @@ export function previewSlug(name: string, kind: CatalogKind, takenIds: Iterable<
   return `${base}-${suffix}`;
 }
 
-/** Same wording as the server's `categoryDeleteBlockedReason`. */
-export function categoryDeleteBlockedReason(
-  id: string,
-  usage: { readonly products: number; readonly subCategories: number },
-): string | null {
-  if (isSeedCategory(id)) return 'This is one of the store’s built-in categories. You can hide it instead.';
-  if (usage.subCategories > 0) {
-    return 'This category has sub-categories. Delete or move them first, or hide it instead.';
-  }
-  if (usage.products > 0) {
-    return usage.products === 1
-      ? '1 product is in this category. Move it to another category first, or hide it instead.'
-      : `${usage.products} products are in this category. Move them to another category first, or hide it instead.`;
-  }
-  return null;
+/**
+ * The confirm window's message before a delete (ATS-265). Offers that name it don't stop the
+ * delete; they are listed so staff know those offers no longer include it.
+ */
+export function deleteConfirmMessage(offers: readonly string[]): string {
+  const base = 'It leaves the store and its address stops working. This can’t be undone.';
+  if (offers.length === 0) return base;
+  const names = offers.join(', ');
+  return offers.length === 1
+    ? `${base} This offer will no longer include it: ${names}.`
+    : `${base} These offers will no longer include it: ${names}.`;
 }
 
-/** Same wording as the server's `brandDeleteBlockedReason`. */
-export function brandDeleteBlockedReason(id: string, products: number): string | null {
-  if (isSeedBrand(id)) return 'This is one of the store’s built-in brands. You can hide it instead.';
-  if (products > 0) {
-    return products === 1
-      ? '1 product uses this brand. Change its brand first, or hide it instead.'
-      : `${products} products use this brand. Change their brand first, or hide it instead.`;
-  }
-  return null;
+/** Shown in the Add window when a name has no English letter or digit (same text as the server). */
+export const ENGLISH_NAME_MESSAGE = 'Use English letters for the name, for example Padel Caps.';
+
+/** True when an address can be made from the name (it has an English letter or digit). */
+export function hasEnglishLetterOrDigit(name: string): boolean {
+  return kebab(name.normalize('NFD').replace(/[̀-ͯ]/g, '')).length > 0;
 }
 
-/** "3 live products", "1 live product", "No live products". */
+/**
+ * Move Up / Move Down in the ⋮ menu (ATS-265): the ids of one level with `id` moved one place
+ * (`-1` up, `1` down), or null when it is already first or last (or not in the level).
+ */
+export function moveWithinLevel(ids: readonly string[], id: string, step: -1 | 1): readonly string[] | null {
+  const from = ids.indexOf(id);
+  const to = from + step;
+  if (from < 0 || to < 0 || to >= ids.length) return null;
+  const next = [...ids];
+  next.splice(from, 1);
+  next.splice(to, 0, id);
+  return next;
+}
+
+/** The short count on a row: "61 live", "None live". */
 export function liveCountLabel(count: number): string {
-  if (count <= 0) return 'No live products';
-  return count === 1 ? '1 live product' : `${count} live products`;
+  return count > 0 ? `${count} live` : 'None live';
+}
+
+/** "6 inside", "1 inside"; empty when nothing is inside. */
+export function insideLabel(count: number): string {
+  return count > 0 ? `${count} inside` : '';
+}
+
+/**
+ * What the switch asks before hiding something shoppers can buy, or null when it can hide at
+ * once (nothing live in it).
+ */
+export function hideConfirmMessage(name: string, liveProducts: number): string | null {
+  if (liveProducts <= 0) return null;
+  const products = liveProducts === 1 ? 'Its 1 product stays' : `Its ${liveProducts} products stay`;
+  return `${products} saved but shoppers won’t find ${liveProducts === 1 ? 'it' : 'them'} under ${name}.`;
+}
+
+/** The snackbar after the switch: "Hoodies is hidden from the store." / "Hoodies is on the store." */
+export function shownSnackbar(name: string, shown: boolean): string {
+  return shown ? `${name} is on the store.` : `${name} is hidden from the store.`;
 }
 
 /** Reads a typed weight: '' = no default (null), whole grams 0–100,000, else undefined (invalid). */
@@ -175,3 +187,11 @@ export function categoryPageChoice<K extends 'sizeChart' | 'detailsTitle'>(
   const builtIn = BUILT_IN_CATEGORY_PAGE[category.id]?.[field] as NonNullable<Category[K]> | undefined;
   return builtIn ?? (category.depth === 0 ? fallback : 'parent');
 }
+
+/** How the Category and Brand windows open: 36rem wide, full screen on phone (`_dialog.scss`). */
+export const CATALOG_DIALOG_CONFIG = {
+  width: '36rem',
+  maxWidth: '96vw',
+  autoFocus: 'first-tabbable',
+  panelClass: 'catalog-dialog-pane',
+} as const;

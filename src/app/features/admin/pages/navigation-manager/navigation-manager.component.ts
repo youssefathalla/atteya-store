@@ -4,7 +4,7 @@ import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { firebaseErrors } from '@shared/utils/firebase/firebase-errors';
-import { NAV_CATEGORIES, NavService, navigationFromVersion } from '@core/services/navigation';
+import { NavService, navigationFromVersion } from '@core/services/navigation';
 import { restoredVersionNote, type SettingsVersion } from '@core/services/settings-history';
 import { NavManagerHeaderComponent } from './components/nav-manager-header/nav-manager-header.component';
 import { NavCategoryListComponent } from './components/nav-category-list/nav-category-list.component';
@@ -196,7 +196,7 @@ export class NavigationManagerComponent {
       this.draft.markSaved();
       this.restoredNote.set(null);
       this.#snackbar.success('Default navigation restored successfully!');
-      this.draft.resetDraftFromSource(NAV_CATEGORIES);
+      this.draft.resetDraftFromSource(this.#navService.builtInCategories());
     } catch (err) {
       await this.#reportWriteError(err, 'Failed to reset navigation.');
     } finally {

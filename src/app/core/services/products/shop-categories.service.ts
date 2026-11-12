@@ -17,9 +17,13 @@ import { CATEGORY_DETAILS_TITLES, CATEGORY_SIZE_CHARTS, SEED_CATEGORIES } from '
 import { CatalogService } from './catalog.service';
 import { CATEGORIES_COLLECTION } from './product.constants';
 import type { ShopCategorySource } from './utils/shop-categories';
+import { ShareImageSchema, toShareImage, type ShareImage } from './utils/share-image';
 
 /** Published categories the Shop page needs, sent from the server render to the browser. */
 export const SHOP_CATEGORIES_KEY = makeStateKey<readonly ShopCategorySource[]>('shop-categories');
+
+/** Whether that list was really read (false: the built-in list stood in after a failed or slow read). */
+const SHOP_CATEGORIES_READ_KEY = makeStateKey<boolean>('shop-categories-read');
 
 /** A slow read must not hold the page; the built-in categories are used instead. */
 const READ_TIMEOUT_MS = 3000;
@@ -34,6 +38,8 @@ const ShopCategorySourceSchema = v.object({
   published: v.optional(v.boolean()),
   sizeChart: v.optional(v.nullable(v.picklist(CATEGORY_SIZE_CHARTS))),
   detailsTitle: v.optional(v.nullable(v.picklist(CATEGORY_DETAILS_TITLES))),
+  // A broken photo must not drop the category: it just has no share picture.
+  image: v.fallback(v.optional(v.nullable(ShareImageSchema)), null),
 });
 
 /** The built-in categories, used when the list can't be read. */
@@ -55,12 +61,24 @@ export class ShopCategoriesService {
   readonly #isServer = isPlatformServer(inject(PLATFORM_ID));
 
   readonly #seed = signal<readonly ShopCategorySource[] | null>(null);
+  /** The seed came from a real read, not the built-in stand-in. */
+  #seedRead = false;
   #loading: Promise<readonly ShopCategorySource[]> | null = null;
 
   constructor() {
     if (this.#transfer.hasKey(SHOP_CATEGORIES_KEY)) {
       this.#seed.set(this.#transfer.get(SHOP_CATEGORIES_KEY, []));
+      this.#seedRead = this.#transfer.get(SHOP_CATEGORIES_READ_KEY, true);
     }
+  }
+
+  /**
+   * True when `categories()` is the real published list (the live list, or a seed that was really
+   * read). False while the built-in list stands in, so callers that treat "not in the list" as hidden
+   * (the category page redirect, ATS-268) decide nothing then.
+   */
+  isRealList(): boolean {
+    return this.#liveLoaded() || (this.#seed() !== null && this.#seedRead);
   }
 
   /** Published categories: the live list once it has loaded, else the seed, else the built-ins. */
@@ -125,10 +143,13 @@ export class ShopCategoriesService {
     }
     if (this.#isServer) {
       this.#seed.set(list);
+      this.#seedRead = ok;
       // The browser uses the same list for its first render, so the server HTML matches.
       this.#transfer.set(SHOP_CATEGORIES_KEY, list);
+      this.#transfer.set(SHOP_CATEGORIES_READ_KEY, ok);
     } else if (ok) {
       this.#seed.set(list);
+      this.#seedRead = true;
     }
     return ok;
   }
@@ -152,7 +173,9 @@ function toSource(category: {
   readonly published?: boolean;
   readonly sizeChart?: ShopCategorySource['sizeChart'];
   readonly detailsTitle?: ShopCategorySource['detailsTitle'];
+  readonly image?: ShareImage | null;
 }): ShopCategorySource {
+  const image = toShareImage(category.image);
   return {
     id: category.id,
     slug: category.slug,
@@ -164,5 +187,6 @@ function toSource(category: {
     // Kept only when saved, so a missing field stays missing (built-in default) after TransferState.
     ...(category.sizeChart !== undefined ? { sizeChart: category.sizeChart } : {}),
     ...(category.detailsTitle !== undefined ? { detailsTitle: category.detailsTitle } : {}),
+    ...(image ? { image } : {}),
   };
 }

@@ -4,6 +4,9 @@
     [(typeId)]="typeId"
     [(brandId)]="brandId"
     [brands]="brandOptions()"
+    [categoryId]="categoryId()"
+    (categoryIdChange)="setCategory($event)"
+    [categories]="categoryOptions()"
     [(view)]="view"
     [counts]="counts()"
     [countsReady]="catalogResource.hasValue()"
@@ -19,7 +22,51 @@
       {{ searchSyncErrors() }} products didn't reach search. Run Rebuild search.
     </p>
   }
+  @if (showSelectionBar()) {
+    <section
+      class="surface-card p-3 w-full grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center"
+      aria-label="Selected products"
+    >
+      <p class="font-body-md" aria-live="polite">
+        @if (selectedIds().size > 0) {
+          <span class="font-bold!">{{ selectedLabel() }}</span>
+          @if (tooManySelected()) {
+            <span class="block font-body-sm text-on-surface-variant"
+              >You can move up to 200 at a time. Untick some first.</span
+            >
+          }
+        } @else {
+          <span class="text-on-surface-variant">Tick products to move them to another category.</span>
+        }
+      </p>
+      <div class="grid gap-2 sm:grid-flow-col">
+        <button
+          matButton="outlined"
+          type="button"
+          [disabled]="selectAllDisabled()"
+          (click)="selectAllShown()"
+        >
+          <span>Select All</span>
+        </button>
+        @if (selectedIds().size > 0) {
+          <button matButton="outlined" type="button" (click)="clearSelection()">
+            <span>Clear</span>
+          </button>
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="activity() !== null"
+            (click)="moveToCategory()"
+          >
+            <span>Move to Category</span>
+          </button>
+        }
+      </div>
+    </section>
+  }
   <app-products-table
+    [selectedIds]="selectedIds()"
+    (toggleSelected)="toggleSelected($event)"
     [groups]="groups()"
     [loading]="showSkeleton()"
     [tableLoading]="tableLoading()"

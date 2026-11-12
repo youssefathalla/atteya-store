@@ -8,6 +8,7 @@ export { setProductStock } from './products/set-product-stock.fn.js';
 export { setProductPublished } from './products/set-product-published.fn.js';
 export { deleteProduct } from './products/delete-product.fn.js';
 export { productWeights } from './products/product-weights.fn.js';
+export { moveProductsToCategory } from './products/move-products.fn.js';
 export {
   deleteBrand,
   deleteCategory,

@@ -10,8 +10,9 @@
  * ImageKit) through the public client config, like `ng serve` does.
  *
  * A page fails when:
- *   - its document answers with an error status, or the app sends it somewhere else (the
- *     store has no error page: an unknown route redirects home),
+ *   - its document answers with an error status, or the app sends it somewhere else (an unknown
+ *     address shows Page Not Found and answers 404, ATS-268; that page is checked on its own and must
+ *     answer exactly 404 with the Page Not Found heading),
  *   - the page throws (pageerror) or logs a console error that is not in ALLOWED_CONSOLE,
  *   - a request to our own server fails or answers 4xx/5xx,
  *   - the main area is empty, the store loader never goes away, or what the page is for is
@@ -233,6 +234,16 @@ function pages() {
       ready: 'input[type="email"]',
       readyWhy: 'The email field never showed.',
     },
+    {
+      // Unknown address (ATS-268): Page Not Found inside the store layout, HTTP 404.
+      id: 'not-found',
+      label: 'Page Not Found',
+      path: '/this-page-does-not-exist',
+      expectStatus: 404,
+      expectText: /page not found/i,
+      ready: 'main h1',
+      readyWhy: 'The Page Not Found heading never showed.',
+    },
     ...SIGNED_OUT_PAGES.map((locked) => ({
       id: `signed-out-${locked.id}`,
       label: `${locked.label} signed out`,
@@ -286,6 +297,15 @@ async function check(context, size, def) {
     if (message.type() !== 'error') return;
     const text = oneLine(message.text());
     const url = message.location()?.url ?? '';
+    // The page's own expected status (404 on Page Not Found) is checked after goto().
+    if (
+      def.expectStatus &&
+      /^Failed to load resource/i.test(text) &&
+      url &&
+      new URL(url).pathname === new URL(BASE + path).pathname
+    ) {
+      return;
+    }
     if (/^Failed to load resource/i.test(text) && url && !sameOrigin(url)) {
       notes.push(`Outside file did not load: ${shortUrl(url)}`);
       return;
@@ -331,7 +351,10 @@ async function check(context, size, def) {
     const response = await page.goto(BASE + path, { waitUntil: 'load', timeout: NAV_TIMEOUT });
     const status = response?.status() ?? 0;
     if (!response) problems.push('The page did not answer.');
-    else if (status >= 400) problems.push(`The page answered ${status}.`);
+    else if (def.expectStatus) {
+      if (status !== def.expectStatus)
+        problems.push(`The page answered ${status} instead of ${def.expectStatus}.`);
+    } else if (status >= 400) problems.push(`The page answered ${status}.`);
 
     const wanted = new URL(BASE + path).pathname;
     let reachedSignIn = true;
@@ -363,7 +386,9 @@ async function check(context, size, def) {
       .innerText({ timeout: 5_000 })
       .catch(() => '');
     if (mainText.trim().length < 20) problems.push('The main area is empty.');
-    else if (BROKEN_PAGE_TEXT.test(mainText))
+    else if (def.expectText) {
+      if (!def.expectText.test(mainText)) problems.push(`The page doesn't say ${def.expectText.source}.`);
+    } else if (BROKEN_PAGE_TEXT.test(mainText))
       problems.push(`The page says: "${mainText.match(BROKEN_PAGE_TEXT)[0]}".`);
 
     if (def.after) await def.after(page).catch(() => undefined);

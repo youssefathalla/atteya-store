@@ -102,27 +102,29 @@
       </div>
     }
 
-    <!-- Accessible Alt Text Field -->
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Image Description (Alt Text)</mat-label>
-      <input
-        matInput
-        [id]="altInputId"
-        [name]="altInputId"
-        autocomplete="off"
-        aria-label="Image Description"
-        [maxLength]="maxAltLength"
-        [ngModel]="asset()?.alt || ''"
-        (ngModelChange)="onAltChange($event)"
-        [placeholder]="altPlaceholder()"
-        [required]="!altOptional()"
-      />
-      @if (altOptional()) {
-        <mat-hint>Optional. Shoppers use the link name, not this description.</mat-hint>
-      } @else {
-        <mat-hint>Required for screen readers & SEO (max {{ maxAltLength }} chars)</mat-hint>
-      }
-    </mat-form-field>
+    <!-- Accessible Alt Text Field: only once there is a photo, so an empty picker never blocks Save -->
+    @if (asset()?.path) {
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Image Description (Alt Text)</mat-label>
+        <input
+          matInput
+          [id]="altInputId"
+          [name]="altInputId"
+          autocomplete="off"
+          aria-label="Image Description"
+          [maxLength]="maxAltLength"
+          [ngModel]="asset()?.alt || ''"
+          (ngModelChange)="onAltChange($event)"
+          [placeholder]="altPlaceholder()"
+          [required]="!altOptional()"
+        />
+        @if (altOptional()) {
+          <mat-hint>Optional. Shoppers use the link name, not this description.</mat-hint>
+        } @else {
+          <mat-hint>Required for screen readers & SEO (max {{ maxAltLength }} chars)</mat-hint>
+        }
+      </mat-form-field>
+    }
   </div>
 
   <!-- Bottom Upload Action Button -->

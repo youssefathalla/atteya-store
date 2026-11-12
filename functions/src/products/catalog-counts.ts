@@ -1,5 +1,6 @@
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { CATALOG_BRAND_IDS, CATALOG_TYPE_IDS } from './catalog-mapping.js';
+import { DELETED_BUILT_IN_FIELD, readDeletedBuiltInIds } from './catalog-admin.js';
 import { SEED_BRANDS, SEED_CATEGORIES } from './catalog-taxonomy.js';
 
 export interface RecountScope {
@@ -9,9 +10,14 @@ export interface RecountScope {
 }
 
 export async function recountCatalog(db: Firestore, scope?: RecountScope): Promise<void> {
+  // Built-ins staff deleted get no count key back (ATS-265); a doc that exists again still counts.
+  const deleted =
+    scope?.categoryIds && scope.brandIds
+      ? new Set<string>()
+      : readDeletedBuiltInIds((await db.doc('settings/catalog').get()).get(DELETED_BUILT_IN_FIELD));
   const [categoryIds, brandIds] = await Promise.all([
-    resolveCategoryIds(db, scope?.categoryIds),
-    resolveBrandIds(db, scope?.brandIds),
+    resolveCategoryIds(db, scope?.categoryIds, deleted),
+    resolveBrandIds(db, scope?.brandIds, deleted),
   ]);
   const typeIds = scope?.types ? [...new Set(scope.types)] : [...CATALOG_TYPE_IDS];
 
@@ -41,22 +47,34 @@ export async function recountCatalog(db: Firestore, scope?: RecountScope): Promi
   ]);
 }
 
-async function resolveCategoryIds(db: Firestore, scoped?: readonly string[]): Promise<readonly string[]> {
+async function resolveCategoryIds(
+  db: Firestore,
+  scoped: readonly string[] | undefined,
+  deleted: ReadonlySet<string>,
+): Promise<readonly string[]> {
   if (scoped) {
     return [...new Set(scoped.filter((id) => id.length > 0))];
   }
   const snap = await db.collection('categories').limit(200).get();
-  const ids = new Set<string>(SEED_CATEGORIES.map((category) => category.id));
+  const ids = new Set<string>(
+    SEED_CATEGORIES.map((category) => category.id).filter((id) => !deleted.has(id)),
+  );
   for (const doc of snap.docs) ids.add(doc.id);
   return [...ids];
 }
 
-async function resolveBrandIds(db: Firestore, scoped?: readonly string[]): Promise<readonly string[]> {
+async function resolveBrandIds(
+  db: Firestore,
+  scoped: readonly string[] | undefined,
+  deleted: ReadonlySet<string>,
+): Promise<readonly string[]> {
   if (scoped) {
     return [...new Set(scoped.filter((id) => id.length > 0))];
   }
   const snap = await db.collection('brands').limit(200).get();
-  const ids = new Set<string>([...CATALOG_BRAND_IDS, ...SEED_BRANDS.map((brand) => brand.id)]);
+  const ids = new Set<string>(
+    [...CATALOG_BRAND_IDS, ...SEED_BRANDS.map((brand) => brand.id)].filter((id) => !deleted.has(id)),
+  );
   for (const doc of snap.docs) ids.add(doc.id);
   return [...ids];
 }

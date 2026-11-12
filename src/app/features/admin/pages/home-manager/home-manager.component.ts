@@ -24,7 +24,11 @@ import { HomeNavListPreviewComponent } from './components/home-nav-list-preview/
 import { HomeNavListEditorComponent } from './components/home-nav-list-editor/home-nav-list-editor.component';
 import { HomeDraftService } from './services/home-draft.service';
 import { HomeDialogService } from './services/home-dialog.service';
+import { NavigationCatalogService } from '../navigation-manager/services/navigation-catalog.service';
+import { homeHiddenLinks, homeLinkProblem, homeWithTargets } from './utils/home-link-targets.utils';
+import { hiddenTargetsMessage } from '../navigation-manager/utils/navigation-manager.validator';
 import {
+  type HomeLinkCheck,
   validateHomeHeroDraft,
   validateHomeNavListDraft,
   validateHomeShopCategoriesDraft,
@@ -49,6 +53,7 @@ import { HeroAction } from './models/home-manager.model';
 export class HomeManagerComponent {
   readonly #homeService = inject(HomeService);
   readonly #navService = inject(NavService);
+  readonly #linkCatalog = inject(NavigationCatalogService);
   readonly #snackbar = inject(SnackbarService);
   readonly #dialogs = inject(HomeDialogService);
   readonly #storageUpload = inject(StorageUploadService);
@@ -116,25 +121,34 @@ export class HomeManagerComponent {
   }
 
   async publishChanges(): Promise<void> {
-    const hero = this.draft.draftHero();
-    const shopCategories = this.draft.draftShopCategories();
-    const navList = this.draft.draftNavList();
+    // Every link saved with its target and the address built from it (ATS-267).
+    const { hero, shopCategories, navList } = homeWithTargets(
+      {
+        hero: this.draft.draftHero(),
+        shopCategories: this.draft.draftShopCategories(),
+        navList: this.draft.draftNavList(),
+      },
+      this.#linkCatalog.bestCatalog(),
+    );
+    const fullCatalog = this.#linkCatalog.targetCatalog();
+    const checkLink: HomeLinkCheck = (target, link, allowOutside) =>
+      homeLinkProblem(target, link, fullCatalog, allowOutside);
 
-    const heroError = validateHomeHeroDraft(hero);
+    const heroError = validateHomeHeroDraft(hero, checkLink);
     if (heroError) {
       this.draft.setActiveSection('hero');
       this.#snackbar.error(heroError);
       return;
     }
 
-    const shopError = validateHomeShopCategoriesDraft(shopCategories);
+    const shopError = validateHomeShopCategoriesDraft(shopCategories, checkLink);
     if (shopError) {
       this.draft.setActiveSection('categories');
       this.#snackbar.error(shopError);
       return;
     }
 
-    const navError = validateHomeNavListDraft(navList);
+    const navError = validateHomeNavListDraft(navList, checkLink);
     if (navError) {
       this.draft.setActiveSection('navList');
       this.#snackbar.error(navError);
@@ -153,7 +167,9 @@ export class HomeManagerComponent {
 
       this.draft.markSaved();
       this.restoredNote.set(null);
-      this.#snackbar.success('Published! Your homepage sections are now live.');
+      const hidden = homeHiddenLinks({ hero, shopCategories, navList }, fullCatalog);
+      if (hidden.length > 0) this.#snackbar.warning(hiddenTargetsMessage(hidden), 'Close', 8000);
+      else this.#snackbar.success('Published! Your homepage sections are now live.');
     } catch (err) {
       await this.#reportWriteError(err, 'Unable to publish changes. Please try again.');
     } finally {

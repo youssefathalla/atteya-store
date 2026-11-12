@@ -30,6 +30,7 @@ import type { Brand, CatalogSummary, Category, CategoryTreeNode } from './produc
 import { CatalogSummarySchema } from './product.schema';
 import { ShopCategoriesService } from './shop-categories.service';
 import { catalogPathIsEmpty } from './utils/catalog-path';
+import { DELETED_BUILT_IN_FIELD, readDeletedBuiltInIds } from './utils/deleted-built-ins';
 
 /** Match nav/shipping so a stuck Firestore listen cannot block the shell forever. */
 const SHELL_READY_TIMEOUT_MS = 2500;
@@ -137,6 +138,16 @@ export class CatalogService {
     if (!raw) return null;
     const parsed = v.safeParse(CatalogSummarySchema, raw);
     return parsed.success ? parsed.output : null;
+  });
+
+  /**
+   * Built-in categories and brands staff deleted (`settings/catalog.deletedBuiltInIds`, ATS-265).
+   * Read from the same seed and listener as the counts, so the server HTML and first render match.
+   */
+  readonly deletedBuiltInIds = computed((): ReadonlySet<string> => {
+    const raw = this.#catalogRaw();
+    if (!raw || typeof raw !== 'object') return new Set();
+    return new Set(readDeletedBuiltInIds((raw as Record<string, unknown>)[DELETED_BUILT_IN_FIELD]));
   });
 
   /** True after the first settings/catalog snapshot (missing doc counts as settled). */

@@ -15,6 +15,7 @@ import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { BRANDS_COLLECTION } from '@core/services/products/product.constants';
+import { ShareImageSchema, toShareImage, type ShareImage } from '@core/services/products/utils/share-image';
 import { timeToMs, type NavAutoBrand } from './nav-auto-columns';
 
 /** Published brands for auto navigation columns, sent from the server render to the browser. */
@@ -29,6 +30,8 @@ const BrandSourceSchema = v.object({
   name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(60)),
   sortOrder: v.optional(v.pipe(v.number(), v.integer()), 0),
   createdAt: v.optional(v.unknown()),
+  // A broken logo must not drop the brand: it just has no share picture.
+  logo: v.fallback(v.optional(v.nullable(ShareImageSchema)), null),
 });
 
 /**
@@ -133,12 +136,15 @@ export function toNavAutoBrand(brand: {
   readonly name: string;
   readonly sortOrder: number;
   readonly createdAt?: unknown;
+  readonly logo?: ShareImage | null;
 }): NavAutoBrand {
+  const logo = toShareImage(brand.logo);
   return {
     id: brand.id,
     slug: brand.slug,
     name: brand.name,
     sortOrder: brand.sortOrder,
     createdAtMs: timeToMs(brand.createdAt),
+    ...(logo ? { logo } : {}),
   };
 }

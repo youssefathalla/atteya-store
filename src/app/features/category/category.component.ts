@@ -11,10 +11,14 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
+import { isOutsideAddress } from '@core/services/navigation/nav-target';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '@core/services/auth/auth.service';
 import { OffersService } from '@core/services/offers/offers.service';
 import { NavService } from '@core/services/navigation';
+import { NavAutoBrandsService } from '@core/services/navigation/nav-auto-brands.service';
+import { ShopCategoriesService } from '@core/services/products/shop-categories.service';
+import { sameShareImage, shareImageFor, type ShareImage } from '@core/services/products/utils/share-image';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { ProductService } from '@core/services/products/product.service';
 import { onePerModel } from '@core/services/products/utils/one-per-model';
@@ -27,6 +31,8 @@ import {
 } from './components/catalog-product-grid/catalog-product-grid.component';
 import { LoaderComponent } from '@shared/ui/loader/loader.component';
 import { resolveCatalogListParams, toProductListQuery } from './utils/catalog-list-query';
+import type { CatalogPageState } from './resolvers/catalog-page.resolver';
+import { ErrorPageComponent } from '@shared/ui/error-page';
 
 const PAGE_SIZE = 48;
 
@@ -39,6 +45,7 @@ const PAGE_SIZE = 48;
     SharedIconModule,
     CatalogProductGridComponent,
     LoaderComponent,
+    ErrorPageComponent,
   ],
   templateUrl: './category.component.html',
   host: {
@@ -46,9 +53,14 @@ const PAGE_SIZE = 48;
   },
 })
 export class CategoryComponent {
+  /** An Outside Link (ATS-267) is no category page, so the pills leave it out (the menus show it). */
+  readonly isOutside = isOutsideAddress;
+
   readonly slug = input.required<string>();
   readonly subSlug = input<string>();
   readonly isBrand = input<boolean>(false);
+  /** From `catalogPageResolver`: `missing` shows Page Not Found (deleted or unknown address, ATS-268). */
+  readonly catalogPage = input<CatalogPageState>('ok');
 
   readonly #navService = inject(NavService);
   readonly #catalogService = inject(CatalogService);
@@ -56,6 +68,8 @@ export class CategoryComponent {
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);
   readonly #seoService = inject(SeoService);
+  readonly #shopCategories = inject(ShopCategoriesService);
+  readonly #brands = inject(NavAutoBrandsService);
   readonly #destroyRef = inject(DestroyRef);
 
   readonly #hydrated = signal(false);
@@ -63,9 +77,20 @@ export class CategoryComponent {
 
   constructor() {
     effect(() => {
+      if (this.catalogPage() === 'missing') {
+        this.#seoService.setPageMetadata({
+          title: 'Page Not Found | Atteya Store',
+          description: 'This page moved or no longer exists.',
+          noindex: true,
+        });
+        return;
+      }
       const title = this.displayTitle();
       const isBrand = this.isBrand();
+      const image = this.#shareImage();
       this.#seoService.setPageMetadata({
+        image: image?.path ?? null,
+        imageAlt: image?.alt ?? null,
         title: `${title} | Atteya Store`,
         description: isBrand
           ? `Discover official tournament equipment and performance gear from ${title} at Atteya Store.`
@@ -119,6 +144,22 @@ export class CategoryComponent {
     return this.#catalogService.brandBySlug(this.slug());
   });
 
+  /**
+   * The share-preview picture (ATS-263): the brand's logo or the category's photo, from the lists
+   * the server already read for this page (`nav-auto-brands`, `shop-categories`), then the live
+   * lists. Hidden ones are not in those lists, so they share the store logo picture.
+   */
+  readonly #shareImage = computed(
+    (): ShareImage | null => {
+      if (this.isBrand()) {
+        const brands = this.#brands.brands().map((brand) => ({ ...brand, image: brand.logo }));
+        return shareImageFor(brands, this.slug());
+      }
+      return shareImageFor(this.#shopCategories.categories(), this.subSlug() || this.slug());
+    },
+    { equal: sameShareImage },
+  );
+
   readonly listParams = computed(() =>
     resolveCatalogListParams({
       isBrand: this.isBrand(),
@@ -130,7 +171,8 @@ export class CategoryComponent {
   );
 
   readonly productsResource = resource({
-    params: () => toProductListQuery(this.listParams(), PAGE_SIZE),
+    params: () =>
+      this.catalogPage() === 'missing' ? null : toProductListQuery(this.listParams(), PAGE_SIZE),
     loader: ({ params }) => {
       if (!params) return Promise.resolve([]);
       return this.#productService.listPublished(params);

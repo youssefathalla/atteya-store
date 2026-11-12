@@ -11,7 +11,8 @@ import {
   signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
+import { ErrorPageComponent } from '@shared/ui/error-page';
 import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
 import { giftProductLabel } from '@core/services/cart/cart-gifts';
@@ -153,6 +154,7 @@ interface ProductOfferLine {
     SkeletonComponent,
     AddToBagButtonComponent,
     SizeGuideComponent,
+    ErrorPageComponent,
   ],
   templateUrl: './product.component.html',
   host: { class: 'block w-full' },
@@ -169,7 +171,6 @@ export class ProductComponent {
   readonly #auth = inject(AuthService);
   readonly #favorites = inject(FavoritesService);
   readonly #favoritesGate = inject(FavoritesGateService);
-  readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);
   readonly #shippingSettings = inject(ShippingSettingsService);
   readonly #currency = inject(CurrencyService);
@@ -1016,7 +1017,7 @@ export class ProductComponent {
         });
       } else {
         this.#seo.setPageMetadata({
-          title: page.status === 'missing' ? 'Product not found | Atteya Store' : 'Product | Atteya Store',
+          title: page.status === 'missing' ? 'Page Not Found | Atteya Store' : 'Product | Atteya Store',
           description: 'This product is not available.',
           noindex: true,
         });
@@ -1162,9 +1163,5 @@ export class ProductComponent {
     const p = this.product();
     if (!p) return;
     void this.#favoritesGate.onFavoriteClick(p.id, p.slug);
-  }
-
-  retry(): void {
-    void this.#router.navigateByUrl(this.#router.url, { onSameUrlNavigation: 'reload' });
   }
 }
