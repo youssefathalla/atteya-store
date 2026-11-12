@@ -6,7 +6,7 @@ export const environment: Environment = {
   googleMapsApiKey: '',
   firebase: {
     apiKey: 'AIzaSyBuW1DM6UDFu6fBWSAnNrj6yvgq8KQ_tsg',
-    authDomain: 'attiya-store.firebaseapp.com',
+    authDomain: 'atteyastore.com',
     projectId: 'attiya-store',
     storageBucket: 'attiya-store.firebasestorage.app',
     messagingSenderId: '391723202247',

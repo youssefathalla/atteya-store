@@ -11,6 +11,7 @@ import { applyCdnCacheControl, cdnCacheControlHeader } from './cdn-cache-control
 import * as v from 'valibot';
 import { trimRenderedEarlyHints } from './early-hints.mjs';
 import { environment } from './environments/environment.js';
+import { FIREBASE_HELPER_PATHS, firebaseAuthProxy } from './firebase-auth-proxy.js';
 import {
   applyDevLocalGeoFallback,
   enrichHeadersForVisitorGeo,
@@ -52,6 +53,14 @@ function staticCacheControl(urlPath: string): string {
 }
 
 app.use(compression({ threshold: 1024 }));
+
+/**
+ * Firebase Auth helper pages for our own `authDomain` (prod: atteyastore.com).
+ * Passed to `<projectId>.firebaseapp.com` before static files and Angular, so
+ * the store never renders these paths. The body arrives decoded, so compression
+ * above encodes it once.
+ */
+app.use(FIREBASE_HELPER_PATHS, firebaseAuthProxy(environment.firebase.projectId ?? ''));
 
 app.get('/api/visitor-location', async (req, res) => {
   try {
