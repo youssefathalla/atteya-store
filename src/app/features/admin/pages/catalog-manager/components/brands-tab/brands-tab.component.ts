@@ -16,14 +16,21 @@ import { callableMessage, isFirebaseError } from '@shared/utils/firebase/firebas
 import {
   BrandDialogComponent,
   type BrandDialogData,
+  type BrandDialogResult,
 } from '../../dialogs/brand-dialog/brand-dialog.component';
-import { CatalogAdminService, type CatalogDialogResult } from '../../services/catalog-admin.service';
-import { brandDeleteBlockedReason, liveCountLabel, sortBrands } from '../../utils/catalog-manager.utils';
+import { CatalogAdminService } from '../../services/catalog-admin.service';
+import {
+  brandDeleteBlockedReason,
+  CATALOG_DIALOG_CONFIG,
+  hideConfirmMessage,
+  shownSnackbar,
+  sortBrands,
+} from '../../utils/catalog-manager.utils';
 import { CatalogRowComponent } from '../catalog-row/catalog-row.component';
 
 /**
- * Categories & Brands → Brands: every brand, shown or hidden. Drag the handle to reorder;
- * every change goes through the admin callables.
+ * Categories & Brands → Brands (ATS-264): one compact row per brand, shown or hidden. Drag the
+ * handle to reorder; every change goes through the admin callables.
  */
 @Component({
   selector: 'app-brands-tab',
@@ -45,9 +52,8 @@ export class BrandsTabComponent {
   /** The list as shown; a drag reorders it at once, before the save answers. */
   readonly items = linkedSignal(() => this.listResource.value() ?? []);
   readonly brands = computed(() => sortBrands(this.items()));
-  readonly busyId = signal<string | null>(null);
-
-  readonly liveCountLabel = liveCountLabel;
+  /** Rows whose switch or Delete check is running. */
+  readonly busyIds = signal<ReadonlySet<string>>(new Set());
 
   add(): void {
     this.#openEditor(null);
@@ -57,37 +63,35 @@ export class BrandsTabComponent {
     this.#openEditor(brand);
   }
 
+  /** The switch: hides or shows at once; hiding a brand with live products asks first. */
   async toggleShown(brand: Brand): Promise<void> {
-    if (this.busyId()) return;
-    this.busyId.set(brand.id);
-    try {
-      await this.#catalog.saveBrand({
-        id: brand.id,
-        name: brand.name,
-        logo: brand.logo,
-        published: !brand.published,
-      });
-      this.#snackbar.success(
-        brand.published
-          ? `${brand.name} is hidden from the store’s menus and lists.`
-          : `${brand.name} is shown on the store.`,
-      );
-      this.listResource.reload();
-    } catch (error: unknown) {
-      this.#snackbar.error(callableMessage(error) ?? "We couldn't change that. Please try again.");
-    } finally {
-      this.busyId.set(null);
+    if (this.busyIds().has(brand.id)) return;
+    const current = this.items().find((item) => item.id === brand.id) ?? brand;
+    const show = !current.published;
+    if (!show) {
+      const message = hideConfirmMessage(current.name, current.productCount);
+      if (message) {
+        const confirmed = await this.#confirm({
+          title: `Hide ${current.name}?`,
+          message,
+          confirmText: 'Hide',
+          cancelText: 'Keep Shown',
+          theme: 'warning',
+        });
+        if (!confirmed) return;
+      }
     }
+    await this.#setShown(current, show);
   }
 
   async remove(brand: Brand): Promise<void> {
-    if (this.busyId()) return;
-    this.busyId.set(brand.id);
+    if (this.busyIds().has(brand.id)) return;
+    this.#setBusy(brand.id, true);
     try {
       const products = await this.#catalog.productsUsing('brands', brand.id);
-      const blocked = brandDeleteBlockedReason(brand.id, products);
+      const blocked = brandDeleteBlockedReason(brand, products);
       if (blocked) {
-        this.busyId.set(null);
+        this.#setBusy(brand.id, false);
         await this.#offerHide(brand, blocked);
         return;
       }
@@ -103,18 +107,18 @@ export class BrandsTabComponent {
       this.#snackbar.success(`${brand.name} was deleted.`);
       this.listResource.reload();
     } catch (error: unknown) {
-      // The server also checks offers; its reason gets the same Hide offer.
+      // The server also checks offers; its reason gets the same Hide Instead offer.
       if (isFirebaseError(error) && error.code === 'functions/failed-precondition') {
         const reason = callableMessage(error);
         if (reason) {
-          this.busyId.set(null);
+          this.#setBusy(brand.id, false);
           await this.#offerHide(brand, reason);
           return;
         }
       }
       this.#snackbar.error(callableMessage(error) ?? "We couldn't delete that brand. Please try again.");
     } finally {
-      this.busyId.set(null);
+      this.#setBusy(brand.id, false);
     }
   }
 
@@ -137,19 +141,52 @@ export class BrandsTabComponent {
     }
   }
 
+  async #setShown(brand: Brand, show: boolean): Promise<void> {
+    this.#setBusy(brand.id, true);
+    this.#patch(brand.id, show);
+    try {
+      await this.#catalog.saveBrand({
+        id: brand.id,
+        name: brand.name,
+        logo: brand.logo,
+        published: show,
+      });
+      this.#snackbar.success(shownSnackbar(brand.name, show));
+    } catch (error: unknown) {
+      this.#patch(brand.id, !show);
+      this.#snackbar.error(callableMessage(error) ?? "We couldn't change that. Please try again.");
+    } finally {
+      this.#setBusy(brand.id, false);
+    }
+  }
+
+  #patch(id: string, published: boolean): void {
+    this.items.update((list) => list.map((item) => (item.id === id ? { ...item, published } : item)));
+  }
+
+  #setBusy(id: string, busy: boolean): void {
+    this.busyIds.update((ids) => {
+      const next = new Set(ids);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   async #offerHide(brand: Brand, reason: string): Promise<void> {
-    if (!brand.published) {
+    const current = this.items().find((item) => item.id === brand.id) ?? brand;
+    if (!current.published) {
       this.#snackbar.info(reason, 'Close', 6000);
       return;
     }
     const hide = await this.#confirm({
-      title: `${brand.name} can’t be deleted`,
+      title: `${current.name} can’t be deleted`,
       message: reason,
-      confirmText: 'Hide',
-      cancelText: 'Keep Shown',
+      confirmText: 'Hide Instead',
+      cancelText: 'Keep It',
       theme: 'warning',
     });
-    if (hide) await this.toggleShown(brand);
+    if (hide) await this.#setShown(current, false);
   }
 
   #confirm(data: ConfirmDialogData): Promise<boolean | undefined> {
@@ -165,17 +202,19 @@ export class BrandsTabComponent {
   }
 
   #openEditor(brand: Brand | null): void {
-    const ref = this.#dialog.open<BrandDialogComponent, BrandDialogData, CatalogDialogResult>(
+    const ref = this.#dialog.open<BrandDialogComponent, BrandDialogData, BrandDialogResult>(
       BrandDialogComponent,
       {
+        ...CATALOG_DIALOG_CONFIG,
         data: { brand, brands: this.items() },
-        width: '36rem',
-        maxWidth: '96vw',
-        autoFocus: 'first-tabbable',
       },
     );
     ref.afterClosed().subscribe((result) => {
       if (!result) return;
+      if (result === 'delete') {
+        if (brand) void this.remove(brand);
+        return;
+      }
       if (result.menuFailed) {
         this.#snackbar.warning(
           "Saved the brand, but the menu didn't confirm the new link. Check Navigation and add it there only if it's missing.",

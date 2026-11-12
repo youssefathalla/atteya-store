@@ -1,4 +1,4 @@
-import { Component, inject, input, linkedSignal, OnInit } from '@angular/core';
+import { Component, inject, input, linkedSignal, OnInit, signal } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { Router } from '@angular/router';
 import { SeoService } from '@core/services/seo';
@@ -25,6 +25,8 @@ export class CatalogManagerPageComponent implements OnInit {
   /** Query param `tab`. */
   readonly tab = input<string>();
   readonly activeTab = linkedSignal<CatalogTab>(() => (this.tab() === 'brands' ? 'brands' : 'categories'));
+  /** Open categories on the Categories tab; kept here so switching tabs keeps them open. */
+  readonly openCategories = signal<ReadonlySet<string>>(new Set());
 
   ngOnInit(): void {
     this.#seo.setPageMetadata({

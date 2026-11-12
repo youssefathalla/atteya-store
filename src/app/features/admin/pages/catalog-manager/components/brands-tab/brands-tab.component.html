@@ -1,11 +1,11 @@
-<section class="surface-card p-5 w-full elements-start-col gap-5" aria-labelledby="brands-title">
+<section
+  class="surface-card p-4 @3xl:p-5 w-full elements-start-col items-stretch! gap-4"
+  aria-labelledby="brands-title"
+>
   <div class="w-full elements-between flex-wrap gap-3">
     <div class="min-w-0">
       <h2 id="brands-title" class="font-title-md font-bold!">Brands</h2>
-      <p class="font-body-sm text-on-surface-variant">
-        Shoppers see shown brands on the Brands page and at their address. Drag the handle to change the
-        order.
-      </p>
+      <p class="font-body-sm text-on-surface-variant">Drag to change the order.</p>
     </div>
     <button matButton="filled" type="button" class="btn-block-phone" (click)="add()">
       <mat-icon name="add" />
@@ -25,21 +25,16 @@
   } @else if (brands().length === 0) {
     <p class="font-body-md">No brands yet. Add the first one.</p>
   } @else {
-    <ul
-      class="w-full elements-start-col items-stretch! gap-2 list-none m-0 p-0"
-      aria-label="Brands"
-      cdkDropList
-      (cdkDropListDropped)="drop($event)"
-    >
+    <ul class="catalog-list" aria-label="Brands" cdkDropList (cdkDropListDropped)="drop($event)">
       @for (brand of brands(); track brand.id) {
         <li cdkDrag cdkDragLockAxis="y">
           <app-catalog-row
             [name]="brand.name"
-            [address]="'/brand/' + brand.slug"
-            [details]="liveCountLabel(brand.productCount)"
+            [liveCount]="brand.productCount"
+            [storeUrl]="'/brand/' + brand.slug"
             [published]="brand.published"
-            [busy]="busyId() === brand.id"
-            [locked]="busyId() !== null"
+            [busy]="busyIds().has(brand.id)"
+            [locked]="busyIds().has(brand.id)"
             (toggleShown)="toggleShown(brand)"
             (edit)="edit(brand)"
             (remove)="remove(brand)"
@@ -47,5 +42,8 @@
         </li>
       }
     </ul>
+    <p class="font-body-sm text-on-surface-variant">
+      Hidden brands stay saved but don't show on the Brands page or in the menu.
+    </p>
   }
 </section>
