@@ -50,7 +50,7 @@ const MAX_LIST = 500;
 export const saveCategory = onCall(
   adminCallableOptions({ timeoutSeconds: 120, secrets: [ALGOLIA_WRITE_KEY] }),
   async (request): Promise<SaveCatalogItemResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = readSaveCategoryRequest(request.data);
     if (typeof input === 'string') throw new HttpsError('invalid-argument', input);
     const db = getFirestore();
@@ -149,7 +149,7 @@ export const saveCategory = onCall(
 export const deleteCategory = onCall(
   adminCallableOptions(),
   async (request): Promise<DeleteCatalogItemResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = readDeleteRequest(request.data);
     if (typeof input === 'string') throw new HttpsError('invalid-argument', input);
     const db = getFirestore();
@@ -189,7 +189,7 @@ export const deleteCategory = onCall(
 export const saveBrand = onCall(
   adminCallableOptions({ timeoutSeconds: 120, secrets: [ALGOLIA_WRITE_KEY] }),
   async (request): Promise<SaveCatalogItemResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = readSaveBrandRequest(request.data);
     if (typeof input === 'string') throw new HttpsError('invalid-argument', input);
     const db = getFirestore();
@@ -256,7 +256,7 @@ export const saveBrand = onCall(
 export const deleteBrand = onCall(
   adminCallableOptions(),
   async (request): Promise<DeleteCatalogItemResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = readDeleteRequest(request.data);
     if (typeof input === 'string') throw new HttpsError('invalid-argument', input);
     const db = getFirestore();
@@ -290,7 +290,7 @@ export const deleteBrand = onCall(
 export const reorderCatalog = onCall(
   adminCallableOptions(),
   async (request): Promise<ReorderCatalogResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = readReorderRequest(request.data);
     if (typeof input === 'string') throw new HttpsError('invalid-argument', input);
     const db = getFirestore();
