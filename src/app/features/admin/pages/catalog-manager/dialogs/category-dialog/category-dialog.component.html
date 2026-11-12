@@ -124,6 +124,16 @@
       }
     </mat-form-field>
 
+    @if (isNew) {
+      <app-menu-placement
+        kind="category"
+        [parentId]="parentId()"
+        [(enabled)]="addToMenu"
+        [(menuId)]="menuId"
+        [(columnIndex)]="menuColumn"
+      />
+    }
+
     <mat-slide-toggle [checked]="published()" (change)="published.set($event.checked)">
       {{ published() ? 'Shown on the store' : 'Hidden from the store’s menus and lists' }}
     </mat-slide-toggle>

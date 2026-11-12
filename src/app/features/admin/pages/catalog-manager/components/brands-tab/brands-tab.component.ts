@@ -17,7 +17,7 @@ import {
   BrandDialogComponent,
   type BrandDialogData,
 } from '../../dialogs/brand-dialog/brand-dialog.component';
-import { CatalogAdminService, type SaveResult } from '../../services/catalog-admin.service';
+import { CatalogAdminService, type CatalogDialogResult } from '../../services/catalog-admin.service';
 import { brandDeleteBlockedReason, liveCountLabel, sortBrands } from '../../utils/catalog-manager.utils';
 import { CatalogRowComponent } from '../catalog-row/catalog-row.component';
 
@@ -165,12 +165,15 @@ export class BrandsTabComponent {
   }
 
   #openEditor(brand: Brand | null): void {
-    const ref = this.#dialog.open<BrandDialogComponent, BrandDialogData, SaveResult>(BrandDialogComponent, {
-      data: { brand, brands: this.items() },
-      width: '36rem',
-      maxWidth: '96vw',
-      autoFocus: 'first-tabbable',
-    });
+    const ref = this.#dialog.open<BrandDialogComponent, BrandDialogData, CatalogDialogResult>(
+      BrandDialogComponent,
+      {
+        data: { brand, brands: this.items() },
+        width: '36rem',
+        maxWidth: '96vw',
+        autoFocus: 'first-tabbable',
+      },
+    );
     ref.afterClosed().subscribe((result) => {
       if (!result) return;
       this.#snackbar.success(
@@ -180,6 +183,13 @@ export class BrandsTabComponent {
             : 'Brand saved.'
           : 'Brand added.',
       );
+      if (result.menuFailed) {
+        this.#snackbar.warning(
+          "Saved the brand, but couldn't add it to the menu. Add it in Navigation.",
+          'Close',
+          8000,
+        );
+      }
       this.listResource.reload();
     });
   }
