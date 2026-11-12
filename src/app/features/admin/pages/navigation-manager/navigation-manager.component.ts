@@ -11,7 +11,12 @@ import { NavCategoryDetailsComponent } from './components/nav-category-details/n
 import { NavMegaMenuEditorComponent } from './components/nav-mega-menu-editor/nav-mega-menu-editor.component';
 import { NavigationDraftService } from './services/navigation-draft.service';
 import { NavigationDialogService } from './services/navigation-dialog.service';
-import { validateNavigationDraft } from './utils/navigation-manager.validator';
+import { NavigationCatalogService } from './services/navigation-catalog.service';
+import {
+  draftProblemsMessage,
+  hiddenTargetsMessage,
+  validateNavigationDraft,
+} from './utils/navigation-manager.validator';
 
 @Component({
   selector: 'app-navigation-manager',
@@ -30,10 +35,13 @@ export class NavigationManagerComponent {
   readonly #auth = inject(AuthService);
   readonly #router = inject(Router);
   readonly draft = inject(NavigationDraftService);
+  readonly #allCatalog = inject(NavigationCatalogService);
   readonly isSaving = signal<boolean>(false);
   readonly isResetting = signal<boolean>(false);
 
   constructor() {
+    // Read every category and brand again on each visit, so new or hidden ones show up.
+    this.#allCatalog.refresh();
     effect(() => {
       if (this.#navService.isLoading()) return;
 
@@ -86,11 +94,7 @@ export class NavigationManagerComponent {
       colTitle.includes('brand') ||
       (isBrandCategory && !colTitle.includes('discover'));
 
-    const result = await this.#dialogs.openAddLink(
-      col?.title || `Column ${colIndex + 1}`,
-      current?.path,
-      isBrandContext,
-    );
+    const result = await this.#dialogs.openAddLink(col?.title || `Column ${colIndex + 1}`, isBrandContext);
     if (result) this.draft.addLink(colIndex, result);
   }
 
@@ -103,11 +107,11 @@ export class NavigationManagerComponent {
 
   // --- Header Persistence Actions ---
   async publishChanges(): Promise<void> {
-    const categories = this.draft.draftCategories();
+    const categories = this.draft.categoriesToSave();
 
-    const validationError = validateNavigationDraft(categories);
-    if (validationError) {
-      this.#snackbar.error(validationError);
+    const check = validateNavigationDraft(categories, this.#allCatalog.targetCatalog());
+    if (check.errors.length > 0) {
+      this.#snackbar.error(draftProblemsMessage(check.errors), 'Close', 10000);
       return;
     }
 
@@ -115,7 +119,11 @@ export class NavigationManagerComponent {
     try {
       await this.#navService.updateNavigation(categories);
       this.draft.markSaved();
-      this.#snackbar.success('Published! Navigation updated successfully.');
+      if (check.warnings.length > 0) {
+        this.#snackbar.warning(hiddenTargetsMessage(check.warnings), 'Close', 8000);
+      } else {
+        this.#snackbar.success('Published! Navigation updated successfully.');
+      }
     } catch (err) {
       await this.#reportWriteError(err, 'Failed to save changes. Please try again.');
     } finally {
