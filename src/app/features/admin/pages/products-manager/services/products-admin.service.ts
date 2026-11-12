@@ -173,6 +173,14 @@ export class ProductsAdminService {
     return parsed.output;
   }
 
+  /** Admin or staff: deletes one product doc (one colour). Search and the menus follow on their own. */
+  async deleteProduct(productId: string): Promise<void> {
+    const remove = await callableFrom<{ productId: string }, unknown>(this.#functions(), 'deleteProduct');
+    await remove({ productId });
+    this.#productCache.clear();
+    await this.#searchService.clearCache();
+  }
+
   async saveStock(productId: string, change: StockChange): Promise<StockResult> {
     const setStock = await callableFrom<SetStockPayload, unknown>(this.#functions(), 'setProductStock');
     const result = await setStock({ productId, ...change });

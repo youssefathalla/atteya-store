@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
+  navTargetFromPath,
+  navTargetName,
+  navTargetPath,
+  resolveNavTarget,
+} from '../src/app/core/services/navigation/nav-target.ts';
+import {
   canCheckout,
   cartSubtotalDisplay,
   lineDisplayAmount,
@@ -787,5 +793,64 @@ describe('onePerModel (one card per model in product lists)', () => {
       'a2',
     );
     assert.equal(onePerModel([p('a1', 'a', { stock: 0 }), p('a2', 'a', { stock: 0 })])[0].id, 'a1');
+  });
+});
+
+describe('navTargetPath (navigation links built from what they point at, ATS-246)', () => {
+  const catalog = {
+    categories: [
+      { id: 'socks', slug: 'socks', name: 'Socks', published: true },
+      { id: 'old-cat', slug: 'old-cat', name: 'Old', published: false },
+    ],
+    brands: [
+      { id: 'nox', slug: 'nox', name: 'Nox', published: true },
+      { id: 'siux', slug: 'siux-padel', name: 'Siux', published: false },
+    ],
+  };
+
+  it('builds category, brand and page addresses', () => {
+    assert.equal(navTargetPath({ kind: 'category', id: 'socks' }, catalog), '/category/socks');
+    assert.equal(navTargetPath({ kind: 'brand', id: 'siux' }, catalog), '/brand/siux-padel');
+    assert.equal(navTargetPath({ kind: 'page', page: 'sale' }, catalog), '/shop?onSale=1');
+    assert.equal(navTargetPath({ kind: 'page', page: 'new-arrivals' }, catalog), '/shop?newArrivals=1');
+    assert.equal(navTargetPath({ kind: 'page', page: 'brands' }, catalog), '/brands');
+    assert.equal(navTargetPath({ kind: 'url', url: '/shop?sort=newest' }, catalog), '/shop?sort=newest');
+  });
+
+  it('uses Shop query names, with the brand name like the Brand filter', () => {
+    const path = navTargetPath(
+      { kind: 'shop', filters: { brand: 'nox', category: 'apparel', gender: 'women', onSale: true } },
+      catalog,
+    );
+    assert.equal(path, '/shop?category=apparel&brand=Nox&gender=women&onSale=1');
+    assert.equal(navTargetPath({ kind: 'shop', filters: {} }, catalog), '/shop');
+  });
+
+  it('reports hidden and missing targets', () => {
+    assert.deepEqual(resolveNavTarget({ kind: 'category', id: 'old-cat' }, catalog), {
+      path: '/category/old-cat',
+      problem: 'hidden',
+    });
+    assert.deepEqual(resolveNavTarget({ kind: 'category', id: 'gone' }, catalog), {
+      path: null,
+      problem: 'missing',
+    });
+    assert.equal(resolveNavTarget({ kind: 'shop', filters: { brand: 'gone' } }, catalog).problem, 'missing');
+  });
+
+  it('turns an exact address back into a target, anything else stays typed', () => {
+    assert.deepEqual(navTargetFromPath('/category/socks', catalog), { kind: 'category', id: 'socks' });
+    assert.deepEqual(navTargetFromPath('/brand/siux-padel', catalog), { kind: 'brand', id: 'siux' });
+    assert.deepEqual(navTargetFromPath('/shop?onSale=1', catalog), { kind: 'page', page: 'sale' });
+    assert.deepEqual(navTargetFromPath('/category/socks?onSale=1', catalog), {
+      kind: 'url',
+      url: '/category/socks?onSale=1',
+    });
+    assert.equal(navTargetFromPath('  ', catalog), null);
+  });
+
+  it('names a target for an empty label', () => {
+    assert.equal(navTargetName({ kind: 'brand', id: 'nox' }, catalog), 'Nox');
+    assert.equal(navTargetName({ kind: 'page', page: 'sale' }, catalog), 'Sale');
   });
 });

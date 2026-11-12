@@ -1,8 +1,9 @@
 <div class="elements-start-col gap-6">
-  <section class="surface-card p-5 w-full" aria-label="Add an admin">
-    <h2 class="font-title-lg font-bold!">Add an admin</h2>
+  <section class="surface-card p-5 w-full" aria-label="Add someone to the team">
+    <h2 class="font-title-lg font-bold!">Add someone to the team</h2>
     <p class="font-body-md pt-1 pb-4">
-      They need an account already. Ask them to sign in with Google once, or create their account first.
+      They need an account already. Ask them to sign in with Google once, or create their account first. Staff
+      can do everything an admin can, except delete orders and open this page.
     </p>
     <form class="elements-end flex-wrap gap-3" novalidate (submit)="onGrant($event)">
       <div class="w-full sm:max-w-md sm:flex-1">
@@ -14,24 +15,35 @@
           placeholder="name@example.com"
         />
       </div>
-      <button
-        matButton="filled"
-        type="submit"
-        [disabled]="isGranting()"
-        [attr.aria-label]="isGranting() ? 'Granting admin access' : null"
-      >
-        @if (isGranting()) {
-          <mat-progress-spinner mode="indeterminate" diameter="18" />
-        } @else {
-          <span>Grant</span>
-        }
-      </button>
+      <div class="w-full sm:max-w-sm sm:flex-1">
+        <app-select-input
+          [formField]="grantForm.role"
+          label="Role"
+          [options]="roleOptions"
+          valueKey="id"
+          labelKey="label"
+        />
+      </div>
+      <div class="elements-start w-full sm:w-auto *:flex-1">
+        <button
+          matButton="filled"
+          type="submit"
+          [disabled]="isGranting()"
+          [attr.aria-label]="isGranting() ? 'Adding to the team' : null"
+        >
+          @if (isGranting()) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <span>Add to Team</span>
+          }
+        </button>
+      </div>
     </form>
   </section>
 
-  <section class="surface-card p-5 w-full" aria-label="Current admins">
-    <h2 class="font-title-lg font-bold!">Current admins</h2>
-    <p class="font-body-md pt-1 pb-4">People who can manage the store.</p>
+  <section class="surface-card p-5 w-full" aria-label="Current team">
+    <h2 class="font-title-lg font-bold!">Current team</h2>
+    <p class="font-body-md pt-1 pb-4">People who can manage the store, and who gave them access.</p>
 
     @if (loadError()) {
       <p class="font-body-md pb-4" role="alert">{{ loadError() }}</p>
@@ -43,8 +55,8 @@
         <app-skeleton class="h-12 w-full" />
       </div>
     } @else if (rows().length > 0 || !loadError()) {
-      @if (rows().length === 1) {
-        <p class="font-body-sm pb-3">Add another admin before removing this one.</p>
+      @if (adminCount() === 1) {
+        <p class="font-body-sm pb-3">Add another admin before changing the only admin.</p>
       }
       <app-reusable-table
         [data]="rows()"
@@ -52,19 +64,21 @@
         [showHeaderControls]="false"
         [isLoading]="false"
       >
-        <p noDataContent class="font-body-md">No admins yet.</p>
+        <p noDataContent class="font-body-md">No one on the team yet.</p>
       </app-reusable-table>
     }
   </section>
 
-  <section class="surface-card p-5 w-full" aria-label="Recent admin changes">
+  <section class="surface-card p-5 w-full" aria-label="Recent team changes">
     <h2 class="font-title-lg font-bold!">Recent changes</h2>
     @if (changesLoading()) {
       <div class="pt-4" aria-hidden="true">
         <app-skeleton class="h-12 w-full" />
       </div>
     } @else if (changes().length === 0) {
-      <p class="font-body-md pt-2">Changes to admin access will show up here.</p>
+      <p class="font-body-md pt-2">
+        Changes to who can manage the store, and deleted orders and products, show up here.
+      </p>
     } @else {
       <ul class="elements-start-col gap-3 pt-4">
         @for (change of changes(); track change.id) {
@@ -79,20 +93,27 @@
 </div>
 
 <ng-template #removeCell [templateType]="sampleRow" let-row>
-  <button
-    matButton="text"
-    type="button"
-    theme="error"
-    [disabled]="removingUid() !== null"
-    [attr.aria-label]="
-      removingUid() === row.id ? 'Removing admin access' : 'Remove admin access for ' + row.email
-    "
-    (click)="removeAdmin(row)"
-  >
-    @if (removingUid() === row.id) {
-      <mat-progress-spinner mode="indeterminate" diameter="18" />
-    } @else {
-      <span>Remove Admin</span>
-    }
-  </button>
+  @if (!isOnlyAdmin(row)) {
+    <button
+      matButton="text"
+      type="button"
+      [matMenuTriggerFor]="rowMenu"
+      [disabled]="removingUid() !== null"
+      [attr.aria-label]="removingUid() === row.id ? 'Saving access' : 'Change access for ' + row.email"
+    >
+      @if (removingUid() === row.id) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" />
+      } @else {
+        <span>Change Access</span>
+      }
+    </button>
+    <mat-menu #rowMenu="matMenu">
+      @if (row.role === 'staff') {
+        <button mat-menu-item type="button" (click)="changeRole(row, 'admin')">Make Admin</button>
+      } @else {
+        <button mat-menu-item type="button" (click)="changeRole(row, 'staff')">Make Staff</button>
+      }
+      <button mat-menu-item type="button" (click)="removeAdmin(row)">Remove Access</button>
+    </mat-menu>
+  }
 </ng-template>

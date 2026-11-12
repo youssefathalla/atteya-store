@@ -15,7 +15,7 @@ import { defaultWeightGrams, readCategoryWeight, type CategoryWeightDefaults } f
 export const productWeights = onCall(
   adminCallableOptions({ timeoutSeconds: 300 }),
   async (request): Promise<ProductWeightsReport> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = parseInput(request.data);
     const db = getFirestore();
 

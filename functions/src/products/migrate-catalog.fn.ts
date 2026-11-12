@@ -96,7 +96,7 @@ async function forEachProductDocument(
 export const migrateCatalogStructure = onCall(
   adminCallableOptions({ timeoutSeconds: 300, memory: '512MiB' }),
   async (request): Promise<MigrateCatalogResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = parseMigrateRequest(request.data);
     const db = getFirestore();
 

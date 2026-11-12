@@ -1,0 +1,84 @@
+<div class="w-full elements-start-col items-stretch! gap-3">
+  <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
+    <mat-label>Links To</mat-label>
+    <input
+      #linksTo
+      matInput
+      type="text"
+      [id]="fieldId() + '-links-to'"
+      [name]="fieldId() + '-links-to'"
+      autocomplete="off"
+      aria-label="Links to"
+      placeholder="Search categories, brands and pages"
+      [matAutocomplete]="auto"
+      [value]="query()"
+      (input)="query.set($any($event.target).value)"
+    />
+    @if (isShop()) {
+      <button
+        matIconButton
+        matSuffix
+        type="button"
+        (click)="editShopFilters()"
+        matTooltip="Change the Shop filters"
+        aria-label="Change the Shop filters"
+      >
+        <mat-icon name="filter_list" />
+      </button>
+    }
+    <mat-autocomplete
+      #auto="matAutocomplete"
+      [displayWith]="displayWith"
+      (optionSelected)="onPicked($event)"
+      (closed)="onClosed()"
+    >
+      @for (group of groups(); track group.label) {
+        @if (group.label) {
+          <mat-optgroup [label]="group.label">
+            @for (choice of group.choices; track $index) {
+              <mat-option [value]="choice">{{ choiceLabel(choice) }}</mat-option>
+            }
+          </mat-optgroup>
+        } @else {
+          @for (choice of group.choices; track $index) {
+            <mat-option [value]="choice">{{ choiceLabel(choice) }}</mat-option>
+          }
+        }
+      }
+    </mat-autocomplete>
+    @if (mode() !== 'advanced' && address()) {
+      <mat-hint>{{ address() }}</mat-hint>
+    }
+  </mat-form-field>
+
+  @if (problem(); as message) {
+    <p class="font-body-sm text-error" role="status">{{ message }}</p>
+  }
+
+  @if (mode() === 'advanced') {
+    <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
+      <mat-label>Address</mat-label>
+      <input
+        matInput
+        [id]="fieldId() + '-address'"
+        [name]="fieldId() + '-address'"
+        autocomplete="off"
+        aria-label="Address"
+        [value]="path() ?? ''"
+        (input)="onAddressInput($any($event.target).value)"
+        placeholder="/category/apparel"
+      />
+      <button
+        matIconButton
+        matSuffix
+        type="button"
+        (click)="suggest.emit()"
+        matTooltip="Link to the category or brand this name matches"
+        aria-label="Link to the matching category or brand"
+      >
+        <mat-icon name="auto_fix_high" />
+      </button>
+      <mat-hint>The store opens this address as typed.</mat-hint>
+    </mat-form-field>
+  }
+</div>

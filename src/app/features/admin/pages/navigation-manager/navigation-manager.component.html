@@ -26,7 +26,7 @@
       <app-nav-category-details
         [category]="category"
         (labelChange)="draft.updateCategoryBasic('label', $event)"
-        (pathChange)="draft.updateCategoryPath($event)"
+        (targetChange)="draft.updateCategoryTarget($event)"
         (generatePath)="draft.generateCategoryPath()"
       />
 
@@ -41,6 +41,7 @@
         (linkFieldChange)="
           draft.updateLinkField($event.colIndex, $event.linkIndex, $event.field, $event.value)
         "
+        (linkTargetChange)="draft.updateLinkTarget($event.colIndex, $event.linkIndex, $event.change)"
         (linkDrop)="draft.dropLink($event.colIndex, $event.event)"
         (linkGenerateSlug)="draft.generateLinkSlug($event.colIndex, $event.linkIndex)"
       />

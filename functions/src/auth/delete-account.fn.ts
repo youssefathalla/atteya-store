@@ -24,10 +24,10 @@ export const deleteMyAccount = onCall(
   adminCallableOptions(),
   async (request): Promise<DeleteMyAccountResponse> => {
     const caller = await requireRole(request, 'user');
-    if (caller.role === 'admin') {
+    if (caller.role !== 'user') {
       throw new HttpsError(
         'failed-precondition',
-        "Admin accounts can't be deleted here. Ask another admin to remove the admin role first.",
+        "Admin and staff accounts can't be deleted here. Ask an admin to remove your dashboard access first.",
       );
     }
     if (!signedInRecently(request.auth?.token.auth_time)) {

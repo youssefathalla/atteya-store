@@ -22,7 +22,7 @@ export interface SetProductStockResponse {
 export const setProductStock = onCall(
   adminCallableOptions(),
   async (request): Promise<SetProductStockResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = parseSetProductStockRequest(request.data);
     const db = getFirestore();
     const ref = db.collection('products').doc(input.productId);
