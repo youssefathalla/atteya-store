@@ -1,104 +1,104 @@
-<div class="elements-start-col gap-6 w-full">
-  <section class="surface-card p-5 w-full elements-start-col gap-4" aria-label="Offers toolbar">
+<div class="elements-start-col items-stretch! gap-6 w-full">
+  <section
+    class="surface-card p-4 @5xl:p-5 w-full elements-start-col items-stretch! gap-4"
+    aria-label="Offers toolbar"
+  >
     <div class="elements-between flex-wrap gap-3 w-full">
-      <div>
+      <div class="min-w-0">
         <h1 class="font-title-lg font-bold!">Offers</h1>
         <p class="font-body-md text-on-surface-variant">
-          Create percentage discounts, bundle deals, and scheduled promotions.
+          Discounts and deals running in your store. Turn any of them on or off in one tap.
         </p>
       </div>
-      <a matButton="filled" routerLink="/admin/offers/new">
-        <mat-icon name="add" />
-        <span>New Offer</span>
-      </a>
+      <div class="grid w-full sm:w-auto">
+        <a matButton="filled" routerLink="/admin/offers/new">
+          <mat-icon name="add" />
+          <span>New Offer</span>
+        </a>
+      </div>
     </div>
 
-    <div class="flex flex-wrap gap-2" role="tablist" aria-label="Filter offers by status">
-      @for (tab of filterTabs; track tab.id) {
+    <div class="grid grid-cols-2 @3xl:grid-cols-4 gap-2 w-full" role="group" aria-label="Show offers">
+      @for (box of buckets; track box.id) {
         <button
           type="button"
-          role="tab"
-          class="border-shape border px-3 py-1.5 font-label-md cursor-pointer"
-          [class.border-primary]="statusFilter() === tab.id"
-          [class.bg-surface-container-highest]="statusFilter() === tab.id"
-          [class.border-outline-variant]="statusFilter() !== tab.id"
-          [attr.aria-selected]="statusFilter() === tab.id"
-          (click)="statusFilter.set(tab.id)"
+          class="offer-count"
+          [class.offer-count--on]="bucket() === box.id"
+          [attr.aria-pressed]="bucket() === box.id"
+          (click)="bucket.set(box.id)"
         >
-          {{ tab.label }}
+          <span class="offer-count__number">{{ counts()[box.id] }}</span>
+          <span class="font-label-lg">{{ box.label }}</span>
         </button>
       }
     </div>
-  </section>
 
-  <section class="surface-card p-5 w-full" aria-label="Offers list">
-    @if (dataResource.isLoading() && !dataResource.hasValue()) {
-      <div class="elements-start-col gap-3" aria-hidden="true">
-        <app-skeleton class="h-12 w-full" />
-        <app-skeleton class="h-12 w-full" />
-        <app-skeleton class="h-12 w-full" />
-      </div>
-    } @else {
-      <app-reusable-table
-        [data]="rows()"
-        [columns]="columns()"
-        [showHeaderControls]="false"
-        [isLoading]="false"
-      >
-        <p noDataContent class="font-body-md">
-          No offers in this view yet. Create an offer to start running discounts.
-        </p>
-      </app-reusable-table>
-    }
-  </section>
-</div>
-
-<ng-template #statusCell [templateType]="sampleRow" let-row>
-  <app-status-badge [value]="row.status" [statusConfig]="statusConfig" />
-</ng-template>
-
-<ng-template #titleCell [templateType]="sampleRow" let-row>
-  <div class="elements-start-col gap-0.5">
-    <span class="font-body-md font-bold!">{{ row.title }}</span>
-    <span class="font-body-sm text-on-surface-variant">
-      {{ row.name }}
-      @if (row.code) {
-        · Code: {{ row.code }}
-      }
-    </span>
-  </div>
-</ng-template>
-
-<ng-template #actionsCell [templateType]="sampleRow" let-row>
-  <div class="elements-center gap-1">
-    <a matButton="text" [routerLink]="['/admin/offers', row.id]">
-      <span>Edit</span>
-    </a>
-    <button
-      matIconButton
-      type="button"
-      [matMenuTriggerFor]="rowMenu"
-      [attr.aria-label]="'More actions for ' + row.name"
+    <!--
+      One line when everything fits (search left, filters right); otherwise the search takes the
+      full width and all the filters sit below it, never split across the two lines.
+    -->
+    <div
+      class="elements-start-col items-stretch! gap-3 w-full @5xl:flex-row! @5xl:justify-between! @5xl:items-center!"
     >
-      <mat-icon name="more_vert" />
-    </button>
-    <mat-menu #rowMenu="matMenu">
-      <button mat-menu-item type="button" (click)="duplicateOffer(row.id)">
-        <span>Duplicate</span>
-      </button>
-      @if (!row.archived) {
-        <button mat-menu-item type="button" (click)="toggleActive(row)">
-          <span>{{ row.active ? 'Pause' : 'Resume' }}</span>
-        </button>
-      }
-      <button mat-menu-item type="button" (click)="toggleArchived(row)">
-        <span>{{ row.archived ? 'Restore' : 'Archive' }}</span>
-      </button>
-      @if (row.archived) {
-        <button mat-menu-item type="button" (click)="deleteArchived(row)">
-          <span>Delete Permanently</span>
-        </button>
-      }
-    </mat-menu>
-  </div>
-</ng-template>
+      <mat-form-field class="w-full @5xl:w-96" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Search by offer name</mat-label>
+        <mat-icon matPrefix name="search" />
+        <input
+          matInput
+          type="search"
+          autocomplete="off"
+          [value]="search()"
+          (input)="search.set($any($event.target).value)"
+        />
+      </mat-form-field>
+
+      <mat-chip-listbox
+        aria-label="Filter offers by deal type"
+        [value]="dealFilter()"
+        (change)="setDealFilter($event)"
+      >
+        @for (chip of dealFilters; track chip.id) {
+          <mat-chip-option [value]="chip.id">{{ chip.label }}</mat-chip-option>
+        }
+      </mat-chip-listbox>
+    </div>
+  </section>
+
+  @if (dataResource.isLoading() && !dataResource.hasValue()) {
+    <div class="offer-grid" aria-hidden="true">
+      <app-skeleton class="h-72 w-full" />
+      <app-skeleton class="h-72 w-full" />
+      <app-skeleton class="h-72 w-full" />
+    </div>
+  } @else if (dataResource.error() && !dataResource.hasValue()) {
+    <section class="surface-card p-5 w-full elements-start-col gap-3" aria-label="Offers list">
+      <p class="font-body-md">We couldn't load your offers. Check your connection and try again.</p>
+      <button matButton="outlined" type="button" (click)="dataResource.reload()">Try Again</button>
+    </section>
+  } @else if (cards().length === 0) {
+    <section class="surface-card p-5 w-full" aria-label="Offers list">
+      <p class="font-body-md">{{ emptyText() }}</p>
+    </section>
+  } @else {
+    <section class="elements-start-col items-stretch! gap-3 w-full" [attr.aria-label]="sectionLabel()">
+      <h2 class="elements-start gap-2 font-title-md font-bold!">
+        <span class="offer-dot" [class.offer-dot--live]="bucket() === 'running'" aria-hidden="true"></span>
+        {{ sectionLabel() }}
+      </h2>
+      <div class="offer-grid">
+        @for (card of cards(); track card.key) {
+          <app-offer-card
+            [card]="card"
+            [busy]="actions.isBusy(card)"
+            (switched)="actions.switched(card, $event)"
+            (duplicate)="actions.duplicate(card)"
+            (pauseResume)="actions.pauseResume(card)"
+            (archive)="actions.archive(card)"
+            (remove)="actions.remove(card)"
+            (openGroup)="openGroup(card)"
+          />
+        }
+      </div>
+    </section>
+  }
+</div>

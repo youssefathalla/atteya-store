@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import {
   MAX_VERIFICATION_SENDS_PER_STORE_PER_UTC_DAY,
   MAX_VERIFICATION_SENDS_PER_UTC_DAY,
+  isTooManyLinkAttempts,
   storeVerificationSendDocId,
   nextVerificationSendCount,
   verificationContinueUrl,
@@ -36,6 +37,21 @@ describe('confirm-your-email send limit', () => {
     const max = MAX_VERIFICATION_SENDS_PER_STORE_PER_UTC_DAY;
     assert.equal(nextVerificationSendCount(max - 1, max), max);
     assert.equal(nextVerificationSendCount(max, max), null);
+  });
+});
+
+describe('confirm-your-email link limit from Firebase Auth', () => {
+  it('spots TOO_MANY_ATTEMPTS_TRY_LATER inside the SDK internal error', () => {
+    const raw =
+      'An internal error has occurred. Raw server response: "{"error":{"code":400,"message":"TOO_MANY_ATTEMPTS_TRY_LATER"}}"';
+    assert.equal(isTooManyLinkAttempts(new Error(raw)), true);
+    assert.equal(isTooManyLinkAttempts({ errorInfo: { message: raw } }), true);
+  });
+
+  it('ignores every other failure', () => {
+    assert.equal(isTooManyLinkAttempts(new Error('RESEND_API_KEY is not set.')), false);
+    assert.equal(isTooManyLinkAttempts(null), false);
+    assert.equal(isTooManyLinkAttempts(undefined), false);
   });
 });
 
@@ -73,12 +89,28 @@ describe('confirm-your-email message', () => {
 
   it('has the heading, button and expiry line', () => {
     assert.equal(email.subject, 'Confirm Your Email');
-    assert.match(email.html, />Confirm Your Email<\/h1>/);
+    assert.match(email.html, />CONFIRM<br>YOUR EMAIL<\/h1>/);
+    assert.match(email.html, />ONE LAST STEP</);
     assert.match(email.html, />Confirm Email<\/a>/);
     assert.match(email.html, /background:#111111;color:#ffffff;/);
+    assert.match(email.html, />Member prices</);
+    assert.match(email.text, /- Save orders to your account/);
     assert.match(email.html, /expires/);
     assert.match(email.html, /ignore this email/);
     assert.match(email.html, /ATTEYA STORE/);
+  });
+
+  it('links WhatsApp in the footer only when the number is set', () => {
+    assert.doesNotMatch(email.html, /wa\.me/);
+    const withWa = renderVerificationEmail({
+      storeName: 'Atteya Store',
+      link: 'https://auth.example/verify',
+      whatsappNumber: '+20 120 565 8954',
+      storefrontUrl: 'https://www.atteyastore.com',
+    });
+    assert.match(withWa.html, /href="https:\/\/wa\.me\/201205658954"/);
+    assert.match(withWa.html, />atteyastore\.com</);
+    assert.match(withWa.text, /Questions\? Message us on WhatsApp/);
   });
 
   it('escapes the link in the HTML and keeps it plain in the text', () => {

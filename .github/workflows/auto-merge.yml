@@ -3,8 +3,9 @@
 # runs without anyone pressing the button.
 #
 # "Clean" means, all on the PR's latest commit:
-#   - the Claude review (claude-review.yml) finished with a result and has no high or medium
-#     finding (low ones are notes; bugbot-claude-fix.yml fixes high and medium ones),
+#   - the Claude review (claude-review.yml: a code review and a security review of that commit,
+#     posted as one verdict) finished with a result and has no high or medium finding in either
+#     pass (low ones are notes; bugbot-claude-fix.yml fixes high and medium ones),
 #   - the CI "checks" job and the "linear-id" PR title check passed, and the Browser Check
 #     ("Phone and Desktop Pages", browser-check.yml) passed when it runs on that commit,
 #   - no other check failed or is still running (checks from the Cursor app are ignored:
@@ -55,7 +56,7 @@ name: Auto-merge
 on:
   workflow_run:
     # "PR title" is the old name, still used by branches made before the rename.
-    # "Claude Review": its verdict is the review gate.
+    # "Claude Review": its verdict (code + security review) is the review gate.
     # "Browser Check": required when it runs on the commit, so its end starts a merge check too.
     workflows: [CI, PR Title, PR title, Claude Review, Browser Check]
     types: [completed]
@@ -129,8 +130,9 @@ jobs:
             // run and are not held either.
             const BROWSER_CHECK = 'Phone and Desktop Pages';
             const OWN_JOB = 'Merge When Clean';
-            // Checks that never hold up a merge: this job, and the Claude review trial, which
-            // only posts findings.
+            // Checks that never hold up a merge: this job, and the Claude review jobs (claude-review.yml:
+            // "Code Review", "Security Review", "Post the Review"; "Claude Review (Trial)" is the old
+            // name on older commits), which only post findings: their verdict comment is the gate.
             // "Claim a Fix Round" and "Fix Review Findings" (bugbot-claude-fix.yml) start on every
             // review; waiting for them made the merge skip with nothing to start it again (a round
             // that pushes nothing triggers no other workflow). A real fix round is still covered:
@@ -139,7 +141,8 @@ jobs:
             // so GitHub lists it on the PR's commit, but it checks every open PR, not this one. Its
             // repo-wide queue cancels a waiting run when a newer one starts, and a cancelled or still
             // running watcher must never hold a merge (a conflict already shows as not mergeable).
-            const IGNORED = new Set([OWN_JOB, 'Merge when clean', 'Claude Review (Trial)', 'Claude review (trial)', 'Claim a Fix Round', 'Fix Review Findings', 'Fix Conflicting PRs']);
+            const CLAUDE_REVIEW_CHECKS = new Set(['Code Review', 'Security Review', 'Post the Review', 'Claude Review (Trial)', 'Claude review (trial)']);
+            const IGNORED = new Set([OWN_JOB, 'Merge when clean', ...CLAUDE_REVIEW_CHECKS, 'Claim a Fix Round', 'Fix Review Findings', 'Fix Conflicting PRs']);
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
             let sha = context.payload.workflow_run?.head_sha || '';
@@ -232,9 +235,13 @@ jobs:
               const runs = await github.paginate(github.rest.checks.listForRef, {
                 owner, repo, ref: sha, filter: 'all', per_page: 100,
               });
-              const claudeRun = runs
-                .filter((run) => ['Claude Review (Trial)', 'Claude review (trial)'].includes(run.name))
-                .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))[0];
+              // The newest check of each Claude review job (code, security, post).
+              const claudeRuns = new Map();
+              for (const run of runs) {
+                if (!CLAUDE_REVIEW_CHECKS.has(run.name)) continue;
+                const seen = claudeRuns.get(run.name);
+                if (!seen || new Date(run.started_at) > new Date(seen.started_at)) claudeRuns.set(run.name, run);
+              }
               const byName = new Map();
               for (const run of runs) {
                 if (IGNORED.has(run.name)) continue;
@@ -251,18 +258,24 @@ jobs:
                 }
                 if (!seen || new Date(run.started_at) > new Date(seen.started_at)) byName.set(run.name, run);
               }
-              // The Claude review of this commit, the review gate. Its check is in IGNORED, so the
-              // running-check wait below does not see it. When its check is not listed yet, look for a
-              // Claude Review run on this commit instead; no run at all means the review is off or
-              // skipped for this PR, and then nothing reviewed the commit.
-              let claudeRanHere = Boolean(claudeRun) && claudeRun.conclusion !== 'skipped';
-              let claudePending = claudeRun ? claudeRun.status !== 'completed' : false;
-              if (!claudeRun) {
+              // The Claude review of this commit (code and security passes, then the post), the review
+              // gate. Its checks are in IGNORED, so the running-check wait below does not see them.
+              // The post job's check only appears once both passes end, so the Claude Review
+              // workflow runs on this commit are read too: any run still going means the review is
+              // not finished. No run at all means the review is off or skipped for this PR, and then
+              // nothing reviewed the commit.
+              const claudeChecks = [...claudeRuns.values()];
+              let claudeRanHere = claudeChecks.some((run) => run.conclusion !== 'skipped');
+              let claudePending = claudeChecks.some((run) => run.status !== 'completed');
+              try {
                 const { data: wf } = await github.rest.actions.listWorkflowRuns({
                   owner, repo, workflow_id: 'claude-review.yml', head_sha: sha, per_page: 20,
                 });
-                claudeRanHere = (wf.workflow_runs || []).some((run) => run.status !== 'completed' || run.conclusion !== 'skipped');
-                claudePending = (wf.workflow_runs || []).some((run) => run.status !== 'completed');
+                const wfRuns = wf.workflow_runs || [];
+                claudeRanHere = claudeRanHere || wfRuns.some((run) => run.status !== 'completed' || run.conclusion !== 'skipped');
+                claudePending = claudePending || wfRuns.some((run) => run.status !== 'completed');
+              } catch (error) {
+                core.info(`#${n}: could not list Claude Review runs (${error.status ?? error.message}); using the checks only.`);
               }
 
               if (claudePending) { stop('The Claude review of this commit is still running.'); return false; }

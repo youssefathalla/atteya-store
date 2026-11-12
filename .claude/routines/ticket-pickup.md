@@ -62,7 +62,7 @@ Do NOT build, and stop after this step, when any of these is true:
    - `npm run test:cart`
    - `npm test --prefix functions`
    - `npx ng build --configuration development`
-5. Review your own change before it leaves this session, so Bugbot, the Claude review and Claude Fix find little or nothing:
+5. Review your own change before it leaves this session, so the Claude code review, the Claude security review and Claude Fix find little or nothing:
    - Commit your work first (the reviews read the branch against `origin/develop`), then run `git remote set-head origin develop` once. Without it `/security-review` fails with "ambiguous argument 'origin/HEAD...'".
    - Run `/code-review` on the branch against `origin/develop`: at `high` when the change touches money, stock, sign-in, Firestore or Storage rules, `functions/` or checkout; at `medium` otherwise (the `preflight-gate` skill's rule).
    - Run `/security-review` on the same branch.
@@ -74,9 +74,13 @@ Do NOT build, and stop after this step, when any of these is true:
 ## 5. Open the pull request
 
 - Base `develop`. Title starts with the issue id: `<id> <plain summary>`.
-- Body: first line `Linear: [<id>](https://linear.app/<workspace>/issue/<id>)`, a clickable link to the issue (`workspace` from `linear.config.json`). Then what changed and why, how to check it on the dev site, and any deploy step it needs (for example `fb:rules:dev` or `fb:fn:dev`) for the person who deploys. Never write closing words like "Fixes <id>" or "Closes <id>".
+- Body: first line `Linear: [<id>](https://linear.app/<workspace>/issue/<id>)`, a clickable link to the issue (`workspace` from `linear.config.json`). Then what changed and why, and any deploy step it needs (for example `fb:rules:dev` or `fb:fn:dev`) for the person who deploys. Never write closing words like "Fixes <id>" or "Closes <id>".
+- Add a `## How to Test on Dev` section to the body, written for Youssef testing on his phone after the merge (AGENTS.md, "How to Test on Dev"):
+  - First line: the rough time, `About 5 minutes.`
+  - `Setup:` then one line per thing to do on dev first (deploy step, data script with its exact command, Rebuild search, a test offer or product to create, a signed-in test account), or `Setup: none`.
+  - 3 to 6 `- [ ]` steps, each one action and what you should see, with "phone" or "desktop" where it matters and pages named by path. Base them on the ticket's "Done when" list. Mark steps that need sign-in (`Admin, signed in: …`).
 - Add a short "Self-review" section to the body: the `/code-review` level used, that `/security-review` ran, what each found and you fixed, and any finding left on purpose with its one-line reason. "Nothing found" is a fine answer.
-- If every check in step 4.4 passed after the self-review in step 4.5, open it as a normal (ready) PR. The Claude review and the Claude fix workflow review it, and it merges into `develop` by itself when clean.
+- If every check in step 4.4 passed after the self-review in step 4.5, open it as a normal (ready) PR. The Claude code and security reviews and the Claude Fix workflow review it, and it merges into `develop` by itself when clean.
 - If a check still fails and you could not fix it, open it as a **draft** and say in the body exactly what fails and why. Drafts are never merged automatically.
 - Use `gh pr create` if it is available. Otherwise use whatever GitHub tool this session has.
 
@@ -84,6 +88,7 @@ Do NOT build, and stop after this step, when any of these is true:
 
 - Move the issue to **To Review**. For a draft PR, move it to **Blocked** instead and comment what fails, that a person should fix it and mark the PR ready for review, and that the issue then goes back to **To Review**. Blocked issues don't hold a slot.
 - Comment with the PR link, a one-line summary, and any deploy step it needs.
+- Add the PR's whole `## How to Test on Dev` section to the end of the issue description (replace an older section with that heading if there is one; leave the rest of the description as it is), so the checklist can be ticked on the issue once it reaches QA.
 - If you noticed a separate bug along the way, create a new issue with the label `Bug` in status **Bugs**. Don't fix it in this PR.
 
 ## 7. Final message

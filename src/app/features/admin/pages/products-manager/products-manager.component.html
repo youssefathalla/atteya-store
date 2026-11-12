@@ -3,6 +3,9 @@
     [(search)]="search"
     [(typeId)]="typeId"
     [(brandId)]="brandId"
+    [(view)]="view"
+    [counts]="counts()"
+    [countsReady]="catalogResource.hasValue()"
     [activity]="activity()"
     (checkCatalog)="runMigration('add')"
     (removeLegacy)="runMigration('dropLegacy')"
@@ -15,24 +18,16 @@
       {{ searchSyncErrors() }} products didn't reach search. Run Rebuild search.
     </p>
   }
-  @if (searchTruncated()) {
-    <p class="surface-card p-3 w-full font-body-sm">
-      Showing the first 200 matches. Add more words to narrow it down.
-    </p>
-  }
-  @if (searchTooShort()) {
-    <p class="surface-card p-3 w-full font-body-sm" role="status">Type at least 2 letters to search.</p>
-  }
   <app-products-table
-    [rows]="rows()"
+    [groups]="groups()"
     [loading]="showSkeleton()"
     [tableLoading]="tableLoading()"
     [loadError]="loadError()"
-    [paginationService]="isSearchMode() ? undefined : pagination"
-    [browseMode]="!isSearchMode()"
     [hasActiveFilters]="hasActiveFilters()"
     [catalogueEmpty]="catalogueEmpty()"
     (edit)="editProduct($event)"
+    [switchingId]="switchingId()"
     (stock)="editStock($event)"
+    (switchPublished)="switchPublished($event)"
   />
 </div>

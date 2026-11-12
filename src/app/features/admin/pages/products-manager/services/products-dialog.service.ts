@@ -12,7 +12,12 @@ import {
   ProductStockDialogComponent,
   ProductStockDialogData,
 } from '../dialogs/product-stock-dialog/product-stock-dialog.component';
-import type { MigrateReport, ReindexSearchReport, StockChange } from '../models/product-admin.model';
+import type {
+  MigrateReport,
+  ProductTableRow,
+  ReindexSearchReport,
+  StockChange,
+} from '../models/product-admin.model';
 
 @Service()
 export class ProductsDialogService {
@@ -57,6 +62,33 @@ export class ProductsDialogService {
     );
     const confirmed = await firstValueFrom(dialogRef.afterClosed());
     return !!confirmed;
+  }
+
+  async confirmPublished(row: ProductTableRow, published: boolean): Promise<boolean> {
+    const name = row.colourLabel ? `${row.name} (${row.colourLabel})` : row.name;
+    const data: ConfirmDialogData = published
+      ? {
+          title: 'Show on the Store?',
+          message:
+            row.stockStatus === 'out' || row.stockStatus === 'unset'
+              ? `${name} will be visible to shoppers, but it has no stock, so they can't buy it yet. You can add stock first.`
+              : `${name} will be visible to shoppers and they can buy it.`,
+          confirmText: 'Make Live',
+          cancelText: 'Cancel',
+          theme: 'success',
+        }
+      : {
+          title: 'Hide from the Store?',
+          message: `Shoppers won't see ${name} anymore. You can make it live again at any time.`,
+          confirmText: 'Hide Product',
+          cancelText: 'Cancel',
+          theme: 'primary',
+        };
+    const dialogRef = this.#dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      { data, width: '440px', maxWidth: '92vw' },
+    );
+    return !!(await firstValueFrom(dialogRef.afterClosed()));
   }
 
   async openStock(product: Product): Promise<StockChange | null> {

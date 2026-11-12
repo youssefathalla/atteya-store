@@ -32,6 +32,10 @@
  *     gallery, a colour with no palette colour, a colour its model already has, a model name already
  *     used by another product, or a real stock count (not the placeholder, so no count is lost) is
  *     listed as CHECK and the product is not split.
+ *   - a product's entry may instead be `{ "photos": { colour -> paths }, "dropColours": [names],
+ *     "replaceRealStock": true }`: dropped colour choices get no product (their variant rows go with
+ *     them; the first remaining colour keeps the document), and `replaceRealStock` lets a real count
+ *     be replaced by the starting count (printed as a NOTE) instead of being a CHECK.
  *   - new colours keep the original's `createdAt`, so old products don't jump to the top of "newest".
  *   - offers that name the original product id are listed (NOTE); add the new colours to them by hand.
  * The original is updated and the new colours are created in one transaction, checked against the
@@ -271,19 +275,35 @@ for (const snap of toSplit) {
   );
 
   const problems = [];
-  const plan = isMap(SPLIT_PHOTOS[slug]) ? SPLIT_PHOTOS[slug] : null;
-  if (!plan) problems.push(`not in scripts/data/colour-split.json; add its photos per colour`);
+  const entry = isMap(SPLIT_PHOTOS[slug]) ? SPLIT_PHOTOS[slug] : null;
+  if (!entry) problems.push(`not in scripts/data/colour-split.json; add its photos per colour`);
+  // Two shapes: { "<colour>": [paths] }, or { "photos": { "<colour>": [paths] }, "dropColours": [...],
+  // "replaceRealStock": true } when a colour choice should go away or a real count may be replaced.
+  const detailed = isMap(entry?.photos);
+  const plan = entry ? (detailed ? entry.photos : entry) : null;
+  const dropLabels = asList(detailed ? entry.dropColours : []);
+  const dropKeys = new Set(dropLabels.map(colourKey));
+  const replaceRealStock = detailed && entry.replaceRealStock === true;
   const planByColour = new Map(Object.entries(plan ?? {}).map(([label, paths]) => [colourKey(label), paths]));
+  const known = new Set(colourValues.map((value) => colourKey(value?.label)));
   if (plan) {
-    const known = new Set(colourValues.map((value) => colourKey(value?.label)));
     if (planByColour.size !== Object.keys(plan).length) {
       problems.push('colour-split.json names the same colour twice (in a different case or spelling)');
     }
     for (const label of Object.keys(plan)) {
       if (!known.has(colourKey(label)))
         problems.push(`colour-split.json names "${label}", which it doesn't have`);
+      if (dropKeys.has(colourKey(label)))
+        problems.push(`colour-split.json both drops "${label}" and gives it photos`);
     }
   }
+  for (const label of dropLabels) {
+    if (!known.has(colourKey(label))) problems.push(`dropColours names "${label}", which it doesn't have`);
+  }
+  // A dropped colour gets no product; its variant rows go with it.
+  const activeValues = colourValues.filter((value) => !dropKeys.has(colourKey(value?.label)));
+  if (dropKeys.size > 0) console.log(`  dropping colour choice(s): ${dropLabels.join(', ')}`);
+  if (activeValues.length === 0) problems.push('every colour choice is dropped; nothing is left');
 
   const model = trimmed(data.modelGroup) || modelFromName(name);
   if (!model || model.length > MAX_MODEL_GROUP || model !== modelFromName(model)) {
@@ -295,15 +315,22 @@ for (const snap of toSplit) {
   }
 
   if (!isPlaceholder(data)) {
-    problems.push(
-      `stock ${describeStock(data.stock, data.stockBySize)} is a real count, not the placeholder; ` +
-        'split it by hand so no count is lost',
-    );
+    if (replaceRealStock) {
+      console.log(
+        `  NOTE: real stock ${describeStock(data.stock, data.stockBySize)} is replaced by the starting count ` +
+          '(replaceRealStock in colour-split.json); staff correct it in the product editor',
+      );
+    } else {
+      problems.push(
+        `stock ${describeStock(data.stock, data.stockBySize)} is a real count, not the placeholder; ` +
+          'split it by hand so no count is lost, or set replaceRealStock in colour-split.json',
+      );
+    }
   }
   if (trimmed(data.modelGroup)) {
     const others = [...(productsByModel.get(model) ?? [])].filter((id) => id !== snap.id);
     const taken = new Set(others.flatMap(coloursOf));
-    const clash = colourValues.map(paletteColour).filter((color) => color && taken.has(color));
+    const clash = activeValues.map(paletteColour).filter((color) => color && taken.has(color));
     if (clash.length > 0) {
       problems.push(`the model "${model}" already has a product in ${[...new Set(clash)].join(', ')}`);
     }
@@ -319,7 +346,7 @@ for (const snap of toSplit) {
   const stock = startingStock(keptOptions);
   const colours = [];
   const seenColours = new Set();
-  for (const [index, value] of colourValues.entries()) {
+  for (const [index, value] of activeValues.entries()) {
     const label = trimmed(value?.label);
     const color = paletteColour(value);
     if (!label || !trimmed(value?.id)) {

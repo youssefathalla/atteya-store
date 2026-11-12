@@ -12,11 +12,13 @@ import { STORE_INFO } from '../store/store-info.js';
 import { adminCallableOptions } from './callable-options.js';
 import { requireRole } from './require-role.js';
 import {
+  isTooManyLinkAttempts,
   MAX_VERIFICATION_SENDS_PER_STORE_PER_UTC_DAY,
   nextVerificationSendCount,
   storeVerificationSendDocId,
   VERIFICATION_LIMIT_MESSAGE,
   VERIFICATION_STORE_LIMIT_MESSAGE,
+  VERIFICATION_TRY_LATER_MESSAGE,
   verificationContinueUrl,
   verificationSendDocId,
   verificationSendExpireAt,
@@ -102,10 +104,15 @@ export const sendVerificationEmail = onCall(
         email,
         continueUrl ? { url: continueUrl } : undefined,
       );
-      const message = renderVerificationEmail({ storeName: STORE_INFO.name, link });
+      const message = renderVerificationEmail({
+        storeName: STORE_INFO.name,
+        link,
+        whatsappNumber: STORE_INFO.contact.whatsapp,
+        storefrontUrl: STOREFRONT_URL.value().trim().replace(/\/+$/, ''),
+      });
       const replyTo = RESEND_REPLY_TO.value().trim();
       resendCalled = true;
-      await sendResendEmail(apiKey, {
+      const resendId = await sendResendEmail(apiKey, {
         from: RESEND_FROM.value().trim(),
         to: [email],
         subject: message.subject,
@@ -115,6 +122,8 @@ export const sendVerificationEmail = onCall(
         // Each call carries a new link, so each send is its own Resend request.
         idempotencyKey: `verify-email-${caller.uid}-${randomUUID()}`,
       });
+      // The id is how a missing email is traced in the Resend dashboard (Emails → Logs).
+      logger.info('Confirm-your-email handed to Resend', { uid: caller.uid, resendId });
     } catch (error) {
       logger.error('Confirm-your-email send failed', {
         uid: caller.uid,
@@ -126,6 +135,9 @@ export const sendVerificationEmail = onCall(
           counterRef.update(giveBack).catch(() => undefined),
           storeRef.update(giveBack).catch(() => undefined),
         ]);
+      }
+      if (!resendCalled && isTooManyLinkAttempts(error)) {
+        throw new HttpsError('resource-exhausted', VERIFICATION_TRY_LATER_MESSAGE);
       }
       throw new HttpsError('unavailable', SEND_FAILED);
     }

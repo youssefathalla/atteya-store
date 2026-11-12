@@ -1,22 +1,32 @@
 import { Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { of } from 'rxjs';
 import { ShopperOrdersService, type ShopperOrderRow } from '@core/services/orders/shopper-orders.service';
+import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 
 const PAGE_SIZE = 20;
 
 /**
- * Account → Orders: the shopper's orders, newest first, read live. Each row opens the order's
- * status page (`/checkout/confirmation/:orderId`). "Show More Orders" reads 20 more.
+ * Account → Orders: the shopper's orders, newest first, read live. The newest is a large card
+ * (photos, progress Placed → Delivered), the rest are rows; each opens the order's status page
+ * (`/checkout/confirmation/:orderId`). "Show More Orders" reads 20 more.
  */
 @Component({
   selector: 'app-orders-section',
   host: { class: 'block w-full account-section' },
-  imports: [RouterLink, MatButtonModule, SharedIconModule, SkeletonComponent],
+  imports: [
+    NgOptimizedImage,
+    RouterLink,
+    MatButtonModule,
+    SharedIconModule,
+    SkeletonComponent,
+    AppImageFallbackDirective,
+  ],
   templateUrl: './orders-section.component.html',
 })
 export class OrdersSectionComponent {
@@ -26,6 +36,7 @@ export class OrdersSectionComponent {
 
   readonly #max = signal(PAGE_SIZE);
   readonly skeletonRows = [0, 1, 2] as const;
+  readonly progressSteps = ['Placed', 'Confirmed', 'Shipped', 'Delivered'] as const;
 
   readonly ordersResource = rxResource({
     params: () => (this.uid() ? { uid: this.uid(), max: this.#max() } : undefined),
@@ -40,6 +51,8 @@ export class OrdersSectionComponent {
   readonly showLoading = computed(
     () => this.ordersResource.isLoading() && !this.ordersResource.hasValue() && this.rows().length === 0,
   );
+  readonly latest = computed(() => this.rows()[0] ?? null);
+  readonly earlier = computed(() => this.rows().slice(1));
   readonly canShowMore = computed(() => this.rows().length >= this.#max());
 
   showMore(): void {

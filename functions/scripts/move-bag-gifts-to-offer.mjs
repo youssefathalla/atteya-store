@@ -81,77 +81,84 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * `nox-socks-2` the black one. BULLPADEL is the Bullpadel pair (`socks`), the same photo the On
  * socks pages use for their Bullpadel choice. Set a label to null when it has no real product:
  * it is left out of the offer and listed.
+ *
+ * Every bag and gift is named by document id (`id:eo-…`, the same on dev and prod), because
+ * `clean-product-slugs.mjs` changed every address (ATS-189). The comment after each id is the old
+ * address it replaced; each id is the product whose old store address (`source.slug`) is that
+ * address, ignoring case (`adidas-bag-blue` = `ADIDAS-BAG-BLUE`, the Adidas Protour Racket Bag;
+ * `adidas-pro-tour` is the Adidas Protour Backpack). `adidas-shirt-galan-2` was the second product
+ * whose address became `adidas-shirt-galan`: the black Ale Galán shirt (`Adidas-shirt-Galan-`).
  */
 const BAGS = [
   {
-    slug: 'adidas-bag-blue',
+    slug: 'id:eo-3a2bf644-a1b5-4c2c-a4e5-515c72d9e65c', // adidas-bag-blue
     gifts: {
       'Free shirt': {
-        BLACK: 'adidas-shirt-galan-2',
-        WHITE: 'adidas-tshirt-galan',
-        GREEN: 'adidas-shirt-galan',
-        ORANGE: 'adidas-orange',
-        'NAVY BLUE': 'adidas-navy-blue',
+        BLACK: 'id:eo-da3c8d5a-8e43-4295-9b36-1e7dab4091d2', // adidas-shirt-galan-2
+        WHITE: 'id:eo-fc62ec11-6cac-4516-9bf3-53ec9d989236', // adidas-tshirt-galan
+        GREEN: 'id:eo-c22d8cdd-cc0a-4b73-a06d-940dd6f6f0f9', // adidas-shirt-galan
+        ORANGE: 'id:eo-5bdbcf3a-4d9a-4d8a-8d18-1f50ee540c08', // adidas-orange
+        'NAVY BLUE': 'id:eo-a1789aa5-286e-453d-9fdf-9e9654cc52a4', // adidas-navy-blue
       },
       'Free socks': {
-        'NOX BLACK': 'nox-socks-2',
-        BULLPADEL: 'socks',
-        BABOLAT: 'babolat-socks',
-        'SIUX BLACK': 'siuxsocksblack',
+        'NOX BLACK': 'id:eo-64b8faea-c0e4-47ce-b52f-2f85fd53a50f', // nox-socks-2
+        BULLPADEL: 'id:eo-7804d7ac-0526-4e17-9975-0ed422d3970c', // socks
+        BABOLAT: 'id:eo-98eee1ee-1fe5-4100-afb4-68d42b3bd869', // babolat-socks
+        'SIUX BLACK': 'id:eo-6fb771ba-ae67-4a6d-8b51-832b619fa158', // siuxsocksblack
       },
     },
   },
   {
-    slug: 'adidas-black',
+    slug: 'id:eo-4e5200d1-4c7b-4bd6-b944-3d2194551f22', // adidas-black
     gifts: {
       'Free shirt': {
-        BLACK: 'adidas-shirt-galan-2',
-        WHITE: 'adidas-tshirt-galan',
-        ORANGE: 'adidas-orange',
-        'POLO WHITE': 'adidas-polo-white',
-        'POLO BLACK': 'adidas-polo-gray',
+        BLACK: 'id:eo-da3c8d5a-8e43-4295-9b36-1e7dab4091d2', // adidas-shirt-galan-2
+        WHITE: 'id:eo-fc62ec11-6cac-4516-9bf3-53ec9d989236', // adidas-tshirt-galan
+        ORANGE: 'id:eo-5bdbcf3a-4d9a-4d8a-8d18-1f50ee540c08', // adidas-orange
+        'POLO WHITE': 'id:eo-5812cfbe-840e-42fa-8a40-007445107e8d', // adidas-polo-white
+        'POLO BLACK': 'id:eo-325839fb-5572-4cf5-9c63-ef42c445207d', // adidas-polo-gray
       },
       'Free socks': {
-        'NOX WHITE': 'nox-socks',
-        'NOX BLACK': 'nox-socks-2',
-        'ON WHITE': 'on-white-socks',
-        'ON BLACK': 'on-socks-black',
+        'NOX WHITE': 'id:eo-2dc72650-7a71-425d-aac6-24f265aa3b9e', // nox-socks
+        'NOX BLACK': 'id:eo-64b8faea-c0e4-47ce-b52f-2f85fd53a50f', // nox-socks-2
+        'ON WHITE': 'id:eo-618666e6-0bdc-4564-b53a-ac06b827d424', // on-white-socks
+        'ON BLACK': 'id:eo-e8bb355b-8089-4446-8f0a-5139becce1e0', // on-socks-black
       },
     },
   },
   {
-    slug: 'adidas-bag-red',
+    slug: 'id:eo-e6622ea2-82e6-458e-ad06-87553caab750', // adidas-bag-red
     gifts: {
       'Free shirt': {
-        'POLO WHITE': 'adidas-polo-white',
-        'POLO BLACK': 'adidas-polo-gray',
-        'ON POLO BALCK': 'on-polo',
-        'BULLPADEL WHITE': 'bullpadel-white-shirt',
+        'POLO WHITE': 'id:eo-5812cfbe-840e-42fa-8a40-007445107e8d', // adidas-polo-white
+        'POLO BLACK': 'id:eo-325839fb-5572-4cf5-9c63-ef42c445207d', // adidas-polo-gray
+        'ON POLO BALCK': 'id:eo-dc311972-e196-45af-a7c8-5b22336da4eb', // on-polo
+        'BULLPADEL WHITE': 'id:eo-d7bf5098-f0cc-40ef-bec2-c7d6c4f21eb3', // bullpadel-white-shirt
       },
       'Free socks': {
-        'ON BLACK': 'on-socks-black',
-        'ON WHITE': 'on-white-socks',
-        'BULLPADEL WHITE': 'socks',
-        'SIUX WHITE': 'siuxsocks',
-        'SIUX BLACK': 'siuxsocksblack',
+        'ON BLACK': 'id:eo-e8bb355b-8089-4446-8f0a-5139becce1e0', // on-socks-black
+        'ON WHITE': 'id:eo-618666e6-0bdc-4564-b53a-ac06b827d424', // on-white-socks
+        'BULLPADEL WHITE': 'id:eo-7804d7ac-0526-4e17-9975-0ed422d3970c', // socks
+        'SIUX WHITE': 'id:eo-1b062b7d-9502-4858-bf7f-f8106fdc1e75', // siuxsocks
+        'SIUX BLACK': 'id:eo-6fb771ba-ae67-4a6d-8b51-832b619fa158', // siuxsocksblack
       },
     },
   },
   {
-    slug: 'adidas-pro-tour',
+    slug: 'id:eo-c08ae8e0-1bf6-4871-a472-530d21a267ae', // adidas-pro-tour
     gifts: {
       'Free shirt': {
-        WHITE: 'adidas-tshirt-galan',
-        BLACK: 'adidas-shirt-galan-2',
-        ORANGE: 'adidas-orange',
-        'NAVY BLUE': 'adidas-navy-blue',
-        GREEN: 'adidas-shirt-galan',
+        WHITE: 'id:eo-fc62ec11-6cac-4516-9bf3-53ec9d989236', // adidas-tshirt-galan
+        BLACK: 'id:eo-da3c8d5a-8e43-4295-9b36-1e7dab4091d2', // adidas-shirt-galan-2
+        ORANGE: 'id:eo-5bdbcf3a-4d9a-4d8a-8d18-1f50ee540c08', // adidas-orange
+        'NAVY BLUE': 'id:eo-a1789aa5-286e-453d-9fdf-9e9654cc52a4', // adidas-navy-blue
+        GREEN: 'id:eo-c22d8cdd-cc0a-4b73-a06d-940dd6f6f0f9', // adidas-shirt-galan
       },
       'Free socks': {
-        'SIUX BLACK': 'siuxsocksblack',
-        'SIUX WHITE': 'siuxsocks',
-        BABOLAT: 'babolat-socks',
-        BULLPADEL: 'socks',
+        'SIUX BLACK': 'id:eo-6fb771ba-ae67-4a6d-8b51-832b619fa158', // siuxsocksblack
+        'SIUX WHITE': 'id:eo-1b062b7d-9502-4858-bf7f-f8106fdc1e75', // siuxsocks
+        BABOLAT: 'id:eo-98eee1ee-1fe5-4100-afb4-68d42b3bd869', // babolat-socks
+        BULLPADEL: 'id:eo-7804d7ac-0526-4e17-9975-0ed422d3970c', // socks
       },
     },
   },
@@ -179,19 +186,19 @@ const BAGS = [
     },
   },
   {
-    slug: 'siux-edge-bag',
+    slug: 'id:eo-cd3acbbd-d14a-4f99-a07f-e5cca315d2c1', // siux-edge-bag
     gifts: {
       'Free shirt': {
-        'SIUX WHITE': 'siux-t-shirt',
-        'SIUX RED': 'siux-tshirt1',
-        'SIUX BLACK/RED': 'siux-red',
-        'SIUX GREEN/BLACK': 'siux-tshirt-2',
+        'SIUX WHITE': 'id:eo-d05485c0-4506-4ccf-8e07-c46edd162740', // siux-t-shirt
+        'SIUX RED': 'id:eo-91f1d5e0-436d-40be-bd4f-723dbd029dc3', // siux-tshirt1
+        'SIUX BLACK/RED': 'id:eo-2e32dbc9-a758-4c77-9219-94ae23fc0124', // siux-red
+        'SIUX GREEN/BLACK': 'id:eo-ceab9916-83ef-41e4-948a-5ad62359be9b', // siux-tshirt-2
       },
       'Free socks': {
-        'SIUX BLACK': 'siuxsocksblack',
-        'SIUX WHITE': 'siuxsocks',
-        BULLPADEL: 'socks',
-        BABOLAT: 'babolat-socks',
+        'SIUX BLACK': 'id:eo-6fb771ba-ae67-4a6d-8b51-832b619fa158', // siuxsocksblack
+        'SIUX WHITE': 'id:eo-1b062b7d-9502-4858-bf7f-f8106fdc1e75', // siuxsocks
+        BULLPADEL: 'id:eo-7804d7ac-0526-4e17-9975-0ed422d3970c', // socks
+        BABOLAT: 'id:eo-98eee1ee-1fe5-4100-afb4-68d42b3bd869', // babolat-socks
       },
     },
   },

@@ -183,4 +183,18 @@ export class ProductsAdminService {
     await this.#searchService.clearCache();
     return parsed.output;
   }
+
+  async setPublished(productId: string, published: boolean): Promise<boolean> {
+    const setPublished = await callableFrom<{ productId: string; published: boolean }, unknown>(
+      this.#functions(),
+      'setProductPublished',
+    );
+    const result = await setPublished({ productId, published });
+    const parsed = v.safeParse(v.object({ published: v.boolean() }), result.data);
+    if (!parsed.success) {
+      throw new Error('The change was saved, but the response was unexpected. Reload the page.');
+    }
+    await this.#searchService.clearCache();
+    return parsed.output.published;
+  }
 }

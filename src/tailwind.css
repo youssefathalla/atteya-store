@@ -22,5 +22,7 @@
 @import './styles/tailwind/components/payment-methods';
 @import './styles/tailwind/components/deals';
 @import './styles/tailwind/components/order-confirmation';
+@import './styles/tailwind/components/admin-orders';
+@import './styles/tailwind/components/admin-offers';
 @import './styles/tailwind/components/product-editor';
 @import './styles/tailwind/utils-base';

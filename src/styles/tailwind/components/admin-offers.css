@@ -1,0 +1,195 @@
+@layer components {
+  /*! admin offers list: count boxes and offer cards (ATS-219) */
+
+  /* A count box that filters the list (Running now, Starting later, Ended, Archived). */
+  .offer-count {
+    @apply elements-start-col items-start! gap-1 p-3 @3xl:p-4 text-start cursor-pointer border border-outline-variant border-shape bg-surface-container-lowest min-w-0;
+  }
+
+  .offer-count--on {
+    @apply bg-primary text-on-primary border-primary;
+  }
+
+  .offer-count__number {
+    @apply font-headline-sm font-bold!;
+  }
+
+  /* The cards: 1 per row on phone, 2 on tablet, 3 on desktop; a row shares the tallest card's height. */
+  .offer-grid {
+    @apply grid w-full grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3 items-stretch;
+  }
+
+  .offer-card {
+    @apply h-full w-full min-w-0 elements-start-col items-stretch! justify-start! gap-3 p-4 bg-surface-container-lowest border border-outline-variant border-shape shadow-sm;
+  }
+
+  /* Ended cards: dashed border and a grey background. */
+  .offer-card--ended {
+    @apply border-dashed bg-surface-container-low shadow-none;
+  }
+
+  .offer-card__status {
+    @apply elements-between gap-3 min-h-10 font-label-lg min-w-0;
+  }
+
+  /* The deal in large bold text: always 2 lines tall, cut off with "…" after 2 lines. */
+  .offer-card__deal {
+    @apply font-title-lg font-bold! line-clamp-2 h-[2lh] break-words;
+  }
+
+  .offer-card__muted {
+    @apply font-body-sm text-on-surface-variant;
+  }
+
+  .offer-card__facts {
+    @apply elements-start-col items-stretch! gap-1.5 border-t border-outline-variant pt-3 font-body-sm;
+  }
+
+  .offer-card__fact {
+    @apply elements-between gap-3 min-w-0;
+  }
+
+  .offer-card__fact dt {
+    @apply text-on-surface-variant shrink-0;
+  }
+
+  .offer-card__fact dd {
+    @apply font-bold! text-end truncate min-w-0;
+  }
+
+  /* Footer pinned to the bottom of the card, with a line above it. */
+  .offer-card__footer {
+    @apply mt-auto elements-start gap-2 border-t border-outline-variant pt-3;
+  }
+
+  .offer-dot {
+    @apply inline-block size-2 shrink-0 rounded-full bg-outline;
+  }
+
+  .offer-dot--live {
+    @apply bg-success;
+  }
+
+  /*! admin offer editor: 4 steps (ATS-220) */
+
+  /* Page frame: the card on the left, the summary panel on the right (under the card on phone). */
+  .offer-editor {
+    @apply grid w-full grid-cols-1 gap-6 items-start @5xl:grid-cols-[minmax(0,1fr)_20rem];
+  }
+
+  .offer-editor__card {
+    @apply bg-surface-container-lowest border border-outline-variant border-shape shadow-sm p-5 @3xl:p-8 w-full min-w-0 elements-start-col items-stretch! gap-6;
+  }
+
+  .offer-editor__actions {
+    @apply elements-between flex-wrap gap-3 w-full border-t border-outline-variant pt-5;
+  }
+
+  /*
+   * Step bar as a timeline. Phone: a column, each circle with its name on the right and a line
+   * down to the next circle. From `sm`: one row of 4 equal columns, each name under its circle and
+   * a line across to the next. The line is black after a finished step, grey otherwise.
+   */
+  .offer-steps {
+    @apply flex flex-col w-full font-label-md sm:grid sm:grid-cols-4 sm:items-start sm:max-w-3xl sm:mx-auto;
+  }
+
+  .offer-steps__item {
+    @apply relative elements-start items-center! gap-3 pb-4 last:pb-0 text-start min-w-0 sm:flex-col sm:gap-2 sm:pb-0 sm:px-1 sm:text-center;
+  }
+
+  /* Phone: a vertical line from under this circle to the top of the next one. */
+  .offer-steps__item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: calc(2rem + 0.25rem);
+    bottom: 0.25rem;
+    left: calc(1rem - 1px);
+    width: 2px;
+    background: var(--mat-sys-outline-variant);
+  }
+
+  /* From `sm`: a horizontal line from this circle to the next column's circle. */
+  @media (width >= 40rem) {
+    .offer-steps__item:not(:last-child)::after {
+      top: calc(1rem - 1px);
+      bottom: auto;
+      left: calc(50% + 1.25rem);
+      right: calc(-50% + 1.25rem);
+      width: auto;
+      height: 2px;
+    }
+  }
+
+  .offer-steps__item--done:not(:last-child)::after {
+    background: var(--mat-sys-primary);
+  }
+
+  .offer-steps__circle {
+    @apply size-8 shrink-0 elements-center rounded-full border border-outline bg-surface-container-lowest font-label-lg text-on-surface-variant;
+  }
+
+  /* The current step (its number) and every step before it (a tick) are filled black. */
+  .offer-steps__circle--on,
+  .offer-steps__circle--done {
+    @apply bg-primary text-on-primary border-primary;
+  }
+
+  .offer-steps__link {
+    @apply elements-start items-center! gap-3 cursor-pointer text-start sm:flex-col sm:gap-2 sm:text-center;
+  }
+
+  /* A choice card: the border is a wrapper around a Material radio; the hit span makes the whole card clickable. */
+  .offer-choice {
+    @apply relative p-4 border border-outline-variant border-shape bg-surface-container-lowest min-w-0;
+  }
+
+  .offer-choice--on {
+    @apply border-primary ring-1 ring-inset ring-primary;
+  }
+
+  .offer-choice__hit {
+    @apply absolute inset-0 cursor-pointer;
+  }
+
+  .offer-choice__symbol {
+    @apply block font-title-lg font-bold!;
+  }
+
+  .offer-choice__hint {
+    @apply block font-body-sm text-on-surface-variant;
+  }
+
+  /* The black boxes: "Your offer so far", Affected products, the step 4 deal. */
+  .offer-dark-box {
+    @apply bg-primary text-on-primary border-shape p-6 w-full;
+  }
+
+  .offer-banner-sample {
+    @apply bg-primary text-on-primary border-shape px-4 py-2 text-center font-label-lg truncate;
+  }
+
+  .offer-sample-badge {
+    @apply absolute top-3 start-3 bg-primary text-on-primary border-shape px-2 py-0.5 font-label-md font-bold!;
+  }
+
+  /* The dashed "+ Add Category, Brand or Product" button. */
+  .offer-add-tag {
+    @apply border border-dashed border-outline border-shape px-4 py-2 font-label-lg font-bold! cursor-pointer bg-surface-container-lowest;
+  }
+
+  /* A grey note box (overlaps, the run line, Good to know). */
+  .offer-note {
+    @apply w-full bg-surface-container border-shape p-4 font-body-md elements-start-col items-stretch! gap-2;
+  }
+
+  /* An Extras row: title and hint on the left, a switch or button on the right. */
+  .offer-extra {
+    @apply elements-between gap-4 w-full;
+  }
+
+  /* Step 4 rows: label, value, Change. */
+  .offer-check-row {
+    @apply grid grid-cols-[minmax(0,1fr)_auto] @3xl:grid-cols-[10rem_minmax(0,1fr)_auto] gap-x-4 gap-y-1 items-baseline px-4 py-3 border-b border-outline-variant last:border-b-0;
+  }
+}

@@ -1,6 +1,6 @@
 # Review rules for Atteya Store
 
-The Claude review workflow (`.github/workflows/claude-review.yml`) reads this file on every pull request, and agents use it for their own review before opening a PR. `AGENTS.md` is the full contract; this is the short list of things that break production, money, data or security here. Flag a change that breaks one of these. Don't flag style, naming or "consider adding tests".
+The Claude review workflow (`.github/workflows/claude-review.yml`: a code review and a security review) reads this file from the base branch on every pull request, so a pull request never changes what it is reviewed against. Agents use it for their own review before opening a PR. `AGENTS.md` is the full contract; this is the short list of things that break production, money, data or security here. Flag a change that breaks one of these. Don't flag style, naming or "consider adding tests".
 
 ## Money and prices
 
@@ -13,7 +13,7 @@ The Claude review workflow (`.github/workflows/claude-review.yml`) reads this fi
 ## Stock
 
 - `stock`, `stockBySize` and `inStock` are written together, only through `stockFields()` / `bootstrapStock()` in `functions/src/products/stock.ts`. `inStock` is always `stock > 0`; `stock` equals the sum of `stockBySize` when sizes exist.
-- No client code writes product docs or stock fields. Admin stock edits go through the `setProductStock` callable in a transaction.
+- No client code writes product docs or stock fields. Admin stock edits go through the `setProductStock` callable in a transaction, and the list's Live / Hidden switch through `setProductPublished`.
 - Stock is taken on confirm (`changeOrderStatus()` behind `setOrderStatus` / `confirmCodOrder`, and `paymobWebhook`), never on order creation; it is taken once (`stockDecrementedAt`) and goes back on Cancelled or back to Waiting for Payment.
 
 ## Security and access

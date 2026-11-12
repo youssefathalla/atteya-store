@@ -19,6 +19,24 @@ export const VERIFICATION_STORE_LIMIT_MESSAGE =
 export const VERIFICATION_LIMIT_MESSAGE =
   "You've asked for 3 emails today. Please check your inbox or try again tomorrow.";
 
+/** Shown when Firebase Auth itself refuses to make another link for this address for a while. */
+export const VERIFICATION_TRY_LATER_MESSAGE = 'Please wait a few minutes before asking for another email.';
+
+/**
+ * True when Firebase Auth's own limit stopped the link (`TOO_MANY_ATTEMPTS_TRY_LATER`, which the Admin
+ * SDK reports inside an "internal error" message). It is temporary and not our daily limit.
+ */
+export function isTooManyLinkAttempts(error: unknown): boolean {
+  const text = [
+    error instanceof Error ? error.message : typeof error === 'string' ? error : '',
+    (error as { code?: unknown } | null)?.code,
+    (error as { errorInfo?: { message?: unknown } } | null)?.errorInfo?.message,
+  ]
+    .filter((part): part is string => typeof part === 'string')
+    .join(' ');
+  return text.includes('TOO_MANY_ATTEMPTS_TRY_LATER');
+}
+
 /** Where the link returns to when the caller names no page: the shopper's account. */
 export const DEFAULT_VERIFICATION_RETURN_PATH = '/account';
 

@@ -89,7 +89,8 @@ export const ProductSchema = v.pipe(
     type: v.picklist(PRODUCT_TYPE_IDS),
     brandId: slugSchema,
     modelGroup: v.nullable(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80))),
-    gender: v.optional(v.picklist(PRODUCT_GENDER_IDS)),
+    /** An unknown stored gender (e.g. a retired 'kids') reads as not set; it never drops the product. */
+    gender: v.optional(v.fallback(v.optional(v.picklist(PRODUCT_GENDER_IDS)), undefined)),
     /** Every colour of the model in a fixed order (this product included). A bad list never drops the product. */
     colorSiblings: v.optional(v.fallback(v.pipe(v.array(ColorSiblingSchema), v.maxLength(12)), []), []),
     currency: v.literal('EGP'),

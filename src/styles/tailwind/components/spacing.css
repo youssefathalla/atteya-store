@@ -3,6 +3,16 @@
     @apply flex flex-col flex-1 lg:p-[5cqw] p-[5cqw] w-full;
   }
 
+  /*
+   * The first section of a routed page sits right under the navigation, so it gets half the top padding.
+   * It is either the page host itself (Shop, Category, Brands, Search, Favorites put .container-content on the host)
+   * or the first child of the page host (Account, Checkout, Login, Terms, Privacy, Product).
+   * :where() keeps the specificity at one class, so page-specific padding-block overrides still win.
+   */
+  .container-content:where(router-outlet + *, router-outlet + * > :first-child) {
+    padding-top: 2.5cqw;
+  }
+
   .hero-space {
     @apply md:pb-[2.5cqw] md:pt-[0.5cqw] py-[5cqw];
   }

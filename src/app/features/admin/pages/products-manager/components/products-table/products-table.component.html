@@ -5,66 +5,273 @@
 
   @if (loading()) {
     <div class="elements-start-col gap-3" aria-hidden="true">
-      <app-skeleton class="h-12 w-full" />
-      <app-skeleton class="h-12 w-full" />
-      <app-skeleton class="h-12 w-full" />
+      <app-skeleton class="h-14 w-full" />
+      <app-skeleton class="h-14 w-full" />
+      <app-skeleton class="h-14 w-full" />
     </div>
   } @else {
     <app-reusable-table
-      [data]="rows()"
+      [data]="mutableGroups()"
       [columns]="columns()"
       [showHeaderControls]="false"
       [isLoading]="tableLoading()"
       [hasServerFilters]="hasActiveFilters()"
-      [paginationService]="paginationService()"
+      (rowClick)="edit.emit($event.anchorId)"
     >
       <p noDataContent class="font-body-md">{{ emptyMessage() }}</p>
     </app-reusable-table>
   }
 </section>
 
-<ng-template #imageCell [templateType]="sampleRow" let-row>
-  <div class="relative size-12 overflow-hidden border-shape bg-surface-container">
-    @if (row.imagePath) {
-      <img
-        [ngSrc]="row.imagePath"
-        [appImageFallback]="row.imagePath"
-        [alt]="row.name"
-        width="48"
-        height="48"
-        class="size-full object-cover"
-      />
+<ng-template #productCell [templateType]="sampleGroup" let-row>
+  <div class="products-line elements-start gap-3">
+    @if (row.colours.length > 1) {
+      <button
+        type="button"
+        class="products-toggle elements-center size-8 shrink-0"
+        [class.products-toggle--open]="isOpen(row)"
+        [attr.aria-expanded]="isOpen(row)"
+        [attr.aria-label]="(isOpen(row) ? 'Hide colours of ' : 'Show colours of ') + row.name"
+        (click)="toggle(row)"
+      >
+        <mat-icon name="chevron_right" />
+      </button>
+    } @else {
+      <span class="size-8 shrink-0" aria-hidden="true"></span>
     }
+    <div class="relative size-11 shrink-0 overflow-hidden border-shape bg-surface-container">
+      @if (row.imagePath) {
+        <img
+          [ngSrc]="row.imagePath"
+          [appImageFallback]="row.imagePath"
+          [alt]="row.name"
+          width="44"
+          height="44"
+          class="size-full object-cover"
+        />
+      }
+    </div>
+    <div class="elements-start-col gap-0.5">
+      <span class="font-body-md font-bold!">{{ row.name }}</span>
+      <span class="font-body-sm text-on-surface-variant">{{ row.details }}</span>
+    </div>
   </div>
-</ng-template>
-
-<ng-template #priceCell [templateType]="sampleRow" let-row>
-  <span>{{ row.price | egpPrice }}</span>
-  @if (row.compareAtPrice !== null) {
-    <span class="line-through opacity-70 pl-2">{{ row.compareAtPrice | egpPrice }}</span>
+  @if (isOpen(row)) {
+    @for (colour of row.colours; track colour.id) {
+      <div class="products-sub-line elements-start gap-3 ps-11">
+        <div class="relative size-8 shrink-0 overflow-hidden border-shape bg-surface-container">
+          @if (colour.imagePath) {
+            <img
+              [ngSrc]="colour.imagePath"
+              [appImageFallback]="colour.imagePath"
+              [alt]="colour.name"
+              width="32"
+              height="32"
+              class="size-full object-cover"
+            />
+          }
+        </div>
+        <button
+          type="button"
+          class="products-link font-body-md"
+          [attr.aria-label]="'Edit ' + colourName(colour)"
+          (click)="edit.emit(colour.id)"
+        >
+          {{ colour.colourLabel || colour.name }}
+        </button>
+      </div>
+    }
   }
 </ng-template>
 
-<ng-template #stockCell [templateType]="sampleRow" let-row>
-  <div class="elements-center gap-2">
-    <button
-      matButton="text"
-      type="button"
-      [attr.aria-label]="'Edit stock for ' + row.name"
-      (click)="stock.emit(row.id)"
-    >
-      <span>{{ row.stock === null ? 'Not set' : row.stock }}</span>
-    </button>
-    <app-status-badge [value]="row.stockStatus" [statusConfig]="stockStatusConfig" />
+<ng-template #coloursCell [templateType]="sampleGroup" let-row>
+  <div class="products-line elements-start gap-1">
+    @if (row.colours.length > 1) {
+      @for (colour of row.colours.slice(0, 5); track colour.id) {
+        <div class="relative size-6 shrink-0 overflow-hidden border-shape bg-surface-container">
+          @if (colour.imagePath) {
+            <img
+              [ngSrc]="colour.imagePath"
+              [appImageFallback]="colour.imagePath"
+              alt=""
+              width="24"
+              height="24"
+              class="size-full object-cover"
+            />
+          }
+        </div>
+      }
+      @if (row.colours.length > 5) {
+        <span class="font-body-sm text-on-surface-variant ps-1">+{{ row.colours.length - 5 }}</span>
+      }
+    } @else {
+      <span class="font-body-md text-on-surface-variant">{{ row.colours[0].colourLabel || '1 colour' }}</span>
+    }
   </div>
+  @if (isOpen(row)) {
+    @for (colour of row.colours; track colour.id) {
+      <div class="products-sub-line"></div>
+    }
+  }
 </ng-template>
 
-<ng-template #statusCell [templateType]="sampleRow" let-row>
-  <app-status-badge [value]="row.status" [statusConfig]="statusConfig" />
+<ng-template #categoryCell [templateType]="sampleGroup" let-row>
+  <div class="products-line elements-start font-body-md text-on-surface-variant">{{ row.categoryLabel }}</div>
+  @if (isOpen(row)) {
+    @for (colour of row.colours; track colour.id) {
+      <div class="products-sub-line"></div>
+    }
+  }
 </ng-template>
 
-<ng-template #editCell [templateType]="sampleRow" let-row>
-  <button matButton="text" type="button" (click)="edit.emit(row.id)">
-    <span>Edit</span>
+<ng-template #priceCell [templateType]="sampleGroup" let-row>
+  <div class="products-line elements-start-col justify-center!">
+    @if (row.price === row.priceMax) {
+      <span class="font-body-md">{{ row.price | egpPrice }}</span>
+      @if (row.compareAtPrice !== null) {
+        <span class="font-body-sm text-on-surface-variant line-through">{{
+          row.compareAtPrice | egpPrice
+        }}</span>
+      }
+    } @else {
+      <span class="font-body-md whitespace-nowrap"
+        >{{ row.price | egpPrice }} – {{ row.priceMax | egpPrice }}</span
+      >
+    }
+  </div>
+  @if (isOpen(row)) {
+    @for (colour of row.colours; track colour.id) {
+      <div class="products-sub-line elements-start gap-2 font-body-md whitespace-nowrap">
+        {{ colour.price | egpPrice }}
+        @if (colour.compareAtPrice !== null) {
+          <span class="font-body-sm text-on-surface-variant line-through">{{
+            colour.compareAtPrice | egpPrice
+          }}</span>
+        }
+      </div>
+    }
+  }
+</ng-template>
+
+<ng-template #stockCell [templateType]="sampleGroup" let-row>
+  <div class="products-line elements-start">
+    @if (row.colours.length === 1) {
+      <button
+        type="button"
+        class="products-link font-body-md"
+        [class.products-link--strong]="row.stockStatus === 'low'"
+        [class.text-on-surface-variant]="row.stockStatus === 'out' || row.stockStatus === 'unset'"
+        [attr.aria-label]="'Edit stock for ' + row.name"
+        (click)="stock.emit(row.anchorId)"
+      >
+        {{ stockLabel(row.stockStatus, row.stock) }}
+      </button>
+    } @else {
+      <span
+        class="font-body-md whitespace-nowrap"
+        [class.products-link--strong]="row.stockStatus === 'low'"
+        [class.text-on-surface-variant]="row.stockStatus === 'out' || row.stockStatus === 'unset'"
+      >
+        {{ stockLabel(row.stockStatus, row.stock) }}
+      </span>
+    }
+  </div>
+  @if (isOpen(row)) {
+    @for (colour of row.colours; track colour.id) {
+      <div class="products-sub-line elements-start">
+        <button
+          type="button"
+          class="products-link font-body-md"
+          [class.products-link--strong]="colour.stockStatus === 'low'"
+          [class.text-on-surface-variant]="colour.stockStatus === 'out' || colour.stockStatus === 'unset'"
+          [attr.aria-label]="'Edit stock for ' + colourName(colour)"
+          (click)="stock.emit(colour.id)"
+        >
+          {{ stockLabel(colour.stockStatus, colour.stock) }}
+        </button>
+      </div>
+    }
+  }
+</ng-template>
+
+<ng-template #statusCell [templateType]="sampleGroup" let-row>
+  <div class="products-line elements-start">
+    @if (row.colours.length === 1) {
+      <ng-container
+        [ngTemplateOutlet]="statusSwitch"
+        [ngTemplateOutletContext]="{ $implicit: row.colours[0] }"
+      />
+    } @else {
+      <button
+        type="button"
+        class="products-status products-status--button font-body-md"
+        [class.products-status--live]="row.liveCount > 0"
+        [attr.aria-expanded]="isOpen(row)"
+        [attr.aria-label]="
+          row.liveCount + ' of ' + row.colours.length + ' colours live. Show colours to switch them.'
+        "
+        (click)="toggle(row)"
+      >
+        <mat-icon [name]="row.liveCount > 0 ? 'visibility' : 'visibility_off'" />
+        {{ row.liveCount }} of {{ row.colours.length }} live
+      </button>
+    }
+  </div>
+  @if (isOpen(row)) {
+    @for (colour of row.colours; track colour.id) {
+      <div class="products-sub-line elements-start">
+        <ng-container [ngTemplateOutlet]="statusSwitch" [ngTemplateOutletContext]="{ $implicit: colour }" />
+      </div>
+    }
+  }
+</ng-template>
+
+<ng-template #statusSwitch [templateType]="sampleColour" let-colour>
+  <button
+    type="button"
+    class="products-status products-status--button font-body-md"
+    [class.products-status--live]="colour.published"
+    [disabled]="switchingId() !== null"
+    [attr.aria-label]="statusLabel(colour)"
+    (click)="switchPublished.emit(colour)"
+  >
+    @if (switchingId() === colour.id) {
+      <mat-progress-spinner mode="indeterminate" diameter="18" />
+    } @else {
+      <mat-icon [name]="colour.published ? 'visibility' : 'visibility_off'" />
+      {{ colour.published ? 'Live' : 'Hidden' }}
+    }
   </button>
+</ng-template>
+
+<ng-template #actionsCell [templateType]="sampleGroup" let-row>
+  <div class="products-line elements-end">
+    <button
+      matIconButton
+      type="button"
+      [matMenuTriggerFor]="rowMenu"
+      [attr.aria-label]="'More actions for ' + row.name"
+    >
+      <mat-icon name="more_vert" />
+    </button>
+    <mat-menu #rowMenu="matMenu">
+      <button mat-menu-item type="button" (click)="edit.emit(row.anchorId)">
+        <span>Edit Product</span>
+      </button>
+      @if (row.colours.length === 1) {
+        <button mat-menu-item type="button" (click)="stock.emit(row.anchorId)">
+          <span>Edit Stock</span>
+        </button>
+      } @else {
+        <button mat-menu-item type="button" (click)="toggle(row)">
+          <span>{{ isOpen(row) ? 'Hide Colours' : 'Show Colours' }}</span>
+        </button>
+      }
+    </mat-menu>
+  </div>
+  @if (isOpen(row)) {
+    @for (colour of row.colours; track colour.id) {
+      <div class="products-sub-line"></div>
+    }
+  }
 </ng-template>

@@ -61,10 +61,20 @@ export interface OrderEmailOrder {
   readonly deliveryFeeAgreed: boolean;
   /** When staff last saved the delivery fee (`deliveryFeeSetAt`, epoch ms), or null. */
   readonly deliveryFeeSetAtMs: number | null;
+  /** When staff marked the order Shipped (`shippedAt`, epoch ms), or null. */
+  readonly shippedAtMs: number | null;
+  /** When staff marked the order Delivered (`deliveredAt`, epoch ms), or null. */
+  readonly deliveredAtMs: number | null;
   /** A guest order's secret view key (its links carry `?key=`); null for signed-in orders. */
   readonly viewKey: string | null;
   /** Bank Transfer: the amount to send in the shopper's currency (`pricing.payIn`), or null. */
   readonly payIn: PayIn | null;
+  /** When the order was placed (`createdAt`, epoch ms), or null. */
+  readonly createdAtMs: number | null;
+  /** True when the order has no account (`customerId` empty): a guest checkout. */
+  readonly guestCheckout: boolean;
+  /** The shipping box the server picked (`pricing.shipping.boxId`, e.g. `box1`), or null. */
+  readonly boxId: string | null;
 }
 
 /**
@@ -192,8 +202,13 @@ export function readOrderForEmail(
     feeToBeAgreed: isDeliveryFeeToBeAgreed(shipping),
     deliveryFeeAgreed: shipping?.['kind'] === 'domestic-agreed' && shipping['feeAgreed'] === true,
     deliveryFeeSetAtMs: timestampMs(data['deliveryFeeSetAt']),
+    shippedAtMs: timestampMs(data['shippedAt']),
+    deliveredAtMs: timestampMs(data['deliveredAt']),
     viewKey: text(data['viewKey']) || null,
     payIn: readPayIn(pricing['payIn']),
+    createdAtMs: timestampMs(data['createdAt']),
+    guestCheckout: !text(data['customerId']),
+    boxId: (shipping && text(shipping['boxId'])) || null,
   };
 }
 

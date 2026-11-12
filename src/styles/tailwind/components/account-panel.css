@@ -59,17 +59,81 @@
     @apply elements-start gap-2 font-title-lg font-bold!;
   }
 
-  .account-page__tabs {
-    @apply w-full elements-start flex-wrap gap-2;
+  /* /account welcome bar: black band with name, counts and Sign Out (native button). */
+  .account-hero {
+    @apply w-full elements-start flex-wrap gap-x-8 gap-y-5 p-6 max-sm:p-5 bg-primary text-on-primary border-shape;
   }
 
-  .account-page__tab {
-    @apply inline-flex px-3 py-2 border border-outline-variant border-shape font-label-lg no-underline;
+  .account-hero__muted {
+    @apply text-on-primary/70;
   }
 
-  .account-page__tab:hover,
-  .account-page__tab:focus-visible {
+  .account-avatar--inverse {
+    @apply bg-on-primary text-primary;
+  }
+
+  .account-hero__stats {
+    @apply elements-start gap-8;
+  }
+
+  .account-hero__stat {
+    @apply elements-start-col gap-0.5;
+  }
+
+  .account-hero__action {
+    @apply elements-center gap-2 h-10 px-4 border border-on-primary/40 border-shape font-label-lg cursor-pointer;
+  }
+
+  .account-hero__action:hover,
+  .account-hero__action:focus-visible {
+    @apply bg-on-primary/10 border-on-primary;
+  }
+
+  /* Dashboard grid: Orders | Delivery Address | Profile, Favorites, Emails.
+     Three columns from @6xl; two from @3xl (Orders left, Address over the rest on the right,
+     extra height goes to the second row so they stay together); one column below. */
+  .account-grid {
+    @apply w-full grid gap-6 items-start @3xl:grid-cols-2 @3xl:grid-rows-[auto_1fr] @6xl:grid-cols-3 @6xl:grid-rows-none;
+  }
+
+  .account-grid__main {
+    @apply @3xl:row-span-2 @6xl:row-span-1;
+  }
+
+  .account-grid__main,
+  .account-grid__middle,
+  .account-grid__side {
+    @apply min-w-0 elements-start-col gap-6;
+  }
+
+  /* Latest order card inside Orders (photos, progress, status). */
+  .account-latest {
+    @apply w-full elements-start-col gap-3 p-4 bg-surface-container-low border border-outline-variant border-shape no-underline;
+  }
+
+  .account-latest:hover,
+  .account-latest:focus-visible {
     @apply border-primary;
+  }
+
+  .account-latest__photo {
+    @apply size-16 shrink-0 overflow-hidden bg-surface border border-outline-variant border-shape;
+  }
+
+  .account-progress {
+    @apply w-full grid grid-cols-4 gap-1;
+  }
+
+  .account-progress__bar {
+    @apply h-1 bg-outline-variant;
+  }
+
+  .account-progress__bar--done {
+    @apply bg-primary;
+  }
+
+  .account-progress__labels {
+    @apply w-full grid grid-cols-4 gap-1 font-label-sm text-on-surface-variant;
   }
 
   .account-order-row {

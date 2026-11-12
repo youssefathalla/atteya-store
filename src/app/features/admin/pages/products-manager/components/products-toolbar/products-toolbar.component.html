@@ -1,14 +1,10 @@
-<section class="surface-card p-5 w-full elements-start-col gap-4" aria-label="Product tools">
-  <div class="elements-between flex-wrap gap-3 w-full">
-    <div>
-      <h1 class="font-title-lg font-bold!">Products</h1>
-      <p class="font-body-md">Add and edit products here.</p>
+<section class="surface-card p-5 w-full elements-start-col gap-5" aria-label="Product tools">
+  <div class="products-toolbar__head w-full">
+    <div class="elements-start-col gap-1">
+      <h1 class="font-headline-sm font-bold!">Products</h1>
+      <p class="font-body-md text-on-surface-variant">Each row is one product with all its colours.</p>
     </div>
-    <div class="elements-end flex-wrap gap-2">
-      <button matButton="filled" type="button" [disabled]="activity() !== null" (click)="addProduct.emit()">
-        <mat-icon name="add" />
-        <span>Add Product</span>
-      </button>
+    <div class="products-toolbar__actions">
       <button
         matButton="outlined"
         type="button"
@@ -39,45 +35,59 @@
           <span>Shipping Weights</span>
         </button>
       </mat-menu>
+      <button matButton="filled" type="button" [disabled]="activity() !== null" (click)="addProduct.emit()">
+        <mat-icon name="add" />
+        <span>Add Product</span>
+      </button>
     </div>
   </div>
 
-  <div class="elements-end flex-wrap gap-3 w-full">
-    <label class="elements-start-col gap-1 font-label-md w-full sm:max-w-xs">
-      Search
+  <div class="products-toolbar__filters w-full">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="products-toolbar__search w-full">
+      <mat-label>Search</mat-label>
+      <mat-icon matPrefix name="search" />
       <input
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
+        matInput
         type="search"
-        aria-label="Search products"
+        placeholder="Name, brand or model group"
         [value]="search()"
         (input)="onSearch($event)"
       />
-    </label>
-    <label class="elements-start-col gap-1 font-label-md">
-      Type
-      <select
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
-        [value]="typeId()"
-        (change)="onType($event)"
-      >
-        <option value="all">All types</option>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+      <mat-label>Type</mat-label>
+      <mat-select [value]="typeId()" (selectionChange)="typeId.set($event.value)">
+        <mat-option value="all">All types</mat-option>
         @for (type of types; track type.id) {
-          <option [value]="type.id">{{ type.label }}</option>
+          <mat-option [value]="type.id">{{ type.label }}</mat-option>
         }
-      </select>
-    </label>
-    <label class="elements-start-col gap-1 font-label-md">
-      Brand
-      <select
-        class="border-shape border border-outline bg-surface px-3 py-2 font-body-md"
-        [value]="brandId()"
-        (change)="onBrand($event)"
-      >
-        <option value="all">All brands</option>
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+      <mat-label>Brand</mat-label>
+      <mat-select [value]="brandId()" (selectionChange)="brandId.set($event.value)">
+        <mat-option value="all">All brands</mat-option>
         @for (brand of brands; track brand.id) {
-          <option [value]="brand.id">{{ brand.label }}</option>
+          <mat-option [value]="brand.id">{{ brand.label }}</mat-option>
         }
-      </select>
-    </label>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="products-toolbar__views" role="group" aria-label="Show products">
+    @for (item of views; track item.id) {
+      <button
+        type="button"
+        class="products-view-chip font-label-lg"
+        [class.products-view-chip--active]="view() === item.id"
+        [attr.aria-pressed]="view() === item.id"
+        (click)="view.set(item.id)"
+      >
+        {{ item.label }}
+        @if (countsReady()) {
+          <span class="tabular-nums">{{ counts()[item.id] }}</span>
+        }
+      </button>
+    }
   </div>
 </section>

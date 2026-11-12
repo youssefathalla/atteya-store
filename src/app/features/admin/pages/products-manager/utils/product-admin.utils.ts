@@ -1,5 +1,6 @@
 import {
   categoryIdsFor,
+  COLOR_PALETTE,
   DEFAULT_CATEGORY_FOR_TYPE,
   SEED_BRANDS,
   SEED_CATEGORIES,
@@ -7,8 +8,14 @@ import {
 import { PRODUCT_BRANDS, PRODUCT_TYPES } from '@core/services/products/product.constants';
 import type { Brand, Category, Product, ProductTypeId } from '@core/services/products/product.model';
 import { normalizeImageKitPath } from '@shared/utils/image';
-import type { BrandOptionView, CategoryOptionView, ProductTableRow } from '../models/product-admin.model';
+import type {
+  BrandOptionView,
+  CategoryOptionView,
+  ProductStockStatus,
+  ProductTableRow,
+} from '../models/product-admin.model';
 
+const COLOR_LABELS = new Map<string, string>(COLOR_PALETTE.map((color) => [color.id, color.label]));
 const TYPE_LABELS = new Map(PRODUCT_TYPES.map((type) => [type.id, type.label]));
 const SEED_BRAND_LABELS = new Map<string, string>([
   ...PRODUCT_BRANDS.map((brand) => [brand.id, brand.label] as const),
@@ -81,8 +88,18 @@ export function toProductTableRow(
     imagePath: path ? normalizeImageKitPath(path) : null,
     status: product.published ? 'live' : 'hidden',
     stock: typeof product.stock === 'number' ? product.stock : null,
-    stockStatus: typeof product.stock !== 'number' ? 'unset' : product.stock > 0 ? 'in' : 'out',
+    stockStatus: stockStatusFor(product.stock),
+    colourLabel: product.colors.map((id) => COLOR_LABELS.get(id) ?? id).join(' / '),
   };
+}
+
+/** At or below this many pieces the list marks a product as low on stock. */
+export const LOW_STOCK_LIMIT = 5;
+
+export function stockStatusFor(stock: number | null | undefined): ProductStockStatus {
+  if (typeof stock !== 'number') return 'unset';
+  if (stock <= 0) return 'out';
+  return stock <= LOW_STOCK_LIMIT ? 'low' : 'in';
 }
 
 export function filterProductRows(
@@ -98,6 +115,7 @@ export function filterProductRows(
     if (!needle) return true;
     return (
       row.name.toLowerCase().includes(needle) ||
+      row.brandLabel.toLowerCase().includes(needle) ||
       row.modelGroup.toLowerCase().includes(needle) ||
       row.categoryLabel.toLowerCase().includes(needle)
     );

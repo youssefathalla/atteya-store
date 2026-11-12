@@ -93,4 +93,73 @@ export interface OrderCard {
   readonly orderId: string;
   readonly first: OrderLineAdminRow;
   readonly lines: readonly OrderLineAdminRow[];
+  /** The full order for the opened row (customer, address, payment, items and money). */
+  readonly details: OrderDetails | null;
+}
+
+/** One label / value line in a details box ("Subtotal" · "EGP 5,000"). */
+export interface OrderDetailRow {
+  readonly label: string;
+  readonly value: string;
+  readonly strong?: boolean;
+}
+
+/** One saved order line as staff see it. */
+export interface OrderDetailItem {
+  readonly key: string;
+  readonly productId: string;
+  /** False when the product doc is gone: no link to the product form. */
+  readonly productExists: boolean;
+  readonly name: string;
+  /** "Size: M · Colour: Black", empty when the item has no options. */
+  readonly options: string;
+  readonly imagePath: string | null;
+  readonly imageSrc: string;
+  readonly quantity: number;
+  /** Free gift line: the gift's name. */
+  readonly gift: string | null;
+  /** Buy X Get Y tag ("1 free", "−50%"). */
+  readonly deal: string | null;
+  /** "EGP 350 × 3"; null on a gift. */
+  readonly unit: string | null;
+  /** Line price after offers, or "Free". */
+  readonly price: string;
+  /** Line price before a Buy X Get Y discount; null when none. */
+  readonly was: string | null;
+  /** "3 left", "1 left · Low", "Product removed". */
+  readonly stock: string;
+  readonly stockStatus: OrderLineStockStatus;
+}
+
+/** Everything about one order for the opened row and the order page. */
+export interface OrderDetails {
+  readonly stage: OrderStage;
+  /** What staff do next ("Check that EGP 4,915 arrived …"); null when nothing waits on them. */
+  readonly nextStep: string | null;
+  readonly customer: {
+    readonly name: string;
+    readonly email: string | null;
+    readonly phone: string;
+    readonly account: 'Has an account' | 'Guest';
+  };
+  /** "Cairo", or "Dubai, United Arab Emirates" abroad. */
+  readonly city: string;
+  readonly address: { readonly lines: readonly string[]; readonly copyText: string };
+  /** "Box 2", "Box 1 (abroad)", "Large order · fee to be agreed". */
+  readonly shippingBox: string | null;
+  readonly payment: { readonly method: string; readonly rows: readonly OrderDetailRow[] };
+  readonly items: readonly OrderDetailItem[];
+  /** Up to 2 items with a photo, for the list row (one on a phone). */
+  readonly thumbs: readonly OrderDetailItem[];
+  /** "3 items" (pieces, gifts left out). */
+  readonly pieces: string;
+  /** Subtotal and Shipping, in the currency the customer saw. */
+  readonly totals: readonly OrderDetailRow[];
+  readonly total: string;
+  /** The total in EGP when the customer saw another currency. */
+  readonly totalEgp: string | null;
+  /** Paid while an item had sold out. */
+  readonly needsReview: boolean;
+  /** "11 Nov, 2:14 pm". */
+  readonly placedShort: string;
 }

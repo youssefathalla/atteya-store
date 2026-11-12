@@ -106,9 +106,13 @@
                   Currency
                 </th>
                 <th class="sticky top-0 bg-surface py-2 pr-3 text-left font-label-sm" scope="col">1 EGP =</th>
-                <th class="sticky top-0 bg-surface py-2 text-left font-label-sm" scope="col">
-                  1,000 EGP product shows as
+                <th class="sticky top-0 bg-surface py-2 pr-3 text-left font-label-sm" scope="col">
+                  1,000 EGP before markup
                 </th>
+                <th class="sticky top-0 bg-surface py-2 pr-3 text-left font-label-sm" scope="col">
+                  Markup ({{ markup() }}%)
+                </th>
+                <th class="sticky top-0 bg-surface py-2 text-left font-label-sm" scope="col">Shoppers see</th>
               </tr>
             </thead>
             <tbody>
@@ -116,6 +120,8 @@
                 <tr class="border-b border-outline-variant">
                   <th class="py-2 pr-3 text-left font-label-md" scope="row">{{ row.code }}</th>
                   <td class="py-2 pr-3 font-body-sm">{{ row.perEgp }}</td>
+                  <td class="py-2 pr-3 font-body-sm">{{ row.baseAs }}</td>
+                  <td class="py-2 pr-3 font-body-sm">{{ row.markupAs }}</td>
                   <td class="py-2 font-body-sm">{{ row.showsAs }}</td>
                 </tr>
               }

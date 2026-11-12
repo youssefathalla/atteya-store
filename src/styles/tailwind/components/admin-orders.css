@@ -1,0 +1,104 @@
+@layer components {
+  /*! admin orders: the list rows, the opened order and the order page (ATS-213) */
+
+  /* One info box (Customer, Delivery, Payment, Items, History). */
+  .admin-order-box {
+    @apply bg-surface-container-lowest border border-outline-variant border-shape shadow-sm p-4 elements-start-col items-stretch! justify-start! gap-2 min-w-0 font-body-md;
+  }
+
+  .admin-order-box__title {
+    @apply font-title-sm font-bold!;
+  }
+
+  /* "Subtotal ........ EGP 5,000": label on the left, value on the right, wraps on a narrow box. */
+  .admin-order-pair {
+    @apply elements-between flex-wrap gap-x-3 gap-y-0.5 min-w-0;
+  }
+
+  .admin-order-muted {
+    @apply font-body-sm text-on-surface-variant;
+  }
+
+  /* The black "Next step" bar. */
+  .admin-order-next {
+    @apply bg-primary text-on-primary border-shape px-4 py-3 font-body-md;
+  }
+
+  /* Small square product photo. */
+  .admin-order-photo {
+    @apply size-full overflow-hidden bg-surface border border-outline-variant border-shape;
+  }
+
+  /*
+   * One order in the list. Phone and tablet: order number and the arrow, then customer and status,
+   * then photos and the price. Wide: one line of columns, like a table.
+   */
+  .admin-order-row {
+    @apply grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5 p-4 text-start cursor-pointer;
+    @apply @5xl:grid-cols-[6.5rem_minmax(0,1.5fr)_minmax(0,1.1fr)_8.5rem_8rem_11rem_2rem] @5xl:gap-4 @5xl:px-5 @5xl:py-3;
+  }
+
+  .admin-order-row:hover {
+    @apply bg-surface-container-low;
+  }
+
+  /* One order in the list (row or open order). The open order gets a black outline. */
+  .admin-order-item {
+    @apply border-b border-outline-variant last:border-b-0 xl:scroll-mt-16;
+  }
+
+  .admin-order-item--open {
+    @apply border-2 border-primary last:border-b-2;
+  }
+
+  /*
+   * The open order's black bar. It sticks to the top of the screen (under the admin header from xl,
+   * where that header sticks too) while staff scroll through that
+   * order and leaves with it, because sticky stays inside its list item.
+   */
+  .admin-order-bar {
+    @apply sticky top-0 xl:top-16 z-10 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2.5 bg-primary text-on-primary shadow-mat-2;
+    @apply @5xl:grid-cols-[auto_minmax(0,1fr)_auto_auto] @5xl:gap-x-5 @5xl:px-5;
+  }
+
+  .admin-order-bar__status {
+    @apply px-1.5 py-0.5 border border-dashed border-on-primary border-shape font-label-sm whitespace-nowrap;
+  }
+
+  .admin-order-bar__close {
+    @apply justify-self-end elements-center gap-1.5 h-9 ps-2 pe-1 font-label-lg font-bold! cursor-pointer;
+  }
+
+  /* ‹ 2 of 12 ›: previous and next order in one slim control. */
+  .admin-order-stepper {
+    @apply justify-self-end inline-flex items-center h-8 border border-on-primary/35 border-shape;
+  }
+
+  .admin-order-stepper__button {
+    @apply size-8 elements-center cursor-pointer disabled:opacity-35 disabled:cursor-default;
+  }
+
+  .admin-order-stepper__count {
+    @apply px-2 h-full elements-center border-x border-on-primary/20 font-label-md whitespace-nowrap;
+  }
+
+  .admin-order-bar__close:focus-visible,
+  .admin-order-stepper__button:focus-visible {
+    @apply outline-2 outline-on-primary outline-offset-2;
+  }
+
+  .admin-order-row:focus-visible {
+    @apply outline-2 outline-primary -outline-offset-2;
+  }
+
+  .admin-order-row__head {
+    @apply hidden @5xl:grid @5xl:grid-cols-[6.5rem_minmax(0,1.5fr)_minmax(0,1.1fr)_8.5rem_8rem_11rem_2rem] @5xl:gap-4 px-5 py-2.5 font-label-md text-on-surface-variant border-b border-outline-variant;
+  }
+}
+
+@layer components {
+  /* A value with its Copy button: the value takes the room, the button stays on the same line. */
+  .admin-order-copy {
+    @apply grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2;
+  }
+}

@@ -1,1 +1,43 @@
-{}
+{
+  "nox-wpt-frame-protector": {
+    "photos": {
+      "Red": ["products/eo-1637c097-db82-4c67-ac82-cef7ee3e3417/de164a16dd8902a3.webp"],
+      "Black/White": ["products/eo-1637c097-db82-4c67-ac82-cef7ee3e3417/a5ec2fc740d2523d.webp"]
+    },
+    "replaceRealStock": true
+  },
+  "cork-frame-protector": {
+    "photos": {
+      "Baby Blue": ["products/eo-380961db-2955-4177-ae28-28c1b07a8d4d/1a72e1a32060d857.webp"],
+      "Red": ["products/eo-380961db-2955-4177-ae28-28c1b07a8d4d/2dc13d362a76f24d.webp"]
+    },
+    "dropColours": ["Black"]
+  },
+  "floky-empower-knee-support": {
+    "photos": {
+      "Black": [
+        "products/eo-c85f0ff6-a4d2-497a-975d-7dd95661e9f5/5dfa378fa7af7dd8.webp",
+        "products/eo-c85f0ff6-a4d2-497a-975d-7dd95661e9f5/d0ed488d840f0ca3.jpg",
+        "products/eo-c85f0ff6-a4d2-497a-975d-7dd95661e9f5/6b104032b56c2ed3.webp"
+      ],
+      "White": [
+        "products/eo-c85f0ff6-a4d2-497a-975d-7dd95661e9f5/f86cb16159c92510.jpg",
+        "products/eo-c85f0ff6-a4d2-497a-975d-7dd95661e9f5/df284d5960c3c07b.jpg"
+      ]
+    },
+    "replaceRealStock": true
+  },
+  "floky-no-strain-arm-sleeve": {
+    "photos": {
+      "Black": [
+        "products/eo-dbe9c3f2-77dc-466a-a2ee-60c5f72bab81/c454fb0988bcf736.webp",
+        "products/eo-dbe9c3f2-77dc-466a-a2ee-60c5f72bab81/9baccf9769fff2d6.webp"
+      ],
+      "White": [
+        "products/eo-dbe9c3f2-77dc-466a-a2ee-60c5f72bab81/e7c4e29ed2d9f7f3.webp",
+        "products/eo-dbe9c3f2-77dc-466a-a2ee-60c5f72bab81/23faa2749d34b30c.webp"
+      ]
+    },
+    "replaceRealStock": true
+  }
+}
