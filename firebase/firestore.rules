@@ -47,9 +47,13 @@ service cloud.firestore {
     // Visitors and normal users can read these. Only an admin with a current session can write them.
     // settings/currency holds combined display factors and is written only by Cloud Functions.
     // Subcollections under settings are denied. The app does not write them.
+    // settings/navigation and settings/home must name their saver in updatedBy (ATS-251), so
+    // Previous Versions can't be credited to someone else.
     match /settings/{docId} {
       allow read: if true;
-      allow write: if canManageStore() && docId != 'currency';
+      allow create, update: if canManageStore() && docId != 'currency'
+        && (!(docId in ['navigation', 'home']) || request.resource.data.updatedBy == request.auth.uid);
+      allow delete: if canManageStore() && docId != 'currency';
     }
 
     // Previous Versions of settings/navigation and settings/home (ATS-251). Written only by the

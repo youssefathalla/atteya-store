@@ -4,9 +4,8 @@ import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { firebaseErrors } from '@shared/utils/firebase/firebase-errors';
-import { NAV_CATEGORIES, NavService, NavSettingsSchema } from '@core/services/navigation';
+import { NAV_CATEGORIES, NavService, navigationFromVersion } from '@core/services/navigation';
 import { restoredVersionNote, type SettingsVersion } from '@core/services/settings-history';
-import * as v from 'valibot';
 import { NavManagerHeaderComponent } from './components/nav-manager-header/nav-manager-header.component';
 import { NavCategoryListComponent } from './components/nav-category-list/nav-category-list.component';
 import { NavCategoryDetailsComponent } from './components/nav-category-details/nav-category-details.component';
@@ -22,12 +21,6 @@ import {
   hiddenTargetsMessage,
   validateNavigationDraft,
 } from './utils/navigation-manager.validator';
-
-/** A saved navigation version's menus through today's schema, or null when it no longer fits. */
-function navigationFromVersion(data: unknown) {
-  const parsed = v.safeParse(NavSettingsSchema, data);
-  return parsed.success ? parsed.output.categories : null;
-}
 
 @Component({
   selector: 'app-navigation-manager',
@@ -151,7 +144,7 @@ export class NavigationManagerComponent {
 
     this.isSaving.set(true);
     try {
-      await this.#navService.updateNavigation(categories, this.#auth.user()?.uid ?? null);
+      await this.#navService.updateNavigation(categories, this.#auth.user()?.uid ?? '');
       this.draft.markSaved();
       this.restoredNote.set(null);
       if (check.warnings.length > 0) {
@@ -170,7 +163,7 @@ export class NavigationManagerComponent {
   async openPreviousVersions(): Promise<void> {
     const choice = await this.#dialogs.openPreviousVersions({
       docId: 'navigation',
-      builtInHint: 'The menu the store started with. Publishes straight away.',
+      builtInHint: 'The menu the store started with. It goes live straight away.',
       canRestore: (data) => navigationFromVersion(data) !== null,
     });
     if (!choice) return;
@@ -197,7 +190,7 @@ export class NavigationManagerComponent {
 
     this.isResetting.set(true);
     try {
-      await this.#navService.resetDefaultNavigation(this.#auth.user()?.uid ?? null);
+      await this.#navService.resetDefaultNavigation(this.#auth.user()?.uid ?? '');
       this.draft.markSaved();
       this.restoredNote.set(null);
       this.#snackbar.success('Default navigation restored successfully!');

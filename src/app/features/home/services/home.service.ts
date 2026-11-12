@@ -192,14 +192,14 @@ export class HomeService {
    * Publishes the homepage hero, shop cards, and category list together. `updatedBy` (the saver's
    * uid) goes on the doc so Previous Versions can say who saved each version (ATS-251).
    */
-  async updateHomeSettings(settings: HomeSettingsUpdate, updatedBy: string | null): Promise<void> {
+  async updateHomeSettings(settings: HomeSettingsUpdate, updatedBy: string): Promise<void> {
     const payload: HomeSettings = {
       id: 'home',
       hero: settings.hero,
       shopCategories: settings.shopCategories,
       navList: settings.navList,
       updatedAt: serverTimestamp(),
-      ...(updatedBy ? { updatedBy } : {}),
+      updatedBy,
     };
     await setDoc(this.#homeDocRef, payload, { merge: true });
   }
@@ -207,7 +207,7 @@ export class HomeService {
   /**
    * Resets all home page sections to factory defaults.
    */
-  async resetDefaultHomeSettings(updatedBy: string | null): Promise<void> {
+  async resetDefaultHomeSettings(updatedBy: string): Promise<void> {
     await this.updateHomeSettings(
       {
         hero: DEFAULT_HOME_HERO,

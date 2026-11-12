@@ -5,6 +5,7 @@ import {
   homeSummary,
   isSettingsHistoryDoc,
   navigationSummary,
+  sameSettingsContent,
   savedByUid,
   versionsToPrune,
 } from '../../lib/settings/settings-history.js';
@@ -52,5 +53,15 @@ describe('settings history', () => {
     const ids = Array.from({ length: 33 }, (_, i) => `v${i}`);
     assert.deepEqual(versionsToPrune(ids), ['v30', 'v31', 'v32']);
     assert.deepEqual(versionsToPrune(ids.slice(0, 30)), []);
+  });
+
+  it('treats a save that only changed updatedAt / updatedBy as no change', () => {
+    const before = { categories: [{ id: 'a', label: 'A' }], updatedAt: 1, updatedBy: 'x' };
+    assert.equal(
+      sameSettingsContent(before, { updatedBy: 'y', updatedAt: 2, categories: [{ label: 'A', id: 'a' }] }),
+      true,
+    );
+    assert.equal(sameSettingsContent(before, { categories: [{ id: 'a', label: 'B' }] }), false);
+    assert.equal(sameSettingsContent(before, undefined), false);
   });
 });

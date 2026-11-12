@@ -147,7 +147,7 @@ export class HomeManagerComponent {
 
       await this.#homeService.updateHomeSettings(
         { hero, shopCategories, navList },
-        this.#auth.user()?.uid ?? null,
+        this.#auth.user()?.uid ?? '',
       );
       await this.#storageUpload.deleteImages(orphanedPaths);
 
@@ -165,7 +165,8 @@ export class HomeManagerComponent {
   async openPreviousVersions(): Promise<void> {
     const choice = await this.#dialogs.openPreviousVersions({
       docId: 'home',
-      builtInHint: 'The hero, shop cards and category list the store started with. Publishes straight away.',
+      builtInHint:
+        'The hero, shop cards and category list the store started with. It goes live straight away.',
       canRestore: (data) => homeSettingsFromVersion(data) !== null,
     });
     if (!choice) return;
@@ -194,7 +195,7 @@ export class HomeManagerComponent {
     try {
       const orphanedPaths = this.draft.getOrphanedPathsForReset();
 
-      await this.#homeService.resetDefaultHomeSettings(this.#auth.user()?.uid ?? null);
+      await this.#homeService.resetDefaultHomeSettings(this.#auth.user()?.uid ?? '');
       await this.#storageUpload.deleteImages(orphanedPaths);
 
       this.draft.resetDraftFromSource(DEFAULT_HOME_HERO, DEFAULT_HOME_SHOP_CATEGORIES, DEFAULT_HOME_NAV_LIST);

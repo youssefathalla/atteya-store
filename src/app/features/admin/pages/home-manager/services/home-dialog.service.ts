@@ -2,7 +2,7 @@ import { Service, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import {
-  PreviousVersionsDialogComponent,
+  openPreviousVersionsDialog,
   type PreviousVersionsDialogData,
   type PreviousVersionsDialogResult,
 } from '@shared/ui/dialogs/previous-versions-dialog';
@@ -98,21 +98,8 @@ export class HomeDialogService {
     return !!confirmed;
   }
 
-  async openPreviousVersions(data: PreviousVersionsDialogData): Promise<PreviousVersionsDialogResult | null> {
-    const dialogRef = this.#dialog.open<
-      PreviousVersionsDialogComponent,
-      PreviousVersionsDialogData,
-      PreviousVersionsDialogResult
-    >(PreviousVersionsDialogComponent, {
-      data,
-      width: '640px',
-      maxWidth: '92vw',
-      panelClass: 'previous-versions-pane',
-      autoFocus: 'dialog',
-    });
-
-    const result = await firstValueFrom(dialogRef.afterClosed());
-    return result ?? null;
+  openPreviousVersions(data: PreviousVersionsDialogData): Promise<PreviousVersionsDialogResult | null> {
+    return openPreviousVersionsDialog(this.#dialog, data);
   }
 
   async confirmResetDefaults(): Promise<boolean> {
@@ -120,10 +107,10 @@ export class HomeDialogService {
       ConfirmDialogComponent,
       {
         data: {
-          title: 'Reset to Defaults',
+          title: 'Restore the Built-in Home Page?',
           message:
-            'This restores the original hero, shop cards, and category list. Any unpublished changes will be lost.',
-          confirmText: 'Reset to Defaults',
+            'The hero, shop cards and category list go back to the ones the store started with, live on the store straight away. Unpublished changes are lost; the home page you have now stays in Previous Versions.',
+          confirmText: 'Restore and Publish',
           cancelText: 'Cancel',
           theme: 'primary',
         },

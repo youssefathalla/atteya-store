@@ -46,4 +46,4 @@ export { deleteMyAccount } from './auth/delete-account.fn.js';
 export { syncOrderView } from './orders/order-view.trigger.js';
 export { sendOrderEmails } from './email/send-order-emails.trigger.js';
 export { subscribeToEmails } from './marketing/subscribe-to-emails.fn.js';
-export { onSettingsHistoryWrite } from './settings/settings-history.trigger.js';
+export { onHomeSettingsWrite, onNavigationSettingsWrite } from './settings/settings-history.trigger.js';

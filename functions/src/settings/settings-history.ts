@@ -83,3 +83,30 @@ export function savedByUid(data: Data): string | null {
 export function versionsToPrune(idsNewestFirst: readonly string[], keep = MAX_SETTINGS_VERSIONS): string[] {
   return idsNewestFirst.slice(Math.max(0, keep));
 }
+
+/** Fields that change on every save and say nothing about the content. */
+const BOOKKEEPING_FIELDS = new Set(['updatedAt', 'updatedBy']);
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const record = value as Data;
+    const toJson = (record as { toJSON?: unknown }).toJSON;
+    if (typeof toJson === 'function' && Object.getPrototypeOf(record) !== Object.prototype) {
+      return stableJson(toJson.call(record));
+    }
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+/** True when a save changed nothing but `updatedAt` / `updatedBy`, so no version is kept. */
+export function sameSettingsContent(before: Data, after: Data | null | undefined): boolean {
+  if (!after) return false;
+  const strip = (data: Data) =>
+    Object.fromEntries(Object.entries(data).filter(([key]) => !BOOKKEEPING_FIELDS.has(key)));
+  return stableJson(strip(before)) === stableJson(strip(after));
+}

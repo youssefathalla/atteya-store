@@ -1,6 +1,7 @@
 import { Component, inject, resource } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { firstValueFrom } from 'rxjs';
 import {
   cairoDateTime,
   SettingsHistoryService,
@@ -78,20 +79,21 @@ interface VersionRow {
               No earlier versions yet. They appear here after your next publish.
             </li>
           }
-
-          <li class="version-row">
-            <div class="min-w-0">
-              <p class="font-body-md font-bold!">Built-in starting version</p>
-              <p class="font-body-sm opacity-80">{{ data.builtInHint }}</p>
-            </div>
-            <div class="version-row__action">
-              <button matButton="tonal" type="button" theme="error" (click)="restoreBuiltIn()">
-                Restore This Version
-              </button>
-            </div>
-          </li>
         </ul>
       }
+      <ul class="pt-2" aria-label="Built-in version">
+        <li class="version-row">
+          <div class="min-w-0">
+            <p class="font-body-md font-bold!">Built-in starting version</p>
+            <p class="font-body-sm opacity-80">{{ data.builtInHint }}</p>
+          </div>
+          <div class="version-row__action">
+            <button matButton="tonal" type="button" theme="error" (click)="restoreBuiltIn()">
+              Restore This Version
+            </button>
+          </div>
+        </li>
+      </ul>
     </mat-dialog-content>
     <mat-dialog-actions align="end" class="gap-2 px-6 pb-4">
       <div class="max-sm:w-full max-sm:[&>button]:w-full">
@@ -122,4 +124,23 @@ export class PreviousVersionsDialogComponent {
   restoreBuiltIn(): void {
     this.#ref.close({ kind: 'built-in' });
   }
+}
+
+/** Opens Previous Versions (full screen on phones). */
+export async function openPreviousVersionsDialog(
+  dialog: MatDialog,
+  data: PreviousVersionsDialogData,
+): Promise<PreviousVersionsDialogResult | null> {
+  const ref = dialog.open<
+    PreviousVersionsDialogComponent,
+    PreviousVersionsDialogData,
+    PreviousVersionsDialogResult
+  >(PreviousVersionsDialogComponent, {
+    data,
+    width: '640px',
+    maxWidth: '92vw',
+    panelClass: 'previous-versions-pane',
+    autoFocus: 'dialog',
+  });
+  return (await firstValueFrom(ref.afterClosed())) ?? null;
 }

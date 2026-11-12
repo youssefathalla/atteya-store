@@ -76,7 +76,7 @@ All controls integrate seamlessly with **Angular 22 Signal Forms**.
 - `<app-confirm-dialog>`: Ready-to-use confirmation dialog (Delete, Cancel, Proceed).
 - `<app-favorites-sign-in-dialog>`: Guest heart prompt (Cancel / Create account / Sign in). Opened by `FavoritesGateService`.
 - `<app-img-preview-dialog>`: Lightbox image preview modal.
-- `<app-previous-versions-dialog>` (`previous-versions-dialog/`, <KEY>-251): lists the saved versions of `settings/navigation` or `settings/home` (Cairo date and time, who saved it, summary) with **Restore This Version**, a "Can't restore this version" line when the page's `canRestore(data)` (its own `v.safeParse`) refuses one, and a last "Built-in starting version" row; closes with `{ kind: 'version', version }` or `{ kind: 'built-in' }`. Open it with `panelClass: 'previous-versions-pane'` (full screen with full-width buttons below `sm`, `_dialog.scss`).
+- `<app-previous-versions-dialog>` (`previous-versions-dialog/`, <KEY>-251): lists the saved versions of `settings/navigation` or `settings/home` (Cairo date and time, who saved it, summary) with **Restore This Version**, a "Can't restore this version" line when the page's `canRestore(data)` (its own `v.safeParse`) refuses one, and a last "Built-in starting version" row; closes with `{ kind: 'version', version }` or `{ kind: 'built-in' }`. Open it with `openPreviousVersionsDialog(matDialog, data)` from the same file (`panelClass: 'previous-versions-pane'`: full screen with full-width buttons below `sm`, `_dialog.scss`).
 
 ### 💎 Brand, Loaders & Media Editors
 
