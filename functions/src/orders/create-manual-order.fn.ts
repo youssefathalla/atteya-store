@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
+import { orderSearchTokens } from '../store/order-search.js';
 import { identifyOrderCustomer, orderCustomerFields, requireCustomerTerms } from './order-customer.js';
 import { parseCreateStoreOrderRequest } from './order-request.js';
 import { priceStoreOrder, type OrderPricingSnapshot } from './order-pricing.server.js';
@@ -115,6 +116,12 @@ async function createManualOrder<M extends ManualPaymentMethod>(
       status: 'pending',
       paymentMethod: method,
       ...orderCustomerFields(customer, viewKey, now),
+      searchTokens: orderSearchTokens({
+        orderId: orderRef.id,
+        fullName: input.shipping.fullName,
+        phone: input.shipping.phone,
+        email: customer.email,
+      }),
       shipping: {
         ...input.shipping,
         boxId: priced.pricing.shipping?.boxId ?? null,

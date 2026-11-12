@@ -173,10 +173,28 @@
                     </p>
                   }
                 </div>
-                <button matButton="outlined" type="button" (click)="toggleHidden()">
-                  <mat-icon [name]="colour.published ? 'visibility_off' : 'visibility'" />
-                  <span>{{ colour.published ? 'Hide This Colour' : 'Show This Colour' }}</span>
-                </button>
+                <div class="elements-start flex-wrap gap-2">
+                  <button matButton="outlined" type="button" (click)="toggleHidden()">
+                    <mat-icon [name]="colour.published ? 'visibility_off' : 'visibility'" />
+                    <span>{{ colour.published ? 'Hide This Colour' : 'Show This Colour' }}</span>
+                  </button>
+                  @if (colour.version !== null) {
+                    <button
+                      matButton="text"
+                      theme="error"
+                      type="button"
+                      [disabled]="isSaving() || isDeleting()"
+                      [attr.aria-label]="isDeleting() ? 'Deleting…' : 'Delete ' + activeName()"
+                      (click)="deleteActiveColour()"
+                    >
+                      @if (isDeleting()) {
+                        <mat-progress-spinner mode="indeterminate" diameter="18" />
+                      } @else {
+                        <span>{{ colours().length > 1 ? 'Delete This Colour' : 'Delete Product' }}</span>
+                      }
+                    </button>
+                  }
+                </div>
               </div>
 
               <app-image-gallery-editor

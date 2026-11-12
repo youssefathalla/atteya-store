@@ -38,7 +38,7 @@ const SLUG_ATTEMPTS = 30;
 export const getProductModel = onCall(
   adminCallableOptions(),
   async (request): Promise<ProductModelResponse> => {
-    await requireRole(request, 'admin');
+    await requireRole(request, 'staff');
     const { productId } = parseProductModelRequest(request.data);
     const db = getFirestore();
     const snap = await db.collection('products').doc(productId).get();
@@ -72,7 +72,7 @@ export const getProductModel = onCall(
 export const saveProductModel = onCall(
   adminCallableOptions(),
   async (request): Promise<SaveProductModelResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const input = parseSaveProductModelRequest(request.data);
     const { shared } = input;
     const db = getFirestore();

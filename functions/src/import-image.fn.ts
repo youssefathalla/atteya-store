@@ -60,7 +60,7 @@ function hostForLog(raw: unknown): string {
 export const importImageFromUrl = onCall(
   adminCallableOptions({ timeoutSeconds: 30, memory: '256MiB' }),
   async (request): Promise<ImportImageResponse> => {
-    await requireRole(request, 'admin');
+    await requireRole(request, 'staff');
     const body = (request.data ?? {}) as ImportImageRequest;
     const folder = sanitizeFolder(body.folder ?? 'hero');
 

@@ -71,11 +71,12 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
     subItems: [
       {
         id: 'admins',
-        label: 'Admins',
+        label: 'Team',
         path: '/admin/settings/admins',
         icon: 'admin_panel_settings',
         badge: 'Live',
-        description: 'Choose who can manage the store',
+        description: 'Choose who can manage the store, as Admin or Staff',
+        adminOnly: true,
       },
       {
         id: 'shipping',

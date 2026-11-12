@@ -5,21 +5,24 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { SharedIconModule } from '@shared/ui/mat-icon';
+import type { NavTarget } from '@core/services/navigation';
+import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
+import {
+  NavTargetFieldComponent,
+  type NavTargetChange,
+} from '../../components/nav-target-field/nav-target-field.component';
 import { NavigationDraftService } from '../../services/navigation-draft.service';
 import { normalizePath, noNavPathMessage, suggestNavPath } from '../../utils/navigation-manager.utils';
-import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 
 export interface AddLinkDialogData {
   columnTitle?: string;
-  categoryPath?: string;
   isBrand?: boolean;
 }
 
 export interface AddLinkDialogResult {
   label: string;
   path: string;
+  target: NavTarget | null;
   badge?: string;
   isBrand?: boolean;
 }
@@ -34,8 +37,7 @@ export interface AddLinkDialogResult {
     MatCheckboxModule,
     MatFormFieldModule,
     MatInputModule,
-    MatTooltipModule,
-    SharedIconModule,
+    NavTargetFieldComponent,
   ],
 })
 export class AddLinkDialogComponent {
@@ -45,47 +47,29 @@ export class AddLinkDialogComponent {
   readonly #snackbar = inject(SnackbarService);
 
   readonly label = signal<string>('');
-  readonly path = signal<string>(
-    this.data?.isBrand ? '/brand/' : this.data?.categoryPath ? `${this.data.categoryPath}/` : '/category/',
-  );
+  readonly path = signal<string>('');
+  readonly target = signal<NavTarget | null>(null);
   readonly badge = signal<string>('');
   readonly isBrand = signal<boolean>(this.data?.isBrand ?? false);
-  readonly isManualPath = signal<boolean>(false);
 
-  readonly isValid = computed(() => {
-    return this.label().trim().length > 0 && this.path().trim().length > 0;
-  });
+  readonly isValid = computed(() => this.label().trim().length > 0 && this.path().trim().length > 0);
 
-  onLabelChange(value: string): void {
-    this.label.set(value);
-    this.#fillPathFromLabel();
+  onTargetChange(change: NavTargetChange): void {
+    this.target.set(change.target);
+    this.path.set(change.path);
+    if (!this.label().trim() && change.name) this.label.set(change.name);
   }
 
-  onIsBrandChange(checked: boolean): void {
-    this.isBrand.set(checked);
-    this.#fillPathFromLabel();
-  }
-
-  /** While the address wasn't typed by hand, keep it on the real category or brand the label names. */
-  #fillPathFromLabel(): void {
-    if (this.isManualPath()) return;
-    const suggested = suggestNavPath(this.label(), this.isBrand(), this.#draft.catalogForPaths());
-    if (suggested) this.path.set(suggested);
-  }
-
-  onPathChange(value: string): void {
-    this.path.set(value);
-    this.isManualPath.set(true);
-  }
-
+  /** ✨: the category or brand the label names. */
   generateSlug(): void {
     const suggested = suggestNavPath(this.label(), this.isBrand(), this.#draft.catalogForPaths());
     if (!suggested) {
       this.#snackbar.error(noNavPathMessage(this.label() || 'this link'));
       return;
     }
-    this.path.set(suggested);
-    this.isManualPath.set(false);
+    const destination = this.#draft.destinationFromPath(suggested);
+    this.target.set(destination.target);
+    this.path.set(destination.path);
   }
 
   submit(): void {
@@ -93,6 +77,7 @@ export class AddLinkDialogComponent {
     this.#dialogRef.close({
       label: this.label().trim(),
       path: normalizePath(this.path().trim()),
+      target: this.target(),
       badge: this.badge().trim() || undefined,
       isBrand: this.isBrand() || undefined,
     });

@@ -2,24 +2,27 @@ import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
-import { requireRole, type Role } from '../auth/require-role.js';
+import { requireRole } from '../auth/require-role.js';
 import {
-  listAdminsViaMirrors,
-  listClaimAdmins,
+  listClaimTeam,
+  listTeamViaMirrors,
   readRole,
-  reconcileAdminMirrors,
+  reconcileTeamMirrors,
   recordSessionRevocation,
   revertRoleMirror,
 } from './claim-admins.js';
 import { parseSetUserRoleInput } from './roles.validation.js';
+import { endsSession, isLastAdminRemoval, type TeamRole } from './team-roles.js';
 
-const LAST_ADMIN_MESSAGE = "You're the only admin. Add another admin before removing yourself.";
+const LAST_ADMIN_MESSAGE = "You're the only admin. Add another admin before changing your access.";
 const UNKNOWN_ACCOUNT_MESSAGE =
   'No account uses that email yet. Ask them to sign in once with Google, or add them under Authentication → Users first.';
 
+/** One person on the Team table (admin or staff). */
 export interface AdminRecord {
   readonly uid: string;
   readonly email: string;
+  readonly role: TeamRole;
   readonly updatedAt: string | null;
   readonly updatedBy: string | null;
 }
@@ -37,18 +40,21 @@ function isUserNotFound(error: unknown): boolean {
   );
 }
 
-function isLastAdminDemotion(role: Role, before: Role, otherAdminCount: number): boolean {
-  return role === 'user' && before === 'admin' && otherAdminCount === 0;
-}
-
+/**
+ * Settings → Team: everyone with admin or staff access (the name stays `listAdmins`, so a
+ * deploy never deletes and recreates the function). Admins only.
+ */
 export const listAdmins = onCall(adminCallableOptions(), async (request): Promise<AdminRecord[]> => {
   await requireRole(request, 'admin');
 
-  // Mirror index + getUsers (O(admins)). Full Auth listUsers only on bootstrap
-  // or when every mirror is stale — see listAdminsViaMirrors.
-  const admins = [...(await listAdminsViaMirrors())];
-  admins.sort((left, right) => left.email.localeCompare(right.email));
-  return admins;
+  // Mirror index + getUsers (O(team)). Full Auth listUsers only on bootstrap
+  // or when every mirror is stale — see listTeamViaMirrors.
+  const members = [...(await listTeamViaMirrors())];
+  members.sort(
+    (left, right) =>
+      Number(right.role === 'admin') - Number(left.role === 'admin') || left.email.localeCompare(right.email),
+  );
+  return members;
 });
 
 export const setUserRole = onCall(adminCallableOptions(), async (request): Promise<SetUserRoleResult> => {
@@ -70,13 +76,15 @@ export const setUserRole = onCall(adminCallableOptions(), async (request): Promi
     return { changed: false };
   }
 
-  const claimAdmins = await listClaimAdmins();
-  const otherClaimAdmins = claimAdmins.filter((admin) => admin.uid !== user.uid).length;
-  if (isLastAdminDemotion(input.role, before, otherClaimAdmins)) {
+  const claimTeam = await listClaimTeam();
+  const otherClaimAdmins = claimTeam.filter(
+    (member) => member.role === 'admin' && member.uid !== user.uid,
+  ).length;
+  if (isLastAdminRemoval(before, input.role, otherClaimAdmins)) {
     throw new HttpsError('failed-precondition', LAST_ADMIN_MESSAGE);
   }
 
-  await reconcileAdminMirrors(claimAdmins);
+  await reconcileTeamMirrors(claimTeam);
 
   const db = getFirestore();
   const auditRef = db.collection('auditLogs').doc();
@@ -85,7 +93,7 @@ export const setUserRole = onCall(adminCallableOptions(), async (request): Promi
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(db.collection('roles').where('role', '==', 'admin'));
     const otherMirrorAdmins = snap.docs.filter((doc) => doc.id !== user.uid).length;
-    if (isLastAdminDemotion(input.role, before, otherMirrorAdmins)) {
+    if (isLastAdminRemoval(before, input.role, otherMirrorAdmins)) {
       throw new HttpsError('failed-precondition', LAST_ADMIN_MESSAGE);
     }
 
@@ -116,7 +124,7 @@ export const setUserRole = onCall(adminCallableOptions(), async (request): Promi
       ...(user.customClaims ?? {}),
       role: input.role,
     });
-    if (input.role === 'user') {
+    if (endsSession(before, input.role)) {
       await recordSessionRevocation(user.uid);
     }
   } catch {
@@ -133,7 +141,7 @@ export const setUserRole = onCall(adminCallableOptions(), async (request): Promi
     } catch {
       // The next role change reconciles the mirror.
     }
-    throw new HttpsError('internal', 'Could not update admin access. Please try again.');
+    throw new HttpsError('internal', 'Could not update dashboard access. Please try again.');
   }
 
   return { changed: true };

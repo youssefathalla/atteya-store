@@ -42,7 +42,7 @@
           <span>Favorites</span>
         </a>
       </li>
-      @if (isAdmin()) {
+      @if (canManageStore()) {
         <li>
           <a class="account-panel__link" routerLink="/admin">
             <mat-icon name="dashboard" size="xl" aria-hidden="true" />

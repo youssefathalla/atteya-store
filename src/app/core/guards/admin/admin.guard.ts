@@ -7,7 +7,7 @@ import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { notifyNotAdmin } from '@features/auth/utils/login-exit';
 
 /**
- * Visitors go to sign in. Signed-in people who are not admins go home.
+ * Visitors go to sign in. Signed-in people who are not admins or staff go home.
  * The first entry force-refreshes the ID token. Moves inside `/admin` reuse
  * the current role, which the role-mirror listener keeps up to date.
  * Admin routes render on the client, so the server never enters the dashboard.
@@ -36,10 +36,21 @@ export const adminGuard: CanActivateFn = async (_route, state) => {
     throw login;
   }
 
-  if (!auth.isAdmin()) {
+  if (!auth.canManageStore()) {
     notifyNotAdmin(snackbar);
     throw new RedirectCommand(router.parseUrl('/'));
   }
 
   return true;
+};
+
+/**
+ * Admin-only pages inside the dashboard (Settings → Team). Runs after `adminGuard`, so the person
+ * already has dashboard access; staff go to the Orders page instead. The server refuses staff too.
+ */
+export const adminOnlyGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  if (auth.isAdmin()) return true;
+  inject(SnackbarService).info('Only an admin can open this page.');
+  throw new RedirectCommand(inject(Router).parseUrl('/admin/orders'));
 };

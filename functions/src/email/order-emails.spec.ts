@@ -921,12 +921,11 @@ describe('Bold Black staff alert (<KEY>-222)', () => {
 
   it('item grid columns share the gaps so every column is the same width', () => {
     const email = alert(cases.codPaid);
-    assert.ok(email.html.includes('width="33%" valign="top" style="padding-right:8px;'));
-    assert.ok(email.html.includes('width="33%" valign="top" style="padding-left:4px;padding-right:4px;'));
-    assert.ok(email.html.includes('width="33%" valign="top" style="padding-left:8px;'));
+    assert.ok(email.html.includes('width="50%" valign="top" style="padding-right:8px;'));
+    assert.ok(email.html.includes('width="50%" valign="top" style="padding-left:8px;'));
   });
 
-  it('Pack List: 3 per row with ×n tags, gifts say Free gift, 7 or more lines are a compact list', () => {
+  it('Pack List: 2 per row with ×n tags, gifts sit under their item, 5 or more items are a compact list', () => {
     const doc = orderDoc({});
     const pricing = doc['pricing'] as { lines: Record<string, unknown>[] };
     pricing.lines.push({
@@ -938,18 +937,18 @@ describe('Bold Black staff alert (<KEY>-222)', () => {
     });
     const email = alert(doc);
     assert.ok(email.html.includes('>×2<'));
-    assert.ok(email.html.includes('>×1<'));
-    assert.ok(email.html.includes('?tr=w-360,'), '3 per row photos');
+    assert.ok(email.html.includes('?tr=w-520,'), '2 per row photos');
     assert.ok(email.text.includes('- ×1 Socks: Free socks'));
-    assert.ok(email.html.includes('>Free socks<'));
+    assert.ok(email.html.includes('>FREE GIFT<'));
+    assert.ok(email.html.includes('Free socks · ×1'), 'gift strip under its item');
     assert.ok(email.text.includes('Items: 3'));
 
     const many = orderDoc({});
     const manyPricing = many['pricing'] as { lines: Record<string, unknown>[] };
     const base = manyPricing.lines[0]!;
-    manyPricing.lines = Array.from({ length: 7 }, (_, i) => ({ ...base, productId: `p${i}`, quantity: 1 }));
+    manyPricing.lines = Array.from({ length: 5 }, (_, i) => ({ ...base, productId: `p${i}`, quantity: 1 }));
     assert.ok(alert(many).html.includes('width="64"'), 'compact list');
-    manyPricing.lines = manyPricing.lines.slice(0, 6);
+    manyPricing.lines = manyPricing.lines.slice(0, 4);
     assert.ok(!alert(many).html.includes('width="64"'));
   });
 

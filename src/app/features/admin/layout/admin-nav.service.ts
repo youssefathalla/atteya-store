@@ -2,6 +2,7 @@ import { computed, DestroyRef, inject, Service, signal, WritableSignal } from '@
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AuthService } from '@core/services/auth/auth.service';
 import { AdminNavCategory } from './admin-nav.model';
 import { ADMIN_NAV_CATEGORIES } from './admin-nav.data';
 
@@ -34,8 +35,16 @@ function setStoredSidebarState(open: boolean): void {
 export class AdminNavService {
   readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);
+  readonly #auth = inject(AuthService);
 
-  readonly categories = signal<readonly AdminNavCategory[]>(ADMIN_NAV_CATEGORIES);
+  /** The sidebar; staff don't see admin-only pages (Team). */
+  readonly categories = computed<readonly AdminNavCategory[]>(() => {
+    if (this.#auth.isAdmin()) return ADMIN_NAV_CATEGORIES;
+    return ADMIN_NAV_CATEGORIES.map((category) => ({
+      ...category,
+      subItems: category.subItems?.filter((item) => !item.adminOnly),
+    }));
+  });
   readonly isMobileMenuOpen = signal<boolean>(false);
   readonly selectedCategory = signal<AdminNavCategory | null>(null);
 

@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Visitors and normal users may get a single public image.
-// Admins (claim + current session) may list those folders, upload a valid image,
+// Admins and staff (claim + current session) may list those folders, upload a valid image,
 // and delete files other than the default hero.
 service firebase.storage {
   match /b/{bucket}/o {
@@ -9,9 +9,9 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    function canManageStore() {
       return isSignedIn()
-        && request.auth.token.role == 'admin'
+        && request.auth.token.role in ['admin', 'staff']
         && sessionIsCurrent();
     }
 
@@ -44,9 +44,9 @@ service firebase.storage {
     // The default hero file cannot be deleted.
     match /{folder}/{path=**} {
       allow get: if isImageFolder(folder);
-      allow list: if isAdmin() && isImageFolder(folder);
-      allow create, update: if isAdmin() && isImageFolder(folder) && isValidImage();
-      allow delete: if isAdmin()
+      allow list: if canManageStore() && isImageFolder(folder);
+      allow create, update: if canManageStore() && isImageFolder(folder) && isValidImage();
+      allow delete: if canManageStore()
         && isImageFolder(folder)
         && !(folder == 'hero' && path == 'default-hero.jpg');
     }

@@ -64,6 +64,7 @@ import type {
   ProductModelSharedPayload,
 } from './models/product-admin.model';
 import { ProductsAdminService } from './services/products-admin.service';
+import { ProductsDialogService } from './services/products-dialog.service';
 import { importActionError } from './utils/import-error';
 import {
   buildBrandOptions,
@@ -157,6 +158,7 @@ export class ProductEditorPageComponent implements OnInit {
   readonly productId = input<string>();
 
   readonly #admin = inject(ProductsAdminService);
+  readonly #dialogs = inject(ProductsDialogService);
   readonly #offersAdmin = inject(OffersAdminService);
   readonly #uploads = inject(StorageUploadService);
   readonly #seo = inject(SeoService);
@@ -180,6 +182,7 @@ export class ProductEditorPageComponent implements OnInit {
   }));
 
   readonly isSaving = signal(false);
+  readonly isDeleting = signal(false);
   readonly formError = signal('');
   readonly model = signal<SharedFields>(emptyFields());
   readonly sizes = signal<readonly ModelSizeDraft[]>([]);
@@ -497,6 +500,37 @@ export class ProductEditorPageComponent implements OnInit {
 
   toggleHidden(): void {
     this.#updateActive((colour) => ({ ...colour, published: !colour.published }));
+  }
+
+  /**
+   * Deletes the open colour (a saved product doc) for good, after asking. The other saved colours
+   * stay; the page reopens on one of them, or goes back to Products when none is left.
+   */
+  async deleteActiveColour(): Promise<void> {
+    const colour = this.activeColour();
+    if (!colour || colour.version === null || this.isSaving() || this.isDeleting()) return;
+    const others = this.colours().filter((c) => c.productId !== colour.productId && c.version !== null);
+    const name = collapseSpaces(this.model().name) || 'This product';
+    const label = others.length > 0 ? `${name} in ${this.activeName()}` : name;
+    if (!(await this.#dialogs.confirmDeleteColour(label, others.length === 0))) return;
+
+    this.isDeleting.set(true);
+    try {
+      await this.#admin.deleteProduct(colour.productId);
+      this.#snackbar.success(others.length > 0 ? `${label} deleted.` : 'Product deleted.');
+      const next = others[0];
+      if (!next) {
+        await this.#router.navigate(['/admin/products']);
+      } else if (this.productId() === colour.productId) {
+        await this.#router.navigate(['/admin/products', next.productId], { replaceUrl: true });
+      } else {
+        this.#reloadTick.update((tick) => tick + 1);
+      }
+    } catch (error: unknown) {
+      this.#snackbar.error(importActionError(error));
+    } finally {
+      this.isDeleting.set(false);
+    }
   }
 
   toggleOwnPrice(checked: boolean): void {

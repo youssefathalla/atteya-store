@@ -1,4 +1,48 @@
-import type { NavCategory } from './nav.model';
+import type { MegaMenuLink, NavCategory } from './nav.model';
+import { navTargetPath, type NavTarget, type NavTargetCatalog } from './nav-target';
+
+/**
+ * The store address for a saved target, or null to leave the link out (its category or
+ * brand is hidden or gone). A typed address (`url`) is kept as typed. Without a catalog
+ * (on the server, or before the published categories and brands load) the saved `path`
+ * is used, so the server HTML and the first browser render match.
+ */
+function storefrontPath(
+  target: NavTarget | undefined,
+  savedPath: string | undefined,
+  catalog: NavTargetCatalog | null,
+): string | null | undefined {
+  if (!target || !catalog) return savedPath;
+  if (target.kind === 'url') return target.url;
+  return navTargetPath(target, catalog);
+}
+
+/**
+ * Builds each link's address from its target with the published categories and brands
+ * (only published ones are passed in, so a hidden one counts as missing) and leaves out
+ * links whose target can't be shown. A menu whose own target is gone keeps its links and
+ * only opens the menu. The saved navigation document is unchanged.
+ */
+export function resolveStorefrontTargets(
+  categories: readonly NavCategory[],
+  catalog: NavTargetCatalog | null,
+): readonly NavCategory[] {
+  if (!catalog) return categories;
+  return categories.map((category) => {
+    const path = storefrontPath(category.target, category.path, catalog);
+    const megaMenu = category.megaMenu?.map((column) => ({
+      ...column,
+      links: column.links.flatMap((link): MegaMenuLink[] => {
+        const linkPath = storefrontPath(link.target, link.path, catalog);
+        return linkPath ? [{ ...link, path: linkPath }] : [];
+      }),
+    }));
+    const resolved: NavCategory = { ...category, ...(megaMenu ? { megaMenu } : {}) };
+    if (path) resolved.path = path;
+    else delete resolved.path;
+    return resolved;
+  });
+}
 
 /**
  * Drops a top-level category when its own path is an empty catalogue entry,
@@ -12,7 +56,7 @@ export function visibleStorefrontCategories(
   for (const category of categories) {
     if (category.path && isEmpty(category.path)) continue;
     if (!category.megaMenu) {
-      visible.push(category);
+      if (category.path) visible.push(category);
       continue;
     }
     const megaMenu = category.megaMenu.flatMap((column) => {

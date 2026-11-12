@@ -1,6 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
+import { shortOrderRef } from '@core/services/orders/order-ref';
 import { firebaseErrors } from '@shared/utils/firebase/firebase-errors';
-import { AdminRecord, AdminTableRow, RoleAudit } from '../models/admin-role.model';
+import { AdminRecord, AdminTableRow, AssignableRole, RoleAudit, TeamRole } from '../models/admin-role.model';
 
 const WHEN_FORMAT = new Intl.DateTimeFormat('en', {
   day: 'numeric',
@@ -23,14 +24,20 @@ export function adminSinceLabel(updatedAt: string | null): string {
 export function grantedByLabel(updatedBy: string | null): string {
   if (!updatedBy) return 'Not recorded';
   if (updatedBy === 'cli') return 'Setup script';
-  if (updatedBy === 'claim') return 'Already an admin';
+  if (updatedBy === 'claim') return 'Already had access';
   return updatedBy;
+}
+
+export function teamRoleLabel(role: TeamRole): string {
+  return role === 'admin' ? 'Admin' : 'Staff';
 }
 
 export function toAdminTableRow(admin: AdminRecord): AdminTableRow {
   return {
     id: admin.uid,
     email: admin.email || 'No email on the account',
+    role: admin.role,
+    roleLabel: teamRoleLabel(admin.role),
     since: adminSinceLabel(admin.updatedAt),
     grantedBy: grantedByLabel(admin.updatedBy),
     action: '',
@@ -39,16 +46,33 @@ export function toAdminTableRow(admin: AdminRecord): AdminTableRow {
 
 function actorLabel(actorEmail: string): string {
   if (actorEmail === 'cli') return 'The setup script';
-  if (!actorEmail) return 'An admin';
+  if (!actorEmail) return 'Someone on the team';
   return actorEmail;
 }
 
+const ACCESS_NAME: Record<AssignableRole, string> = {
+  admin: 'Admin',
+  staff: 'Staff',
+  user: 'no',
+};
+
+/** One line in Recent changes: a role change, a deleted order or a deleted product. */
 export function describeRoleChange(entry: RoleAudit): string {
   const actor = actorLabel(entry.actorEmail);
-  if (entry.to === 'admin') {
-    return `${actor} gave ${entry.targetEmail} admin access.`;
+  switch (entry.action) {
+    case 'order.delete':
+      return `${actor} deleted order ${shortOrderRef(entry.orderId)}.`;
+    case 'product.delete':
+      return `${actor} deleted the product ${entry.name || entry.productId}.`;
+    case 'role.set':
+      if (entry.to === 'user') {
+        return `${actor} removed dashboard access from ${entry.targetEmail}.`;
+      }
+      if (entry.from === 'user') {
+        return `${actor} gave ${entry.targetEmail} ${ACCESS_NAME[entry.to]} access.`;
+      }
+      return `${actor} changed ${entry.targetEmail} from ${ACCESS_NAME[entry.from]} to ${ACCESS_NAME[entry.to]}.`;
   }
-  return `${actor} removed admin access from ${entry.targetEmail}.`;
 }
 
 export function formatAuditWhen(value: RoleAudit['at']): string {

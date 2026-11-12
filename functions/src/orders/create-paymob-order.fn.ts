@@ -9,6 +9,7 @@ import {
 } from '../paymob/paymob-client.js';
 import { paymobSecrets, requireConfiguredPaymob } from '../paymob/paymob-config.js';
 import { isCardOrWalletLive } from '../store/store-info.js';
+import { orderSearchTokens } from '../store/order-search.js';
 import { orderConfirmationUrl } from '../email/order-email-model.js';
 import { readOfferUses, releaseOfferUses, type UsedOffer } from './offer-usage.js';
 import {
@@ -151,6 +152,12 @@ export const createPaymobOrder = onCall(
           status: 'pending',
           paymentMethod: 'paymob',
           ...orderCustomerFields(customer, viewKey, now),
+          searchTokens: orderSearchTokens({
+            orderId,
+            fullName: input.shipping.fullName,
+            phone: input.shipping.phone,
+            email: customer.email,
+          }),
           shipping: {
             ...input.shipping,
             boxId: priced.pricing.shipping?.boxId ?? null,
