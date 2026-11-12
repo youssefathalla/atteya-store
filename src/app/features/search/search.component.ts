@@ -190,6 +190,8 @@ export class SearchComponent implements OnInit {
     this.#seo.setPageMetadata({
       title: 'Search | Atteya Store',
       description: 'Search rackets, apparel, bags, and accessories at Atteya Store.',
+      // Results are not pages of their own for Google: no canonical or share tags.
+      noindex: true,
     });
   }
 

@@ -20,7 +20,6 @@ export class PrivacyPage implements OnInit {
     this.#seo.setPageMetadata({
       title: 'Privacy Policy | Atteya Store',
       description: 'What Atteya Store keeps about you, why, and the choices you have.',
-      noindex: true,
     });
   }
 }
