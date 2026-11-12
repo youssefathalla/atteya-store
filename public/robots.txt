@@ -4,3 +4,5 @@ Allow: /
 
 Disallow: /admin/
 Disallow: /playground/
+
+Sitemap: https://atteyastore.com/sitemap.xml

@@ -48,7 +48,7 @@ import {
   ProductService,
 } from '@core/services/products';
 import { SearchService } from '@core/services/search';
-import { SeoService } from '@core/services/seo';
+import { SeoService, textFromHtml } from '@core/services/seo';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { ProductPriceComponent } from '@shared/components/product-price/product-price.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -772,6 +772,9 @@ export class ProductComponent {
           title: `${p.name} | Atteya Store`,
           description: p.summary?.trim() || `${p.name}${brand ? ` by ${brand}` : ''}. Shop at Atteya Store.`,
           noindex: !isProductInStock(p),
+          type: 'product',
+          image: p.images[0]?.path ?? null,
+          shareDescription: p.summary?.trim() || textFromHtml(p.descriptionHtml) || null,
         });
       } else {
         this.#seo.setPageMetadata({

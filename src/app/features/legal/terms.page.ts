@@ -21,7 +21,6 @@ export class TermsPage implements OnInit {
       title: 'Terms and Conditions | Atteya Store',
       description:
         'The terms for browsing and ordering at Atteya Store: prices, payment, delivery and returns.',
-      noindex: true,
     });
   }
 }

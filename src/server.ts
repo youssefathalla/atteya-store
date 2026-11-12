@@ -12,6 +12,7 @@ import * as v from 'valibot';
 import { trimRenderedEarlyHints } from './early-hints.mjs';
 import { environment } from './environments/environment.js';
 import { FIREBASE_HELPER_PATHS, firebaseAuthProxy } from './firebase-auth-proxy.js';
+import { sitemapHandler } from './sitemap.js';
 import {
   applyDevLocalGeoFallback,
   enrichHeadersForVisitorGeo,
@@ -61,6 +62,9 @@ app.use(compression({ threshold: 1024 }));
  * above encodes it once.
  */
 app.use(FIREBASE_HELPER_PATHS, firebaseAuthProxy(environment.firebase.projectId ?? ''));
+
+/** Published pages for search engines, read from Firestore and kept for an hour (`src/sitemap.ts`). */
+app.get('/sitemap.xml', sitemapHandler(environment.baseUrl, environment.firebase));
 
 app.get('/api/visitor-location', async (req, res) => {
   try {
