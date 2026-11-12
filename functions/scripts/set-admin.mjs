@@ -1,8 +1,10 @@
 /**
- * Grant or revoke the admin custom claim.
+ * Grant or revoke the admin or staff custom claim (staff: the whole dashboard except
+ * deleting orders and managing who has access).
  *
  * Run from the functions directory with Application Default Credentials:
  *   node scripts/set-admin.mjs --project atteya-store-dev --email you@example.com --role admin
+ *   node scripts/set-admin.mjs --project atteya-store-dev --email helper@example.com --role staff
  *   node scripts/set-admin.mjs --project atteya-store-dev --show --email you@example.com
  *   node scripts/set-admin.mjs --project atteya-store-dev --list
  *
@@ -37,8 +39,9 @@ if (arg('list')) {
   do {
     const page = await auth.listUsers(1000, pageToken);
     for (const user of page.users) {
-      if (user.customClaims?.role === 'admin') {
-        console.log(user.uid, user.email ?? '');
+      const role = user.customClaims?.role;
+      if (role === 'admin' || role === 'staff') {
+        console.log(user.uid, user.email ?? '', role);
       }
     }
     pageToken = page.pageToken;
@@ -63,13 +66,15 @@ if (arg('show')) {
 }
 
 const role = arg('role') ?? 'admin';
-if (!['admin', 'user'].includes(role)) throw new Error('--role must be admin or user');
+if (!['admin', 'staff', 'user'].includes(role)) throw new Error('--role must be admin, staff or user');
+const RANK = { user: 0, staff: 1, admin: 2 };
 
-const before = user.customClaims?.role ?? 'user';
+const before = ['admin', 'staff'].includes(user.customClaims?.role) ? user.customClaims.role : 'user';
 await auth.setCustomUserClaims(user.uid, { ...(user.customClaims ?? {}), role });
 
 let revokeTimeMs;
-if (role !== 'admin') {
+// Less access than before: end the current sign-in, since the old ID token keeps the old role.
+if (RANK[role] < RANK[before]) {
   await auth.revokeRefreshTokens(user.uid);
   const refreshed = await auth.getUser(user.uid);
   revokeTimeMs = Date.parse(refreshed.tokensValidAfterTime ?? '');

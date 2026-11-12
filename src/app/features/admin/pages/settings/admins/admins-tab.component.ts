@@ -12,17 +12,19 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import { email, form, maxLength, required, submit } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { signalCollection } from '@shared/utils/firebase/firestore-signals';
 import { TemplateTypeDirective } from '@shared/directives/template-type/template-type.directive';
+import { SelectInputComponent } from '@shared/ui/forms/select-input/select-input.component';
 import { TextInputComponent } from '@shared/ui/forms/text-input/text-input.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { ReusableTable } from '@shared/ui/reusable-table/reusable-table.component';
 import { TableColumn } from '@shared/ui/reusable-table/table.model';
 import { SkeletonComponent } from '@shared/ui/skeleton';
-import { AdminTableRow } from '../models/admin-role.model';
+import { AdminTableRow, TeamRole } from '../models/admin-role.model';
 import { AdminRoleDialogService } from '../services/admin-role-dialog.service';
 import { AdminRolesService } from '../services/admin-roles.service';
 import {
@@ -37,8 +39,10 @@ import {
   host: { class: 'block w-full' },
   imports: [
     MatButtonModule,
+    MatMenuModule,
     MatProgressSpinnerModule,
     SharedIconModule,
+    SelectInputComponent,
     TextInputComponent,
     ReusableTable,
     SkeletonComponent,
@@ -55,8 +59,8 @@ export class AdminsTabComponent implements OnInit {
 
   ngOnInit(): void {
     this.#seo.setPageMetadata({
-      title: 'Admins | Atteya Admin',
-      description: 'Choose who can manage the Atteya store.',
+      title: 'Team | Atteya Admin',
+      description: 'Choose who can manage the Atteya store, as Admin or Staff.',
       noindex: true,
     });
   }
@@ -65,7 +69,12 @@ export class AdminsTabComponent implements OnInit {
   readonly #removingUid = signal<string | null>(null);
   private readonly removeCell = viewChild<TemplateRef<unknown>>('removeCell');
 
-  readonly emailModel = signal({ email: '' });
+  readonly roleOptions: readonly { readonly id: TeamRole; readonly label: string }[] = [
+    { id: 'staff', label: 'Staff (everything except deleting orders and this page)' },
+    { id: 'admin', label: 'Admin (everything)' },
+  ];
+
+  readonly emailModel = signal<{ email: string; role: TeamRole }>({ email: '', role: 'staff' });
   readonly grantForm = form(this.emailModel, (path) => {
     required(path.email, { message: 'Enter an email address.' });
     email(path.email, { message: 'Enter a valid email address.' });
@@ -86,13 +95,15 @@ export class AdminsTabComponent implements OnInit {
   readonly sampleRow: AdminTableRow = {
     id: '',
     email: '',
+    role: 'staff',
+    roleLabel: '',
     since: '',
     grantedBy: '',
     action: '',
   };
 
   readonly rows = computed(() => (this.adminsResource.value() ?? []).map(toAdminTableRow));
-  readonly canRemove = computed(() => this.rows().length > 1);
+  readonly adminCount = computed(() => this.rows().filter((row) => row.role === 'admin').length);
   readonly loadError = computed(() => {
     const error = this.adminsResource.error();
     return error ? roleActionError(error) : '';
@@ -101,11 +112,12 @@ export class AdminsTabComponent implements OnInit {
   readonly columns = computed((): TableColumn<AdminTableRow>[] => {
     const base: TableColumn<AdminTableRow>[] = [
       { key: 'email', label: 'Email', sortable: true },
-      { key: 'since', label: 'Admin since', sortable: true },
-      { key: 'grantedBy', label: 'Granted by', sortable: true },
+      { key: 'roleLabel', label: 'Role', sortable: true },
+      { key: 'since', label: 'Since', sortable: true },
+      { key: 'grantedBy', label: 'Given by', sortable: true },
     ];
     const removeCell = this.removeCell();
-    if (this.canRemove() && removeCell) {
+    if (removeCell) {
       base.push({ key: 'action', label: 'Action', sortable: false, customCellTpl: removeCell });
     }
     return base;
@@ -131,14 +143,16 @@ export class AdminsTabComponent implements OnInit {
 
     void submit(this.grantForm, async () => {
       const email = this.emailModel().email.trim().toLowerCase();
+      const role = this.emailModel().role;
+      const label = role === 'admin' ? 'Admin' : 'Staff';
       this.#isGranting.set(true);
       try {
-        const result = await this.#roles.setUserRole(email, 'admin');
+        const result = await this.#roles.setUserRole(email, role);
         if (result.changed) {
-          this.#snackbar.success(`${email} can manage the store now.`);
-          this.emailModel.set({ email: '' });
+          this.#snackbar.success(`${email} can manage the store now, as ${label}.`);
+          this.emailModel.set({ email: '', role: 'staff' });
         } else {
-          this.#snackbar.info('That person is already an admin.');
+          this.#snackbar.info(`That person is already ${label}.`);
         }
         this.adminsResource.reload();
       } catch (error: unknown) {
@@ -149,18 +163,35 @@ export class AdminsTabComponent implements OnInit {
     });
   }
 
-  async removeAdmin(row: AdminTableRow): Promise<void> {
-    if (this.#removingUid() || !row.email || row.email === 'No email on the account') return;
-    const confirmed = await this.#dialogs.confirmRemove(row.email);
-    if (!confirmed) return;
+  /** The only admin can't be made Staff or removed (the server refuses it too). */
+  isOnlyAdmin(row: AdminTableRow): boolean {
+    return row.role === 'admin' && this.adminCount() <= 1;
+  }
 
+  async changeRole(row: AdminTableRow, to: TeamRole): Promise<void> {
+    if (this.#removingUid() || !this.#hasEmail(row) || row.role === to) return;
+    if (!(await this.#dialogs.confirmChange(row.email, to))) return;
+    await this.#save(row, to, `${row.email} is ${to === 'admin' ? 'an Admin' : 'Staff'} now.`);
+  }
+
+  async removeAdmin(row: AdminTableRow): Promise<void> {
+    if (this.#removingUid() || !this.#hasEmail(row)) return;
+    if (!(await this.#dialogs.confirmRemove(row.email))) return;
+    await this.#save(row, 'user', `${row.email} can no longer manage the store.`);
+  }
+
+  #hasEmail(row: AdminTableRow): boolean {
+    return !!row.email && row.email !== 'No email on the account';
+  }
+
+  async #save(row: AdminTableRow, role: TeamRole | 'user', done: string): Promise<void> {
     this.#removingUid.set(row.id);
     try {
-      const result = await this.#roles.setUserRole(row.email, 'user');
+      const result = await this.#roles.setUserRole(row.email, role);
       if (result.changed) {
-        this.#snackbar.success(`${row.email} can no longer manage the store.`);
+        this.#snackbar.success(done);
       } else {
-        this.#snackbar.info('That person is not an admin.');
+        this.#snackbar.info('Nothing changed. The list is up to date now.');
       }
       this.adminsResource.reload();
     } catch (error: unknown) {

@@ -10,6 +10,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { MegaMenuColumn, MegaMenuLink } from '@core/services/navigation';
 import { MatDividerModule } from '@angular/material/divider';
+import {
+  NavTargetFieldComponent,
+  type NavTargetChange,
+} from '../nav-target-field/nav-target-field.component';
 
 @Component({
   selector: 'app-nav-mega-menu-editor',
@@ -27,6 +31,7 @@ import { MatDividerModule } from '@angular/material/divider';
     MatTooltipModule,
     MatDividerModule,
     SharedIconModule,
+    NavTargetFieldComponent,
   ],
 })
 export class NavMegaMenuEditorComponent {
@@ -46,5 +51,6 @@ export class NavMegaMenuEditorComponent {
     value: unknown;
   }>();
   readonly linkDrop = output<{ colIndex: number; event: CdkDragDrop<MegaMenuLink[]> }>();
+  readonly linkTargetChange = output<{ colIndex: number; linkIndex: number; change: NavTargetChange }>();
   readonly linkGenerateSlug = output<{ colIndex: number; linkIndex: number }>();
 }

@@ -24,7 +24,7 @@ export interface ConfirmCodOrderResponse {
 export const confirmCodOrder = onCall(
   adminCallableOptions(),
   async (request): Promise<ConfirmCodOrderResponse> => {
-    const actor = await requireRole(request, 'admin');
+    const actor = await requireRole(request, 'staff');
     const orderId = parseOrderId(request.data);
     const result = await changeOrderStatus(getFirestore(), orderId, 'confirmed', actor, {
       idempotent: true,

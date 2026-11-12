@@ -108,7 +108,10 @@ export class AuthService {
   readonly role = this.#role.asReadonly();
   readonly isAuthReady = this.#isAuthReady.asReadonly();
   readonly isAuthenticated = computed(() => this.#user() !== null);
+  /** Admin only: the Team tab and Delete Order. */
   readonly isAdmin = computed(() => this.#role() === 'admin');
+  /** Admin or staff: opens the dashboard. */
+  readonly canManageStore = computed(() => this.#role() === 'admin' || this.#role() === 'staff');
   /**
    * The `signedIn` flag for offer pricing: signed in **and** the email is confirmed (Google, or a
    * confirmed email/password account). Matches the order callables, which price an unconfirmed
@@ -565,7 +568,7 @@ export class AuthService {
    */
   async redirectIfNoLongerAdmin(returnUrl: string): Promise<void> {
     await this.refreshRole(true);
-    if (this.isAdmin()) return;
+    if (this.canManageStore()) return;
     if (!this.isAuthenticated()) {
       await this.#router.navigate(['/login'], {
         queryParams: { returnUrl: safeReturnUrl(returnUrl) },
@@ -584,7 +587,7 @@ export class AuthService {
     effect(() => {
       const ready = this.isAuthReady();
       const signedIn = this.isAuthenticated();
-      const admin = this.isAdmin();
+      const admin = this.canManageStore();
       const explicitSignOut = this.#explicitSignOut();
       if (!ready || !isPlatformBrowser(this.#platformId)) return;
 

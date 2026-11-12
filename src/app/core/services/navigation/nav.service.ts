@@ -7,12 +7,16 @@ import { createValibotConverter } from '@shared/utils/firebase/firestore-convert
 import { NavSettingsSchema } from './nav.schema';
 import { NavCategory, NavSettings } from './nav.model';
 import { NAV_CATEGORIES } from './nav.data';
-import { visibleStorefrontCategories } from './nav-visibility';
+import { resolveStorefrontTargets, visibleStorefrontCategories } from './nav-visibility';
+import type { NavTargetCatalog } from './nav-target';
 import {
   NAVIGATION_SETTINGS_KEY,
   navigationSeedToDoc,
   type NavigationSettingsSeed,
 } from './navigation-settings.state';
+
+/** `CatalogService` reads at most this many published categories and brands. */
+const CATALOG_LIST_LIMIT = 100;
 
 /** Match shipping settings so a stuck Firestore listen cannot block the shell forever. */
 const SHELL_READY_TIMEOUT_MS = 2500;
@@ -141,8 +145,23 @@ export class NavService {
     return NAV_CATEGORIES;
   });
 
+  /**
+   * Published categories and brands for building link addresses from their targets, or null
+   * on the server and until both lists have loaded (links then use their saved `path`).
+   */
+  readonly #targetCatalog = computed<NavTargetCatalog | null>(() => {
+    const categories = this.#catalog.categories();
+    const brands = this.#catalog.brands();
+    if (!categories?.length || !brands) return null;
+    // The store's lists stop at 100; past that a real target could look missing, so keep saved paths.
+    if (categories.length >= CATALOG_LIST_LIMIT || brands.length >= CATALOG_LIST_LIMIT) return null;
+    return { categories, brands };
+  });
+
   readonly storefrontCategories = computed<readonly NavCategory[]>(() =>
-    visibleStorefrontCategories(this.categories(), (path) => this.#catalog.isEmpty(path)),
+    visibleStorefrontCategories(resolveStorefrontTargets(this.categories(), this.#targetCatalog()), (path) =>
+      this.#catalog.isEmpty(path),
+    ),
   );
 
   async resetDefaultNavigation(categories: readonly NavCategory[] = NAV_CATEGORIES): Promise<void> {

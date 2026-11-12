@@ -22,7 +22,7 @@
         autocomplete="off"
         aria-label="Link Label"
         [ngModel]="label()"
-        (ngModelChange)="onLabelChange($event)"
+        (ngModelChange)="label.set($event)"
         placeholder="e.g. Diamond Rackets"
         required
         cdkFocusInitial
@@ -30,32 +30,14 @@
       <mat-hint>Text displayed to users</mat-hint>
     </mat-form-field>
 
-    <!-- Target Path -->
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Target Path / URL</mat-label>
-      <input
-        matInput
-        id="new-link-path"
-        name="new-link-path"
-        autocomplete="off"
-        aria-label="Target Path / URL"
-        [ngModel]="path()"
-        (ngModelChange)="onPathChange($event)"
-        placeholder="/category/rackets?shape=diamond"
-        required
-      />
-      <button
-        matIconButton
-        matSuffix
-        type="button"
-        (click)="generateSlug()"
-        matTooltip="Link to the category or brand this label matches"
-        aria-label="Link to the matching category or brand"
-      >
-        <mat-icon name="auto_fix_high" />
-      </button>
-      <mat-hint>Destination route URL</mat-hint>
-    </mat-form-field>
+    <!-- Links To -->
+    <app-nav-target-field
+      fieldId="new-link"
+      [target]="target() ?? undefined"
+      [path]="path()"
+      (targetChange)="onTargetChange($event)"
+      (suggest)="generateSlug()"
+    />
 
     <!-- Optional Badge -->
     <mat-form-field appearance="outline" class="w-full">
@@ -79,13 +61,11 @@
         id="new-link-is-brand"
         name="new-link-is-brand"
         [ngModel]="isBrand()"
-        (ngModelChange)="onIsBrandChange($event)"
+        (ngModelChange)="isBrand.set($event)"
       >
         <span>Brand Link</span>
       </mat-checkbox>
-      <p class="font-body-xs opacity-70 pl-8">
-        Marks this item as an official brand link (routes to /brand/:slug)
-      </p>
+      <p class="font-body-xs opacity-70 pl-8">Shows this link in the brand style</p>
     </div>
   </mat-dialog-content>
 

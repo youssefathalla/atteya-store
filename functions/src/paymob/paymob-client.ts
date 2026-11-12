@@ -48,6 +48,9 @@ export function buildUnifiedCheckoutUrl(baseUrl: string, publicKey: string, clie
   return `${origin}/unifiedcheckout/?${params.toString()}`;
 }
 
+/** How long a Paymob intention stays payable when no `expirationSeconds` is given. */
+export const PAYMOB_INTENTION_DEFAULT_EXPIRY_SECONDS = 3600;
+
 export async function createPaymobIntention(
   input: CreatePaymobIntentionInput,
 ): Promise<PaymobIntentionResult> {
@@ -65,7 +68,7 @@ export async function createPaymobIntention(
     special_reference: input.specialReference,
     notification_url: input.notificationUrl,
     redirection_url: input.redirectionUrl,
-    expiration: input.expirationSeconds ?? 3600,
+    expiration: input.expirationSeconds ?? PAYMOB_INTENTION_DEFAULT_EXPIRY_SECONDS,
     extras: { merchant_order_id: input.specialReference },
   };
 

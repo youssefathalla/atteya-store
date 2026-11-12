@@ -22,7 +22,7 @@ export interface CancelOrderResponse {
  * ignore a payment that clears later.
  */
 export const cancelOrder = onCall(adminCallableOptions(), async (request): Promise<CancelOrderResponse> => {
-  const actor = await requireRole(request, 'admin');
+  const actor = await requireRole(request, 'staff');
   const orderId = parseOrderId(request.data);
   const result = await changeOrderStatus(getFirestore(), orderId, 'cancelled', actor, {
     idempotent: true,

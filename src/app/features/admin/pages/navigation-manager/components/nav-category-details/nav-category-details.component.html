@@ -20,30 +20,13 @@
       />
     </mat-form-field>
 
-    <!-- Route Path (Flexible for categories, brands, or custom pages) -->
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Route / URL Path</mat-label>
-      <input
-        matInput
-        id="cat-route-path"
-        name="cat-route-path"
-        autocomplete="off"
-        aria-label="Route / URL Path"
-        [ngModel]="category().path"
-        (ngModelChange)="pathChange.emit($event)"
-        placeholder="/category/rackets"
-      />
-      <button
-        matIconButton
-        matSuffix
-        type="button"
-        (click)="generatePath.emit()"
-        matTooltip="Link to the category this name matches"
-        aria-label="Link to the matching category"
-      >
-        <mat-icon name="auto_fix_high" />
-      </button>
-      <mat-hint>Storefront URL: {{ category().path || '/category' }}</mat-hint>
-    </mat-form-field>
+    <app-nav-target-field
+      [fieldId]="'cat-' + category().id"
+      [target]="category().target"
+      [path]="category().path"
+      [allowMenuOnly]="true"
+      (targetChange)="targetChange.emit($event)"
+      (suggest)="generatePath.emit()"
+    />
   </div>
 </div>

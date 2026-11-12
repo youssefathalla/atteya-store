@@ -179,4 +179,10 @@ export class OrdersAdminService {
     const response = await call({ orderId, feeEgp });
     return response.data;
   }
+
+  /** Admin only: deletes a Cancelled or Payment Failed order (the server checks both). */
+  async deleteOrder(orderId: string): Promise<void> {
+    const call = await callableFrom<{ orderId: string }, unknown>(this.#functions(), 'deleteOrder');
+    await call({ orderId });
+  }
 }

@@ -21,6 +21,7 @@ export function normalizePath(rawPath: string): string {
 
 /** A published category or brand the storefront can open (`/category/<slug>`, `/brand/<slug>`). */
 export interface NavCatalogEntry {
+  readonly id: string;
   readonly slug: string;
   readonly name: string;
 }
