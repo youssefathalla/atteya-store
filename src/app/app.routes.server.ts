@@ -3,6 +3,9 @@ import { RenderMode, ServerRoute } from '@angular/ssr';
 /** Geo-priced HTML must not sit on App Hosting CDN (no supported per-visitor cache key). */
 const GEO_PRICED_HTML_CACHE = 'private, no-store';
 
+/** Settings-driven HTML (no prices) that must show an admin edit on the next request. */
+const LIVE_SETTINGS_HTML_CACHE = 'private, no-store';
+
 export const serverRoutes: ServerRoute[] = [
   {
     path: 'shop',
@@ -24,7 +27,7 @@ export const serverRoutes: ServerRoute[] = [
   {
     path: 'brands',
     renderMode: RenderMode.Server,
-    headers: { 'Cache-Control': 'private, no-store' },
+    headers: { 'Cache-Control': LIVE_SETTINGS_HTML_CACHE },
   },
   {
     path: 'product/**',

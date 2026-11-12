@@ -43,7 +43,7 @@
         <a matButton="filled" routerLink="/shop">Shop All</a>
       </div>
     } @else {
-      @for (group of brandGroups(); track group.title) {
+      @for (group of brandGroups(); track $index) {
         <section class="space-y-6">
           <div class="flex items-center gap-3 border-b border-outline-variant pb-2">
             <h2 class="font-title-md font-bold! uppercase tracking-wider">

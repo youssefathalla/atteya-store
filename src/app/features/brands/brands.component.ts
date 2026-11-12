@@ -58,8 +58,9 @@ export class BrandsComponent implements OnInit {
       .filter((group) => group.brands.length > 0);
   });
 
-  readonly totalBrandCount = computed(() =>
-    this.brandGroups().reduce((acc, grp) => acc + grp.brands.length, 0),
+  /** Distinct brands, so a brand listed in two columns counts once. */
+  readonly totalBrandCount = computed(
+    () => new Set(this.brandGroups().flatMap((group) => group.brands.map((brand) => brand.path))).size,
   );
 
   readonly countLabel = computed(() => {
