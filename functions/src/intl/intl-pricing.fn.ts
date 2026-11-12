@@ -33,7 +33,7 @@ export const setInternationalPricing = onCall(
     // One transaction for the reads and the writes, so a rate refresh at the same moment can
     // never leave settings/currency built from mixed inputs.
     await db.runTransaction(async (tx) => {
-      const [ratesSnap, configSnap] = await Promise.all([tx.get(ratesRef), tx.get(configRef)]);
+      const [ratesSnap, configSnap] = await tx.getAll(ratesRef, configRef);
       const before = parseMarkup(configSnap.data()?.['markupPercent']);
       const storedRates = readStoredRates(ratesSnap.data());
       const ratesUpdatedAt =

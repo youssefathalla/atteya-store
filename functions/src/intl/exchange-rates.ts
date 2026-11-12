@@ -57,7 +57,13 @@ export async function refreshRates(
     // Read rates + markup and write both docs in one transaction, so a markup save at the same
     // moment can never leave settings/currency built from mixed inputs.
     const warnings = await db.runTransaction(async (tx) => {
-      const [existing, configSnap] = await Promise.all([tx.get(ratesRef), tx.get(db.doc(CONFIG_DOC))]);
+      const [existing, configSnap] = await tx.getAll(ratesRef, db.doc(CONFIG_DOC));
+      const storedProviderAt = readTimestamp(existing.data()?.['providerUpdatedAt']);
+      if (storedProviderAt && storedProviderAt.toMillis() > providerUpdatedAt.toMillis()) {
+        // A newer refresh already saved later rates: never roll them back with this older fetch.
+        tx.set(ratesRef, { lastAttemptAt: now }, { merge: true });
+        return [];
+      }
       const previous = readStoredRates(existing.data());
       const guarded = applyJumpGuard(previous, fetched.rates, options.manual);
       const markupPercent = markupOrDefault(configSnap.data());
