@@ -10,7 +10,12 @@ import type { ImageAsset } from '@shared/schemas';
 import { ImagePickerComponent } from '@shared/ui/image-picker';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { callableMessage } from '@shared/utils/firebase/firebase-errors';
-import { CatalogAdminService, type SaveResult } from '../../services/catalog-admin.service';
+import {
+  CatalogAdminService,
+  type CatalogDialogResult,
+  type MenuPlacement,
+} from '../../services/catalog-admin.service';
+import { MenuPlacementComponent } from '../../components/menu-placement/menu-placement.component';
 import { MAX_CATALOG_NAME, previewSlug } from '../../utils/catalog-manager.utils';
 
 export interface BrandDialogData {
@@ -32,12 +37,13 @@ export interface BrandDialogData {
     MatProgressSpinnerModule,
     SharedIconModule,
     ImagePickerComponent,
+    MenuPlacementComponent,
   ],
   templateUrl: './brand-dialog.component.html',
 })
 export class BrandDialogComponent {
   readonly #data = inject<BrandDialogData>(MAT_DIALOG_DATA);
-  readonly #ref = inject<MatDialogRef<BrandDialogComponent, SaveResult>>(MatDialogRef);
+  readonly #ref = inject<MatDialogRef<BrandDialogComponent, CatalogDialogResult>>(MatDialogRef);
   readonly #catalog = inject(CatalogAdminService);
 
   readonly maxName = MAX_CATALOG_NAME;
@@ -48,6 +54,9 @@ export class BrandDialogComponent {
   readonly name = signal(this.#data.brand?.name ?? '');
   readonly logo = signal<ImageAsset | null>(this.#data.brand?.logo ?? null);
   readonly published = signal(this.#data.brand?.published ?? false);
+  readonly addToMenu = signal(false);
+  readonly menuId = signal<string | null>(null);
+  readonly menuColumn = signal<number | null>(null);
   readonly isSaving = signal(false);
   readonly error = signal('');
 
@@ -89,6 +98,13 @@ export class BrandDialogComponent {
       this.error.set('Describe the logo in a few words.');
       return;
     }
+    const menuId = this.menuId();
+    const menuColumn = this.menuColumn();
+    const wantsMenu = this.isNew && this.addToMenu();
+    if (wantsMenu && (menuId === null || menuColumn === null)) {
+      this.error.set('Pick a menu and a column, or turn off Add to the Menu.');
+      return;
+    }
 
     this.error.set('');
     this.isSaving.set(true);
@@ -99,11 +115,34 @@ export class BrandDialogComponent {
         logo: logo && logo.path ? logo : null,
         published: this.published(),
       });
-      this.#ref.close(result);
+      this.#ref.close(
+        wantsMenu && menuId !== null && menuColumn !== null
+          ? await this.#addToMenu(result, name, { menuId, columnIndex: menuColumn })
+          : result,
+      );
     } catch (error: unknown) {
       this.error.set(callableMessage(error) ?? "We couldn't save the brand. Please try again.");
     } finally {
       this.isSaving.set(false);
+    }
+  }
+
+  /** Adds the new brand's link after it is saved; a failure keeps the brand (ATS-248). */
+  async #addToMenu(
+    result: CatalogDialogResult,
+    name: string,
+    placement: MenuPlacement,
+  ): Promise<CatalogDialogResult> {
+    try {
+      await this.#catalog.addToMenu(placement, {
+        label: name,
+        path: `/brand/${result.id}`,
+        target: { kind: 'brand', id: result.id },
+        isBrand: true,
+      });
+      return result;
+    } catch {
+      return { ...result, menuFailed: true };
     }
   }
 }

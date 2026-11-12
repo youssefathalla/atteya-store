@@ -17,7 +17,12 @@ import type { ImageAsset } from '@shared/schemas';
 import { ImagePickerComponent } from '@shared/ui/image-picker';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { callableMessage } from '@shared/utils/firebase/firebase-errors';
-import { CatalogAdminService, type SaveResult } from '../../services/catalog-admin.service';
+import {
+  CatalogAdminService,
+  type CatalogDialogResult,
+  type MenuPlacement,
+} from '../../services/catalog-admin.service';
+import { MenuPlacementComponent } from '../../components/menu-placement/menu-placement.component';
 import {
   categoryPageChoice,
   type CategoryPageChoice,
@@ -48,12 +53,13 @@ export interface CategoryDialogData {
     MatProgressSpinnerModule,
     SharedIconModule,
     ImagePickerComponent,
+    MenuPlacementComponent,
   ],
   templateUrl: './category-dialog.component.html',
 })
 export class CategoryDialogComponent {
   readonly #data = inject<CategoryDialogData>(MAT_DIALOG_DATA);
-  readonly #ref = inject<MatDialogRef<CategoryDialogComponent, SaveResult>>(MatDialogRef);
+  readonly #ref = inject<MatDialogRef<CategoryDialogComponent, CatalogDialogResult>>(MatDialogRef);
   readonly #catalog = inject(CatalogAdminService);
 
   readonly maxName = MAX_CATALOG_NAME;
@@ -78,6 +84,9 @@ export class CategoryDialogComponent {
       ? categoryPageChoice(this.#data.category, 'detailsTitle', 'specifications')
       : 'parent',
   );
+  readonly addToMenu = signal(false);
+  readonly menuId = signal<string | null>(null);
+  readonly menuColumn = signal<number | null>(null);
   readonly isSaving = signal(false);
   readonly error = signal('');
 
@@ -189,6 +198,13 @@ export class CategoryDialogComponent {
       this.error.set('Describe the photo in a few words.');
       return;
     }
+    const menuId = this.menuId();
+    const menuColumn = this.menuColumn();
+    const placement = this.isNew && this.addToMenu() ? { menuId, columnIndex: menuColumn } : null;
+    if (placement && (placement.menuId === null || placement.columnIndex === null)) {
+      this.error.set('Pick a menu and a column, or turn off Add to the Menu.');
+      return;
+    }
 
     const sizeChart = this.sizeChart();
     const detailsTitle = this.detailsTitle();
@@ -210,11 +226,37 @@ export class CategoryDialogComponent {
         detailsTitle: detailsTitle === 'parent' ? null : detailsTitle,
         published: this.published(),
       });
-      this.#ref.close(result);
+      this.#ref.close(
+        placement?.menuId != null && placement.columnIndex !== null
+          ? await this.#addToMenu(result, name, {
+              menuId: placement.menuId,
+              columnIndex: placement.columnIndex,
+            })
+          : result,
+      );
     } catch (error: unknown) {
       this.error.set(callableMessage(error) ?? "We couldn't save the category. Please try again.");
     } finally {
       this.isSaving.set(false);
+    }
+  }
+
+  /** Adds the new category's link after it is saved; a failure keeps the category (ATS-248). */
+  async #addToMenu(
+    result: CatalogDialogResult,
+    name: string,
+    placement: MenuPlacement,
+  ): Promise<CatalogDialogResult> {
+    const parentPath = this.#parent()?.path;
+    try {
+      await this.#catalog.addToMenu(placement, {
+        label: name,
+        path: parentPath ? `/category/${parentPath}/${result.id}` : `/category/${result.id}`,
+        target: { kind: 'category', id: result.id },
+      });
+      return result;
+    } catch {
+      return { ...result, menuFailed: true };
     }
   }
 
