@@ -23,6 +23,7 @@ import { ConfirmEmailPromptComponent } from '@shared/ui/confirm-email-prompt';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { AddressSectionComponent } from './components/address-section/address-section.component';
+import { DeleteAccountSectionComponent } from './components/delete-account-section/delete-account-section.component';
 import { EmailsSectionComponent } from './components/emails-section/emails-section.component';
 import { OrdersSectionComponent } from './components/orders-section/orders-section.component';
 import { ProfileSectionComponent } from './components/profile-section/profile-section.component';
@@ -45,6 +46,7 @@ import { ProfileSectionComponent } from './components/profile-section/profile-se
     ProfileSectionComponent,
     AddressSectionComponent,
     EmailsSectionComponent,
+    DeleteAccountSectionComponent,
     OrdersSectionComponent,
   ],
   templateUrl: './account.page.html',
