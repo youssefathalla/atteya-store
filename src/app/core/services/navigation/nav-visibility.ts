@@ -7,7 +7,7 @@ import { navTargetPath, type NavTarget, type NavTargetCatalog } from './nav-targ
  * (on the server, or before the published categories and brands load) the saved `path`
  * is used, so the server HTML and the first browser render match.
  */
-function storefrontPath(
+export function storefrontTargetPath(
   target: NavTarget | undefined,
   savedPath: string | undefined,
   catalog: NavTargetCatalog | null,
@@ -29,11 +29,11 @@ export function resolveStorefrontTargets(
 ): readonly NavCategory[] {
   if (!catalog) return categories;
   return categories.map((category) => {
-    const path = storefrontPath(category.target, category.path, catalog);
+    const path = storefrontTargetPath(category.target, category.path, catalog);
     const megaMenu = category.megaMenu?.map((column) => ({
       ...column,
       links: column.links.flatMap((link): MegaMenuLink[] => {
-        const linkPath = storefrontPath(link.target, link.path, catalog);
+        const linkPath = storefrontTargetPath(link.target, link.path, catalog);
         return linkPath ? [{ ...link, path: linkPath }] : [];
       }),
     }));

@@ -166,7 +166,7 @@ export class NavService {
    * Published categories and brands for building link addresses from their targets, or null
    * on the server and until both lists have loaded (links then use their saved `path`).
    */
-  readonly #targetCatalog = computed<NavTargetCatalog | null>(() => {
+  readonly targetCatalog = computed<NavTargetCatalog | null>(() => {
     const categories = this.#catalog.categories();
     const brands = this.#catalog.brands();
     if (!categories?.length || !brands) return null;
@@ -209,7 +209,7 @@ export class NavService {
   );
 
   #visible(categories: readonly NavCategory[]): readonly NavCategory[] {
-    return visibleStorefrontCategories(resolveStorefrontTargets(categories, this.#targetCatalog()), (path) =>
+    return visibleStorefrontCategories(resolveStorefrontTargets(categories, this.targetCatalog()), (path) =>
       this.#catalog.isEmpty(path),
     );
   }

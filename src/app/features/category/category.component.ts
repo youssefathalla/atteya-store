@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
+import { isOutsideAddress } from '@core/services/navigation/nav-target';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '@core/services/auth/auth.service';
 import { OffersService } from '@core/services/offers/offers.service';
@@ -46,6 +47,9 @@ const PAGE_SIZE = 48;
   },
 })
 export class CategoryComponent {
+  /** An Outside Link (ATS-267) opens another site in a new tab instead of a store page. */
+  readonly isOutside = isOutsideAddress;
+
   readonly slug = input.required<string>();
   readonly subSlug = input<string>();
   readonly isBrand = input<boolean>(false);

@@ -101,6 +101,10 @@
             <button matButton="elevated" type="button">
               {{ card.buttonLabel }}
             </button>
+          } @else if (isOutside(card.buttonLink)) {
+            <a [href]="card.buttonLink" target="_blank" rel="noopener noreferrer" matButton="elevated">
+              {{ card.buttonLabel }}
+            </a>
           } @else {
             <a [routerLink]="card.buttonLink | linkTarget" matButton="elevated">
               {{ card.buttonLabel }}

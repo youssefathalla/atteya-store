@@ -1,4 +1,5 @@
 import {
+  effectiveNavTarget,
   resolveNavTarget,
   type MegaMenuColumn,
   type MegaMenuLink,
@@ -9,23 +10,27 @@ import {
 import { normalizePath } from './navigation-manager.utils';
 
 /**
- * The address saved next to a target: rebuilt from the target when its category or brand
- * still exists, the typed address (tidied) for `url`, else the address already saved.
+ * A saved link as it is written (ATS-246, ATS-267): its target (an old typed address on our
+ * site becomes the target it names) and the address built from it. An Outside Link keeps its
+ * `https://` address. A link that can't be matched keeps what it had; the save check refuses it.
  */
-function pathFor(target: NavTarget | undefined, saved: string, catalog: NavTargetCatalog | null): string {
-  if (target?.kind === 'url') return normalizePath(target.url);
-  if (target && catalog) return resolveNavTarget(target, catalog).path ?? saved;
-  return saved ? normalizePath(saved) : '';
+export function targetAndPath(
+  target: NavTarget | undefined,
+  saved: string,
+  catalog: NavTargetCatalog,
+): { readonly target: NavTarget | undefined; readonly path: string } {
+  const effective = effectiveNavTarget(target, saved, catalog);
+  if (!effective) return { target, path: saved ? normalizePath(saved) : '' };
+  if (effective.kind === 'url') {
+    const url = effective.url.trim();
+    return { target: { kind: 'url', url }, path: url };
+  }
+  return { target: effective, path: resolveNavTarget(effective, catalog).path ?? saved };
 }
 
-function tidyTarget(target: NavTarget | undefined): NavTarget | undefined {
-  if (target?.kind !== 'url') return target;
-  return { kind: 'url', url: normalizePath(target.url) };
-}
-
-function linkToSave(link: MegaMenuLink, catalog: NavTargetCatalog | null): MegaMenuLink {
-  const target = tidyTarget(link.target);
-  const next: MegaMenuLink = { ...link, path: pathFor(target, link.path, catalog) };
+function linkToSave(link: MegaMenuLink, catalog: NavTargetCatalog): MegaMenuLink {
+  const { target, path } = targetAndPath(link.target, link.path, catalog);
+  const next: MegaMenuLink = { ...link, path };
   // Firestore refuses `undefined`, e.g. a saved target the schema couldn't read.
   if (target) next.target = target;
   else delete next.target;
@@ -35,15 +40,14 @@ function linkToSave(link: MegaMenuLink, catalog: NavTargetCatalog | null): MegaM
 /**
  * The navigation as it is saved (ATS-246): `path` is always written next to `target`, so
  * the store's readers of `path` (category page, Brands page, footer) and the server seed
- * keep working, and older menus without `target` stay as they are.
+ * keep working, and older menus without `target` get one.
  */
 export function withTargetPaths(
   categories: readonly NavCategory[],
-  catalog: NavTargetCatalog | null,
+  catalog: NavTargetCatalog,
 ): NavCategory[] {
   return categories.map((category) => {
-    const target = tidyTarget(category.target);
-    const path = pathFor(target, category.path ?? '', catalog);
+    const { target, path } = targetAndPath(category.target, category.path ?? '', catalog);
     const next: NavCategory = {
       ...category,
       megaMenu: category.megaMenu?.map((column) => {

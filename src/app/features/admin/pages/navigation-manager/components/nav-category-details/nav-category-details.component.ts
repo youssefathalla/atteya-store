@@ -18,5 +18,4 @@ export class NavCategoryDetailsComponent {
 
   readonly labelChange = output<string>();
   readonly targetChange = output<NavTargetChange>();
-  readonly generatePath = output<void>();
 }

@@ -10,6 +10,10 @@ import { ImagePickerComponent } from '@shared/ui/image-picker';
 import { ImageAsset } from '@shared/schemas';
 import { NAV_LIST_MAX_ITEMS } from '@features/home/data/home.data';
 import { ActionMoveEvent, HomeNavListItem } from '../../models/home-manager.model';
+import {
+  NavTargetFieldComponent,
+  type NavTargetChange,
+} from '../../../navigation-manager/components/nav-target-field/nav-target-field.component';
 
 @Component({
   selector: 'app-home-nav-list-editor',
@@ -25,6 +29,7 @@ import { ActionMoveEvent, HomeNavListItem } from '../../models/home-manager.mode
     MatTooltipModule,
     SharedIconModule,
     ImagePickerComponent,
+    NavTargetFieldComponent,
   ],
 })
 export class HomeNavListEditorComponent {
@@ -37,7 +42,7 @@ export class HomeNavListEditorComponent {
   readonly activeItemChange = output<number>();
   readonly titleChange = output<string>();
   readonly labelChange = output<string>();
-  readonly linkChange = output<string>();
+  readonly targetChange = output<NavTargetChange>();
   readonly imageUrlChange = output<string>();
   readonly imageAltChange = output<string>();
   readonly sessionUpload = output<string>();

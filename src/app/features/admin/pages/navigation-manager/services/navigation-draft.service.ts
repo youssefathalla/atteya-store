@@ -6,19 +6,11 @@ import {
   MegaMenuLink,
   NavCategory,
   navAutoColumnLinks,
-  navTargetFromPath,
   type NavAutoColumn,
   type NavTarget,
-  type NavTargetCatalog,
 } from '@core/services/navigation';
 import { CatalogService } from '@core/services/products/catalog.service';
-import { SEED_BRANDS, SEED_CATEGORIES } from '@core/services/products/catalog-taxonomy';
-import {
-  normalizePath,
-  noNavPathMessage,
-  suggestNavPath,
-  type NavCatalog,
-} from '../utils/navigation-manager.utils';
+import { normalizePath } from '../utils/navigation-manager.utils';
 import { withTargetPaths } from '../utils/navigation-targets.utils';
 import { NavigationCatalogService } from './navigation-catalog.service';
 import type { NavTargetChange } from '../components/nav-target-field/nav-target-field.component';
@@ -35,39 +27,9 @@ export class NavigationDraftService {
   readonly #catalog = inject(CatalogService);
   readonly #allCatalog = inject(NavigationCatalogService);
 
-  /**
-   * Every category and brand (shown and hidden) once loaded, else the published lists,
-   * for turning a ✨ address into a target.
-   */
-  #targetCatalog(): NavTargetCatalog {
-    const best = this.#allCatalog.bestCatalog();
-    if (best.categories.length > 0) return best;
-    const published = this.catalogForPaths();
-    return {
-      categories: published.categories.map((entry) => ({ ...entry, published: true })),
-      brands: published.brands.map((entry) => ({ ...entry, published: true })),
-    };
-  }
-
-  /** A ✨ address as a target when it names exactly a category, brand or page. */
-  destinationFromPath(path: string): NavDestination {
-    const target = navTargetFromPath(path, this.#targetCatalog());
-    return { target, path };
-  }
-
-  /** The categories to save: each target's address rebuilt, typed addresses tidied. */
+  /** The categories to save: each target's address rebuilt, old typed addresses turned into targets. */
   categoriesToSave(): NavCategory[] {
     return withTargetPaths(this.draftCategories(), this.#allCatalog.bestCatalog());
-  }
-
-  /** Live published categories and brands (the built-in list until they load). */
-  catalogForPaths(): NavCatalog {
-    const categories = this.#catalog.categories() ?? [];
-    const brands = this.#catalog.brands() ?? [];
-    return {
-      categories: categories.length ? categories : SEED_CATEGORIES.filter((item) => item.published !== false),
-      brands: brands.length ? brands : SEED_BRANDS.filter((item) => item.published !== false),
-    };
   }
 
   readonly draftCategories = signal<NavCategory[]>([]);
@@ -182,19 +144,6 @@ export class NavigationDraftService {
     });
   }
 
-  generateCategoryPath(): void {
-    const current = this.selectedCategory();
-    if (!current?.label) return;
-
-    const newPath = suggestNavPath(current.label, false, this.catalogForPaths());
-    if (!newPath) {
-      this.#snackbar.error(noNavPathMessage(current.label));
-      return;
-    }
-    this.updateCategoryTarget({ ...this.destinationFromPath(newPath), name: null });
-    this.#snackbar.info(`Address set to "${newPath}".`);
-  }
-
   // --- Mega Menu Column Management ---
   addColumn(data?: { title: string }): void {
     const title = data?.title?.trim() ?? '';
@@ -282,21 +231,6 @@ export class NavigationDraftService {
         return { ...col, links };
       }),
     );
-  }
-
-  generateLinkSlug(colIndex: number, linkIndex: number): void {
-    const current = this.selectedCategory();
-    if (!current?.megaMenu) return;
-    const link = current.megaMenu[colIndex]?.links[linkIndex];
-    if (!link) return;
-
-    const newPath = suggestNavPath(link.label, Boolean(link.isBrand), this.catalogForPaths());
-    if (!newPath) {
-      this.#snackbar.error(noNavPathMessage(link.label || 'this link'));
-      return;
-    }
-    this.updateLinkTarget(colIndex, linkIndex, { ...this.destinationFromPath(newPath), name: null });
-    this.#snackbar.info(`Address set to "${newPath}".`);
   }
 
   /** Links To changed on a link: save the target and its address; an empty label takes its name. */

@@ -16,9 +16,12 @@ import {
   withChosenCategories,
 } from '../src/app/core/services/products/utils/shop-categories.ts';
 import {
+  effectiveNavTarget,
+  isOutsideAddress,
   navTargetFromPath,
   navTargetName,
   navTargetPath,
+  outsideLinkProblem,
   resolveNavTarget,
 } from '../src/app/core/services/navigation/nav-target.ts';
 import {
@@ -963,15 +966,96 @@ describe('navTargetPath (navigation links built from what they point at, ATS-246
     assert.equal(resolveNavTarget({ kind: 'shop', filters: { brand: 'gone' } }, catalog).problem, 'missing');
   });
 
-  it('turns an exact address back into a target, anything else stays typed', () => {
+  it('turns an address back into a target, null when it cannot be matched (ATS-267)', () => {
     assert.deepEqual(navTargetFromPath('/category/socks', catalog), { kind: 'category', id: 'socks' });
+    assert.deepEqual(navTargetFromPath('/category/apparel/socks/', catalog), {
+      kind: 'category',
+      id: 'socks',
+    });
     assert.deepEqual(navTargetFromPath('/brand/siux-padel', catalog), { kind: 'brand', id: 'siux' });
     assert.deepEqual(navTargetFromPath('/shop?onSale=1', catalog), { kind: 'page', page: 'sale' });
-    assert.deepEqual(navTargetFromPath('/category/socks?onSale=1', catalog), {
-      kind: 'url',
-      url: '/category/socks?onSale=1',
+    assert.deepEqual(navTargetFromPath('/shop', catalog), { kind: 'page', page: 'shop' });
+    assert.deepEqual(navTargetFromPath('/shop?offer=summer', catalog), { kind: 'offer', id: 'summer' });
+    assert.deepEqual(navTargetFromPath('/shop?brand=Nox&gender=women&onSale=1', catalog), {
+      kind: 'shop',
+      filters: { brand: 'nox', gender: 'women', onSale: true },
     });
+    assert.deepEqual(navTargetFromPath('https://atteyastore.com/brand/nox', catalog), {
+      kind: 'brand',
+      id: 'nox',
+    });
+    assert.deepEqual(navTargetFromPath('https://instagram.com/atteya', catalog), {
+      kind: 'url',
+      url: 'https://instagram.com/atteya',
+    });
+    assert.equal(navTargetFromPath('/category/socks?onSale=1', catalog), null);
+    assert.equal(navTargetFromPath('/shop?sort=newest', catalog), null);
+    assert.equal(navTargetFromPath('/category/gone', catalog), null);
+    assert.equal(navTargetFromPath('/shop?brand=Unknown', catalog), null);
     assert.equal(navTargetFromPath('  ', catalog), null);
+  });
+
+  it('reads a top-level Shop category with filters as Shop with filters', () => {
+    const withApparel = {
+      ...catalog,
+      categories: [
+        ...catalog.categories,
+        { id: 'apparel', slug: 'apparel', name: 'Apparel', published: true },
+      ],
+    };
+    assert.deepEqual(navTargetFromPath('/category/apparel?gender=men', withApparel), {
+      kind: 'shop',
+      filters: { category: 'apparel', gender: 'men' },
+    });
+  });
+
+  it('opens an old typed address as its target, keeps Outside Links (ATS-267)', () => {
+    assert.deepEqual(effectiveNavTarget(undefined, '/category/socks', catalog), {
+      kind: 'category',
+      id: 'socks',
+    });
+    assert.deepEqual(effectiveNavTarget({ kind: 'url', url: '/brand/nox' }, '/brand/nox', catalog), {
+      kind: 'brand',
+      id: 'nox',
+    });
+    assert.deepEqual(effectiveNavTarget({ kind: 'url', url: 'https://tiktok.com/@atteya' }, '', catalog), {
+      kind: 'url',
+      url: 'https://tiktok.com/@atteya',
+    });
+    assert.deepEqual(effectiveNavTarget({ kind: 'page', page: 'sale' }, '/old', catalog), {
+      kind: 'page',
+      page: 'sale',
+    });
+    assert.equal(effectiveNavTarget(undefined, '/somewhere-else', catalog), null);
+    assert.equal(effectiveNavTarget(undefined, '', catalog), null);
+  });
+
+  it('accepts only a full https address on another site as an Outside Link', () => {
+    assert.equal(outsideLinkProblem('https://instagram.com/atteya'), null);
+    assert.equal(outsideLinkProblem('https://wa.me/201000000000'), null);
+    assert.equal(outsideLinkProblem('/shop'), 'Enter the full address, starting with https://.');
+    assert.equal(
+      outsideLinkProblem('http://instagram.com'),
+      'Enter the full address, starting with https://.',
+    );
+    assert.equal(outsideLinkProblem('https://localhost'), 'Enter the full address, starting with https://.');
+    assert.equal(outsideLinkProblem('https://atteyastore.com/shop'), 'Pick it from the list instead.');
+    assert.equal(outsideLinkProblem('https://WWW.atteyastore.com'), 'Pick it from the list instead.');
+    assert.equal(
+      outsideLinkProblem('https://atteya-store--atteya-store-dev.europe-west4.hosted.app/shop'),
+      'Pick it from the list instead.',
+    );
+    assert.equal(isOutsideAddress('https://instagram.com'), true);
+    assert.equal(isOutsideAddress('/shop'), false);
+  });
+
+  it('builds an offer link and flags an offer that is not running', () => {
+    assert.equal(navTargetPath({ kind: 'offer', id: 'summer' }, catalog), '/shop?offer=summer');
+    const withOffers = { ...catalog, offers: [{ id: 'summer', name: 'Summer Sale' }] };
+    assert.equal(resolveNavTarget({ kind: 'offer', id: 'summer' }, withOffers).problem, null);
+    assert.equal(resolveNavTarget({ kind: 'offer', id: 'old' }, withOffers).problem, 'ended');
+    assert.equal(resolveNavTarget({ kind: 'offer', id: 'old' }, catalog).problem, null);
+    assert.equal(navTargetName({ kind: 'offer', id: 'summer' }, withOffers), 'Summer Sale');
   });
 
   it('names a target for an empty label', () => {

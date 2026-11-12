@@ -1,4 +1,5 @@
 import {
+  outsideLinkProblem,
   resolveNavTarget,
   type MegaMenuLink,
   type NavAutoColumn,
@@ -14,19 +15,32 @@ export interface NavigationDraftCheck {
   readonly warnings: readonly string[];
 }
 
-type TargetState = 'ok' | 'hidden' | 'missing' | 'none';
+type TargetState = 'ok' | 'hidden' | 'ended' | 'missing' | 'none' | 'unmatched' | 'outside';
 
+/**
+ * Checks a link as it will be saved (after `withTargetPaths`, so an old typed address that names
+ * a target already has it). An address that still has no target can't be matched (ATS-267).
+ */
 function targetState(
   target: NavTarget | undefined,
   path: string,
   catalog: NavTargetCatalog | null,
 ): TargetState {
-  if (target?.kind === 'url') return target.url.trim() ? 'ok' : 'none';
-  if (!target) return path.trim() ? 'ok' : 'none';
+  if (target?.kind === 'url') {
+    const url = target.url.trim();
+    if (!url) return 'none';
+    if (url.startsWith('/')) return 'unmatched';
+    return outsideLinkProblem(url) ? 'outside' : 'ok';
+  }
+  if (!target) return path.trim() ? 'unmatched' : 'none';
   // Until every category and brand has loaded, a target can't be checked; the store still hides it.
   if (!catalog) return path.trim() ? 'ok' : 'none';
   const { problem } = resolveNavTarget(target, catalog);
   return problem ?? 'ok';
+}
+
+function outsideMessage(target: NavTarget | undefined): string {
+  return target?.kind === 'url' ? (outsideLinkProblem(target.url) ?? '') : '';
 }
 
 function goneWhat(target: NavTarget | undefined): string {
@@ -47,9 +61,12 @@ function checkLink(
   }
   const state = targetState(link.target, link.path, catalog);
   if (state === 'none') errors.push(`"${name}" in "${menuLabel}" doesn't link anywhere yet.`);
+  if (state === 'unmatched') errors.push(`"${name}" in "${menuLabel}": pick where this goes.`);
+  if (state === 'outside') errors.push(`"${name}" in "${menuLabel}": ${outsideMessage(link.target)}`);
   if (state === 'missing') {
     errors.push(`"${name}" in "${menuLabel}" links to a ${goneWhat(link.target)} that no longer exists.`);
   }
+  if (state === 'ended') errors.push(`"${name}" in "${menuLabel}" links to an offer that isn't running now.`);
   if (state === 'hidden') warnings.push(`"${name}" in "${menuLabel}"`);
 }
 
@@ -81,9 +98,15 @@ function checkMenu(
   }
   // No target and no path is fine for a menu: its name only opens the menu.
   const state = targetState(menu.target, menu.path ?? '', catalog);
+  if (state === 'unmatched') errors.push(`The "${label}" menu: pick where this goes.`);
+  // A menu name opens a store page (the store's menus can't open another site from the name).
+  if (menu.target?.kind === 'url' && (state === 'ok' || state === 'outside')) {
+    errors.push(`The "${label}" menu: pick a page on the store, or Only Opens the Menu.`);
+  }
   if (state === 'missing') {
     errors.push(`The "${label}" menu links to a ${goneWhat(menu.target)} that no longer exists.`);
   }
+  if (state === 'ended') errors.push(`The "${label}" menu links to an offer that isn't running now.`);
   if (state === 'hidden') warnings.push(`"${label}" menu`);
   for (const column of menu.megaMenu ?? []) {
     // A column that fills itself shows no saved links on the store; they are only kept for later.

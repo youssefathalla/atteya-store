@@ -1,5 +1,13 @@
 import * as v from 'valibot';
 import { IMAGE_LIMITS } from '@shared/utils/image';
+import { NavTargetSchema } from '@core/services/navigation/nav-target';
+
+/**
+ * Where a home button or link goes (ATS-267), picked in Admin → Home Page like a menu link. The
+ * address next to it (`link` / `buttonLink`) is built from it on save, so older readers and the
+ * server seed keep working; links saved before targets have no `target` and use their address.
+ */
+const HomeLinkTargetSchema = v.optional(NavTargetSchema);
 
 /** Keep in sync with `NAV_LIST_MAX_ITEMS` in home.data.ts. */
 const NAV_LIST_ITEM_LIMIT = 10;
@@ -7,6 +15,7 @@ const NAV_LIST_ITEM_LIMIT = 10;
 export const HeroActionSchema = v.object({
   label: v.pipe(v.string(), v.trim()),
   link: v.pipe(v.string(), v.trim()),
+  target: HomeLinkTargetSchema,
 });
 
 export const HeroSlideSchema = v.object({
@@ -39,6 +48,7 @@ export const ShopCategoryCardSchema = v.object({
   imageAlt: v.optional(v.pipe(v.string(), v.trim()), ''),
   buttonLabel: v.pipe(v.string(), v.trim()),
   buttonLink: v.pipe(v.string(), v.trim()),
+  target: HomeLinkTargetSchema,
 });
 
 export const HomeShopCategoriesSchema = v.object({
@@ -55,6 +65,7 @@ export const HomeNavListItemSchema = v.object({
   ),
   imageUrl: v.pipe(v.string(), v.trim()),
   imageAlt: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(IMAGE_LIMITS.maxAltLength)), ''),
+  target: HomeLinkTargetSchema,
 });
 
 export const HomeNavListSchema = v.object({

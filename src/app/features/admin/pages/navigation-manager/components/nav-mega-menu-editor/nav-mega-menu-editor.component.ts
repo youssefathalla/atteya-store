@@ -81,7 +81,6 @@ export class NavMegaMenuEditorComponent {
   }>();
   readonly linkDrop = output<{ colIndex: number; event: CdkDragDrop<MegaMenuLink[]> }>();
   readonly linkTargetChange = output<{ colIndex: number; linkIndex: number; change: NavTargetChange }>();
-  readonly linkGenerateSlug = output<{ colIndex: number; linkIndex: number }>();
 
   /** Fill Automatically switched: on starts as "All Brands"; off keeps the column's links. */
   toggleAuto(colIndex: number, on: boolean): void {
