@@ -3,7 +3,7 @@
   <nav aria-label="Breadcrumb" class="flex items-center gap-2 font-label-sm">
     <a routerLink="/" class="hover:underline transition-colors">Home</a>
     <span>/</span>
-    @if (isBrandRoute()) {
+    @if (isBrand()) {
       <a routerLink="/brands" class="hover:underline transition-colors uppercase">Brands</a>
       <span>/</span>
       <span class="font-bold! uppercase">
@@ -30,7 +30,7 @@
           {{ displayTitle() }}
         </h1>
         <p class="font-body-md mt-2 max-w-2xl opacity-80">
-          @if (isBrandRoute()) {
+          @if (isBrand()) {
             Discover official tournament equipment and performance gear from
             {{ displayTitle() }} at Atteya Store.
           } @else {
@@ -76,7 +76,7 @@
   } @else if (showEmpty()) {
     <section class="py-12 text-center surface-card p-8">
       <div class="size-16 border-shape bg-surface-container elements-center mx-auto mb-4">
-        <mat-icon [name]="isBrandRoute() ? 'verified' : 'category'" size="3xl" />
+        <mat-icon [name]="isBrand() ? 'verified' : 'category'" size="3xl" />
       </div>
       <h2 class="font-title-md font-bold! mb-1">{{ displayTitle() }}</h2>
       <p class="font-body-sm opacity-80 max-w-md mx-auto mb-6">
