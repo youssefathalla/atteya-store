@@ -59,7 +59,9 @@ export function playerIdFromName(name: string): string {
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length > 0);
-  return words.join('-').slice(0, MAX_PLAYER_ID).replace(/-+$/, '');
+  let id = words.join('-').slice(0, MAX_PLAYER_ID);
+  while (id.endsWith('-')) id = id.slice(0, -1);
+  return id;
 }
 
 export function isPlayerId(value: string): boolean {
