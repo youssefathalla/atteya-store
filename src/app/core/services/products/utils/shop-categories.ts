@@ -18,6 +18,14 @@ export interface ShopCategorySource {
   readonly sizeChart?: 'clothing' | 'none' | null;
   /** Product page Details Title (ATS-250): null and missing as for `sizeChart`. */
   readonly detailsTitle?: 'materials' | 'specifications' | null;
+  /** Categories & Brands → Photo: the picture shown when someone shares the category's link (ATS-263). */
+  readonly image?: ShareImage;
+}
+
+/** A photo for share previews: storage path plus its alt text. */
+export interface ShareImage {
+  readonly path: string;
+  readonly alt: string;
 }
 
 export interface ShopTab {

@@ -16,7 +16,8 @@ import { injectFirestore } from '@core/firebase';
 import { CATEGORY_DETAILS_TITLES, CATEGORY_SIZE_CHARTS, SEED_CATEGORIES } from './catalog-taxonomy';
 import { CatalogService } from './catalog.service';
 import { CATEGORIES_COLLECTION } from './product.constants';
-import type { ShopCategorySource } from './utils/shop-categories';
+import type { ShareImage, ShopCategorySource } from './utils/shop-categories';
+import { ShareImageSchema, toShareImage } from './utils/share-image';
 
 /** Published categories the Shop page needs, sent from the server render to the browser. */
 export const SHOP_CATEGORIES_KEY = makeStateKey<readonly ShopCategorySource[]>('shop-categories');
@@ -34,6 +35,8 @@ const ShopCategorySourceSchema = v.object({
   published: v.optional(v.boolean()),
   sizeChart: v.optional(v.nullable(v.picklist(CATEGORY_SIZE_CHARTS))),
   detailsTitle: v.optional(v.nullable(v.picklist(CATEGORY_DETAILS_TITLES))),
+  // A broken photo must not drop the category: it just has no share picture.
+  image: v.fallback(v.optional(v.nullable(ShareImageSchema)), null),
 });
 
 /** The built-in categories, used when the list can't be read. */
@@ -152,7 +155,9 @@ function toSource(category: {
   readonly published?: boolean;
   readonly sizeChart?: ShopCategorySource['sizeChart'];
   readonly detailsTitle?: ShopCategorySource['detailsTitle'];
+  readonly image?: ShareImage | null;
 }): ShopCategorySource {
+  const image = toShareImage(category.image);
   return {
     id: category.id,
     slug: category.slug,
@@ -164,5 +169,6 @@ function toSource(category: {
     // Kept only when saved, so a missing field stays missing (built-in default) after TransferState.
     ...(category.sizeChart !== undefined ? { sizeChart: category.sizeChart } : {}),
     ...(category.detailsTitle !== undefined ? { detailsTitle: category.detailsTitle } : {}),
+    ...(image ? { image } : {}),
   };
 }

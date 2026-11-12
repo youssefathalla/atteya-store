@@ -22,6 +22,7 @@ const OG_PROPERTIES = [
   'og:type',
   'og:site_name',
   'og:image',
+  'og:image:alt',
 ] as const;
 
 @Service()
@@ -96,7 +97,16 @@ export class SeoService {
     this.#setProperty('og:description', description);
     this.#setProperty('og:type', config.type ?? 'website');
     this.#setProperty('og:site_name', SEO_SITE_NAME);
-    this.#setProperty('og:image', this.#shareImage(config.image));
+    const image = this.#shareImage(config.image);
+    this.#setProperty('og:image', image.url);
+    const alt = image.custom ? config.imageAlt?.trim() : '';
+    if (alt) {
+      this.#setProperty('og:image:alt', alt);
+      this.updateTag({ name: 'twitter:image:alt', content: alt });
+    } else {
+      this.#meta.removeTag('property="og:image:alt"');
+      this.#meta.removeTag('name="twitter:image:alt"');
+    }
     if (url) this.#setProperty('og:url', url);
     else this.#meta.removeTag('property="og:url"');
     this.updateTag({ name: 'twitter:card', content: 'summary_large_image' });
@@ -105,17 +115,21 @@ export class SeoService {
   #removeShareTags(): void {
     for (const property of OG_PROPERTIES) this.#meta.removeTag(`property="${property}"`);
     this.#meta.removeTag('name="twitter:card"');
+    this.#meta.removeTag('name="twitter:image:alt"');
   }
 
   #setProperty(property: string, content: string): void {
     this.#meta.updateTag({ property, content }, `property="${property}"`);
   }
 
-  /** A product photo through ImageKit at 1200 px, else the logo share picture from `public/`. */
-  #shareImage(image: string | null | undefined): string {
+  /**
+   * The page's photo (product photo, category photo, brand logo) through ImageKit at 1200 px,
+   * else the logo share picture from `public/` (`custom: false`).
+   */
+  #shareImage(image: string | null | undefined): { readonly url: string; readonly custom: boolean } {
     const path = image?.trim();
     const url = path ? buildImageKitUrl(path, { w: SEO_IMAGE_WIDTH }) : '';
-    if (url.startsWith('https://')) return url;
-    return `${siteOrigin(environment.baseUrl)}${SEO_DEFAULT_IMAGE_PATH}`;
+    if (url.startsWith('https://')) return { url, custom: true };
+    return { url: `${siteOrigin(environment.baseUrl)}${SEO_DEFAULT_IMAGE_PATH}`, custom: false };
   }
 }

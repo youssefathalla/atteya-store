@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import type { MegaMenuLink, NavCategory } from './nav.model';
+import type { ShareImage } from '@core/services/products/utils/shop-categories';
 
 /**
  * Navigation columns that fill themselves (ATS-247): a column with `auto` shows the store's
@@ -44,6 +45,8 @@ export interface NavAutoBrand {
   readonly sortOrder: number;
   /** When the brand was added; 0 when unknown. */
   readonly createdAtMs: number;
+  /** The brand's logo, shown when someone shares the brand's link (ATS-263); missing = none. */
+  readonly logo?: ShareImage;
 }
 
 /** A published category as an auto column needs it. */
