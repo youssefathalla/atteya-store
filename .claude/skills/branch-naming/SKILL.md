@@ -11,7 +11,7 @@ Every working branch is named `<type>/<short-name>`.
 | --- | --- | --- |
 | `feature/` | A new feature or a visible improvement for shoppers or staff. | `feature/shipping-weights` |
 | `fix/` | A bug, or anything that is broken or behaves wrongly today. | `fix/sign-in-errors` |
-| `hotfix/` | An urgent fix that must ship on its own. After launch it branches from `main`; until then it comes off `develop` like everything else (develop-only rule in `AGENTS.md`). | `hotfix/checkout-total-zero` |
+| `hotfix/` | An urgent fix for the live site that can't wait for the next release. Branches from `main` and targets `main`, then `main` is merged back into `develop` (Release flow in `AGENTS.md`). | `hotfix/checkout-total-zero` |
 | `refactor/` | Restructuring code with no change in behaviour. | `refactor/order-stage-helpers` |
 | `perf/` | Speed, bundle size, Lighthouse. | `perf/lazy-load-algolia` |
 | `docs/` | Agent docs, `AGENTS.md`, skills and READMEs only. | `docs/branch-naming-rule` |
@@ -60,8 +60,9 @@ Ignore Linear's "Copy git branch name" suggestion (`youssefathalla/<key>-123-…
 
 ## Where branches start and end
 
-- Branch off the latest `develop`: `git fetch origin` then `git switch -c feature/short-name origin/develop`. This includes `hotfix/` branches until launch.
+- Branch off the latest `develop`: `git fetch origin` then `git switch -c feature/short-name origin/develop`.
 - PRs target `develop` and are squash-merged (see `AGENTS.md` section 2).
+- Exception, `hotfix/`: branch off `origin/main` and target `main`; afterwards `main` is merged into `develop` with a merge commit.
 
 ## Enforcement
 
