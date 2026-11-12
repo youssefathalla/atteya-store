@@ -34,7 +34,7 @@
       <div class="p-4 border-b border-outline-variant bg-surface">
         <button
           type="button"
-          (click)="openSearch()"
+          (click)="searchRequested.emit()"
           aria-label="Search products"
           aria-haspopup="dialog"
           class="w-full elements-start gap-2.5 border-shape border border-outline-variant bg-surface-container-high px-3 py-2 text-left"
