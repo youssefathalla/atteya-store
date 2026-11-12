@@ -14,6 +14,8 @@ export const CategorySchema = v.object({
   path: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(125)),
   /** Optional short text staff write in Categories & Brands; seed categories have none. */
   description: v.optional(v.pipe(v.string(), v.maxLength(500))),
+  /** "Name on Shop Tabs" for a top-level category (ATS-249); missing = the default tab name. */
+  shopLabel: v.optional(v.pipe(v.string(), v.maxLength(30))),
   depth: v.picklist([0, 1]),
   sortOrder: sortNumber,
   image: v.nullable(ImageAssetSchema),

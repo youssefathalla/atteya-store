@@ -25,8 +25,9 @@ const PAGE_PATHS: Readonly<Record<NavTargetPage, string>> = {
 };
 
 /**
- * Shop's own category filter ids (`?category=`). Keep equal to `SHOP_CATEGORY_OPTIONS`
- * in `features/shop/models/shop.model.ts`.
+ * Category ids Navigation's "Shop with Filters…" can pick for `?category=`. Shop's own filter now
+ * takes every shown category (`shopCategoryOptionsFrom()`, ATS-249); these built-in ones are
+ * always among them. Navigation targets are ATS-246 / ATS-247.
  */
 export const NAV_SHOP_CATEGORY_IDS = ['apparel', 'accessories', 'rackets', 'bags'] as const;
 export type NavShopCategoryId = (typeof NAV_SHOP_CATEGORY_IDS)[number];

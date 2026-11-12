@@ -8,6 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { DEFAULT_WEIGHT_GRAMS_BY_CATEGORY } from '@core/services/products/catalog-taxonomy';
 import type { Category } from '@core/services/products/product.model';
+import { shopTabLabel } from '@core/services/products/utils/shop-categories';
 import type { ImageAsset } from '@shared/schemas';
 import { ImagePickerComponent } from '@shared/ui/image-picker';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -16,6 +17,7 @@ import { CatalogAdminService, type SaveResult } from '../../services/catalog-adm
 import {
   MAX_CATALOG_NAME,
   MAX_CATEGORY_DESCRIPTION,
+  MAX_SHOP_LABEL,
   parseWeightGrams,
   previewSlug,
 } from '../../utils/catalog-manager.utils';
@@ -50,6 +52,7 @@ export class CategoryDialogComponent {
 
   readonly maxName = MAX_CATALOG_NAME;
   readonly maxDescription = MAX_CATEGORY_DESCRIPTION;
+  readonly maxShopLabel = MAX_SHOP_LABEL;
   readonly isNew = this.#data.category === null;
   readonly title = this.isNew ? 'Add Category' : `Edit ${this.#data.category?.name ?? 'Category'}`;
   readonly saveLabel = this.isNew ? 'Add Category' : 'Save Changes';
@@ -57,6 +60,7 @@ export class CategoryDialogComponent {
   readonly name = signal(this.#data.category?.name ?? '');
   readonly parentId = signal<string | null>(this.#data.category?.parentId ?? null);
   readonly description = signal(this.#data.category?.description ?? '');
+  readonly shopLabel = signal(this.#data.category?.shopLabel ?? '');
   readonly image = signal<ImageAsset | null>(this.#data.category?.image ?? null);
   readonly weightText = signal(this.#initialWeight());
   readonly published = signal(this.#data.category?.published ?? false);
@@ -76,6 +80,19 @@ export class CategoryDialogComponent {
     const parent = this.#data.categories.find((item) => item.id === this.parentId());
     return parent ? `/category/${parent.path}/${slug}` : `/category/${slug}`;
   });
+
+  /** Top-level categories get a Shop tab; sub-categories don't. */
+  readonly isTopLevel = computed(() =>
+    this.isNew ? this.parentId() === null : this.#data.category?.depth === 0,
+  );
+
+  /** What the tab says when "Name on Shop Tabs" is left empty. */
+  readonly defaultTabName = computed(() =>
+    shopTabLabel({
+      id: this.#data.category?.id ?? this.slug(),
+      name: this.name().replace(/\s+/g, ' ').trim() || 'the name',
+    }),
+  );
 
   readonly parentName = computed(() => {
     const id = this.parentId();
@@ -119,6 +136,11 @@ export class CategoryDialogComponent {
       this.error.set('Use whole grams from 0 to 100,000 for the weight, or leave it empty.');
       return;
     }
+    const shopLabel = this.isTopLevel() ? this.shopLabel().replace(/\s+/g, ' ').trim() : '';
+    if (shopLabel.length > MAX_SHOP_LABEL) {
+      this.error.set(`Keep the name on Shop tabs to ${MAX_SHOP_LABEL} characters or fewer.`);
+      return;
+    }
     const image = this.image();
     if (image && image.path && !image.alt.trim()) {
       this.error.set('Describe the photo in a few words.');
@@ -137,6 +159,7 @@ export class CategoryDialogComponent {
         image: image && image.path ? image : null,
         // Untouched: leave the saved or built-in default alone.
         ...(weightChanged ? { defaultWeightGrams: weight } : {}),
+        shopLabel,
         published: this.published(),
       });
       this.#ref.close(result);

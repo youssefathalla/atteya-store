@@ -13,6 +13,8 @@ export interface CategoryDraft {
   readonly image: ImageAsset | null;
   /** Grams; null = no default; undefined = leave the saved (or built-in) default alone. */
   readonly defaultWeightGrams?: number | null;
+  /** "Name on Shop Tabs" for a top-level category; '' = none (ATS-249). */
+  readonly shopLabel?: string;
   readonly published: boolean;
 }
 
@@ -31,6 +33,8 @@ export interface CategoryTreeRow {
 
 export const MAX_CATALOG_NAME = 60;
 export const MAX_CATEGORY_DESCRIPTION = 500;
+/** Same limit as `MAX_SHOP_LABEL` in `functions/src/products/catalog-admin.ts`. */
+export const MAX_SHOP_LABEL = 30;
 export const MAX_WEIGHT_GRAMS = 100_000;
 
 /** Same words `saveCategory` keeps free (`RESERVED_CATEGORY_SLUGS` in functions). */

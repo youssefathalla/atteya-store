@@ -12,7 +12,7 @@ import { CatalogToolsService } from './services/catalog-tools.service';
 import { ProductsAdminService } from './services/products-admin.service';
 import { ProductsDialogService } from './services/products-dialog.service';
 import { importActionError } from './utils/import-error';
-import { filterProductRows, toProductTableRow } from './utils/product-admin.utils';
+import { buildBrandOptions, filterProductRows, toProductTableRow } from './utils/product-admin.utils';
 import { countListViews, groupProductRows, matchesListView } from './utils/product-groups.utils';
 
 @Component({
@@ -62,6 +62,9 @@ export class ProductsManagerComponent implements OnInit {
     const brandNames = new Map(data.brands.map((brand) => [brand.id, brand.name]));
     return data.products.map((product) => toProductTableRow(product, categoryNames, brandNames));
   });
+
+  /** Brand filter: the brand docs from Categories & Brands (built-in brands until they load). */
+  readonly brandOptions = computed(() => buildBrandOptions(this.catalogResource.value()?.brands ?? []));
 
   readonly #filteredRows = computed(() =>
     filterProductRows(this.#allRows(), this.debouncedSearch(), this.typeId(), this.brandId()),

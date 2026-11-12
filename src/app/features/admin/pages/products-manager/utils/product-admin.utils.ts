@@ -5,7 +5,7 @@ import {
   SEED_BRANDS,
   SEED_CATEGORIES,
 } from '@core/services/products/catalog-taxonomy';
-import { PRODUCT_BRANDS, PRODUCT_TYPES } from '@core/services/products/product.constants';
+import { PRODUCT_TYPES } from '@core/services/products/product.constants';
 import type { Brand, Category, Product, ProductTypeId } from '@core/services/products/product.model';
 import { normalizeImageKitPath } from '@shared/utils/image';
 import type {
@@ -17,10 +17,8 @@ import type {
 
 const COLOR_LABELS = new Map<string, string>(COLOR_PALETTE.map((color) => [color.id, color.label]));
 const TYPE_LABELS = new Map(PRODUCT_TYPES.map((type) => [type.id, type.label]));
-const SEED_BRAND_LABELS = new Map<string, string>([
-  ...PRODUCT_BRANDS.map((brand) => [brand.id, brand.label] as const),
-  ...SEED_BRANDS.map((brand) => [brand.id, brand.name] as const),
-]);
+/** Fallback only: rows pass the live brand names from Categories & Brands. */
+const SEED_BRAND_LABELS = new Map<string, string>(SEED_BRANDS.map((brand) => [brand.id, brand.name]));
 const SEED_CATEGORY_LABELS = new Map<string, string>(
   SEED_CATEGORIES.map((category) => [category.id, category.name]),
 );

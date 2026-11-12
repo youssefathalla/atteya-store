@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
+  shopCategoryIdForSlug,
+  shopCategoryOptionsFrom,
+  shopTabFor,
+  shopTabLabel,
+  shopTabsFrom,
+} from '../src/app/core/services/products/utils/shop-categories.ts';
+import {
   navTargetFromPath,
   navTargetName,
   navTargetPath,
@@ -852,5 +859,78 @@ describe('navTargetPath (navigation links built from what they point at, ATS-246
   it('names a target for an empty label', () => {
     assert.equal(navTargetName({ kind: 'brand', id: 'nox' }, catalog), 'Nox');
     assert.equal(navTargetName({ kind: 'page', page: 'sale' }, catalog), 'Sale');
+  });
+});
+
+describe('Shop tabs and Category filter from the category list (ATS-249)', () => {
+  const categories = [
+    { id: 'apparel', slug: 'apparel', name: 'Apparel', parentId: null, sortOrder: 20 },
+    { id: 'rackets', slug: 'rackets', name: 'Rackets', parentId: null, sortOrder: 10 },
+    { id: 'accessories', slug: 'accessories', name: 'Accessories', parentId: null, sortOrder: 30 },
+    { id: 'bags', slug: 'bags', name: 'Bags & gear', parentId: 'accessories', sortOrder: 10 },
+    { id: 'grips', slug: 'grips', name: 'Grips', parentId: 'accessories', sortOrder: 20 },
+    { id: 'caps', slug: 'caps', name: 'Caps', parentId: null, sortOrder: 40, shopLabel: 'Hats & Caps' },
+    { id: 'shoes', slug: 'shoes', name: 'Shoes', parentId: null, sortOrder: 50 },
+    { id: 'hidden', slug: 'hidden', name: 'Hidden', parentId: null, sortOrder: 5, published: false },
+  ];
+  const counts = { apparel: 3, rackets: 4, accessories: 2, bags: 2, grips: 0, caps: 1, shoes: 0, hidden: 9 };
+
+  it('names a tab by its saved name, else the built-in name, else the category name', () => {
+    assert.equal(shopTabLabel({ id: 'rackets', name: 'Rackets' }), 'Padel');
+    assert.equal(shopTabLabel({ id: 'rackets', name: 'Rackets', shopLabel: 'Rackets' }), 'Rackets');
+    assert.equal(shopTabLabel({ id: 'caps', name: 'Caps', shopLabel: '  ' }), 'Caps');
+    assert.equal(shopTabLabel({ id: 'caps', name: 'Caps', shopLabel: 'Hats & Caps' }), 'Hats & Caps');
+  });
+
+  it('lists All, then shown top-level categories with products in their order', () => {
+    assert.deepEqual(
+      shopTabsFrom(categories, counts).map((tab) => [tab.id, tab.label, tab.path]),
+      [
+        ['all', 'All', '/shop'],
+        ['rackets', 'Padel', '/category/rackets'],
+        ['apparel', 'Apparel', '/category/apparel'],
+        ['accessories', 'Accessories', '/category/accessories'],
+        ['caps', 'Hats & Caps', '/category/caps'],
+      ],
+    );
+  });
+
+  it('keeps every shown category while counts are unknown', () => {
+    assert.deepEqual(
+      shopTabsFrom(categories, null).map((tab) => tab.id),
+      ['all', 'rackets', 'apparel', 'accessories', 'caps', 'shoes'],
+    );
+  });
+
+  it('offers shown categories with products, each top level followed by its sub-categories', () => {
+    assert.deepEqual(
+      shopCategoryOptionsFrom(categories, counts).map((option) => [option.id, option.label]),
+      [
+        ['rackets', 'Padel'],
+        ['apparel', 'Apparel'],
+        ['accessories', 'Accessories'],
+        ['bags', 'Bags'],
+        ['caps', 'Hats & Caps'],
+      ],
+    );
+  });
+
+  it('matches a top-level category by address, a built-in one or an old alias, never a sub-category', () => {
+    assert.equal(shopCategoryIdForSlug('caps', categories), 'caps');
+    assert.equal(shopCategoryIdForSlug('Shoes', categories), 'shoes');
+    assert.equal(shopCategoryIdForSlug('padel', categories), 'rackets');
+    assert.equal(shopCategoryIdForSlug('apparel', []), 'apparel');
+    assert.equal(shopCategoryIdForSlug('bags', categories), null);
+    assert.equal(shopCategoryIdForSlug('unknown', categories), null);
+    assert.equal(shopCategoryIdForSlug('', categories), null);
+  });
+
+  it('builds a tab for an empty category so its page keeps its title and address', () => {
+    assert.deepEqual(shopTabFor('shoes', categories), {
+      id: 'shoes',
+      label: 'Shoes',
+      path: '/category/shoes',
+    });
+    assert.deepEqual(shopTabFor('all', categories), { id: 'all', label: 'All', path: '/shop' });
   });
 });

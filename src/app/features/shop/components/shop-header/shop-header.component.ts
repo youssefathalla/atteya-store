@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
-import { SHOP_TABS, type ShopTabId } from '../../models/shop.model';
+import type { ShopTab, ShopTabId } from '../../models/shop.model';
 
 @Component({
   selector: 'app-shop-header',
@@ -17,13 +17,13 @@ export class ShopHeaderComponent {
   /** One line under the title, e.g. "The cheapest one is free." on an offer's page. */
   readonly subtitle = input<string | null>(null);
   readonly activeTab = input.required<ShopTabId>();
+  /** All + the shown top-level categories (`shopTabsFrom()`). */
+  readonly tabs = input.required<readonly ShopTab[]>();
   readonly filtersOpen = input(false);
   readonly resultCount = input<number | null>(null);
   readonly showFiltersToggle = input(true);
 
   readonly filtersToggle = output<void>();
-
-  readonly tabs = SHOP_TABS;
 
   readonly resultsLabel = computed(() => {
     const count = this.resultCount();
