@@ -7,7 +7,8 @@ import { NavTargetSchema } from '@core/services/navigation/nav-target';
  * address next to it (`link` / `buttonLink`) is built from it on save, so older readers and the
  * server seed keep working; links saved before targets have no `target` and use their address.
  */
-const HomeLinkTargetSchema = v.optional(NavTargetSchema);
+// A target that no longer reads is dropped (the address still works), never the whole home doc.
+const HomeLinkTargetSchema = v.fallback(v.optional(NavTargetSchema), undefined);
 
 /** Keep in sync with `NAV_LIST_MAX_ITEMS` in home.data.ts. */
 const NAV_LIST_ITEM_LIMIT = 10;

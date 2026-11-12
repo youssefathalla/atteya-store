@@ -3,6 +3,9 @@ import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal, TransferSta
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { CatalogService } from '@core/services/products/catalog.service';
+import { liveOffers } from '@core/services/offers/engine';
+import { canShopOffer } from '@core/services/offers/offer-shop';
+import { OffersService } from '@core/services/offers/offers.service';
 import { ShopCategoriesService } from '@core/services/products/shop-categories.service';
 import { pathOpensDeletedBuiltIn } from '@core/services/products/utils/deleted-built-ins';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
@@ -37,6 +40,7 @@ function docHasCategories(docData: NavSettings | null | undefined): docData is N
 export class NavService {
   readonly #firestore = injectFirestore();
   readonly #catalog = inject(CatalogService);
+  readonly #offers = inject(OffersService);
   readonly #shopCategories = inject(ShopCategoriesService);
   readonly #autoBrands = inject(NavAutoBrandsService);
   readonly #platformId = inject(PLATFORM_ID);
@@ -172,7 +176,12 @@ export class NavService {
     if (!categories?.length || !brands) return null;
     // The store's lists stop at 100; past that a real target could look missing, so keep saved paths.
     if (categories.length >= CATALOG_LIST_LIMIT || brands.length >= CATALOG_LIST_LIMIT) return null;
-    return { categories, brands };
+    // Once the offers have answered, a link to an offer that isn't running is left out (ATS-267).
+    if (!this.#offers.ready() || this.#offers.failed()) return { categories, brands };
+    const offers = liveOffers(this.#offers.all(), { now: this.#offers.now(), signedIn: false })
+      .filter(canShopOffer)
+      .map((offer) => ({ id: offer.id, name: offer.name }));
+    return { categories, brands, offers };
   });
 
   /**

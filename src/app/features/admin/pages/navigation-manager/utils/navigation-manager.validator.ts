@@ -29,10 +29,11 @@ function targetState(
   if (target?.kind === 'url') {
     const url = target.url.trim();
     if (!url) return 'none';
-    if (url.startsWith('/')) return 'unmatched';
+    if (url.startsWith('/')) return catalog ? 'unmatched' : 'ok';
     return outsideLinkProblem(url) ? 'outside' : 'ok';
   }
-  if (!target) return path.trim() ? 'unmatched' : 'none';
+  // Until every category and brand has loaded, an old address keeps working as saved.
+  if (!target) return path.trim() ? (catalog ? 'unmatched' : 'ok') : 'none';
   // Until every category and brand has loaded, a target can't be checked; the store still hides it.
   if (!catalog) return path.trim() ? 'ok' : 'none';
   const { problem } = resolveNavTarget(target, catalog);

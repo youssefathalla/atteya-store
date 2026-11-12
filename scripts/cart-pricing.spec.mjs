@@ -1026,6 +1026,13 @@ describe('navTargetPath (navigation links built from what they point at, ATS-246
       kind: 'page',
       page: 'sale',
     });
+    assert.deepEqual(
+      effectiveNavTarget({ kind: 'url', url: 'https://atteyastore.com/brand/nox' }, '', catalog),
+      {
+        kind: 'brand',
+        id: 'nox',
+      },
+    );
     assert.equal(effectiveNavTarget(undefined, '/somewhere-else', catalog), null);
     assert.equal(effectiveNavTarget(undefined, '', catalog), null);
   });
@@ -1044,6 +1051,10 @@ describe('navTargetPath (navigation links built from what they point at, ATS-246
     assert.equal(
       outsideLinkProblem('https://atteya-store--atteya-store-dev.europe-west4.hosted.app/shop'),
       'Pick it from the list instead.',
+    );
+    assert.equal(
+      outsideLinkProblem(`https://instagram.com/${'a'.repeat(500)}`),
+      'Use a shorter address (500 characters at most).',
     );
     assert.equal(isOutsideAddress('https://instagram.com'), true);
     assert.equal(isOutsideAddress('/shop'), false);

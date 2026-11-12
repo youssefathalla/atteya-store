@@ -1,9 +1,9 @@
 import type { MegaMenuLink, NavCategory } from './nav.model';
-import { navTargetPath, type NavTarget, type NavTargetCatalog } from './nav-target';
+import { resolveNavTarget, type NavTarget, type NavTargetCatalog } from './nav-target';
 
 /**
  * The store address for a saved target, or null to leave the link out (its category or
- * brand is hidden or gone). A typed address (`url`) is kept as typed. Without a catalog
+ * brand is hidden or gone, or its offer isn't running). A typed address (`url`) is kept as typed. Without a catalog
  * (on the server, or before the published categories and brands load) the saved `path`
  * is used, so the server HTML and the first browser render match.
  */
@@ -14,7 +14,9 @@ export function storefrontTargetPath(
 ): string | null | undefined {
   if (!target || !catalog) return savedPath;
   if (target.kind === 'url') return target.url;
-  return navTargetPath(target, catalog);
+  const { path, problem } = resolveNavTarget(target, catalog);
+  // An offer link whose offer isn't running is left out (only when the running offers are known).
+  return problem === 'ended' ? null : path;
 }
 
 /**

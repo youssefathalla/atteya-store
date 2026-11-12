@@ -68,7 +68,8 @@ export function homeLinkProblem(
   allowOutside: boolean,
 ): string | null {
   if (!target || (target.kind === 'url' && target.url.trim().startsWith('/'))) {
-    return 'pick where it goes';
+    // Until every category and brand has loaded, an old address keeps working as saved.
+    return catalog && link.trim() ? 'pick where it goes' : link.trim() ? null : 'pick where it goes';
   }
   if (target.kind === 'url') {
     if (!allowOutside) return 'pick a page on the store';
@@ -82,4 +83,21 @@ export function homeLinkProblem(
   }
   if (problem === 'ended') return "its offer isn't running now";
   return null;
+}
+
+/** Names of the links that point at something hidden on the store (they publish, with a warning). */
+export function homeHiddenLinks(sections: HomeSectionsToSave, catalog: NavTargetCatalog | null): string[] {
+  if (!catalog) return [];
+  const hidden = (target: NavTarget | undefined): boolean =>
+    !!target && target.kind !== 'url' && resolveNavTarget(target, catalog).problem === 'hidden';
+  return [
+    ...sections.hero.slides
+      .flatMap((slide) => slide.actions)
+      .filter((action) => hidden(action.target))
+      .map((action) => `"${action.label}" button`),
+    ...sections.shopCategories.cards
+      .filter((card) => hidden(card.target))
+      .map((card) => `"${card.buttonLabel}" card`),
+    ...sections.navList.items.filter((item) => hidden(item.target)).map((item) => `"${item.label}" link`),
+  ];
 }

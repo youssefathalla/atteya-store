@@ -25,7 +25,8 @@ import { HomeNavListEditorComponent } from './components/home-nav-list-editor/ho
 import { HomeDraftService } from './services/home-draft.service';
 import { HomeDialogService } from './services/home-dialog.service';
 import { NavigationCatalogService } from '../navigation-manager/services/navigation-catalog.service';
-import { homeLinkProblem, homeWithTargets } from './utils/home-link-targets.utils';
+import { homeHiddenLinks, homeLinkProblem, homeWithTargets } from './utils/home-link-targets.utils';
+import { hiddenTargetsMessage } from '../navigation-manager/utils/navigation-manager.validator';
 import {
   type HomeLinkCheck,
   validateHomeHeroDraft,
@@ -166,7 +167,9 @@ export class HomeManagerComponent {
 
       this.draft.markSaved();
       this.restoredNote.set(null);
-      this.#snackbar.success('Published! Your homepage sections are now live.');
+      const hidden = homeHiddenLinks({ hero, shopCategories, navList }, fullCatalog);
+      if (hidden.length > 0) this.#snackbar.warning(hiddenTargetsMessage(hidden), 'Close', 8000);
+      else this.#snackbar.success('Published! Your homepage sections are now live.');
     } catch (err) {
       await this.#reportWriteError(err, 'Unable to publish changes. Please try again.');
     } finally {

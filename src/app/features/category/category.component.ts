@@ -47,7 +47,7 @@ const PAGE_SIZE = 48;
   },
 })
 export class CategoryComponent {
-  /** An Outside Link (ATS-267) opens another site in a new tab instead of a store page. */
+  /** An Outside Link (ATS-267) is no category page, so the pills leave it out (the menus show it). */
   readonly isOutside = isOutsideAddress;
 
   readonly slug = input.required<string>();

@@ -117,10 +117,11 @@ export class NavTargetFieldComponent {
   /** Outside Link was picked (its address box shows even while it is empty). */
   readonly #outsidePicked = linkedSignal<boolean>(() => this.effective()?.kind === 'url');
 
-  readonly mode = computed<'menu' | 'outside' | 'target' | 'pick' | 'none'>(() => {
+  readonly mode = computed<'menu' | 'outside' | 'target' | 'pick' | 'saved' | 'none'>(() => {
     if (this.#outsidePicked()) return 'outside';
     if (this.effective()) return 'target';
-    if (this.path()?.trim() || this.target()) return 'pick';
+    // Until every category and brand has loaded, an old address may still match: show it as saved.
+    if (this.path()?.trim() || this.target()) return this.#catalog.targetCatalog() ? 'pick' : 'saved';
     return this.allowMenuOnly() ? 'menu' : 'none';
   });
 
@@ -153,6 +154,7 @@ export class NavTargetFieldComponent {
   readonly address = computed(() => {
     const mode = this.mode();
     if (mode === 'menu') return 'Clicking the name only opens its menu.';
+    if (mode === 'saved') return this.path() ? `Opens ${this.path()}` : '';
     if (mode !== 'target') return '';
     const path = this.resolved()?.path ?? this.path();
     return path ? `Opens ${path}` : '';
@@ -172,7 +174,7 @@ export class NavTargetFieldComponent {
 
   /** The Outside Link's address, and why it can't be saved yet. */
   readonly outsideUrl = computed(() => {
-    const target = this.target();
+    const target = this.effective();
     return target?.kind === 'url' ? target.url : '';
   });
   readonly outsideProblem = computed(() =>

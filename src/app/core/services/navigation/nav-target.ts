@@ -202,6 +202,8 @@ export function isOwnSiteHost(hostname: string): boolean {
 }
 
 const OUTSIDE_LINK_FORMAT = 'Enter the full address, starting with https://.';
+/** Same limit as `NavTargetSchema`'s `url`. */
+const OUTSIDE_LINK_MAX = 500;
 
 /**
  * Why an Outside Link can't be saved (ATS-267), or null when it can: it must be a full `https://`
@@ -209,6 +211,7 @@ const OUTSIDE_LINK_FORMAT = 'Enter the full address, starting with https://.';
  */
 export function outsideLinkProblem(raw: string): string | null {
   const value = raw.trim();
+  if (value.length > OUTSIDE_LINK_MAX) return 'Use a shorter address (500 characters at most).';
   if (!/^https:\/\//i.test(value) || /\s/.test(value)) return OUTSIDE_LINK_FORMAT;
   let url: URL;
   try {
@@ -219,6 +222,14 @@ export function outsideLinkProblem(raw: string): string | null {
   if (!url.hostname.includes('.')) return OUTSIDE_LINK_FORMAT;
   if (isOwnSiteHost(url.hostname)) return 'Pick it from the list instead.';
   return null;
+}
+
+function ownSiteAddress(raw: string): boolean {
+  try {
+    return isOwnSiteHost(new URL(raw.trim()).hostname);
+  } catch {
+    return false;
+  }
 }
 
 /** True when a saved address leaves our site (`https://…`), so it opens as a plain link. */
@@ -257,6 +268,7 @@ function shopFiltersFromQuery(
         break;
       }
       case 'player':
+        if (value.length > 120) return null;
         filters.player = value;
         break;
       case 'category':
@@ -353,7 +365,9 @@ export function effectiveNavTarget(
   catalog: NavTargetCatalog,
 ): NavTarget | null {
   if (target && target.kind !== 'url') return target;
-  if (target?.kind === 'url' && !target.url.trim().startsWith('/')) return target;
+  // An Outside Link stays as typed; a full address on our own site becomes its target.
+  if (target?.kind === 'url' && !target.url.trim().startsWith('/') && !ownSiteAddress(target.url))
+    return target;
   const raw = (target?.kind === 'url' ? target.url : path)?.trim() ?? '';
   return raw ? navTargetFromPath(raw, catalog) : null;
 }
