@@ -335,7 +335,7 @@ function largeOrderPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): Rende
         {
           label: 'To pay now',
           amount: 'Nothing yet',
-          note: "We'll email you the delivery fee once we agree it.",
+          note: "We'll message you on WhatsApp with the delivery fee.",
         },
       ]),
       stepsRow([
@@ -347,7 +347,7 @@ function largeOrderPlaced(order: OrderEmailOrder, ctx: OrderEmailContext): Rende
         },
         ...later,
       ]),
-      ...orderSummary(order, ctx, { payment: [methodName(order), 'Delivery fee to be agreed'] }),
+      ...orderSummary(order, ctx, { payment: [methodName(order), 'Delivery fee coming soon'] }),
     ],
   });
 }
@@ -894,12 +894,17 @@ function orderSummary(order: OrderEmailOrder, ctx: OrderEmailContext, opts: Summ
   return out;
 }
 
-function totalsFor(order: OrderEmailOrder, totalLabel: string): [string, string][] {
+/** Shopper emails say we'll message them; the staff alert says the fee is not set yet. */
+function totalsFor(
+  order: OrderEmailOrder,
+  totalLabel: string,
+  pendingFeeText = "We'll message you",
+): [string, string][] {
   const shipLabel = shippingLabel(order);
   if (order.feeToBeAgreed) {
     return [
       ['Subtotal', formatEgp(order.subtotalEgp)],
-      [shipLabel, 'To be agreed'],
+      [shipLabel, pendingFeeText],
       [totalLabel, `${formatEgp(order.subtotalEgp)} + delivery`],
     ];
   }
@@ -997,7 +1002,7 @@ function storeNewOrder(order: OrderEmailOrder, ctx: OrderEmailContext): Rendered
   const stepNote = step && step.note !== top.sentence ? step.note : null;
   const customer = staffCustomer(order, ctx);
   const pack = packList(order.lines, ctx);
-  const totalRows = totalsFor(order, 'Total');
+  const totalRows = totalsFor(order, 'Total', 'Not set yet');
   const button = ctx.storefrontUrl
     ? { label: 'Open This Order', url: `${ctx.storefrontUrl}/admin/orders/${encodeURIComponent(order.id)}` }
     : null;
@@ -1060,7 +1065,7 @@ function storePayment(order: OrderEmailOrder): StorePayment {
     return {
       cells: [
         { label: 'Items Total', amount: formatEgp(order.subtotalEgp) },
-        { label: 'Delivery Fee', amount: 'To Be Agreed' },
+        { label: 'Delivery Fee', amount: 'Not Set Yet' },
       ],
       step: {
         action: 'Agree the delivery fee on WhatsApp',

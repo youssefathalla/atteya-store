@@ -513,7 +513,10 @@ describe('large order: delivery fee to be agreed', () => {
       const email = renderOrderEmail(kind, order, withPay);
       assert.match(email.text, /message you on WhatsApp to agree the delivery fee/);
       assert.match(email.text, /To pay now: Nothing yet/);
-      assert.match(email.text, /Delivery: To be agreed/);
+      assert.match(email.text, /Delivery: We'll message you/);
+      assert.match(email.text, /Delivery fee coming soon/);
+      assert.match(email.text, /We'll message you on WhatsApp with the delivery fee\./);
+      assert.doesNotMatch(email.text, /To be agreed|to be agreed|once we agree/);
       assert.match(email.text, new RegExp(`Total: ${formatEgp(2370)} \\+ delivery`));
       assert.doesNotMatch(email.text, /atteya@instapay|screenshot/);
     }
@@ -522,7 +525,8 @@ describe('large order: delivery fee to be agreed', () => {
   it('store alert asks staff to agree the fee', () => {
     const email = renderOrderEmail('store-new-order', placed, withPay);
     assert.match(email.subject, /Agree Delivery Fee/);
-    assert.match(email.text, /Delivery Fee: To Be Agreed/);
+    assert.match(email.text, /Delivery Fee: Not Set Yet/);
+    assert.match(email.text, /Delivery: Not set yet/);
   });
 
   it('fee-set email shows the fee and the InstaPay box for it', () => {
@@ -881,11 +885,11 @@ describe('Bold Black staff alert (<KEY>-222)', () => {
     assert.ok(!email.text.includes('Next Step'));
   });
 
-  it('large order: the header asks to agree the fee and the strip says To Be Agreed', () => {
+  it('large order: the header asks to agree the fee and the strip says Not Set Yet', () => {
     const email = alert(cases.large);
     assert.ok(email.html.includes('>AGREE THE DELIVERY FEE<'));
     assert.ok(email.html.includes(`>${formatEgp(2370)} + Delivery</h1>`));
-    assert.ok(email.text.includes('Delivery Fee: To Be Agreed'));
+    assert.ok(email.text.includes('Delivery Fee: Not Set Yet'));
     assert.ok(email.text.includes('Next Step: Agree the delivery fee on WhatsApp'));
     // The note is said once, in the header.
     assert.equal(email.html.split('heavier than the biggest box').length - 1, 1);
