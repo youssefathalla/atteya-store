@@ -1,7 +1,7 @@
 @layer components {
   /*! overlays */
   .loading-overlay {
-    @apply z-50 w-full elements-center bg-surface flex-col gap-5;
+    @apply z-50 w-full elements-center-col bg-surface gap-5;
   }
 
   .badge-overlay {
