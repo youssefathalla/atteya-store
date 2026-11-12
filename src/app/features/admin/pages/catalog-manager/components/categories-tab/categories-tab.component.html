@@ -1,12 +1,15 @@
-<section class="surface-card p-5 w-full elements-start-col gap-5" aria-labelledby="categories-title">
+<section
+  class="surface-card p-4 @3xl:p-5 w-full elements-start-col items-stretch! gap-4"
+  aria-labelledby="categories-title"
+>
   <div class="w-full elements-between flex-wrap gap-3">
     <div class="min-w-0">
       <h2 id="categories-title" class="font-title-md font-bold!">Categories</h2>
       <p class="font-body-sm text-on-surface-variant">
-        Shoppers see shown categories in the menus and at their address. Drag the handle to change the order.
+        Drag to change the order. Click a category to see what's inside.
       </p>
     </div>
-    <button matButton="filled" type="button" class="btn-block-phone" (click)="add()">
+    <button matButton="filled" type="button" class="btn-block-phone" (click)="add(null)">
       <mat-icon name="add" />
       <span>Add Category</span>
     </button>
@@ -24,29 +27,29 @@
   } @else if (tree().length === 0) {
     <p class="font-body-md">No categories yet. Add the first one.</p>
   } @else {
-    <ul
-      class="w-full elements-start-col items-stretch! gap-3 list-none m-0 p-0"
-      aria-label="Categories"
-      cdkDropList
-      (cdkDropListDropped)="drop(null, $event)"
-    >
+    <ul class="catalog-list" aria-label="Categories" cdkDropList (cdkDropListDropped)="drop(null, $event)">
       @for (row of tree(); track row.category.id) {
-        <li class="w-full elements-start-col items-stretch! gap-2" cdkDrag cdkDragLockAxis="y">
+        @let isOpen = row.children.length > 0 && openIds().has(row.category.id);
+        <li cdkDrag cdkDragLockAxis="y">
           <app-catalog-row
             [name]="row.category.name"
-            [address]="'/category/' + row.category.path"
-            [details]="details(row.category, null)"
+            [liveCount]="row.category.productCount"
+            [insideCount]="row.children.length"
+            [open]="isOpen"
+            [canAddInside]="row.category.depth === 0"
+            [storeUrl]="'/category/' + row.category.path"
             [published]="row.category.published"
-            [busy]="busyId() === row.category.id"
-            [locked]="busyId() !== null"
+            [busy]="busyIds().has(row.category.id)"
+            (toggleOpen)="toggleOpen(row.category.id)"
             (toggleShown)="toggleShown(row.category)"
             (edit)="edit(row.category)"
+            (addInside)="add(row.category.id)"
             (remove)="remove(row.category)"
           />
-          @if (row.children.length > 0) {
+          @if (isOpen) {
             <ul
-              class="catalog-children list-none m-0"
-              [attr.aria-label]="'Sub-categories of ' + row.category.name"
+              class="catalog-children"
+              [attr.aria-label]="'Inside ' + row.category.name"
               cdkDropList
               (cdkDropListDropped)="drop(row.category.id, $event)"
             >
@@ -54,11 +57,11 @@
                 <li cdkDrag cdkDragLockAxis="y">
                   <app-catalog-row
                     [name]="child.name"
-                    [address]="'/category/' + child.path"
-                    [details]="details(child, row.category)"
+                    [liveCount]="child.productCount"
+                    [inside]="true"
+                    [storeUrl]="'/category/' + child.path"
                     [published]="child.published"
-                    [busy]="busyId() === child.id"
-                    [locked]="busyId() !== null"
+                    [busy]="busyIds().has(child.id)"
                     (toggleShown)="toggleShown(child)"
                     (edit)="edit(child)"
                     (remove)="remove(child)"
@@ -66,9 +69,16 @@
                 </li>
               }
             </ul>
+            <button type="button" class="catalog-add-inside" (click)="add(row.category.id)">
+              <mat-icon name="add" />
+              <span>Add to {{ row.category.name }}</span>
+            </button>
           }
         </li>
       }
     </ul>
+    <p class="font-body-sm text-on-surface-variant">
+      Hidden categories stay saved but don't show in the menu or the Shop.
+    </p>
   }
 </section>

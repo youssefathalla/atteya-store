@@ -109,3 +109,45 @@ export function addLinkToMenu(
       : category,
   );
 }
+
+/**
+ * The top menu that opens a category (ATS-264): its target is that category, or its typed or
+ * saved address is the category's `/category/…` address. Null when no menu opens it.
+ */
+export function menuForCategory(
+  categories: readonly NavCategory[],
+  category: { readonly id: string; readonly path: string },
+): NavCategory | null {
+  const addresses = new Set([`/category/${category.path}`, `/category/${category.id}`]);
+  return (
+    categories.find(
+      (menu) =>
+        (menu.target?.kind === 'category' && menu.target.id === category.id) ||
+        (menu.target?.kind === 'url' && addresses.has(menu.target.url)) ||
+        (!menu.target && !!menu.path && addresses.has(menu.path)),
+    ) ?? null
+  );
+}
+
+/** The top menu that opens the Brands page, or null (ATS-264). */
+export function menuForBrands(categories: readonly NavCategory[]): NavCategory | null {
+  return (
+    categories.find(
+      (menu) =>
+        (menu.target?.kind === 'page' && menu.target.page === 'brands') ||
+        (menu.target?.kind === 'url' && menu.target.url === '/brands') ||
+        (!menu.target && menu.path === '/brands'),
+    ) ?? null
+  );
+}
+
+/** A menu name as staff read it in a sentence: "APPAREL" → "Apparel", "BAGS & GEAR" → "Bags & Gear". */
+export function menuDisplayName(label: string): string {
+  const text = label.replace(/\s+/g, ' ').trim();
+  if (text !== text.toUpperCase()) return text;
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+    .join(' ');
+}

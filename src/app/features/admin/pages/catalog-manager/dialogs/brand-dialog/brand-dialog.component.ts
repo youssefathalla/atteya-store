@@ -25,7 +25,10 @@ export interface BrandDialogData {
   readonly brands: readonly Brand[];
 }
 
-/** Add or edit one brand. Saves through `saveBrand` and closes with its result. */
+/** What the window closes with: the save, or `'delete'` when Delete was pressed in Edit. */
+export type BrandDialogResult = CatalogDialogResult | 'delete';
+
+/** Add or edit one brand (Name, Logo, Show in the menu, Shown on the store; ATS-264). Saves through `saveBrand` and closes with its result. */
 @Component({
   selector: 'app-brand-dialog',
   imports: [
@@ -43,7 +46,7 @@ export interface BrandDialogData {
 })
 export class BrandDialogComponent {
   readonly #data = inject<BrandDialogData>(MAT_DIALOG_DATA);
-  readonly #ref = inject<MatDialogRef<BrandDialogComponent, CatalogDialogResult>>(MatDialogRef);
+  readonly #ref = inject<MatDialogRef<BrandDialogComponent, BrandDialogResult>>(MatDialogRef);
   readonly #catalog = inject(CatalogAdminService);
 
   readonly maxName = MAX_CATALOG_NAME;
@@ -53,7 +56,7 @@ export class BrandDialogComponent {
 
   readonly name = signal(this.#data.brand?.name ?? '');
   readonly logo = signal<ImageAsset | null>(this.#data.brand?.logo ?? null);
-  readonly published = signal(this.#data.brand?.published ?? false);
+  readonly published = signal(this.#data.brand?.published ?? true);
   readonly addToMenu = signal(false);
   readonly menuId = signal<string | null>(null);
   readonly menuColumn = signal<number | null>(null);
@@ -77,6 +80,11 @@ export class BrandDialogComponent {
   );
 
   readonly logoFolder = computed(() => `brands/${this.slug() || 'new'}` as const);
+
+  /** Edit → Delete: the list runs the same checks as the ⋮ menu. */
+  requestDelete(): void {
+    this.#ref.close('delete');
+  }
 
   textFrom(event: Event): string {
     return (event.target as HTMLInputElement).value;
@@ -102,7 +110,7 @@ export class BrandDialogComponent {
     const menuColumn = this.menuColumn();
     const wantsMenu = this.isNew && this.addToMenu();
     if (wantsMenu && (menuId === null || menuColumn === null)) {
-      this.error.set('Pick a menu and a column, or turn off Add to the Menu.');
+      this.error.set('Pick a menu and a column, or turn off the menu switch.');
       return;
     }
 

@@ -42,7 +42,6 @@ export interface CategoryTreeRow {
 }
 
 export const MAX_CATALOG_NAME = 60;
-export const MAX_CATEGORY_DESCRIPTION = 500;
 /** Same limit as `MAX_SHOP_LABEL` in `functions/src/products/catalog-admin.ts`. */
 export const MAX_SHOP_LABEL = 30;
 export const MAX_WEIGHT_GRAMS = 100_000;
@@ -92,38 +91,71 @@ export function previewSlug(name: string, kind: CatalogKind, takenIds: Iterable<
   return `${base}-${suffix}`;
 }
 
-/** Same wording as the server's `categoryDeleteBlockedReason`. */
+/**
+ * Why a category can't be deleted, in plain words with what to do instead, or null when it can.
+ * The server checks the same things (plus offers) and refuses with its own message.
+ */
 export function categoryDeleteBlockedReason(
-  id: string,
+  category: { readonly id: string; readonly name: string },
   usage: { readonly products: number; readonly subCategories: number },
 ): string | null {
-  if (isSeedCategory(id)) return 'This is one of the store’s built-in categories. You can hide it instead.';
-  if (usage.subCategories > 0) {
-    return 'This category has sub-categories. Delete or move them first, or hide it instead.';
-  }
+  const { name } = category;
   if (usage.products > 0) {
     return usage.products === 1
-      ? '1 product is in this category. Move it to another category first, or hide it instead.'
-      : `${usage.products} products are in this category. Move them to another category first, or hide it instead.`;
+      ? `${name} still has 1 product. Move it to another category first, or hide ${name} instead.`
+      : `${name} still has ${usage.products} products. Move them to another category first, or hide ${name} instead.`;
+  }
+  if (usage.subCategories > 0) {
+    return usage.subCategories === 1
+      ? `${name} still has 1 category inside it. Delete that one first, or hide ${name} instead.`
+      : `${name} still has ${usage.subCategories} categories inside it. Delete those first, or hide ${name} instead.`;
+  }
+  if (isSeedCategory(category.id)) {
+    return `${name} is one of the store’s built-in categories, so it can’t be deleted. You can hide it instead.`;
   }
   return null;
 }
 
-/** Same wording as the server's `brandDeleteBlockedReason`. */
-export function brandDeleteBlockedReason(id: string, products: number): string | null {
-  if (isSeedBrand(id)) return 'This is one of the store’s built-in brands. You can hide it instead.';
+/** Why a brand can't be deleted, in plain words with what to do instead, or null when it can. */
+export function brandDeleteBlockedReason(
+  brand: { readonly id: string; readonly name: string },
+  products: number,
+): string | null {
+  const { name } = brand;
   if (products > 0) {
     return products === 1
-      ? '1 product uses this brand. Change its brand first, or hide it instead.'
-      : `${products} products use this brand. Change their brand first, or hide it instead.`;
+      ? `${name} still has 1 product. Change its brand first, or hide ${name} instead.`
+      : `${name} still has ${products} products. Change their brand first, or hide ${name} instead.`;
+  }
+  if (isSeedBrand(brand.id)) {
+    return `${name} is one of the store’s built-in brands, so it can’t be deleted. You can hide it instead.`;
   }
   return null;
 }
 
-/** "3 live products", "1 live product", "No live products". */
+/** The short count on a row: "61 live", "None live". */
 export function liveCountLabel(count: number): string {
-  if (count <= 0) return 'No live products';
-  return count === 1 ? '1 live product' : `${count} live products`;
+  return count > 0 ? `${count} live` : 'None live';
+}
+
+/** "6 inside", "1 inside"; empty when nothing is inside. */
+export function insideLabel(count: number): string {
+  return count > 0 ? `${count} inside` : '';
+}
+
+/**
+ * What the switch asks before hiding something shoppers can buy, or null when it can hide at
+ * once (nothing live in it).
+ */
+export function hideConfirmMessage(name: string, liveProducts: number): string | null {
+  if (liveProducts <= 0) return null;
+  const products = liveProducts === 1 ? 'Its 1 product stays' : `Its ${liveProducts} products stay`;
+  return `${products} saved but shoppers won’t find ${liveProducts === 1 ? 'it' : 'them'} under ${name}.`;
+}
+
+/** The snackbar after the switch: "Hoodies is hidden from the store." / "Hoodies is on the store." */
+export function shownSnackbar(name: string, shown: boolean): string {
+  return shown ? `${name} is on the store.` : `${name} is hidden from the store.`;
 }
 
 /** Reads a typed weight: '' = no default (null), whole grams 0–100,000, else undefined (invalid). */
@@ -175,3 +207,11 @@ export function categoryPageChoice<K extends 'sizeChart' | 'detailsTitle'>(
   const builtIn = BUILT_IN_CATEGORY_PAGE[category.id]?.[field] as NonNullable<Category[K]> | undefined;
   return builtIn ?? (category.depth === 0 ? fallback : 'parent');
 }
+
+/** How the Category and Brand windows open: 36rem wide, full screen on phone (`_dialog.scss`). */
+export const CATALOG_DIALOG_CONFIG = {
+  width: '36rem',
+  maxWidth: '96vw',
+  autoFocus: 'first-tabbable',
+  panelClass: 'catalog-dialog-pane',
+} as const;

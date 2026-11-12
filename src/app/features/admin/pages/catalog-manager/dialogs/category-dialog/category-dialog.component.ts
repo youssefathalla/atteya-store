@@ -27,7 +27,6 @@ import {
   categoryPageChoice,
   type CategoryPageChoice,
   MAX_CATALOG_NAME,
-  MAX_CATEGORY_DESCRIPTION,
   MAX_SHOP_LABEL,
   parseWeightGrams,
   previewSlug,
@@ -36,11 +35,30 @@ import {
 export interface CategoryDialogData {
   /** Null = Add Category. */
   readonly category: Category | null;
-  /** Every category, for the parent list and the address preview. */
+  /** Every category, for the "Inside" list and the address preview. */
   readonly categories: readonly Category[];
+  /** Add Category from "Add to Apparel" / Add Inside: "Inside" starts on that category. */
+  readonly parentId?: string | null;
 }
 
-/** Add or edit one category. Saves through `saveCategory` and closes with its result. */
+/** What the window closes with: the save, or `'delete'` when Delete was pressed in Edit. */
+export type CategoryDialogResult = CatalogDialogResult | 'delete';
+
+const SIZE_CHART_LABEL: Record<CategorySizeChart, string> = {
+  clothing: 'Clothing size chart',
+  none: 'No size chart',
+};
+
+const DETAILS_TITLE_LABEL: Record<CategoryDetailsTitle, string> = {
+  materials: 'Materials',
+  specifications: 'Specifications',
+};
+
+/**
+ * Add or edit one category (ATS-264): Name, Inside, Show in the menu, Shown on the store and a
+ * closed More Options section (Size Chart, Details Title, Shipping weight, Name on Shop Tabs,
+ * Photo). Saves through `saveCategory` and closes with its result.
+ */
 @Component({
   selector: 'app-category-dialog',
   imports: [
@@ -59,23 +77,32 @@ export interface CategoryDialogData {
 })
 export class CategoryDialogComponent {
   readonly #data = inject<CategoryDialogData>(MAT_DIALOG_DATA);
-  readonly #ref = inject<MatDialogRef<CategoryDialogComponent, CatalogDialogResult>>(MatDialogRef);
+  readonly #ref = inject<MatDialogRef<CategoryDialogComponent, CategoryDialogResult>>(MatDialogRef);
   readonly #catalog = inject(CatalogAdminService);
 
   readonly maxName = MAX_CATALOG_NAME;
-  readonly maxDescription = MAX_CATEGORY_DESCRIPTION;
   readonly maxShopLabel = MAX_SHOP_LABEL;
   readonly isNew = this.#data.category === null;
   readonly title = this.isNew ? 'Add Category' : `Edit ${this.#data.category?.name ?? 'Category'}`;
   readonly saveLabel = this.isNew ? 'Add Category' : 'Save Changes';
 
+  /** Only main categories can hold others (two levels). */
+  readonly parentOptions = this.#data.categories
+    .filter((item) => item.depth === 0 && item.id !== this.#data.category?.id)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
   readonly name = signal(this.#data.category?.name ?? '');
-  readonly parentId = signal<string | null>(this.#data.category?.parentId ?? null);
-  readonly description = signal(this.#data.category?.description ?? '');
+  readonly parentId = signal<string | null>(
+    this.#data.category
+      ? this.#data.category.parentId
+      : this.parentOptions.some((item) => item.id === this.#data.parentId)
+        ? (this.#data.parentId ?? null)
+        : null,
+  );
   readonly shopLabel = signal(this.#data.category?.shopLabel ?? '');
   readonly image = signal<ImageAsset | null>(this.#data.category?.image ?? null);
   readonly weightText = signal(this.#initialWeight());
-  readonly published = signal(this.#data.category?.published ?? false);
+  readonly published = signal(this.#data.category?.published ?? true);
   readonly sizeChartChoice = signal<CategoryPageChoice<CategorySizeChart>>(
     this.#data.category ? categoryPageChoice(this.#data.category, 'sizeChart', 'none') : 'parent',
   );
@@ -90,24 +117,32 @@ export class CategoryDialogComponent {
   readonly isSaving = signal(false);
   readonly error = signal('');
 
-  /** Only top-level categories can hold sub-categories (two levels). */
-  readonly parentOptions = this.#data.categories
-    .filter((item) => item.depth === 0 && item.id !== this.#data.category?.id)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-
-  /** `/category/caps` or `/category/apparel/caps`: the canonical address the store uses. */
+  /** `/category/caps` or `/category/apparel/caps`: the address the store uses. */
   readonly address = computed(() => {
     if (!this.isNew) return `/category/${this.#data.category?.path ?? ''}`;
     const slug = this.slug();
     if (!slug) return '';
-    const parent = this.#data.categories.find((item) => item.id === this.parentId());
+    const parent = this.parent();
     return parent ? `/category/${parent.path}/${slug}` : `/category/${slug}`;
   });
 
-  /** Top-level categories get a Shop tab; sub-categories don't. */
+  /** Main categories get a Shop tab; the ones inside them don't. */
   readonly isTopLevel = computed(() =>
     this.isNew ? this.parentId() === null : this.#data.category?.depth === 0,
   );
+
+  readonly parent = computed(() => {
+    const id = this.parentId();
+    return id ? (this.#data.categories.find((item) => item.id === id) ?? null) : null;
+  });
+
+  readonly parentName = computed(() => this.parent()?.name ?? this.parentId() ?? '');
+
+  /** For the menu switch: which menu opens the chosen "Inside" category. */
+  readonly menuParent = computed(() => {
+    const parent = this.parent();
+    return parent ? { id: parent.id, path: parent.path } : null;
+  });
 
   /** What the tab says when "Name on Shop Tabs" is left empty. */
   readonly defaultTabName = computed(() =>
@@ -117,7 +152,7 @@ export class CategoryDialogComponent {
     }),
   );
 
-  /** A top-level category has no parent to copy, so "Same as parent" shows as its own default. */
+  /** A main category has nothing to copy, so "Same as" shows as its own default. */
   readonly sizeChart = computed((): CategoryPageChoice<CategorySizeChart> => {
     const choice = this.sizeChartChoice();
     return choice === 'parent' && this.isTopLevel() ? 'none' : choice;
@@ -128,27 +163,42 @@ export class CategoryDialogComponent {
     return choice === 'parent' && this.isTopLevel() ? 'specifications' : choice;
   });
 
-  /** What "Same as parent" means right now, e.g. "Clothing size chart". */
+  /** What "Same as Apparel" means right now, e.g. "Clothing size chart". */
   readonly parentSizeChartLabel = computed(() => {
-    const parent = this.#parent();
-    const value = parent ? categoryPageChoice(parent, 'sizeChart', 'none') : 'none';
-    return value === 'clothing' ? 'Clothing size chart' : 'None';
+    const parent = this.parent();
+    return SIZE_CHART_LABEL[
+      parent ? this.#resolved(categoryPageChoice(parent, 'sizeChart', 'none'), 'none') : 'none'
+    ];
   });
 
   readonly parentDetailsTitleLabel = computed(() => {
-    const parent = this.#parent();
-    const value = parent ? categoryPageChoice(parent, 'detailsTitle', 'specifications') : 'specifications';
-    return value === 'materials' ? 'Materials' : 'Specifications';
+    const parent = this.parent();
+    return DETAILS_TITLE_LABEL[
+      parent
+        ? this.#resolved(categoryPageChoice(parent, 'detailsTitle', 'specifications'), 'specifications')
+        : 'specifications'
+    ];
   });
 
-  readonly #parent = computed(() => {
-    const id = this.isNew ? this.parentId() : (this.#data.category?.parentId ?? null);
-    return id ? (this.#data.categories.find((item) => item.id === id) ?? null) : null;
-  });
-
-  readonly parentName = computed(() => {
-    const id = this.parentId();
-    return id ? (this.#data.categories.find((item) => item.id === id)?.name ?? id) : 'None (top level)';
+  /** The line under the closed More Options: "Same as Apparel", "Built-in settings" or the values. */
+  readonly moreSummary = computed(() => {
+    const weight = this.weightText().trim();
+    if (!this.isTopLevel()) {
+      if (this.sizeChart() === 'parent' && this.detailsTitle() === 'parent') {
+        return `Same as ${this.parentName()}${weight ? ` · ${weight} g` : ''}`;
+      }
+    } else if (this.#untouchedBuiltIn()) {
+      return 'Built-in settings';
+    }
+    const size = this.sizeChart();
+    const title = this.detailsTitle();
+    return [
+      size === 'parent' ? this.parentSizeChartLabel() : SIZE_CHART_LABEL[size],
+      title === 'parent' ? this.parentDetailsTitleLabel() : DETAILS_TITLE_LABEL[title],
+      weight ? `${weight} g` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
   });
 
   readonly slug = computed(() =>
@@ -169,7 +219,12 @@ export class CategoryDialogComponent {
   );
 
   textFrom(event: Event): string {
-    return (event.target as HTMLInputElement | HTMLTextAreaElement).value;
+    return (event.target as HTMLInputElement).value;
+  }
+
+  /** Edit → Delete: the list runs the same checks as the ⋮ menu. */
+  requestDelete(): void {
+    this.#ref.close('delete');
   }
 
   async save(): Promise<void> {
@@ -185,7 +240,7 @@ export class CategoryDialogComponent {
     }
     const weight = parseWeightGrams(this.weightText());
     if (weight === undefined) {
-      this.error.set('Use whole grams from 0 to 100,000 for the weight, or leave it empty.');
+      this.error.set('In More Options, use whole grams from 0 to 100,000 for the weight, or leave it empty.');
       return;
     }
     const shopLabel = this.isTopLevel() ? this.shopLabel().replace(/\s+/g, ' ').trim() : '';
@@ -195,14 +250,14 @@ export class CategoryDialogComponent {
     }
     const image = this.image();
     if (image && image.path && !image.alt.trim()) {
-      this.error.set('Describe the photo in a few words.');
+      this.error.set('In More Options, describe the photo in a few words.');
       return;
     }
     const menuId = this.menuId();
     const menuColumn = this.menuColumn();
     const placement = this.isNew && this.addToMenu() ? { menuId, columnIndex: menuColumn } : null;
     if (placement && (placement.menuId === null || placement.columnIndex === null)) {
-      this.error.set('Pick a menu and a column, or turn off Add to the Menu.');
+      this.error.set('Pick a menu and a column, or turn off the menu switch.');
       return;
     }
 
@@ -217,7 +272,8 @@ export class CategoryDialogComponent {
         id: this.#data.category?.id ?? null,
         name,
         parentId: this.isNew ? this.parentId() : null,
-        description: this.description().trim(),
+        // The window no longer edits the description; a saved one is kept as it is.
+        description: this.#data.category?.description ?? '',
         image: image && image.path ? image : null,
         // Untouched: leave the saved or built-in default alone.
         ...(weightChanged ? { defaultWeightGrams: weight } : {}),
@@ -247,7 +303,7 @@ export class CategoryDialogComponent {
     name: string,
     placement: MenuPlacement,
   ): Promise<CatalogDialogResult> {
-    const parentPath = this.#parent()?.path;
+    const parentPath = this.parent()?.path;
     try {
       await this.#catalog.addToMenu(placement, {
         label: name,
@@ -258,6 +314,26 @@ export class CategoryDialogComponent {
     } catch {
       return { ...result, menuFailed: true };
     }
+  }
+
+  /** A main category whose More Options nobody has set or changed. */
+  #untouchedBuiltIn(): boolean {
+    const category = this.#data.category;
+    const sameWeight = this.weightText().trim() === this.#initialWeight();
+    const sameChoices =
+      this.sizeChartChoice() === (category ? categoryPageChoice(category, 'sizeChart', 'none') : 'parent') &&
+      this.detailsTitleChoice() ===
+        (category ? categoryPageChoice(category, 'detailsTitle', 'specifications') : 'parent');
+    const nothingSaved =
+      !category ||
+      (category.sizeChart === undefined &&
+        category.detailsTitle === undefined &&
+        category.defaultWeightGrams === undefined);
+    return nothingSaved && sameWeight && sameChoices && !this.shopLabel().trim() && !this.image()?.path;
+  }
+
+  #resolved<T extends string>(choice: CategoryPageChoice<T>, fallback: T): T {
+    return choice === 'parent' ? fallback : choice;
   }
 
   /** The saved weight, else the built-in one this category uses today, so the field never looks empty by mistake. */
