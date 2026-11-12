@@ -1,6 +1,8 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, linkedSignal, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
+import { isOutsideAddress } from '@core/services/navigation/nav-target';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { AuthService } from '@core/services/auth/auth.service';
@@ -9,13 +11,16 @@ import { NavCategory, NavService } from '@core/services/navigation';
 
 @Component({
   selector: 'app-mobile-menu',
-  imports: [RouterLink, LinkTargetPipe, MatButtonModule, SharedIconModule],
+  imports: [RouterLink, LinkTargetPipe, NgTemplateOutlet, MatButtonModule, SharedIconModule],
   templateUrl: './mobile-menu.component.html',
   host: {
     '(window:keydown.escape)': 'onEscape()',
   },
 })
 export class MobileMenuComponent {
+  /** An Outside Link (ATS-267) opens another site in a new tab instead of a store page. */
+  readonly isOutside = isOutsideAddress;
+
   readonly drawerService = inject(DrawerService);
   readonly #navService = inject(NavService);
   readonly #auth = inject(AuthService);

@@ -2,6 +2,7 @@ import { Component, computed, inject, input, output, PLATFORM_ID } from '@angula
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
+import { isOutsideAddress } from '@core/services/navigation/nav-target';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
@@ -30,6 +31,8 @@ import { MatAnchor, MatButtonModule } from '@angular/material/button';
 })
 export class HeroSectionComponent {
   readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  /** An Outside Link (ATS-267) opens another site in a new tab instead of a store page. */
+  readonly isOutside = isOutsideAddress;
 
   readonly hero = input.required<HomeHero>();
   readonly isLoading = input<boolean>(false);

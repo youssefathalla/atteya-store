@@ -25,8 +25,8 @@
       [target]="category().target"
       [path]="category().path"
       [allowMenuOnly]="true"
+      [allowOutside]="false"
       (targetChange)="targetChange.emit($event)"
-      (suggest)="generatePath.emit()"
     />
   </div>
 </div>

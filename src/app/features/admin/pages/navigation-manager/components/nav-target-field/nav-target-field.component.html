@@ -9,7 +9,7 @@
       [name]="fieldId() + '-links-to'"
       autocomplete="off"
       aria-label="Links to"
-      placeholder="Search categories, brands and pages"
+      placeholder="Search categories, brands, pages and offers"
       [matAutocomplete]="auto"
       [value]="query()"
       (input)="query.set($any($event.target).value)"
@@ -46,7 +46,7 @@
         }
       }
     </mat-autocomplete>
-    @if (mode() !== 'advanced' && address()) {
+    @if (address()) {
       <mat-hint>{{ address() }}</mat-hint>
     }
   </mat-form-field>
@@ -55,30 +55,25 @@
     <p class="font-body-sm text-error" role="status">{{ message }}</p>
   }
 
-  @if (mode() === 'advanced') {
+  @if (mode() === 'outside') {
     <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
-      <mat-label>Address</mat-label>
+      <mat-label>Outside Link</mat-label>
       <input
         matInput
-        [id]="fieldId() + '-address'"
-        [name]="fieldId() + '-address'"
+        type="url"
+        inputmode="url"
+        [id]="fieldId() + '-outside'"
+        [name]="fieldId() + '-outside'"
         autocomplete="off"
-        aria-label="Address"
-        [value]="path() ?? ''"
-        (input)="onAddressInput($any($event.target).value)"
-        placeholder="/category/apparel"
+        aria-label="Outside link"
+        [value]="outsideUrl()"
+        (input)="onOutsideInput($any($event.target).value)"
+        placeholder="https://instagram.com/atteyastore"
       />
-      <button
-        matIconButton
-        matSuffix
-        type="button"
-        (click)="suggest.emit()"
-        matTooltip="Link to the category or brand this name matches"
-        aria-label="Link to the matching category or brand"
-      >
-        <mat-icon name="auto_fix_high" />
-      </button>
-      <mat-hint>The store opens this address as typed.</mat-hint>
+      <mat-hint>Another website, such as Instagram, TikTok or WhatsApp. Opens in a new tab.</mat-hint>
     </mat-form-field>
+    @if (outsideProblem(); as message) {
+      <p class="font-body-sm text-error" role="status">{{ message }}</p>
+    }
   }
 </div>

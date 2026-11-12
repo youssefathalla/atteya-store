@@ -1,4 +1,5 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
+import { isOutsideAddress } from '@core/services/navigation/nav-target';
 import { RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { MatButtonModule } from '@angular/material/button';
@@ -54,7 +55,10 @@ export class BrandsComponent implements OnInit {
     return (brandsCategory?.megaMenu ?? [])
       .map((col) => ({
         title: col.title || 'Brands',
-        brands: col.links.map((link): BrandCardItem => ({ label: link.label, path: link.path })),
+        // An Outside Link (ATS-267) is no brand page; the menus still show it.
+        brands: col.links
+          .filter((link) => !isOutsideAddress(link.path))
+          .map((link): BrandCardItem => ({ label: link.label, path: link.path })),
       }))
       .filter((group) => group.brands.length > 0);
   });

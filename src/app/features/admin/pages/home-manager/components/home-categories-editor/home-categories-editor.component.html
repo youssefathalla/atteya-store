@@ -80,7 +80,7 @@
           3. Card #{{ activeCardIndex() + 1 }} Button &amp; Link
         </span>
         <p class="font-body-sm opacity-70">
-          Configure the button label and page destination for Card #{{ activeCardIndex() + 1 }}.
+          Name the button and pick where Card #{{ activeCardIndex() + 1 }} goes.
         </p>
       </div>
 
@@ -100,21 +100,12 @@
         <mat-hint>Text shown inside the bottom-left button on Card #{{ activeCardIndex() + 1 }}</mat-hint>
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="w-full">
-        <mat-label>Button Destination Link</mat-label>
-        <input
-          matInput
-          id="shop-card-button-link-input"
-          name="shop-card-button-link-input"
-          autocomplete="off"
-          aria-label="Button Destination Link"
-          [ngModel]="activeCard().buttonLink"
-          (ngModelChange)="buttonLinkChange.emit($event)"
-          placeholder="e.g. /category/rackets"
-          required
-        />
-        <mat-hint>Storefront route opened when a shopper clicks this button</mat-hint>
-      </mat-form-field>
+      <app-nav-target-field
+        [fieldId]="'shop-card-' + activeCardIndex()"
+        [target]="activeCard().target"
+        [path]="activeCard().buttonLink"
+        (targetChange)="buttonTargetChange.emit($event)"
+      />
     </div>
   </div>
 </section>

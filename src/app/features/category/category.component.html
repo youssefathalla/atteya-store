@@ -56,12 +56,14 @@
         <div class="flex items-center gap-2 mt-6 overflow-x-auto pb-2 scrollbar-none">
           @for (col of columns; track col.title || $index) {
             @for (link of col.links; track link.path) {
-              <a
-                [routerLink]="link.path | linkTarget"
-                class="px-3.5 py-1.5 border-shape border border-outline-variant font-label-sm hover:bg-surface-container transition-colors shrink-0"
-              >
-                {{ link.label }}
-              </a>
+              @if (!isOutside(link.path)) {
+                <a
+                  [routerLink]="link.path | linkTarget"
+                  class="px-3.5 py-1.5 border-shape border border-outline-variant font-label-sm hover:bg-surface-container transition-colors shrink-0"
+                >
+                  {{ link.label }}
+                </a>
+              }
             }
           }
         </div>

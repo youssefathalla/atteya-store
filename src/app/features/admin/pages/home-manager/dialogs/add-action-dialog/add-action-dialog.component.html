@@ -7,7 +7,7 @@
         Add Action Button
       }
     </h2>
-    <p class="font-body-sm opacity-70 pt-1">Configure button text and storefront route link.</p>
+    <p class="font-body-sm opacity-70 pt-1">Name the button and pick where it goes.</p>
   </div>
 
   <mat-dialog-content class="space-y-6 py-2!">
@@ -29,22 +29,13 @@
       <mat-hint>Visible text on the pill button</mat-hint>
     </mat-form-field>
 
-    <!-- Target Route Path -->
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Destination Link / Route</mat-label>
-      <input
-        matInput
-        id="action-link"
-        name="action-link"
-        autocomplete="off"
-        aria-label="Destination Link / Route"
-        [ngModel]="link()"
-        (ngModelChange)="link.set($event)"
-        placeholder="/category/apparel?gender=men"
-        required
-      />
-      <mat-hint>Storefront route (e.g. /category/apparel)</mat-hint>
-    </mat-form-field>
+    <!-- Where it goes -->
+    <app-nav-target-field
+      fieldId="hero-action"
+      [target]="target()"
+      [path]="link()"
+      (targetChange)="onTargetChange($event)"
+    />
   </mat-dialog-content>
 
   <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">

@@ -7,6 +7,10 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 import { ImagePickerComponent } from '@shared/ui/image-picker';
 import { ImageAsset } from '@shared/schemas';
 import { ShopCategoryCard } from '../../models/home-manager.model';
+import {
+  NavTargetFieldComponent,
+  type NavTargetChange,
+} from '../../../navigation-manager/components/nav-target-field/nav-target-field.component';
 
 @Component({
   selector: 'app-home-categories-editor',
@@ -18,6 +22,7 @@ import { ShopCategoryCard } from '../../models/home-manager.model';
     MatButtonModule,
     SharedIconModule,
     ImagePickerComponent,
+    NavTargetFieldComponent,
   ],
 })
 export class HomeCategoriesEditorComponent {
@@ -31,7 +36,7 @@ export class HomeCategoriesEditorComponent {
   readonly imageUrlChange = output<string>();
   readonly imageAltChange = output<string>();
   readonly buttonLabelChange = output<string>();
-  readonly buttonLinkChange = output<string>();
+  readonly buttonTargetChange = output<NavTargetChange>();
   readonly sessionUpload = output<string>();
 
   readonly pickerLabel = computed<string>(() => {

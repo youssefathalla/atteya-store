@@ -19,7 +19,9 @@ import {
   NAV_SHOP_CATEGORY_LABELS,
   NAV_TARGET_PAGE_LABELS,
   NAV_TARGET_PAGES,
+  effectiveNavTarget,
   navTargetName,
+  outsideLinkProblem,
   resolveNavTarget,
   type NavShopFilters,
   type NavTarget,
@@ -43,7 +45,7 @@ export interface NavTargetChange {
 type Choice =
   | { readonly kind: 'menu' }
   | { readonly kind: 'shop-dialog' }
-  | { readonly kind: 'advanced' }
+  | { readonly kind: 'outside' }
   | { readonly kind: 'target'; readonly target: NavTarget; readonly label: string };
 
 interface ChoiceGroup {
@@ -53,7 +55,7 @@ interface ChoiceGroup {
 
 const MENU_LABEL = 'Only Opens the Menu';
 const SHOP_LABEL = 'Shop with Filters…';
-const ADVANCED_LABEL = 'Advanced: Type an Address';
+const OUTSIDE_LABEL = 'Outside Link';
 
 function choiceLabel(choice: Choice): string {
   switch (choice.kind) {
@@ -61,17 +63,19 @@ function choiceLabel(choice: Choice): string {
       return MENU_LABEL;
     case 'shop-dialog':
       return SHOP_LABEL;
-    case 'advanced':
-      return ADVANCED_LABEL;
+    case 'outside':
+      return OUTSIDE_LABEL;
     case 'target':
       return choice.label;
   }
 }
 
 /**
- * **Links To** (ATS-246): one searchable list of categories, brands and pages, plus Shop with
- * Filters… and Advanced: Type an Address (the old address box with ✨). Used by the menu
- * details, every link row and the add dialogs.
+ * **Links To** (ATS-246, ATS-267): the one picker for every link staff set up in Navigation and
+ * Home Page. A searchable list of categories, brands, pages and running offers, plus Shop with
+ * Filters… and Outside Link (a full `https://` address on another site, the only typed choice).
+ * A link saved as a typed address opens as the target that address names (`effectiveNavTarget`);
+ * one that can't be matched shows "Pick where this goes".
  */
 @Component({
   selector: 'app-nav-target-field',
@@ -96,43 +100,51 @@ export class NavTargetFieldComponent {
   readonly path = input<string | undefined>(undefined);
   /** Top-level menus may link nowhere and only open their menu. */
   readonly allowMenuOnly = input<boolean>(false);
+  /** Offer Outside Link (off where the store can only open its own pages). */
+  readonly allowOutside = input<boolean>(true);
   /** Unique id prefix for the inputs. */
   readonly fieldId = input.required<string>();
 
   readonly targetChange = output<NavTargetChange>();
-  /** ✨: fill the address from the label. */
-  readonly suggest = output<void>();
-
-  /** Old links (address only) and typed addresses show the address box. */
-  readonly #advancedPicked = linkedSignal<boolean>(() => {
-    const target = this.target();
-    return target?.kind === 'url' || (!target && !!this.path());
-  });
-
-  readonly mode = computed<'menu' | 'advanced' | 'target' | 'none'>(() => {
-    if (this.#advancedPicked()) return 'advanced';
-    const target = this.target();
-    if (target && target.kind !== 'url') return 'target';
-    return this.allowMenuOnly() ? 'menu' : 'none';
-  });
 
   readonly #catalogLists = this.#catalog.catalog;
 
+  /** What the saved link points at, with an old typed address turned into its target. */
+  readonly effective = computed<NavTarget | null>(() =>
+    effectiveNavTarget(this.target(), this.path(), this.#catalog.bestCatalog()),
+  );
+
+  /** Outside Link was picked (its address box shows even while it is empty). */
+  readonly #outsidePicked = linkedSignal<boolean>(() => this.effective()?.kind === 'url');
+
+  readonly mode = computed<'menu' | 'outside' | 'target' | 'pick' | 'saved' | 'none'>(() => {
+    if (this.#outsidePicked()) return 'outside';
+    if (this.effective()) return 'target';
+    // Until every category and brand has loaded, an old address may still match: show it as saved.
+    if (this.path()?.trim() || this.target()) return this.#catalog.targetCatalog() ? 'pick' : 'saved';
+    return this.allowMenuOnly() ? 'menu' : 'none';
+  });
+
   /** The text the Links To box shows for the current choice. */
   readonly currentLabel = computed(() => {
-    const mode = this.mode();
-    if (mode === 'menu') return MENU_LABEL;
-    if (mode === 'advanced') return ADVANCED_LABEL;
-    if (mode === 'none') return '';
-    return this.#targetLabel(this.target()!);
+    switch (this.mode()) {
+      case 'menu':
+        return MENU_LABEL;
+      case 'outside':
+        return OUTSIDE_LABEL;
+      case 'target':
+        return this.#targetLabel(this.effective()!);
+      default:
+        return '';
+    }
   });
 
   readonly query = linkedSignal<string>(() => this.currentLabel());
 
   readonly resolved = computed(() => {
-    const target = this.target();
-    const catalog = this.#catalog.targetCatalog();
+    const target = this.effective();
     if (!target || target.kind === 'url') return null;
+    const catalog = this.#catalog.targetCatalog();
     // Hidden and missing are only known from the full lists; pages need no list at all.
     if (!catalog) return { path: resolveNavTarget(target, this.#catalog.bestCatalog()).path, problem: null };
     return resolveNavTarget(target, catalog);
@@ -142,20 +154,32 @@ export class NavTargetFieldComponent {
   readonly address = computed(() => {
     const mode = this.mode();
     if (mode === 'menu') return 'Clicking the name only opens its menu.';
-    if (mode === 'none') return '';
+    if (mode === 'saved') return this.path() ? `Opens ${this.path()}` : '';
+    if (mode !== 'target') return '';
     const path = this.resolved()?.path ?? this.path();
     return path ? `Opens ${path}` : '';
   });
 
-  /** Red note when the target is hidden or gone. */
+  /** Red note when the target is hidden, gone or ended, or the old address can't be matched. */
   readonly problem = computed(() => {
-    const target = this.target();
+    if (this.mode() === 'pick') return 'Pick where this goes.';
+    const target = this.effective();
     const resolved = this.resolved();
     if (!target || !resolved?.problem) return null;
     if (resolved.problem === 'hidden') return 'Hidden on the store, so shoppers won’t see this link.';
+    if (resolved.problem === 'ended') return 'This offer isn’t running now. Pick another.';
     if (target.kind === 'brand' || target.kind === 'shop') return 'This brand no longer exists.';
     return 'This category no longer exists.';
   });
+
+  /** The Outside Link's address, and why it can't be saved yet. */
+  readonly outsideUrl = computed(() => {
+    const target = this.effective();
+    return target?.kind === 'url' ? target.url : '';
+  });
+  readonly outsideProblem = computed(() =>
+    this.mode() === 'outside' && this.outsideUrl().trim() ? outsideLinkProblem(this.outsideUrl()) : null,
+  );
 
   readonly groups = computed<readonly ChoiceGroup[]>(() => {
     const lists = this.#catalogLists();
@@ -176,13 +200,21 @@ export class NavTargetFieldComponent {
     const pages: Choice[] = NAV_TARGET_PAGES.filter((page) => matches(NAV_TARGET_PAGE_LABELS[page])).map(
       (page) => ({ kind: 'target', target: { kind: 'page', page }, label: NAV_TARGET_PAGE_LABELS[page] }),
     );
+    const offers: Choice[] = this.#catalog
+      .runningOffers()
+      .filter((offer) => matches(offer.name))
+      .map((offer) => ({ kind: 'target', target: { kind: 'offer', id: offer.id }, label: offer.name }));
+
+    const more: Choice[] = [{ kind: 'shop-dialog' }];
+    if (this.allowOutside()) more.push({ kind: 'outside' });
 
     const groups: ChoiceGroup[] = [];
     if (this.allowMenuOnly()) groups.push({ label: '', choices: [{ kind: 'menu' }] });
     if (categories.length) groups.push({ label: 'Categories', choices: categories });
     if (brands.length) groups.push({ label: 'Brands', choices: brands });
     if (pages.length) groups.push({ label: 'Pages', choices: pages });
-    groups.push({ label: 'More', choices: [{ kind: 'shop-dialog' }, { kind: 'advanced' }] });
+    if (offers.length) groups.push({ label: 'Offers', choices: offers });
+    groups.push({ label: 'More', choices: more });
     return groups;
   });
 
@@ -190,18 +222,21 @@ export class NavTargetFieldComponent {
   readonly displayWith = (value: Choice | string | null): string =>
     typeof value === 'string' ? value : value ? choiceLabel(value) : '';
 
-  readonly isShop = computed(() => this.target()?.kind === 'shop');
+  readonly isShop = computed(() => this.effective()?.kind === 'shop');
 
   async onPicked(event: MatAutocompleteSelectedEvent): Promise<void> {
     const choice = event.option.value as Choice;
     switch (choice.kind) {
       case 'menu':
-        this.#advancedPicked.set(false);
+        this.#outsidePicked.set(false);
         this.targetChange.emit({ target: null, path: '', name: null });
         break;
-      case 'advanced':
-        this.#advancedPicked.set(true);
-        this.query.set(ADVANCED_LABEL);
+      case 'outside':
+        this.#outsidePicked.set(true);
+        this.query.set(OUTSIDE_LABEL);
+        if (this.target()?.kind !== 'url') {
+          this.targetChange.emit({ target: { kind: 'url', url: '' }, path: '', name: null });
+        }
         break;
       case 'shop-dialog':
         await this.editShopFilters();
@@ -213,7 +248,7 @@ export class NavTargetFieldComponent {
   }
 
   async editShopFilters(): Promise<void> {
-    const current = this.target();
+    const current = this.effective();
     const filters: NavShopFilters = current?.kind === 'shop' ? current.filters : {};
     const ref = this.#dialog.open<ShopFiltersDialogComponent, ShopFiltersDialogData, NavShopFilters | null>(
       ShopFiltersDialogComponent,
@@ -227,11 +262,10 @@ export class NavTargetFieldComponent {
     if (picked) this.#emitTarget({ kind: 'shop', filters: picked });
   }
 
-  onAddressInput(value: string): void {
-    // Kept as typed while typing ("/category/" must not lose its slash); tidied on save.
-    // An emptied box stays a typed address (save then asks for one) so the box doesn't vanish.
-    const path = value.trim();
-    this.targetChange.emit({ target: { kind: 'url', url: path }, path, name: null });
+  onOutsideInput(value: string): void {
+    // Kept as typed while typing; save checks it (a full https:// address on another site).
+    const url = value.trim();
+    this.targetChange.emit({ target: { kind: 'url', url }, path: url, name: null });
   }
 
   /** Put the box back on the current choice when the list closes without a pick. */
@@ -243,7 +277,7 @@ export class NavTargetFieldComponent {
   }
 
   #emitTarget(target: NavTarget): void {
-    this.#advancedPicked.set(false);
+    this.#outsidePicked.set(false);
     const catalog = this.#catalog.bestCatalog();
     const path = resolveNavTarget(target, catalog).path ?? '';
     this.targetChange.emit({ target, path, name: navTargetName(target, catalog) });
@@ -260,11 +294,12 @@ export class NavTargetFieldComponent {
         return NAV_TARGET_PAGE_LABELS[target.page];
       case 'shop':
         return this.#shopLabel(target.filters);
+      case 'offer':
+        return `Offer: ${this.#catalog.runningOffers().find((offer) => offer.id === target.id)?.name ?? target.id}`;
       case 'url':
-        return ADVANCED_LABEL;
+        return OUTSIDE_LABEL;
     }
   }
-
   #shopLabel(filters: NavShopFilters): string {
     const parts: string[] = [];
     if (filters.brand) {

@@ -2,6 +2,8 @@ import { computed, Service, signal } from '@angular/core';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { StorageAssetTracker } from '@core/services/storage';
 import { NavCategory } from '@core/services/navigation';
+import type { NavTarget } from '@core/services/navigation/nav-target';
+import type { NavTargetChange } from '../../navigation-manager/components/nav-target-field/nav-target-field.component';
 import {
   DEFAULT_HERO_SLIDES,
   DEFAULT_HOME_NAV_LIST,
@@ -49,7 +51,7 @@ function buildThreeCategoryCards(source: HomeShopCategories): ShopCategoryCard[]
 
 const EMPTY_NAV_ITEM: HomeNavListItem = {
   label: '',
-  link: '/',
+  link: '',
   imageUrl: '',
   imageAlt: '',
 };
@@ -60,7 +62,16 @@ function cloneNavItem(item: HomeNavListItem): HomeNavListItem {
     link: item.link,
     imageUrl: item.imageUrl,
     imageAlt: item.imageAlt ?? '',
+    ...(item.target ? { target: item.target } : {}),
   };
+}
+
+/** A link with the picked target and its address (ATS-267); no target = no `target` key. */
+function withPicked<T extends { target?: NavTarget }>(item: T, change: NavTargetChange): T {
+  const next = { ...item };
+  if (change.target) next.target = change.target;
+  else delete next.target;
+  return next;
 }
 
 function buildNavItems(source: HomeNavList): HomeNavListItem[] {
@@ -254,8 +265,18 @@ export class HomeDraftService {
     this.#updateCurrentShopCard((card) => ({ ...card, buttonLabel }));
   }
 
-  updateShopCardButtonLink(buttonLink: string): void {
-    this.#updateCurrentShopCard((card) => ({ ...card, buttonLink }));
+  /** Links To changed (ATS-267): the target and its address; an empty label takes its name. */
+  updateShopCardTarget(change: NavTargetChange): void {
+    this.#updateCurrentShopCard((card) =>
+      withPicked(
+        {
+          ...card,
+          buttonLink: change.path,
+          buttonLabel: card.buttonLabel.trim() ? card.buttonLabel : (change.name ?? card.buttonLabel),
+        },
+        change,
+      ),
+    );
   }
 
   // --- Section 3: Category list mutations ---
@@ -281,8 +302,18 @@ export class HomeDraftService {
     this.#updateCurrentNavItem((item) => ({ ...item, label }));
   }
 
-  updateNavLink(link: string): void {
-    this.#updateCurrentNavItem((item) => ({ ...item, link }));
+  /** Links To changed (ATS-267): the target and its address; an empty name takes its name. */
+  updateNavTarget(change: NavTargetChange): void {
+    this.#updateCurrentNavItem((item) =>
+      withPicked(
+        {
+          ...item,
+          link: change.path,
+          label: item.label.trim() ? item.label : (change.name ?? item.label).slice(0, 40),
+        },
+        change,
+      ),
+    );
   }
 
   updateNavImageUrl(imageUrl: string): void {
@@ -339,7 +370,7 @@ export class HomeDraftService {
   }
 
   /**
-   * Replaces labels and links with the store menu. Photos are cleared.
+   * Replaces labels and links with the store menu (with each link's target). Photos are cleared.
    * Returns how many links were imported.
    */
   importNavItems(categories: readonly NavCategory[]): number {
@@ -350,7 +381,8 @@ export class HomeDraftService {
       if (!link.startsWith('/') || link.startsWith('//')) continue;
       const label = category.label.trim().slice(0, 40);
       if (!label) continue;
-      items.push({ label, link, imageUrl: '', imageAlt: '' });
+      const target = category.target?.kind === 'url' ? undefined : category.target;
+      items.push({ label, link, imageUrl: '', imageAlt: '', ...(target ? { target } : {}) });
     }
     if (items.length === 0) return 0;
     this.#navItems.set(items);
