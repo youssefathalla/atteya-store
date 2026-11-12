@@ -32,6 +32,9 @@
 
       <app-nav-mega-menu-editor
         [columns]="category.megaMenu ?? []"
+        [previews]="autoPreviews()"
+        [parentOptions]="autoParentOptions()"
+        (columnAutoChange)="draft.setColumnAuto($event.colIndex, $event.auto)"
         (columnAdd)="openAddColumnDialog()"
         (columnDelete)="confirmDeleteColumn($event)"
         (columnTitleChange)="draft.updateColumnTitle($event.colIndex, $event.title)"

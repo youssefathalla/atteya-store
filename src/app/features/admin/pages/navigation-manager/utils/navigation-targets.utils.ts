@@ -1,5 +1,6 @@
 import {
   resolveNavTarget,
+  type MegaMenuColumn,
   type MegaMenuLink,
   type NavCategory,
   type NavTarget,
@@ -45,10 +46,15 @@ export function withTargetPaths(
     const path = pathFor(target, category.path ?? '', catalog);
     const next: NavCategory = {
       ...category,
-      megaMenu: category.megaMenu?.map((column) => ({
-        ...column,
-        links: column.links.map((link) => linkToSave(link, catalog)),
-      })),
+      megaMenu: category.megaMenu?.map((column) => {
+        const saved: MegaMenuColumn = {
+          ...column,
+          links: column.links.map((link) => linkToSave(link, catalog)),
+        };
+        // Firestore refuses `undefined`; a column that doesn't fill itself has no `auto` key.
+        if (!saved.auto) delete saved.auto;
+        return saved;
+      }),
     };
     if (!next.megaMenu) delete next.megaMenu;
     if (target) next.target = target;

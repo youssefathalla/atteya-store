@@ -2,7 +2,12 @@ import { computed, inject, resource, Service } from '@angular/core';
 import { collection, getDocs, limit, query } from 'firebase/firestore';
 import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
-import type { NavTargetCatalog, NavTargetEntry } from '@core/services/navigation';
+import {
+  timeToMs,
+  type NavAutoSources,
+  type NavTargetCatalog,
+  type NavTargetEntry,
+} from '@core/services/navigation';
 import { BRANDS_COLLECTION, CATEGORIES_COLLECTION } from '@core/services/products';
 import { CatalogService } from '@core/services/products/catalog.service';
 
@@ -13,13 +18,21 @@ const EntrySchema = v.object({
   published: v.optional(v.boolean(), false),
   parentId: v.optional(v.nullable(v.string()), null),
   sortOrder: v.optional(v.number(), 0),
+  createdAt: v.optional(v.unknown()),
 });
 
 /** A category or brand shown in the Links To list. */
 export interface NavPickEntry extends NavTargetEntry {
   /** "Apparel › Socks" for a sub-category, the name otherwise. */
   readonly displayName: string;
+  /** Categories only: the parent category, null for a top-level one (and for brands). */
+  readonly parentId: string | null;
+  readonly sortOrder: number;
+  /** When it was added; 0 when unknown (for "Newest Brands"). */
+  readonly createdAtMs: number;
 }
+
+type ReadEntry = Omit<NavPickEntry, 'displayName'>;
 
 interface CatalogLists {
   readonly categories: readonly NavPickEntry[];
@@ -59,14 +72,13 @@ export class NavigationCatalogService {
     },
   });
 
-  async #read(
-    name: string,
-  ): Promise<(NavTargetEntry & { readonly parentId: string | null; readonly sortOrder: number })[]> {
+  async #read(name: string): Promise<ReadEntry[]> {
     const snap = await getDocs(query(collection(this.#firestore, name), limit(MAX_ENTRIES)));
     return snap.docs.flatMap((doc) => {
       const parsed = v.safeParse(EntrySchema, doc.data());
       if (!parsed.success) return [];
-      return [{ id: doc.id, ...parsed.output }];
+      const { createdAt, ...entry } = parsed.output;
+      return [{ id: doc.id, ...entry, createdAtMs: timeToMs(createdAt) }];
     });
   }
 
@@ -91,6 +103,36 @@ export class NavigationCatalogService {
     return {
       categories: this.#published.categories() ?? [],
       brands: this.#published.brands() ?? [],
+    };
+  });
+
+  /**
+   * What Fill Automatically columns list on the store now (ATS-247): the shown categories and
+   * brands from the full read, else the store's published lists while it loads or failed.
+   */
+  readonly autoSources = computed<NavAutoSources>(() => {
+    const full = this.catalog();
+    if (full) {
+      return {
+        categories: full.categories.filter((entry) => entry.published),
+        brands: full.brands.filter((entry) => entry.published),
+      };
+    }
+    return {
+      categories: (this.#published.categories() ?? []).map((entry) => ({
+        id: entry.id,
+        slug: entry.slug,
+        name: entry.name,
+        parentId: entry.parentId,
+        sortOrder: entry.sortOrder,
+      })),
+      brands: (this.#published.brands() ?? []).map((entry) => ({
+        id: entry.id,
+        slug: entry.slug,
+        name: entry.name,
+        sortOrder: entry.sortOrder,
+        createdAtMs: timeToMs(entry.createdAt),
+      })),
     };
   });
 

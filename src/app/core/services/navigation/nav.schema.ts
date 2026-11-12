@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import { NavAutoColumnSchema } from './nav-auto-columns';
 import { NavTargetSchema } from './nav-target';
 
 export const MegaMenuLinkSchema = v.object({
@@ -13,7 +14,10 @@ export const MegaMenuLinkSchema = v.object({
 
 export const MegaMenuColumnSchema = v.object({
   title: v.optional(v.string()),
+  /** Kept while `auto` is on, so turning Fill Automatically off brings them back. */
   links: v.array(MegaMenuLinkSchema),
+  /** Fill Automatically (ATS-247): the column shows brands or sub-categories instead of `links`. */
+  auto: v.fallback(v.optional(NavAutoColumnSchema), undefined),
 });
 
 export const NavCategorySchema = v.object({
