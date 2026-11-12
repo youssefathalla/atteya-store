@@ -1,9 +1,10 @@
 // GENERATED — edit functions/src/offers/engine
 import { MAX_BUNDLE_PIECES, MAX_BUNDLE_ROWS } from './bundle-price';
+import { bundleSetMatch, bundleSetProblems } from './bundle-set';
 import { MAX_BANNER_COUNTDOWN_DAYS, MAX_BANNER_TEXT, MIN_BANNER_COUNTDOWN_DAYS } from './banner';
 import { MAX_GIFT_CHOICES, MAX_GIFT_NAME, MAX_OFFER_GIFTS } from './gifts';
 import { formatCairoDate } from './cairo-time';
-import { matchProduct } from './match';
+import { matchProduct, type MatchLevel } from './match';
 import type {
   Offer,
   OfferBundleRow,
@@ -81,16 +82,14 @@ export function validateOffer(
   validateRewardErrors(draft, products, errors);
 
   // Warnings
-  if (draft.conditions.anyOf.length === 0) {
+  if (draft.conditions.anyOf.length === 0 && draft.reward.kind !== 'bundleSet') {
     warnings.push({
       code: 'conditions.all',
       message: 'No product filters are set, so this offer applies to every product in the store.',
     });
   }
 
-  const matchedProducts = products.filter(
-    (product) => matchProduct(draft.conditions, draft.exclude, product) !== 'none',
-  );
+  const matchedProducts = products.filter((product) => draftMatch(draft, product) !== 'none');
   if (products.length > 0 && matchedProducts.length === 0) {
     warnings.push({
       code: 'conditions.zero',
@@ -137,9 +136,7 @@ export function validateOffer(
   }
 
   for (const other of overlapCandidates(others, draft.id, ctx.now)) {
-    const overlapCount = matchedProducts.filter(
-      (product) => matchProduct(other.conditions, other.exclude, product) !== 'none',
-    ).length;
+    const overlapCount = matchedProducts.filter((product) => draftMatch(other, product) !== 'none').length;
     if (overlapCount === 0) continue;
     const message = overlapMessage(draft, other, overlapCount);
     if (!message) continue;
@@ -154,6 +151,12 @@ export function validateOffer(
   }
 
   return { errors, warnings };
+}
+
+/** How a product fits an offer; a Bundle & Save offer covers only its groups' products. */
+function draftMatch(offer: OfferDraft, product: PricedProduct): MatchLevel {
+  if (offer.reward.kind === 'bundleSet') return bundleSetMatch(offer, product);
+  return matchProduct(offer.conditions, offer.exclude, product);
 }
 
 function validateConditionsShape(conditions: OfferConditions, label: string, errors: OfferIssue[]): void {
@@ -265,6 +268,9 @@ function validateRewardErrors(
       break;
     case 'bundlePrice':
       validateBundleRows(r.rows, errors);
+      break;
+    case 'bundleSet':
+      errors.push(...bundleSetProblems(r));
       break;
     case 'freeGift':
       validateGifts(r.gifts, products, errors);
@@ -507,7 +513,7 @@ function validateBanner(draft: OfferDraft, errors: OfferIssue[]): void {
 }
 
 /** What an offer does to an item when it overlaps another: null = it can always come on top. */
-type OverlapRole = 'price' | 'deal' | 'bundle' | 'gift';
+type OverlapRole = 'price' | 'deal' | 'bundle' | 'set' | 'gift';
 
 /**
  * Other offers that are on now or scheduled to start later (on, not archived, not ended), whatever
@@ -538,6 +544,8 @@ function overlapRole(offer: OfferDraft): OverlapRole | null {
       return hasMinimum(offer) ? null : 'deal';
     case 'bundlePrice':
       return hasMinimum(offer) ? null : 'bundle';
+    case 'bundleSet':
+      return hasMinimum(offer) ? null : 'set';
     case 'freeGift':
       return hasMinimum(offer) ? null : 'gift';
     default:
@@ -575,10 +583,13 @@ function overlapMessage(draft: OfferDraft, other: Offer, count: number): string 
   if (mine === 'bundle' && theirs === 'bundle') {
     return `${alsoIn} Each item counts toward one Bundle price offer only, the higher-priority one first.`;
   }
+  if (mine === 'set' && theirs === 'set') {
+    return `${alsoIn} Each item counts toward one Bundle & Save offer only, the higher-priority one first.`;
+  }
   if (mine === 'deal' && theirs === 'deal') {
     return `${alsoIn} Each item counts toward one Buy X get Y offer only, the higher-priority one first.`;
   }
-  if (roles.has('deal') || roles.has('bundle')) {
+  if (roles.has('deal') || roles.has('bundle') || roles.has('set')) {
     return `${alsoIn} Shoppers get whichever saves them more, never both.`;
   }
   return `${alsoIn} Shoppers get whichever is cheaper.`;

@@ -104,6 +104,8 @@ export interface OrderLineDeal {
   readonly percent: number;
   readonly discountEgp: number;
   readonly bundle?: true;
+  /** Set (with `bundle`) on a Bundle & Save offer's share of its set total. */
+  readonly set?: true;
 }
 
 /** Marks an order line as a free gift. Gift lines follow the line they belong to. */
@@ -551,7 +553,8 @@ async function priceWithOffers(
     throw outdatedPageError();
   }
   for (const offerId of deals.offerIds) {
-    const bundle = offers.find((offer) => offer.id === offerId)?.reward.kind === 'bundlePrice';
+    const kind = offers.find((offer) => offer.id === offerId)?.reward.kind;
+    const bundle = kind === 'bundlePrice' || kind === 'bundleSet';
     addUsedOffer(usedOffers, offers, offerId, bundle ? 'bundle' : 'deal');
   }
   // A Buy X Get Y offer the bag showed (`dealOfferIds`) that this order doesn't get (it ended, was
@@ -822,6 +825,7 @@ export function withDeals(priced: OrderLinePrice, lineDeals: BagLineDeals): Orde
       percent: deal.percent,
       discountEgp: deal.discount,
       ...(deal.bundle ? { bundle: true as const } : {}),
+      ...(deal.set ? { set: true as const } : {}),
     })),
   };
 }

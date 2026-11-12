@@ -1,6 +1,6 @@
 import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, input } from '@angular/core';
-import { displayPrice, matchProduct, type Offer, type OfferDraft } from '@core/services/offers/engine';
+import { displayPrice, offerMatch, type Offer, type OfferDraft } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import type { Product } from '@core/services/products/product.model';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
@@ -39,7 +39,7 @@ export class OfferPreviewComponent {
     let total = 0;
     for (const product of this.products()) {
       const priced = toPricedProduct(product);
-      const level = matchProduct(draft.conditions, draft.exclude, priced);
+      const level = offerMatch(draft, priced);
       if (level === 'none') continue;
       total += 1;
       if (rows.length >= MAX_ROWS) continue;

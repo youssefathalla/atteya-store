@@ -2,7 +2,7 @@ import { isPlatformServer } from '@angular/common';
 import { inject, Injector, makeStateKey, PLATFORM_ID, RESPONSE_INIT, TransferState } from '@angular/core';
 import type { ResolveFn } from '@angular/router';
 import { ProductCacheService, ProductService } from '@core/services/products';
-import { matchProduct, type Offer } from '@core/services/offers/engine';
+import { offerMatch, type Offer } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { type TransferOffer, toTransferOffer } from '@core/services/offers/offer-transfer';
 import { PublicOffersReader } from '@core/services/offers/public-offers.reader';
@@ -98,7 +98,7 @@ async function readOffers(
 
 /**
  * Keep only offers that can still matter for this product: not ended yet (upcoming ones stay so an
- * open page can start them on time) and not ruled out by matchProduct. Keeps TransferState HTML small.
+ * open page can start them on time) and not ruled out by offerMatch. Keeps TransferState HTML small.
  * Pricing itself still goes through priceItem/displayPrice, which re-check the window and audience.
  */
 function relevantOffers(
@@ -110,6 +110,6 @@ function relevantOffers(
   const facts = toPricedProduct(product);
   return offers
     .filter((offer) => !offer.schedule.endsAt || offer.schedule.endsAt.getTime() > nowMs)
-    .filter((offer) => matchProduct(offer.conditions, offer.exclude, facts) !== 'none')
+    .filter((offer) => offerMatch(offer, facts) !== 'none')
     .map(toTransferOffer);
 }

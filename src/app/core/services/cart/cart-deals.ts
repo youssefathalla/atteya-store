@@ -3,6 +3,7 @@ import {
   priceBagDeals,
   priceItem,
   type BagBundle,
+  type BagBundleSet,
   type BagDealHint,
   type BagLineDeals,
   type BagLineFacts,
@@ -50,6 +51,8 @@ export interface PricedBagDeals {
   readonly hints: readonly BagDealHint[];
   /** Bundle price offers the bag counts toward, with `lineIndex` pointing at the bag line. */
   readonly bundles: readonly BagBundle[];
+  /** Bundle & Save offers the bag counts toward, with `lineIndex` pointing at the bag line. */
+  readonly sets: readonly BagBundleSet[];
   /**
    * True when adding `quantity` of this product to the bag would really get it a discount from
    * the Buy X Get Y offer `offerId` (one discount per item applied), so the bag never offers a
@@ -121,6 +124,7 @@ export function priceBag(
     lines: priced,
     hints: deals.hints.map((hint) => ({ ...hint, lineIndex: toBagLine(hint.lineIndex) })),
     bundles: deals.bundles.map((bundle) => ({ ...bundle, lineIndex: toBagLine(bundle.lineIndex) })),
+    sets: deals.sets.map((set) => ({ ...set, lineIndex: toBagLine(set.lineIndex) })),
     wouldDiscount: (offerId, product, quantity) =>
       freeItemWins(facts, offers, ctx, offerId, extraLineFacts(product, quantity, offers, ctx)),
   };

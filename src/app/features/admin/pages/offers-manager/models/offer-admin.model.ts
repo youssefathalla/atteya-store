@@ -3,7 +3,7 @@ import {
   dateToCairoWallTime,
   DEFAULT_OFFER_BANNER,
   describeOfferReward,
-  matchProduct,
+  offerMatch,
   type Offer,
   type OfferConditionAtom,
   type OfferConditionField,
@@ -38,6 +38,7 @@ export type RewardPickerKind =
   | 'fixedPrice'
   | 'buyXGetY'
   | 'bundlePrice'
+  | 'bundleSet'
   | 'tiered'
   | 'freeGift'
   | 'freeShipping'
@@ -61,9 +62,10 @@ export const REWARD_PICKER_OPTIONS: readonly RewardPickerOption[] = [
 /**
  * Deal types kept in the engine but hidden from the Deal type list for launch ("Buy more, save
  * more" and "Spend X, get…" don't take the promised money off yet, ATS-135). An old offer of one of
- * these still opens, but it can't be saved.
+ * these still opens, but it can't be saved. Bundle & Save (`bundleSet`) is priced by the engine and
+ * the order callables but has no editor yet (ATS-253), so it is hidden the same way until then.
  */
-const HIDDEN_REWARD_KINDS: readonly RewardPickerKind[] = ['tiered', 'cartThreshold'];
+const HIDDEN_REWARD_KINDS: readonly RewardPickerKind[] = ['tiered', 'cartThreshold', 'bundleSet'];
 
 export const UNAVAILABLE_DEAL_MESSAGE = "This deal type isn't available yet. Pause or archive this offer.";
 
@@ -260,7 +262,7 @@ export function matchesDealFilter(offer: Offer, filter: OfferDealFilter): boolea
     case 'gifts':
       return kind === 'freeGift';
     case 'bundles':
-      return kind === 'bundlePrice' || kind === 'buyXGetY';
+      return kind === 'bundlePrice' || kind === 'buyXGetY' || kind === 'bundleSet';
     case 'banner':
       return offer.banner?.show === true;
   }
@@ -367,7 +369,7 @@ export function offerAudienceLabel(offer: Offer): string {
 export function affectedProductIds(offer: Offer, products: readonly PricedProduct[]): Set<string> {
   const ids = new Set<string>();
   for (const product of products) {
-    if (matchProduct(offer.conditions, offer.exclude, product) !== 'none') ids.add(product.productId);
+    if (offerMatch(offer, product) !== 'none') ids.add(product.productId);
   }
   return ids;
 }

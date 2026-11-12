@@ -7,6 +7,7 @@ import {
   MAX_OFFER_GIFTS,
   bundleRows,
   parseOfferBanner,
+  readBundleSet,
   type OfferReward,
 } from './engine';
 
@@ -99,6 +100,11 @@ const RewardVariantSchema = v.variant('kind', [
     // Bad rows are dropped by `bundleRows` below, as the server's reader does, so both price the same rows.
     rows: v.array(v.object({ quantity: v.number(), price: v.number() })),
   }),
+  // Read by the engine's `readBundleSet` (same reader as the server), so the bag, checkout and the
+  // order callables always see the same groups; a bad reward keeps the offer with no groups.
+  v.looseObject({
+    kind: v.literal('bundleSet'),
+  }),
   v.object({
     kind: v.literal('freeGift'),
     gifts: v.optional(v.pipe(v.array(OfferGiftSchema), v.maxLength(MAX_OFFER_GIFTS))),
@@ -119,6 +125,7 @@ export const OfferRewardSchema = v.pipe(
   RewardVariantSchema,
   v.transform((reward): OfferReward => {
     if (reward.kind === 'bundlePrice') return { kind: 'bundlePrice', rows: bundleRows(reward) };
+    if (reward.kind === 'bundleSet') return readBundleSet(reward);
     if (reward.kind !== 'freeGift') return reward;
     if (reward.gifts) {
       return {

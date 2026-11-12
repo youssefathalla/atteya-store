@@ -27,7 +27,7 @@ import {
   giftChoiceIds,
   giftOfferForProduct,
   liveOffers,
-  matchProduct,
+  offerMatch,
   type Offer,
   type OfferBadge,
   type OfferBundleRow,
@@ -386,7 +386,13 @@ export class ProductComponent {
         ? offers.find((offer) => offer.id === badge.offerId)?.reward.kind
         : undefined;
       if (kind === 'freeGift') continue;
-      if (kind === 'buyXGetY' || kind === 'bundlePrice' || kind === 'tiered' || kind === 'freeShipping') {
+      if (
+        kind === 'buyXGetY' ||
+        kind === 'bundlePrice' ||
+        kind === 'bundleSet' ||
+        kind === 'tiered' ||
+        kind === 'freeShipping'
+      ) {
         const offer = offers.find((candidate) => candidate.id === badge.offerId);
         // Free shipping applies to Egypt orders only, so it is never promised abroad.
         if (offer && !offerTitleVisible(offer, country)) continue;
@@ -413,9 +419,7 @@ export class ProductComponent {
       const facts = toPricedProduct(p);
       const candidates = liveOffers(this.#offers(), this.#pricingCtx()).filter(
         (offer) =>
-          offer.reward.kind === 'freeGift' &&
-          offer.scope === 'item' &&
-          matchProduct(offer.conditions, offer.exclude, facts) !== 'none',
+          offer.reward.kind === 'freeGift' && offer.scope === 'item' && offerMatch(offer, facts) !== 'none',
       );
       return giftChoiceIds(candidates).sort();
     },

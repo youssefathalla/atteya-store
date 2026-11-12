@@ -5,8 +5,8 @@ import type { OfferLimits } from '../offers/engine/index.js';
 
 /**
  * An offer an order uses, with its limits: a Free gift offer it gives gifts from (`gift`), a
- * Buy X Get Y offer that discounts it (`deal`), a Bundle price offer that prices some of its pieces
- * (`bundle`), a Percent off, Amount off or Set price offer that
+ * Buy X Get Y offer that discounts it (`deal`), a Bundle price or Bundle & Save offer that prices
+ * some of its pieces (`bundle`), a Percent off, Amount off or Set price offer that
  * lowers the price of at least one piece (`item`), or a Free shipping offer that made the
  * shipping free (`shipping`). Each counts once per order, however many pieces it touches.
  */

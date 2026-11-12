@@ -65,6 +65,8 @@ export interface OrderLineDeal {
   readonly percent: number;
   readonly discountEgp: number;
   readonly bundle?: true;
+  /** Set (with `bundle`) on a Bundle & Save offer's share of its set total. */
+  readonly set?: true;
 }
 
 /** Marks an order line as a free gift of an offer, given with the line at index `forLine`. */
