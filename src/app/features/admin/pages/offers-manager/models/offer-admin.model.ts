@@ -370,11 +370,14 @@ export function offerAudienceLabel(offer: Offer): string {
   return offer.audience === 'signedIn' ? 'Signed-in shoppers' : 'Everyone';
 }
 
-/** Ids of the products an offer reaches (fully or for some sizes or colours). */
+/**
+ * Ids of the products an offer reaches (fully or for some sizes or colours). A Bundle & Save offer
+ * keeps its products in its groups, so it uses the editor's rule: a product counts when it fits any group.
+ */
 export function affectedProductIds(offer: Offer, products: readonly PricedProduct[]): Set<string> {
   const ids = new Set<string>();
   for (const product of products) {
-    if (offerMatch(offer, product) !== 'none') ids.add(product.productId);
+    if (editorOfferMatch(offer, product) !== 'none') ids.add(product.productId);
   }
   return ids;
 }
@@ -424,7 +427,11 @@ export function toOfferCardItem(offer: Offer, productIds: ReadonlySet<string>, n
     when: offerWhenLine(offer, now),
     who: offerAudienceLabel(offer),
     productIds,
-    coversAll: offer.conditions.anyOf.length === 0 && offer.exclude.anyOf.length === 0,
+    // Bundle & Save leaves `conditions` empty (its products live in the groups), so it never covers all.
+    coversAll:
+      offer.reward.kind !== 'bundleSet' &&
+      offer.conditions.anyOf.length === 0 &&
+      offer.exclude.anyOf.length === 0,
   };
 }
 
