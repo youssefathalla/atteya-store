@@ -370,14 +370,11 @@ export function offerAudienceLabel(offer: Offer): string {
   return offer.audience === 'signedIn' ? 'Signed-in shoppers' : 'Everyone';
 }
 
-/**
- * Ids of the products an offer reaches (fully or for some sizes or colours). A Bundle & Save offer
- * keeps its products in its groups, so it uses the editor's rule: a product counts when it fits any group.
- */
+/** Ids of the products an offer reaches (fully or for some sizes or colours). */
 export function affectedProductIds(offer: Offer, products: readonly PricedProduct[]): Set<string> {
   const ids = new Set<string>();
   for (const product of products) {
-    if (editorOfferMatch(offer, product) !== 'none') ids.add(product.productId);
+    if (offerMatch(offer, product) !== 'none') ids.add(product.productId);
   }
   return ids;
 }
