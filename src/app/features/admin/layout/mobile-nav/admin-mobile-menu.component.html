@@ -48,14 +48,14 @@
                 class="w-full elements-between px-3 py-3 border-shape hover:bg-surface-container-high transition-colors text-left"
               >
                 <div class="flex items-center gap-3">
-                  <mat-icon [name]="category.icon" size="sm" />
+                  <mat-icon [name]="category.icon" />
                   <span class="font-title-sm font-bold! tracking-wider uppercase">
                     {{ category.label }}
                   </span>
                 </div>
                 <div class="flex items-center gap-2 opacity-60">
                   <span class="font-label-sm font-mono">{{ category.subItems.length }}</span>
-                  <mat-icon name="chevron_right" size="sm" />
+                  <mat-icon name="chevron_right" />
                 </div>
               </button>
             } @else {
@@ -66,12 +66,12 @@
                 class="w-full elements-between px-3 py-3 border-shape hover:bg-surface-container-high transition-colors"
               >
                 <div class="flex items-center gap-3">
-                  <mat-icon [name]="category.icon" size="sm" />
+                  <mat-icon [name]="category.icon" size="lg" />
                   <span class="font-title-sm font-bold! tracking-wider uppercase">
                     {{ category.label }}
                   </span>
                 </div>
-                <mat-icon name="chevron_right" size="sm" />
+                <mat-icon name="chevron_right" size="lg" />
               </a>
             }
           }
@@ -87,7 +87,7 @@
             class="elements-between border-shape bg-surface-container-high p-3 hover:bg-surface-container-highest transition-colors"
           >
             <div class="flex items-center gap-2.5">
-              <mat-icon name="open_in_new" size="sm" />
+              <mat-icon name="open_in_new" size="lg" />
               <span class="font-title-sm font-bold! uppercase tracking-wider"> Preview Storefront </span>
             </div>
             <span class="font-label-sm font-bold! opacity-60">Live</span>
@@ -141,7 +141,7 @@
         <!-- Current Category Title -->
         <div class="px-5 py-3 border-b border-outline-variant bg-surface-container-low elements-between">
           <div class="flex items-center gap-2.5">
-            <mat-icon [name]="cat.icon" size="sm" />
+            <mat-icon [name]="cat.icon" size="lg" />
             <h2 class="font-title-md font-bold! tracking-wide uppercase">
               {{ cat.label }}
             </h2>
@@ -163,7 +163,7 @@
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     @if (item.icon) {
-                      <mat-icon [name]="item.icon" size="sm" />
+                      <mat-icon [name]="item.icon" size="lg" />
                     }
                     <div class="min-w-0">
                       <div class="font-body-md font-bold! truncate">{{ item.label }}</div>
@@ -189,7 +189,7 @@
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     @if (item.icon) {
-                      <mat-icon [name]="item.icon" size="sm" />
+                      <mat-icon [name]="item.icon" size="lg" />
                     }
                     <div class="min-w-0">
                       <div class="font-body-md font-bold! truncate">{{ item.label }}</div>

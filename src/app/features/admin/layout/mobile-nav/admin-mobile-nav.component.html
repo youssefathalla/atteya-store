@@ -8,7 +8,17 @@
       <mat-icon name="store" />
     </a>
 
-    <!-- 2. Menu / Modules Toggle (menu <-> close) -->
+    <!-- 2. Quick access: Orders -->
+    <a matIconButton routerLink="/admin/orders" aria-label="Orders">
+      <mat-icon name="receipt_long" />
+    </a>
+
+    <!-- 3. Quick access: Add Product -->
+    <a matIconButton routerLink="/admin/products/new" aria-label="Add Product">
+      <mat-icon name="add" />
+    </a>
+
+    <!-- 4. Menu / Modules Toggle (menu <-> close) -->
     <button matIconButton type="button" (click)="toggleMenu()" aria-label="Toggle admin navigation menu">
       <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" />
     </button>
