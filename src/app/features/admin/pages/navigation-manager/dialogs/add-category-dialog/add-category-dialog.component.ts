@@ -6,7 +6,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import { normalizePath, slugify } from '../../utils/navigation-manager.utils';
+import { NavigationDraftService } from '../../services/navigation-draft.service';
+import { normalizePath, noNavPathMessage, suggestNavPath } from '../../utils/navigation-manager.utils';
+import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 
 export interface AddCategoryDialogResult {
   label: string;
@@ -28,6 +30,8 @@ export interface AddCategoryDialogResult {
 })
 export class AddCategoryDialogComponent {
   readonly #dialogRef = inject(MatDialogRef<AddCategoryDialogComponent, AddCategoryDialogResult | null>);
+  readonly #draft = inject(NavigationDraftService);
+  readonly #snackbar = inject(SnackbarService);
 
   readonly label = signal<string>('');
   readonly path = signal<string>('/category');
@@ -40,8 +44,8 @@ export class AddCategoryDialogComponent {
   onLabelChange(value: string): void {
     this.label.set(value);
     if (!this.isManualPath()) {
-      const slug = slugify(value);
-      this.path.set(slug ? `/category/${slug}` : '/category');
+      const suggested = suggestNavPath(value, false, this.#draft.catalogForPaths());
+      if (suggested) this.path.set(suggested);
     }
   }
 
@@ -51,8 +55,12 @@ export class AddCategoryDialogComponent {
   }
 
   generateSlug(): void {
-    const slug = slugify(this.label());
-    this.path.set(slug ? `/category/${slug}` : '/category');
+    const suggested = suggestNavPath(this.label(), false, this.#draft.catalogForPaths());
+    if (!suggested) {
+      this.#snackbar.error(noNavPathMessage(this.label() || 'this menu'));
+      return;
+    }
+    this.path.set(suggested);
     this.isManualPath.set(false);
   }
 

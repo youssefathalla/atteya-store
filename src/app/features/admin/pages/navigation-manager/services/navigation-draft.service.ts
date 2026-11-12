@@ -2,51 +2,29 @@ import { computed, inject, Service, signal } from '@angular/core';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { MegaMenuColumn, MegaMenuLink, NavCategory } from '@core/services/navigation';
-import { normalizePath, slugify } from '../utils/navigation-manager.utils';
-
-function computeAutoSyncPath(
-  link: MegaMenuLink,
-  field: keyof MegaMenuLink,
-  value: unknown,
-  basePath: string,
-): string | undefined {
-  if (field === 'label' && typeof value === 'string' && value.trim()) {
-    const oldSlug = slugify(link.label);
-    const currentPath = link.path;
-    const isAutoSyncCandidate =
-      !currentPath ||
-      currentPath === '/category' ||
-      currentPath === '/brand' ||
-      currentPath.endsWith(`/${oldSlug}`) ||
-      currentPath.endsWith('/new-link');
-
-    const effectiveBasePath = link.isBrand ? '/brand' : basePath;
-    return isAutoSyncCandidate ? `${effectiveBasePath}/${slugify(value)}` : undefined;
-  }
-
-  if (field === 'isBrand') {
-    const isBrand = Boolean(value);
-    const slug = slugify(link.label);
-    const currentPath = link.path;
-    const isAutoSyncCandidate =
-      !currentPath ||
-      currentPath === '/category' ||
-      currentPath === '/brand' ||
-      (Boolean(slug) && currentPath.endsWith(`/${slug}`)) ||
-      currentPath.endsWith('/new-link');
-
-    if (isAutoSyncCandidate) {
-      const effectiveBasePath = isBrand ? '/brand' : basePath;
-      return slug ? `${effectiveBasePath}/${slug}` : `${effectiveBasePath}/`;
-    }
-  }
-
-  return undefined;
-}
+import { CatalogService } from '@core/services/products/catalog.service';
+import { SEED_BRANDS, SEED_CATEGORIES } from '@core/services/products/catalog-taxonomy';
+import {
+  normalizePath,
+  noNavPathMessage,
+  suggestNavPath,
+  type NavCatalog,
+} from '../utils/navigation-manager.utils';
 
 @Service()
 export class NavigationDraftService {
   readonly #snackbar = inject(SnackbarService);
+  readonly #catalog = inject(CatalogService);
+
+  /** Live published categories and brands (the built-in list until they load). */
+  catalogForPaths(): NavCatalog {
+    const categories = this.#catalog.categories() ?? [];
+    const brands = this.#catalog.brands() ?? [];
+    return {
+      categories: categories.length ? categories : SEED_CATEGORIES.filter((item) => item.published !== false),
+      brands: brands.length ? brands : SEED_BRANDS.filter((item) => item.published !== false),
+    };
+  }
 
   readonly draftCategories = signal<NavCategory[]>([]);
   readonly selectedCategoryId = signal<string | null>(null);
@@ -150,10 +128,13 @@ export class NavigationDraftService {
     const current = this.selectedCategory();
     if (!current?.label) return;
 
-    const slug = slugify(current.label);
-    const newPath = slug ? `/category/${slug}` : '/category';
+    const newPath = suggestNavPath(current.label, false, this.catalogForPaths());
+    if (!newPath) {
+      this.#snackbar.error(noNavPathMessage(current.label));
+      return;
+    }
     this.updateCategoryPath(newPath);
-    this.#snackbar.info(`Path generated: "${newPath}"`);
+    this.#snackbar.info(`Address set to "${newPath}".`);
   }
 
   // --- Mega Menu Column Management ---
@@ -226,30 +207,26 @@ export class NavigationDraftService {
     const link = current.megaMenu[colIndex]?.links[linkIndex];
     if (!link) return;
 
-    const basePath = link.isBrand
-      ? '/brand'
-      : current.path || `/category/${slugify(current.label || current.id)}`;
-    const slug = slugify(link.label || 'item');
-    this.updateLinkField(colIndex, linkIndex, 'path', `${basePath}/${slug}`);
+    const newPath = suggestNavPath(link.label, Boolean(link.isBrand), this.catalogForPaths());
+    if (!newPath) {
+      this.#snackbar.error(noNavPathMessage(link.label || 'this link'));
+      return;
+    }
+    this.updateLinkField(colIndex, linkIndex, 'path', newPath);
+    this.#snackbar.info(`Address set to "${newPath}".`);
   }
 
   updateLinkField(colIndex: number, linkIndex: number, field: keyof MegaMenuLink, value: unknown): void {
     const current = this.selectedCategory();
     if (!current) return;
 
-    const basePath = current.path || `/category/${slugify(current.label || current.id)}`;
-
+    // Editing a label or the Brand box never rewrites the address: only ✨ fills it, from real categories.
     this.#updateColumns((cols) =>
       cols.map((col, cIdx) => {
         if (cIdx !== colIndex) return col;
         const updatedLinks = col.links.map((link, lIdx) => {
           if (lIdx !== linkIndex) return link;
-          const autoPath = computeAutoSyncPath(link, field, value, basePath);
-          const updatedLink: MegaMenuLink = {
-            ...link,
-            [field]: value,
-            ...(autoPath ? { path: autoPath } : {}),
-          };
+          const updatedLink: MegaMenuLink = { ...link, [field]: value };
           if (!updatedLink.isBrand) {
             delete updatedLink.isBrand;
           }
