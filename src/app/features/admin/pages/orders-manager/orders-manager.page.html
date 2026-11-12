@@ -72,7 +72,12 @@
     } @else if (loadErrorMessage(); as message) {
       <p class="surface-card p-5 font-body-md break-words" role="alert">{{ message }}</p>
     } @else if (cards().length === 0) {
-      @if (hasFilters()) {
+      @if (hasFilters() && hitLimit()) {
+        <p class="surface-card p-5 font-body-md">
+          No match among the newest {{ dataResource.value()?.orders.length }} orders checked. Older orders may
+          still match: search by phone number or order number, or pick other dates.
+        </p>
+      } @else if (hasFilters()) {
         <p class="surface-card p-5 font-body-md">
           No orders match this search. Check the spelling, try the phone number, or pick other dates.
         </p>

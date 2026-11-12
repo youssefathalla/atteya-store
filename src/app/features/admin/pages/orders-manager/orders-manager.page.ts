@@ -173,10 +173,17 @@ export class OrdersManagerPageComponent implements OnInit {
   /** Firestore stopped at the page size, so older matches exist. */
   readonly hitLimit = computed(() => (this.dataResource.value()?.orders.length ?? 0) >= ORDERS_PAGE_SIZE);
 
-  /** "3 orders", "1 order"; "Newest 50 orders" when there may be more. */
+  /**
+   * "3 orders", "1 order"; "Newest 50 orders" when there may be more. With several words,
+   * Firestore only matched one of them, so the label says the matches come from that newest page.
+   */
   readonly countLabel = computed(() => {
     const count = this.cards().length;
-    if (this.hitLimit() && this.searchTerms().length < 2) return `Newest ${count} orders`;
+    if (this.hitLimit()) {
+      if (this.searchTerms().length < 2) return `Newest ${count} orders`;
+      const matches = count === 1 ? '1 match' : `${count} matches`;
+      return `${matches} among the newest ${ORDERS_PAGE_SIZE} orders`;
+    }
     return count === 1 ? '1 order' : `${count} orders`;
   });
 
