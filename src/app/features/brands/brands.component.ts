@@ -3,18 +3,26 @@ import { RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
+import { SkeletonComponent } from '@shared/ui/skeleton';
 import { NavService } from '@core/services/navigation';
 import { SeoService } from '@core/services/seo';
 
 interface BrandCardItem {
   readonly label: string;
   readonly path: string;
-  readonly groupTitle: string;
 }
+
+interface BrandGroup {
+  readonly title: string;
+  readonly brands: readonly BrandCardItem[];
+}
+
+/** Placeholder cards shown while navigation loads (one desktop row). */
+const SKELETON_CARDS = [0, 1, 2, 3] as const;
 
 @Component({
   selector: 'app-brands',
-  imports: [RouterLink, LinkTargetPipe, MatButtonModule, SharedIconModule],
+  imports: [RouterLink, LinkTargetPipe, MatButtonModule, SharedIconModule, SkeletonComponent],
   templateUrl: './brands.component.html',
   host: {
     class: 'block w-full min-h-[60vh] container-content',
@@ -24,6 +32,8 @@ export class BrandsComponent implements OnInit {
   readonly #navService = inject(NavService);
   readonly #seoService = inject(SeoService);
 
+  readonly skeletonCards = SKELETON_CARDS;
+
   ngOnInit(): void {
     this.#seoService.setPageMetadata({
       title: 'Featured Brands | Atteya Store',
@@ -32,44 +42,28 @@ export class BrandsComponent implements OnInit {
     });
   }
 
-  readonly brandGroups = computed(() => {
+  /** Same signal the navbar waits for: navigation and catalogue counts have settled (SSR seed or browser read). */
+  readonly isReady = this.#navService.navLinksReady;
+
+  readonly brandGroups = computed<readonly BrandGroup[]>(() => {
     const brandsCategory = this.#navService
       .storefrontCategories()
       .find((c) => c.id.toLowerCase() === 'brands' || c.path === '/brands');
 
-    if (!brandsCategory?.megaMenu || brandsCategory.megaMenu.length === 0) {
-      return [
-        {
-          title: 'TOP PADEL BRANDS',
-          brands: [
-            { label: 'Bullpadel', path: '/brand/bullpadel', groupTitle: 'TOP PADEL BRANDS' },
-            { label: 'Nox Padel', path: '/brand/nox', groupTitle: 'TOP PADEL BRANDS' },
-            { label: 'Babolat', path: '/brand/babolat', groupTitle: 'TOP PADEL BRANDS' },
-            { label: 'Head Padel', path: '/brand/head', groupTitle: 'TOP PADEL BRANDS' },
-          ],
-        },
-        {
-          title: 'SPORTSWEAR',
-          brands: [
-            { label: 'On Cloud', path: '/brand/on-cloud', groupTitle: 'SPORTSWEAR' },
-            { label: 'Adidas', path: '/brand/adidas', groupTitle: 'SPORTSWEAR' },
-            { label: 'Siux', path: '/brand/siux', groupTitle: 'SPORTSWEAR' },
-          ],
-        },
-      ];
-    }
-
-    return brandsCategory.megaMenu.map((col) => ({
-      title: col.title || 'BRANDS',
-      brands: col.links.map((link): BrandCardItem => ({
-        label: link.label,
-        path: link.path,
-        groupTitle: col.title || 'BRANDS',
-      })),
-    }));
+    return (brandsCategory?.megaMenu ?? [])
+      .map((col) => ({
+        title: col.title || 'Brands',
+        brands: col.links.map((link): BrandCardItem => ({ label: link.label, path: link.path })),
+      }))
+      .filter((group) => group.brands.length > 0);
   });
 
   readonly totalBrandCount = computed(() =>
     this.brandGroups().reduce((acc, grp) => acc + grp.brands.length, 0),
   );
+
+  readonly countLabel = computed(() => {
+    const count = this.totalBrandCount();
+    return count === 1 ? '1 brand' : `${count} brands`;
+  });
 }

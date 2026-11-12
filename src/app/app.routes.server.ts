@@ -19,6 +19,13 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Server,
     headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
   },
+  // No prices on this page, but a Navigation edit must show on the next request,
+  // so it stays out of the CDN like the other server-rendered storefront pages.
+  {
+    path: 'brands',
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': 'private, no-store' },
+  },
   {
     path: 'product/**',
     renderMode: RenderMode.Server,
