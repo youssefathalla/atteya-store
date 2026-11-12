@@ -1,8 +1,8 @@
 <div class="grid grid-cols-1 @3xl:grid-cols-2 gap-6 w-full">
-  <fieldset class="elements-start-col items-stretch! gap-2 min-w-0">
+  <fieldset class="elements-start-col items-stretch! justify-start! gap-2 min-w-0">
     <legend class="font-title-sm font-bold! mb-1">Starts</legend>
     <mat-radio-group
-      class="elements-start-col gap-1"
+      class="elements-start-col justify-start! gap-1"
       aria-label="Starts"
       [value]="schedule().startsAt ? 'date' : 'now'"
       (change)="onStartMode($event.value)"
@@ -31,10 +31,10 @@
     }
   </fieldset>
 
-  <fieldset class="elements-start-col items-stretch! gap-2 min-w-0">
+  <fieldset class="elements-start-col items-stretch! justify-start! gap-2 min-w-0">
     <legend class="font-title-sm font-bold! mb-1">Ends</legend>
     <mat-radio-group
-      class="elements-start-col gap-1"
+      class="elements-start-col justify-start! gap-1"
       aria-label="Ends"
       [value]="schedule().endsAt ? 'date' : 'off'"
       (change)="onEndMode($event.value)"

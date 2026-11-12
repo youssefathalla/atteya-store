@@ -336,6 +336,25 @@ export interface ItemCard {
   readonly imageSrc: string | null;
   /** Black tags above the photo, e.g. `FREE GIFT`, `1 FREE`. */
   readonly tags: readonly string[];
+  /** Free gifts that come with this item: a slim strip under it, never a card of their own. */
+  readonly gifts?: readonly ItemGift[];
+}
+
+export interface ItemGift {
+  readonly name: string;
+  /** "Size M · Qty 1". */
+  readonly details: string;
+}
+
+/** The free-gift strips under an item (a black FREE GIFT tag, the gift's name and details). */
+function giftStrips(gifts: readonly ItemGift[] | undefined, margin: string): string {
+  if (!gifts?.length) return '';
+  return gifts
+    .map(
+      (gift) =>
+        `<div style="margin:${margin};padding:8px 10px;background:${GREY_BOX};border-left:3px solid ${INK};">${tagHtml(['Free gift'])}<p style="margin:0;${FONT}font-size:13px;font-weight:700;line-height:1.35;color:${INK};"><span>${escapeHtml(gift.name)}</span></p>${gift.details ? `<p style="margin:2px 0 0;${FONT}font-size:12px;color:${TEXT_SOFT};">${escapeHtml(gift.details)}</p>` : ''}</div>`,
+    )
+    .join('');
 }
 
 function tagHtml(tags: readonly string[]): string {
@@ -365,14 +384,16 @@ function photo(src: string | null, width: number, height: number, boxClass = '')
 }
 
 /**
- * Items as photo cards, `perRow` to a row (2 with prices, 3 without). With `compactAfter` or more
- * cards, a compact list (64px photo, name, details, price on the right) keeps long orders short.
+ * Items as photo cards, never more than 2 to a row (three narrow cards read badly on a phone).
+ * With `compactAfter` or more cards, a compact list (64px photo, name, details, price on the right)
+ * keeps long orders short.
  */
-export function itemGrid(cards: readonly ItemCard[], perRow: 2 | 3, compactAfter: number | null = 4): string {
+export function itemGrid(cards: readonly ItemCard[], compactAfter: number | null = 4): string {
   if (compactAfter !== null && cards.length > compactAfter) return itemList(cards);
-  const gap = perRow === 2 ? 16 : 12;
+  const perRow = 2;
+  const gap = 16;
   const cellWidth = Math.floor((CONTENT_WIDTH - gap * (perRow - 1)) / perRow);
-  const photoHeight = Math.round(cellWidth * (perRow === 2 ? 0.85 : 1));
+  const photoHeight = Math.round(cellWidth * 0.85);
   // Percent widths so the row shrinks on phones; the photo keeps its pixel width for Outlook.
   const cellPercent = `${Math.floor(100 / perRow)}%`;
   const rows: string[] = [];
@@ -395,7 +416,7 @@ export function itemGrid(cards: readonly ItemCard[], perRow: 2 | 3, compactAfter
       return `<td width="${cellPercent}" valign="top" style="${pad}padding-bottom:24px;">
 ${tags}${photo(card.imageSrc, cellWidth, photoHeight)}
 <p style="margin:12px 0 0;${FONT}font-size:15px;font-weight:700;line-height:1.35;color:${INK};">${escapeHtml(card.name)}</p>
-${details}${price}
+${details}${price}${giftStrips(card.gifts, '10px 0 0')}
 </td>`;
     }).join('\n');
     rows.push(`<tr>\n${tds}\n</tr>`);
@@ -424,7 +445,7 @@ function itemList(cards: readonly ItemCard[]): string {
 <td width="64" valign="top" style="padding:12px 0;border-bottom:1px solid ${GREY_LINE};">${thumb}</td>
 <td valign="top" style="padding:12px 0 12px 14px;border-bottom:1px solid ${GREY_LINE};">
 ${tags}<p style="margin:0;${FONT}font-size:15px;font-weight:700;line-height:1.35;color:${INK};">${escapeHtml(card.name)}</p>
-${details}
+${details}${giftStrips(card.gifts, '8px 0 0')}
 </td>
 ${price}
 </tr>`;
@@ -437,7 +458,7 @@ ${rows}
 
 /** A row of photos edge to edge across the card, with a grey line of names under it. */
 export function photoStrip(cards: readonly ItemCard[], captions: string): string {
-  const shown = cards.slice(0, 3);
+  const shown = cards.slice(0, 2);
   if (shown.length === 0) return '';
   const width = Math.floor(600 / shown.length);
   // Percent widths: fixed pixel widths make a fixed-layout table wider than a phone screen.
