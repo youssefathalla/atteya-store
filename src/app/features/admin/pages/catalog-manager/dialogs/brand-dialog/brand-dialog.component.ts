@@ -16,7 +16,12 @@ import {
   type MenuPlacement,
 } from '../../services/catalog-admin.service';
 import { MenuPlacementComponent } from '../../components/menu-placement/menu-placement.component';
-import { MAX_CATALOG_NAME, previewSlug } from '../../utils/catalog-manager.utils';
+import {
+  ENGLISH_NAME_MESSAGE,
+  hasEnglishLetterOrDigit,
+  MAX_CATALOG_NAME,
+  previewSlug,
+} from '../../utils/catalog-manager.utils';
 
 export interface BrandDialogData {
   /** Null = Add Brand. */
@@ -97,8 +102,9 @@ export class BrandDialogComponent {
       this.error.set('Enter a name for the brand.');
       return;
     }
-    if (this.isNew && !this.slug()) {
-      this.error.set('Use at least one letter or number in the name.');
+    // The address is made from the name, so a new one needs English letters (ATS-265).
+    if (this.isNew && !hasEnglishLetterOrDigit(name)) {
+      this.error.set(ENGLISH_NAME_MESSAGE);
       return;
     }
     const logo = this.logo();

@@ -1,7 +1,5 @@
 import {
   BUILT_IN_CATEGORY_PAGE,
-  SEED_BRANDS,
-  SEED_CATEGORIES,
   type CategoryDetailsTitle,
   type CategorySizeChart,
 } from '@core/services/products/catalog-taxonomy';
@@ -48,17 +46,6 @@ export const MAX_WEIGHT_GRAMS = 100_000;
 
 /** Same words `saveCategory` keeps free (`RESERVED_CATEGORY_SLUGS` in functions). */
 const RESERVED_CATEGORY_SLUGS: ReadonlySet<string> = new Set(['all', 'shop', 'new', 'sale', 'best-sellers']);
-const SEED_CATEGORY_IDS: ReadonlySet<string> = new Set(SEED_CATEGORIES.map((item) => item.id));
-const SEED_BRAND_IDS: ReadonlySet<string> = new Set(SEED_BRANDS.map((item) => item.id));
-
-export function isSeedCategory(id: string): boolean {
-  return SEED_CATEGORY_IDS.has(id);
-}
-
-export function isSeedBrand(id: string): boolean {
-  return SEED_BRAND_IDS.has(id);
-}
-
 /** Top-level categories in order, each with its sub-categories in order. */
 export function buildCategoryTree(categories: readonly Category[]): readonly CategoryTreeRow[] {
   const sorted = [...categories].sort(bySortOrder);
@@ -92,45 +79,38 @@ export function previewSlug(name: string, kind: CatalogKind, takenIds: Iterable<
 }
 
 /**
- * Why a category can't be deleted, in plain words with what to do instead, or null when it can.
- * The server checks the same things (plus offers) and refuses with its own message.
+ * The confirm window's message before a delete (ATS-265). Offers that name it don't stop the
+ * delete; they are listed so staff know those offers no longer include it.
  */
-export function categoryDeleteBlockedReason(
-  category: { readonly id: string; readonly name: string },
-  usage: { readonly products: number; readonly subCategories: number },
-): string | null {
-  const { name } = category;
-  if (usage.products > 0) {
-    return usage.products === 1
-      ? `${name} still has 1 product. Move it to another category first, or hide ${name} instead.`
-      : `${name} still has ${usage.products} products. Move them to another category first, or hide ${name} instead.`;
-  }
-  if (usage.subCategories > 0) {
-    return usage.subCategories === 1
-      ? `${name} still has 1 category inside it. Delete that one first, or hide ${name} instead.`
-      : `${name} still has ${usage.subCategories} categories inside it. Delete those first, or hide ${name} instead.`;
-  }
-  if (isSeedCategory(category.id)) {
-    return `${name} is one of the store’s built-in categories, so it can’t be deleted. You can hide it instead.`;
-  }
-  return null;
+export function deleteConfirmMessage(offers: readonly string[]): string {
+  const base = 'It leaves the store and its address stops working. This can’t be undone.';
+  if (offers.length === 0) return base;
+  const names = offers.join(', ');
+  return offers.length === 1
+    ? `${base} This offer will no longer include it: ${names}.`
+    : `${base} These offers will no longer include it: ${names}.`;
 }
 
-/** Why a brand can't be deleted, in plain words with what to do instead, or null when it can. */
-export function brandDeleteBlockedReason(
-  brand: { readonly id: string; readonly name: string },
-  products: number,
-): string | null {
-  const { name } = brand;
-  if (products > 0) {
-    return products === 1
-      ? `${name} still has 1 product. Change its brand first, or hide ${name} instead.`
-      : `${name} still has ${products} products. Change their brand first, or hide ${name} instead.`;
-  }
-  if (isSeedBrand(brand.id)) {
-    return `${name} is one of the store’s built-in brands, so it can’t be deleted. You can hide it instead.`;
-  }
-  return null;
+/** Shown in the Add window when a name has no English letter or digit (same text as the server). */
+export const ENGLISH_NAME_MESSAGE = 'Use English letters for the name, for example Padel Caps.';
+
+/** True when an address can be made from the name (it has an English letter or digit). */
+export function hasEnglishLetterOrDigit(name: string): boolean {
+  return kebab(name.normalize('NFD').replace(/[̀-ͯ]/g, '')).length > 0;
+}
+
+/**
+ * Move Up / Move Down in the ⋮ menu (ATS-265): the ids of one level with `id` moved one place
+ * (`-1` up, `1` down), or null when it is already first or last (or not in the level).
+ */
+export function moveWithinLevel(ids: readonly string[], id: string, step: -1 | 1): readonly string[] | null {
+  const from = ids.indexOf(id);
+  const to = from + step;
+  if (from < 0 || to < 0 || to >= ids.length) return null;
+  const next = [...ids];
+  next.splice(from, 1);
+  next.splice(to, 0, id);
+  return next;
 }
 
 /** The short count on a row: "61 live", "None live". */

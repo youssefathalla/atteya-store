@@ -1,4 +1,15 @@
-import { Component, computed, effect, inject, OnInit, PLATFORM_ID, resource, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  OnInit,
+  PLATFORM_ID,
+  resource,
+  signal,
+} from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 import { SeoService } from '@core/services/seo';
@@ -12,7 +23,12 @@ import { CatalogToolsService } from './services/catalog-tools.service';
 import { ProductsAdminService } from './services/products-admin.service';
 import { ProductsDialogService } from './services/products-dialog.service';
 import { importActionError } from './utils/import-error';
-import { buildBrandOptions, filterProductRows, toProductTableRow } from './utils/product-admin.utils';
+import {
+  buildBrandOptions,
+  buildCategoryFilterOptions,
+  filterProductRows,
+  toProductTableRow,
+} from './utils/product-admin.utils';
 import { countListViews, groupProductRows, matchesListView } from './utils/product-groups.utils';
 
 @Component({
@@ -35,6 +51,10 @@ export class ProductsManagerComponent implements OnInit {
   readonly debouncedSearch = signal('');
   readonly typeId = signal('all');
   readonly brandId = signal('all');
+  /** `?category=<id>` (Categories & Brands' See These Products opens the page with it, ATS-265). */
+  readonly category = input<string | undefined>(undefined);
+  /** The Category filter: the address's category, until the person picks another. */
+  readonly categoryId = linkedSignal(() => this.category()?.trim() || 'all');
   readonly view = signal<ProductListView>('all');
   readonly searchSyncErrors = signal(0);
   /** Product whose Live / Hidden change is saving. */
@@ -66,8 +86,19 @@ export class ProductsManagerComponent implements OnInit {
   /** Brand filter: the brand docs from Categories & Brands (built-in brands until they load). */
   readonly brandOptions = computed(() => buildBrandOptions(this.catalogResource.value()?.brands ?? []));
 
+  /** Category filter: every category doc, hidden ones marked (ATS-265). */
+  readonly categoryOptions = computed(() =>
+    buildCategoryFilterOptions(this.catalogResource.value()?.categories ?? []),
+  );
+
   readonly #filteredRows = computed(() =>
-    filterProductRows(this.#allRows(), this.debouncedSearch(), this.typeId(), this.brandId()),
+    filterProductRows(
+      this.#allRows(),
+      this.debouncedSearch(),
+      this.typeId(),
+      this.brandId(),
+      this.categoryId(),
+    ),
   );
 
   readonly counts = computed(() => countListViews(this.#filteredRows()));
@@ -83,6 +114,7 @@ export class ProductsManagerComponent implements OnInit {
     () =>
       this.typeId() !== 'all' ||
       this.brandId() !== 'all' ||
+      this.categoryId() !== 'all' ||
       this.view() !== 'all' ||
       this.debouncedSearch().trim().length > 0,
   );
@@ -117,6 +149,16 @@ export class ProductsManagerComponent implements OnInit {
     if (isPlatformBrowser(this.#platformId)) {
       void this.reloadSearchSyncErrors();
     }
+  }
+
+  /** Picks a category and keeps it in the address (`?category=`), so a reload or a link keeps it. */
+  setCategory(id: string): void {
+    this.categoryId.set(id);
+    void this.#router.navigate([], {
+      queryParams: { category: id === 'all' ? null : id },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   async runMigration(pass: MigratePass): Promise<void> {

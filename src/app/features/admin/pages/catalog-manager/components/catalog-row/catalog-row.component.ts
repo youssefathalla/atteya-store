@@ -11,7 +11,8 @@ import { insideLabel, liveCountLabel } from '../../utils/catalog-manager.utils';
 /**
  * One compact category or brand row on Categories & Brands (ATS-264): drag handle (place it
  * inside a `cdkDrag`), the open arrow when something is inside, the name with "6 inside", the
- * live count, the Shown / Hidden switch and a ⋮ menu (Edit, Add Inside, Open on the Store, Delete).
+ * live count, the Shown / Hidden switch and a ⋮ menu (Edit, Add Inside, Move Up, Move Down, Open on
+ * the Store, Delete; ATS-265).
  * On phone the live count sits under the name.
  */
 @Component({
@@ -103,6 +104,18 @@ import { insideLabel, liveCountLabel } from '../../utils/catalog-manager.utils';
             <span>Add Inside</span>
           </button>
         }
+        @if (canMoveUp()) {
+          <button mat-menu-item type="button" [disabled]="busy()" (click)="moveUp.emit()">
+            <mat-icon name="arrow_upward" />
+            <span>Move Up</span>
+          </button>
+        }
+        @if (canMoveDown()) {
+          <button mat-menu-item type="button" [disabled]="busy()" (click)="moveDown.emit()">
+            <mat-icon name="arrow_downward" />
+            <span>Move Down</span>
+          </button>
+        }
         <a mat-menu-item [href]="storeUrl()" target="_blank" rel="noopener">
           <mat-icon name="open_in_new" />
           <span>Open on the Store</span>
@@ -133,12 +146,17 @@ export class CatalogRowComponent {
   readonly published = input.required<boolean>();
   /** This row's switch or Delete check is running: both wait. */
   readonly busy = input(false);
+  /** Move Up / Move Down within its own level (ATS-265): not on the first / last row. */
+  readonly canMoveUp = input(false);
+  readonly canMoveDown = input(false);
 
   readonly toggleShown = output();
   readonly toggleOpen = output();
   readonly edit = output();
   readonly addInside = output();
   readonly remove = output();
+  readonly moveUp = output();
+  readonly moveDown = output();
 
   liveText(): string {
     return liveCountLabel(this.liveCount());

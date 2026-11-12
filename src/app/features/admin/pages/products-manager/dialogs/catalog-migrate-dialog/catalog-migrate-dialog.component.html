@@ -14,6 +14,13 @@
         {{ report.brands.created }} to create, {{ report.brands.repaired }} to repair,
         {{ report.brands.unchanged }} unchanged
       </p>
+      @let deleted = report.deletedByStaff;
+      @if (deleted && deleted.categories.length + deleted.brands.length > 0) {
+        <p>
+          <span class="font-bold!">Deleted by staff:</span>
+          {{ deleted.categories.concat(deleted.brands).join(', ') }} (not added back)
+        </p>
+      }
     </div>
   }
 

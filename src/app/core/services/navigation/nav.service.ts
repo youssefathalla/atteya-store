@@ -4,6 +4,7 @@ import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/fires
 import { injectFirestore } from '@core/firebase';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { ShopCategoriesService } from '@core/services/products/shop-categories.service';
+import { pathOpensDeletedBuiltIn } from '@core/services/products/utils/deleted-built-ins';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { NavSettingsSchema } from './nav.schema';
 import { NavCategory, NavSettings } from './nav.model';
@@ -148,7 +149,17 @@ export class NavService {
     if (!this.#bootstrapSettled()) {
       return [];
     }
-    return NAV_CATEGORIES;
+    return this.builtInCategories();
+  });
+
+  /**
+   * The built-in menu (`NAV_CATEGORIES`) without links to built-in categories and brands staff
+   * deleted (ATS-265), so a menu that was never saved never shows a link to something gone.
+   */
+  readonly builtInCategories = computed<readonly NavCategory[]>(() => {
+    const deleted = this.#catalog.deletedBuiltInIds();
+    if (deleted.size === 0) return NAV_CATEGORIES;
+    return visibleStorefrontCategories(NAV_CATEGORIES, (path) => pathOpensDeletedBuiltIn(path, deleted));
   });
 
   /**
@@ -205,14 +216,14 @@ export class NavService {
 
   async resetDefaultNavigation(
     updatedBy: string,
-    categories: readonly NavCategory[] = NAV_CATEGORIES,
+    categories: readonly NavCategory[] = this.builtInCategories(),
   ): Promise<void> {
     await this.updateNavigation(categories, updatedBy);
   }
 
   async seedDefaultNavigation(
     updatedBy: string,
-    categories: readonly NavCategory[] = NAV_CATEGORIES,
+    categories: readonly NavCategory[] = this.builtInCategories(),
   ): Promise<void> {
     await this.resetDefaultNavigation(updatedBy, categories);
   }

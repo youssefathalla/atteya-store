@@ -151,3 +151,74 @@ export function menuDisplayName(label: string): string {
     .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : word))
     .join(' ');
 }
+
+/** A category or brand being deleted, as the menu refers to it (ATS-265). */
+export interface DeletedMenuItem {
+  readonly kind: 'category' | 'brand';
+  readonly id: string;
+  /** Its store address: `/category/<path>` or `/brand/<slug>`. */
+  readonly address: string;
+}
+
+/**
+ * The navigation with every reference to a deleted category or brand taken out (ATS-265): links
+ * that open it, a menu name that opens it (the menu then only opens its dropdown, or goes when
+ * nothing is left in it), and a "Sub-categories of" column for it (switched back to its own
+ * links). `changed` is false when the menu never mentioned it, so nothing needs saving.
+ */
+export function removeFromMenu(
+  categories: readonly NavCategory[],
+  item: DeletedMenuItem,
+): { readonly next: readonly NavCategory[]; readonly changed: boolean } {
+  let changed = false;
+  const opensIt = (target: NavTarget | undefined, path: string | undefined): boolean => {
+    if (target?.kind === item.kind && 'id' in target && target.id === item.id) return true;
+    // Shop with Filters for that brand or category (Navigation refuses to save one whose brand is gone).
+    if (target?.kind === 'shop') {
+      const named = item.kind === 'brand' ? target.filters.brand : target.filters.category;
+      return named === item.id;
+    }
+    // A typed address (or an older link with no target) that is exactly its address.
+    if (target && target.kind !== 'url') return false;
+    const address = target?.kind === 'url' ? target.url : path;
+    return !!address && sameAddress(address, item.address);
+  };
+
+  const next = categories.flatMap((category): NavCategory[] => {
+    const megaMenu = category.megaMenu?.map((column) => {
+      let links = column.links;
+      if (links.some((link) => opensIt(link.target, link.path))) {
+        changed = true;
+        links = links.filter((link) => !opensIt(link.target, link.path));
+      }
+      if (
+        item.kind === 'category' &&
+        column.auto?.kind === 'children' &&
+        column.auto.categoryId === item.id
+      ) {
+        changed = true;
+        const manual = { ...column, links };
+        delete manual.auto;
+        return manual;
+      }
+      return links === column.links ? column : { ...column, links };
+    });
+    let result: NavCategory = megaMenu ? { ...category, megaMenu } : category;
+    if (opensIt(category.target, category.path)) {
+      changed = true;
+      result = { ...result };
+      delete result.target;
+      delete result.path;
+      const hasLinks = (result.megaMenu ?? []).some((column) => column.links.length > 0 || !!column.auto);
+      if (!hasLinks) return [];
+    }
+    return [result];
+  });
+  return { next: changed ? next : categories, changed };
+}
+
+function sameAddress(left: string, right: string): boolean {
+  const clean = (value: string): string =>
+    (value.split(/[?#]/, 1)[0] ?? '').replace(/\/+$/, '').toLowerCase();
+  return clean(left) === clean(right);
+}

@@ -10,6 +10,7 @@ import type { Brand, Category, Product, ProductTypeId } from '@core/services/pro
 import { normalizeImageKitPath } from '@shared/utils/image';
 import type {
   BrandOptionView,
+  CategoryFilterOptionView,
   CategoryOptionView,
   ProductStockStatus,
   ProductTableRow,
@@ -68,6 +69,33 @@ export function buildBrandOptions(brands: readonly Brand[]): readonly BrandOptio
   return SEED_BRANDS.map((brand) => ({ id: brand.id, label: brand.name }));
 }
 
+/**
+ * The Products Category filter (ATS-265): every main category in its order, each followed by the
+ * ones inside it ("Apparel › Socks"); hidden ones are marked "(hidden)". A sub-category whose
+ * parent is gone is listed on its own at the end.
+ */
+export function buildCategoryFilterOptions(
+  categories: readonly Category[],
+): readonly CategoryFilterOptionView[] {
+  const bySort = (left: Category, right: Category): number =>
+    left.sortOrder - right.sortOrder || left.name.localeCompare(right.name);
+  const ids = new Set(categories.map((item) => item.id));
+  const mark = (category: Category, label: string): string =>
+    category.published ? label : `${label} (hidden)`;
+  const options: CategoryFilterOptionView[] = [];
+  const roots = categories.filter((item) => !item.parentId).sort(bySort);
+  for (const root of roots) {
+    options.push({ id: root.id, label: mark(root, root.name) });
+    for (const child of categories.filter((item) => item.parentId === root.id).sort(bySort)) {
+      options.push({ id: child.id, label: mark(child, `${root.name} › ${child.name}`) });
+    }
+  }
+  for (const orphan of categories.filter((item) => item.parentId && !ids.has(item.parentId)).sort(bySort)) {
+    options.push({ id: orphan.id, label: mark(orphan, orphan.name) });
+  }
+  return options;
+}
+
 export function toProductTableRow(
   product: Product,
   categoryNames?: ReadonlyMap<string, string>,
@@ -78,6 +106,7 @@ export function toProductTableRow(
     id: product.id,
     name: product.name,
     categoryId: product.categoryId,
+    categoryIds: product.categoryIds?.length ? product.categoryIds : [product.categoryId],
     categoryLabel: categoryLabel(product.categoryId, categoryNames),
     type: product.type,
     typeLabel: typeLabel(product.type),
@@ -109,11 +138,14 @@ export function filterProductRows(
   search: string,
   typeId: string,
   brandId: string,
+  categoryId = 'all',
 ): ProductTableRow[] {
   const needle = search.trim().toLowerCase();
   return rows.filter((row) => {
     if (typeId !== 'all' && row.type !== typeId) return false;
     if (brandId !== 'all' && row.brandId !== brandId) return false;
+    // A main category includes the ones inside it: products list their parents in categoryIds.
+    if (categoryId !== 'all' && !row.categoryIds.includes(categoryId)) return false;
     if (!needle) return true;
     return (
       row.name.toLowerCase().includes(needle) ||

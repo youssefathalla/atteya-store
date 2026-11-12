@@ -74,6 +74,7 @@ export class ProductsTableComponent {
     id: '',
     name: '',
     categoryId: '',
+    categoryIds: [],
     categoryLabel: '',
     type: 'rackets',
     typeLabel: '',

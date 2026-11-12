@@ -21,7 +21,7 @@ import {
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
-import { callableMessage, isFirebaseError } from '@shared/utils/firebase/firebase-errors';
+import { callableMessage } from '@shared/utils/firebase/firebase-errors';
 import {
   CategoryDialogComponent,
   type CategoryDialogData,
@@ -29,11 +29,12 @@ import {
 } from '../../dialogs/category-dialog/category-dialog.component';
 import { CatalogRowComponent } from '../catalog-row/catalog-row.component';
 import { CatalogAdminService } from '../../services/catalog-admin.service';
+import { CatalogDeleteFlowService, type DeleteFlowOutcome } from '../../services/catalog-delete-flow.service';
 import {
   buildCategoryTree,
   CATALOG_DIALOG_CONFIG,
-  categoryDeleteBlockedReason,
   hideConfirmMessage,
+  moveWithinLevel,
   shownSnackbar,
 } from '../../utils/catalog-manager.utils';
 
@@ -50,6 +51,7 @@ import {
 })
 export class CategoriesTabComponent {
   readonly #catalog = inject(CatalogAdminService);
+  readonly #deleteFlow = inject(CatalogDeleteFlowService);
   readonly #dialog = inject(MatDialog);
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
@@ -104,43 +106,47 @@ export class CategoriesTabComponent {
     await this.#setShown(current, show);
   }
 
+  /**
+   * ⋮ Delete (ATS-265): any category with no products and nothing inside can go, built-in ones
+   * too; otherwise the reason comes with See These Products and Hide Instead.
+   */
   async remove(category: Category): Promise<void> {
     if (this.busyIds().has(category.id)) return;
     this.#setBusy(category.id, true);
+    let outcome: DeleteFlowOutcome;
     try {
-      const subCategories = this.items().filter((item) => item.parentId === category.id).length;
-      const products = await this.#catalog.productsUsing('categories', category.id);
-      const blocked = categoryDeleteBlockedReason(category, { products, subCategories });
-      if (blocked) {
-        this.#setBusy(category.id, false);
-        await this.#offerHide(category, blocked);
-        return;
-      }
-      const confirmed = await this.#confirm({
-        title: `Delete ${category.name}?`,
-        message: 'It leaves the store and its address stops working. This can’t be undone.',
-        confirmText: 'Delete Category',
-        cancelText: 'Keep It',
-        theme: 'error',
+      const current = this.items().find((item) => item.id === category.id) ?? category;
+      outcome = await this.#deleteFlow.run('categories', {
+        id: current.id,
+        name: current.name,
+        published: current.published,
+        address: `/category/${current.path}`,
       });
-      if (!confirmed) return;
-      await this.#catalog.delete('categories', category.id);
-      this.#snackbar.success(`${category.name} was deleted.`);
-      this.listResource.reload();
-    } catch (error: unknown) {
-      // The server also checks offers; its reason gets the same Hide Instead offer.
-      if (isFirebaseError(error) && error.code === 'functions/failed-precondition') {
-        const reason = callableMessage(error);
-        if (reason) {
-          this.#setBusy(category.id, false);
-          await this.#offerHide(category, reason);
-          return;
-        }
-      }
-      this.#snackbar.error(callableMessage(error) ?? "We couldn't delete that category. Please try again.");
     } finally {
       this.#setBusy(category.id, false);
     }
+    if (outcome === 'deleted') this.listResource.reload();
+    if (outcome === 'hide') {
+      const current = this.items().find((item) => item.id === category.id) ?? category;
+      await this.#setShown(current, false);
+    }
+  }
+
+  /** ⋮ Move Up / Move Down: one place within its own level, saved like a drag. */
+  async move(category: Category, step: -1 | 1): Promise<void> {
+    const ids = this.#level(category.parentId ?? null).map((item) => item.id);
+    const next = moveWithinLevel(ids, category.id, step);
+    if (!next) return;
+    await this.#saveOrder(next);
+  }
+
+  /**
+   * True when the row has a neighbour on that side in its own level (a sub-category whose parent
+   * is missing is listed at the top level but is not part of it).
+   */
+  canMove(category: Category, step: -1 | 1): boolean {
+    const ids = this.#level(category.parentId ?? null).map((item) => item.id);
+    return moveWithinLevel(ids, category.id, step) !== null;
   }
 
   /** Drag within one level: the top level (`parentId` null) or the categories inside one. */
@@ -155,18 +161,29 @@ export class CategoriesTabComponent {
     // A sub-category whose parent is missing is listed at the top level, but it is not part of
     // that level on the server, so it keeps its place and is left out of the save.
     const sameLevel = ordered.filter((item) => (item.parentId ?? null) === parentId);
-    const positions = new Map(sameLevel.map((item, index) => [item.id, (index + 1) * 10]));
     if (sameLevel.length === 0) return;
+    await this.#saveOrder(sameLevel.map((item) => item.id));
+  }
+
+  /** The categories of one level as shown (only the ones that really sit at that level). */
+  #level(parentId: string | null): readonly Category[] {
+    const rows =
+      parentId === null
+        ? this.tree().map((row) => row.category)
+        : (this.tree().find((row) => row.category.id === parentId)?.children ?? []);
+    return rows.filter((item) => (item.parentId ?? null) === parentId);
+  }
+
+  /** Shows the new order at once, then saves it through `reorderCatalog`. */
+  async #saveOrder(ids: readonly string[]): Promise<void> {
+    const positions = new Map(ids.map((id, index) => [id, (index + 1) * 10]));
     this.items.update((list) =>
       list.map((item) =>
         positions.has(item.id) ? { ...item, sortOrder: positions.get(item.id) ?? 0 } : item,
       ),
     );
     try {
-      await this.#catalog.reorder(
-        'categories',
-        sameLevel.map((item) => item.id),
-      );
+      await this.#catalog.reorder('categories', ids);
     } catch (error: unknown) {
       this.#snackbar.error(callableMessage(error) ?? "We couldn't save the new order. Please try again.");
       this.listResource.reload();
@@ -207,22 +224,6 @@ export class CategoriesTabComponent {
       else next.delete(id);
       return next;
     });
-  }
-
-  async #offerHide(category: Category, reason: string): Promise<void> {
-    const current = this.items().find((item) => item.id === category.id) ?? category;
-    if (!current.published) {
-      this.#snackbar.info(reason, 'Close', 6000);
-      return;
-    }
-    const hide = await this.#confirm({
-      title: `${current.name} can’t be deleted`,
-      message: reason,
-      confirmText: 'Hide Instead',
-      cancelText: 'Keep It',
-      theme: 'warning',
-    });
-    if (hide) await this.#setShown(current, false);
   }
 
   #confirm(data: ConfirmDialogData): Promise<boolean | undefined> {

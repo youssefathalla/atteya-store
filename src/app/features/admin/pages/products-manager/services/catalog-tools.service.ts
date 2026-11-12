@@ -35,6 +35,13 @@ const MigrateResponseSchema = v.object({
     stockMissing: v.optional(wholeNumber, 0),
   }),
   shippingSeeded: v.optional(v.boolean(), false),
+  deletedByStaff: v.optional(
+    v.object({
+      categories: v.optional(v.array(v.string()), []),
+      brands: v.optional(v.array(v.string()), []),
+    }),
+    { categories: [], brands: [] },
+  ),
   sample: v.array(
     v.object({
       id: v.string(),

@@ -118,11 +118,12 @@ export function shopCategoryOptionsFrom(
 
 /**
  * The category id a `/category/<slug>` Shop page is for: a top-level category matched by
- * slug or id (any letter case), or a built-in one. Null for anything else.
+ * slug or id (any letter case), or a built-in one staff haven't deleted. Null for anything else.
  */
 export function shopCategoryIdForSlug(
   slug: string | null | undefined,
   categories: readonly ShopCategorySource[],
+  deletedBuiltIns: ReadonlySet<string> = new Set(),
 ): string | null {
   const target = (slug ?? '').trim().toLowerCase();
   if (!target) return null;
@@ -132,7 +133,7 @@ export function shopCategoryIdForSlug(
       (category.slug.toLowerCase() === target || category.id.toLowerCase() === target),
   );
   if (match) return match.id;
-  return BUILT_IN_SHOP_CATEGORY_IDS.includes(target) ? target : null;
+  return BUILT_IN_SHOP_CATEGORY_IDS.includes(target) && !deletedBuiltIns.has(target) ? target : null;
 }
 
 /** The Shop tab for a category id, built even when the tab itself is left out (empty or hidden). */

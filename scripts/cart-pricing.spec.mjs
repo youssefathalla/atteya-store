@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
+  pathOpensDeletedBuiltIn,
+  readDeletedBuiltInIds,
+} from '../src/app/core/services/products/utils/deleted-built-ins.ts';
+import { removeFromMenu } from '../src/app/features/admin/pages/catalog-manager/utils/menu-placement.utils.ts';
+import {
   shopCategoryFilterIds,
   shopCategoryIdForSlug,
   shopCategoryOptionsFrom,
@@ -1159,5 +1164,114 @@ describe('navigation columns that fill themselves (ATS-247)', () => {
     assert.equal(timeToMs('1970-01-01T00:00:00.020Z'), 20);
     assert.equal(timeToMs({ toMillis: () => 30 }), 30);
     assert.equal(timeToMs(null), 0);
+  });
+});
+
+describe('deleted built-in categories and brands (ATS-265)', () => {
+  const deleted = new Set(['bottles', 'nox', 'apparel']);
+
+  it('reads the saved list, ignoring anything that is not an id', () => {
+    assert.deepEqual(readDeletedBuiltInIds(['bottles', 2, 'Bad Id']), ['bottles']);
+    assert.deepEqual(readDeletedBuiltInIds(null), []);
+  });
+
+  it('knows which store addresses open a deleted built-in', () => {
+    assert.equal(pathOpensDeletedBuiltIn('/category/accessories/bottles', deleted), true);
+    assert.equal(pathOpensDeletedBuiltIn('/category/apparel?sort=newest', deleted), true);
+    assert.equal(pathOpensDeletedBuiltIn('/brand/nox', deleted), true);
+    assert.equal(pathOpensDeletedBuiltIn('/category/accessories', deleted), false);
+    assert.equal(pathOpensDeletedBuiltIn('/shop?category=apparel', deleted), false);
+    assert.equal(pathOpensDeletedBuiltIn(undefined, deleted), false);
+  });
+
+  it('stops opening a deleted built-in Shop category', () => {
+    assert.equal(shopCategoryIdForSlug('apparel', []), 'apparel');
+    assert.equal(shopCategoryIdForSlug('apparel', [], deleted), null);
+    assert.equal(shopCategoryIdForSlug('rackets', [], deleted), 'rackets');
+  });
+});
+
+describe('removeFromMenu (ATS-265)', () => {
+  const menu = [
+    {
+      id: 'accessories',
+      label: 'ACCESSORIES',
+      path: '/category/accessories',
+      target: { kind: 'category', id: 'accessories' },
+      megaMenu: [
+        {
+          title: 'Gear',
+          links: [
+            {
+              label: 'Bottles',
+              path: '/category/accessories/bottles',
+              target: { kind: 'category', id: 'bottles' },
+            },
+            { label: 'Old bottles link', path: '/category/accessories/bottles' },
+            { label: 'Bags', path: '/category/accessories/bags', target: { kind: 'category', id: 'bags' } },
+          ],
+        },
+        { title: 'Inside', links: [], auto: { kind: 'children', categoryId: 'bottles' } },
+      ],
+    },
+    { id: 'nox', label: 'NOX', path: '/brand/nox', target: { kind: 'brand', id: 'nox' } },
+  ];
+
+  it('takes out links, typed addresses and a sub-categories column for a deleted category', () => {
+    const { next, changed } = removeFromMenu(menu, {
+      kind: 'category',
+      id: 'bottles',
+      address: '/category/accessories/bottles',
+    });
+    assert.equal(changed, true);
+    const columns = next[0].megaMenu;
+    assert.deepEqual(
+      columns[0].links.map((link) => link.label),
+      ['Bags'],
+    );
+    assert.equal(columns[1].auto, undefined);
+    assert.equal(next.length, 2);
+  });
+
+  it('drops a menu that only opened the deleted brand', () => {
+    const { next, changed } = removeFromMenu(menu, { kind: 'brand', id: 'nox', address: '/brand/nox' });
+    assert.equal(changed, true);
+    assert.deepEqual(
+      next.map((item) => item.id),
+      ['accessories'],
+    );
+  });
+
+  it('takes out a Shop with Filters link for the deleted brand', () => {
+    const withFilters = [
+      {
+        id: 'padel',
+        label: 'PADEL',
+        megaMenu: [
+          {
+            title: 'Shop',
+            links: [
+              {
+                label: 'Nox Rackets',
+                path: '/shop?brand=Nox',
+                target: { kind: 'shop', filters: { brand: 'nox' } },
+              },
+              { label: 'Sale', path: '/shop?onSale=1', target: { kind: 'shop', filters: { onSale: true } } },
+            ],
+          },
+        ],
+      },
+    ];
+    const { next } = removeFromMenu(withFilters, { kind: 'brand', id: 'nox', address: '/brand/nox' });
+    assert.deepEqual(
+      next[0].megaMenu[0].links.map((link) => link.label),
+      ['Sale'],
+    );
+  });
+
+  it('changes nothing when the menu never mentioned it', () => {
+    const result = removeFromMenu(menu, { kind: 'brand', id: 'siux', address: '/brand/siux' });
+    assert.equal(result.changed, false);
+    assert.equal(result.next, menu);
   });
 });
