@@ -18,7 +18,7 @@ import {
   type CategoryDialogData,
 } from '../../dialogs/category-dialog/category-dialog.component';
 import { CatalogRowComponent } from '../catalog-row/catalog-row.component';
-import { CatalogAdminService, type SaveResult } from '../../services/catalog-admin.service';
+import { CatalogAdminService, type CatalogDialogResult } from '../../services/catalog-admin.service';
 import {
   buildCategoryTree,
   categoryDeleteBlockedReason,
@@ -187,7 +187,7 @@ export class CategoriesTabComponent {
   }
 
   #openEditor(category: Category | null): void {
-    const ref = this.#dialog.open<CategoryDialogComponent, CategoryDialogData, SaveResult>(
+    const ref = this.#dialog.open<CategoryDialogComponent, CategoryDialogData, CatalogDialogResult>(
       CategoryDialogComponent,
       {
         data: { category, categories: this.items() },
@@ -198,13 +198,21 @@ export class CategoriesTabComponent {
     );
     ref.afterClosed().subscribe((result) => {
       if (!result) return;
-      this.#snackbar.success(
-        category
-          ? result.resynced > 0
-            ? 'Category saved. Search shows the new name in a minute.'
-            : 'Category saved.'
-          : 'Category added.',
-      );
+      if (result.menuFailed) {
+        this.#snackbar.warning(
+          "Saved the category, but the menu didn't confirm the new link. Check Navigation and add it there only if it's missing.",
+          'Close',
+          8000,
+        );
+      } else {
+        this.#snackbar.success(
+          category
+            ? result.resynced > 0
+              ? 'Category saved. Search shows the new name in a minute.'
+              : 'Category saved.'
+            : 'Category added.',
+        );
+      }
       this.listResource.reload();
     });
   }

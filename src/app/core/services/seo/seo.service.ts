@@ -111,7 +111,7 @@ export class SeoService {
     this.#meta.updateTag({ property, content }, `property="${property}"`);
   }
 
-  /** A product photo through ImageKit at 1200 px, else the default photo from `public/`. */
+  /** A product photo through ImageKit at 1200 px, else the logo share picture from `public/`. */
   #shareImage(image: string | null | undefined): string {
     const path = image?.trim();
     const url = path ? buildImageKitUrl(path, { w: SEO_IMAGE_WIDTH }) : '';

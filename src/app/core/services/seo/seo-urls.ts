@@ -1,8 +1,8 @@
 /** Store name in share previews (`og:site_name`). */
 export const SEO_SITE_NAME = 'Atteya Store';
 
-/** Default share-preview photo, a file in `public/` (1920×1080 JPEG). */
-export const SEO_DEFAULT_IMAGE_PATH = '/img/hero/default-hero.jpg';
+/** Default share-preview picture, a file in `public/` (the logo on white, 1200×630 PNG). */
+export const SEO_DEFAULT_IMAGE_PATH = '/img/share/atteya-store.png';
 
 /** Width of product share photos through ImageKit. */
 export const SEO_IMAGE_WIDTH = 1200;

@@ -158,32 +158,45 @@ export function bundlePieceLine(choice: BundleChoice, pick: BundlePick): CartLin
   };
 }
 
+/** What the bag knows about one piece: the product, its chosen size or colour, and whether it is on sale. */
+export type BundleItemFacts = Parameters<typeof bundleOffersForItem>[2];
+
+/**
+ * The choices that pass `fits` (the bag's own rules for one piece), with only the sizes that pass.
+ * A product that only partly fits (say an offer for some sizes) keeps just those sizes; one with
+ * none left is dropped. Shared by the Bundle price picker and the Bundle & Save section.
+ */
+export function choicesThatFit(
+  choices: readonly BundleChoice[],
+  fits: (item: BundleItemFacts) => boolean,
+): BundleChoice[] {
+  return choices.flatMap((choice) => {
+    const product = choice.product;
+    const priced = toPricedProduct(product);
+    const onSale = product.compareAtPrice !== null && product.compareAtPrice > product.price;
+    const fitsSize = (sizeId: string | null): boolean => {
+      const line = bundlePieceLine(choice, { productId: product.id, sizeId });
+      if (!line) return false;
+      return fits({ product: priced, variant: bagLineVariant(product, line), onSale });
+    };
+    const sizes = choice.view.sizes;
+    if (!sizes) return fitsSize(null) ? [choice] : [];
+    const kept = sizes.filter((size) => fitsSize(size.id));
+    if (kept.length === 0) return [];
+    return [kept.length === sizes.length ? choice : { ...choice, view: { ...choice.view, sizes: kept } }];
+  });
+}
+
 /**
  * The choices the bag would really put in `offer`, with only the sizes it would count (the bag's
- * own rules: product, chosen size or colour, sale items). A product that only partly matches the
- * offer (say an offer for some sizes) keeps just those sizes; one with none left is dropped.
+ * own rules: product, chosen size or colour, sale items).
  */
 export function bundleQualifyingChoices(
   choices: readonly BundleChoice[],
   offer: Offer,
   ctx: PricingContext,
 ): BundleChoice[] {
-  return choices.flatMap((choice) => {
-    const product = choice.product;
-    const priced = toPricedProduct(product);
-    const onSale = product.compareAtPrice !== null && product.compareAtPrice > product.price;
-    const fits = (sizeId: string | null): boolean => {
-      const line = bundlePieceLine(choice, { productId: product.id, sizeId });
-      if (!line) return false;
-      const variant = bagLineVariant(product, line);
-      return bundleOffersForItem([offer], ctx, { product: priced, variant, onSale }).length > 0;
-    };
-    const sizes = choice.view.sizes;
-    if (!sizes) return fits(null) ? [choice] : [];
-    const kept = sizes.filter((size) => fits(size.id));
-    if (kept.length === 0) return [];
-    return [kept.length === sizes.length ? choice : { ...choice, view: { ...choice.view, sizes: kept } }];
-  });
+  return choicesThatFit(choices, (item) => bundleOffersForItem([offer], ctx, item).length > 0);
 }
 
 /** How much a row saves against `fullPrice` per piece, as a whole percent; 0 when it saves nothing. */
