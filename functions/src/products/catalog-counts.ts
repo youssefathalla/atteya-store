@@ -22,14 +22,17 @@ export async function recountCatalog(db: Firestore, scope?: RecountScope): Promi
     countPublished(db),
   ]);
 
+  // A merge set replaces a whole map when given an empty one, so a map with nothing in scope is
+  // left out instead of wiping the stored counts.
+  const nonEmpty = (counts: Record<string, number>): boolean => Object.keys(counts).length > 0;
   await Promise.all([
     updateDocCounts(db, 'categories', categoryCounts),
     updateDocCounts(db, 'brands', brandCounts),
     db.doc('settings/catalog').set(
       {
-        categories: categoryCounts,
-        brands: brandCounts,
-        types: typeCounts,
+        ...(nonEmpty(categoryCounts) ? { categories: categoryCounts } : {}),
+        ...(nonEmpty(brandCounts) ? { brands: brandCounts } : {}),
+        ...(nonEmpty(typeCounts) ? { types: typeCounts } : {}),
         total,
         updatedAt: FieldValue.serverTimestamp(),
       },

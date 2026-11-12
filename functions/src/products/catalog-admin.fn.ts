@@ -343,7 +343,11 @@ function audit(
     actorUid: actor.uid,
     actorEmail: actor.email ?? actor.uid,
     targetId,
-    after: { ...after, id: targetId },
+    // Firestore rejects `undefined` values (e.g. an omitted defaultWeightGrams), so drop them.
+    after: {
+      ...Object.fromEntries(Object.entries(after).filter(([, value]) => value !== undefined)),
+      id: targetId,
+    },
     at: FieldValue.serverTimestamp(),
   };
 }
