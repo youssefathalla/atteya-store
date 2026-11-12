@@ -16,10 +16,28 @@ import { bannerOffersResolver } from '@core/services/offers/banner-offers.resolv
 import { homeSettingsResolver } from './features/home/resolvers/home-settings.resolver';
 import { FOCUS_CHROME } from './layout/main/chrome-mode';
 import { productPageResolver } from './features/product/resolvers/product-page.resolver';
+import { catalogPageResolver } from './features/category/resolvers/catalog-page.resolver';
 import { brandPageResolver } from './features/category/resolvers/brand-page.resolver';
 
 export const routes: Routes = [
-  // 1. Storefront Routes (wrapped inside MainLayoutComponent with the Puma-style Navbar)
+  // Admin and the playground come before the store layout, whose `**` child would otherwise match them.
+  // 1. Standalone Playground / Design System Sandbox (Completely Isolated from the Store)
+  // Admin only: same guard as /admin, rendered on the client (see app.routes.server.ts).
+  {
+    path: 'playground',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/playground/playground.component').then((m) => m.PlaygroundComponent),
+    title: 'Design System & Component Playground | Atteya Store',
+  },
+
+  // 2. Dedicated Admin Dashboard (Isolated from consumer storefront layout)
+  {
+    path: 'admin',
+    loadChildren: () => import('./features/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
+  },
+
+  // 3. Storefront Routes (wrapped inside MainLayoutComponent with the Puma-style Navbar)
   {
     path: '',
     loadComponent: () => import('./layout/main/main.component').then((m) => m.MainLayoutComponent),
@@ -59,6 +77,7 @@ export const routes: Routes = [
         path: 'category/accessories/bags',
         loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
         title: 'Bags | Atteya Store',
+        resolve: { catalogPage: catalogPageResolver },
         data: { shopCategory: 'accessories', shopSubcategory: 'bags', preload: true },
       },
       {
@@ -73,6 +92,7 @@ export const routes: Routes = [
         canMatch: [shopCategoryMatch],
         loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
         title: shopCategoryTitle,
+        resolve: { catalogPage: catalogPageResolver },
         data: { categoryShop: true, preload: true },
       },
       {
@@ -80,6 +100,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/category/category.component').then((m) => m.CategoryComponent),
         title: 'Category | Atteya Store',
+        resolve: { catalogPage: catalogPageResolver },
         data: { preload: true },
       },
       {
@@ -87,6 +108,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/category/category.component').then((m) => m.CategoryComponent),
         title: 'Category | Atteya Store',
+        resolve: { catalogPage: catalogPageResolver },
         data: { preload: true },
       },
       {
@@ -98,7 +120,7 @@ export const routes: Routes = [
         path: 'brand/:slug',
         loadComponent: () =>
           import('./features/category/category.component').then((m) => m.CategoryComponent),
-        resolve: { brandShare: brandPageResolver },
+        resolve: { brandShare: brandPageResolver, catalogPage: catalogPageResolver },
         title: 'Brand | Atteya Store',
         data: { isBrand: true, preload: true },
       },
@@ -162,28 +184,12 @@ export const routes: Routes = [
           ),
         title: 'Order received | Atteya Store',
       },
+      {
+        // Any other address: Page Not Found inside the store layout, HTTP 404 (ATS-268).
+        path: '**',
+        loadComponent: () => import('./features/errors/not-found.page').then((m) => m.NotFoundPage),
+        title: 'Page Not Found | Atteya Store',
+      },
     ],
-  },
-
-  // 2. Standalone Playground / Design System Sandbox (Completely Isolated from the Store)
-  // Admin only: same guard as /admin, rendered on the client (see app.routes.server.ts).
-  {
-    path: 'playground',
-    canActivate: [adminGuard],
-    loadComponent: () =>
-      import('./features/playground/playground.component').then((m) => m.PlaygroundComponent),
-    title: 'Design System & Component Playground | Atteya Store',
-  },
-
-  // 3. Dedicated Admin Dashboard (Isolated from consumer storefront layout)
-  {
-    path: 'admin',
-    loadChildren: () => import('./features/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
-  },
-
-  // 4. Fallback Route
-  {
-    path: '**',
-    redirectTo: '',
   },
 ];

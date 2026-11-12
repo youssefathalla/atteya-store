@@ -35,6 +35,8 @@ import { DrawerService } from '@core/services/drawer/drawer.service';
 import { LogoComponent } from '@shared/ui/logo/logo.component';
 import { FooterComponent } from '../footer/footer.component';
 import { chromeModeOf } from './chrome-mode';
+import { PageLoadErrorService } from '@core/services/errors';
+import { ErrorPageComponent } from '@shared/ui/error-page';
 
 /** Fallback when chrome is not mounted yet (desktop nav h-14). */
 const DEFAULT_TOP_CHROME_PX = 56;
@@ -51,11 +53,14 @@ const DEFAULT_TOP_CHROME_PX = 56;
     LoaderComponent,
     LogoComponent,
     FooterComponent,
+    ErrorPageComponent,
   ],
   templateUrl: './main.component.html',
 })
 export class MainLayoutComponent {
   readonly drawerService = inject(DrawerService);
+  /** Set while a page's code couldn't be downloaded: Something Went Wrong shows in its place (ATS-268). */
+  readonly pageLoadError = inject(PageLoadErrorService);
   readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);
   readonly #platformId = inject(PLATFORM_ID);

@@ -1,4 +1,5 @@
 import type { ProductListQuery } from '@core/services/products/product.model';
+import { isMerchandisingSegment } from './catalog-page-state';
 
 /** Pseudo-slugs that are navigation destinations, not Firestore category docs. */
 const PSEUDO_CATEGORY_SLUGS = new Set(['all', 'sale']);
@@ -63,15 +64,4 @@ export function toProductListQuery(params: CatalogListParams, pageSize: number):
     return { brandId: params.filterId, limit: pageSize };
   }
   return null;
-}
-
-function isMerchandisingSegment(segment: string): boolean {
-  return (
-    segment === 'new' ||
-    segment === 'best-sellers' ||
-    segment === 'pro' ||
-    segment === 'teams' ||
-    segment === 'outlet' ||
-    segment === 'flash'
-  );
 }

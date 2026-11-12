@@ -52,6 +52,7 @@ import {
   shopFiltersToQueryParams,
   sizeOptionsFromFacets,
 } from './utils/shop-filters';
+import { ErrorPageComponent } from '@shared/ui/error-page';
 
 interface ShopCatalogSnapshot {
   readonly hits: readonly SearchHit[];
@@ -64,6 +65,7 @@ interface ShopCatalogSnapshot {
   selector: 'app-shop-page',
   host: { class: 'block w-full min-h-[60vh] container-content' },
   imports: [
+    ErrorPageComponent,
     MatButtonModule,
     SharedIconModule,
     ShopHeaderComponent,

@@ -38,7 +38,15 @@
 
     <!-- Main Storefront Page View (bottom padding clears the mobile bottom bar) -->
     <main class="flex-1 w-full @container" [class]="focusChrome() ? '' : 'pb-20 lg:pb-0'">
-      <router-outlet />
+      @if (pageLoadError.failedUrl(); as failedUrl) {
+        <app-error-page class="container-content" kind="failed" [retryUrl]="failedUrl" />
+      } @else if (pageLoadError.failedUrl() === '') {
+        <app-error-page class="container-content" kind="failed" />
+      }
+      <!-- Kept (only hidden) while a page failed to download, so the open page comes back on the next link. -->
+      <div class="w-full" [hidden]="pageLoadError.failedUrl() !== null">
+        <router-outlet />
+      </div>
     </main>
 
     @if (!focusChrome()) {

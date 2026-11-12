@@ -26,6 +26,7 @@ import type { ProductCardPrice } from '@shared/components/product-card/product-c
 import { searchHitCardPrice, searchHitToCardData } from '@shared/components/product-card/product-card.utils';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
+import { ErrorPageComponent } from '@shared/ui/error-page';
 
 const SORT_OPTIONS: readonly { readonly value: SearchSort; readonly label: string }[] = [
   { value: 'relevance', label: 'Relevance' },
@@ -37,6 +38,7 @@ const SORT_OPTIONS: readonly { readonly value: SearchSort; readonly label: strin
   selector: 'app-search',
   host: { class: 'block w-full min-h-[60vh] container-content' },
   imports: [
+    ErrorPageComponent,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
