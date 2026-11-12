@@ -102,6 +102,168 @@
         </div>
       }
     </fieldset>
+  } @else if (selectedPickerKind() === 'bundleSet' && r.kind === 'bundleSet') {
+    @let bundleErrors = bundleIssues();
+    <fieldset class="w-full elements-start-col items-stretch! gap-3">
+      <legend class="font-title-sm font-bold!">What goes in a set</legend>
+      <p class="font-body-sm text-on-surface-variant">
+        A set is the pieces from every group. Shoppers save on each full set in their bag, and sets repeat.
+      </p>
+      @for (slot of r.slots; track slot.id; let i = $index) {
+        <fieldset
+          class="w-full border-shape border border-outline-variant p-4 elements-start-col items-stretch! gap-3"
+        >
+          <legend class="px-1 font-label-md">Group {{ i + 1 }}</legend>
+          <div class="elements-start items-start! flex-wrap gap-3 w-full">
+            <mat-form-field class="w-full sm:w-64" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Group name</mat-label>
+              <input
+                matInput
+                type="text"
+                placeholder="Racket"
+                [attr.maxlength]="maxSlotName"
+                [value]="slot.name"
+                (input)="onSlotNameChange(slot.id, $event)"
+              />
+              <mat-hint>Shown to shoppers</mat-hint>
+            </mat-form-field>
+            <mat-form-field class="w-full sm:w-28" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Pieces</mat-label>
+              <input
+                matInput
+                type="number"
+                min="1"
+                [max]="maxSlotPieces"
+                [value]="slot.quantity || ''"
+                (input)="onSlotPiecesChange(slot.id, $event)"
+              />
+            </mat-form-field>
+            <button
+              matIconButton
+              type="button"
+              [disabled]="r.slots.length <= minSlots"
+              [attr.aria-label]="'Remove group ' + (i + 1)"
+              (click)="removeSlot(slot.id)"
+            >
+              <mat-icon name="delete" />
+            </button>
+          </div>
+          <app-product-targets
+            heading="Products in this group"
+            addLabel="Add Category, Brand or Product"
+            [conditions]="slot.conditions"
+            [categories]="categories()"
+            [brands]="brands()"
+            [products]="products()"
+            [names]="names()"
+            (conditionsChange)="onSlotConditionsChange(slot.id, $event)"
+          />
+        </fieldset>
+      }
+      @for (message of bundleErrors.groups; track message) {
+        <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+      }
+      @if (canAddSlot()) {
+        <div>
+          <button matButton="outlined" type="button" class="btn-block-phone" (click)="addSlot()">
+            <mat-icon name="add" />
+            <span>Add Group</span>
+          </button>
+        </div>
+      }
+    </fieldset>
+
+    @let saving = r.setReward;
+    <fieldset class="w-full elements-start-col items-stretch! gap-3">
+      <legend class="font-title-sm font-bold!">What shoppers save on a full set</legend>
+      <mat-radio-group
+        class="elements-start-col gap-1"
+        aria-label="What shoppers save on a full set"
+        [value]="saving.type"
+        (change)="onSavingTypeChange($event.value)"
+      >
+        @for (opt of bundleSavingOptions; track opt.id) {
+          <mat-radio-button [value]="opt.id">{{ opt.label }}</mat-radio-button>
+        }
+      </mat-radio-group>
+
+      @switch (saving.type) {
+        @case ('total') {
+          <mat-form-field class="w-full sm:w-56" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Price for a full set</mat-label>
+            <span matTextPrefix>EGP&nbsp;</span>
+            <input
+              matInput
+              type="number"
+              min="1"
+              [value]="saving.type === 'total' ? saving.price || '' : ''"
+              (input)="onSetPriceChange($event)"
+            />
+          </mat-form-field>
+        }
+        @case ('percent') {
+          <div class="elements-start items-center! flex-wrap gap-2">
+            <mat-form-field class="w-full sm:w-32" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Percent off</mat-label>
+              <input
+                matInput
+                type="number"
+                min="1"
+                [max]="maxSetPercent"
+                [value]="saving.type === 'percent' ? saving.percent || '' : ''"
+                (input)="onSetPercentChange($event)"
+              />
+              <span matTextSuffix>%</span>
+            </mat-form-field>
+            <mat-button-toggle-group
+              class="pill-switch"
+              aria-label="Quick percent"
+              hideSingleSelectionIndicator
+              [value]="saving.type === 'percent' ? saving.percent : null"
+              (change)="setBundlePercent($event.value)"
+            >
+              @for (percent of bundleQuickPercents; track percent) {
+                <mat-button-toggle [value]="percent">{{ percent }}%</mat-button-toggle>
+              }
+            </mat-button-toggle-group>
+          </div>
+        }
+        @case ('amount') {
+          <mat-form-field class="w-full sm:w-56" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Money off a full set</mat-label>
+            <span matTextPrefix>EGP&nbsp;</span>
+            <input
+              matInput
+              type="number"
+              min="1"
+              [value]="saving.type === 'amount' ? saving.amount || '' : ''"
+              (input)="onSetAmountChange($event)"
+            />
+          </mat-form-field>
+        }
+        @case ('cheapestFree') {
+          <p class="font-body-sm text-on-surface-variant">The cheapest piece in each full set is free.</p>
+        }
+      }
+      @for (message of bundleErrors.saving; track message) {
+        <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+      }
+    </fieldset>
+
+    <div class="w-full elements-start-col items-stretch! gap-2">
+      <mat-checkbox [checked]="r.maxSets !== null" (change)="onLimitSetsChange($event.checked)">
+        Limit how many sets per order
+      </mat-checkbox>
+      @if (r.maxSets !== null) {
+        <mat-form-field class="w-full sm:w-48" appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Most sets per order</mat-label>
+          <input matInput type="number" min="1" [value]="r.maxSets || ''" (input)="onMaxSetsChange($event)" />
+        </mat-form-field>
+      }
+      @for (message of bundleErrors.limit; track message) {
+        <p class="font-body-sm text-error" role="alert">{{ message }}</p>
+      }
+    </div>
   } @else if (selectedPickerKind() === 'buyXGetY' && r.kind === 'buyXGetY') {
     <div class="elements-start items-center! flex-wrap gap-3">
       <mat-form-field class="w-full sm:w-28" appearance="outline" subscriptSizing="dynamic">

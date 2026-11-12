@@ -84,6 +84,8 @@
                 [products]="products()"
                 [categories]="categories()"
                 [brands]="brands()"
+                [issues]="rewardIssues()"
+                [names]="names()"
                 (rewardChange)="updateReward($event)"
                 (scopeChange)="updateScope($event)"
                 (minimumChange)="updateMinimum($event)"
@@ -112,10 +114,18 @@
           @case (2) {
             <div>
               <h2 #stepHeading tabindex="-1" class="font-headline-sm font-bold! outline-none">
-                Which products get {{ dealHeadline() }}?
+                @if (isBundleSet()) {
+                  Which products are in the bundle?
+                } @else {
+                  Which products get {{ dealHeadline() }}?
+                }
               </h2>
               <p class="font-body-md text-on-surface-variant">
-                Pick whole groups. New products that join a group get the offer too.
+                @if (isBundleSet()) {
+                  New products that join a category or brand in a group are in the bundle too.
+                } @else {
+                  Pick whole groups. New products that join a group get the offer too.
+                }
               </p>
             </div>
 
@@ -123,39 +133,58 @@
               <p class="offer-note">Free shipping covers the whole order, for orders shipped in Egypt.</p>
             }
 
-            <mat-radio-group
-              class="grid grid-cols-1 @3xl:grid-cols-2 gap-3 w-full"
-              aria-label="Which products"
-              [value]="productsMode()"
-              (change)="setProductsMode($event.value)"
-            >
-              <div class="offer-choice" [class.offer-choice--on]="productsMode() === 'all'">
-                <mat-radio-button value="all">
-                  <span class="offer-choice__hit" aria-hidden="true"></span>
-                  <span class="block font-title-sm font-bold!">Every product</span>
-                  <span class="offer-choice__hint">The whole store</span>
-                </mat-radio-button>
-              </div>
-              <div class="offer-choice" [class.offer-choice--on]="productsMode() === 'some'">
-                <mat-radio-button value="some">
-                  <span class="offer-choice__hit" aria-hidden="true"></span>
-                  <span class="block font-title-sm font-bold!">Only some products</span>
-                  <span class="offer-choice__hint">By category, brand or one by one</span>
-                </mat-radio-button>
-              </div>
-            </mat-radio-group>
+            @if (isBundleSet()) {
+              <p class="offer-note">
+                The groups you picked on the first step decide the products. You can still leave some out.
+              </p>
+              @if (draft().conditions.anyOf.length > 0) {
+                <!-- Only an offer saved with rules of its own: shown so staff can see and remove them. -->
+                <app-product-targets
+                  heading="Only these products"
+                  addLabel="Add Category, Brand or Product"
+                  [conditions]="draft().conditions"
+                  [categories]="categories()"
+                  [brands]="brands()"
+                  [products]="products()"
+                  [names]="names()"
+                  (conditionsChange)="updateConditions($event)"
+                />
+              }
+            } @else {
+              <mat-radio-group
+                class="grid grid-cols-1 @3xl:grid-cols-2 gap-3 w-full"
+                aria-label="Which products"
+                [value]="productsMode()"
+                (change)="setProductsMode($event.value)"
+              >
+                <div class="offer-choice" [class.offer-choice--on]="productsMode() === 'all'">
+                  <mat-radio-button value="all">
+                    <span class="offer-choice__hit" aria-hidden="true"></span>
+                    <span class="block font-title-sm font-bold!">Every product</span>
+                    <span class="offer-choice__hint">The whole store</span>
+                  </mat-radio-button>
+                </div>
+                <div class="offer-choice" [class.offer-choice--on]="productsMode() === 'some'">
+                  <mat-radio-button value="some">
+                    <span class="offer-choice__hit" aria-hidden="true"></span>
+                    <span class="block font-title-sm font-bold!">Only some products</span>
+                    <span class="offer-choice__hint">By category, brand or one by one</span>
+                  </mat-radio-button>
+                </div>
+              </mat-radio-group>
 
-            @if (productsMode() === 'some') {
-              <app-product-targets
-                heading="Include"
-                addLabel="Add Category, Brand or Product"
-                [conditions]="draft().conditions"
-                [categories]="categories()"
-                [brands]="brands()"
-                [products]="products()"
-                [names]="names()"
-                (conditionsChange)="updateConditions($event)"
-              />
+              @if (productsMode() === 'some') {
+                <app-product-targets
+                  heading="Include"
+                  addLabel="Add Category, Brand or Product"
+                  [conditions]="draft().conditions"
+                  [categories]="categories()"
+                  [brands]="brands()"
+                  [products]="products()"
+                  [names]="names()"
+                  (conditionsChange)="updateConditions($event)"
+                />
+              }
             }
             <app-product-targets
               heading="Leave out"
@@ -243,7 +272,7 @@
               </div>
             </div>
             @if (showProducts()) {
-              <app-offer-preview [draft]="offer()" [products]="products()" />
+              <app-offer-preview [draft]="offer()" [products]="products()" [match]="matchForEditor" />
             }
 
             @if (overlapWarnings().length > 0) {
