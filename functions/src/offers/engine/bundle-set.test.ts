@@ -205,6 +205,10 @@ describe('Bundle & Save: an incomplete set', () => {
     assert.deepEqual(deals.sets[0].missing, [{ slotId: 'slot-2', name: 'Shorts', quantity: 1 }]);
   });
 
+  it('has no nudge for a bag of exactly whole sets', () => {
+    assert.deepEqual(priceBagDeals([line(TEE), line(SHORTS)], [SET_600], CTX).sets[0].missing, []);
+  });
+
   it('says nothing when no piece in the bag fits a group', () => {
     const deals = priceBagDeals([line(SOCKS)], [SET_600], CTX);
     assert.deepEqual(deals.sets, []);
@@ -235,6 +239,33 @@ describe('Bundle & Save: one discount per item', () => {
     assert.deepEqual(priceBagDeals(lines, [tie], CTX).offerIds, []);
     const cheaper = offer('cheaper', reward({ type: 'total', price: 550 }));
     assert.equal(bagTotal(priceBagDeals(lines, [cheaper], CTX)), 550);
+  });
+
+  it('fills a set with the pieces that cost most after per-item offers, so a cheaper set can still win', () => {
+    const twenty = offer('twenty', reward({ type: 'percent', percent: 20 }));
+    const a1 = product('a1', ['apparel', 't-shirts'], 1000);
+    const a2 = product('a2', ['apparel', 't-shirts'], 800);
+    const b1 = product('b1', ['apparel', 'shorts'], 500);
+    const lines = [line(a1, 1, { offerPrice: 500 }), line(a2), line(b1)];
+    const deals = priceBagDeals(lines, [twenty], CTX);
+    assert.equal(deals.sets[0].sets, 1);
+    assert.equal(bagTotal(deals), 500 + 1040);
+    assert.equal(deals.lines[0].deals.length, 0);
+  });
+
+  it('a set that loses does not use up "at most" sets', () => {
+    const one = offer('one', reward({ type: 'percent', percent: 20 }, { maxSets: 1 }));
+    const a1 = product('a1', ['apparel', 't-shirts'], 1000);
+    const a2 = product('a2', ['apparel', 't-shirts'], 600);
+    const b1 = product('b1', ['apparel', 'shorts'], 500);
+    const b2 = product('b2', ['apparel', 'shorts'], 300);
+    // The first set (a1 + b1 at 1200) loses to their own prices (700 + 350); a1 is left out and
+    // a2 + b1 (880 against 950) gets the saving.
+    const lines = [line(a1, 1, { offerPrice: 700 }), line(a2), line(b1, 1, { offerPrice: 350 }), line(b2)];
+    const deals = priceBagDeals(lines, [one], CTX);
+    assert.equal(deals.sets[0].sets, 1);
+    assert.equal(bagTotal(deals), 700 + 880 + 300);
+    assert.equal(deals.lines[0].deals.length, 0);
   });
 
   it('with Buy X Get Y on the same pieces the cheapest bag wins, never both', () => {
@@ -370,6 +401,37 @@ describe('Bundle & Save: checks and reading', () => {
     assert.equal(parsed.reward.maxSets, null);
     assert.equal(parsed.reward.slots.length, 2);
     assert.deepEqual(parsed.reward.setReward, { type: 'amount', amount: 100 });
+  });
+
+  it('trims group ids and names, so a repeated id with a space is still refused', () => {
+    const spaced = offer(
+      'spaced',
+      reward(
+        { type: 'total', price: 600 },
+        {
+          slots: [
+            { ...TEE_SLOT, id: 'a', name: ' T-shirt ' },
+            { ...SHORTS_SLOT, id: 'a ' },
+          ],
+        },
+      ),
+    );
+    assert.deepEqual(spaced.reward.slots, []);
+    const named = offer(
+      'named',
+      reward({ type: 'total', price: 600 }, { slots: [{ ...TEE_SLOT, name: ' T-shirt ' }, SHORTS_SLOT] }),
+    );
+    assert.equal(named.reward.slots[0].name, 'T-shirt');
+  });
+
+  it('refuses a group with more than 200 values', () => {
+    const many = Array.from({ length: 201 }, (_, n) => `p${n}`);
+    const big = { ...TEE_SLOT, conditions: { anyOf: [{ allOf: [{ field: 'productId', in: many }] }] } };
+    assert.ok(
+      codes(reward({ type: 'total', price: 600 }, { slots: [big, SHORTS_SLOT] })).includes(
+        'reward.bundleSlotRules',
+      ),
+    );
   });
 
   it('warns about overlaps in plain words', () => {

@@ -6,8 +6,8 @@ import {
   MAX_GIFT_NAME,
   MAX_OFFER_GIFTS,
   bundleRows,
-  cleanBundleSet,
   parseOfferBanner,
+  readBundleSet,
   type OfferReward,
 } from './engine';
 
@@ -100,31 +100,10 @@ const RewardVariantSchema = v.variant('kind', [
     // Bad rows are dropped by `bundleRows` below, as the server's reader does, so both price the same rows.
     rows: v.array(v.object({ quantity: v.number(), price: v.number() })),
   }),
-  v.object({
+  // Read by the engine's `readBundleSet` (same reader as the server), so the bag, checkout and the
+  // order callables always see the same groups; a bad reward keeps the offer with no groups.
+  v.looseObject({
     kind: v.literal('bundleSet'),
-    // Read leniently, then checked with the engine's rules (`cleanBundleSet` below), as the
-    // server's reader does: a bad reward keeps the offer with no groups, so it prices nothing.
-    slots: v.fallback(
-      v.array(
-        v.object({
-          id: v.fallback(v.string(), ''),
-          name: v.fallback(v.string(), ''),
-          quantity: v.fallback(v.number(), 0),
-          conditions: v.fallback(OfferConditionsSchema, { anyOf: [] }),
-        }),
-      ),
-      [],
-    ),
-    setReward: v.fallback(
-      v.variant('type', [
-        v.object({ type: v.literal('total'), price: v.number() }),
-        v.object({ type: v.literal('percent'), percent: v.number() }),
-        v.object({ type: v.literal('amount'), amount: v.number() }),
-        v.object({ type: v.literal('cheapestFree') }),
-      ]),
-      { type: 'total' as const, price: 0 },
-    ),
-    maxSets: v.fallback(v.optional(v.nullable(v.number()), null), 0),
   }),
   v.object({
     kind: v.literal('freeGift'),
@@ -146,7 +125,7 @@ export const OfferRewardSchema = v.pipe(
   RewardVariantSchema,
   v.transform((reward): OfferReward => {
     if (reward.kind === 'bundlePrice') return { kind: 'bundlePrice', rows: bundleRows(reward) };
-    if (reward.kind === 'bundleSet') return cleanBundleSet(reward);
+    if (reward.kind === 'bundleSet') return readBundleSet(reward);
     if (reward.kind !== 'freeGift') return reward;
     if (reward.gifts) {
       return {

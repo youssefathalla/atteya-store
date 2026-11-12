@@ -11,6 +11,7 @@ import type {
   OfferTier,
   PricedProduct,
   PricingContext,
+  ProductFacts,
   VariantFacts,
 } from './types';
 
@@ -234,7 +235,10 @@ function computeCandidateUnitPrice(
  * How a product fits an offer: its rules, and for Bundle & Save also at least one of its groups
  * (a Bundle & Save offer with no rules of its own still covers only its groups' products).
  */
-export function offerMatch(offer: Offer, product: PricedProduct): MatchLevel {
+export function offerMatch(
+  offer: Pick<Offer, 'conditions' | 'exclude' | 'reward'>,
+  product: ProductFacts,
+): MatchLevel {
   if (offer.reward.kind === 'bundleSet') return bundleSetMatch(offer, product);
   return matchProduct(offer.conditions, offer.exclude, product);
 }

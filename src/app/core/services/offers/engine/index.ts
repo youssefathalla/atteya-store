@@ -10,6 +10,7 @@ export * from './governorates';
 export * from './item-price';
 export * from './labels';
 export * from './match';
+export * from './read-conditions';
 export * from './shipping';
 export * from './types';
 export * from './validate';

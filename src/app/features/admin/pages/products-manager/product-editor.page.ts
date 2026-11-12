@@ -16,7 +16,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
-import { matchProduct, type Offer } from '@core/services/offers/engine';
+import { offerMatch, type Offer } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { COLOR_PALETTE, defaultWeightGrams, type ColorId } from '@core/services/products/catalog-taxonomy';
 import {
@@ -1076,9 +1076,7 @@ function offerRowsFor(offers: readonly Offer[], products: readonly Product[]): O
     if (offer.archived || !offer.active) continue;
     if (offer.schedule.startsAt && nowMs < offer.schedule.startsAt.getTime()) continue;
     if (offer.schedule.endsAt && nowMs >= offer.schedule.endsAt.getTime()) continue;
-    const covered = products.filter(
-      (product) => matchProduct(offer.conditions, offer.exclude, toPricedProduct(product)) !== 'none',
-    );
+    const covered = products.filter((product) => offerMatch(offer, toPricedProduct(product)) !== 'none');
     if (covered.length === 0) continue;
     const scope =
       covered.length === products.length

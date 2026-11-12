@@ -2,18 +2,14 @@ import {
   MAX_GIFT_CHOICES,
   MAX_OFFER_GIFTS,
   bundleRows,
-  cleanBundleSet,
+  readBundleSet,
+  readOfferConditions,
   parseOfferBanner,
 } from './engine/index.js';
 import type {
   Offer,
   OfferGift,
   OfferAudience,
-  OfferBundleSetReward,
-  OfferConditionAtom,
-  OfferConditionField,
-  OfferConditionGroup,
-  OfferConditions,
   OfferLimits,
   OfferMinimum,
   OfferReward,
@@ -24,18 +20,6 @@ import type {
   OfferTier,
   OfferVisibility,
 } from './engine/index.js';
-
-const CONDITION_FIELDS: readonly OfferConditionField[] = [
-  'productId',
-  'brandId',
-  'categoryIds',
-  'type',
-  'modelGroup',
-  'colors',
-  'sizes',
-  'tags',
-  'price',
-];
 
 export function parseOfferDoc(
   id: string,
@@ -67,8 +51,8 @@ export function parseOfferDoc(
     data['saleItems'] === 'exclude' || data['saleItems'] === 'stack' ? data['saleItems'] : 'bestOf';
   const scope: OfferScope = data['scope'] === 'cart' ? 'cart' : 'item';
 
-  const conditions = parseConditions(data['conditions']);
-  const exclude = parseConditions(data['exclude']);
+  const conditions = readOfferConditions(data['conditions']);
+  const exclude = readOfferConditions(data['exclude']);
   const minimum = parseMinimum(data['minimum']);
   const limits = parseLimits(data['limits']);
   const requiresCode = data['requiresCode'] === true || visibility === 'code';
@@ -111,58 +95,6 @@ function parseSchedule(raw: unknown): OfferSchedule {
     startsAt: readDate(obj['startsAt']),
     endsAt: readDate(obj['endsAt']),
     timezone: 'Africa/Cairo',
-  };
-}
-
-function parseConditions(raw: unknown): OfferConditions {
-  if (typeof raw !== 'object' || raw === null) return { anyOf: [] };
-  const anyOfRaw = (raw as { anyOf?: unknown }).anyOf;
-  if (!Array.isArray(anyOfRaw)) return { anyOf: [] };
-
-  const anyOf: OfferConditionGroup[] = [];
-  for (const groupRaw of anyOfRaw) {
-    if (typeof groupRaw !== 'object' || groupRaw === null) continue;
-    const allOfRaw = (groupRaw as { allOf?: unknown }).allOf;
-    if (!Array.isArray(allOfRaw)) continue;
-    const allOf: OfferConditionAtom[] = [];
-    for (const atomRaw of allOfRaw) {
-      const atom = parseAtom(atomRaw);
-      if (atom) allOf.push(atom);
-    }
-    if (allOf.length > 0) {
-      anyOf.push({ allOf });
-    }
-  }
-  return { anyOf };
-}
-
-function parseAtom(raw: unknown): OfferConditionAtom | null {
-  if (typeof raw !== 'object' || raw === null) return null;
-  const obj = raw as Record<string, unknown>;
-  const field = obj['field'];
-  if (typeof field !== 'string' || !CONDITION_FIELDS.includes(field as OfferConditionField)) {
-    return null;
-  }
-
-  if (field === 'price') {
-    const min =
-      typeof obj['min'] === 'number' && Number.isFinite(obj['min']) ? Math.round(obj['min']) : undefined;
-    const max =
-      typeof obj['max'] === 'number' && Number.isFinite(obj['max']) ? Math.round(obj['max']) : undefined;
-    return { field: 'price', ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) };
-  }
-
-  const inList = Array.isArray(obj['in'])
-    ? obj['in'].filter((val): val is string => typeof val === 'string' && val.trim().length > 0)
-    : undefined;
-  const notInList = Array.isArray(obj['notIn'])
-    ? obj['notIn'].filter((val): val is string => typeof val === 'string' && val.trim().length > 0)
-    : undefined;
-
-  return {
-    field: field as Exclude<OfferConditionField, 'price'>,
-    ...(inList ? { in: inList } : {}),
-    ...(notInList ? { notIn: notInList } : {}),
   };
 }
 
@@ -248,7 +180,7 @@ function parseReward(raw: unknown): OfferReward | null {
       const buyQty = readNumber(buyObj['quantity']) ?? 1;
       const getQty = readNumber(getObj['quantity']) ?? 1;
       const getPercent = readNumber(getObj['percent']) ?? 100;
-      const getConditions = obj['getConditions'] ? parseConditions(obj['getConditions']) : null;
+      const getConditions = obj['getConditions'] ? readOfferConditions(obj['getConditions']) : null;
       return {
         kind: 'buyXGetY',
         buy: { quantity: buyQty },
@@ -272,7 +204,7 @@ function parseReward(raw: unknown): OfferReward | null {
       return { kind: 'bundlePrice', rows: bundleRows({ kind: 'bundlePrice', rows }) };
     }
     case 'bundleSet':
-      return parseBundleSet(obj);
+      return readBundleSet(obj);
     case 'freeGift':
       return { kind: 'freeGift', gifts: parseGifts(obj) };
     case 'freeShipping':
@@ -280,48 +212,6 @@ function parseReward(raw: unknown): OfferReward | null {
     default:
       return null;
   }
-}
-
-/**
- * A Bundle & Save reward. Read as written, then checked with the engine's rules: a bad one keeps
- * the offer but with no groups, so it prices nothing (`cleanBundleSet`).
- */
-function parseBundleSet(obj: Record<string, unknown>): OfferReward {
-  const rawSlots = Array.isArray(obj['slots']) ? obj['slots'] : [];
-  const slots = rawSlots.flatMap((raw) => {
-    if (typeof raw !== 'object' || raw === null) return [];
-    const slot = raw as Record<string, unknown>;
-    return [
-      {
-        id: readString(slot['id']),
-        name: readString(slot['name']),
-        quantity: rawNumber(slot['quantity']) ?? 0,
-        conditions: parseConditions(slot['conditions']),
-      },
-    ];
-  });
-  const rawSet =
-    typeof obj['setReward'] === 'object' && obj['setReward'] !== null
-      ? (obj['setReward'] as Record<string, unknown>)
-      : {};
-  const setReward: OfferBundleSetReward =
-    rawSet['type'] === 'total'
-      ? { type: 'total', price: rawNumber(rawSet['price']) ?? 0 }
-      : rawSet['type'] === 'percent'
-        ? { type: 'percent', percent: rawNumber(rawSet['percent']) ?? 0 }
-        : rawSet['type'] === 'amount'
-          ? { type: 'amount', amount: rawNumber(rawSet['amount']) ?? 0 }
-          : rawSet['type'] === 'cheapestFree'
-            ? { type: 'cheapestFree' }
-            : { type: 'total', price: 0 };
-  const maxSets =
-    obj['maxSets'] === null || obj['maxSets'] === undefined ? null : (rawNumber(obj['maxSets']) ?? 0);
-  return cleanBundleSet({ kind: 'bundleSet', slots, setReward, maxSets });
-}
-
-/** A finite number as written (not rounded, so 1.5 pieces or EGP 99.5 is refused, not fixed). */
-function rawNumber(raw: unknown): number | null {
-  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { splitBundleTotal } from './bundle-price.js';
 import { matchProduct, matchVariant, type MatchLevel } from './match.js';
+import { readOfferConditions } from './read-conditions.js';
 import type {
   Offer,
   OfferBundleSetReward,
@@ -36,8 +37,8 @@ export function bundleSetProblems(reward: BundleSetReward): OfferIssue[] {
       message: `Add between ${MIN_BUNDLE_SLOTS} and ${MAX_BUNDLE_SLOTS} groups.`,
     });
   }
-  const ids = new Set<string>();
-  if (slots.some((slot) => !slot.id.trim() || ids.size === ids.add(slot.id).size)) {
+  const ids = slots.map((slot) => slot.id.trim());
+  if (ids.some((id, index) => !id || ids.indexOf(id) !== index)) {
     problems.push({
       code: 'reward.bundleSlotId',
       message: 'Each group needs its own id. Remove the group and add it again.',
@@ -58,6 +59,12 @@ export function bundleSetProblems(reward: BundleSetReward): OfferIssue[] {
     problems.push({
       code: 'reward.bundleSlotPieces',
       message: `Each group needs between 1 and ${MAX_BUNDLE_SLOT_PIECES} pieces.`,
+    });
+  }
+  if (slots.some((slot) => !slotRulesFit(slot.conditions))) {
+    problems.push({
+      code: 'reward.bundleSlotRules',
+      message: 'Each group can have up to 10 rule groups of up to 10 rules, each picking up to 200 values.',
     });
   }
   if (slots.some((slot) => !slotPicksProducts(slot.conditions))) {
@@ -111,7 +118,53 @@ export function bundleSetProblems(reward: BundleSetReward): OfferIssue[] {
  * so the offer prices nothing and no product counts toward it (the offer itself is kept).
  */
 export function cleanBundleSet(reward: BundleSetReward): BundleSetReward {
-  return bundleSetProblems(reward).length === 0 ? reward : { ...reward, slots: [] };
+  const trimmed: BundleSetReward = {
+    ...reward,
+    slots: reward.slots.map((slot) => ({ ...slot, id: slot.id.trim(), name: slot.name.trim() })),
+  };
+  return bundleSetProblems(trimmed).length === 0 ? trimmed : { ...trimmed, slots: [] };
+}
+
+/**
+ * A saved Bundle & Save reward (`reward` as stored on the offer), read leniently and then checked
+ * with `cleanBundleSet()`: a bad one keeps the offer with no groups, so it prices nothing. Numbers
+ * are read as written (1.5 pieces or EGP 99.5 is refused, not rounded); a missing `maxSets` means
+ * no cap. The server's offer reader and the app's `OfferRewardSchema` both use it, so the bag,
+ * checkout and the order callables always read the same groups.
+ */
+export function readBundleSet(raw: Record<string, unknown>): BundleSetReward {
+  const rawSlots = Array.isArray(raw['slots']) ? raw['slots'] : [];
+  const slots = rawSlots.flatMap((entry): OfferBundleSlot[] => {
+    if (typeof entry !== 'object' || entry === null) return [];
+    const slot = entry as Record<string, unknown>;
+    return [
+      {
+        id: typeof slot['id'] === 'string' ? slot['id'] : '',
+        name: typeof slot['name'] === 'string' ? slot['name'] : '',
+        quantity: finite(slot['quantity']) ?? 0,
+        conditions: readOfferConditions(slot['conditions']),
+      },
+    ];
+  });
+  const set =
+    typeof raw['setReward'] === 'object' && raw['setReward'] !== null
+      ? (raw['setReward'] as Record<string, unknown>)
+      : {};
+  const setReward: OfferBundleSetReward =
+    set['type'] === 'percent'
+      ? { type: 'percent', percent: finite(set['percent']) ?? 0 }
+      : set['type'] === 'amount'
+        ? { type: 'amount', amount: finite(set['amount']) ?? 0 }
+        : set['type'] === 'cheapestFree'
+          ? { type: 'cheapestFree' }
+          : { type: 'total', price: set['type'] === 'total' ? (finite(set['price']) ?? 0) : 0 };
+  const maxSets =
+    raw['maxSets'] === null || raw['maxSets'] === undefined ? null : (finite(raw['maxSets']) ?? 0);
+  return cleanBundleSet({ kind: 'bundleSet', slots, setReward, maxSets });
+}
+
+function finite(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 /** The groups of a Bundle & Save reward that can be priced; empty for a bad one or any other reward. */
@@ -196,6 +249,20 @@ function slotPicksProducts(conditions: OfferConditions): boolean {
     conditions.anyOf.length > 0 &&
     conditions.anyOf.every((group) =>
       group.allOf.some((atom) => atom.field !== 'price' && (atom.in?.length ?? 0) > 0),
+    )
+  );
+}
+
+/** The same caps as an offer's own rules (and the app's `OfferConditionsSchema`). */
+function slotRulesFit(conditions: OfferConditions): boolean {
+  return (
+    conditions.anyOf.length <= 10 &&
+    conditions.anyOf.every(
+      (group) =>
+        group.allOf.length <= 10 &&
+        group.allOf.every(
+          (atom) => atom.field === 'price' || (atom.in?.length ?? 0) + (atom.notIn?.length ?? 0) <= 200,
+        ),
     )
   );
 }

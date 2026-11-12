@@ -110,9 +110,10 @@ export interface BagBundleSet {
    */
   readonly lineIndex: number;
   /**
-   * The groups the next set still needs pieces for, in the offer's group order; empty when the
-   * offer is at its "at most" number of sets, or when the pieces left already make a set that
-   * their own offers beat.
+   * The groups the next set still needs pieces for, counted from the pieces of the offer left
+   * outside a set, in the offer's group order. Empty when no such piece is left (a bag of exactly
+   * whole sets, or nothing fits yet), when the offer is at its "at most" number of sets, or when
+   * the pieces left already make a set that their own offers beat.
    */
   readonly missing: readonly BagBundleSetMissing[];
 }
@@ -480,13 +481,14 @@ function nextBundleRow(
 }
 
 /**
- * Prices one Bundle & Save offer over the pieces no other offer used yet. It works out how many
- * complete sets the pieces make (one piece set from every group; capped by `maxSets`), fills them
- * with the most expensive pieces that still let every set be complete, and puts the most
- * expensive pieces of each group in the first set. A set gets the saving only when it costs less
- * than its pieces at their own prices after per-item offers (a tie keeps those); its pieces then pay
- * their share of the set total (`bundleSetShares`) and get no per-item offer. A set that loses
- * keeps its pieces' own prices, and another offer may still use them. Returns null when no piece
+ * Prices one Bundle & Save offer over the pieces no other offer used yet, one set at a time (at
+ * most `maxSets`). Each set is the first of the most complete sets the pieces still make (one
+ * piece set from every group; a piece that fits several groups goes where every set can still be
+ * completed), filled with the most expensive pieces after per-item offers. A set gets the saving
+ * only when it costs less than its pieces at those prices (a tie keeps them); its pieces then pay
+ * their share of the set total (`bundleSetShares`) and get no per-item offer. When a set loses, the
+ * piece whose per-item offer saves most is left out and the next set is tried without it; pieces
+ * left out keep their own prices, and another offer may still use them. Returns null when no piece
  * fits a group.
  */
 function priceBundleSet(
@@ -505,34 +507,44 @@ function priceBundleSet(
       ? slots.map((slot) => qualifies(offer, slot.conditions, line))
       : slots.map(() => false),
   );
-  const byPrice = (a: Unit, b: Unit): number => b.price - a.price || a.line - b.line;
-  const pool = units.filter((unit) => !unit.used && fitsLine[unit.line]!.some(Boolean)).sort(byPrice);
-  if (pool.length === 0) return null;
-  const fits = (unit: Unit): readonly boolean[] => fitsLine[unit.line]!;
+  const fitting = units
+    .filter((unit) => !unit.used && fitsLine[unit.line]!.some(Boolean))
+    .sort((a, b) => offerPriceOf(b) - offerPriceOf(a) || b.price - a.price || a.line - b.line);
+  if (fitting.length === 0) return null;
+  const quantities = slots.map((slot) => slot.quantity);
 
   const cap = reward.maxSets === null ? Number.POSITIVE_INFINITY : reward.maxSets;
-  let count = 0;
-  while (count < cap && setsFit(slots, pool, fits, count + 1)) count++;
-
-  // Each group's pieces, most expensive first, then cut into the sets.
-  const picked = pickForSets(slots, pool, fits, count);
+  let pool = fitting;
   const share = new Map<Unit, number>();
   const won: Unit[] = [];
   let total = 0;
   let sets = 0;
-  for (let index = 0; index < count; index++) {
-    const set = slots.flatMap((slot, s) =>
-      picked[s]!.slice(index * slot.quantity, (index + 1) * slot.quantity),
-    );
-    const prices = set.map((unit) => unit.price);
-    const setTotal = bundleSetTotal(reward.setReward, prices);
-    const own = set.reduce((sum, unit) => sum + offerPriceOf(unit), 0);
-    if (setTotal >= own) continue;
-    const shares = bundleSetShares(reward.setReward, prices);
-    set.forEach((unit, i) => share.set(unit, shares[i]!));
-    won.push(...set);
-    total += setTotal;
-    sets++;
+  // Plan every set at once; plan again only after a set loses (its pieces change the plan).
+  plan: while (sets < cap) {
+    const count = Math.min(maxSets(quantities, pool, fitsLine), cap - sets);
+    if (count === 0) break;
+    const picked = pickForSets(quantities, pool, fitsLine, count);
+    for (let index = 0; index < count; index++) {
+      const set = slots.flatMap((slot, s) =>
+        picked[s]!.slice(index * slot.quantity, (index + 1) * slot.quantity),
+      );
+      const prices = set.map((unit) => unit.price);
+      const setTotal = bundleSetTotal(reward.setReward, prices);
+      const own = set.reduce((sum, unit) => sum + offerPriceOf(unit), 0);
+      if (setTotal >= own) {
+        // Its per-item offers win: leave out the piece they save most on and plan again.
+        const drop = set.reduce((most, unit) => (unit.itemSaving > most.itemSaving ? unit : most), set[0]!);
+        pool = pool.filter((unit) => unit !== drop);
+        continue plan;
+      }
+      const shares = bundleSetShares(reward.setReward, prices);
+      set.forEach((unit, i) => share.set(unit, shares[i]!));
+      const inSet = new Set(set);
+      pool = pool.filter((unit) => !inSet.has(unit));
+      won.push(...set);
+      total += setTotal;
+      sets++;
+    }
   }
 
   let saving = 0;
@@ -557,8 +569,8 @@ function priceBundleSet(
     saving += entry.discount;
   }
 
-  const lineIndex = Math.max(...(won.length > 0 ? won : pool).map((unit) => unit.line));
-  const left = pool.filter((unit) => !unit.used);
+  const lineIndex = Math.max(...(won.length > 0 ? won : fitting).map((unit) => unit.line));
+  const left = fitting.filter((unit) => !unit.used);
   return {
     offerId: offer.id,
     title: offer.title,
@@ -567,67 +579,90 @@ function priceBundleSet(
     total,
     saving,
     lineIndex,
-    missing: sets < cap && left.length > 0 ? missingForNextSet(slots, left, fits) : [],
+    missing: sets < cap ? missingForNextSet(slots, left, fitsLine) : [],
   };
 }
 
-/**
- * True when the pieces make `count` complete sets, each piece in one group only: for every mix
- * of groups, enough pieces fit at least one of them (Hall's rule; at most 4 groups, 15 mixes).
- */
-function setsFit(
-  slots: readonly OfferBundleSlot[],
-  pool: readonly Unit[],
-  fits: (unit: Unit) => readonly boolean[],
-  count: number,
-): boolean {
-  return demandFits(
-    slots.map((slot) => slot.quantity * count),
-    pool,
-    fits,
-  );
+/** Pieces counted per bag line: every piece of a line fits the same groups. */
+interface LineCount {
+  readonly fit: readonly boolean[];
+  count: number;
 }
 
-function demandFits(
-  demand: readonly number[],
+function countByLine(
   pool: readonly Unit[],
-  fits: (unit: Unit) => readonly boolean[],
-): boolean {
+  fitsLine: readonly (readonly boolean[])[],
+): Map<number, LineCount> {
+  const counts = new Map<number, LineCount>();
+  for (const unit of pool) {
+    const entry = counts.get(unit.line);
+    if (entry) entry.count += 1;
+    else counts.set(unit.line, { fit: fitsLine[unit.line]!, count: 1 });
+  }
+  return counts;
+}
+
+/**
+ * True when the pieces cover `demand` (pieces per group), each piece in one group only: for every
+ * mix of groups, enough pieces fit at least one of them (Hall's rule; at most 4 groups, 15 mixes).
+ */
+function demandFits(demand: readonly number[], counts: Iterable<LineCount>): boolean {
+  const lines = [...counts];
   for (let mask = 1; mask < 1 << demand.length; mask++) {
     let need = 0;
     for (let s = 0; s < demand.length; s++) if (mask & (1 << s)) need += demand[s]!;
     if (need === 0) continue;
     let have = 0;
-    for (const unit of pool) {
-      const fit = fits(unit);
-      if (fit.some((yes, s) => yes && (mask & (1 << s)) !== 0)) have++;
+    for (const line of lines) {
+      if (line.fit.some((yes, s) => yes && (mask & (1 << s)) !== 0)) have += line.count;
     }
     if (have < need) return false;
   }
   return true;
 }
 
+/** The most complete sets the pieces make. */
+function maxSets(
+  quantities: readonly number[],
+  pool: readonly Unit[],
+  fitsLine: readonly (readonly boolean[])[],
+): number {
+  const counts = [...countByLine(pool, fitsLine).values()];
+  const perSet = quantities.reduce((sum, quantity) => sum + quantity, 0);
+  let count = 0;
+  while (
+    (count + 1) * perSet <= pool.length &&
+    demandFits(
+      quantities.map((q) => q * (count + 1)),
+      counts,
+    )
+  )
+    count++;
+  return count;
+}
+
 /**
- * The pieces of `count` sets per group, most expensive first: each piece (most expensive first)
- * goes to the first group it fits that still needs pieces, as long as every set can still be
- * completed with the pieces after it.
+ * The pieces of `count` sets per group, in pool order (most expensive first): each piece goes to
+ * the first group it fits that still needs pieces, as long as every set can still be completed
+ * with the pieces after it.
  */
 function pickForSets(
-  slots: readonly OfferBundleSlot[],
+  quantities: readonly number[],
   pool: readonly Unit[],
-  fits: (unit: Unit) => readonly boolean[],
+  fitsLine: readonly (readonly boolean[])[],
   count: number,
 ): Unit[][] {
-  const picked: Unit[][] = slots.map(() => []);
-  const demand = slots.map((slot) => slot.quantity * count);
-  for (let index = 0; index < pool.length && demand.some((need) => need > 0); index++) {
-    const unit = pool[index]!;
-    const rest = pool.slice(index + 1);
-    const fit = fits(unit);
-    for (let s = 0; s < slots.length; s++) {
+  const picked: Unit[][] = quantities.map(() => []);
+  const demand = quantities.map((quantity) => quantity * count);
+  const rest = countByLine(pool, fitsLine);
+  for (const unit of pool) {
+    if (!demand.some((need) => need > 0)) break;
+    rest.get(unit.line)!.count -= 1;
+    const fit = fitsLine[unit.line]!;
+    for (let s = 0; s < demand.length; s++) {
       if (!fit[s] || demand[s]! <= 0) continue;
       const after = demand.map((need, i) => (i === s ? need - 1 : need));
-      if (!demandFits(after, rest, fits)) continue;
+      if (!demandFits(after, rest.values())) continue;
       demand[s] = after[s]!;
       picked[s]!.push(unit);
       break;
@@ -637,22 +672,22 @@ function pickForSets(
 }
 
 /**
- * What one more set still needs from each group, with the pieces left: the most pieces that can
- * go into the set, the groups with the fewest fitting pieces filled first. Empty when the pieces
- * left already make a whole set (it lost to their own offers, so there is nothing to nudge).
+ * What one more set still needs from each group, with the pieces left: the most pieces each group
+ * can get, filled in the offer's group order. Empty when the pieces left already make a whole set
+ * (its pieces' own offers beat it, so there is nothing to nudge toward) or when no piece is left.
  */
 function missingForNextSet(
   slots: readonly OfferBundleSlot[],
   left: readonly Unit[],
-  fits: (unit: Unit) => readonly boolean[],
+  fitsLine: readonly (readonly boolean[])[],
 ): BagBundleSetMissing[] {
-  const demand = slots.map((slot) => slot.quantity);
-  // Fill as much of the set as the pieces allow: lower the demand of each group until it fits.
+  if (left.length === 0) return [];
+  const counts = [...countByLine(left, fitsLine).values()];
   const filled = slots.map(() => 0);
   for (let s = 0; s < slots.length; s++) {
-    for (let n = demand[s]!; n > 0; n--) {
+    for (let n = slots[s]!.quantity; n > 0; n--) {
       const trial = filled.map((have, i) => (i === s ? n : have));
-      if (demandFits(trial, left, fits)) {
+      if (demandFits(trial, counts)) {
         filled[s] = n;
         break;
       }

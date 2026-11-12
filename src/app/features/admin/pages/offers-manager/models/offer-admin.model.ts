@@ -3,7 +3,7 @@ import {
   dateToCairoWallTime,
   DEFAULT_OFFER_BANNER,
   describeOfferReward,
-  matchProduct,
+  offerMatch,
   type Offer,
   type OfferConditionAtom,
   type OfferConditionField,
@@ -262,7 +262,7 @@ export function matchesDealFilter(offer: Offer, filter: OfferDealFilter): boolea
     case 'gifts':
       return kind === 'freeGift';
     case 'bundles':
-      return kind === 'bundlePrice' || kind === 'buyXGetY';
+      return kind === 'bundlePrice' || kind === 'buyXGetY' || kind === 'bundleSet';
     case 'banner':
       return offer.banner?.show === true;
   }
@@ -369,7 +369,7 @@ export function offerAudienceLabel(offer: Offer): string {
 export function affectedProductIds(offer: Offer, products: readonly PricedProduct[]): Set<string> {
   const ids = new Set<string>();
   for (const product of products) {
-    if (matchProduct(offer.conditions, offer.exclude, product) !== 'none') ids.add(product.productId);
+    if (offerMatch(offer, product) !== 'none') ids.add(product.productId);
   }
   return ids;
 }
