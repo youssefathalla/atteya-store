@@ -10,7 +10,10 @@ import { cdnCacheControlHeader } from './cdn-cache-control.mjs';
  */
 export const FIREBASE_HELPER_PATHS = ['/__/auth', '/__/firebase'];
 
-/** Request headers Firebase's helper pages may use. Everything else (host, cookie, auth, hop-by-hop, forwarding) stays here. */
+/**
+ * Request headers Firebase's helper pages may use. Everything else (host, cookie,
+ * authorization, referer with the visitor's page URL, hop-by-hop, forwarding) stays here.
+ */
 const FORWARDED_REQUEST_HEADERS = [
   'accept',
   'accept-language',
@@ -20,43 +23,54 @@ const FORWARDED_REQUEST_HEADERS = [
   'if-none-match',
   'origin',
   'pragma',
-  'referer',
   'user-agent',
 ];
 
-/** Response headers never copied back: hop-by-hop, plus the encoding and length of a body `fetch` already decoded. */
-const DROPPED_RESPONSE_HEADERS = new Set([
-  'connection',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
-  'content-encoding',
-  'content-length',
-  'set-cookie',
-  'alt-svc',
-]);
+/**
+ * Response headers copied back. An allowlist, so firebaseapp.com's own policies
+ * (HSTS with includeSubDomains, NEL / Report-To, cookies, alt-svc) never land on
+ * our domain, and the encoding and length of a body `fetch` already decoded are not repeated.
+ */
+const FORWARDED_RESPONSE_HEADERS = [
+  'cache-control',
+  'content-language',
+  'content-security-policy',
+  'content-type',
+  'cross-origin-opener-policy',
+  'cross-origin-resource-policy',
+  'etag',
+  'expires',
+  'last-modified',
+  'location',
+  'permissions-policy',
+  'referrer-policy',
+  'vary',
+  'x-content-type-options',
+  'x-frame-options',
+];
 
 const MAX_REQUEST_BODY_BYTES = 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 10_000;
 
 /** Express middleware that passes Firebase helper requests to `https://<projectId>.firebaseapp.com`. */
 export function firebaseAuthProxy(projectId: string) {
+  if (!/^[a-z0-9-]+$/.test(projectId)) {
+    throw new Error('firebaseAuthProxy needs the Firebase projectId from the environment.');
+  }
   const origin = `https://${projectId}.firebaseapp.com`;
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      // originalUrl keeps the mount prefix and the query string; resolving against the
-      // fixed origin means the host can never come from the request.
-      const target = new URL(req.originalUrl, origin);
-      if (target.origin !== origin) {
-        res.status(400).end();
-        return;
-      }
+    // originalUrl keeps the mount prefix and the query string; resolving against the
+    // fixed origin means the host can never come from the request. Dot segments are
+    // resolved first, so the result must still sit under one of the helper paths.
+    const target = new URL(req.originalUrl, origin);
+    if (target.origin !== origin || !isHelperPath(target.pathname)) {
+      res.status(404).setHeader('Cache-Control', 'no-store');
+      res.end();
+      return;
+    }
 
+    try {
       const headers = new Headers();
       for (const name of FORWARDED_REQUEST_HEADERS) {
         const value = req.headers[name];
@@ -67,7 +81,8 @@ export function firebaseAuthProxy(projectId: string) {
       const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
       const body = hasBody ? await readBody(req) : undefined;
       if (body === null) {
-        res.status(413).end();
+        res.status(413).setHeader('Connection', 'close');
+        res.end(() => req.destroy());
         return;
       }
 
@@ -78,23 +93,18 @@ export function firebaseAuthProxy(projectId: string) {
         redirect: 'manual',
         signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       });
+      // Read the whole body before any header is set, so a failure here leaves a clean 502.
+      const payload = req.method === 'HEAD' ? null : Buffer.from(await upstream.arrayBuffer());
 
       res.status(upstream.status);
-      upstream.headers.forEach((value, name) => {
-        if (!DROPPED_RESPONSE_HEADERS.has(name.toLowerCase())) res.setHeader(name, value);
-      });
-      const cookies = upstream.headers.getSetCookie();
-      if (cookies.length > 0) res.setHeader('Set-Cookie', cookies);
+      for (const name of FORWARDED_RESPONSE_HEADERS) {
+        const value = upstream.headers.get(name);
+        if (value !== null) res.setHeader(name, value);
+      }
       // Keep Firebase's own Cache-Control; the CDN copy only when it is cacheable.
-      res.removeHeader('CDN-Cache-Control');
       const cdn = cdnCacheControlHeader(upstream.headers.get('cache-control'));
       if (cdn) res.setHeader('CDN-Cache-Control', cdn);
-
-      if (req.method === 'HEAD' || upstream.body === null) {
-        res.end();
-        return;
-      }
-      res.end(Buffer.from(await upstream.arrayBuffer()));
+      res.end(payload ?? undefined);
     } catch (error) {
       if (res.headersSent) {
         next(error);
@@ -106,23 +116,42 @@ export function firebaseAuthProxy(projectId: string) {
   };
 }
 
-/** Reads the request body, or null when it is larger than the limit. */
+function isHelperPath(pathname: string): boolean {
+  return FIREBASE_HELPER_PATHS.some((prefix) => pathname.startsWith(`${prefix}/`));
+}
+
+/** Reads the request body, or null as soon as it is larger than the limit. */
 function readBody(req: Request): Promise<Buffer | null> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
-    let tooLarge = false;
-    req.on('data', (chunk: Buffer) => {
-      if (tooLarge) return;
+    const onData = (chunk: Buffer): void => {
       size += chunk.length;
       if (size > MAX_REQUEST_BODY_BYTES) {
-        tooLarge = true;
-        chunks.length = 0;
+        cleanup();
+        req.pause();
+        resolve(null);
         return;
       }
       chunks.push(chunk);
-    });
-    req.on('end', () => resolve(tooLarge ? null : Buffer.concat(chunks)));
-    req.on('error', reject);
+    };
+    const onEnd = (): void => {
+      cleanup();
+      resolve(Buffer.concat(chunks));
+    };
+    const onClose = (): void => {
+      cleanup();
+      reject(new Error('The request closed before its body arrived.'));
+    };
+    const cleanup = (): void => {
+      req.off('data', onData);
+      req.off('end', onEnd);
+      req.off('error', onClose);
+      req.off('close', onClose);
+    };
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onClose);
+    req.on('close', onClose);
   });
 }
