@@ -19,6 +19,7 @@ import {
   NAV_SHOP_CATEGORY_LABELS,
   NAV_TARGET_PAGE_LABELS,
   NAV_TARGET_PAGES,
+  navTargetName,
   resolveNavTarget,
   type NavShopFilters,
   type NavTarget,
@@ -109,9 +110,9 @@ export class NavTargetFieldComponent {
   });
 
   readonly mode = computed<'menu' | 'advanced' | 'target' | 'none'>(() => {
+    if (this.#advancedPicked()) return 'advanced';
     const target = this.target();
     if (target && target.kind !== 'url') return 'target';
-    if (this.#advancedPicked()) return 'advanced';
     return this.allowMenuOnly() ? 'menu' : 'none';
   });
 
@@ -131,7 +132,9 @@ export class NavTargetFieldComponent {
   readonly resolved = computed(() => {
     const target = this.target();
     const catalog = this.#catalog.targetCatalog();
-    if (!target || target.kind === 'url' || !catalog) return null;
+    if (!target || target.kind === 'url') return null;
+    // Hidden and missing are only known from the full lists; pages need no list at all.
+    if (!catalog) return { path: resolveNavTarget(target, this.#catalog.bestCatalog()).path, problem: null };
     return resolveNavTarget(target, catalog);
   });
 
@@ -226,8 +229,9 @@ export class NavTargetFieldComponent {
 
   onAddressInput(value: string): void {
     // Kept as typed while typing ("/category/" must not lose its slash); tidied on save.
+    // An emptied box stays a typed address (save then asks for one) so the box doesn't vanish.
     const path = value.trim();
-    this.targetChange.emit({ target: path ? { kind: 'url', url: path } : null, path, name: null });
+    this.targetChange.emit({ target: { kind: 'url', url: path }, path, name: null });
   }
 
   /** Put the box back on the current choice when the list closes without a pick. */
@@ -240,19 +244,9 @@ export class NavTargetFieldComponent {
 
   #emitTarget(target: NavTarget): void {
     this.#advancedPicked.set(false);
-    const catalog = this.#catalog.targetCatalog();
-    const resolved = catalog ? resolveNavTarget(target, catalog) : null;
-    const name = this.#targetName(target);
-    this.targetChange.emit({ target, path: resolved?.path ?? '', name });
-  }
-
-  #targetName(target: NavTarget): string | null {
-    if (target.kind === 'category') {
-      return this.#catalogLists()?.categories.find((entry) => entry.id === target.id)?.name ?? null;
-    }
-    if (target.kind === 'shop') return null;
-    const label = this.#targetLabel(target);
-    return label || null;
+    const catalog = this.#catalog.bestCatalog();
+    const path = resolveNavTarget(target, catalog).path ?? '';
+    this.targetChange.emit({ target, path, name: navTargetName(target, catalog) });
   }
 
   #targetLabel(target: NavTarget): string {

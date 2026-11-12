@@ -38,8 +38,8 @@ export class NavigationDraftService {
    * for turning a ✨ address into a target.
    */
   #targetCatalog(): NavTargetCatalog {
-    const all = this.#allCatalog.targetCatalog();
-    if (all) return all;
+    const best = this.#allCatalog.bestCatalog();
+    if (best.categories.length > 0) return best;
     const published = this.catalogForPaths();
     return {
       categories: published.categories.map((entry) => ({ ...entry, published: true })),
@@ -55,7 +55,7 @@ export class NavigationDraftService {
 
   /** The categories to save: each target's address rebuilt, typed addresses tidied. */
   categoriesToSave(): NavCategory[] {
-    return withTargetPaths(this.draftCategories(), this.#allCatalog.targetCatalog());
+    return withTargetPaths(this.draftCategories(), this.#allCatalog.bestCatalog());
   }
 
   /** Live published categories and brands (the built-in list until they load). */

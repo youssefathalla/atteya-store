@@ -15,6 +15,9 @@ import {
   type NavigationSettingsSeed,
 } from './navigation-settings.state';
 
+/** `CatalogService` reads at most this many published categories and brands. */
+const CATALOG_LIST_LIMIT = 100;
+
 /** Match shipping settings so a stuck Firestore listen cannot block the shell forever. */
 const SHELL_READY_TIMEOUT_MS = 2500;
 
@@ -149,7 +152,9 @@ export class NavService {
   readonly #targetCatalog = computed<NavTargetCatalog | null>(() => {
     const categories = this.#catalog.categories();
     const brands = this.#catalog.brands();
-    if (!categories?.length || !brands?.length) return null;
+    if (!categories?.length || !brands) return null;
+    // The store's lists stop at 100; past that a real target could look missing, so keep saved paths.
+    if (categories.length >= CATALOG_LIST_LIMIT || brands.length >= CATALOG_LIST_LIMIT) return null;
     return { categories, brands };
   });
 

@@ -41,7 +41,7 @@ export class NavigationManagerComponent {
 
   constructor() {
     // Read every category and brand again on each visit, so new or hidden ones show up.
-    this.#allCatalog.reload();
+    this.#allCatalog.refresh();
     effect(() => {
       if (this.#navService.isLoading()) return;
 

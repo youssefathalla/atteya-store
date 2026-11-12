@@ -1,9 +1,10 @@
-import { computed, resource, Service } from '@angular/core';
+import { computed, inject, resource, Service } from '@angular/core';
 import { collection, getDocs, limit, query } from 'firebase/firestore';
 import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
 import type { NavTargetCatalog, NavTargetEntry } from '@core/services/navigation';
 import { BRANDS_COLLECTION, CATEGORIES_COLLECTION } from '@core/services/products';
+import { CatalogService } from '@core/services/products/catalog.service';
 
 /** Enough of a category or brand doc to pick it as a link target. */
 const EntrySchema = v.object({
@@ -35,6 +36,7 @@ const MAX_ENTRIES = 300;
 @Service()
 export class NavigationCatalogService {
   readonly #firestore = injectFirestore();
+  readonly #published = inject(CatalogService);
 
   readonly #lists = resource({
     loader: async (): Promise<CatalogLists> => {
@@ -79,7 +81,21 @@ export class NavigationCatalogService {
   /** As a `NavTargetCatalog`, or null until loaded. */
   readonly targetCatalog = computed<NavTargetCatalog | null>(() => this.catalog());
 
-  reload(): void {
-    this.#lists.reload();
+  /**
+   * The full lists when loaded, else the store's published lists (for building addresses
+   * while the full read is loading or failed; a hidden target then keeps its saved address).
+   */
+  readonly bestCatalog = computed<NavTargetCatalog>(() => {
+    const full = this.targetCatalog();
+    if (full) return full;
+    return {
+      categories: this.#published.categories() ?? [],
+      brands: this.#published.brands() ?? [],
+    };
+  });
+
+  /** Read the lists again on a later visit (the first visit's read is already running). */
+  refresh(): void {
+    if (this.#lists.hasValue() || this.#lists.error()) this.#lists.reload();
   }
 }

@@ -25,7 +25,9 @@ function tidyTarget(target: NavTarget | undefined): NavTarget | undefined {
 function linkToSave(link: MegaMenuLink, catalog: NavTargetCatalog | null): MegaMenuLink {
   const target = tidyTarget(link.target);
   const next: MegaMenuLink = { ...link, path: pathFor(target, link.path, catalog) };
+  // Firestore refuses `undefined`, e.g. a saved target the schema couldn't read.
   if (target) next.target = target;
+  else delete next.target;
   return next;
 }
 

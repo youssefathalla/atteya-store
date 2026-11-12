@@ -23,7 +23,7 @@ function targetState(
   if (target?.kind === 'url') return target.url.trim() ? 'ok' : 'none';
   if (!target) return path.trim() ? 'ok' : 'none';
   // Until every category and brand has loaded, a target can't be checked; the store still hides it.
-  if (!catalog) return 'ok';
+  if (!catalog) return path.trim() ? 'ok' : 'none';
   const { problem } = resolveNavTarget(target, catalog);
   return problem ?? 'ok';
 }
