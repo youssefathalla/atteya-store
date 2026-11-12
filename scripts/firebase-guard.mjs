@@ -2,9 +2,9 @@
  * Blocks Firebase deploy scripts unless checkout is clean, on the deploy branch for that
  * project, and matches its origin. Also validates firebase/firestore.indexes.json.
  *
- * TEMPORARY (until the app is finished and develop is merged into main): dev deploys run from
- * an up-to-date `develop`; prod deploys still need an up-to-date `main`. After the final merge,
- * set `dev` back to 'main' (see the "Develop-only until launch" rule in AGENTS.md).
+ * Dev deploys run from an up-to-date `develop` (the dev site), prod deploys from an up-to-date
+ * `main` (the live store). Kept this way at launch so a change is always tested on dev before it
+ * is released (see "Release flow" in AGENTS.md).
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';

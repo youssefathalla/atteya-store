@@ -2,11 +2,11 @@ import { Environment } from './environment.model';
 
 export const environment: Environment = {
   production: true,
-  baseUrl: 'https://atteya-store--attiya-store.europe-west4.hosted.app',
+  baseUrl: 'https://atteyastore.com',
   googleMapsApiKey: '',
   firebase: {
     apiKey: 'AIzaSyBuW1DM6UDFu6fBWSAnNrj6yvgq8KQ_tsg',
-    authDomain: 'attiya-store.firebaseapp.com',
+    authDomain: 'atteyastore.com',
     projectId: 'attiya-store',
     storageBucket: 'attiya-store.firebasestorage.app',
     messagingSenderId: '391723202247',
