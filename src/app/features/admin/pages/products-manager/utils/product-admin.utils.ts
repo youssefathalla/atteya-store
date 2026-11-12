@@ -52,8 +52,9 @@ export function buildLeafCategoryOptions(categories: readonly Category[]): reado
     const branch = leaf.parentId ? [leaf.parentId, leaf.id] : categoryIdsFor(leaf.id);
     return {
       id: leaf.id,
-      label: leaf.name,
-      group: parent ? parent.name : '',
+      // Hidden categories are listed too, so staff can fill one before showing it.
+      label: leaf.published ? leaf.name : `${leaf.name} (hidden)`,
+      group: parent ? `${parent.name}${parent.published ? '' : ' (hidden)'}` : '',
       categoryIds: branch,
     };
   });
@@ -61,7 +62,10 @@ export function buildLeafCategoryOptions(categories: readonly Category[]): reado
 
 export function buildBrandOptions(brands: readonly Brand[]): readonly BrandOptionView[] {
   if (brands.length > 0) {
-    return brands.map((brand) => ({ id: brand.id, label: brand.name }));
+    return brands.map((brand) => ({
+      id: brand.id,
+      label: brand.published ? brand.name : `${brand.name} (hidden)`,
+    }));
   }
   return SEED_BRANDS.map((brand) => ({ id: brand.id, label: brand.name }));
 }

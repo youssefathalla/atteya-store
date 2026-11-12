@@ -1,0 +1,51 @@
+<section class="surface-card p-5 w-full elements-start-col gap-5" aria-labelledby="brands-title">
+  <div class="w-full elements-between flex-wrap gap-3">
+    <div class="min-w-0">
+      <h2 id="brands-title" class="font-title-md font-bold!">Brands</h2>
+      <p class="font-body-sm text-on-surface-variant">
+        Shoppers see shown brands on the Brands page and at their address. Drag the handle to change the
+        order.
+      </p>
+    </div>
+    <button matButton="filled" type="button" class="btn-block-phone" (click)="add()">
+      <mat-icon name="add" />
+      <span>Add Brand</span>
+    </button>
+  </div>
+
+  @if (listResource.isLoading() && !listResource.hasValue()) {
+    <app-skeleton class="h-64 w-full" />
+  } @else if (listResource.error()) {
+    <div class="w-full elements-start-col gap-3" role="alert">
+      <p class="font-body-md">We couldn't load the brands. Please try again.</p>
+      <button matButton="outlined" type="button" class="btn-block-phone" (click)="listResource.reload()">
+        <span>Try Again</span>
+      </button>
+    </div>
+  } @else if (brands().length === 0) {
+    <p class="font-body-md">No brands yet. Add the first one.</p>
+  } @else {
+    <ul
+      class="w-full elements-start-col items-stretch! gap-2 list-none m-0 p-0"
+      aria-label="Brands"
+      cdkDropList
+      (cdkDropListDropped)="drop($event)"
+    >
+      @for (brand of brands(); track brand.id) {
+        <li cdkDrag cdkDragLockAxis="y">
+          <app-catalog-row
+            [name]="brand.name"
+            [address]="'/brand/' + brand.slug"
+            [details]="liveCountLabel(brand.productCount)"
+            [published]="brand.published"
+            [busy]="busyId() === brand.id"
+            [locked]="busyId() !== null"
+            (toggleShown)="toggleShown(brand)"
+            (edit)="edit(brand)"
+            (remove)="remove(brand)"
+          />
+        </li>
+      }
+    </ul>
+  }
+</section>

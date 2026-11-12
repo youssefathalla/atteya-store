@@ -1,0 +1,29 @@
+<div class="elements-start-col items-stretch! gap-6 w-full">
+  <section class="surface-card p-4 @5xl:p-5 w-full elements-start-col items-stretch! gap-4">
+    <div class="min-w-0">
+      <h1 class="font-title-lg font-bold!">Categories & Brands</h1>
+      <p class="font-body-md text-on-surface-variant">
+        Add, rename, reorder, show and hide the categories and brands shoppers browse by.
+      </p>
+    </div>
+    <mat-button-toggle-group
+      class="pill-switch"
+      aria-label="Show"
+      hideSingleSelectionIndicator
+      [value]="activeTab()"
+      (change)="select($event.value)"
+    >
+      <mat-button-toggle value="categories">Categories</mat-button-toggle>
+      <mat-button-toggle value="brands">Brands</mat-button-toggle>
+    </mat-button-toggle-group>
+  </section>
+
+  @switch (activeTab()) {
+    @case ('brands') {
+      <app-brands-tab />
+    }
+    @default {
+      <app-categories-tab />
+    }
+  }
+</div>

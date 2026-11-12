@@ -70,7 +70,20 @@ export async function executeProductSearchSync(
       ...readProductPlayerIds(beforeData?.['players']),
       ...readProductPlayerIds(afterData?.['players']),
     ];
-    if (productPlayers.some((id) => !catalog.playerNamesById.has(id))) {
+    // Same for a category or brand added since (Categories & Brands screen): without a fresh
+    // read its products would go to search with no category name or the raw brand id.
+    const productCategories = [
+      ...readStringList(beforeData?.['categoryIds']),
+      ...readStringList(afterData?.['categoryIds']),
+    ];
+    const productBrands = [beforeData?.['brandId'], afterData?.['brandId']].filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
+    );
+    if (
+      productPlayers.some((id) => !catalog.playerNamesById.has(id)) ||
+      productCategories.some((id) => !catalog.categoriesById.has(id)) ||
+      productBrands.some((id) => !catalog.brandsById.has(id))
+    ) {
       catalog = await deps.getCatalogLookup(db, true);
     }
     const { categoriesById, brandsById, playerNamesById } = catalog;
@@ -129,3 +142,9 @@ export const syncProductSearch = onDocumentWritten(
     await executeProductSearchSync(getFirestore(), productId, beforeData, afterData);
   },
 );
+
+function readStringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : [];
+}
