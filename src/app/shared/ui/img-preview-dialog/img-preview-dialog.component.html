@@ -1,7 +1,7 @@
 <!-- Header -->
 <div class="elements-between z-50 px-6 py-4">
   <h2 mat-dialog-title>
-    {{ data.title || 'common.documentPreview' }}
+    {{ data.title || 'Image Preview' }}
   </h2>
   <button matIconButton type="button" mat-dialog-close aria-label="Close image preview">
     <mat-icon name="close" iconColor="error" />
@@ -25,15 +25,27 @@
     [class.ease-out]="!panning()"
     [style.transform]="transformStyle()"
   >
-    <img
-      [ngSrc]="data.imageSrc"
-      [alt]="data.title || 'common.preview'"
-      width="1920"
-      height="1080"
-      class="max-w-[80vw] max-h-[60vh] w-auto h-auto object-contain shadow-mat-3 border-shape border border-outline-variant/40"
-      draggable="false"
-      priority
-    />
+    @let path = storagePath();
+    @if (path) {
+      <img
+        [ngSrc]="path"
+        [appImageFallback]="path"
+        [alt]="data.title || 'Image preview'"
+        width="1920"
+        height="1080"
+        class="max-w-[80vw] max-h-[60vh] w-auto h-auto object-contain shadow-mat-3 border-shape border border-outline-variant/40"
+        draggable="false"
+        priority
+      />
+    } @else {
+      <!-- Plain <img>: a local data:/blob: preview cannot go through the ImageKit loader behind [ngSrc]. -->
+      <img
+        [src]="data.imageSrc"
+        [alt]="data.title || 'Image preview'"
+        class="max-w-[80vw] max-h-[60vh] w-auto h-auto object-contain shadow-mat-3 border-shape border border-outline-variant/40"
+        draggable="false"
+      />
+    }
   </div>
 </section>
 
@@ -42,25 +54,13 @@
   <div
     class="flex gap-2 items-center px-4 py-2 backdrop-blur-xl bg-surface-container-lowest border-shape mat-border-subtle shadow-mat-1"
   >
-    <button
-      matIconButton
-      type="button"
-      (click)="zoomOut()"
-      [matTooltip]="'common.zoomOut'"
-      aria-label="Zoom out"
-    >
+    <button matIconButton type="button" (click)="zoomOut()" matTooltip="Zoom out" aria-label="Zoom out">
       <mat-icon name="remove" />
     </button>
 
     <span class="w-12 font-body-sm font-mono text-center" aria-live="polite"> {{ scalePercentage() }}% </span>
 
-    <button
-      matIconButton
-      type="button"
-      (click)="zoomIn()"
-      [matTooltip]="'common.zoomIn'"
-      aria-label="Zoom in"
-    >
+    <button matIconButton type="button" (click)="zoomIn()" matTooltip="Zoom in" aria-label="Zoom in">
       <mat-icon name="add" />
     </button>
 
@@ -86,13 +86,7 @@
       <mat-icon name="rotate_90_degrees_cw" />
     </button>
 
-    <button
-      matIconButton
-      type="button"
-      (click)="reset()"
-      [matTooltip]="'common.resetView'"
-      aria-label="Reset view"
-    >
+    <button matIconButton type="button" (click)="reset()" matTooltip="Reset view" aria-label="Reset view">
       <mat-icon name="reset_exposure" />
     </button>
   </div>
