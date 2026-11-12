@@ -122,7 +122,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 - **SEO Metadata**: Inject and configure `SeoService` ONLY inside top-level Route/Page components in `ngOnInit()`.
 - **Canonical and share tags (<KEY>-243)**: `SeoService.setPageMetadata()` writes one `<link rel="canonical">` into the server HTML: `environment.baseUrl` + the route path, no query string (filtered Shop URLs point at `/shop`), no trailing slash except `/`.
 - Every page that is not `noindex` also gets `og:title`, `og:description`, `og:url` (= canonical), `og:type`, `og:site_name`, `og:image` and `twitter:card`; a `noindex` page (account, checkout, favorites, login, search, sold-out or missing products) gets no canonical and no share tags.
-- Product pages pass `type: 'product'`, the first photo (ImageKit, 1200 px wide) and the summary (fallback: description text); other pages share `public/img/hero/default-hero.jpg`. Share tags never carry prices.
+- Product pages pass `type: 'product'`, the first photo (ImageKit, 1200 px wide) and the summary (fallback: description text); other pages share `public/img/share/atteya-store.png` (the logo on white, 1200×630). Share tags never carry prices.
 - `/terms` and `/privacy` are indexable (no `noindex`).
 - Dev `baseUrl` is the dev hosted.app address, and every dev response carries `X-Robots-Tag: noindex, nofollow` (`src/server.ts`, when `!environment.production`), so the dev copy is never indexed.
 - **Sitemap (<KEY>-243)**: `GET /sitemap.xml` (`src/sitemap.ts`, registered in `src/server.ts` before static files and Angular) lists `/`, `/shop`, `/brands`, `/terms`, `/privacy` and every published category (`/category/<path>`), brand (`/brand/<slug>`) and in-stock product (`/product/<slug>`).
