@@ -22,7 +22,7 @@ export class ThemeService {
   constructor() {
     afterNextRender(() => {
       // Priority 1: User's explicit preference from localStorage
-      const saved = localStorage.getItem('user-theme');
+      const saved = this.#readSaved();
       if (saved) {
         this.#darkMode.set(saved === 'dark');
       } else {
@@ -48,9 +48,25 @@ export class ThemeService {
   toggleTheme() {
     this.#darkMode.update((v) => {
       const newValue = !v;
-      if (isPlatformBrowser(this.#platformId))
-        localStorage.setItem('user-theme', newValue ? 'dark' : 'light');
+      if (isPlatformBrowser(this.#platformId)) this.#writeSaved(newValue ? 'dark' : 'light');
       return newValue;
     });
+  }
+
+  /** Blocked storage (private window, site data off) falls back to the system theme. */
+  #readSaved(): string | null {
+    try {
+      return localStorage.getItem('user-theme');
+    } catch {
+      return null;
+    }
+  }
+
+  #writeSaved(value: 'dark' | 'light'): void {
+    try {
+      localStorage.setItem('user-theme', value);
+    } catch {
+      // Storage is blocked: the choice lasts for this visit only.
+    }
   }
 }
