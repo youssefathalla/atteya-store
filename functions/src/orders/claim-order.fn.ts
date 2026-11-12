@@ -2,7 +2,9 @@ import { timingSafeEqual } from 'node:crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
+import { requireAcceptedTerms } from '../auth/require-accepted-terms.js';
 import { requireRole } from '../auth/require-role.js';
+import { isGuestOrder } from './guest-order-claim.js';
 import { claimEmailMatches, isOrderViewKey } from './order-view.js';
 
 export interface ClaimOrderResponse {
@@ -17,10 +19,13 @@ const NOT_FOUND = "We couldn't find that order. Check the link in your order ema
  * `viewKey` (from the order link) and an account email equal to the email on the order, so a
  * forwarded or leaked link can't move the order to someone else's account. Sets `customerId` (and `claimedAt`) only while the
  * order has no owner; an order that already belongs to another account is refused. Calling again
- * for the same account changes nothing.
+ * for the same account changes nothing. Like placing an order, it needs an account that accepted
+ * the terms, and only a guest order (one with the `guest` terms block) can be claimed.
  */
 export const claimOrder = onCall(adminCallableOptions(), async (request): Promise<ClaimOrderResponse> => {
   const caller = await requireRole(request, 'user');
+  // Owning an order needs an account that agreed to the terms (same as claimGuestOrdersByEmail).
+  await requireAcceptedTerms(caller.uid);
   const data =
     typeof request.data === 'object' && request.data !== null
       ? (request.data as Record<string, unknown>)
@@ -36,7 +41,8 @@ export const claimOrder = onCall(adminCallableOptions(), async (request): Promis
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(orderRef);
     const order = snap.data();
-    if (!snap.exists || !order || !sameKey(order['viewKey'], viewKey)) {
+    // Only guest checkout orders can be linked; any other order answers as if it didn't exist.
+    if (!snap.exists || !order || !sameKey(order['viewKey'], viewKey) || !isGuestOrder(order)) {
       throw new HttpsError('not-found', NOT_FOUND);
     }
     const owner = order['customerId'];

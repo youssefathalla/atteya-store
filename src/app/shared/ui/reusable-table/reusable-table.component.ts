@@ -25,7 +25,6 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 @Component({
   selector: 'app-reusable-table',
   templateUrl: './reusable-table.component.html',
-  styleUrl: './reusable-table.component.scss',
   imports: [
     MatTableModule,
     MatSortModule,

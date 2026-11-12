@@ -301,12 +301,23 @@ service cloud.firestore {
         && address.phone is string && address.phone.size() >= 6 && address.phone.size() <= 20;
     }
 
+    // Written only by Cloud Functions (offer pricing refresh bookkeeping). No client access.
+    match /offerState/{id} {
+      allow read, write: if false;
+    }
+
+    // Written only by Cloud Functions (products that failed to reach search). Admins read the count.
+    match /searchSyncErrors/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
-    // and intlPricing stay on the rules written for them.
+    // intlPricing, offerState and searchSyncErrors stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends', 'offerState', 'searchSyncErrors']);
     }
   }
 }

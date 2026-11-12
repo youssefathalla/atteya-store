@@ -43,6 +43,9 @@ export class GoogleMapsLoaderService {
       script.defer = true;
 
       script.onerror = () => {
+        // Let the next call try again instead of returning this failed promise forever.
+        this.#loadingPromise = null;
+        script.remove();
         reject(new Error('Failed to load Google Maps SDK'));
       };
 

@@ -4,11 +4,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { SafeUrl } from '@angular/platform-browser';
 import { BaseFormControl } from '../base-form-control.directive';
 import { SharedIconModule } from '@shared/ui/mat-icon';
-import { NgOptimizedImage } from '@angular/common';
 
 @Component({
   selector: 'app-file-input',
-  imports: [MatButtonModule, SharedIconModule, NgOptimizedImage],
+  imports: [MatButtonModule, SharedIconModule],
   templateUrl: './file-input.component.html',
   host: { class: 'block w-full' },
 })
@@ -75,8 +74,6 @@ export class FileInputComponent extends BaseFormControl<File | string | null> {
   }
 
   triggerUpload() {
-    if (!this.hasFile()) {
-      this.fileInput()?.nativeElement.click();
-    }
+    this.fileInput()?.nativeElement.click();
   }
 }

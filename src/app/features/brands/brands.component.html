@@ -17,57 +17,73 @@
         </p>
       </div>
 
-      <div class="font-label-sm font-mono opacity-80">
-        <span>Directory: </span>
-        <code class="px-2 py-1 border-shape bg-surface-container font-label-sm font-bold!">
-          {{ totalBrandCount() }} Brands Available
-        </code>
-      </div>
+      @if (isReady() && totalBrandCount() > 0) {
+        <p class="font-label-sm opacity-80">{{ countLabel() }}</p>
+      }
     </div>
   </header>
 
   <!-- Brand Collections -->
   <div class="space-y-12">
-    @for (group of brandGroups(); track group.title) {
-      <section class="space-y-6">
-        <div class="flex items-center gap-3 border-b border-outline-variant pb-2">
-          <h2 class="font-title-md font-bold! uppercase tracking-wider">
-            {{ group.title }}
-          </h2>
-          <span class="font-label-sm font-mono px-2 py-0.5 border-shape bg-surface-container-high">
-            {{ group.brands.length }}
-          </span>
+    @if (!isReady()) {
+      <section class="space-y-6" aria-busy="true">
+        <span class="sr-only">Loading brands</span>
+        <div class="border-b border-outline-variant pb-2">
+          <app-skeleton class="h-6 w-40" />
         </div>
-
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          @for (brand of group.brands; track brand.path) {
-            <a
-              [routerLink]="brand.path | linkTarget"
-              class="group block p-6 bg-surface-container-lowest border border-outline-variant border-shape hover:border-primary transition-all duration-200 hover:shadow-md cursor-pointer"
-            >
-              <div class="flex items-start justify-between">
-                <div
-                  class="size-10 border-shape bg-surface-container-low elements-center border border-outline-variant group-hover:border-primary transition-colors"
-                >
-                  <mat-icon name="verified" size="sm" />
-                </div>
-                <span class="font-label-sm uppercase group-hover:text-primary transition-colors">
-                  Explore &rarr;
-                </span>
-              </div>
-
-              <div class="mt-6">
-                <h3
-                  class="font-title-lg font-bold! group-hover:text-primary transition-colors uppercase tracking-tight"
-                >
-                  {{ brand.label }}
-                </h3>
-                <p class="font-body-sm opacity-80 mt-1">Official tournament equipment & apparel</p>
-              </div>
-            </a>
+          @for (card of skeletonCards; track card) {
+            <app-skeleton class="h-40 w-full border-shape" />
           }
         </div>
       </section>
+    } @else if (brandGroups().length === 0) {
+      <div class="elements-center-col gap-4 py-16 text-center">
+        <p class="font-body-lg">Brands are coming soon.</p>
+        <a matButton="filled" routerLink="/shop">Shop All</a>
+      </div>
+    } @else {
+      @for (group of brandGroups(); track $index) {
+        <section class="space-y-6">
+          <div class="flex items-center gap-3 border-b border-outline-variant pb-2">
+            <h2 class="font-title-md font-bold! uppercase tracking-wider">
+              {{ group.title }}
+            </h2>
+            <span class="font-label-sm font-mono px-2 py-0.5 border-shape bg-surface-container-high">
+              {{ group.brands.length }}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            @for (brand of group.brands; track brand.path) {
+              <a
+                [routerLink]="brand.path | linkTarget"
+                class="group block p-6 bg-surface-container-lowest border border-outline-variant border-shape hover:border-primary transition-all duration-200 hover:shadow-md cursor-pointer"
+              >
+                <div class="flex items-start justify-between">
+                  <div
+                    class="size-10 border-shape bg-surface-container-low elements-center border border-outline-variant group-hover:border-primary transition-colors"
+                  >
+                    <mat-icon name="verified" size="sm" />
+                  </div>
+                  <span class="font-label-sm uppercase group-hover:text-primary transition-colors">
+                    Explore &rarr;
+                  </span>
+                </div>
+
+                <div class="mt-6">
+                  <h3
+                    class="font-title-lg font-bold! group-hover:text-primary transition-colors uppercase tracking-tight"
+                  >
+                    {{ brand.label }}
+                  </h3>
+                  <p class="font-body-sm opacity-80 mt-1">Official tournament equipment & apparel</p>
+                </div>
+              </a>
+            }
+          </div>
+        </section>
+      }
     }
   </div>
 </div>
