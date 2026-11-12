@@ -5,7 +5,9 @@ import {
   MegaMenuColumn,
   MegaMenuLink,
   NavCategory,
+  navAutoColumnLinks,
   navTargetFromPath,
+  type NavAutoColumn,
   type NavTarget,
   type NavTargetCatalog,
 } from '@core/services/navigation';
@@ -200,6 +202,27 @@ export class NavigationDraftService {
 
   updateColumnTitle(colIndex: number, title: string): void {
     this.#updateColumns((cols) => cols.map((col, idx) => (idx === colIndex ? { ...col, title } : col)));
+  }
+
+  /**
+   * Fill Automatically on (an auto setting) or off (null). The column's own links stay in the
+   * draft either way, so turning it off brings them back (ATS-247).
+   */
+  setColumnAuto(colIndex: number, auto: NavAutoColumn | null): void {
+    this.#updateColumns((cols) =>
+      cols.map((col, idx) => {
+        if (idx !== colIndex) return col;
+        const next: MegaMenuColumn = { ...col };
+        if (auto) next.auto = auto;
+        else delete next.auto;
+        return next;
+      }),
+    );
+  }
+
+  /** What a Fill Automatically column shows on the store now, for the editor's preview. */
+  autoPreview(auto: NavAutoColumn): MegaMenuLink[] {
+    return navAutoColumnLinks(auto, this.#allCatalog.autoSources(), (path) => this.#catalog.isEmpty(path));
   }
 
   dropColumn(event: CdkDragDrop<MegaMenuColumn[]>): void {

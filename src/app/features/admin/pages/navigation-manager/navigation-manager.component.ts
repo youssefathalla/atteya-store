@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
 import { isPermissionDenied } from '@core/services/auth/auth.utils';
@@ -8,7 +8,10 @@ import { NAV_CATEGORIES, NavService } from '@core/services/navigation';
 import { NavManagerHeaderComponent } from './components/nav-manager-header/nav-manager-header.component';
 import { NavCategoryListComponent } from './components/nav-category-list/nav-category-list.component';
 import { NavCategoryDetailsComponent } from './components/nav-category-details/nav-category-details.component';
-import { NavMegaMenuEditorComponent } from './components/nav-mega-menu-editor/nav-mega-menu-editor.component';
+import {
+  NavMegaMenuEditorComponent,
+  type NavAutoParentOption,
+} from './components/nav-mega-menu-editor/nav-mega-menu-editor.component';
 import { NavigationDraftService } from './services/navigation-draft.service';
 import { NavigationDialogService } from './services/navigation-dialog.service';
 import { NavigationCatalogService } from './services/navigation-catalog.service';
@@ -38,6 +41,27 @@ export class NavigationManagerComponent {
   readonly #allCatalog = inject(NavigationCatalogService);
   readonly isSaving = signal<boolean>(false);
   readonly isResetting = signal<boolean>(false);
+
+  /** Per column of the open menu: what a Fill Automatically column shows on the store now. */
+  readonly autoPreviews = computed(() =>
+    (this.draft.selectedCategory()?.megaMenu ?? []).map((column) =>
+      column.auto ? this.draft.autoPreview(column.auto) : [],
+    ),
+  );
+
+  /** Top-level categories for "Sub-categories of …" (hidden ones marked, like Links To). */
+  readonly autoParentOptions = computed<readonly NavAutoParentOption[]>(() => {
+    const full = this.#allCatalog.catalog()?.categories;
+    if (full) {
+      return full
+        .filter((entry) => entry.parentId === null)
+        .map((entry) => ({ id: entry.id, name: entry.published ? entry.name : `${entry.name} (hidden)` }));
+    }
+    return this.#allCatalog
+      .autoSources()
+      .categories.filter((entry) => entry.parentId === null)
+      .map((entry) => ({ id: entry.id, name: entry.name }));
+  });
 
   constructor() {
     // Read every category and brand again on each visit, so new or hidden ones show up.

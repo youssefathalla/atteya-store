@@ -17,6 +17,12 @@ import {
   resolveNavTarget,
 } from '../src/app/core/services/navigation/nav-target.ts';
 import {
+  expandAutoColumns,
+  navAutoColumnLinks,
+  navNeedsBrands,
+  timeToMs,
+} from '../src/app/core/services/navigation/nav-auto-columns.ts';
+import {
   canCheckout,
   cartSubtotalDisplay,
   lineDisplayAmount,
@@ -1060,5 +1066,98 @@ describe('Shop tabs and Category filter from the category list (ATS-249)', () =>
       path: '/category/shoes',
     });
     assert.deepEqual(shopTabFor('all', categories), { id: 'all', label: 'All', path: '/shop' });
+  });
+});
+
+describe('navigation columns that fill themselves (ATS-247)', () => {
+  const sources = {
+    brands: [
+      { id: 'nox', slug: 'nox', name: 'Nox', sortOrder: 20, createdAtMs: 100 },
+      { id: 'head', slug: 'head', name: 'Head', sortOrder: 10, createdAtMs: 300 },
+      { id: 'siux', slug: 'siux', name: 'Siux', sortOrder: 30, createdAtMs: 200 },
+    ],
+    categories: [
+      { id: 'apparel', slug: 'apparel', name: 'Apparel', parentId: null, sortOrder: 10 },
+      { id: 'caps', slug: 'caps', name: 'Caps', parentId: 'apparel', sortOrder: 20 },
+      { id: 'socks', slug: 'socks', name: 'Socks', parentId: 'apparel', sortOrder: 10 },
+      { id: 'grips', slug: 'grips', name: 'Grips', parentId: 'accessories', sortOrder: 10 },
+    ],
+  };
+  const none = () => false;
+
+  it('lists every brand in its order, with the picked-target link shape', () => {
+    const links = navAutoColumnLinks({ kind: 'brands' }, sources, none);
+    assert.deepEqual(
+      links.map((link) => link.path),
+      ['/brand/head', '/brand/nox', '/brand/siux'],
+    );
+    assert.deepEqual(links[0], {
+      label: 'Head',
+      path: '/brand/head',
+      target: { kind: 'brand', id: 'head' },
+      isBrand: true,
+    });
+  });
+
+  it('lists the newest brands first and stops at the limit', () => {
+    const links = navAutoColumnLinks({ kind: 'newest-brands', limit: 2 }, sources, none);
+    assert.deepEqual(
+      links.map((link) => link.label),
+      ['Head', 'Siux'],
+    );
+  });
+
+  it('leaves out empty brands before the limit', () => {
+    const links = navAutoColumnLinks({ kind: 'brands', limit: 2 }, sources, (path) => path === '/brand/head');
+    assert.deepEqual(
+      links.map((link) => link.label),
+      ['Nox', 'Siux'],
+    );
+  });
+
+  it('lists the sub-categories of one category in their order', () => {
+    const links = navAutoColumnLinks({ kind: 'children', categoryId: 'apparel' }, sources, none);
+    assert.deepEqual(links, [
+      { label: 'Socks', path: '/category/socks', target: { kind: 'category', id: 'socks' } },
+      { label: 'Caps', path: '/category/caps', target: { kind: 'category', id: 'caps' } },
+    ]);
+  });
+
+  it('shows no sub-categories of a hidden category, and the Brands page ignores the limit', () => {
+    assert.deepEqual(navAutoColumnLinks({ kind: 'children', categoryId: 'accessories' }, sources, none), []);
+    assert.equal(
+      navAutoColumnLinks({ kind: 'brands', limit: 1 }, sources, none, { noLimit: true }).length,
+      3,
+    );
+  });
+
+  it('replaces only auto columns and keeps the saved navigation as it was', () => {
+    const saved = [
+      {
+        id: 'brands',
+        label: 'Brands',
+        megaMenu: [
+          { title: 'Top', links: [{ label: 'Old', path: '/brand/old' }], auto: { kind: 'brands', limit: 1 } },
+          { title: 'Hand', links: [{ label: 'Nox', path: '/brand/nox' }] },
+        ],
+      },
+    ];
+    const expanded = expandAutoColumns(saved, sources, none);
+    assert.deepEqual(
+      expanded[0].megaMenu[0].links.map((link) => link.label),
+      ['Head'],
+    );
+    assert.equal(expanded[0].megaMenu[1], saved[0].megaMenu[1]);
+    assert.equal(saved[0].megaMenu[0].links[0].label, 'Old');
+    assert.equal(navNeedsBrands(saved), true);
+    assert.equal(navNeedsBrands([{ id: 'x', label: 'X', megaMenu: [{ links: [] }] }]), false);
+  });
+
+  it('reads times from numbers, dates, strings and Timestamps', () => {
+    assert.equal(timeToMs(5), 5);
+    assert.equal(timeToMs(new Date(10)), 10);
+    assert.equal(timeToMs('1970-01-01T00:00:00.020Z'), 20);
+    assert.equal(timeToMs({ toMillis: () => 30 }), 30);
+    assert.equal(timeToMs(null), 0);
   });
 });

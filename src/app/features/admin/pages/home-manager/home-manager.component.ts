@@ -106,7 +106,7 @@ export class HomeManagerComponent {
       const confirmed = await this.#dialogs.confirmImportNavFromMenu();
       if (!confirmed) return;
     }
-    const imported = this.draft.importNavItems(this.#navService.categories());
+    const imported = this.draft.importNavItems(this.#navService.expandedCategories());
     if (imported === 0) {
       this.#snackbar.info('No menu links are ready to import yet.');
     }

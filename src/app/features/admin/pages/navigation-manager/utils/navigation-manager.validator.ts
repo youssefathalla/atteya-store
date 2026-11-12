@@ -1,6 +1,7 @@
 import {
   resolveNavTarget,
   type MegaMenuLink,
+  type NavAutoColumn,
   type NavCategory,
   type NavTarget,
   type NavTargetCatalog,
@@ -52,6 +53,21 @@ function checkLink(
   if (state === 'hidden') warnings.push(`"${name}" in "${menuLabel}"`);
 }
 
+function checkAutoColumn(
+  auto: NavAutoColumn,
+  columnLabel: string,
+  catalog: NavTargetCatalog | null,
+  errors: string[],
+  warnings: string[],
+): void {
+  if (auto.kind !== 'children' || !catalog) return;
+  const state = resolveNavTarget({ kind: 'category', id: auto.categoryId }, catalog).problem;
+  if (state === 'missing') {
+    errors.push(`The "${columnLabel}" column fills from a category that no longer exists.`);
+  }
+  if (state === 'hidden') warnings.push(`"${columnLabel}" column`);
+}
+
 function checkMenu(
   menu: NavCategory,
   catalog: NavTargetCatalog | null,
@@ -70,6 +86,11 @@ function checkMenu(
   }
   if (state === 'hidden') warnings.push(`"${label}" menu`);
   for (const column of menu.megaMenu ?? []) {
+    // A column that fills itself shows no saved links on the store; they are only kept for later.
+    if (column.auto) {
+      checkAutoColumn(column.auto, column.title?.trim() || label, catalog, errors, warnings);
+      continue;
+    }
     for (const link of column.links) checkLink(link, label, catalog, errors, warnings);
   }
 }

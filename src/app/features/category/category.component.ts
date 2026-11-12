@@ -84,7 +84,7 @@ export class CategoryComponent {
   readonly matchedBrand = computed(() => {
     if (!this.isBrand()) return null;
     const s = this.slug().toLowerCase();
-    const categories = this.#navService.categories();
+    const categories = this.#navService.expandedCategories();
 
     for (const cat of categories) {
       if (!cat.megaMenu) continue;
@@ -103,7 +103,7 @@ export class CategoryComponent {
     const s = this.slug().toLowerCase();
     return (
       this.#navService
-        .categories()
+        .expandedCategories()
         .find((c) => c.id.toLowerCase() === s || c.path?.toLowerCase() === `/category/${s}`) ?? null
     );
   });

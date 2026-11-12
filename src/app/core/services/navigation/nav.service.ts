@@ -3,12 +3,15 @@ import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal, TransferSta
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { injectFirestore } from '@core/firebase';
 import { CatalogService } from '@core/services/products/catalog.service';
+import { ShopCategoriesService } from '@core/services/products/shop-categories.service';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import { NavSettingsSchema } from './nav.schema';
 import { NavCategory, NavSettings } from './nav.model';
 import { NAV_CATEGORIES } from './nav.data';
 import { resolveStorefrontTargets, visibleStorefrontCategories } from './nav-visibility';
 import type { NavTargetCatalog } from './nav-target';
+import { expandAutoColumns, navNeedsBrands, type NavAutoSources } from './nav-auto-columns';
+import { NavAutoBrandsService } from './nav-auto-brands.service';
 import {
   NAVIGATION_SETTINGS_KEY,
   navigationSeedToDoc,
@@ -33,6 +36,8 @@ function docHasCategories(docData: NavSettings | null | undefined): docData is N
 export class NavService {
   readonly #firestore = injectFirestore();
   readonly #catalog = inject(CatalogService);
+  readonly #shopCategories = inject(ShopCategoriesService);
+  readonly #autoBrands = inject(NavAutoBrandsService);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #destroyRef = inject(DestroyRef);
   readonly #transfer = inject(TransferState);
@@ -125,7 +130,8 @@ export class NavService {
     if (!this.#catalog.shellReady()) return false;
     const docData = this.#navDoc();
     if (docData === undefined) return false;
-    if (docHasCategories(docData)) return true;
+    // A brand column that fills itself waits for the brands, so it never pops in (ATS-247).
+    if (docHasCategories(docData)) return !navNeedsBrands(docData.categories) || this.#autoBrands.ready();
     return this.#bootstrapSettled();
   });
 
@@ -158,11 +164,44 @@ export class NavService {
     return { categories, brands };
   });
 
+  /**
+   * Published brands and categories for auto columns (ATS-247): the server's lists (seeded through
+   * TransferState) until the live ones load, so the server HTML and the first browser render match.
+   */
+  readonly #autoSources = computed<NavAutoSources>(() => ({
+    brands: this.#autoBrands.brands(),
+    categories: this.#shopCategories.categories().filter((category) => category.published !== false),
+  }));
+
+  /**
+   * The navigation with each Fill Automatically column turned into the links it shows now
+   * (ATS-247). Links are not yet hidden for hidden or empty targets; `storefrontCategories` does that.
+   */
+  readonly expandedCategories = computed<readonly NavCategory[]>(() =>
+    expandAutoColumns(this.categories(), this.#autoSources(), (path) => this.#catalog.isEmpty(path)),
+  );
+
   readonly storefrontCategories = computed<readonly NavCategory[]>(() =>
-    visibleStorefrontCategories(resolveStorefrontTargets(this.categories(), this.#targetCatalog()), (path) =>
-      this.#catalog.isEmpty(path),
+    this.#visible(this.expandedCategories()),
+  );
+
+  /**
+   * Like `storefrontCategories`, but a column that fills itself lists everything, ignoring
+   * "Show at most": the Brands page is the full list of brands (ATS-247).
+   */
+  readonly directoryCategories = computed<readonly NavCategory[]>(() =>
+    this.#visible(
+      expandAutoColumns(this.categories(), this.#autoSources(), (path) => this.#catalog.isEmpty(path), {
+        noLimit: true,
+      }),
     ),
   );
+
+  #visible(categories: readonly NavCategory[]): readonly NavCategory[] {
+    return visibleStorefrontCategories(resolveStorefrontTargets(categories, this.#targetCatalog()), (path) =>
+      this.#catalog.isEmpty(path),
+    );
+  }
 
   async resetDefaultNavigation(categories: readonly NavCategory[] = NAV_CATEGORIES): Promise<void> {
     await this.updateNavigation(categories);
