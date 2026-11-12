@@ -15,6 +15,16 @@ export function confirmedClaimEmail(caller: ConfirmedEmailCaller): string | null
 }
 
 /**
+ * Whether an order was placed through guest checkout: it carries the `guest` terms block
+ * (`termsVersion`, `termsAcceptedAt`) the order callables save for a guest. Only these orders can be
+ * linked to an account afterwards (`claimOrder`, `claimGuestOrdersByEmail`).
+ */
+export function isGuestOrder(order: Readonly<Record<string, unknown>> | undefined): boolean {
+  const guest = order?.['guest'];
+  return typeof guest === 'object' && guest !== null;
+}
+
+/**
  * Whether an order may be linked to the account with this confirmed email: a guest order (it has
  * the `guest` terms block guest checkout saves) with no owner (`customerId: null`) whose
  * `customerEmail` is exactly that email (guest checkout stores it trimmed and lower-cased). An order
@@ -25,7 +35,6 @@ export function isClaimableGuestOrder(
   email: string,
 ): boolean {
   if (!order || order['customerId'] !== null) return false;
-  const guest = order['guest'];
-  if (typeof guest !== 'object' || guest === null) return false;
+  if (!isGuestOrder(order)) return false;
   return order['customerEmail'] === email;
 }
