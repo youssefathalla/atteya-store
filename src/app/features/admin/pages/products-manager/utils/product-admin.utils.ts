@@ -201,7 +201,31 @@ export function productCountLabel(count: number): string {
 export function moveSummary(count: number, targetLabel: string, currentLabels: readonly string[]): string {
   const subject = count === 1 ? 'This product' : `These ${count} products`;
   const distinct = [...new Set(currentLabels)];
+  if (distinct.length === 1 && distinct[0] === targetLabel) {
+    return `${count === 1 ? 'This product is' : `These ${count} products are`} already in ${targetLabel}.`;
+  }
   const from =
     distinct.length === 1 ? distinct[0] : count === 1 ? 'its current category' : 'their current categories';
   return `${subject} will be in ${targetLabel} instead of ${from}.`;
+}
+
+/** Same cap as `MAX_MOVE_PRODUCTS` in functions/src/products/move-products.ts. */
+export const MAX_MOVE_PRODUCTS = 200;
+
+/** The snackbar after Move to Category: "Moved 5 products to Apparel › Hoodies." */
+export function moveResultMessage(
+  result: { readonly moved: number; readonly unchanged: number; readonly missing: number },
+  targetLabel: string,
+): string {
+  const parts: string[] = [];
+  if (result.moved > 0) parts.push(`Moved ${productCountLabel(result.moved)} to ${targetLabel}.`);
+  if (result.unchanged > 0) {
+    parts.push(
+      `${productCountLabel(result.unchanged).replace(/^./, (c) => c.toUpperCase())} ${result.unchanged === 1 ? 'was' : 'were'} already there.`,
+    );
+  }
+  if (result.missing > 0) {
+    parts.push(`${productCountLabel(result.missing)} no longer existed.`);
+  }
+  return parts.join(' ') || `Nothing to move to ${targetLabel}.`;
 }

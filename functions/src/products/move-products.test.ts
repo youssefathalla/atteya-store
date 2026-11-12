@@ -3,7 +3,6 @@ import { describe, it } from 'node:test';
 
 import {
   alreadyInCategory,
-  chunk,
   MAX_MOVE_PRODUCTS,
   movedCategoryIds,
   readMoveProductsRequest,
@@ -47,8 +46,8 @@ describe('movedCategoryIds', () => {
     assert.deepEqual(movedCategoryIds({}, 'rackets'), ['rackets']);
   });
 
-  it('falls back to parentId when ancestorIds is missing', () => {
-    assert.deepEqual(movedCategoryIds({ parentId: 'apparel' }, 'caps'), ['apparel', 'caps']);
+  it('matches the product editor when ancestorIds is missing', () => {
+    assert.deepEqual(movedCategoryIds({ parentId: 'apparel' }, 'caps'), ['caps']);
   });
 
   it('refuses a malformed category', () => {
@@ -74,11 +73,5 @@ describe('alreadyInCategory', () => {
       ]),
       false,
     );
-  });
-});
-
-describe('chunk', () => {
-  it('splits in order', () => {
-    assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
   });
 });

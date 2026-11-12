@@ -144,7 +144,7 @@ export class ReusableTable<T extends object> {
 
   private isInteractiveTarget(target: EventTarget | null): boolean {
     return !!(target as HTMLElement | null)?.closest(
-      'button, a, input, label, mat-checkbox, [matMenuTriggerFor], [role="button"], mat-icon, .mat-icon-button, .mat-button',
+      'button, a, mat-checkbox, [matMenuTriggerFor], [role="button"], mat-icon, .mat-icon-button, .mat-button',
     );
   }
 

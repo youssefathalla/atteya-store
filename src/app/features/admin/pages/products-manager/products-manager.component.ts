@@ -18,6 +18,7 @@ import { ProductCacheService } from '@core/services/products/product-cache.servi
 import type { Product } from '@core/services/products/product.model';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { ProductsTableComponent } from './components/products-table/products-table.component';
+import { MAX_MOVE_PRODUCTS } from './utils/product-admin.utils';
 import { ProductsToolbarComponent } from './components/products-toolbar/products-toolbar.component';
 import type {
   MigratePass,
@@ -34,6 +35,7 @@ import {
   buildCategoryFilterOptions,
   categoryPathLabel,
   filterProductRows,
+  moveResultMessage,
   productCountLabel,
   toProductTableRow,
 } from './utils/product-admin.utils';
@@ -129,8 +131,21 @@ export class ProductsManagerComponent implements OnInit {
 
   readonly selectedLabel = computed(() => `${productCountLabel(this.selectedIds().size)} selected`);
 
-  /** Every colour the current filters show. */
-  readonly #shownIds = computed(() => this.groups().flatMap((group) => group.colours.map((c) => c.id)));
+  /** Every colour of each model, filters ignored, so a model always moves as a whole. */
+  readonly #modelColours = computed(() => {
+    const byModel = new Map<string, string[]>();
+    for (const row of this.#allRows()) {
+      if (!row.modelGroup) continue;
+      byModel.set(row.modelGroup, [...(byModel.get(row.modelGroup) ?? []), row.id]);
+    }
+    return byModel;
+  });
+
+  /** Every colour the current filters show, with the rest of each model's colours. */
+  readonly #shownIds = computed(() => this.groups().flatMap((group) => this.#idsOf(group)));
+
+  /** More ticked than one Move to Category can take (`MAX_MOVE_PRODUCTS` on the server). */
+  readonly tooManySelected = computed(() => this.selectedIds().size > MAX_MOVE_PRODUCTS);
 
   readonly allShownSelected = computed(() => {
     const shown = this.#shownIds();
@@ -143,6 +158,8 @@ export class ProductsManagerComponent implements OnInit {
   readonly showSelectionBar = computed(
     () => this.catalogResource.hasValue() && (this.groups().length > 0 || this.selectedIds().size > 0),
   );
+
+  readonly moveDisabled = computed(() => this.activity() !== null || this.tooManySelected());
 
   readonly selectAllDisabled = computed(
     () => this.activity() !== null || this.groups().length === 0 || this.allShownSelected(),
@@ -293,8 +310,16 @@ export class ProductsManagerComponent implements OnInit {
     }
   }
 
+  #idsOf(row: ProductGroupRow): string[] {
+    const ids = new Set(row.colours.map((colour) => colour.id));
+    for (const colour of row.colours) {
+      for (const id of this.#modelColours().get(colour.modelGroup) ?? []) ids.add(id);
+    }
+    return [...ids];
+  }
+
   toggleSelected(row: ProductGroupRow): void {
-    const ids = row.colours.map((colour) => colour.id);
+    const ids = this.#idsOf(row);
     this.#ticked.update(() => {
       const next = new Set(this.selectedIds());
       const allTicked = ids.every((id) => next.has(id));
@@ -319,7 +344,7 @@ export class ProductsManagerComponent implements OnInit {
     if (this.activity()) return;
     const data = this.catalogResource.value();
     const productIds = [...this.selectedIds()];
-    if (!data || productIds.length === 0) return;
+    if (!data || productIds.length === 0 || this.tooManySelected()) return;
     const labelFor = (id: string): string => categoryPathLabel(data.categories, id);
     const chosen = new Set(productIds);
     const currentLabels = this.#allRows()
@@ -334,9 +359,7 @@ export class ProductsManagerComponent implements OnInit {
     });
     if (!result) return;
     this.clearSelection();
-    const moved = result.moved + result.unchanged;
-    const missing = result.missing > 0 ? ` ${productCountLabel(result.missing)} no longer existed.` : '';
-    this.#snackbar.success(`Moved ${productCountLabel(moved)} to ${result.categoryLabel}.${missing}`);
+    this.#snackbar.success(moveResultMessage(result, result.categoryLabel));
     await this.reloadCatalogue();
   }
 

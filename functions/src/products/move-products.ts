@@ -6,9 +6,6 @@
 /** Most products one Move to Category may change. */
 export const MAX_MOVE_PRODUCTS = 200;
 
-/** Firestore transactions are capped at 500 writes; one product is one write. */
-export const MOVE_BATCH_SIZE = 100;
-
 export interface MoveProductsRequest {
   readonly productIds: readonly string[];
   readonly categoryId: string;
@@ -52,18 +49,13 @@ export function readMoveProductsRequest(raw: unknown): MoveProductsRequest | str
 
 /**
  * `categoryIds` for a product moved into this category: its ancestors (top first), then the
- * category itself, the same shape the product editor saves. Null when the category doc is
+ * category itself, the same shape the product editor saves (`categoryIdsFrom()`). Null when the category doc is
  * malformed, so the move is refused instead of filing products under a broken path.
  */
 export function movedCategoryIds(category: Record<string, unknown>, categoryId: string): string[] | null {
   const ancestors = category['ancestorIds'];
-  if (ancestors === undefined) {
-    const parent = category['parentId'];
-    if (typeof parent === 'string' && parent.length > 0) {
-      return parent === categoryId ? null : [parent, categoryId];
-    }
-    return [categoryId];
-  }
+  // Same rule as the product editor's save (`categoryIdsFrom()` in product-form.fn.ts).
+  if (ancestors === undefined) return [categoryId];
   if (!Array.isArray(ancestors)) return null;
   const ids: string[] = [];
   for (const ancestor of ancestors) {
@@ -87,13 +79,4 @@ export function alreadyInCategory(
     current.length === categoryIds.length &&
     current.every((id, index) => id === categoryIds[index])
   );
-}
-
-/** Splits ids into groups of `size`, keeping the order. */
-export function chunk<T>(items: readonly T[], size: number): T[][] {
-  const groups: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    groups.push(items.slice(index, index + size));
-  }
-  return groups;
 }

@@ -30,6 +30,11 @@
       <p class="font-body-md" aria-live="polite">
         @if (selectedIds().size > 0) {
           <span class="font-bold!">{{ selectedLabel() }}</span>
+          @if (tooManySelected()) {
+            <span class="block font-body-sm text-on-surface-variant"
+              >You can move up to 200 at a time. Untick some first.</span
+            >
+          }
         } @else {
           <span class="text-on-surface-variant">Tick products to move them to another category.</span>
         }
