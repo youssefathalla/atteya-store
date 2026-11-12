@@ -1,3 +1,5 @@
+import type { ShareImage } from './share-image';
+
 /**
  * Shop tabs and Shop's Category filter, built from the category list staff edit in
  * Categories & Brands (ATS-249). Pure: no Angular, no Firestore (tested by `npm run test:cart`).
@@ -18,6 +20,8 @@ export interface ShopCategorySource {
   readonly sizeChart?: 'clothing' | 'none' | null;
   /** Product page Details Title (ATS-250): null and missing as for `sizeChart`. */
   readonly detailsTitle?: 'materials' | 'specifications' | null;
+  /** Categories & Brands → Photo: the picture shown when someone shares the category's link (ATS-263). */
+  readonly image?: ShareImage;
 }
 
 export interface ShopTab {

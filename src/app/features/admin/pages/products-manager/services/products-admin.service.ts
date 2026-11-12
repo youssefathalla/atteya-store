@@ -36,6 +36,7 @@ import type {
   SaveProductModelPayload,
   SaveProductModelResult,
   StockChange,
+  MoveProductsResult,
   StockResult,
 } from '../models/product-admin.model';
 
@@ -204,5 +205,24 @@ export class ProductsAdminService {
     }
     await this.#searchService.clearCache();
     return parsed.output.published;
+  }
+
+  /** Move to Category on the Products list (ATS-266). */
+  async moveToCategory(productIds: readonly string[], categoryId: string): Promise<MoveProductsResult> {
+    const move = await callableFrom<{ productIds: readonly string[]; categoryId: string }, unknown>(
+      this.#functions(),
+      'moveProductsToCategory',
+    );
+    const result = await move({ productIds, categoryId });
+    this.#productCache.clear();
+    await this.#searchService.clearCache();
+    const parsed = v.safeParse(
+      v.object({ moved: v.number(), unchanged: v.number(), missing: v.number() }),
+      result.data,
+    );
+    if (!parsed.success) {
+      throw new Error('The products were moved, but the response was unexpected. Reload the page.');
+    }
+    return parsed.output;
   }
 }

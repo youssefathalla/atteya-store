@@ -17,6 +17,7 @@ import { homeSettingsResolver } from './features/home/resolvers/home-settings.re
 import { FOCUS_CHROME } from './layout/main/chrome-mode';
 import { productPageResolver } from './features/product/resolvers/product-page.resolver';
 import { catalogPageResolver } from './features/category/resolvers/catalog-page.resolver';
+import { brandPageResolver } from './features/category/resolvers/brand-page.resolver';
 
 export const routes: Routes = [
   // Admin and the playground come before the store layout, whose `**` child would otherwise match them.
@@ -119,8 +120,8 @@ export const routes: Routes = [
         path: 'brand/:slug',
         loadComponent: () =>
           import('./features/category/category.component').then((m) => m.CategoryComponent),
+        resolve: { brandShare: brandPageResolver, catalogPage: catalogPageResolver },
         title: 'Brand | Atteya Store',
-        resolve: { catalogPage: catalogPageResolver },
         data: { isBrand: true, preload: true },
       },
       {

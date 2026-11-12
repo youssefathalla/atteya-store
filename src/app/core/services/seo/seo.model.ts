@@ -13,6 +13,11 @@ export interface SeoMetadata {
    * ImageKit at 1200 px wide. Defaults to the store's hero photo in `public/`.
    */
   readonly image?: string | null;
+  /**
+   * Alt text for `image` (`og:image:alt`, `twitter:image:alt`). Left out when there is no
+   * `image` or no text, so the store logo picture carries none.
+   */
+  readonly imageAlt?: string | null;
   /** `og:type`. Defaults to `website`; product pages pass `product`. */
   readonly type?: SeoPageType;
   /** Text for `og:description` when it should differ from the page description. */

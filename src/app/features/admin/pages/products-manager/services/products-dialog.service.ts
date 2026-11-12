@@ -7,6 +7,11 @@ import {
   ConfirmDialogData,
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { CatalogMigrateDialogComponent } from '../dialogs/catalog-migrate-dialog/catalog-migrate-dialog.component';
+import {
+  MoveCategoryDialogComponent,
+  MoveCategoryDialogData,
+  MoveCategoryDialogResult,
+} from '../dialogs/move-category-dialog/move-category-dialog.component';
 import { ProductWeightsDialogComponent } from '../dialogs/product-weights-dialog/product-weights-dialog.component';
 import {
   ProductStockDialogComponent,
@@ -122,5 +127,15 @@ export class ProductsDialogService {
     });
     const result = await firstValueFrom(dialogRef.afterClosed());
     return result ?? null;
+  }
+
+  /** Move to Category (ATS-266); null when closed without moving. */
+  async openMoveCategory(data: MoveCategoryDialogData): Promise<MoveCategoryDialogResult | null> {
+    const dialogRef = this.#dialog.open<
+      MoveCategoryDialogComponent,
+      MoveCategoryDialogData,
+      MoveCategoryDialogResult | null
+    >(MoveCategoryDialogComponent, { data, width: '480px', maxWidth: '92vw', disableClose: true });
+    return (await firstValueFrom(dialogRef.afterClosed())) ?? null;
   }
 }
