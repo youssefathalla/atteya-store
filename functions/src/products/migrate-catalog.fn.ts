@@ -23,7 +23,10 @@ import {
   SEED_CATEGORIES,
   sortColors,
   type ColorId,
+  type SeedBrand,
+  type SeedCategory,
 } from './catalog-taxonomy.js';
+import { DELETED_BUILT_IN_FIELD, readDeletedBuiltInIds, seedsToKeep } from './catalog-admin.js';
 import { buildSearchTokens } from './search-tokens.js';
 import { bootstrapStock, untrackedDefaultStock } from './stock.js';
 
@@ -63,6 +66,8 @@ export interface MigrateCatalogResponse {
   readonly products: MigrateProductCounts;
   readonly sample: readonly MigrateProductSample[];
   readonly shippingSeeded?: boolean;
+  /** Built-in categories and brands staff deleted: never created or repaired again (ATS-265). */
+  readonly deletedByStaff?: { readonly categories: readonly string[]; readonly brands: readonly string[] };
 }
 
 interface MigrateRequest {
@@ -140,9 +145,13 @@ function parseMigrateRequest(raw: unknown): MigrateRequest {
 }
 
 async function runAddPass(db: Firestore, dryRun: boolean): Promise<MigrateCatalogResponse> {
-  const categories = await seedCategories(db, dryRun);
-  const brands = await seedBrands(db, dryRun);
-  const { products, sample } = await backfillProducts(db, dryRun);
+  const catalogSnap = await db.doc('settings/catalog').get();
+  const deleted = readDeletedBuiltInIds(catalogSnap.get(DELETED_BUILT_IN_FIELD));
+  const categorySeeds = seedsToKeep(SEED_CATEGORIES, deleted);
+  const brandSeeds = seedsToKeep(SEED_BRANDS, deleted);
+  const categories = await seedCategories(db, dryRun, categorySeeds.keep);
+  const brands = await seedBrands(db, dryRun, brandSeeds.keep);
+  const { products, sample } = await backfillProducts(db, dryRun, deleted);
   const shippingSeeded = await seedShipping(db, dryRun);
 
   if (!dryRun) {
@@ -157,6 +166,7 @@ async function runAddPass(db: Firestore, dryRun: boolean): Promise<MigrateCatalo
     products,
     sample,
     shippingSeeded,
+    deletedByStaff: { categories: categorySeeds.deletedByStaff, brands: brandSeeds.deletedByStaff },
   };
 }
 
@@ -174,14 +184,19 @@ async function seedShipping(db: Firestore, dryRun: boolean): Promise<boolean> {
   return true;
 }
 
-async function seedCategories(db: Firestore, dryRun: boolean): Promise<MigrateSeedCounts> {
+async function seedCategories(
+  db: Firestore,
+  dryRun: boolean,
+  seeds: readonly SeedCategory[],
+): Promise<MigrateSeedCounts> {
   const counts: MigrateSeedCounts = { created: 0, repaired: 0, unchanged: 0 };
-  const refs = SEED_CATEGORIES.map((seed) => db.doc(`categories/${seed.id}`));
+  if (seeds.length === 0) return counts;
+  const refs = seeds.map((seed) => db.doc(`categories/${seed.id}`));
   const snaps = await db.getAll(...refs);
   const batch = db.batch();
   let writes = 0;
 
-  SEED_CATEGORIES.forEach((seed, index) => {
+  seeds.forEach((seed, index) => {
     const snap = snaps[index];
     const ref = refs[index];
     if (!snap?.exists) {
@@ -239,14 +254,19 @@ async function seedCategories(db: Firestore, dryRun: boolean): Promise<MigrateSe
   return counts;
 }
 
-async function seedBrands(db: Firestore, dryRun: boolean): Promise<MigrateSeedCounts> {
+async function seedBrands(
+  db: Firestore,
+  dryRun: boolean,
+  seeds: readonly SeedBrand[],
+): Promise<MigrateSeedCounts> {
   const counts: MigrateSeedCounts = { created: 0, repaired: 0, unchanged: 0 };
-  const refs = SEED_BRANDS.map((seed) => db.doc(`brands/${seed.id}`));
+  if (seeds.length === 0) return counts;
+  const refs = seeds.map((seed) => db.doc(`brands/${seed.id}`));
   const snaps = await db.getAll(...refs);
   const batch = db.batch();
   let writes = 0;
 
-  SEED_BRANDS.forEach((seed, index) => {
+  seeds.forEach((seed, index) => {
     const snap = snaps[index];
     const ref = refs[index];
     if (!snap?.exists) {
@@ -292,6 +312,7 @@ async function seedBrands(db: Firestore, dryRun: boolean): Promise<MigrateSeedCo
 async function backfillProducts(
   db: Firestore,
   dryRun: boolean,
+  deletedBuiltIns: ReadonlySet<string>,
 ): Promise<{ products: MigrateProductCounts; sample: MigrateProductSample[] }> {
   const counts: MigrateProductCounts = {
     updated: 0,
@@ -323,7 +344,10 @@ async function backfillProducts(
         ? existingCategoryId
         : (categoryIds[categoryIds.length - 1] ?? defaultLeaf);
 
-    if (!brandId || categoryIds.length === 0 || !categoryId) {
+    // Never file a product under a built-in category staff deleted (ATS-265).
+    const deletedCategory =
+      categoryIds.some((id) => deletedBuiltIns.has(id)) && existingCategoryIds.length === 0;
+    if (!brandId || categoryIds.length === 0 || !categoryId || deletedCategory) {
       counts.missingNewFields += 1;
       return;
     }

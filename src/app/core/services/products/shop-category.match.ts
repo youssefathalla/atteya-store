@@ -1,19 +1,25 @@
 import { isPlatformServer } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
 import type { CanMatchFn, ResolveFn } from '@angular/router';
+import { CatalogService } from './catalog.service';
 import { ShopCategoriesService } from './shop-categories.service';
 import { BUILT_IN_SHOP_CATEGORY_IDS, shopCategoryIdForSlug, shopTabFor } from './utils/shop-categories';
 
 /**
  * `/category/:slug` opens the Shop page for every top-level category (the built-in three
- * even while hidden) and the category page for anything else (ATS-249).
+ * even while hidden, unless staff deleted them, ATS-265) and the category page for anything else
+ * (ATS-249).
  */
 export const shopCategoryMatch: CanMatchFn = async (_route, segments) => {
   const slug = segments[1]?.path.trim().toLowerCase() ?? '';
   if (segments.length !== 2 || !slug) return false;
-  if (BUILT_IN_SHOP_CATEGORY_IDS.includes(slug)) return true;
+  const catalog = inject(CatalogService);
   const categories = await inject(ShopCategoriesService).load();
-  return shopCategoryIdForSlug(slug, categories) !== null;
+  // A published top-level category (built-ins left out of the fallback, so only a real match counts).
+  if (shopCategoryIdForSlug(slug, categories, new Set(BUILT_IN_SHOP_CATEGORY_IDS)) !== null) return true;
+  // A built-in that isn't in the published list is hidden or deleted: one read tells which.
+  if (!BUILT_IN_SHOP_CATEGORY_IDS.includes(slug)) return false;
+  return !(await catalog.loadDeletedBuiltInIds()).has(slug);
 };
 
 /** One server read of the published categories, so Shop tabs are in the first HTML. */

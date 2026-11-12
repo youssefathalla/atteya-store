@@ -2,6 +2,7 @@ import { makeStateKey } from '@angular/core';
 import { Timestamp } from 'firebase/firestore';
 import * as v from 'valibot';
 import { CatalogSummarySchema } from './product.schema';
+import { DELETED_BUILT_IN_FIELD, readDeletedBuiltInIds } from './utils/deleted-built-ins';
 
 /** JSON-safe published counts for TransferState. */
 export interface CatalogSettingsSeed {
@@ -10,6 +11,8 @@ export interface CatalogSettingsSeed {
   readonly brands: Readonly<Record<string, number>>;
   readonly total: number;
   readonly updatedAtMs: number | null;
+  /** Built-in categories and brands staff deleted (ATS-265). */
+  readonly deletedBuiltInIds?: readonly string[];
 }
 
 export const CATALOG_SETTINGS_KEY = makeStateKey<CatalogSettingsSeed | null>('catalog-settings');
@@ -37,6 +40,11 @@ export function toCatalogSettingsSeed(raw: unknown): CatalogSettingsSeed | null 
     brands: { ...parsed.output.brands },
     total: parsed.output.total,
     updatedAtMs: timestampToMs(parsed.output.updatedAt),
+    deletedBuiltInIds: readDeletedBuiltInIds(
+      typeof raw === 'object' && raw !== null
+        ? (raw as Record<string, unknown>)[DELETED_BUILT_IN_FIELD]
+        : null,
+    ),
   };
 }
 
@@ -48,5 +56,6 @@ export function catalogSeedToRaw(seed: CatalogSettingsSeed | null): unknown | nu
     brands: seed.brands,
     total: seed.total,
     updatedAt: seed.updatedAtMs != null ? Timestamp.fromMillis(seed.updatedAtMs) : Timestamp.now(),
+    [DELETED_BUILT_IN_FIELD]: [...(seed.deletedBuiltInIds ?? [])],
   };
 }

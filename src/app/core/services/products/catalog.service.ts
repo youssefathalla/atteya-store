@@ -30,6 +30,7 @@ import type { Brand, CatalogSummary, Category, CategoryTreeNode } from './produc
 import { CatalogSummarySchema } from './product.schema';
 import { ShopCategoriesService } from './shop-categories.service';
 import { catalogPathIsEmpty } from './utils/catalog-path';
+import { DELETED_BUILT_IN_FIELD, readDeletedBuiltInIds } from './utils/deleted-built-ins';
 
 /** Match nav/shipping so a stuck Firestore listen cannot block the shell forever. */
 const SHELL_READY_TIMEOUT_MS = 2500;
@@ -138,6 +139,35 @@ export class CatalogService {
     const parsed = v.safeParse(CatalogSummarySchema, raw);
     return parsed.success ? parsed.output : null;
   });
+
+  /**
+   * Built-in categories and brands staff deleted (`settings/catalog.deletedBuiltInIds`, ATS-265).
+   * Read from the same seed and listener as the counts, so the server HTML and first render match.
+   */
+  readonly deletedBuiltInIds = computed((): ReadonlySet<string> => {
+    const raw = this.#catalogRaw();
+    if (!raw || typeof raw !== 'object') return new Set();
+    return new Set(readDeletedBuiltInIds((raw as Record<string, unknown>)[DELETED_BUILT_IN_FIELD]));
+  });
+
+  /**
+   * The deleted built-ins for a route guard that runs before the layout's resolvers: the list
+   * already read, else one read of settings/catalog (none on failure, so a built-in still opens).
+   */
+  async loadDeletedBuiltInIds(): Promise<ReadonlySet<string>> {
+    if (
+      this.#catalogRaw() !== undefined &&
+      (this.#catalogRaw() !== null || isPlatformBrowser(this.#platformId))
+    ) {
+      return this.deletedBuiltInIds();
+    }
+    try {
+      const snap = await getDoc(this.#catalogDocRef);
+      return new Set(readDeletedBuiltInIds(snap.exists() ? snap.get(DELETED_BUILT_IN_FIELD) : null));
+    } catch {
+      return new Set();
+    }
+  }
 
   /** True after the first settings/catalog snapshot (missing doc counts as settled). */
   readonly shellReady = computed(() => this.#catalogRaw() !== undefined);

@@ -1,4 +1,10 @@
-import { FieldPath, FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
+import {
+  FieldPath,
+  FieldValue,
+  getFirestore,
+  type Firestore,
+  type Transaction,
+} from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions } from '../auth/callable-options.js';
@@ -11,14 +17,19 @@ import { toSearchRecord, type ProductSearchRecord } from '../search/product-reco
 import { NAMES_CHANGED_FIELD } from '../search/catalog-cache.js';
 import {
   brandDeleteBlockedReason,
-  offerNamesCatalogId,
   categoryDeleteBlockedReason,
+  DELETED_BUILT_IN_FIELD,
+  isBuiltInCatalogId,
+  offerDisplayName,
+  offerNamesCatalogId,
+  type CatalogProductUsage,
   categoryPlacement,
   newCatalogId,
   readDeleteRequest,
   readReorderRequest,
   readSaveBrandRequest,
   readSaveCategoryRequest,
+  ENGLISH_NAME_MESSAGE,
   RESERVED_CATEGORY_SLUGS,
   sortOrderFor,
 } from './catalog-admin.js';
@@ -38,7 +49,25 @@ export interface SaveCatalogItemResponse {
 
 export interface DeleteCatalogItemResponse {
   readonly id: string;
+  /** False for a check, or when it was already gone. */
+  readonly deleted: boolean;
+  /** Why it can't be deleted (only on a check; a real delete throws it instead). */
+  readonly blocked: string | null;
+  /** Names of the offers whose rules name it; they stop including it once it is deleted. */
+  readonly offers: readonly string[];
+  /** Products in it, shown or hidden (only on a check), so the page can offer See These Products. */
+  readonly products: number;
 }
+
+interface DeleteOutcome {
+  readonly exists: boolean;
+  readonly blocked: string | null;
+  readonly builtIn: boolean;
+  readonly products: number;
+}
+
+/** A category or brand with more products than this can't be deleted anyway; the count stops here. */
+const MAX_USAGE = 5_000;
 
 export interface ReorderCatalogResponse {
   readonly updated: number;
@@ -96,7 +125,7 @@ export const saveCategory = onCall(
       ]);
       const id = newCatalogId(input.name, taken);
       if (!id) {
-        throw new HttpsError('invalid-argument', 'Use at least one letter or number in the name.');
+        throw new HttpsError('invalid-argument', ENGLISH_NAME_MESSAGE);
       }
       let parent: { id: string; path: string; depth: number } | null = null;
       if (input.parentId) {
@@ -162,35 +191,46 @@ export const deleteCategory = onCall(
     if (typeof input === 'string') throw new HttpsError('invalid-argument', input);
     const db = getFirestore();
     const ref = db.collection('categories').doc(input.id);
+    // Offers never block a delete (ATS-265); the confirm window lists the ones that name it.
+    const offers = await offersNaming(db, 'categoryIds', input.id);
 
-    await db.runTransaction(async (tx) => {
+    const result = await db.runTransaction(async (tx): Promise<DeleteOutcome> => {
       const snap = await tx.get(ref);
-      if (!snap.exists) return;
+      if (!snap.exists) return { exists: false, blocked: null, builtIn: false, products: 0 };
       const [products, subCategories] = await Promise.all([
-        tx.get(db.collection('products').where('categoryIds', 'array-contains', input.id).count()),
+        tx.get(
+          db
+            .collection('products')
+            .where('categoryIds', 'array-contains', input.id)
+            .select('published')
+            .limit(MAX_USAGE),
+        ),
         tx.get(db.collection('categories').where('parentId', '==', input.id).count()),
       ]);
-      const offers = await offersNaming(db, 'categoryIds', input.id);
-      const blocked = categoryDeleteBlockedReason(input.id, {
-        products: products.data().count,
+      const usage = usageOf(products.docs);
+      const blocked = categoryDeleteBlockedReason(catalogName(snap.data(), input.id), {
+        products: usage,
         subCategories: subCategories.data().count,
-        offers,
       });
-      if (blocked) throw new HttpsError('failed-precondition', blocked);
+      const builtIn = isBuiltInCatalogId('categories', input.id);
+      const count = usage.live + usage.hidden;
+      if (input.check || blocked) return { exists: true, blocked, builtIn, products: count };
       tx.delete(ref);
+      if (builtIn) rememberDeletedBuiltIn(tx, db, input.id);
       tx.create(db.collection('auditLogs').doc(), {
         action: 'categories.delete',
         actorUid: actor.uid,
         actorEmail: actor.email ?? actor.uid,
         targetId: input.id,
         before: snap.data() ?? {},
+        builtIn,
+        offers,
         at: FieldValue.serverTimestamp(),
       });
+      return { exists: true, blocked: null, builtIn, products: count };
     });
 
-    await markNamesChanged(db);
-    await removeCountKey(db, 'categories', input.id);
-    return { id: input.id };
+    return finishDelete(db, 'categories', input, result, offers);
   },
 );
 
@@ -230,7 +270,7 @@ export const saveBrand = onCall(
         input.name,
         new Set([...all.docs.map((doc) => doc.id), ...categories.docs.map((doc) => doc.id)]),
       );
-      if (!id) throw new HttpsError('invalid-argument', 'Use at least one letter or number in the name.');
+      if (!id) throw new HttpsError('invalid-argument', ENGLISH_NAME_MESSAGE);
       const lastSort = all.docs.reduce((max, doc) => {
         const value = doc.get('sortOrder');
         return typeof value === 'number' && value > max ? value : max;
@@ -269,28 +309,35 @@ export const deleteBrand = onCall(
     if (typeof input === 'string') throw new HttpsError('invalid-argument', input);
     const db = getFirestore();
     const ref = db.collection('brands').doc(input.id);
+    const offers = await offersNaming(db, 'brandId', input.id);
 
-    await db.runTransaction(async (tx) => {
+    const result = await db.runTransaction(async (tx): Promise<DeleteOutcome> => {
       const snap = await tx.get(ref);
-      if (!snap.exists) return;
-      const products = await tx.get(db.collection('products').where('brandId', '==', input.id).count());
-      const offers = await offersNaming(db, 'brandId', input.id);
-      const blocked = brandDeleteBlockedReason(input.id, products.data().count, offers);
-      if (blocked) throw new HttpsError('failed-precondition', blocked);
+      if (!snap.exists) return { exists: false, blocked: null, builtIn: false, products: 0 };
+      const products = await tx.get(
+        db.collection('products').where('brandId', '==', input.id).select('published').limit(MAX_USAGE),
+      );
+      const usage = usageOf(products.docs);
+      const blocked = brandDeleteBlockedReason(catalogName(snap.data(), input.id), usage);
+      const builtIn = isBuiltInCatalogId('brands', input.id);
+      const count = usage.live + usage.hidden;
+      if (input.check || blocked) return { exists: true, blocked, builtIn, products: count };
       tx.delete(ref);
+      if (builtIn) rememberDeletedBuiltIn(tx, db, input.id);
       tx.create(db.collection('auditLogs').doc(), {
         action: 'brands.delete',
         actorUid: actor.uid,
         actorEmail: actor.email ?? actor.uid,
         targetId: input.id,
         before: snap.data() ?? {},
+        builtIn,
+        offers,
         at: FieldValue.serverTimestamp(),
       });
+      return { exists: true, blocked: null, builtIn, products: count };
     });
 
-    await markNamesChanged(db);
-    await removeCountKey(db, 'brands', input.id);
-    return { id: input.id };
+    return finishDelete(db, 'brands', input, result, offers);
   },
 );
 
@@ -360,10 +407,58 @@ function audit(
   };
 }
 
-/** Offers (any state) whose rules name this category or brand. */
-async function offersNaming(db: Firestore, field: 'categoryIds' | 'brandId', id: string): Promise<number> {
+/** Names of the offers (any state) whose rules name this category or brand. */
+async function offersNaming(
+  db: Firestore,
+  field: 'categoryIds' | 'brandId',
+  id: string,
+): Promise<readonly string[]> {
   const snap = await db.collection('offers').limit(MAX_LIST).get();
-  return snap.docs.filter((doc) => offerNamesCatalogId(doc.data(), field, id)).length;
+  return snap.docs
+    .filter((doc) => offerNamesCatalogId(doc.data(), field, id))
+    .map((doc) => offerDisplayName(doc.id, doc.data()));
+}
+
+/** After a delete transaction: refuse a blocked delete, then refresh names and counts. */
+async function finishDelete(
+  db: Firestore,
+  field: 'categories' | 'brands',
+  input: { readonly id: string; readonly check: boolean },
+  result: DeleteOutcome,
+  offers: readonly string[],
+): Promise<DeleteCatalogItemResponse> {
+  const base = { id: input.id, offers, products: result.products };
+  if (input.check) return { ...base, deleted: false, blocked: result.blocked };
+  if (result.blocked) throw new HttpsError('failed-precondition', result.blocked);
+  if (!result.exists) return { ...base, deleted: false, blocked: null };
+  await markNamesChanged(db);
+  await removeCountKey(db, field, input.id);
+  return { ...base, deleted: true, blocked: null };
+}
+
+/** Live and hidden products from a `select('published')` read. */
+function usageOf(docs: readonly { get(field: string): unknown }[]): CatalogProductUsage {
+  let live = 0;
+  for (const doc of docs) if (doc.get('published') === true) live += 1;
+  return { live, hidden: docs.length - live };
+}
+
+function catalogName(data: Record<string, unknown> | undefined, id: string): string {
+  const name = data?.['name'];
+  return typeof name === 'string' && name.trim() ? name.trim() : id;
+}
+
+/**
+ * Remembers a deleted built-in in `settings/catalog.deletedBuiltInIds`, in the delete's own
+ * transaction, so Check catalogue structure never brings it back and the store stops treating it
+ * as built-in (ATS-265).
+ */
+function rememberDeletedBuiltIn(tx: Transaction, db: Firestore, id: string): void {
+  tx.set(
+    db.doc('settings/catalog'),
+    { [DELETED_BUILT_IN_FIELD]: FieldValue.arrayUnion(id) },
+    { merge: true },
+  );
 }
 
 /**

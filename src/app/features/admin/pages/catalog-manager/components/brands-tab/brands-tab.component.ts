@@ -12,17 +12,18 @@ import {
 } from '@shared/ui/dialogs/confirm-dialog/confirm-dialog.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
-import { callableMessage, isFirebaseError } from '@shared/utils/firebase/firebase-errors';
+import { callableMessage } from '@shared/utils/firebase/firebase-errors';
 import {
   BrandDialogComponent,
   type BrandDialogData,
   type BrandDialogResult,
 } from '../../dialogs/brand-dialog/brand-dialog.component';
 import { CatalogAdminService } from '../../services/catalog-admin.service';
+import { CatalogDeleteFlowService, type DeleteFlowOutcome } from '../../services/catalog-delete-flow.service';
 import {
-  brandDeleteBlockedReason,
   CATALOG_DIALOG_CONFIG,
   hideConfirmMessage,
+  moveWithinLevel,
   shownSnackbar,
   sortBrands,
 } from '../../utils/catalog-manager.utils';
@@ -40,6 +41,7 @@ import { CatalogRowComponent } from '../catalog-row/catalog-row.component';
 })
 export class BrandsTabComponent {
   readonly #catalog = inject(CatalogAdminService);
+  readonly #deleteFlow = inject(CatalogDeleteFlowService);
   readonly #dialog = inject(MatDialog);
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
@@ -84,57 +86,54 @@ export class BrandsTabComponent {
     await this.#setShown(current, show);
   }
 
+  /** ⋮ Delete (ATS-265): any brand with no products can go, built-in ones too. */
   async remove(brand: Brand): Promise<void> {
     if (this.busyIds().has(brand.id)) return;
     this.#setBusy(brand.id, true);
+    let outcome: DeleteFlowOutcome;
     try {
-      const products = await this.#catalog.productsUsing('brands', brand.id);
-      const blocked = brandDeleteBlockedReason(brand, products);
-      if (blocked) {
-        this.#setBusy(brand.id, false);
-        await this.#offerHide(brand, blocked);
-        return;
-      }
-      const confirmed = await this.#confirm({
-        title: `Delete ${brand.name}?`,
-        message: 'It leaves the store and its address stops working. This can’t be undone.',
-        confirmText: 'Delete Brand',
-        cancelText: 'Keep It',
-        theme: 'error',
+      const current = this.items().find((item) => item.id === brand.id) ?? brand;
+      outcome = await this.#deleteFlow.run('brands', {
+        id: current.id,
+        name: current.name,
+        published: current.published,
+        address: `/brand/${current.slug}`,
       });
-      if (!confirmed) return;
-      await this.#catalog.delete('brands', brand.id);
-      this.#snackbar.success(`${brand.name} was deleted.`);
-      this.listResource.reload();
-    } catch (error: unknown) {
-      // The server also checks offers; its reason gets the same Hide Instead offer.
-      if (isFirebaseError(error) && error.code === 'functions/failed-precondition') {
-        const reason = callableMessage(error);
-        if (reason) {
-          this.#setBusy(brand.id, false);
-          await this.#offerHide(brand, reason);
-          return;
-        }
-      }
-      this.#snackbar.error(callableMessage(error) ?? "We couldn't delete that brand. Please try again.");
     } finally {
       this.#setBusy(brand.id, false);
     }
+    if (outcome === 'deleted') this.listResource.reload();
+    if (outcome === 'hide') {
+      const current = this.items().find((item) => item.id === brand.id) ?? brand;
+      await this.#setShown(current, false);
+    }
+  }
+
+  /** ⋮ Move Up / Move Down: one place in the list, saved like a drag. */
+  async move(brand: Brand, step: -1 | 1): Promise<void> {
+    const next = moveWithinLevel(
+      this.brands().map((item) => item.id),
+      brand.id,
+      step,
+    );
+    if (next) await this.#saveOrder(next);
   }
 
   async drop(event: CdkDragDrop<unknown>): Promise<void> {
     if (event.previousIndex === event.currentIndex) return;
     const ordered = [...this.brands()];
     moveItemInArray(ordered, event.previousIndex, event.currentIndex);
-    const positions = new Map(ordered.map((item, index) => [item.id, (index + 1) * 10]));
+    await this.#saveOrder(ordered.map((item) => item.id));
+  }
+
+  /** Shows the new order at once, then saves it through `reorderCatalog`. */
+  async #saveOrder(ids: readonly string[]): Promise<void> {
+    const positions = new Map(ids.map((id, index) => [id, (index + 1) * 10]));
     this.items.update((list) =>
       list.map((item) => ({ ...item, sortOrder: positions.get(item.id) ?? item.sortOrder })),
     );
     try {
-      await this.#catalog.reorder(
-        'brands',
-        ordered.map((item) => item.id),
-      );
+      await this.#catalog.reorder('brands', ids);
     } catch (error: unknown) {
       this.#snackbar.error(callableMessage(error) ?? "We couldn't save the new order. Please try again.");
       this.listResource.reload();
@@ -173,22 +172,6 @@ export class BrandsTabComponent {
       else next.delete(id);
       return next;
     });
-  }
-
-  async #offerHide(brand: Brand, reason: string): Promise<void> {
-    const current = this.items().find((item) => item.id === brand.id) ?? brand;
-    if (!current.published) {
-      this.#snackbar.info(reason, 'Close', 6000);
-      return;
-    }
-    const hide = await this.#confirm({
-      title: `${current.name} can’t be deleted`,
-      message: reason,
-      confirmText: 'Hide Instead',
-      cancelText: 'Keep It',
-      theme: 'warning',
-    });
-    if (hide) await this.#setShown(current, false);
   }
 
   #confirm(data: ConfirmDialogData): Promise<boolean | undefined> {

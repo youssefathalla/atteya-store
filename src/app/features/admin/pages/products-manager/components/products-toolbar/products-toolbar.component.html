@@ -64,6 +64,15 @@
       </mat-select>
     </mat-form-field>
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
+      <mat-label>Category</mat-label>
+      <mat-select [value]="categoryId()" (selectionChange)="categoryId.set($event.value)">
+        <mat-option value="all">All categories</mat-option>
+        @for (category of categories(); track category.id) {
+          <mat-option [value]="category.id">{{ category.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
       <mat-label>Brand</mat-label>
       <mat-select [value]="brandId()" (selectionChange)="brandId.set($event.value)">
         <mat-option value="all">All brands</mat-option>

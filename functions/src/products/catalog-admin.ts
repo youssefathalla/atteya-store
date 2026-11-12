@@ -78,6 +78,8 @@ export interface SaveBrandRequest {
 
 export interface DeleteRequest {
   readonly id: string;
+  /** True: only say whether it can be deleted and which offers name it; delete nothing. */
+  readonly check: boolean;
 }
 
 export interface ReorderRequest {
@@ -118,40 +120,101 @@ export function categoryPlacement(
   return { parentId: parent.id, ancestorIds: [parent.id], path: `${parent.path}/${slug}`, depth: 1 };
 }
 
-/** Why a category can't be deleted, or null when it can. */
+/** Products in a category or of a brand, split by shown on the store or not (ATS-265). */
+export interface CatalogProductUsage {
+  readonly live: number;
+  readonly hidden: number;
+}
+
+/** "61 products", "3 hidden products", "58 live and 3 hidden products", "1 product". */
+export function productCountPhrase(usage: CatalogProductUsage): string {
+  const total = usage.live + usage.hidden;
+  const noun = total === 1 ? 'product' : 'products';
+  if (usage.hidden === 0) return `${total} ${noun}`;
+  if (usage.live === 0) return `${total} hidden ${noun}`;
+  return `${usage.live} live and ${usage.hidden} hidden ${noun}`;
+}
+
+/**
+ * Why a category can't be deleted, or null when it can (ATS-265): it must have no products
+ * (shown or hidden) and no categories inside it. Built-in categories follow the same rule, and
+ * offers that name it never block (the confirm window lists them instead).
+ */
 export function categoryDeleteBlockedReason(
-  id: string,
-  usage: { readonly products: number; readonly subCategories: number; readonly offers?: number },
+  name: string,
+  usage: { readonly products: CatalogProductUsage; readonly subCategories: number },
 ): string | null {
-  if (SEED_CATEGORY_IDS.has(id)) {
-    return 'This is one of the store’s built-in categories. You can hide it instead.';
+  const total = usage.products.live + usage.products.hidden;
+  if (total > 0) {
+    const them = total === 1 ? 'it' : 'them';
+    return `${name} still has ${productCountPhrase(usage.products)}. Move ${them} to another category first, or hide it instead.`;
   }
   if (usage.subCategories > 0) {
-    return 'This category has sub-categories. Delete or move them first, or hide it instead.';
-  }
-  if (usage.products > 0) {
-    return usage.products === 1
-      ? '1 product is in this category. Move it to another category first, or hide it instead.'
-      : `${usage.products} products are in this category. Move them to another category first, or hide it instead.`;
-  }
-  if ((usage.offers ?? 0) > 0) {
-    return 'An offer uses this category. Change that offer first, or hide the category instead.';
+    return usage.subCategories === 1
+      ? `Delete or move the category inside ${name} first.`
+      : `Delete or move the ${usage.subCategories} categories inside ${name} first.`;
   }
   return null;
 }
 
-/** Why a brand can't be deleted, or null when it can. */
-export function brandDeleteBlockedReason(id: string, products: number, offers = 0): string | null {
-  if (SEED_BRAND_IDS.has(id)) {
-    return 'This is one of the store’s built-in brands. You can hide it instead.';
+/** Why a brand can't be deleted, or null when it can: it must have no products, shown or hidden. */
+export function brandDeleteBlockedReason(name: string, products: CatalogProductUsage): string | null {
+  const total = products.live + products.hidden;
+  if (total === 0) return null;
+  const their = total === 1 ? 'its' : 'their';
+  return `${name} still has ${productCountPhrase(products)}. Change ${their} brand first, or hide it instead.`;
+}
+
+/** The `settings/catalog` field listing built-in categories and brands staff deleted (ATS-265). */
+export const DELETED_BUILT_IN_FIELD = 'deletedBuiltInIds';
+
+/** True for a built-in (seed) category or brand id. */
+export function isBuiltInCatalogId(kind: 'categories' | 'brands', id: string): boolean {
+  return kind === 'categories' ? SEED_CATEGORY_IDS.has(id) : SEED_BRAND_IDS.has(id);
+}
+
+/** Reads `settings/catalog.deletedBuiltInIds`; anything that isn't a list of ids counts as none. */
+export function readDeletedBuiltInIds(raw: unknown): ReadonlySet<string> {
+  if (!Array.isArray(raw)) return new Set();
+  return new Set(raw.filter((value): value is string => isCatalogId(value)));
+}
+
+/**
+ * Splits the built-in seeds into the ones Check catalogue structure still creates or repairs and
+ * the ones staff deleted (ATS-265). A seed whose parent was deleted is skipped too, so it never
+ * comes back under a category that is gone.
+ */
+export function seedsToKeep<T extends { readonly id: string; readonly ancestorIds?: readonly string[] }>(
+  seeds: readonly T[],
+  deleted: ReadonlySet<string>,
+): { readonly keep: readonly T[]; readonly deletedByStaff: readonly string[] } {
+  const keep: T[] = [];
+  const deletedByStaff: string[] = [];
+  for (const seed of seeds) {
+    if (deleted.has(seed.id) || (seed.ancestorIds ?? []).some((id) => deleted.has(id))) {
+      deletedByStaff.push(seed.id);
+    } else {
+      keep.push(seed);
+    }
   }
-  if (products > 0) {
-    return products === 1
-      ? '1 product uses this brand. Change its brand first, or hide it instead.'
-      : `${products} products use this brand. Change their brand first, or hide it instead.`;
+  return { keep, deletedByStaff };
+}
+
+/** True when a name has at least one English letter or digit, so an address can be made from it. */
+export function hasEnglishLetterOrDigit(name: string): boolean {
+  return catalogSlugFromName(name).length > 0;
+}
+
+/** Shown when a new category's or brand's name has no English letter or digit. */
+export const ENGLISH_NAME_MESSAGE = 'Use English letters for the name, for example Padel Caps.';
+
+/** Staff name of an offer for the delete window: its name, else its customer title, else its id. */
+export function offerDisplayName(id: string, offer: Record<string, unknown>): string {
+  for (const key of ['name', 'title']) {
+    const value = offer[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
   }
-  if (offers > 0) return 'An offer uses this brand. Change that offer first, or hide the brand instead.';
-  return null;
+  return id;
 }
 
 /**
@@ -182,6 +245,7 @@ export function readSaveCategoryRequest(raw: unknown): SaveCategoryRequest | str
   const name = readName(raw['name']);
   if (typeof name !== 'string' || name.length === 0) return 'Enter a name for the category.';
   if (name.length > MAX_CATALOG_NAME) return `Keep the name to ${MAX_CATALOG_NAME} characters or fewer.`;
+  if (id === null && !hasEnglishLetterOrDigit(name)) return ENGLISH_NAME_MESSAGE;
   const parentId = readOptionalId(raw['parentId']);
   if (parentId === false) return 'The parent category could not be read. Reload the page.';
   const description = raw['description'] ?? '';
@@ -225,6 +289,7 @@ export function readSaveBrandRequest(raw: unknown): SaveBrandRequest | string {
   const name = readName(raw['name']);
   if (typeof name !== 'string' || name.length === 0) return 'Enter a name for the brand.';
   if (name.length > MAX_CATALOG_NAME) return `Keep the name to ${MAX_CATALOG_NAME} characters or fewer.`;
+  if (id === null && !hasEnglishLetterOrDigit(name)) return ENGLISH_NAME_MESSAGE;
   const logo = readImage(raw['logo'], 'brands/');
   if (typeof logo === 'string') return logo;
   if (typeof raw['published'] !== 'boolean') return 'Choose whether shoppers can see this brand.';
@@ -235,7 +300,7 @@ export function readDeleteRequest(raw: unknown): DeleteRequest | string {
   if (!isRecord(raw)) return 'Choose what to delete and try again.';
   const id = readOptionalId(raw['id']);
   if (id === false || id === null) return 'Choose what to delete and try again.';
-  return { id };
+  return { id, check: raw['check'] === true };
 }
 
 export function readReorderRequest(raw: unknown): ReorderRequest | string {

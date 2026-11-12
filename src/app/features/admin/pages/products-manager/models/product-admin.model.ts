@@ -7,6 +7,8 @@ export interface ProductTableRow {
   readonly id: string;
   readonly name: string;
   readonly categoryId: string;
+  /** The category and the ones it sits inside, for the Category filter (ATS-265). */
+  readonly categoryIds: readonly string[];
   readonly categoryLabel: string;
   readonly type: ProductTypeId;
   readonly typeLabel: string;
@@ -154,6 +156,12 @@ export interface CategoryOptionView {
   readonly categoryIds: readonly string[];
 }
 
+/** One choice in the Products Category filter: "Apparel", then "Apparel › Socks" (ATS-265). */
+export interface CategoryFilterOptionView {
+  readonly id: string;
+  readonly label: string;
+}
+
 export interface BrandOptionView {
   readonly id: string;
   readonly label: string;
@@ -195,6 +203,8 @@ export interface MigrateReport {
   readonly products: MigrateProductCountsView;
   readonly sample: readonly MigrateProductSampleView[];
   readonly shippingSeeded?: boolean;
+  /** Built-in categories and brands staff deleted; never added back (ATS-265). */
+  readonly deletedByStaff?: { readonly categories: readonly string[]; readonly brands: readonly string[] };
 }
 
 export interface ReindexSearchReport {
