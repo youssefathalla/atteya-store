@@ -424,7 +424,11 @@ export function toOfferCardItem(offer: Offer, productIds: ReadonlySet<string>, n
     when: offerWhenLine(offer, now),
     who: offerAudienceLabel(offer),
     productIds,
-    coversAll: offer.conditions.anyOf.length === 0 && offer.exclude.anyOf.length === 0,
+    // Bundle & Save leaves `conditions` empty (its products live in the groups), so it never covers all.
+    coversAll:
+      offer.reward.kind !== 'bundleSet' &&
+      offer.conditions.anyOf.length === 0 &&
+      offer.exclude.anyOf.length === 0,
   };
 }
 
