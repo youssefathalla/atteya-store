@@ -5,14 +5,12 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import type { NavTarget } from '@core/services/navigation';
-import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
+import { outsideLinkProblem, type NavTarget } from '@core/services/navigation';
 import {
   NavTargetFieldComponent,
   type NavTargetChange,
 } from '../../components/nav-target-field/nav-target-field.component';
-import { NavigationDraftService } from '../../services/navigation-draft.service';
-import { normalizePath, noNavPathMessage, suggestNavPath } from '../../utils/navigation-manager.utils';
+import { normalizePath } from '../../utils/navigation-manager.utils';
 
 export interface AddLinkDialogData {
   columnTitle?: string;
@@ -43,8 +41,6 @@ export interface AddLinkDialogResult {
 export class AddLinkDialogComponent {
   readonly #dialogRef = inject(MatDialogRef<AddLinkDialogComponent, AddLinkDialogResult | null>);
   readonly data = inject<AddLinkDialogData>(MAT_DIALOG_DATA, { optional: true });
-  readonly #draft = inject(NavigationDraftService);
-  readonly #snackbar = inject(SnackbarService);
 
   readonly label = signal<string>('');
   readonly path = signal<string>('');
@@ -52,24 +48,20 @@ export class AddLinkDialogComponent {
   readonly badge = signal<string>('');
   readonly isBrand = signal<boolean>(this.data?.isBrand ?? false);
 
-  readonly isValid = computed(() => this.label().trim().length > 0 && this.path().trim().length > 0);
+  readonly isValid = computed(
+    () => this.label().trim().length > 0 && this.path().trim().length > 0 && !this.#badOutsideLink(),
+  );
+
+  /** An Outside Link that isn't a full https:// address on another site yet. */
+  #badOutsideLink(): boolean {
+    const target = this.target();
+    return target?.kind === 'url' && outsideLinkProblem(target.url) !== null;
+  }
 
   onTargetChange(change: NavTargetChange): void {
     this.target.set(change.target);
     this.path.set(change.path);
     if (!this.label().trim() && change.name) this.label.set(change.name);
-  }
-
-  /** ✨: the category or brand the label names. */
-  generateSlug(): void {
-    const suggested = suggestNavPath(this.label(), this.isBrand(), this.#draft.catalogForPaths());
-    if (!suggested) {
-      this.#snackbar.error(noNavPathMessage(this.label() || 'this link'));
-      return;
-    }
-    const destination = this.#draft.destinationFromPath(suggested);
-    this.target.set(destination.target);
-    this.path.set(destination.path);
   }
 
   submit(): void {

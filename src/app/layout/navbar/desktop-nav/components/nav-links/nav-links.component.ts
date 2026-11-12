@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   Component,
@@ -10,13 +11,14 @@ import {
 } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
+import { isOutsideAddress } from '@core/services/navigation/nav-target';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavCategory } from '@core/services/navigation';
 
 @Component({
   selector: 'app-nav-links',
-  imports: [RouterLink, LinkTargetPipe],
+  imports: [RouterLink, LinkTargetPipe, NgTemplateOutlet],
   templateUrl: './nav-links.component.html',
   host: {
     class: 'h-full hidden lg:flex items-center z-20',
@@ -26,6 +28,9 @@ import { NavCategory } from '@core/services/navigation';
   },
 })
 export class NavLinksComponent {
+  /** An Outside Link (ATS-267) opens another site in a new tab instead of a store page. */
+  readonly isOutside = isOutsideAddress;
+
   readonly #elementRef = inject(ElementRef<HTMLElement>);
   readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);

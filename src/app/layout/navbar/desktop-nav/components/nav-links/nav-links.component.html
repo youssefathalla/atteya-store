@@ -41,11 +41,7 @@
             <ul class="flex flex-col gap-2.5">
               @for (link of column.links; track link.label) {
                 <li>
-                  <a
-                    [routerLink]="link.path | linkTarget"
-                    (click)="closeMegaMenuImmediate()"
-                    class="nav-menu-link"
-                  >
+                  <ng-template #linkBody>
                     <span class="nav-label">
                       {{ link.label }}
                     </span>
@@ -55,7 +51,26 @@
                         {{ link.badge }}
                       </span>
                     }
-                  </a>
+                  </ng-template>
+                  @if (isOutside(link.path)) {
+                    <a
+                      [href]="link.path"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      (click)="closeMegaMenuImmediate()"
+                      class="nav-menu-link"
+                    >
+                      <ng-container [ngTemplateOutlet]="linkBody" />
+                    </a>
+                  } @else {
+                    <a
+                      [routerLink]="link.path | linkTarget"
+                      (click)="closeMegaMenuImmediate()"
+                      class="nav-menu-link"
+                    >
+                      <ng-container [ngTemplateOutlet]="linkBody" />
+                    </a>
+                  }
                 </li>
               }
             </ul>

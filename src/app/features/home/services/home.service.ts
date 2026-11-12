@@ -19,6 +19,8 @@ import {
   shopCardsWithoutDeleted,
 } from '../utils/home-defaults.utils';
 import { CatalogService } from '@core/services/products/catalog.service';
+import { NavService } from '@core/services/navigation/nav.service';
+import { heroWithTargets, navListWithTargets, shopCardsWithTargets } from '../utils/home-link-targets.utils';
 
 const HERO_STORAGE_KEY = 'atteya_store_home_hero';
 const SHOP_CATEGORIES_STORAGE_KEY = 'atteya_store_home_shop_categories';
@@ -108,6 +110,7 @@ export class HomeService {
   readonly #transfer = inject(TransferState);
   readonly #destroyRef = inject(DestroyRef);
   readonly #catalog = inject(CatalogService);
+  readonly #nav = inject(NavService);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /** undefined while the first browser snapshot is still outstanding. */
@@ -204,6 +207,20 @@ export class HomeService {
       this.#homeDoc()?.navList ??
       this.#storedNavList ??
       navListWithoutDeleted(DEFAULT_HOME_NAV_LIST, this.#catalog.deletedBuiltInIds()),
+  );
+
+  /**
+   * The three sections as shoppers see them (ATS-267): each button and link built from what it
+   * points at, like the menus, so a renamed category's button follows it and a hidden or deleted
+   * one is left out (a shop card opens Shop All instead). The admin edits the saved `hero`,
+   * `shopCategories` and `navList` above.
+   */
+  readonly storefrontHero = computed<HomeHero>(() => heroWithTargets(this.hero(), this.#nav.targetCatalog()));
+  readonly storefrontShopCategories = computed<HomeShopCategories>(() =>
+    shopCardsWithTargets(this.shopCategories(), this.#nav.targetCatalog()),
+  );
+  readonly storefrontNavList = computed<HomeNavList>(() =>
+    navListWithTargets(this.navList(), this.#nav.targetCatalog()),
   );
 
   /**

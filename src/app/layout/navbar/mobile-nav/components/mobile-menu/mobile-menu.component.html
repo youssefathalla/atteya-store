@@ -157,18 +157,33 @@
 
                 <div class="space-y-1">
                   @for (link of col.links; track link.label) {
-                    <a
-                      [routerLink]="link.path | linkTarget"
-                      (click)="closeMenu()"
-                      class="elements-between px-3 py-2 border-shape hover:bg-surface-container-high transition-colors font-body-md"
-                    >
+                    <ng-template #linkBody>
                       <span>{{ link.label }}</span>
                       @if (link.badge) {
                         <span class="nav-badge">
                           {{ link.badge }}
                         </span>
                       }
-                    </a>
+                    </ng-template>
+                    @if (isOutside(link.path)) {
+                      <a
+                        [href]="link.path"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        (click)="closeMenu()"
+                        class="elements-between px-3 py-2 border-shape hover:bg-surface-container-high transition-colors font-body-md"
+                      >
+                        <ng-container [ngTemplateOutlet]="linkBody" />
+                      </a>
+                    } @else {
+                      <a
+                        [routerLink]="link.path | linkTarget"
+                        (click)="closeMenu()"
+                        class="elements-between px-3 py-2 border-shape hover:bg-surface-container-high transition-colors font-body-md"
+                      >
+                        <ng-container [ngTemplateOutlet]="linkBody" />
+                      </a>
+                    }
                   }
                 </div>
               </div>

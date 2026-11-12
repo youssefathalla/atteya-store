@@ -27,9 +27,9 @@ export class HomeComponent implements OnInit {
   readonly #homeService = inject(HomeService);
   readonly #seoService = inject(SeoService);
 
-  readonly hero = this.#homeService.hero;
-  readonly shopCategories = this.#homeService.shopCategories;
-  readonly navList = this.#homeService.navList;
+  readonly hero = this.#homeService.storefrontHero;
+  readonly shopCategories = this.#homeService.storefrontShopCategories;
+  readonly navList = this.#homeService.storefrontNavList;
   readonly isLoading = this.#homeService.isLoading;
 
   ngOnInit(): void {

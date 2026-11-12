@@ -7,8 +7,12 @@ import {
   toNavAutoBrand,
   type NavAutoSources,
   type NavTargetCatalog,
+  type NavTargetOffer,
   type NavTargetEntry,
 } from '@core/services/navigation';
+import { liveOffers } from '@core/services/offers/engine';
+import { canShopOffer } from '@core/services/offers/offer-shop';
+import { OffersService } from '@core/services/offers/offers.service';
 import { BRANDS_COLLECTION, CATEGORIES_COLLECTION } from '@core/services/products';
 import { CatalogService } from '@core/services/products/catalog.service';
 
@@ -51,6 +55,7 @@ const MAX_ENTRIES = 300;
 export class NavigationCatalogService {
   readonly #firestore = injectFirestore();
   readonly #published = inject(CatalogService);
+  readonly #offers = inject(OffersService);
 
   readonly #lists = resource({
     loader: async (): Promise<CatalogLists> => {
@@ -91,8 +96,29 @@ export class NavigationCatalogService {
   readonly isLoading = this.#lists.isLoading;
   readonly failed = computed(() => !!this.#lists.error());
 
+  /**
+   * Offers a link can open (ATS-267): running public offers whose products Shop can list
+   * (`canShopOffer`), the ones the top banner may link to. Empty while they load.
+   */
+  readonly runningOffers = computed<readonly NavTargetOffer[]>(() =>
+    liveOffers(this.#offers.all(), { now: this.#offers.now(), signedIn: false })
+      .filter(canShopOffer)
+      .map((offer) => ({ id: offer.id, name: offer.name.trim() || offer.title.trim() || offer.id }))
+      .sort((left, right) => left.name.localeCompare(right.name)),
+  );
+
+  /** Running offers once their list has answered; undefined meanwhile (no offer is flagged ended). */
+  readonly #knownOffers = computed<readonly NavTargetOffer[] | undefined>(() =>
+    this.#offers.ready() && !this.#offers.failed() ? this.runningOffers() : undefined,
+  );
+
   /** As a `NavTargetCatalog`, or null until loaded. */
-  readonly targetCatalog = computed<NavTargetCatalog | null>(() => this.catalog());
+  readonly targetCatalog = computed<NavTargetCatalog | null>(() => {
+    const lists = this.catalog();
+    if (!lists) return null;
+    const offers = this.#knownOffers();
+    return offers ? { ...lists, offers } : lists;
+  });
 
   /**
    * The full lists when loaded, else the store's published lists (for building addresses
@@ -101,9 +127,11 @@ export class NavigationCatalogService {
   readonly bestCatalog = computed<NavTargetCatalog>(() => {
     const full = this.targetCatalog();
     if (full) return full;
+    const offers = this.#knownOffers();
     return {
       categories: this.#published.categories() ?? [],
       brands: this.#published.brands() ?? [],
+      ...(offers ? { offers } : {}),
     };
   });
 
