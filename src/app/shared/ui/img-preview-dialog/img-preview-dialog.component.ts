@@ -5,6 +5,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { SafeUrl } from '@angular/platform-browser';
 import { NgOptimizedImage } from '@angular/common';
 import { SharedIconModule } from '../mat-icon';
+import { AppImageFallbackDirective } from '@shared/directives/image-fallback/image-fallback.directive';
 
 export interface ImgPreviewData {
   title?: string;
@@ -13,7 +14,14 @@ export interface ImgPreviewData {
 
 @Component({
   selector: 'app-img-preview-dialog',
-  imports: [MatDialogModule, MatButtonModule, SharedIconModule, MatTooltipModule, NgOptimizedImage],
+  imports: [
+    MatDialogModule,
+    MatButtonModule,
+    SharedIconModule,
+    MatTooltipModule,
+    NgOptimizedImage,
+    AppImageFallbackDirective,
+  ],
   templateUrl: './img-preview-dialog.component.html',
   host: {
     class: 'flex flex-col w-full h-full overflow-hidden border-shape backdrop-blur',
@@ -23,6 +31,11 @@ export interface ImgPreviewData {
 export class ImgPreviewDialogComponent {
   readonly data = inject<ImgPreviewData>(MAT_DIALOG_DATA);
   #startPan = { x: 0, y: 0 };
+  /** Storage path for `[ngSrc]`; null for a local `SafeUrl` or `data:` / `blob:` URL, which the ImageKit loader cannot load. */
+  protected readonly storagePath = computed(() => {
+    const src = this.data.imageSrc;
+    return typeof src === 'string' && !/^(data|blob):/i.test(src) ? src : null;
+  });
   // State
   readonly scale = signal(1);
   readonly rotation = signal(0);

@@ -1,6 +1,8 @@
 @use '@angular/material' as mat;
 
-// Angular Material Select Panel Shape Overrides
+// Angular Material Select Panel Shape Overrides.
+// Material has no select token for the panel's corner radius (only panel-background-color), and its
+// own `div.mat-mdc-select-panel` rules load after this file at runtime, so !important stays here.
 div.mat-mdc-select-panel {
   border-radius: var(--border-shape, 2px) !important;
 }

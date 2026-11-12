@@ -1,13 +1,6 @@
 <div class="elements-start-col items-stretch! gap-4 w-full">
   <section class="surface-card p-4 @5xl:p-5 w-full elements-start-col gap-4" aria-label="Orders toolbar">
-    <div class="elements-start-col gap-1">
-      <h1 class="font-title-lg font-bold!">Orders</h1>
-      <p class="font-body-md text-on-surface-variant">
-        Open an order to see the customer, the delivery address, the items and what to do next. Confirm an
-        InstaPay or bank payment only after the money shows in your bank app. Confirming takes the items out
-        of stock; cancelling or going back to Waiting for Payment puts them back.
-      </p>
-    </div>
+    <h1 class="font-title-lg font-bold!">Orders</h1>
 
     <div class="flex flex-wrap gap-2" role="tablist" aria-label="Filter orders by status">
       @for (tab of filterTabs; track tab.id) {

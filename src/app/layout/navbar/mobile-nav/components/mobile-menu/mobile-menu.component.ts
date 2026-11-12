@@ -1,4 +1,4 @@
-import { Component, computed, inject, linkedSignal } from '@angular/core';
+import { Component, computed, inject, linkedSignal, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,6 +22,8 @@ export class MobileMenuComponent {
   readonly categories = this.#navService.storefrontCategories;
   /** The design playground is admin-only, so its link shows only for admins. */
   readonly isAdmin = this.#auth.isAdmin;
+  /** The search row was tapped; the mobile bar opens the search panel (it also closes this menu). */
+  readonly searchRequested = output<void>();
 
   // Reactive bottom sheet open state
   readonly isOpen = computed(() => this.drawerService.isOpen('menu'));

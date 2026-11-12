@@ -15,14 +15,19 @@
   />
 
   <div
-    class="border border-dashed border-outline-variant hover:border-primary border-shape p-5 elements-center flex-col gap-2.5 bg-surface-container-low transition-colors"
+    class="border border-dashed border-outline-variant hover:border-primary border-shape p-5 elements-center-col gap-2.5 bg-surface-container-low transition-colors"
     [class.border-error]="showError()"
   >
     @if (hasFile()) {
       <!-- PREVIEW STATE -->
       @if (isImage()) {
         <div class="relative size-24 border-shape overflow-hidden border border-outline-variant shadow-mat-1">
-          <img [ngSrc]="previewUrl() || ''" class="object-cover" [alt]="label() || 'File preview'" fill />
+          <!-- Plain <img>: this is a local data:/blob: preview, which the ImageKit loader behind [ngSrc] cannot load. -->
+          <img
+            [src]="previewUrl() || ''"
+            class="absolute inset-0 size-full object-cover"
+            [alt]="label() || 'File preview'"
+          />
         </div>
       } @else {
         <div class="flex items-center gap-2">

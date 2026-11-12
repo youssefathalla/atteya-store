@@ -33,14 +33,21 @@
     <app-account-menu />
 
     <!-- 5. Menu / All Categories (Toggles between menu and close icon) -->
-    <button matIconButton type="button" (click)="toggleMenu()" aria-label="Toggle navigation menu">
+    <button
+      #menuToggle
+      matIconButton
+      type="button"
+      (click)="toggleMenu()"
+      aria-label="Toggle navigation menu"
+    >
       <mat-icon [name]="isMenuOpen() ? 'close' : 'menu'" size="2xl" />
     </button>
   </div>
 </nav>
 
 <!-- Mobile Fullscreen Slide-Up Menu Panel (z-40: sits cleanly under z-50 bottom bar) -->
-<app-mobile-menu />
+<!-- The menu closes (and goes inert) when search opens, so focus comes back to the menu button. -->
+<app-mobile-menu (searchRequested)="openSearchFromMenu()" />
 
 <!-- Mobile Fullscreen Slide-Up Cart Panel (z-40: sits cleanly under z-50 bottom bar) -->
 <div
@@ -49,7 +56,11 @@
   [class.translate-y-full]="!isCartOpen()"
   [class.pointer-events-auto]="isCartOpen()"
   [class.pointer-events-none]="!isCartOpen()"
+  [attr.inert]="isCartOpen() ? null : ''"
+  [attr.aria-hidden]="isCartOpen() ? null : 'true'"
   aria-label="Shopping Cart"
 >
-  <app-cart-drawer placement="sheet" />
+  <!-- The server has no saved bag, so its HTML is always the empty bag. The browser fills the bag
+       before hydration, so skip hydration here: the server copy is replaced, not reused. -->
+  <app-cart-drawer placement="sheet" ngSkipHydration />
 </div>

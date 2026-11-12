@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, OnInit, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { submit } from '@angular/forms/signals';
@@ -37,7 +37,7 @@ const PASSWORD_RESET_NOTICE = "If an account uses that email, we've sent a link 
   ],
   templateUrl: './login.component.html',
 })
-export class LoginComponent implements OnInit {
+export class LoginComponent {
   readonly #auth = inject(AuthService);
   readonly #router = inject(Router);
   readonly #seo = inject(SeoService);
@@ -108,16 +108,15 @@ export class LoginComponent implements OnInit {
   constructor() {
     leaveAfterSignIn(this.#auth, this.#router, this.#snackbar, () => this.returnUrl());
     this.#resetOnModeSwitch();
-  }
-
-  ngOnInit(): void {
-    const create = this.isCreateIntent();
-    this.#seo.setPageMetadata({
-      title: create ? 'Create account | Atteya Store' : 'Sign in | Atteya Store',
-      description: create
-        ? 'Create an Atteya Store account with Google or email to save favorites and check out.'
-        : 'Sign in to Atteya Store with Google or the email and password for your account.',
-      noindex: true,
+    effect(() => {
+      const create = this.isCreateIntent();
+      this.#seo.setPageMetadata({
+        title: create ? 'Create account | Atteya Store' : 'Sign in | Atteya Store',
+        description: create
+          ? 'Create an Atteya Store account with Google or email to save favorites and check out.'
+          : 'Sign in to Atteya Store with Google or the email and password for your account.',
+        noindex: true,
+      });
     });
   }
 

@@ -1,5 +1,6 @@
 import { Component, inject, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
 import { SeoService } from '@core/services/seo';
 
 @Component({
@@ -11,10 +12,14 @@ import { SeoService } from '@core/services/seo';
 export class PrivacyPage implements OnInit {
   readonly #seo = inject(SeoService);
 
+  readonly email = STORE_INFO.contact.email;
+  readonly phone = STORE_INFO.contact.phone;
+  readonly whatsappUrl = whatsappChatUrl(STORE_INFO.contact.whatsapp);
+
   ngOnInit(): void {
     this.#seo.setPageMetadata({
       title: 'Privacy Policy | Atteya Store',
-      description: 'Draft Privacy Policy for Atteya Store. This policy is being finalized and may change.',
+      description: 'What Atteya Store keeps about you, why, and the choices you have.',
       noindex: true,
     });
   }

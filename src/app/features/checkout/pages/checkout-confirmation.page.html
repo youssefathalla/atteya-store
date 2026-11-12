@@ -146,7 +146,7 @@
                         @let way = both ? instapayWay() : box.number ? 'number' : 'address';
                         <p class="font-body-md">
                           @if (both) {
-                            Transfer to your phone number <span class="font-bold!">or</span> InstaPay address:
+                            Transfer to this phone number <span class="font-bold!">or</span> InstaPay address:
                           } @else if (way === 'number') {
                             Transfer to this phone number:
                           } @else {

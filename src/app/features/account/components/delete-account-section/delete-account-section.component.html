@@ -1,0 +1,22 @@
+<h2 class="account-section__title">
+  <mat-icon name="delete" aria-hidden="true" />
+  <span>Delete Account</span>
+</h2>
+
+<p class="font-body-sm text-on-surface-variant">
+  Delete your account, saved bag and favorites for good. Your past orders stay in our records.
+</p>
+<button
+  matButton="outlined"
+  theme="error"
+  type="button"
+  [disabled]="isDeleting()"
+  [attr.aria-label]="isDeleting() ? 'Deleting your account' : null"
+  (click)="deleteAccount()"
+>
+  @if (isDeleting()) {
+    <mat-progress-spinner mode="indeterminate" diameter="18" />
+  } @else {
+    <span>Delete Account</span>
+  }
+</button>
