@@ -1,5 +1,6 @@
 export * from './banner.js';
 export * from './bundle-price.js';
+export * from './bundle-set.js';
 export * from './buy-x-get-y.js';
 export * from './cairo-time.js';
 export * from './currency.js';

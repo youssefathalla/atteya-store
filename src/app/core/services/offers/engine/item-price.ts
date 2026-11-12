@@ -1,7 +1,8 @@
 // GENERATED — edit functions/src/offers/engine
 import { bundleOneRowPrice } from './bundle-price';
+import { bundleSetMatch, bundleSetVariantMatch } from './bundle-set';
 import { formatAppliedOfferBadge, formatLabelOnlyOfferBadge } from './labels';
-import { matchProduct, matchVariant } from './match';
+import { matchProduct, matchVariant, type MatchLevel } from './match';
 import type {
   DisplayPriceResult,
   ItemPriceResult,
@@ -56,10 +57,10 @@ export function priceItem(
   const labelBadges: OfferBadge[] = [];
 
   for (const offer of active) {
-    const productMatch = matchProduct(offer.conditions, offer.exclude, product);
+    const productMatch = offerMatch(offer, product);
     if (productMatch === 'none') continue;
 
-    if (variant !== null && !matchVariant(offer.conditions, offer.exclude, product, variant)) {
+    if (variant !== null && !offerVariantMatch(offer, product, variant)) {
       continue;
     }
 
@@ -151,7 +152,7 @@ export function displayPrice(
   const onSale = productLevel.listPrice > productLevel.basePrice;
   const matchingOfferIds: string[] = [];
   for (const offer of active) {
-    if (matchProduct(offer.conditions, offer.exclude, product) === 'none') continue;
+    if (offerMatch(offer, product) === 'none') continue;
     if (onSale && offer.saleItems === 'exclude') continue;
     matchingOfferIds.push(offer.id);
   }
@@ -219,6 +220,7 @@ function computeCandidateUnitPrice(
     }
     case 'buyXGetY':
     case 'bundlePrice':
+    case 'bundleSet':
     case 'freeGift':
     case 'freeShipping':
       return null;
@@ -226,6 +228,20 @@ function computeCandidateUnitPrice(
 
   if (rawDiscounted === null) return null;
   return Math.min(basePrice, Math.max(0, rawDiscounted));
+}
+
+/**
+ * How a product fits an offer: its rules, and for Bundle & Save also at least one of its groups
+ * (a Bundle & Save offer with no rules of its own still covers only its groups' products).
+ */
+export function offerMatch(offer: Offer, product: PricedProduct): MatchLevel {
+  if (offer.reward.kind === 'bundleSet') return bundleSetMatch(offer, product);
+  return matchProduct(offer.conditions, offer.exclude, product);
+}
+
+function offerVariantMatch(offer: Offer, product: PricedProduct, variant: VariantFacts): boolean {
+  if (offer.reward.kind === 'bundleSet') return bundleSetVariantMatch(offer, product, variant);
+  return matchVariant(offer.conditions, offer.exclude, product, variant);
 }
 
 function hasMinimum(offer: Offer): boolean {
@@ -248,7 +264,13 @@ function findSingleUnitTier(tiers: readonly OfferTier[]): OfferTier | null {
 function isLabelOnlyOffer(offer: Offer): boolean {
   if (offer.scope === 'cart') return true;
   const kind = offer.reward.kind;
-  if (kind === 'buyXGetY' || kind === 'bundlePrice' || kind === 'freeGift' || kind === 'freeShipping') {
+  if (
+    kind === 'buyXGetY' ||
+    kind === 'bundlePrice' ||
+    kind === 'bundleSet' ||
+    kind === 'freeGift' ||
+    kind === 'freeShipping'
+  ) {
     return true;
   }
   if (kind === 'tiered') return true;

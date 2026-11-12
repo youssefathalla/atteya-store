@@ -1,8 +1,17 @@
 // GENERATED — edit functions/src/offers/engine
 import { bestBundle, bundleRows, splitBundleTotal, type BundleRowUse } from './bundle-price';
+import { bundleSetShares, bundleSetSlots, bundleSetTotal } from './bundle-set';
 import { liveOffers } from './item-price';
 import { matchProduct, matchVariant } from './match';
-import type { Offer, OfferConditions, PricingContext, ProductFacts, VariantFacts } from './types';
+import type {
+  Offer,
+  OfferBundleSlot,
+  OfferConditions,
+  OfferReward,
+  PricingContext,
+  ProductFacts,
+  VariantFacts,
+} from './types';
 
 /** What Buy X Get Y needs to know about one bag line. */
 export interface BagLineFacts {
@@ -39,8 +48,13 @@ export interface BagLineOfferDeal {
   readonly percent: number;
   /** Whole EGP taken off the line by this offer. */
   readonly discount: number;
-  /** Set on a Bundle price offer's share: the pieces pay their part of the bundle total. */
+  /**
+   * Set on a Bundle price or Bundle & Save offer's share: the pieces pay their part of the
+   * bundle or set total.
+   */
   readonly bundle?: true;
+  /** Set (with `bundle`) on a Bundle & Save offer's share. */
+  readonly set?: true;
 }
 
 /**
@@ -65,6 +79,43 @@ export interface BagBundle {
   readonly lineIndex: number;
   /** The next bigger row and how many more pieces reach it; null at the top row. */
   readonly next: { readonly missing: number; readonly quantity: number; readonly price: number } | null;
+}
+
+/** A group of a Bundle & Save offer the next set still needs pieces for. */
+export interface BagBundleSetMissing {
+  readonly slotId: string;
+  /** The group's name, e.g. "Shorts". */
+  readonly name: string;
+  /** Pieces still missing from this group. */
+  readonly quantity: number;
+}
+
+/**
+ * One Bundle & Save offer in the bag: the complete sets that got the saving, and what the next
+ * set still needs ("Add Shorts to save …").
+ */
+export interface BagBundleSet {
+  readonly offerId: string;
+  readonly title: string;
+  /** Complete sets that got the saving (0 when none yet). */
+  readonly sets: number;
+  /** Pieces in those sets. */
+  readonly units: number;
+  /** Whole EGP those pieces cost together. */
+  readonly total: number;
+  /** Whole EGP saved against those pieces' own prices (before per-item offers). */
+  readonly saving: number;
+  /**
+   * Bag line the strip and nudge sit under: the last line with pieces in a set, or the last line
+   * that counts toward the offer while there is no set yet.
+   */
+  readonly lineIndex: number;
+  /**
+   * The groups the next set still needs pieces for, in the offer's group order; empty when the
+   * offer is at its "at most" number of sets, or when the pieces left already make a set that
+   * their own offers beat.
+   */
+  readonly missing: readonly BagBundleSetMissing[];
 }
 
 /**
@@ -138,6 +189,8 @@ export interface BagDeals {
   readonly hints: readonly BagDealHint[];
   /** Bundle price offers the bag's pieces count toward, in the order they were worked out. */
   readonly bundles: readonly BagBundle[];
+  /** Bundle & Save offers the bag's pieces count toward, in the order they were worked out. */
+  readonly sets: readonly BagBundleSet[];
 }
 
 interface Unit {
@@ -172,12 +225,11 @@ export function priceBagDeals(
 ): BagDeals {
   const candidates = liveOffers(offers, ctx).filter(appliesToBag).sort(compareOffers);
   const first = priceInOrder(lines, candidates);
-  const hasBundle = candidates.some((offer) => offer.reward.kind === 'bundlePrice');
-  const hasDeal = candidates.some((offer) => offer.reward.kind === 'buyXGetY');
-  if (!hasBundle || !hasDeal) return first;
-  // One discount per item between a Bundle price and a Buy X Get Y offer: whichever saves the
-  // shopper more. Try each kind first too, and keep the cheapest bag (a tie keeps priority order).
-  const isBundle = (offer: Offer): boolean => offer.reward.kind === 'bundlePrice';
+  const kinds = BAG_DEAL_KINDS.filter((kind) => candidates.some((offer) => offer.reward.kind === kind));
+  if (kinds.length < 2) return first;
+  // One discount per item between Bundle price, Buy X Get Y and Bundle & Save offers: whichever
+  // saves the shopper more. Try each order of the kinds too (each kind keeps its priority order)
+  // and keep the cheapest bag; a tie keeps the first (plain priority order).
   // A Buy X Get Y discounted piece gives up its free gifts, so the gifts kept count for the shopper.
   const cost = (deals: BagDeals): number =>
     deals.lines.reduce((sum, line, index) => {
@@ -185,14 +237,23 @@ export function priceBagDeals(
       return sum + line.total - (Number.isFinite(giftWorth) ? line.giftUnits * giftWorth : 0);
     }, 0);
   let best = first;
-  for (const order of [
-    [...candidates.filter(isBundle), ...candidates.filter((offer) => !isBundle(offer))],
-    [...candidates.filter((offer) => !isBundle(offer)), ...candidates.filter(isBundle)],
-  ]) {
+  for (const kindOrder of permutations(kinds)) {
+    const order = kindOrder.flatMap((kind) => candidates.filter((offer) => offer.reward.kind === kind));
     const priced = priceInOrder(lines, order);
     if (cost(priced) < cost(best)) best = priced;
   }
   return best;
+}
+
+/** The offer kinds the bag prices over several pieces, in the order their combinations are tried. */
+const BAG_DEAL_KINDS: readonly OfferReward['kind'][] = ['bundlePrice', 'buyXGetY', 'bundleSet'];
+
+/** Every order of the items (at most 3 here, so at most 6 orders). */
+function permutations<T>(items: readonly T[]): T[][] {
+  if (items.length <= 1) return [[...items]];
+  return items.flatMap((item, index) =>
+    permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [item, ...rest]),
+  );
 }
 
 /** `priceBagDeals` with the offers worked out in this order (each piece used by one offer only). */
@@ -214,8 +275,15 @@ function priceInOrder(lines: readonly BagLineFacts[], candidates: readonly Offer
   const offerIds: string[] = [];
   const hints: BagDealHint[] = [];
   const bundles: BagBundle[] = [];
+  const sets: BagBundleSet[] = [];
 
   for (const offer of candidates) {
+    if (offer.reward.kind === 'bundleSet') {
+      const set = priceBundleSet(offer, lines, units, deals, dealUnits);
+      if (set) sets.push(set);
+      if (set && set.sets > 0) offerIds.push(offer.id);
+      continue;
+    }
     if (offer.reward.kind === 'bundlePrice') {
       const bundle = priceBundle(offer, lines, units, deals, dealUnits);
       if (bundle) bundles.push(bundle);
@@ -308,6 +376,7 @@ function priceInOrder(lines: readonly BagLineFacts[], candidates: readonly Offer
     offerIds,
     hints,
     bundles,
+    sets,
   };
 }
 
@@ -411,6 +480,190 @@ function nextBundleRow(
   return { missing, quantity: row.quantity, price: row.price };
 }
 
+/**
+ * Prices one Bundle & Save offer over the pieces no other offer used yet. It works out how many
+ * complete sets the pieces make (one piece set from every group; capped by `maxSets`), fills them
+ * with the most expensive pieces that still let every set be complete, and puts the most
+ * expensive pieces of each group in the first set. A set gets the saving only when it costs less
+ * than its pieces at their own prices after per-item offers (a tie keeps those); its pieces then pay
+ * their share of the set total (`bundleSetShares`) and get no per-item offer. A set that loses
+ * keeps its pieces' own prices, and another offer may still use them. Returns null when no piece
+ * fits a group.
+ */
+function priceBundleSet(
+  offer: Offer,
+  lines: readonly BagLineFacts[],
+  units: readonly Unit[],
+  deals: BagLineOfferDeal[][],
+  dealUnits: number[],
+): BagBundleSet | null {
+  const reward = offer.reward;
+  if (reward.kind !== 'bundleSet') return null;
+  const slots = bundleSetSlots(reward);
+  if (slots.length === 0) return null;
+  const fitsLine = lines.map((line) =>
+    qualifies(offer, offer.conditions, line)
+      ? slots.map((slot) => qualifies(offer, slot.conditions, line))
+      : slots.map(() => false),
+  );
+  const byPrice = (a: Unit, b: Unit): number => b.price - a.price || a.line - b.line;
+  const pool = units.filter((unit) => !unit.used && fitsLine[unit.line]!.some(Boolean)).sort(byPrice);
+  if (pool.length === 0) return null;
+  const fits = (unit: Unit): readonly boolean[] => fitsLine[unit.line]!;
+
+  const cap = reward.maxSets === null ? Number.POSITIVE_INFINITY : reward.maxSets;
+  let count = 0;
+  while (count < cap && setsFit(slots, pool, fits, count + 1)) count++;
+
+  // Each group's pieces, most expensive first, then cut into the sets.
+  const picked = pickForSets(slots, pool, fits, count);
+  const share = new Map<Unit, number>();
+  const won: Unit[] = [];
+  let total = 0;
+  let sets = 0;
+  for (let index = 0; index < count; index++) {
+    const set = slots.flatMap((slot, s) =>
+      picked[s]!.slice(index * slot.quantity, (index + 1) * slot.quantity),
+    );
+    const prices = set.map((unit) => unit.price);
+    const setTotal = bundleSetTotal(reward.setReward, prices);
+    const own = set.reduce((sum, unit) => sum + offerPriceOf(unit), 0);
+    if (setTotal >= own) continue;
+    const shares = bundleSetShares(reward.setReward, prices);
+    set.forEach((unit, i) => share.set(unit, shares[i]!));
+    won.push(...set);
+    total += setTotal;
+    sets++;
+  }
+
+  let saving = 0;
+  const byLine = new Map<number, { units: number; discount: number }>();
+  for (const unit of won) {
+    unit.used = true;
+    dealUnits[unit.line]! += 1;
+    const entry = byLine.get(unit.line) ?? { units: 0, discount: 0 };
+    entry.units += 1;
+    entry.discount += Math.max(0, unit.price - (share.get(unit) ?? unit.price));
+    byLine.set(unit.line, entry);
+  }
+  for (const [line, entry] of [...byLine.entries()].sort((a, b) => a[0] - b[0])) {
+    deals[line]!.push({
+      offerId: offer.id,
+      units: entry.units,
+      percent: 0,
+      discount: entry.discount,
+      bundle: true,
+      set: true,
+    });
+    saving += entry.discount;
+  }
+
+  const lineIndex = Math.max(...(won.length > 0 ? won : pool).map((unit) => unit.line));
+  const left = pool.filter((unit) => !unit.used);
+  return {
+    offerId: offer.id,
+    title: offer.title,
+    sets,
+    units: won.length,
+    total,
+    saving,
+    lineIndex,
+    missing: sets < cap && left.length > 0 ? missingForNextSet(slots, left, fits) : [],
+  };
+}
+
+/**
+ * True when the pieces make `count` complete sets, each piece in one group only: for every mix
+ * of groups, enough pieces fit at least one of them (Hall's rule; at most 4 groups, 15 mixes).
+ */
+function setsFit(
+  slots: readonly OfferBundleSlot[],
+  pool: readonly Unit[],
+  fits: (unit: Unit) => readonly boolean[],
+  count: number,
+): boolean {
+  return demandFits(
+    slots.map((slot) => slot.quantity * count),
+    pool,
+    fits,
+  );
+}
+
+function demandFits(
+  demand: readonly number[],
+  pool: readonly Unit[],
+  fits: (unit: Unit) => readonly boolean[],
+): boolean {
+  for (let mask = 1; mask < 1 << demand.length; mask++) {
+    let need = 0;
+    for (let s = 0; s < demand.length; s++) if (mask & (1 << s)) need += demand[s]!;
+    if (need === 0) continue;
+    let have = 0;
+    for (const unit of pool) {
+      const fit = fits(unit);
+      if (fit.some((yes, s) => yes && (mask & (1 << s)) !== 0)) have++;
+    }
+    if (have < need) return false;
+  }
+  return true;
+}
+
+/**
+ * The pieces of `count` sets per group, most expensive first: each piece (most expensive first)
+ * goes to the first group it fits that still needs pieces, as long as every set can still be
+ * completed with the pieces after it.
+ */
+function pickForSets(
+  slots: readonly OfferBundleSlot[],
+  pool: readonly Unit[],
+  fits: (unit: Unit) => readonly boolean[],
+  count: number,
+): Unit[][] {
+  const picked: Unit[][] = slots.map(() => []);
+  const demand = slots.map((slot) => slot.quantity * count);
+  for (let index = 0; index < pool.length && demand.some((need) => need > 0); index++) {
+    const unit = pool[index]!;
+    const rest = pool.slice(index + 1);
+    const fit = fits(unit);
+    for (let s = 0; s < slots.length; s++) {
+      if (!fit[s] || demand[s]! <= 0) continue;
+      const after = demand.map((need, i) => (i === s ? need - 1 : need));
+      if (!demandFits(after, rest, fits)) continue;
+      demand[s] = after[s]!;
+      picked[s]!.push(unit);
+      break;
+    }
+  }
+  return picked;
+}
+
+/**
+ * What one more set still needs from each group, with the pieces left: the most pieces that can
+ * go into the set, the groups with the fewest fitting pieces filled first. Empty when the pieces
+ * left already make a whole set (it lost to their own offers, so there is nothing to nudge).
+ */
+function missingForNextSet(
+  slots: readonly OfferBundleSlot[],
+  left: readonly Unit[],
+  fits: (unit: Unit) => readonly boolean[],
+): BagBundleSetMissing[] {
+  const demand = slots.map((slot) => slot.quantity);
+  // Fill as much of the set as the pieces allow: lower the demand of each group until it fits.
+  const filled = slots.map(() => 0);
+  for (let s = 0; s < slots.length; s++) {
+    for (let n = demand[s]!; n > 0; n--) {
+      const trial = filled.map((have, i) => (i === s ? n : have));
+      if (demandFits(trial, left, fits)) {
+        filled[s] = n;
+        break;
+      }
+    }
+  }
+  return slots
+    .map((slot, s) => ({ slotId: slot.id, name: slot.name, quantity: slot.quantity - filled[s]! }))
+    .filter((entry) => entry.quantity > 0);
+}
+
 /** A piece's price after per-item offers. */
 function offerPriceOf(unit: Unit): number {
   return unit.price - unit.itemSaving;
@@ -421,13 +674,18 @@ function offerPriceOf(unit: Unit): number {
  * "1 at −50%" when only some do. Several offers on one line are joined with " · ".
  */
 export function dealTag(
-  deals: readonly { readonly units: number; readonly percent: number; readonly bundle?: boolean }[],
+  deals: readonly {
+    readonly units: number;
+    readonly percent: number;
+    readonly bundle?: boolean;
+    readonly set?: boolean;
+  }[],
   quantity: number,
 ): string {
   return deals
     .filter((deal) => deal.units > 0)
     .map((deal) => {
-      if (deal.bundle) return 'Bundle price';
+      if (deal.bundle) return deal.set ? 'Bundle & Save' : 'Bundle price';
       const all = deal.units >= quantity;
       if (deal.percent >= 100) return all ? 'Free' : `${deal.units} free`;
       return all ? `\u2212${deal.percent}%` : `${deal.units} at \u2212${deal.percent}%`;
@@ -488,10 +746,12 @@ export function freeItemWins(
   return added?.deals.some((deal) => deal.offerId === offerId && deal.units > 0) ?? false;
 }
 
-/** Only per-item offers with no spend or quantity minimum give Buy X Get Y or bundle prices. */
+/** Only per-item offers with no spend or quantity minimum give Buy X Get Y, bundle or set prices. */
 function appliesToBag(offer: Offer): boolean {
   const kind = offer.reward.kind;
-  if ((kind !== 'buyXGetY' && kind !== 'bundlePrice') || offer.scope !== 'item') return false;
+  if ((kind !== 'buyXGetY' && kind !== 'bundlePrice' && kind !== 'bundleSet') || offer.scope !== 'item') {
+    return false;
+  }
   const minimum = offer.minimum;
   return !minimum || ((minimum.subtotal ?? 0) <= 0 && (minimum.quantity ?? 0) <= 0);
 }

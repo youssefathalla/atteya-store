@@ -1,8 +1,15 @@
-import { MAX_GIFT_CHOICES, MAX_OFFER_GIFTS, bundleRows, parseOfferBanner } from './engine/index.js';
+import {
+  MAX_GIFT_CHOICES,
+  MAX_OFFER_GIFTS,
+  bundleRows,
+  cleanBundleSet,
+  parseOfferBanner,
+} from './engine/index.js';
 import type {
   Offer,
   OfferGift,
   OfferAudience,
+  OfferBundleSetReward,
   OfferConditionAtom,
   OfferConditionField,
   OfferConditionGroup,
@@ -264,6 +271,8 @@ function parseReward(raw: unknown): OfferReward | null {
       });
       return { kind: 'bundlePrice', rows: bundleRows({ kind: 'bundlePrice', rows }) };
     }
+    case 'bundleSet':
+      return parseBundleSet(obj);
     case 'freeGift':
       return { kind: 'freeGift', gifts: parseGifts(obj) };
     case 'freeShipping':
@@ -271,6 +280,48 @@ function parseReward(raw: unknown): OfferReward | null {
     default:
       return null;
   }
+}
+
+/**
+ * A Bundle & Save reward. Read as written, then checked with the engine's rules: a bad one keeps
+ * the offer but with no groups, so it prices nothing (`cleanBundleSet`).
+ */
+function parseBundleSet(obj: Record<string, unknown>): OfferReward {
+  const rawSlots = Array.isArray(obj['slots']) ? obj['slots'] : [];
+  const slots = rawSlots.flatMap((raw) => {
+    if (typeof raw !== 'object' || raw === null) return [];
+    const slot = raw as Record<string, unknown>;
+    return [
+      {
+        id: readString(slot['id']),
+        name: readString(slot['name']),
+        quantity: rawNumber(slot['quantity']) ?? 0,
+        conditions: parseConditions(slot['conditions']),
+      },
+    ];
+  });
+  const rawSet =
+    typeof obj['setReward'] === 'object' && obj['setReward'] !== null
+      ? (obj['setReward'] as Record<string, unknown>)
+      : {};
+  const setReward: OfferBundleSetReward =
+    rawSet['type'] === 'total'
+      ? { type: 'total', price: rawNumber(rawSet['price']) ?? 0 }
+      : rawSet['type'] === 'percent'
+        ? { type: 'percent', percent: rawNumber(rawSet['percent']) ?? 0 }
+        : rawSet['type'] === 'amount'
+          ? { type: 'amount', amount: rawNumber(rawSet['amount']) ?? 0 }
+          : rawSet['type'] === 'cheapestFree'
+            ? { type: 'cheapestFree' }
+            : { type: 'total', price: 0 };
+  const maxSets =
+    obj['maxSets'] === null || obj['maxSets'] === undefined ? null : (rawNumber(obj['maxSets']) ?? 0);
+  return cleanBundleSet({ kind: 'bundleSet', slots, setReward, maxSets });
+}
+
+/** A finite number as written (not rounded, so 1.5 pieces or EGP 99.5 is refused, not fixed). */
+function rawNumber(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
 }
 
 /**
