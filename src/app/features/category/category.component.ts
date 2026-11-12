@@ -9,18 +9,17 @@ import {
   resource,
   signal,
 } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { LinkTargetPipe } from '@shared/pipes/link-target.pipe';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '@core/services/auth/auth.service';
-import { displayPrice } from '@core/services/offers/engine';
-import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import { NavService } from '@core/services/navigation';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { ProductService } from '@core/services/products/product.service';
 import { onePerModel } from '@core/services/products/utils/one-per-model';
 import { SeoService } from '@core/services/seo';
+import { listingCardPrices } from '@shared/components/product-card/listing-card-prices';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import {
   CatalogProductGridComponent,
@@ -56,7 +55,6 @@ export class CategoryComponent {
   readonly #productService = inject(ProductService);
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);
-  readonly #router = inject(Router);
   readonly #seoService = inject(SeoService);
   readonly #destroyRef = inject(DestroyRef);
 
@@ -66,7 +64,7 @@ export class CategoryComponent {
   constructor() {
     effect(() => {
       const title = this.displayTitle();
-      const isBrand = this.isBrandRoute();
+      const isBrand = this.isBrand();
       this.#seoService.setPageMetadata({
         title: `${title} | Atteya Store`,
         description: isBrand
@@ -83,10 +81,8 @@ export class CategoryComponent {
     });
   }
 
-  readonly isBrandRoute = computed(() => this.isBrand() || this.#router.url.startsWith('/brand/'));
-
   readonly matchedBrand = computed(() => {
-    if (!this.isBrandRoute()) return null;
+    if (!this.isBrand()) return null;
     const s = this.slug().toLowerCase();
     const categories = this.#navService.categories();
 
@@ -103,7 +99,7 @@ export class CategoryComponent {
   });
 
   readonly category = computed(() => {
-    if (this.isBrandRoute()) return null;
+    if (this.isBrand()) return null;
     const s = this.slug().toLowerCase();
     return (
       this.#navService
@@ -113,19 +109,19 @@ export class CategoryComponent {
   });
 
   readonly catalogCategory = computed(() => {
-    if (this.isBrandRoute()) return null;
+    if (this.isBrand()) return null;
     const targetSlug = (this.subSlug() || this.slug()).toLowerCase();
     return this.#catalogService.categoryBySlug(targetSlug);
   });
 
   readonly catalogBrand = computed(() => {
-    if (!this.isBrandRoute()) return null;
+    if (!this.isBrand()) return null;
     return this.#catalogService.brandBySlug(this.slug());
   });
 
   readonly listParams = computed(() =>
     resolveCatalogListParams({
-      isBrand: this.isBrandRoute(),
+      isBrand: this.isBrand(),
       slug: this.slug(),
       subSlug: this.subSlug(),
       categoryId: this.catalogCategory()?.id ?? null,
@@ -148,40 +144,12 @@ export class CategoryComponent {
   });
 
   readonly cardPrices = computed<ReadonlyMap<string, CatalogCardPrice>>(() => {
-    const products = this.products();
-    const liveMode = this.#offers.ready() && !this.#offers.failed();
-    const offers = liveMode ? this.#offers.all() : [];
-    const ctx = {
+    const live = this.#offers.ready() && !this.#offers.failed();
+    return listingCardPrices(this.products(), live ? this.#offers.all() : [], {
+      live,
       now: new Date(this.#nowMs()),
       signedIn: this.#hydrated() && this.#auth.offerSignedIn(),
-    };
-
-    const map = new Map<string, CatalogCardPrice>();
-    for (const product of products) {
-      if (liveMode) {
-        // Same size labels as PDP (`toPricedProduct`); never feed option ids into displayPrice.
-        const d = displayPrice(toPricedProduct(product), offers, ctx);
-        map.set(product.id, {
-          price: d.partial ? product.price : d.fromPrice,
-          fromPrice: d.partial ? d.fromPrice : null,
-          listPrice: d.listPrice,
-          partial: d.partial,
-          // Listing cards keep strike-through; skip boxed offer chips.
-          badges: [],
-        });
-      } else {
-        const list = product.compareAtPrice;
-        const onSale = list !== null && list > product.price;
-        map.set(product.id, {
-          price: product.price,
-          fromPrice: null,
-          listPrice: onSale ? list : null,
-          partial: false,
-          badges: [],
-        });
-      }
-    }
-    return map;
+    });
   });
 
   readonly catalogListCount = computed((): number | null => {
@@ -219,7 +187,7 @@ export class CategoryComponent {
   });
 
   readonly displayTitle = computed(() => {
-    if (this.isBrandRoute()) {
+    if (this.isBrand()) {
       const catalogBrand = this.catalogBrand();
       if (catalogBrand) return catalogBrand.name;
       return this.matchedBrand()?.label || this.slug().replaceAll('-', ' ');
@@ -246,14 +214,14 @@ export class CategoryComponent {
   });
 
   readonly currentRoutePath = computed(() => {
-    if (this.isBrandRoute()) return `/brand/${this.slug()}`;
+    if (this.isBrand()) return `/brand/${this.slug()}`;
     const sub = this.subSlug();
     if (sub) return `/category/${this.slug()}/${sub}`;
     return `/category/${this.slug()}`;
   });
 
   readonly emptyMessage = computed(() => {
-    if (this.isBrandRoute()) {
+    if (this.isBrand()) {
       return 'No products from this brand are available right now.';
     }
     if (this.slug().toLowerCase() === 'sale') {

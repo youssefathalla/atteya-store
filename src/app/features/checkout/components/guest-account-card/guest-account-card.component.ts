@@ -164,10 +164,12 @@ export class GuestAccountCardComponent implements OnInit {
 
   constructor() {
     // Back from a Google redirect started on this card: save the order now.
+    // `claimOrder` needs accepted terms, which a new Google account saves a moment after it signs
+    // in, so this runs again once `needsConsent` turns false.
     effect(() => {
-      if (!this.#auth.isAuthReady() || !this.#auth.user()) return;
+      if (!this.#auth.isAuthReady() || !this.#auth.user() || this.#auth.needsConsent()) return;
       untracked(() => {
-        if (takeClaimAfterRedirect(this.orderId())) void this.claim();
+        if (takeClaimAfterRedirect(this.orderId())) void this.claim(true);
       });
     });
   }
@@ -270,7 +272,7 @@ export class GuestAccountCardComponent implements OnInit {
   }
 
   /** Saves the guest order to the signed-in account. Refused (wrong or unconfirmed email): says why. */
-  async claim(): Promise<void> {
+  async claim(afterRedirect = false): Promise<void> {
     if (this.busy()) return;
     this.message.set('');
     this.busy.set('claim');
@@ -281,6 +283,14 @@ export class GuestAccountCardComponent implements OnInit {
       this.#userRefreshed.update((n) => n + 1);
       if (!verified) {
         this.message.set("Your email isn't confirmed yet. Open the link we emailed you, then try again.");
+        return;
+      }
+      // `claimOrder` needs the account's accepted terms; back from a Google redirect, the signup
+      // write may still be running, so wait until the account's terms are known.
+      await this.#auth.waitForAccountReady();
+      if (afterRedirect && this.#auth.needsConsent()) {
+        // Not saved yet: try again when the terms are (the effect above watches `needsConsent`).
+        markClaimAfterRedirect(this.orderId());
         return;
       }
       await this.#orders.claimOrder(this.orderId(), this.viewKey());

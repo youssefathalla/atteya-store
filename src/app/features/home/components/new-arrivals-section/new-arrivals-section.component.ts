@@ -18,12 +18,13 @@ import { AuthService } from '@core/services/auth/auth.service';
 import { OffersService } from '@core/services/offers/offers.service';
 import { NEW_ARRIVALS_LIMIT, ProductService } from '@core/services/products';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
+import { listingCardPrices } from '@shared/components/product-card/listing-card-prices';
 import { productToCardData } from '@shared/components/product-card/product-card.utils';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import { newArrivalDaysLeft } from '@core/services/products/utils/new-arrival';
-import { listingCardPrices } from '../../utils/listing-card-prices';
+
 import { rowScrollProgress } from '@shared/utils/row-scroll.utils';
 import { RowScrollLockDirective } from '../../directives/row-scroll-lock.directive';
 import {

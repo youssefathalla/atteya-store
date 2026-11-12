@@ -27,9 +27,9 @@ import { IconSize, SharedIconModule } from '../mat-icon';
             (click)="value.set(chip)"
           >
             <span class="chip-icon-wrapper">
-              <div class="flex">
+              <span class="flex">
                 <mat-icon name="check" [size]="iconSize()" weight="600" />
-              </div>
+              </span>
             </span>
             <span class="capitalize" [id]="chip + '-label'">{{ chip }}</span>
           </button>
