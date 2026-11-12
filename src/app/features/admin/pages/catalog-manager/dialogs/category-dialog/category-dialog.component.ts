@@ -254,7 +254,7 @@ export class CategoryDialogComponent {
         path: parentPath ? `/category/${parentPath}/${result.id}` : `/category/${result.id}`,
         target: { kind: 'category', id: result.id },
       });
-      return { ...result, menuAdded: true };
+      return result;
     } catch {
       return { ...result, menuFailed: true };
     }

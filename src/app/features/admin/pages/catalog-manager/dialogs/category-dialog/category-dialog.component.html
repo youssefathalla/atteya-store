@@ -127,6 +127,7 @@
     @if (isNew) {
       <app-menu-placement
         kind="category"
+        [shown]="published()"
         [parentId]="parentId()"
         [(enabled)]="addToMenu"
         [(menuId)]="menuId"

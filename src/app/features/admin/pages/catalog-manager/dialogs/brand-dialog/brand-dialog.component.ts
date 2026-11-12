@@ -140,7 +140,7 @@ export class BrandDialogComponent {
         target: { kind: 'brand', id: result.id },
         isBrand: true,
       });
-      return { ...result, menuAdded: true };
+      return result;
     } catch {
       return { ...result, menuFailed: true };
     }

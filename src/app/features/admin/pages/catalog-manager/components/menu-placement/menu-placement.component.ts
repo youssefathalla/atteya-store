@@ -61,6 +61,11 @@ import { menuFillingSubCategories, menuFillsBrands, menuOptions } from '../../ut
                 Every column in this menu fills itself, so there is nothing to add to.
               </p>
             }
+            @if (!shown()) {
+              <p class="font-body-sm text-on-surface-variant" role="status">
+                It is hidden from the store, so the link stays out of the menu until you show it.
+              </p>
+            }
             @if (menu.hasAutoColumn && menu.columns.length > 0) {
               <p class="font-body-sm text-on-surface-variant">
                 Columns that fill themselves aren't listed. New {{ kind() === 'brand' ? 'brands' : 'items' }}
@@ -80,6 +85,8 @@ export class MenuPlacementComponent {
   readonly kind = input.required<'category' | 'brand'>();
   /** The parent category's id for a new sub-category, else null. */
   readonly parentId = input<string | null>(null);
+  /** False while the new item is hidden from the store. */
+  readonly shown = input(true);
 
   readonly enabled = model(false);
   readonly menuId = model<string | null>(null);

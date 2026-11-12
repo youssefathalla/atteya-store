@@ -176,18 +176,19 @@ export class BrandsTabComponent {
     );
     ref.afterClosed().subscribe((result) => {
       if (!result) return;
-      this.#snackbar.success(
-        brand
-          ? result.resynced > 0
-            ? 'Brand saved. Search shows the new name in a minute.'
-            : 'Brand saved.'
-          : 'Brand added.',
-      );
       if (result.menuFailed) {
         this.#snackbar.warning(
           "Saved the brand, but couldn't add it to the menu. Add it in Navigation.",
           'Close',
           8000,
+        );
+      } else {
+        this.#snackbar.success(
+          brand
+            ? result.resynced > 0
+              ? 'Brand saved. Search shows the new name in a minute.'
+              : 'Brand saved.'
+            : 'Brand added.',
         );
       }
       this.listResource.reload();

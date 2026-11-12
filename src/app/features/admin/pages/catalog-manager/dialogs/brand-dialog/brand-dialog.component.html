@@ -48,6 +48,7 @@
     @if (isNew) {
       <app-menu-placement
         kind="brand"
+        [shown]="published()"
         [(enabled)]="addToMenu"
         [(menuId)]="menuId"
         [(columnIndex)]="menuColumn"
