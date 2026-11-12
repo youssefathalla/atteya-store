@@ -5,6 +5,11 @@ import { accountAuthGuard } from '@core/guards/account/account-auth.guard';
 import { favoritesAuthGuard } from '@core/guards/favorites/favorites-auth.guard';
 import { serverCurrencyResolver } from '@core/services/currency/server-currency.resolver';
 import { catalogSettingsResolver } from '@core/services/products/catalog-settings.resolver';
+import {
+  shopCategoriesResolver,
+  shopCategoryMatch,
+  shopCategoryTitle,
+} from '@core/services/products/shop-category.match';
 import { navigationSettingsResolver } from '@core/services/navigation/navigation-settings.resolver';
 import { shippingSettingsResolver } from '@core/services/shipping/shipping-settings.resolver';
 import { bannerOffersResolver } from '@core/services/offers/banner-offers.resolver';
@@ -23,6 +28,7 @@ export const routes: Routes = [
       bannerOffers: bannerOffersResolver,
       navigationSettings: navigationSettingsResolver,
       catalogSettings: catalogSettingsResolver,
+      shopCategories: shopCategoriesResolver,
     },
     children: [
       {
@@ -49,33 +55,24 @@ export const routes: Routes = [
         pathMatch: 'full',
       },
       {
-        path: 'category/apparel',
-        loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
-        title: 'Apparel | Atteya Store',
-        data: { shopCategory: 'apparel', preload: true },
-      },
-      {
         path: 'category/accessories/bags',
         loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
         title: 'Bags | Atteya Store',
         data: { shopCategory: 'accessories', shopSubcategory: 'bags', preload: true },
       },
       {
-        path: 'category/accessories',
-        loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
-        title: 'Accessories | Atteya Store',
-        data: { shopCategory: 'accessories', preload: true },
-      },
-      {
-        path: 'category/rackets',
-        loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
-        title: 'Padel | Atteya Store',
-        data: { shopCategory: 'rackets', preload: true },
-      },
-      {
         path: 'category/bags',
         redirectTo: 'category/accessories/bags',
         pathMatch: 'full',
+      },
+      {
+        // Every top-level category is a Shop page filtered to it (`shopCategoryMatch`, ATS-249);
+        // sub-categories and anything else fall through to the category page below.
+        path: 'category/:slug',
+        canMatch: [shopCategoryMatch],
+        loadComponent: () => import('./features/shop/shop.page').then((m) => m.ShopPage),
+        title: shopCategoryTitle,
+        data: { categoryShop: true, preload: true },
       },
       {
         path: 'category/:slug',

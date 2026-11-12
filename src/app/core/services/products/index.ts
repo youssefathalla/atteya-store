@@ -16,3 +16,6 @@ export * from './utils/product-price.utils';
 export * from './utils/priced-product.utils';
 export * from './utils/catalog-path';
 export * from './utils/product-details';
+export * from './shop-categories.service';
+export * from './shop-category.match';
+export * from './utils/shop-categories';

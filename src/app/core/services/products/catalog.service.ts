@@ -1,5 +1,14 @@
 import { isPlatformBrowser } from '@angular/common';
-import { computed, DestroyRef, inject, PLATFORM_ID, Service, signal, TransferState } from '@angular/core';
+import {
+  computed,
+  DestroyRef,
+  inject,
+  Injector,
+  PLATFORM_ID,
+  Service,
+  signal,
+  TransferState,
+} from '@angular/core';
 import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
@@ -14,11 +23,11 @@ import {
   CATALOG_CATEGORY_IDS,
   CATALOG_DOC,
   CATEGORIES_COLLECTION,
-  PRODUCT_BRANDS,
   PRODUCT_TYPES,
 } from './product.constants';
 import type { Brand, CatalogSummary, Category, CategoryTreeNode } from './product.model';
 import { CatalogSummarySchema } from './product.schema';
+import { ShopCategoriesService } from './shop-categories.service';
 import { catalogPathIsEmpty } from './utils/catalog-path';
 
 /** Match nav/shipping so a stuck Firestore listen cannot block the shell forever. */
@@ -35,6 +44,7 @@ export class CatalogService {
   readonly #platformId = inject(PLATFORM_ID);
   readonly #destroyRef = inject(DestroyRef);
   readonly #transfer = inject(TransferState);
+  readonly #injector = inject(Injector);
 
   readonly #catalogDocRef = doc(this.#firestore, CATALOG_DOC[0], CATALOG_DOC[1]);
 
@@ -154,6 +164,12 @@ export class CatalogService {
       set.add(category.id);
       set.add(category.slug);
     }
+    // The server-read list too, so a category added in Categories & Brands counts as known on
+    // the server and in the first browser render, before the live list arrives.
+    for (const category of this.#injector.get(ShopCategoriesService).categories()) {
+      set.add(category.id);
+      set.add(category.slug);
+    }
     return set;
   });
 
@@ -176,10 +192,16 @@ export class CatalogService {
     return PRODUCT_TYPES.filter((type) => (summary.types[type.id] ?? 0) > 0);
   });
 
-  readonly visibleBrands = computed(() => {
+  /** Published brands (live docs, else the built-in ones) that have published products. */
+  readonly visibleBrands = computed((): readonly { readonly id: string; readonly label: string }[] => {
+    const live = this.brands();
+    const all =
+      live && live.length > 0
+        ? live.map((brand) => ({ id: brand.id, label: brand.name }))
+        : SEED_BRANDS.map((brand) => ({ id: brand.id, label: brand.name }));
     const summary = this.summary();
-    if (!summary) return PRODUCT_BRANDS;
-    return PRODUCT_BRANDS.filter((brand) => (summary.brands[brand.id] ?? 0) > 0);
+    if (!summary) return all;
+    return all.filter((brand) => (summary.brands[brand.id] ?? 0) > 0);
   });
 
   categoryBySlug(slug: string): Category | SeedCategory | null {

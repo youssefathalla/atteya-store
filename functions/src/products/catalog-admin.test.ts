@@ -134,6 +134,17 @@ describe('readSaveCategoryRequest', () => {
     assert.equal(typeof readSaveCategoryRequest({ ...valid, defaultWeightGrams: 1.5 }), 'string');
     assert.equal(typeof readSaveCategoryRequest({ ...valid, published: 'yes' }), 'string');
   });
+
+  it('reads the name on Shop tabs: tidied, empty for none, left out when not sent', () => {
+    const read = readSaveCategoryRequest({ ...valid, shopLabel: '  Padel   gear ' });
+    assert.equal(typeof read === 'object' ? read.shopLabel : 'x', 'Padel gear');
+    const cleared = readSaveCategoryRequest({ ...valid, shopLabel: '' });
+    assert.equal(typeof cleared === 'object' ? cleared.shopLabel : 'x', '');
+    const missing = readSaveCategoryRequest(valid);
+    assert.equal(typeof missing === 'object' && 'shopLabel' in missing, false);
+    assert.equal(typeof readSaveCategoryRequest({ ...valid, shopLabel: 'x'.repeat(31) }), 'string');
+    assert.equal(typeof readSaveCategoryRequest({ ...valid, shopLabel: 12 }), 'string');
+  });
 });
 
 describe('readSaveBrandRequest', () => {

@@ -1,25 +1,18 @@
 import type { ColorId } from '@core/services/products/catalog-taxonomy';
 import type { CatalogSort } from '@core/services/search';
 
-/** Top-level shop category tabs (All + seed roots). Padel tab maps to rackets. */
-export type ShopTabId = 'all' | 'apparel' | 'accessories' | 'rackets';
+export type { ShopCategoryOption, ShopTab } from '@core/services/products/utils/shop-categories';
 
-export type ShopCategoryFilterId = 'apparel' | 'accessories' | 'rackets' | 'bags';
+/**
+ * Shop tab: `all`, or a top-level category id. Tabs come from the live category list
+ * (`shopTabsFrom()`), not a fixed list (ATS-249).
+ */
+export type ShopTabId = string;
+
+/** A category id in Shop's Category filter (`?category=`), from `shopCategoryOptionsFrom()`. */
+export type ShopCategoryFilterId = string;
 
 export type ShopGenderFilterId = 'women' | 'men';
-
-export interface ShopTab {
-  readonly id: ShopTabId;
-  readonly label: string;
-  readonly path: string;
-}
-
-export interface ShopCategoryOption {
-  readonly id: ShopCategoryFilterId;
-  readonly label: string;
-  /** Firestore / Algolia `categoryIds` value. */
-  readonly categoryId: string;
-}
 
 export interface ShopFacetValue {
   readonly value: string;
@@ -65,20 +58,6 @@ export interface ShopFilterState {
   readonly inStock: boolean;
   readonly page: number;
 }
-
-export const SHOP_TABS: readonly ShopTab[] = [
-  { id: 'all', label: 'All', path: '/shop' },
-  { id: 'apparel', label: 'Apparel', path: '/category/apparel' },
-  { id: 'accessories', label: 'Accessories', path: '/category/accessories' },
-  { id: 'rackets', label: 'Padel', path: '/category/rackets' },
-] as const;
-
-export const SHOP_CATEGORY_OPTIONS: readonly ShopCategoryOption[] = [
-  { id: 'apparel', label: 'Apparel', categoryId: 'apparel' },
-  { id: 'accessories', label: 'Accessories', categoryId: 'accessories' },
-  { id: 'rackets', label: 'Padel', categoryId: 'rackets' },
-  { id: 'bags', label: 'Bags', categoryId: 'bags' },
-] as const;
 
 /** Closed colour list for the shop filter (spec + Multi). */
 export const SHOP_COLOR_IDS = [

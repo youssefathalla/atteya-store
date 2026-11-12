@@ -3,6 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import type {
   ShopBrandOption,
+  ShopCategoryOption,
   ShopColorOption,
   ShopFilterState,
   ShopPlayerOption,
@@ -28,6 +29,7 @@ export class ShopFiltersDrawerComponent {
   readonly showGender = input(false);
   readonly showSizes = input(false);
   readonly accessoriesSubOnly = input(false);
+  readonly categoryOptions = input<readonly ShopCategoryOption[]>([]);
 
   readonly closed = output<void>();
 }

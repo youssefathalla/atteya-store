@@ -16,6 +16,15 @@ import { Router } from '@angular/router';
 import { displayDecimals, toDisplayAmount, type Offer } from '@core/services/offers/engine';
 import { offerShopSubtitle, offerTitleVisible } from '@core/services/offers/offer-shop';
 import { CurrencyService } from '@core/services/currency/currency.service';
+import { CatalogService } from '@core/services/products/catalog.service';
+import { ShopCategoriesService } from '@core/services/products/shop-categories.service';
+import {
+  shopCategoryFilterIds,
+  shopCategoryOptionsFrom,
+  shopTabFor,
+  shopTabsFrom,
+  withChosenCategories,
+} from '@core/services/products/utils/shop-categories';
 import { OffersService } from '@core/services/offers/offers.service';
 import { PlayerListService } from '@core/services/products/player-list.service';
 import { SeoService } from '@core/services/seo';
@@ -26,7 +35,7 @@ import { ShopFiltersDrawerComponent } from './components/shop-filters-drawer/sho
 import { ShopFiltersComponent } from './components/shop-filters/shop-filters.component';
 import { ShopGridComponent } from './components/shop-grid/shop-grid.component';
 import { ShopHeaderComponent } from './components/shop-header/shop-header.component';
-import { DEFAULT_SHOP_FILTERS, SHOP_TABS, type ShopFilterState } from './models/shop.model';
+import { DEFAULT_SHOP_FILTERS, type ShopFilterState } from './models/shop.model';
 import {
   brandOptionsFromFacets,
   buildCatalogBrowseOptions,
@@ -64,8 +73,12 @@ interface ShopCatalogSnapshot {
   templateUrl: './shop.page.html',
 })
 export class ShopPage {
-  /** From route `data.shopCategory` on category shop routes. */
+  /** From route `data.shopCategory` (the Bags page sets `accessories`). */
   readonly shopCategory = input<string>();
+  /** `/category/:slug`: a top-level category (the route only matches those, `shopCategoryMatch`). */
+  readonly slug = input<string>();
+  /** Route `data.categoryShop`, set only on `/category/:slug`, so `/shop?slug=…` changes nothing. */
+  readonly categoryShop = input<boolean>(false);
   /** From route `data.shopSubcategory` (e.g. bags). */
   readonly shopSubcategory = input<string>();
 
@@ -89,6 +102,8 @@ export class ShopPage {
   readonly #playerList = inject(PlayerListService);
   readonly #offers = inject(OffersService);
   readonly #currency = inject(CurrencyService);
+  readonly #shopCategories = inject(ShopCategoriesService);
+  readonly #catalog = inject(CatalogService);
   readonly #destroyRef = inject(DestroyRef);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #document = inject(DOCUMENT);
@@ -105,7 +120,32 @@ export class ShopPage {
   /** Tracks shop tab/bags scope so we only clear the snapshot on a real tab change. */
   readonly #tabScopeKey = signal('');
 
-  readonly activeTab = computed(() => resolveShopTab(this.shopCategory(), this.shopSubcategory()));
+  /** Published product counts per category, or null while unknown (then nothing is left out). */
+  readonly #categoryCounts = computed(() => this.#catalog.summary()?.categories ?? null);
+
+  /** All + every shown top-level category (server seed first, then the live list). */
+  readonly tabs = computed(() => shopTabsFrom(this.#shopCategories.categories(), this.#categoryCounts()));
+
+  readonly categoryOptions = computed(() =>
+    withChosenCategories(
+      shopCategoryOptionsFrom(this.#shopCategories.categories(), this.#categoryCounts()),
+      this.filterState().categories,
+      this.#shopCategories.categories(),
+    ),
+  );
+
+  /** Ids `?category=` may name. Compared by content, so a new counts snapshot sends no new search. */
+  readonly #categoryFilterIds = computed(() => shopCategoryFilterIds(this.#shopCategories.categories()), {
+    equal: sameSet,
+  });
+
+  readonly activeTab = computed(() =>
+    resolveShopTab(
+      this.shopCategory() ?? (this.categoryShop() ? this.slug() : undefined),
+      this.shopSubcategory(),
+      this.#shopCategories.categories(),
+    ),
+  );
 
   readonly forceBags = computed(() => {
     const cat = (this.shopCategory() ?? '').toLowerCase();
@@ -168,25 +208,27 @@ export class ShopPage {
     if (playerName) return playerName;
     if (this.forceBags()) return 'Bags';
     if (tab === 'all' && this.filterState().newArrivals) return 'New Arrivals';
-    return SHOP_TABS.find((t) => t.id === tab)?.label === 'All'
-      ? 'Shop All'
-      : (SHOP_TABS.find((t) => t.id === tab)?.label ?? 'Shop');
+    if (tab === 'all') return 'Shop All';
+    return shopTabFor(tab, this.#shopCategories.categories()).label;
   });
 
-  readonly filterState = computed(() =>
-    parseShopFilterState({
-      sort: this.sort(),
-      category: this.category(),
-      brand: this.brand(),
-      player: this.player(),
-      size: this.size(),
-      color: this.color(),
-      gender: this.gender(),
-      newArrivals: this.newArrivals(),
-      onSale: this.onSale(),
-      inStock: this.inStock(),
-      page: this.page(),
-    }),
+  readonly filterState = computed(
+    () =>
+      parseShopFilterState({
+        sort: this.sort(),
+        category: this.category(),
+        brand: this.brand(),
+        player: this.player(),
+        size: this.size(),
+        color: this.color(),
+        gender: this.gender(),
+        newArrivals: this.newArrivals(),
+        onSale: this.onSale(),
+        inStock: this.inStock(),
+        page: this.page(),
+        categoryIds: this.#categoryFilterIds(),
+      }),
+    { equal: filtersEqual },
   );
 
   readonly browseParams = computed(() => {
@@ -365,7 +407,7 @@ export class ShopPage {
     const tab = this.activeTab();
     const path = this.forceBags()
       ? '/category/accessories/bags'
-      : (SHOP_TABS.find((t) => t.id === tab)?.path ?? '/shop');
+      : shopTabFor(tab, this.#shopCategories.categories()).path;
 
     await this.#router.navigate([path], {
       queryParams: shopFiltersToQueryParams(state),
@@ -374,4 +416,8 @@ export class ShopPage {
       ...(preserveScroll ? { scroll: 'manual' as const } : {}),
     });
   }
+}
+
+function sameSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  return left.size === right.size && [...left].every((id) => right.has(id));
 }

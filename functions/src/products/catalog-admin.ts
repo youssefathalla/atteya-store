@@ -8,6 +8,8 @@ import { kebabSlug, nextSlug } from './slug.js';
 
 export const MAX_CATALOG_NAME = 60;
 export const MAX_CATEGORY_DESCRIPTION = 500;
+/** "Name on Shop Tabs" (`shopLabel`): short enough for a tab button. */
+export const MAX_SHOP_LABEL = 30;
 export const MAX_IMAGE_ALT = 125;
 export const MAX_WEIGHT_GRAMS = 100_000;
 /** Most categories or brands one reorder can send. */
@@ -45,6 +47,11 @@ export interface SaveCategoryRequest {
   readonly image: CatalogImage | null;
   /** Grams; null = no default on purpose; undefined = leave as it is (built-in default). */
   readonly defaultWeightGrams: number | null | undefined;
+  /**
+   * "Name on Shop Tabs" for a top-level category: '' = none (the tab uses the built-in name or the
+   * category name); missing = leave as it is (an older admin page that doesn't send it).
+   */
+  readonly shopLabel?: string;
   readonly published: boolean;
 }
 
@@ -173,6 +180,11 @@ export function readSaveCategoryRequest(raw: unknown): SaveCategoryRequest | str
   if (typeof image === 'string') return image;
   const weight = readWeight(raw['defaultWeightGrams']);
   if (typeof weight === 'string') return weight;
+  const shopLabel = readShopLabel(raw['shopLabel']);
+  if (shopLabel === false) return 'The name on Shop tabs could not be read.';
+  if (shopLabel !== undefined && shopLabel.length > MAX_SHOP_LABEL) {
+    return `Keep the name on Shop tabs to ${MAX_SHOP_LABEL} characters or fewer.`;
+  }
   if (typeof raw['published'] !== 'boolean') return 'Choose whether shoppers can see this category.';
   return {
     id,
@@ -181,6 +193,7 @@ export function readSaveCategoryRequest(raw: unknown): SaveCategoryRequest | str
     description: trimmedDescription,
     image,
     defaultWeightGrams: weight.value,
+    ...(shopLabel !== undefined ? { shopLabel } : {}),
     published: raw['published'],
   };
 }
@@ -277,6 +290,14 @@ function readDimension(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= 20_000
     ? value
     : undefined;
+}
+
+/** undefined = not sent, false = not text, else the tidied label ('' = none). */
+function readShopLabel(value: unknown): string | undefined | false {
+  if (value === undefined) return undefined;
+  if (value === null) return '';
+  if (typeof value !== 'string') return false;
+  return value.replace(/\s+/g, ' ').trim();
 }
 
 function readWeight(value: unknown): { readonly value: number | null | undefined } | string {
