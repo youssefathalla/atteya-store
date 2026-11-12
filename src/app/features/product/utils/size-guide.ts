@@ -1,4 +1,4 @@
-import type { Product } from '@core/services/products';
+import type { CategorySizeChart, Product } from '@core/services/products';
 
 export type SizeGuideId = 'men' | 'women';
 export type SizeUnit = 'cm' | 'in';
@@ -120,20 +120,18 @@ function buildGuide(id: SizeGuideId, extra: ExtraRows): SizeGuide {
   return { id, label: LABELS[id], sizes, rows, hasExtraRows: rows.length > BODY_ROWS[id].length };
 }
 
-/** Clothing that has no letter sizes on these charts. */
-const NO_GUIDE_CATEGORY_IDS: ReadonlySet<string> = new Set(['socks']);
-
 /**
- * Charts for the product page's Size & Fit section: adult clothing with a size choice.
+ * Charts for the product page's Size & Fit section: a product with a size choice whose category
+ * uses the clothing size chart (`categoryPageFor()`, set per category in Categories & Brands).
  * Women's or men's clothing gets its own chart; unisex or unset gets both, men's first.
  * T-shirts add a weight row first and shirt width and length rows last; hoodies add a weight row first.
- * Socks and everything else get none.
+ * A category with no size chart (socks, gear) gets none.
  */
 export function sizeGuidesFor(
   product: Pick<Product, 'categoryIds' | 'options' | 'gender'>,
+  sizeChart: CategorySizeChart,
 ): readonly SizeGuide[] {
-  if (!product.categoryIds.includes('apparel')) return [];
-  if (product.categoryIds.some((id) => NO_GUIDE_CATEGORY_IDS.has(id))) return [];
+  if (sizeChart !== 'clothing') return [];
   if (!product.options.some((option) => option.key === 'size')) return [];
   const extra = product.categoryIds.includes('t-shirts')
     ? SHIRT_EXTRA

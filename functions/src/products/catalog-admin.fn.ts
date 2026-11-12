@@ -74,6 +74,8 @@ export const saveCategory = onCall(
           ...(input.shopLabel !== undefined
             ? { shopLabel: input.shopLabel ? input.shopLabel : FieldValue.delete() }
             : {}),
+          ...(input.sizeChart !== undefined ? { sizeChart: input.sizeChart } : {}),
+          ...(input.detailsTitle !== undefined ? { detailsTitle: input.detailsTitle } : {}),
           published: input.published,
           updatedAt: FieldValue.serverTimestamp(),
           updatedBy: actor.uid,
@@ -132,6 +134,8 @@ export const saveCategory = onCall(
         productCount: 0,
         ...(input.defaultWeightGrams !== undefined ? { defaultWeightGrams: input.defaultWeightGrams } : {}),
         ...(input.shopLabel ? { shopLabel: input.shopLabel } : {}),
+        ...(input.sizeChart !== undefined ? { sizeChart: input.sizeChart } : {}),
+        ...(input.detailsTitle !== undefined ? { detailsTitle: input.detailsTitle } : {}),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: actor.uid,

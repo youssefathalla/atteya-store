@@ -18,6 +18,7 @@ import {
   colorIdFor,
   DEFAULT_CATEGORY_FOR_TYPE,
   extractColorsFromName,
+  BUILT_IN_CATEGORY_PAGE,
   SEED_BRANDS,
   SEED_CATEGORIES,
   sortColors,
@@ -199,6 +200,7 @@ async function seedCategories(db: Firestore, dryRun: boolean): Promise<MigrateSe
           image: null,
           published: seed.published,
           productCount: 0,
+          ...(BUILT_IN_CATEGORY_PAGE[seed.id] ?? {}),
           createdAt: now,
           updatedAt: now,
         });
@@ -217,6 +219,10 @@ async function seedCategories(db: Firestore, dryRun: boolean): Promise<MigrateSe
     }
     if (data['path'] !== seed.path) repair['path'] = seed.path;
     if (data['depth'] !== seed.depth) repair['depth'] = seed.depth;
+    // Product page settings (ATS-250): filled only when the field is missing, never over a staff choice.
+    const page = BUILT_IN_CATEGORY_PAGE[seed.id];
+    if (page?.sizeChart && data['sizeChart'] === undefined) repair['sizeChart'] = page.sizeChart;
+    if (page?.detailsTitle && data['detailsTitle'] === undefined) repair['detailsTitle'] = page.detailsTitle;
 
     if (Object.keys(repair).length > 0) {
       counts.repaired += 1;

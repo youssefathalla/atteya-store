@@ -3,7 +3,14 @@
  * requests and working out a new category's or brand's id, slug and place in the tree.
  * Tested in catalog-admin.test.ts. The callables live in catalog-admin.fn.ts.
  */
-import { SEED_BRANDS, SEED_CATEGORIES } from './catalog-taxonomy.js';
+import {
+  CATEGORY_DETAILS_TITLES,
+  CATEGORY_SIZE_CHARTS,
+  SEED_BRANDS,
+  SEED_CATEGORIES,
+  type CategoryDetailsTitle,
+  type CategorySizeChart,
+} from './catalog-taxonomy.js';
 import { kebabSlug, nextSlug } from './slug.js';
 
 export const MAX_CATALOG_NAME = 60;
@@ -52,6 +59,13 @@ export interface SaveCategoryRequest {
    * category name); missing = leave as it is (an older admin page that doesn't send it).
    */
   readonly shopLabel?: string;
+  /**
+   * Size & Fit chart on product pages (ATS-250): null = same as the parent (saved as null, so the
+   * built-in default never comes back); missing = leave as it is (an older admin page).
+   */
+  readonly sizeChart?: CategorySizeChart | null;
+  /** Materials or Specifications on product pages; null and missing as for `sizeChart`. */
+  readonly detailsTitle?: CategoryDetailsTitle | null;
   readonly published: boolean;
 }
 
@@ -185,6 +199,10 @@ export function readSaveCategoryRequest(raw: unknown): SaveCategoryRequest | str
   if (shopLabel !== undefined && shopLabel.length > MAX_SHOP_LABEL) {
     return `Keep the name on Shop tabs to ${MAX_SHOP_LABEL} characters or fewer.`;
   }
+  const sizeChart = readChoice(raw['sizeChart'], CATEGORY_SIZE_CHARTS);
+  if (sizeChart === false) return 'Choose a size chart, or the same as the parent.';
+  const detailsTitle = readChoice(raw['detailsTitle'], CATEGORY_DETAILS_TITLES);
+  if (detailsTitle === false) return 'Choose a details title, or the same as the parent.';
   if (typeof raw['published'] !== 'boolean') return 'Choose whether shoppers can see this category.';
   return {
     id,
@@ -194,6 +212,8 @@ export function readSaveCategoryRequest(raw: unknown): SaveCategoryRequest | str
     image,
     defaultWeightGrams: weight.value,
     ...(shopLabel !== undefined ? { shopLabel } : {}),
+    ...(sizeChart !== undefined ? { sizeChart } : {}),
+    ...(detailsTitle !== undefined ? { detailsTitle } : {}),
     published: raw['published'],
   };
 }
@@ -298,6 +318,13 @@ function readShopLabel(value: unknown): string | undefined | false {
   if (value === null) return '';
   if (typeof value !== 'string') return false;
   return value.replace(/\s+/g, ' ').trim();
+}
+
+/** undefined = not sent, null = same as the parent, false = not one of the choices. */
+function readChoice<T extends string>(value: unknown, choices: readonly T[]): T | null | undefined | false {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return typeof value === 'string' && (choices as readonly string[]).includes(value) ? (value as T) : false;
 }
 
 function readWeight(value: unknown): { readonly value: number | null | undefined } | string {

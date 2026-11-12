@@ -14,6 +14,10 @@ export interface ShopCategorySource {
   readonly shopLabel?: string;
   /** Missing counts as shown (the list the store reads is published categories only). */
   readonly published?: boolean;
+  /** Product page Size Chart (ATS-250): null = same as the parent; missing = built-in default. */
+  readonly sizeChart?: 'clothing' | 'none' | null;
+  /** Product page Details Title (ATS-250): null and missing as for `sizeChart`. */
+  readonly detailsTitle?: 'materials' | 'specifications' | null;
 }
 
 export interface ShopTab {

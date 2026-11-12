@@ -6,7 +6,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { DEFAULT_WEIGHT_GRAMS_BY_CATEGORY } from '@core/services/products/catalog-taxonomy';
+import {
+  DEFAULT_WEIGHT_GRAMS_BY_CATEGORY,
+  type CategoryDetailsTitle,
+  type CategorySizeChart,
+} from '@core/services/products/catalog-taxonomy';
 import type { Category } from '@core/services/products/product.model';
 import { shopTabLabel } from '@core/services/products/utils/shop-categories';
 import type { ImageAsset } from '@shared/schemas';
@@ -15,6 +19,8 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 import { callableMessage } from '@shared/utils/firebase/firebase-errors';
 import { CatalogAdminService, type SaveResult } from '../../services/catalog-admin.service';
 import {
+  categoryPageChoice,
+  type CategoryPageChoice,
   MAX_CATALOG_NAME,
   MAX_CATEGORY_DESCRIPTION,
   MAX_SHOP_LABEL,
@@ -64,6 +70,14 @@ export class CategoryDialogComponent {
   readonly image = signal<ImageAsset | null>(this.#data.category?.image ?? null);
   readonly weightText = signal(this.#initialWeight());
   readonly published = signal(this.#data.category?.published ?? false);
+  readonly sizeChartChoice = signal<CategoryPageChoice<CategorySizeChart>>(
+    this.#data.category ? categoryPageChoice(this.#data.category, 'sizeChart', 'none') : 'parent',
+  );
+  readonly detailsTitleChoice = signal<CategoryPageChoice<CategoryDetailsTitle>>(
+    this.#data.category
+      ? categoryPageChoice(this.#data.category, 'detailsTitle', 'specifications')
+      : 'parent',
+  );
   readonly isSaving = signal(false);
   readonly error = signal('');
 
@@ -93,6 +107,35 @@ export class CategoryDialogComponent {
       name: this.name().replace(/\s+/g, ' ').trim() || 'the name',
     }),
   );
+
+  /** A top-level category has no parent to copy, so "Same as parent" shows as its own default. */
+  readonly sizeChart = computed((): CategoryPageChoice<CategorySizeChart> => {
+    const choice = this.sizeChartChoice();
+    return choice === 'parent' && this.isTopLevel() ? 'none' : choice;
+  });
+
+  readonly detailsTitle = computed((): CategoryPageChoice<CategoryDetailsTitle> => {
+    const choice = this.detailsTitleChoice();
+    return choice === 'parent' && this.isTopLevel() ? 'specifications' : choice;
+  });
+
+  /** What "Same as parent" means right now, e.g. "Clothing size chart". */
+  readonly parentSizeChartLabel = computed(() => {
+    const parent = this.#parent();
+    const value = parent ? categoryPageChoice(parent, 'sizeChart', 'none') : 'none';
+    return value === 'clothing' ? 'Clothing size chart' : 'None';
+  });
+
+  readonly parentDetailsTitleLabel = computed(() => {
+    const parent = this.#parent();
+    const value = parent ? categoryPageChoice(parent, 'detailsTitle', 'specifications') : 'specifications';
+    return value === 'materials' ? 'Materials' : 'Specifications';
+  });
+
+  readonly #parent = computed(() => {
+    const id = this.isNew ? this.parentId() : (this.#data.category?.parentId ?? null);
+    return id ? (this.#data.categories.find((item) => item.id === id) ?? null) : null;
+  });
 
   readonly parentName = computed(() => {
     const id = this.parentId();
@@ -147,6 +190,9 @@ export class CategoryDialogComponent {
       return;
     }
 
+    const sizeChart = this.sizeChart();
+    const detailsTitle = this.detailsTitle();
+
     this.error.set('');
     this.isSaving.set(true);
     try {
@@ -160,6 +206,8 @@ export class CategoryDialogComponent {
         // Untouched: leave the saved or built-in default alone.
         ...(weightChanged ? { defaultWeightGrams: weight } : {}),
         shopLabel,
+        sizeChart: sizeChart === 'parent' ? null : sizeChart,
+        detailsTitle: detailsTitle === 'parent' ? null : detailsTitle,
         published: this.published(),
       });
       this.#ref.close(result);
