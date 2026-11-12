@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
+  decideBrandPage,
+  decideCategoryPage,
+} from '../src/app/features/category/utils/catalog-page-state.ts';
+import {
   pathOpensDeletedBuiltIn,
   readDeletedBuiltInIds,
 } from '../src/app/core/services/products/utils/deleted-built-ins.ts';
@@ -1273,5 +1277,71 @@ describe('removeFromMenu (ATS-265)', () => {
     const result = removeFromMenu(menu, { kind: 'brand', id: 'siux', address: '/brand/siux' });
     assert.equal(result.changed, false);
     assert.equal(result.next, menu);
+  });
+});
+
+describe('category and brand pages never open empty (ATS-268)', () => {
+  const published = [
+    { id: 'apparel', slug: 'apparel', parentId: null },
+    { id: 'hoodies', slug: 'hoodies', parentId: 'apparel' },
+    { id: 't-shirts', slug: 't-shirts', parentId: 'apparel' },
+    { id: 'padel', slug: 'padel', parentId: null },
+  ];
+  const counts = {
+    categories: { apparel: 12, hoodies: 0, 't-shirts': 12, padel: 0, caps: 3, rackets: 4 },
+    brands: { nox: 5, head: 0, wilson: 2 },
+  };
+  const none = new Set();
+  const category = (slug, subSlug = null, extra = {}) =>
+    decideCategoryPage({ slug, subSlug, published, counts, deletedBuiltInIds: none, ...extra });
+
+  it('opens a shown category with live products', () => {
+    assert.deepEqual(category('apparel', 't-shirts'), { kind: 'ok' });
+    assert.deepEqual(category('apparel'), { kind: 'ok' });
+  });
+
+  it('sends an empty sub-category to its main category', () => {
+    assert.deepEqual(category('apparel', 'hoodies'), { kind: 'redirect', path: '/category/apparel' });
+    assert.deepEqual(category('hoodies'), { kind: 'redirect', path: '/category/apparel' });
+  });
+
+  it('sends a hidden sub-category to its main category and a hidden main one to Shop', () => {
+    assert.deepEqual(category('apparel', 'caps'), { kind: 'redirect', path: '/category/apparel' });
+    assert.deepEqual(category('rackets'), { kind: 'redirect', path: '/shop' });
+  });
+
+  it('sends an empty main category to Shop', () => {
+    assert.deepEqual(category('padel'), { kind: 'redirect', path: '/shop' });
+  });
+
+  it('shows Page Not Found for a deleted or unknown category', () => {
+    assert.deepEqual(category('apparel', 'scarves'), { kind: 'missing' });
+    assert.deepEqual(category('rackets', null, { deletedBuiltInIds: new Set(['rackets']) }), {
+      kind: 'missing',
+    });
+  });
+
+  it('decides nothing without counts or for pages that are not categories', () => {
+    assert.deepEqual(category('apparel', 'hoodies', { counts: null }), { kind: 'ok' });
+    assert.deepEqual(category('sale'), { kind: 'ok' });
+    assert.deepEqual(category('apparel', 'new'), { kind: 'ok' });
+  });
+
+  const brands = [
+    { id: 'nox', slug: 'nox' },
+    { id: 'head', slug: 'head' },
+  ];
+  const brand = (slug, extra = {}) =>
+    decideBrandPage({ slug, published: brands, counts, deletedBuiltInIds: none, ...extra });
+
+  it('opens a brand with live products and sends an empty or hidden one to Shop', () => {
+    assert.deepEqual(brand('nox'), { kind: 'ok' });
+    assert.deepEqual(brand('head'), { kind: 'redirect', path: '/shop' });
+    assert.deepEqual(brand('wilson'), { kind: 'redirect', path: '/shop' });
+  });
+
+  it('shows Page Not Found for a deleted brand and decides nothing when brands could not load', () => {
+    assert.deepEqual(brand('babolat'), { kind: 'missing' });
+    assert.deepEqual(brand('babolat', { published: null }), { kind: 'ok' });
   });
 });

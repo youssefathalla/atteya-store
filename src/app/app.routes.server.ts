@@ -82,8 +82,10 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Server,
     headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
   },
+  // Every other address is Page Not Found (ATS-268): rendered per request so the page can answer 404.
   {
     path: '**',
-    renderMode: RenderMode.Prerender,
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': 'private, no-store' },
   },
 ];

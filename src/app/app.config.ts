@@ -1,4 +1,4 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, ErrorHandler, inject, provideBrowserGlobalErrorListeners } from '@angular/core';
 import {
   provideRouter,
   withComponentInputBinding,
@@ -6,7 +6,9 @@ import {
   withViewTransitions,
   withAutoCleanupInjectors,
   withPreloading,
+  withNavigationErrorHandler,
 } from '@angular/router';
+import { AppErrorHandler, isChunkLoadError, PageLoadErrorService } from '@core/services/errors';
 import { StorefrontPreloadingStrategy } from '@core/routing/storefront-preloading.strategy';
 import { provideClientHydration } from '@angular/platform-browser';
 import { IMAGE_CONFIG } from '@angular/common';
@@ -20,6 +22,8 @@ import { provideFirebaseApp, provideAuth, provideFirestore, provideAppCheck } fr
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    // A page whose code couldn't be downloaded shows Something Went Wrong (ATS-268).
+    { provide: ErrorHandler, useClass: AppErrorHandler },
     // Modern Router: input binding + scroll restoration + view transitions + preloading + auto cleanup
     provideRouter(
       routes,
@@ -39,6 +43,9 @@ export const appConfig: ApplicationConfig = {
       withInMemoryScrolling({
         scrollPositionRestoration: 'enabled',
         anchorScrolling: 'enabled',
+      }),
+      withNavigationErrorHandler((error) => {
+        if (isChunkLoadError(error.error)) inject(PageLoadErrorService).report(error.url);
       }),
     ),
 

@@ -58,6 +58,11 @@
     @apply font-body-sm text-on-surface-variant whitespace-nowrap;
   }
 
+  /* Shown but nothing to buy yet (ATS-268): why shoppers can't see it. Wraps on phone. */
+  .catalog-row__tag {
+    @apply self-start font-label-sm text-on-surface-variant bg-surface-container border-shape px-2 py-0.5;
+  }
+
   .catalog-row__wide {
     @apply hidden @3xl:inline;
   }

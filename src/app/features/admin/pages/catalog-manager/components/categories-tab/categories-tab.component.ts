@@ -184,6 +184,7 @@ export class CategoriesTabComponent {
     );
     try {
       await this.#catalog.reorder('categories', ids);
+      this.#snackbar.success('New order saved.');
     } catch (error: unknown) {
       this.#snackbar.error(callableMessage(error) ?? "We couldn't save the new order. Please try again.");
       this.listResource.reload();

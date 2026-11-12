@@ -27,6 +27,8 @@ import {
 } from './components/catalog-product-grid/catalog-product-grid.component';
 import { LoaderComponent } from '@shared/ui/loader/loader.component';
 import { resolveCatalogListParams, toProductListQuery } from './utils/catalog-list-query';
+import type { CatalogPageState } from './resolvers/catalog-page.resolver';
+import { ErrorPageComponent } from '@shared/ui/error-page';
 
 const PAGE_SIZE = 48;
 
@@ -39,6 +41,7 @@ const PAGE_SIZE = 48;
     SharedIconModule,
     CatalogProductGridComponent,
     LoaderComponent,
+    ErrorPageComponent,
   ],
   templateUrl: './category.component.html',
   host: {
@@ -49,6 +52,8 @@ export class CategoryComponent {
   readonly slug = input.required<string>();
   readonly subSlug = input<string>();
   readonly isBrand = input<boolean>(false);
+  /** From `catalogPageResolver`: `missing` shows Page Not Found (deleted or unknown address, ATS-268). */
+  readonly catalogPage = input<CatalogPageState>('ok');
 
   readonly #navService = inject(NavService);
   readonly #catalogService = inject(CatalogService);
@@ -63,6 +68,14 @@ export class CategoryComponent {
 
   constructor() {
     effect(() => {
+      if (this.catalogPage() === 'missing') {
+        this.#seoService.setPageMetadata({
+          title: 'Page Not Found | Atteya Store',
+          description: 'This page moved or no longer exists.',
+          noindex: true,
+        });
+        return;
+      }
       const title = this.displayTitle();
       const isBrand = this.isBrand();
       this.#seoService.setPageMetadata({
@@ -130,7 +143,8 @@ export class CategoryComponent {
   );
 
   readonly productsResource = resource({
-    params: () => toProductListQuery(this.listParams(), PAGE_SIZE),
+    params: () =>
+      this.catalogPage() === 'missing' ? null : toProductListQuery(this.listParams(), PAGE_SIZE),
     loader: ({ params }) => {
       if (!params) return Promise.resolve([]);
       return this.#productService.listPublished(params);

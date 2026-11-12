@@ -1,0 +1,10 @@
+@layer components {
+  /* Page Not Found / Something Went Wrong (ATS-268): one centered column; buttons stack on phone. */
+  .error-page__search {
+    @apply w-full max-w-md;
+  }
+
+  .error-page__actions {
+    @apply w-full max-w-md flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center sm:max-w-none;
+  }
+}

@@ -13,7 +13,8 @@ import { insideLabel, liveCountLabel } from '../../utils/catalog-manager.utils';
  * inside a `cdkDrag`), the open arrow when something is inside, the name with "6 inside", the
  * live count, the Shown / Hidden switch and a ⋮ menu (Edit, Add Inside, Move Up, Move Down, Open on
  * the Store, Delete; ATS-265).
- * On phone the live count sits under the name.
+ * On phone the live count sits under the name. A shown row with no live products says it isn't on the
+ * store yet (ATS-268): menus and pages leave it out until a product is live.
  */
 @Component({
   selector: 'app-catalog-row',
@@ -76,6 +77,9 @@ import { insideLabel, liveCountLabel } from '../../utils/catalog-manager.utils';
         <span class="catalog-row__meta catalog-row__narrow">
           {{ liveText() }}{{ insideCount() > 0 ? ' · ' + insideText() : '' }}
         </span>
+        @if (published() && liveCount() === 0) {
+          <span class="catalog-row__tag">Not on the store yet: no live products</span>
+        }
       </div>
 
       <span class="catalog-row__meta catalog-row__count catalog-row__wide">{{ liveText() }}</span>
