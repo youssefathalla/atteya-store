@@ -43,11 +43,11 @@ export function categoryLabel(id: string, categories?: ReadonlyMap<string, strin
 
 export function buildLeafCategoryOptions(categories: readonly Category[]): readonly CategoryOptionView[] {
   const source = categories.length > 0 ? categories : SEED_CATEGORIES;
-  const parentIds = new Set(source.flatMap((cat) => (cat.parentId ? [cat.parentId] : [])));
   const byId = new Map(source.map((cat) => [cat.id, cat]));
-  const leaves = source.filter((cat) => cat.depth === 1 || !parentIds.has(cat.id));
-
-  return leaves.map((leaf) => {
+  // Every category is pickable, top-level ones with sub-categories too: products can sit directly
+  // in a top-level category (all rackets are in `rackets`), and adding a sub-category under it in
+  // Categories & Brands must not leave those products with an empty Category box.
+  return source.map((leaf) => {
     const parent = leaf.parentId ? byId.get(leaf.parentId) : undefined;
     const branch = leaf.parentId ? [leaf.parentId, leaf.id] : categoryIdsFor(leaf.id);
     return {
