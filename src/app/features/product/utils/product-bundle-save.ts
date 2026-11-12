@@ -1,6 +1,4 @@
-import { bagLineVariant } from '@core/services/cart/cart-deals';
 import type { GiftChoiceView } from '@core/services/cart/cart-gifts';
-import { toPricedProduct } from '@core/services/offers/offer.model';
 import {
   bundleSetOffersForItem,
   bundleSetSlotFits,
@@ -11,7 +9,7 @@ import {
   type PricingContext,
 } from '@core/services/offers/engine';
 import type { ChoicePrompt } from '../models/product-page.model';
-import { type BundleChoice, bundlePieceLine, type BundlePicks } from './product-bundle';
+import { type BundleChoice, type BundleItemFacts, type BundlePicks, choicesThatFit } from './product-bundle';
 
 /** The Bundle & Save offer on this product: its groups, and the group this product fills. */
 export interface ProductBundleSave {
@@ -31,12 +29,14 @@ export interface BundleSavePiece {
 /** One step of the Bundle & Save section. */
 export type BundleSaveStep =
   | {
-      /** The product being viewed: no choice, just "This racket ✓". */
+      /** The product being viewed: no choice here, just "This racket" (✓ once its own choices are made). */
       readonly kind: 'own';
       readonly key: string;
       readonly piece: number;
       readonly title: string;
       readonly text: string;
+      /** Its size and gifts above are chosen. */
+      readonly done: boolean;
       readonly pickedId: string;
     }
   | {
@@ -67,20 +67,29 @@ export const bundleSaveSizeStepKey = (piece: number): string => `set-size:${piec
 
 /**
  * The Bundle & Save offer the bag would put this item in (`bundleSetOffersForItem`: the bag's own
- * rules and order), with the group the item fills. Null when there is none.
+ * rules and order), with the group the item fills, skipping offers `canShow` refuses (one Shop
+ * can't list has no other products to pick). Pass the item with `variant: null` so the offer and
+ * the group stay put while the shopper changes size; `bundleSaveSizeFits()` checks the size.
  */
 export function bundleSaveForProduct(
-  item: Parameters<typeof bundleSetOffersForItem>[2],
+  item: BundleItemFacts,
   offers: readonly Offer[],
   ctx: PricingContext,
+  canShow: (offer: Offer) => boolean,
 ): ProductBundleSave | null {
   for (const offer of bundleSetOffersForItem(offers, ctx, item)) {
-    if (offer.reward.kind !== 'bundleSet') continue;
+    if (offer.reward.kind !== 'bundleSet' || !canShow(offer)) continue;
     const slots = bundleSetSlots(offer.reward);
     const ownSlot = slots.findIndex((slot) => bundleSetSlotFits(offer, slot, item));
     if (ownSlot >= 0) return { offer, slots, setReward: offer.reward.setReward, ownSlot };
   }
   return null;
+}
+
+/** True when this product's chosen size or colour (`item.variant`) still fits its own group. */
+export function bundleSaveSizeFits(bundle: ProductBundleSave, item: BundleItemFacts): boolean {
+  const slot = bundle.slots[bundle.ownSlot];
+  return !!slot && bundleSetSlotFits(bundle.offer, slot, item);
 }
 
 /** Every piece of one set in group order ("Racket", "Ball 1", "Ball 2", "Bag"). */
@@ -96,34 +105,16 @@ export function ownPieceIndex(bundle: ProductBundleSave): number {
 }
 
 /**
- * The products that can fill one group, with only the sizes the bag would count there (the bag's
- * own rules: offer and group rules, size or colour, sale items). A product that fits none of its
- * sizes is dropped.
+ * The products that can fill one group, at most `max`, with only the sizes the bag would count
+ * there (the bag's own rules: offer and group rules, size or colour, sale items).
  */
 export function bundleSaveSlotChoices(
   choices: readonly BundleChoice[],
   offer: Offer,
   slot: OfferBundleSlot,
+  max: number,
 ): BundleChoice[] {
-  return choices.flatMap((choice) => {
-    const product = choice.product;
-    const priced = toPricedProduct(product);
-    const onSale = product.compareAtPrice !== null && product.compareAtPrice > product.price;
-    const fits = (sizeId: string | null): boolean => {
-      const line = bundlePieceLine(choice, { productId: product.id, sizeId });
-      if (!line) return false;
-      return bundleSetSlotFits(offer, slot, {
-        product: priced,
-        variant: bagLineVariant(product, line),
-        onSale,
-      });
-    };
-    const sizes = choice.view.sizes;
-    if (!sizes) return fits(null) ? [choice] : [];
-    const kept = sizes.filter((size) => fits(size.id));
-    if (kept.length === 0) return [];
-    return [kept.length === sizes.length ? choice : { ...choice, view: { ...choice.view, sizes: kept } }];
-  });
+  return choicesThatFit(choices, (item) => bundleSetSlotFits(offer, slot, item)).slice(0, max);
 }
 
 /** "bag" for a group of one, "ball 2" for the second piece of a group of 2+ (lower case, for hints). */
@@ -132,11 +123,11 @@ function pieceNoun(slot: OfferBundleSlot, n: number): string {
   return slot.quantity > 1 ? `${name} ${n + 1}` : name;
 }
 
-/** "a bag", "an ear grip", "shorts" (a plural name takes no article), "ball 2". */
+/** "a bag", "an ear grip", "shorts" (a plural name takes no article; "glass" keeps one), "ball 2". */
 function withArticle(slot: OfferBundleSlot, n: number): string {
   const noun = pieceNoun(slot, n);
-  if (slot.quantity > 1 || /s$/i.test(noun)) return noun;
-  return `${/^[aeio]/i.test(noun) ? 'an' : 'a'} ${noun}`;
+  if (slot.quantity > 1 || /[^s]s$/i.test(noun)) return noun;
+  return `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
 }
 
 /** "Bag", "Ball 2". */
@@ -148,12 +139,13 @@ function pieceTitle(slot: OfferBundleSlot, n: number): string {
 /**
  * The numbered steps of the section, one per piece in group order (plus a size step once a
  * picked product has sizes). The product being viewed fills the first piece of its own group
- * (`ownText`, "This racket ✓"); its size and gifts are the page's own choices above.
+ * (`ownText`, "This racket"; `ownDone` when its size and gifts above are chosen).
  */
 export function bundleSaveSteps(
   bundle: ProductBundleSave,
   currentId: string,
   ownText: string,
+  ownDone: boolean,
   choicesBySlot: readonly (readonly BundleChoice[])[],
   picks: BundlePicks,
 ): BundleSaveStep[] {
@@ -171,6 +163,7 @@ export function bundleSaveSteps(
         piece,
         title,
         text: ownText,
+        done: ownDone,
         pickedId: currentId,
       });
       return;

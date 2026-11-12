@@ -22,7 +22,7 @@
           @case ('own') {
             <div class="elements-between w-full gap-3 pb-2">
               <span class="font-label-lg" aria-hidden="true">{{ step.title }}</span>
-              <span class="font-label-lg text-end">{{ step.text }} ✓</span>
+              <span class="font-label-lg text-end">{{ step.text }}{{ step.done ? ' ✓' : '' }}</span>
             </div>
             @if (!lastStep) {
               <div class="pdp-gift-progress" aria-hidden="true"></div>

@@ -129,20 +129,7 @@
               (sizePicked)="pickGiftSize($event.giftId, $event.sizeId)"
             />
           } @else if (giftBoxLoading()) {
-            <div class="pdp-gift-box" aria-hidden="true">
-              <app-skeleton class="h-12 w-full" />
-              <div class="elements-start-col gap-2 p-4">
-                <app-skeleton class="h-5 w-40" />
-                <div class="scroll-row pdp-gift-row" aria-hidden="true">
-                  @for (n of [1, 2, 3]; track n) {
-                    <div class="pdp-gift-card">
-                      <app-skeleton class="pdp-gift-card__photo" />
-                      <span class="pdp-gift-card__caption"><app-skeleton class="h-10 w-full" /></span>
-                    </div>
-                  }
-                </div>
-              </div>
-            </div>
+            <app-choice-box-skeleton [header]="true" />
           }
           @if (bundleOffer(); as bundle) {
             @if (bundleLoading()) {
@@ -151,19 +138,7 @@
                 @for (view of bundleRows(); track view.row.quantity) {
                   <app-skeleton class="h-12 w-full" />
                 }
-                <div class="pdp-gift-box">
-                  <div class="elements-start-col gap-2 p-4">
-                    <app-skeleton class="h-5 w-20" />
-                    <div class="scroll-row pdp-gift-row">
-                      @for (n of [1, 2, 3]; track n) {
-                        <div class="pdp-gift-card">
-                          <app-skeleton class="pdp-gift-card__photo" />
-                          <span class="pdp-gift-card__caption"><app-skeleton class="h-10 w-full" /></span>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                </div>
+                <app-choice-box-skeleton />
               </div>
             } @else if (bundleSteps().length > 0) {
               <app-product-bundle-picker
@@ -181,21 +156,7 @@
           }
           @if (bundleSave(); as set) {
             @if (bundleSaveLoading()) {
-              <div class="pdp-gift-box" aria-hidden="true">
-                <app-skeleton class="h-14 w-full" />
-                <div class="elements-start-col gap-2 p-4">
-                  <app-skeleton class="h-5 w-32" />
-                  <div class="scroll-row pdp-gift-row">
-                    @for (n of [1, 2, 3]; track n) {
-                      <div class="pdp-gift-card">
-                        <app-skeleton class="pdp-gift-card__photo" />
-                        <span class="pdp-gift-card__caption"><app-skeleton class="h-10 w-full" /></span>
-                      </div>
-                    }
-                  </div>
-                  <app-skeleton class="h-12 w-full" />
-                </div>
-              </div>
+              <app-choice-box-skeleton [header]="true" [button]="true" />
             } @else if (bundleSaveSteps().length > 0) {
               <app-product-bundle-save
                 [offerId]="set.offer.id"
@@ -204,7 +165,6 @@
                 [steps]="bundleSaveSteps()"
                 [lines]="bundleSaveLines()"
                 [buttonLabel]="bundleSaveLabel()"
-                [disabled]="!inStock()"
                 [prompt]="choicePrompt()"
                 (productPicked)="pickBundleSaveProduct($event.piece, $event.productId)"
                 (sizePicked)="pickBundleSaveSize($event.piece, $event.sizeId)"

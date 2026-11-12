@@ -60,6 +60,7 @@ import {
   type BundleRowView,
   ProductBundlePickerComponent,
 } from './components/product-bundle-picker/product-bundle-picker.component';
+import { ChoiceBoxSkeletonComponent } from './components/choice-box-skeleton/choice-box-skeleton.component';
 import { ProductBundleSaveComponent } from './components/product-bundle-save/product-bundle-save.component';
 import { ProductGiftBoxComponent } from './components/product-gift-box/product-gift-box.component';
 import { ProductOptionsComponent } from './components/product-options/product-options.component';
@@ -88,6 +89,7 @@ import {
   bundleSaveHeaderSaving,
   bundleSavePieces,
   bundleSaveSizeStepKey,
+  bundleSaveSizeFits,
   bundleSaveSlotChoices,
   bundleSaveStepKey,
   bundleSaveSteps,
@@ -117,8 +119,13 @@ import {
   isValueAvailable,
 } from './utils/product-stock.utils';
 
-/** Most products a Bundle price picker lists for each piece. */
+/** Most products a Bundle price picker lists for each piece, and a Bundle & Save group lists. */
 const MAX_BUNDLE_CHOICES = 20;
+/**
+ * Products a Bundle & Save section reads for all its groups together (2 to 4), so one group with
+ * many colours doesn't leave the others empty.
+ */
+const MAX_BUNDLE_SAVE_READ = 60;
 /** Offer ids are Firestore document ids; anything else never goes into a search filter. */
 const OFFER_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -141,6 +148,7 @@ interface ProductOfferLine {
     ProductGiftBoxComponent,
     ProductBundlePickerComponent,
     ProductBundleSaveComponent,
+    ChoiceBoxSkeletonComponent,
     SkeletonComponent,
     AddToBagButtonComponent,
     SizeGuideComponent,
@@ -541,23 +549,26 @@ export class ProductComponent {
    */
   readonly #bundleOthers = resource({
     params: () => this.#bundleReadKey(),
-    loader: ({ params }) => this.#readOfferProducts(params),
+    loader: ({ params }) => this.#readOfferProducts(params, MAX_BUNDLE_CHOICES),
   });
 
   /**
-   * Up to 20 published, in-stock products of an offer other than this one, read in the browser:
+   * Up to `max` published, in-stock products of an offer other than this one, read in the browser:
    * Shop's search (every colour on its own), then each product from Firestore as a card. An offer
    * Shop can't list (signed-in only, with a code) gives none.
    */
-  async #readOfferProducts(params: {
-    readonly offerId: string;
-    readonly shop: boolean;
-    readonly currentId: string;
-  }): Promise<BundleChoice[]> {
+  async #readOfferProducts(
+    params: {
+      readonly offerId: string;
+      readonly shop: boolean;
+      readonly currentId: string;
+    },
+    max: number,
+  ): Promise<BundleChoice[]> {
     if (!params.shop || !OFFER_ID.test(params.offerId)) return [];
     const result = await this.#search.browseCatalog({
       filters: `offerIds:"${params.offerId}" AND inStock:true`,
-      hitsPerPage: MAX_BUNDLE_CHOICES,
+      hitsPerPage: max,
       distinct: false,
     });
     const ids = [...new Set(result.hits.map((hit) => hit.objectID))].filter((id) => id !== params.currentId);
@@ -700,8 +711,9 @@ export class ProductComponent {
   });
 
   /**
-   * The Bundle & Save offer the bag would put this item in (same rules and order as the bag), with
-   * the group this product fills, or null. Known on the server too (offers come with the page), so
+   * The Bundle & Save offer the bag would put this product in (same rules and order as the bag,
+   * leaving out offers Shop can't list), with the group this product fills, or null. Worked out
+   * for the product, not its chosen size, so changing size never moves the group or clears picks. Known on the server too (offers come with the page), so
    * the section's space is kept from the first paint.
    */
   readonly bundleSave = computed(
@@ -711,11 +723,12 @@ export class ProductComponent {
       return bundleSaveForProduct(
         {
           product: toPricedProduct(p),
-          variant: this.variantFacts(),
+          variant: null,
           onSale: p.compareAtPrice !== null && p.compareAtPrice > p.price,
         },
         this.#offers(),
         this.#pricingCtx(),
+        canShopOffer,
       );
     },
     {
@@ -743,7 +756,20 @@ export class ProductComponent {
   /** The offer's other products, read in the browser once the page is up. */
   readonly #bundleSaveOthers = resource({
     params: () => this.#bundleSaveReadKey(),
-    loader: ({ params }) => this.#readOfferProducts(params),
+    loader: ({ params }) => this.#readOfferProducts(params, MAX_BUNDLE_SAVE_READ),
+  });
+
+  /** False when this product's chosen size or colour is not one its group takes. */
+  readonly #bundleSaveOwnFits = computed(() => {
+    const p = this.product();
+    const bundle = this.bundleSave();
+    const variant = this.variantFacts();
+    if (!p || !bundle || !variant) return true;
+    return bundleSaveSizeFits(bundle, {
+      product: toPricedProduct(p),
+      variant,
+      onSale: p.compareAtPrice !== null && p.compareAtPrice > p.price,
+    });
   });
 
   /**
@@ -756,7 +782,7 @@ export class ProductComponent {
     if (!p || !bundle || !this.#bundleSaveOthers.hasValue()) return null;
     const view = toGiftChoice({ ...p, published: !this.removed() });
     const all = [...(view ? [{ view, product: p }] : []), ...this.#bundleSaveOthers.value()];
-    return bundle.slots.map((slot) => bundleSaveSlotChoices(all, bundle.offer, slot));
+    return bundle.slots.map((slot) => bundleSaveSlotChoices(all, bundle.offer, slot, MAX_BUNDLE_CHOICES));
   });
 
   /** Space for the section while its products load (server render included). */
@@ -785,7 +811,15 @@ export class ProductComponent {
       return others > 0 && (choices[index]?.length ?? 0) === 0;
     });
     if (empty) return [];
-    return bundleSaveSteps(bundle, p.id, thisProductPhrase(p.type), choices, this.#bundleSavePicks());
+    const ownDone = this.cartLine() !== null && this.#bundleSaveOwnFits();
+    return bundleSaveSteps(
+      bundle,
+      p.id,
+      thisProductPhrase(p.type),
+      ownDone,
+      choices,
+      this.#bundleSavePicks(),
+    );
   });
 
   /** "Save EGP 300", "Save 15%", "Cheapest item free", in the visitor's currency. */
@@ -804,6 +838,7 @@ export class ProductComponent {
     const bundle = this.bundleSave();
     const choices = this.#bundleSaveChoices();
     if (!p || !bundle || !choices || this.bundleSaveSteps().length === 0) return null;
+    if (complete && !this.#bundleSaveOwnFits()) return null;
     const own = ownPieceIndex(bundle);
     const picks = this.#bundleSavePicks();
     const lines: CartLineDraft[] = [];
@@ -1057,8 +1092,23 @@ export class ProductComponent {
     const p = this.product();
     if (!p || !this.inStock()) return;
     const attempt = (this.choicePrompt()?.attempt ?? 0) + 1;
-    const prompt =
-      this.#ownChoicePrompt(p, attempt) ?? missingBundleSavePrompt(this.bundleSaveSteps(), attempt);
+    const own = this.#ownChoicePrompt(p, attempt);
+    if (own) {
+      this.choicePrompt.set(own);
+      return;
+    }
+    if (!this.#bundleSaveOwnFits()) {
+      // The group takes only some of this product's sizes (or colours): ask for one it takes.
+      const key = p.options.some((option) => option.key === 'size') ? 'size' : 'colour';
+      const what = key === 'size' ? 'size' : 'colour';
+      this.choicePrompt.set({
+        key,
+        message: `This ${what} isn't part of the bundle. Choose another ${what}.`,
+        attempt,
+      });
+      return;
+    }
+    const prompt = missingBundleSavePrompt(this.bundleSaveSteps(), attempt);
     if (prompt) this.choicePrompt.set(prompt);
   }
 
