@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, ElementRef, computed, inject, viewChild } from '@angular/core';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -28,6 +28,10 @@ export class MobileNavComponent {
   readonly #cart = inject(CartService);
   readonly #searchPanel = inject(SearchPanelService);
 
+  private readonly menuToggle = viewChild.required<string, ElementRef<HTMLElement>>('menuToggle', {
+    read: ElementRef,
+  });
+
   readonly cartCount = this.#cart.count;
 
   readonly isMenuOpen = computed(() => this.#drawerService.isOpen('menu'));
@@ -36,6 +40,11 @@ export class MobileNavComponent {
   openSearch(event: Event): void {
     const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     void this.#searchPanel.open(trigger);
+  }
+
+  /** Search row in the phone menu: opening the panel closes the menu. */
+  openSearchFromMenu(): void {
+    void this.#searchPanel.open(this.menuToggle().nativeElement);
   }
 
   toggleCart(): void {
