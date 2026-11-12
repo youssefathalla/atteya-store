@@ -1,0 +1,66 @@
+<section class="pdp-gift-box" [attr.aria-labelledby]="headingId()">
+  <header class="pdp-gift-box__header elements-between gap-3">
+    <div class="elements-start-col min-w-0 gap-0.5">
+      <p class="font-label-sm uppercase tracking-wider">Bundle &amp; Save</p>
+      <h2 [id]="headingId()" class="font-title-sm font-bold!">{{ title() }}</h2>
+    </div>
+    <p class="shrink-0 font-label-lg font-bold! text-end">{{ saving() }}</p>
+  </header>
+
+  <div class="elements-start-col min-w-0 gap-5 p-4">
+    @for (step of steps(); track step.key; let lastStep = $last) {
+      @let promptHere = prompt()?.key === step.key;
+      @let messageId = 'pdp-set-msg-' + step.key;
+      <fieldset
+        class="pdp-gift-step"
+        [class.pdp-gift-step--prompt]="promptHere"
+        [attr.data-set-step]="step.key"
+        [attr.aria-describedby]="promptHere ? messageId : null"
+      >
+        <legend class="sr-only">{{ step.title }}</legend>
+        @switch (step.kind) {
+          @case ('own') {
+            <div class="elements-between w-full gap-3 pb-2">
+              <span class="font-label-lg" aria-hidden="true">{{ step.title }}</span>
+              <span class="font-label-lg text-end">{{ step.text }} ✓</span>
+            </div>
+            @if (!lastStep) {
+              <div class="pdp-gift-progress" aria-hidden="true"></div>
+            }
+          }
+          @case ('piece') {
+            <app-choice-card-row
+              [title]="step.title"
+              [choices]="step.choices"
+              [pickedId]="step.pickedId"
+              [disabled]="disabled()"
+              [divider]="!lastStep"
+              (picked)="productPicked.emit({ piece: step.piece, productId: $event })"
+            />
+          }
+          @case ('size') {
+            <app-choice-size-row
+              [title]="step.title"
+              [sizes]="step.sizes"
+              [pickedId]="step.pickedId"
+              [chosen]="step.chosen"
+              [disabled]="disabled()"
+              (picked)="sizePicked.emit({ piece: step.piece, sizeId: $event })"
+            />
+          }
+        }
+
+        @if (promptHere) {
+          <p [id]="messageId" class="font-body-sm text-error pt-2" role="alert">{{ prompt()!.message }}</p>
+        }
+      </fieldset>
+    }
+
+    <app-add-to-bag-button
+      [lines]="lines()"
+      [label]="buttonLabel()"
+      [unavailable]="disabled()"
+      (choiceMissing)="choiceMissing.emit()"
+    />
+  </div>
+</section>

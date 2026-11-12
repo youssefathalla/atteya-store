@@ -15,7 +15,7 @@ import { Router, RouterLink } from '@angular/router';
 import { injectFirestore } from '@core/firebase';
 import { AuthService } from '@core/services/auth/auth.service';
 import { giftProductLabel } from '@core/services/cart/cart-gifts';
-import { bagLineVariant } from '@core/services/cart/cart-deals';
+import { bagLineVariant, type BagPricingProduct, priceBag } from '@core/services/cart/cart-deals';
 import { giftCardColours, giftCardName } from '@core/services/cart/gift-card-label';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CurrencyService } from '@core/services/currency/currency.service';
@@ -60,6 +60,7 @@ import {
   type BundleRowView,
   ProductBundlePickerComponent,
 } from './components/product-bundle-picker/product-bundle-picker.component';
+import { ProductBundleSaveComponent } from './components/product-bundle-save/product-bundle-save.component';
 import { ProductGiftBoxComponent } from './components/product-gift-box/product-gift-box.component';
 import { ProductOptionsComponent } from './components/product-options/product-options.component';
 import { ProductSiblingsComponent } from './components/product-siblings/product-siblings.component';
@@ -79,8 +80,20 @@ import {
   giftSizeStepKey,
   giftStepKey,
   missingGiftPrompt,
+  thisProductPhrase,
   toGiftChoice,
 } from './utils/product-gifts';
+import {
+  bundleSaveForProduct,
+  bundleSaveHeaderSaving,
+  bundleSavePieces,
+  bundleSaveSizeStepKey,
+  bundleSaveSlotChoices,
+  bundleSaveStepKey,
+  bundleSaveSteps,
+  missingBundleSavePrompt,
+  ownPieceIndex,
+} from './utils/product-bundle-save';
 import {
   type BundleChoice,
   type BundlePicks,
@@ -127,6 +140,7 @@ interface ProductOfferLine {
     ProductSiblingsComponent,
     ProductGiftBoxComponent,
     ProductBundlePickerComponent,
+    ProductBundleSaveComponent,
     SkeletonComponent,
     AddToBagButtonComponent,
     SizeGuideComponent,
@@ -527,23 +541,32 @@ export class ProductComponent {
    */
   readonly #bundleOthers = resource({
     params: () => this.#bundleReadKey(),
-    loader: async ({ params }): Promise<BundleChoice[]> => {
-      if (!params.shop || !OFFER_ID.test(params.offerId)) return [];
-      const result = await this.#search.browseCatalog({
-        filters: `offerIds:"${params.offerId}" AND inStock:true`,
-        hitsPerPage: MAX_BUNDLE_CHOICES,
-        distinct: false,
-      });
-      const ids = [...new Set(result.hits.map((hit) => hit.objectID))].filter(
-        (id) => id !== params.currentId,
-      );
-      const products = await Promise.all(ids.map((id) => this.#products.getById(id)));
-      return products.flatMap((product) => {
-        const view = product ? toGiftChoice(product) : null;
-        return product && view ? [{ view, product }] : [];
-      });
-    },
+    loader: ({ params }) => this.#readOfferProducts(params),
   });
+
+  /**
+   * Up to 20 published, in-stock products of an offer other than this one, read in the browser:
+   * Shop's search (every colour on its own), then each product from Firestore as a card. An offer
+   * Shop can't list (signed-in only, with a code) gives none.
+   */
+  async #readOfferProducts(params: {
+    readonly offerId: string;
+    readonly shop: boolean;
+    readonly currentId: string;
+  }): Promise<BundleChoice[]> {
+    if (!params.shop || !OFFER_ID.test(params.offerId)) return [];
+    const result = await this.#search.browseCatalog({
+      filters: `offerIds:"${params.offerId}" AND inStock:true`,
+      hitsPerPage: MAX_BUNDLE_CHOICES,
+      distinct: false,
+    });
+    const ids = [...new Set(result.hits.map((hit) => hit.objectID))].filter((id) => id !== params.currentId);
+    const products = await Promise.all(ids.map((id) => this.#products.getById(id)));
+    return products.flatMap((product) => {
+      const view = product ? toGiftChoice(product) : null;
+      return product && view ? [{ view, product }] : [];
+    });
+  }
 
   /**
    * Every product a piece can be: this product (live price and stock), then the offer's others,
@@ -674,6 +697,171 @@ export class ProductComponent {
     }
     const total = this.#money(Math.min(row.price, own));
     return pieces === 1 ? `Add to Bag · ${total}` : `Add ${pieces} to Bag · ${total}`;
+  });
+
+  /**
+   * The Bundle & Save offer the bag would put this item in (same rules and order as the bag), with
+   * the group this product fills, or null. Known on the server too (offers come with the page), so
+   * the section's space is kept from the first paint.
+   */
+  readonly bundleSave = computed(
+    () => {
+      const p = this.product();
+      if (!p || !this.inStock()) return null;
+      return bundleSaveForProduct(
+        {
+          product: toPricedProduct(p),
+          variant: this.variantFacts(),
+          onSale: p.compareAtPrice !== null && p.compareAtPrice > p.price,
+        },
+        this.#offers(),
+        this.#pricingCtx(),
+      );
+    },
+    {
+      equal: (a, b) =>
+        a === b ||
+        (!!a && !!b && a.ownSlot === b.ownSlot && JSON.stringify(a.offer) === JSON.stringify(b.offer)),
+    },
+  );
+
+  /** What the section's product read depends on; plain values, so a price or stock change reads nothing again. */
+  readonly #bundleSaveReadKey = computed(
+    () => {
+      const bundle = this.bundleSave();
+      const id = this.product()?.id;
+      if (!this.#hydrated() || !bundle || !id) return undefined;
+      return { offerId: bundle.offer.id, shop: canShopOffer(bundle.offer), currentId: id };
+    },
+    {
+      equal: (a, b) =>
+        a === b ||
+        (!!a && !!b && a.offerId === b.offerId && a.shop === b.shop && a.currentId === b.currentId),
+    },
+  );
+
+  /** The offer's other products, read in the browser once the page is up. */
+  readonly #bundleSaveOthers = resource({
+    params: () => this.#bundleSaveReadKey(),
+    loader: ({ params }) => this.#readOfferProducts(params),
+  });
+
+  /**
+   * The products each group can take: this product (live price and stock) and the offer's others,
+   * each with only the sizes the bag would count in that group. Null while loading.
+   */
+  readonly #bundleSaveChoices = computed<readonly (readonly BundleChoice[])[] | null>(() => {
+    const p = this.product();
+    const bundle = this.bundleSave();
+    if (!p || !bundle || !this.#bundleSaveOthers.hasValue()) return null;
+    const view = toGiftChoice({ ...p, published: !this.removed() });
+    const all = [...(view ? [{ view, product: p }] : []), ...this.#bundleSaveOthers.value()];
+    return bundle.slots.map((slot) => bundleSaveSlotChoices(all, bundle.offer, slot));
+  });
+
+  /** Space for the section while its products load (server render included). */
+  readonly bundleSaveLoading = computed(
+    () => !!this.bundleSave() && !this.#bundleSaveOthers.hasValue() && !this.#bundleSaveOthers.error(),
+  );
+
+  /** What the shopper picked for each piece (index in `bundleSavePieces`). Cleared for every new product or offer. */
+  readonly #bundleSavePicks = linkedSignal<string, BundlePicks>({
+    source: () => `${this.product()?.id ?? ''}|${this.bundleSave()?.offer.id ?? ''}`,
+    computation: () => ({}),
+  });
+
+  /**
+   * The section's steps; empty hides it (no offer, products not read yet or unreadable, or a
+   * group with no in-stock product).
+   */
+  readonly bundleSaveSteps = computed(() => {
+    const p = this.product();
+    const bundle = this.bundleSave();
+    const choices = this.#bundleSaveChoices();
+    if (!p || !bundle || !choices || this.#bundleSaveOthers.error()) return [];
+    // Every piece but this product's own needs something to pick.
+    const empty = bundle.slots.some((slot, index) => {
+      const others = index === bundle.ownSlot ? slot.quantity - 1 : slot.quantity;
+      return others > 0 && (choices[index]?.length ?? 0) === 0;
+    });
+    if (empty) return [];
+    return bundleSaveSteps(bundle, p.id, thisProductPhrase(p.type), choices, this.#bundleSavePicks());
+  });
+
+  /** "Save EGP 300", "Save 15%", "Cheapest item free", in the visitor's currency. */
+  readonly bundleSaveSaving = computed(() => {
+    const bundle = this.bundleSave();
+    return bundle ? bundleSaveHeaderSaving(bundle.setReward, (egp) => this.#money(egp)) : '';
+  });
+
+  /**
+   * One draft line per piece: this product's own line (its options and gifts, or just the
+   * options chosen so far when `complete` is false), then each picked product with its size.
+   * Null while a piece is still open (or, with `complete`, a size or this product's own choice).
+   */
+  #bundleSaveDrafts(complete: boolean): CartLineDraft[] | null {
+    const p = this.product();
+    const bundle = this.bundleSave();
+    const choices = this.#bundleSaveChoices();
+    if (!p || !bundle || !choices || this.bundleSaveSteps().length === 0) return null;
+    const own = ownPieceIndex(bundle);
+    const picks = this.#bundleSavePicks();
+    const lines: CartLineDraft[] = [];
+    const pieces = bundleSavePieces(bundle.slots);
+    for (let piece = 0; piece < pieces.length; piece++) {
+      if (piece === own) {
+        const line =
+          this.cartLine() ??
+          (complete ? null : { productId: p.id, variantId: null, selection: this.selection(), quantity: 1 });
+        if (!line) return null;
+        lines.push(line);
+        continue;
+      }
+      const pick = picks[piece];
+      const choice =
+        pick && choices[pieces[piece]!.slot]?.find((entry) => entry.view.productId === pick.productId);
+      if (!pick || !choice) return null;
+      const line = bundlePieceLine(choice, pick);
+      if (line) {
+        lines.push(line);
+      } else if (complete) {
+        return null;
+      } else {
+        lines.push({ productId: choice.product.id, variantId: null, selection: {}, quantity: 1 });
+      }
+    }
+    return lines;
+  }
+
+  /** What Add Bundle to Bag adds: one line per piece, or null while anything is still open. */
+  readonly bundleSaveLines = computed(() => this.#bundleSaveDrafts(true));
+
+  /**
+   * "Add Bundle to Bag · EGP 4,900" once every piece's product is picked: what the bag charges for
+   * these pieces on their own (the set price when it saves, priced by the bag's own `priceBag`).
+   */
+  readonly bundleSaveLabel = computed(() => {
+    const drafts = this.#bundleSaveDrafts(false);
+    const p = this.product();
+    const choices = this.#bundleSaveChoices();
+    if (!drafts || !p || !choices) return 'Add Bundle to Bag';
+    const products = new Map<string, BagPricingProduct>();
+    for (const product of [p, ...choices.flat().map((choice) => choice.product)]) {
+      products.set(product.id, {
+        priced: toPricedProduct(product),
+        options: product.options,
+        variants: product.variants,
+      });
+    }
+    // Gifts left out: their products aren't read here, and the label is the pieces' price.
+    const lines = drafts.map(({ gifts: _gifts, ...line }) => line);
+    const priced = priceBag(lines, products, this.#offers(), this.#pricingCtx());
+    let total = 0;
+    for (const line of priced.lines) {
+      if (!line) return 'Add Bundle to Bag';
+      total += line.lineEgp;
+    }
+    return `Add Bundle to Bag · ${this.#money(total)}`;
   });
 
   #money(egp: number): string {
@@ -855,30 +1043,60 @@ export class ProductComponent {
       if (bundlePrompt) this.choicePrompt.set(bundlePrompt);
       return;
     }
+    const own = this.#ownChoicePrompt(p, attempt);
+    if (own) {
+      this.choicePrompt.set(own);
+      return;
+    }
+    const bundlePrompt = this.#bundleActive() ? missingBundlePrompt(this.bundleSteps(), attempt) : null;
+    if (bundlePrompt) this.choicePrompt.set(bundlePrompt);
+  }
+
+  /** Add Bundle to Bag pressed while this product's own choice or a piece of the set is still open. */
+  onBundleSaveMissing(): void {
+    const p = this.product();
+    if (!p || !this.inStock()) return;
+    const attempt = (this.choicePrompt()?.attempt ?? 0) + 1;
+    const prompt =
+      this.#ownChoicePrompt(p, attempt) ?? missingBundleSavePrompt(this.bundleSaveSteps(), attempt);
+    if (prompt) this.choicePrompt.set(prompt);
+  }
+
+  /** The first of this product's own choices still open: an option, a size just sold out, or a gift. */
+  #ownChoicePrompt(p: ProductView, attempt: number): ChoicePrompt | null {
     const sel = this.selection();
     const missing = p.options.find((option) => !sel[option.key]);
     if (missing) {
       // The message sits right under its group, so other choices ("Choose your pair") need no name.
       const what = missing.key === 'size' ? 'a size' : missing.key === 'colour' ? 'a colour' : 'an option';
-      this.choicePrompt.set({ key: missing.key, message: `Choose ${what} first.`, attempt });
-      return;
+      return { key: missing.key, message: `Choose ${what} first.`, attempt };
     }
     if (sel['size'] && !isValueAvailable(p, 'size', sel['size'])) {
-      this.choicePrompt.set({
-        key: 'size',
-        message: 'That size has just sold out. Choose another size.',
-        attempt,
-      });
-      return;
+      return { key: 'size', message: 'That size has just sold out. Choose another size.', attempt };
     }
     const box = this.giftBox();
-    const giftPrompt = box ? missingGiftPrompt(box, this.giftPicks(), attempt) : null;
-    if (giftPrompt) {
-      this.choicePrompt.set(giftPrompt);
-      return;
-    }
-    const bundlePrompt = this.#bundleActive() ? missingBundlePrompt(this.bundleSteps(), attempt) : null;
-    if (bundlePrompt) this.choicePrompt.set(bundlePrompt);
+    return box ? missingGiftPrompt(box, this.giftPicks(), attempt) : null;
+  }
+
+  pickBundleSaveProduct(piece: number, productId: string): void {
+    this.#bundleSavePicks.update((current) => ({
+      ...current,
+      [piece]: {
+        productId,
+        sizeId: current[piece]?.productId === productId ? current[piece].sizeId : null,
+      },
+    }));
+    if (this.choicePrompt()?.key === bundleSaveStepKey(piece)) this.choicePrompt.set(null);
+  }
+
+  pickBundleSaveSize(piece: number, sizeId: string): void {
+    const pick = this.#bundleSavePicks()[piece];
+    if (!pick) return;
+    this.#bundleSavePicks.update((current) => ({
+      ...current,
+      [piece]: { productId: pick.productId, sizeId },
+    }));
+    if (this.choicePrompt()?.key === bundleSaveSizeStepKey(piece)) this.choicePrompt.set(null);
   }
 
   onFavoriteClick(): void {

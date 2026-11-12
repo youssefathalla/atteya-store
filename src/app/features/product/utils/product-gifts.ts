@@ -71,6 +71,12 @@ const PRODUCT_NOUN_PHRASE: Readonly<Record<ProductTypeId, string>> = {
   supports: 'this support',
 };
 
+/** "This racket", "These shorts": the product being viewed, as the Bundle & Save section names it. */
+export function thisProductPhrase(productType: ProductTypeId): string {
+  const phrase = PRODUCT_NOUN_PHRASE[productType] ?? 'this item';
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
+}
+
 /** Facts the engine needs to pick the live gift offer: every listed choice can be given. */
 export function giftChoiceFacts(choices: readonly GiftChoiceView[]): GiftChoiceFacts[] {
   return choices.map((choice) => ({ productId: choice.productId, published: true, inStock: true }));
