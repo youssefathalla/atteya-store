@@ -12,6 +12,8 @@ export const CategorySchema = v.object({
   parentId: v.nullable(idSchema),
   ancestorIds: v.pipe(v.array(idSchema), v.maxLength(1)),
   path: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(125)),
+  /** Optional short text staff write in Categories & Brands; seed categories have none. */
+  description: v.optional(v.pipe(v.string(), v.maxLength(500))),
   depth: v.picklist([0, 1]),
   sortOrder: sortNumber,
   image: v.nullable(ImageAssetSchema),
@@ -21,7 +23,7 @@ export const CategorySchema = v.object({
    * Shipping weight in grams for products in this category (Catalogue Tools → Shipping Weights).
    * null = no default on purpose; missing = the built-in default (`defaultWeightGrams()`).
    */
-  // Written only by the `productWeights` callable, which checks the range.
+  // Written only by the `productWeights` and `saveCategory` callables, which check the range.
   defaultWeightGrams: v.optional(
     v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100_000))),
   ),

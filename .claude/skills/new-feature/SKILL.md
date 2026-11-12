@@ -172,6 +172,8 @@ src/app/features/[feature-name]/
 
 Storefront features that list or price products use `ProductService` and `CatalogService` from `src/app/core/services/products/`. Public queries must filter `published == true`. Show prices with `app-product-price`, which converts through `toDisplayAmount` and `formatMoney`. Admin screens keep the `egpPrice` pipe (`EgpPricePipe`). Do not use `penceToPounds` for Egyptian pounds. Keep `product.constants.ts` aligned with `functions/src/products/catalog-mapping.ts`. Admin writes and the products list stay in `src/app/features/admin/pages/products-manager/`.
 
+Categories and brands are added, renamed, reordered, shown, hidden and deleted only on the admin Categories & Brands page (`src/app/features/admin/pages/catalog-manager/`), through the admin callables in `functions/src/products/catalog-admin.fn.ts`. A new category or brand needs no code change: its page, counts and search names follow. Never write `categories/{id}` or `brands/{id}` from the browser.
+
 ## 🧭 Step 6: Routing & SSR Server Routes Registration
 >
 > 👉 **Delegate to**: [quality-standards](file:///.agents/skills/quality-standards/SKILL.md)
