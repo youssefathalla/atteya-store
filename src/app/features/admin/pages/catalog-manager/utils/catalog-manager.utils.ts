@@ -42,7 +42,6 @@ export interface CategoryTreeRow {
 }
 
 export const MAX_CATALOG_NAME = 60;
-export const MAX_CATEGORY_DESCRIPTION = 500;
 /** Same limit as `MAX_SHOP_LABEL` in `functions/src/products/catalog-admin.ts`. */
 export const MAX_SHOP_LABEL = 30;
 export const MAX_WEIGHT_GRAMS = 100_000;

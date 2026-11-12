@@ -186,6 +186,8 @@ export class CategoriesTabComponent {
         published: show,
       });
       this.#snackbar.success(shownSnackbar(category.name, show));
+      // A reload started meanwhile (another save) may have put the old value back.
+      this.listResource.reload();
     } catch (error: unknown) {
       this.#patch(category.id, !show);
       this.#snackbar.error(callableMessage(error) ?? "We couldn't change that. Please try again.");

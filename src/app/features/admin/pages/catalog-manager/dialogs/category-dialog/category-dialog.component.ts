@@ -184,8 +184,8 @@ export class CategoryDialogComponent {
   readonly moreSummary = computed(() => {
     const weight = this.weightText().trim();
     if (!this.isTopLevel()) {
-      if (this.sizeChart() === 'parent' && this.detailsTitle() === 'parent' && !weight) {
-        return `Same as ${this.parentName()}`;
+      if (this.sizeChart() === 'parent' && this.detailsTitle() === 'parent') {
+        return `Same as ${this.parentName()}${weight ? ` · ${weight} g` : ''}`;
       }
     } else if (this.#untouchedBuiltIn()) {
       return 'Built-in settings';

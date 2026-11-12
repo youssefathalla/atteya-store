@@ -111,8 +111,8 @@ export function addLinkToMenu(
 }
 
 /**
- * The top menu that opens a category (ATS-264): its target is that category, or its address is
- * the category's `/category/…` address. Null when no menu opens it.
+ * The top menu that opens a category (ATS-264): its target is that category, or its typed or
+ * saved address is the category's `/category/…` address. Null when no menu opens it.
  */
 export function menuForCategory(
   categories: readonly NavCategory[],
@@ -123,6 +123,7 @@ export function menuForCategory(
     categories.find(
       (menu) =>
         (menu.target?.kind === 'category' && menu.target.id === category.id) ||
+        (menu.target?.kind === 'url' && addresses.has(menu.target.url)) ||
         (!menu.target && !!menu.path && addresses.has(menu.path)),
     ) ?? null
   );
@@ -134,6 +135,7 @@ export function menuForBrands(categories: readonly NavCategory[]): NavCategory |
     categories.find(
       (menu) =>
         (menu.target?.kind === 'page' && menu.target.page === 'brands') ||
+        (menu.target?.kind === 'url' && menu.target.url === '/brands') ||
         (!menu.target && menu.path === '/brands'),
     ) ?? null
   );

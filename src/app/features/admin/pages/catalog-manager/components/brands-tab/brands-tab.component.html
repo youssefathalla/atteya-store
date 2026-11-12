@@ -34,7 +34,6 @@
             [storeUrl]="'/brand/' + brand.slug"
             [published]="brand.published"
             [busy]="busyIds().has(brand.id)"
-            [locked]="busyIds().has(brand.id)"
             (toggleShown)="toggleShown(brand)"
             (edit)="edit(brand)"
             (remove)="remove(brand)"

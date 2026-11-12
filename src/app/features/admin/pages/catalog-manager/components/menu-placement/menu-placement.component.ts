@@ -154,9 +154,12 @@ export class MenuPlacementComponent {
     effect(() => {
       const auto = this.autoMenuLabel();
       const home = this.homeMenu();
+      this.brandsFillThemselves();
       untracked(() => {
         if (auto) this.enabled.set(false);
-        else if (!this.#touched()) this.enabled.set(home !== null);
+        // A brand already listed by a column that fills itself would show twice: start off.
+        else if (!this.#touched())
+          this.enabled.set(home !== null && !(this.kind() === 'brand' && this.brandsFillThemselves()));
       });
     });
     // The named menu is the one the link goes in; otherwise the first menu, so one click is enough.

@@ -108,7 +108,7 @@ import { insideLabel, liveCountLabel } from '../../utils/catalog-manager.utils';
           <span>Open on the Store</span>
         </a>
         <mat-divider />
-        <button mat-menu-item type="button" [disabled]="locked()" (click)="remove.emit()">
+        <button mat-menu-item type="button" [disabled]="busy()" (click)="remove.emit()">
           <mat-icon name="delete" />
           <span>Delete</span>
         </button>
@@ -131,10 +131,8 @@ export class CatalogRowComponent {
   /** `/category/apparel`, `/brand/nox`. */
   readonly storeUrl = input.required<string>();
   readonly published = input.required<boolean>();
-  /** This row's switch is saving. */
+  /** This row's switch or Delete check is running: both wait. */
   readonly busy = input(false);
-  /** Another action on this row is running: Delete waits. */
-  readonly locked = input(false);
 
   readonly toggleShown = output();
   readonly toggleOpen = output();
