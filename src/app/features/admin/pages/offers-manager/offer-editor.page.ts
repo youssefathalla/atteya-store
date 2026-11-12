@@ -234,7 +234,8 @@ export class OfferEditorPageComponent implements OnInit {
     const list = this.validation().errors.map((issue) => ({ ...issue, step: issueStep(issue.code) }));
     if (this.isUnavailableDeal())
       list.unshift({ code: 'deal.unavailable', message: UNAVAILABLE_DEAL_MESSAGE, step: 1 });
-    if (this.productsMode() === 'some' && this.draft().conditions.anyOf.length === 0) {
+    // Bundle & Save hides the Every / Only some choice, so its own rules may be removed to nothing.
+    if (!this.isBundleSet() && this.productsMode() === 'some' && this.draft().conditions.anyOf.length === 0) {
       list.push({ code: 'conditions.none', message: PICK_PRODUCTS_MESSAGE, step: 2 });
     }
     return list;
