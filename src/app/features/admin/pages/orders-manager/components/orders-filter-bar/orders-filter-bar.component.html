@@ -1,0 +1,112 @@
+<div class="grid gap-3 @3xl:grid-cols-[minmax(0,1fr)_18.75rem] @3xl:items-start">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Search orders</mat-label>
+    <mat-icon matPrefix name="search" />
+    <input
+      matInput
+      type="text"
+      dir="auto"
+      autocomplete="off"
+      enterkeyhint="search"
+      placeholder="Name, phone or order number"
+      [value]="search()"
+      (input)="onSearchInput($event)"
+      (keydown.escape)="clearSearch()"
+    />
+    @if (search()) {
+      <button matIconButton matSuffix type="button" aria-label="Clear search" (click)="clearSearch()">
+        <mat-icon name="close" />
+      </button>
+    }
+    <mat-hint>Arabic or English · name, phone or order number</mat-hint>
+  </mat-form-field>
+
+  <div class="relative grid">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Date</mat-label>
+      <mat-icon matPrefix name="calendar_today" />
+      <input
+        matInput
+        readonly
+        aria-haspopup="menu"
+        [value]="fieldLabel()"
+        [matMenuTriggerFor]="dateMenu"
+        #dateTrigger="matMenuTrigger"
+        #dateField
+        (keydown.enter)="dateTrigger.openMenu()"
+        (keydown.arrowdown)="$event.preventDefault(); dateTrigger.openMenu()"
+        (keydown.space)="$event.preventDefault(); dateTrigger.openMenu()"
+      />
+      <span matSuffix class="elements-center rotate-90 pe-3" aria-hidden="true">
+        <mat-icon name="chevron_right" />
+      </span>
+    </mat-form-field>
+
+    <!-- The calendars open from here, just under the Date field. -->
+    <div class="absolute inset-x-0 top-14 h-0 overflow-hidden" aria-hidden="true">
+      <input
+        tabindex="-1"
+        [matDatepicker]="dayPicker"
+        [max]="today"
+        [value]="date()?.from ?? null"
+        (dateChange)="onDayPicked($event.value)"
+      />
+      <mat-datepicker #dayPicker [restoreFocus]="false" (closed)="focusDateField()" />
+
+      <mat-date-range-input [rangePicker]="rangePicker" [max]="today">
+        <input matStartDate tabindex="-1" [value]="date()?.from ?? null" />
+        <input matEndDate tabindex="-1" [value]="date()?.to ?? null" />
+      </mat-date-range-input>
+      <mat-date-range-picker #rangePicker [restoreFocus]="false" (closed)="onRangeClosed()">
+        <mat-datepicker-actions>
+          <button matButton type="button" matDatepickerCancel>Cancel</button>
+          <button matButton="filled" type="button" matDatepickerApply>Apply</button>
+        </mat-datepicker-actions>
+      </mat-date-range-picker>
+    </div>
+  </div>
+</div>
+
+<mat-menu #dateMenu="matMenu" xPosition="before">
+  <button
+    mat-menu-item
+    type="button"
+    role="menuitemradio"
+    [attr.aria-checked]="selectedPreset() === 'any'"
+    (click)="chooseAnyDate()"
+  >
+    <span class="elements-between gap-4 w-full">
+      <span>Any Date</span>
+      @if (selectedPreset() === 'any') {
+        <mat-icon name="check" />
+      }
+    </span>
+  </button>
+  @for (preset of presets; track preset.id) {
+    <button
+      mat-menu-item
+      type="button"
+      role="menuitemradio"
+      [attr.aria-checked]="selectedPreset() === preset.id"
+      (click)="choosePreset(preset.id)"
+    >
+      <span class="elements-between gap-4 w-full">
+        <span>{{ preset.label }}</span>
+        @if (selectedPreset() === preset.id) {
+          <mat-icon name="check" />
+        } @else {
+          <span class="font-body-sm text-on-surface-variant">{{ preset.hint }}</span>
+        }
+      </span>
+    </button>
+  }
+  <mat-divider />
+  <button mat-menu-item type="button" (click)="openDayPicker()">
+    <mat-icon name="calendar_today" />
+    <span>Pick a Day…</span>
+  </button>
+  <button mat-menu-item type="button" (click)="openRangePicker()">
+    <mat-icon name="calendar_today" />
+    <span>Pick a Range…</span>
+  </button>
+</mat-menu>
