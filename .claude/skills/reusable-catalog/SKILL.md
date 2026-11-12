@@ -198,6 +198,10 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
   - `stopLoading(key)`: Unregisters a loading key.
 - **`SeoService`** (`src/app/core/services/seo/seo.service.ts`):
   - `setPageMetadata(config)`: Sets title, meta description, and robots tags.
+  - `setPageMetadata` also writes one `<link rel="canonical">` and `og:url` (`environment.baseUrl` + route path, no query) unless `noindex` or `canonical: false`.
+  - Share tags on every page that is not `noindex`: `og:title`, `og:description`, `og:type`, `og:site_name` (`Atteya Store`), `og:image`, `twitter:card` (`summary_large_image`); a `noindex` call removes them all.
+  - Options (all optional): `image` (storage path → ImageKit at 1200 px via `buildImageKitUrl()`; default `public/img/hero/default-hero.jpg`), `type` (`'website'` default, `'product'`), `shareDescription` (for `og:description`, cut near 200 characters), `canonical` (default true; Search passes false).
+  - Helpers in `seo-urls.ts`: `canonicalUrl()`, `siteOrigin()`, `textFromHtml()` (regex-free tag strip for a description fallback), `shareText()`.
   - `setTitle(title)` / `updateTag(tag)`.
 - **`AuthService`** (`src/app/core/services/auth/auth.service.ts`):
   - SSR-safe. Firebase Auth runs in the browser only. On the server, `user` is `null` and `role` is `'anon'`.

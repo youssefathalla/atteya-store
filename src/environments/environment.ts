@@ -2,7 +2,7 @@ import { Environment } from './environment.model';
 
 export const environment: Environment = {
   production: false,
-  baseUrl: 'http://localhost:4200',
+  baseUrl: 'https://atteya-store--atteya-store-dev.europe-west4.hosted.app',
   googleMapsApiKey: '',
   firebase: {
     apiKey: 'AIzaSyApJbkIpT18TA0Qi1qNZETVFqnX3Gqm--g',

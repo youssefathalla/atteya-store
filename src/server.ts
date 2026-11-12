@@ -12,6 +12,7 @@ import * as v from 'valibot';
 import { trimRenderedEarlyHints } from './early-hints.mjs';
 import { environment } from './environments/environment.js';
 import { FIREBASE_HELPER_PATHS, firebaseAuthProxy } from './firebase-auth-proxy.js';
+import { sitemapHandler } from './sitemap.js';
 import {
   applyDevLocalGeoFallback,
   enrichHeadersForVisitorGeo,
@@ -55,12 +56,26 @@ function staticCacheControl(urlPath: string): string {
 app.use(compression({ threshold: 1024 }));
 
 /**
+ * The dev site carries canonical and share tags for testing, but must never be
+ * indexed as a copy of the live store.
+ */
+if (!environment.production) {
+  app.use((_req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    next();
+  });
+}
+
+/**
  * Firebase Auth helper pages for our own `authDomain` (prod: atteyastore.com).
  * Passed to `<projectId>.firebaseapp.com` before static files and Angular, so
  * the store never renders these paths. The body arrives decoded, so compression
  * above encodes it once.
  */
 app.use(FIREBASE_HELPER_PATHS, firebaseAuthProxy(environment.firebase.projectId ?? ''));
+
+/** Published pages for search engines, read from Firestore and kept for an hour (`src/sitemap.ts`). */
+app.get('/sitemap.xml', sitemapHandler(environment.baseUrl, environment.firebase));
 
 app.get('/api/visitor-location', async (req, res) => {
   try {
