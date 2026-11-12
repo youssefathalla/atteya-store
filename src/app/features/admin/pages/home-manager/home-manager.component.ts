@@ -175,7 +175,7 @@ export class HomeManagerComponent {
       return;
     }
     // Restoring replaces the draft: ask first when there are unpublished edits.
-    if (this.draft.isDirty() && !(await this.#dialogs.confirmDiscardDraft())) return;
+    if (this.draft.isDirty() && !(await this.#dialogs.confirmRestoreOverDraft())) return;
     this.#restoreVersion(choice.version);
   }
 

@@ -172,7 +172,7 @@ export class NavigationManagerComponent {
       return;
     }
     // Restoring replaces the draft: ask first when there are unpublished edits.
-    if (this.draft.isDraftDirty() && !(await this.#dialogs.confirmDiscardDraft())) return;
+    if (this.draft.isDraftDirty() && !(await this.#dialogs.confirmRestoreOverDraft())) return;
     this.#restoreVersion(choice.version);
   }
 
