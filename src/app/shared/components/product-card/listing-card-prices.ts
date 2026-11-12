@@ -1,8 +1,9 @@
 import type { Offer } from '@core/services/offers/engine';
 import type { Product } from '@core/services/products/product.model';
-import type { ProductCardPrice } from '@shared/components/product-card/product-card.model';
-import { productCardPrice } from '@shared/components/product-card/product-card.utils';
+import type { ProductCardPrice } from './product-card.model';
+import { productCardPrice } from './product-card.utils';
 
+/** Card prices for a listing: live offers when `live`, else price and compare-at only. */
 export function listingCardPrices(
   products: readonly Product[],
   offers: readonly Offer[],
