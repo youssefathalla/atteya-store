@@ -12,13 +12,19 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import { SeoService } from '@core/services/seo';
 import { ProductCacheService } from '@core/services/products/product-cache.service';
 import type { Product } from '@core/services/products/product.model';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { ProductsTableComponent } from './components/products-table/products-table.component';
 import { ProductsToolbarComponent } from './components/products-toolbar/products-toolbar.component';
-import type { MigratePass, ProductListView, ProductTableRow } from './models/product-admin.model';
+import type {
+  MigratePass,
+  ProductGroupRow,
+  ProductListView,
+  ProductTableRow,
+} from './models/product-admin.model';
 import { CatalogToolsService } from './services/catalog-tools.service';
 import { ProductsAdminService } from './services/products-admin.service';
 import { ProductsDialogService } from './services/products-dialog.service';
@@ -26,7 +32,9 @@ import { importActionError } from './utils/import-error';
 import {
   buildBrandOptions,
   buildCategoryFilterOptions,
+  categoryPathLabel,
   filterProductRows,
+  productCountLabel,
   toProductTableRow,
 } from './utils/product-admin.utils';
 import { countListViews, groupProductRows, matchesListView } from './utils/product-groups.utils';
@@ -34,7 +42,7 @@ import { countListViews, groupProductRows, matchesListView } from './utils/produ
 @Component({
   selector: 'app-products-manager',
   host: { class: 'block w-full' },
-  imports: [ProductsToolbarComponent, ProductsTableComponent],
+  imports: [ProductsToolbarComponent, ProductsTableComponent, MatButtonModule],
   templateUrl: './products-manager.component.html',
 })
 export class ProductsManagerComponent implements OnInit {
@@ -108,7 +116,37 @@ export class ProductsManagerComponent implements OnInit {
     return groupProductRows(this.#filteredRows().filter((row) => matchesListView(row, view)));
   });
 
+  /** Ticked product (colour) ids for Move to Category (ATS-266). */
+  readonly #ticked = signal<ReadonlySet<string>>(new Set());
+
+  /** Ticked ids that are still in the catalogue (a deleted product drops out). */
+  readonly selectedIds = computed<ReadonlySet<string>>(() => {
+    const ticked = this.#ticked();
+    if (ticked.size === 0) return ticked;
+    const known = new Set(this.#allRows().map((row) => row.id));
+    return new Set([...ticked].filter((id) => known.has(id)));
+  });
+
+  readonly selectedLabel = computed(() => `${productCountLabel(this.selectedIds().size)} selected`);
+
+  /** Every colour the current filters show. */
+  readonly #shownIds = computed(() => this.groups().flatMap((group) => group.colours.map((c) => c.id)));
+
+  readonly allShownSelected = computed(() => {
+    const shown = this.#shownIds();
+    const selected = this.selectedIds();
+    return shown.length > 0 && shown.every((id) => selected.has(id));
+  });
+
   readonly activity = computed<'tools' | null>(() => (this.#tools.busy() ? 'tools' : null));
+
+  readonly showSelectionBar = computed(
+    () => this.catalogResource.hasValue() && (this.groups().length > 0 || this.selectedIds().size > 0),
+  );
+
+  readonly selectAllDisabled = computed(
+    () => this.activity() !== null || this.groups().length === 0 || this.allShownSelected(),
+  );
 
   readonly hasActiveFilters = computed(
     () =>
@@ -253,6 +291,53 @@ export class ProductsManagerComponent implements OnInit {
     } catch (error: unknown) {
       this.#snackbar.error(importActionError(error));
     }
+  }
+
+  toggleSelected(row: ProductGroupRow): void {
+    const ids = row.colours.map((colour) => colour.id);
+    this.#ticked.update(() => {
+      const next = new Set(this.selectedIds());
+      const allTicked = ids.every((id) => next.has(id));
+      for (const id of ids) {
+        if (allTicked) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
+  }
+
+  /** Ticks every colour the current filters show (keeps ticks from other filters). */
+  selectAllShown(): void {
+    this.#ticked.set(new Set([...this.selectedIds(), ...this.#shownIds()]));
+  }
+
+  clearSelection(): void {
+    this.#ticked.set(new Set());
+  }
+
+  async moveToCategory(): Promise<void> {
+    if (this.activity()) return;
+    const data = this.catalogResource.value();
+    const productIds = [...this.selectedIds()];
+    if (!data || productIds.length === 0) return;
+    const labelFor = (id: string): string => categoryPathLabel(data.categories, id);
+    const chosen = new Set(productIds);
+    const currentLabels = this.#allRows()
+      .filter((row) => chosen.has(row.id))
+      .map((row) => labelFor(row.categoryId));
+    const result = await this.#dialogs.openMoveCategory({
+      productIds,
+      options: this.categoryOptions(),
+      labelFor,
+      currentLabels,
+      move: (categoryId) => this.#admin.moveToCategory(productIds, categoryId),
+    });
+    if (!result) return;
+    this.clearSelection();
+    const moved = result.moved + result.unchanged;
+    const missing = result.missing > 0 ? ` ${productCountLabel(result.missing)} no longer existed.` : '';
+    this.#snackbar.success(`Moved ${productCountLabel(moved)} to ${result.categoryLabel}.${missing}`);
+    await this.reloadCatalogue();
   }
 
   private async reloadCatalogue(): Promise<void> {
