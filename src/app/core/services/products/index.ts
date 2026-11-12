@@ -8,7 +8,6 @@ export * from './player.schema';
 export * from './player-list.service';
 export * from './product.service';
 export * from './product-cache.service';
-export * from './category-page-settings.reader';
 export * from './catalog.service';
 export * from './utils/card-short-description';
 export * from './utils/new-arrival';

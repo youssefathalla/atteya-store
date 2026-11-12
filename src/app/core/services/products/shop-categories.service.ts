@@ -13,7 +13,7 @@ import {
 import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
-import { SEED_CATEGORIES } from './catalog-taxonomy';
+import { CATEGORY_DETAILS_TITLES, CATEGORY_SIZE_CHARTS, SEED_CATEGORIES } from './catalog-taxonomy';
 import { CatalogService } from './catalog.service';
 import { CATEGORIES_COLLECTION } from './product.constants';
 import type { ShopCategorySource } from './utils/shop-categories';
@@ -32,6 +32,8 @@ const ShopCategorySourceSchema = v.object({
   sortOrder: v.pipe(v.number(), v.integer()),
   shopLabel: v.optional(v.pipe(v.string(), v.maxLength(30))),
   published: v.optional(v.boolean()),
+  sizeChart: v.optional(v.nullable(v.picklist(CATEGORY_SIZE_CHARTS))),
+  detailsTitle: v.optional(v.nullable(v.picklist(CATEGORY_DETAILS_TITLES))),
 });
 
 /** The built-in categories, used when the list can't be read. */
@@ -148,6 +150,8 @@ function toSource(category: {
   readonly sortOrder: number;
   readonly shopLabel?: string;
   readonly published?: boolean;
+  readonly sizeChart?: ShopCategorySource['sizeChart'];
+  readonly detailsTitle?: ShopCategorySource['detailsTitle'];
 }): ShopCategorySource {
   return {
     id: category.id,
@@ -157,5 +161,8 @@ function toSource(category: {
     sortOrder: category.sortOrder,
     ...(category.shopLabel ? { shopLabel: category.shopLabel } : {}),
     ...(category.published === false ? { published: false } : {}),
+    // Kept only when saved, so a missing field stays missing (built-in default) after TransferState.
+    ...(category.sizeChart !== undefined ? { sizeChart: category.sizeChart } : {}),
+    ...(category.detailsTitle !== undefined ? { detailsTitle: category.detailsTitle } : {}),
   };
 }
