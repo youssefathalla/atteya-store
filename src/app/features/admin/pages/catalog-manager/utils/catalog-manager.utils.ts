@@ -1,4 +1,10 @@
-import { SEED_BRANDS, SEED_CATEGORIES } from '@core/services/products/catalog-taxonomy';
+import {
+  BUILT_IN_CATEGORY_PAGE,
+  SEED_BRANDS,
+  SEED_CATEGORIES,
+  type CategoryDetailsTitle,
+  type CategorySizeChart,
+} from '@core/services/products/catalog-taxonomy';
 import type { Brand, Category } from '@core/services/products/product.model';
 import type { ImageAsset } from '@shared/schemas';
 
@@ -13,6 +19,12 @@ export interface CategoryDraft {
   readonly image: ImageAsset | null;
   /** Grams; null = no default; undefined = leave the saved (or built-in) default alone. */
   readonly defaultWeightGrams?: number | null;
+  /** "Name on Shop Tabs" for a top-level category; '' = none (ATS-249). */
+  readonly shopLabel?: string;
+  /** Size Chart (ATS-250); null = same as the parent. */
+  readonly sizeChart?: CategorySizeChart | null;
+  /** Details Title (ATS-250); null = same as the parent. */
+  readonly detailsTitle?: CategoryDetailsTitle | null;
   readonly published: boolean;
 }
 
@@ -31,6 +43,8 @@ export interface CategoryTreeRow {
 
 export const MAX_CATALOG_NAME = 60;
 export const MAX_CATEGORY_DESCRIPTION = 500;
+/** Same limit as `MAX_SHOP_LABEL` in `functions/src/products/catalog-admin.ts`. */
+export const MAX_SHOP_LABEL = 30;
 export const MAX_WEIGHT_GRAMS = 100_000;
 
 /** Same words `saveCategory` keeps free (`RESERVED_CATEGORY_SLUGS` in functions). */
@@ -141,4 +155,23 @@ function kebab(value: string): string {
     }
   }
   return out;
+}
+
+/** A Size Chart or Details Title choice in the category dialog; `parent` = same as the parent. */
+export type CategoryPageChoice<T extends string> = T | 'parent';
+
+/**
+ * What the category dialog shows for a field (ATS-250): the saved value, `parent` for a saved null,
+ * else the built-in default, else `parent` for a sub-category and `fallback` for a top-level one.
+ */
+export function categoryPageChoice<K extends 'sizeChart' | 'detailsTitle'>(
+  category: Pick<Category, 'id' | 'depth' | K>,
+  field: K,
+  fallback: NonNullable<Category[K]>,
+): CategoryPageChoice<NonNullable<Category[K]>> {
+  const saved = category[field];
+  if (saved === null) return category.depth === 0 ? fallback : 'parent';
+  if (saved !== undefined) return saved as NonNullable<Category[K]>;
+  const builtIn = BUILT_IN_CATEGORY_PAGE[category.id]?.[field] as NonNullable<Category[K]> | undefined;
+  return builtIn ?? (category.depth === 0 ? fallback : 'parent');
 }

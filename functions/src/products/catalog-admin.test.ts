@@ -134,6 +134,31 @@ describe('readSaveCategoryRequest', () => {
     assert.equal(typeof readSaveCategoryRequest({ ...valid, defaultWeightGrams: 1.5 }), 'string');
     assert.equal(typeof readSaveCategoryRequest({ ...valid, published: 'yes' }), 'string');
   });
+
+  it('reads the name on Shop tabs: tidied, empty for none, left out when not sent', () => {
+    const read = readSaveCategoryRequest({ ...valid, shopLabel: '  Padel   gear ' });
+    assert.equal(typeof read === 'object' ? read.shopLabel : 'x', 'Padel gear');
+    const cleared = readSaveCategoryRequest({ ...valid, shopLabel: '' });
+    assert.equal(typeof cleared === 'object' ? cleared.shopLabel : 'x', '');
+    const missing = readSaveCategoryRequest(valid);
+    assert.equal(typeof missing === 'object' && 'shopLabel' in missing, false);
+    assert.equal(typeof readSaveCategoryRequest({ ...valid, shopLabel: 'x'.repeat(31) }), 'string');
+    assert.equal(typeof readSaveCategoryRequest({ ...valid, shopLabel: 12 }), 'string');
+  });
+
+  it('reads the size chart and details title: a choice, null for same as parent, left out when not sent', () => {
+    const read = readSaveCategoryRequest({ ...valid, sizeChart: 'clothing', detailsTitle: 'materials' });
+    assert.equal(typeof read === 'object' ? read.sizeChart : 'x', 'clothing');
+    assert.equal(typeof read === 'object' ? read.detailsTitle : 'x', 'materials');
+    const parent = readSaveCategoryRequest({ ...valid, sizeChart: null, detailsTitle: null });
+    assert.equal(typeof parent === 'object' ? parent.sizeChart : 'x', null);
+    assert.equal(typeof parent === 'object' ? parent.detailsTitle : 'x', null);
+    const missing = readSaveCategoryRequest(valid);
+    assert.equal(typeof missing === 'object' && 'sizeChart' in missing, false);
+    assert.equal(typeof missing === 'object' && 'detailsTitle' in missing, false);
+    assert.equal(typeof readSaveCategoryRequest({ ...valid, sizeChart: 'shoes' }), 'string');
+    assert.equal(typeof readSaveCategoryRequest({ ...valid, detailsTitle: 'Materials' }), 'string');
+  });
 });
 
 describe('readSaveBrandRequest', () => {

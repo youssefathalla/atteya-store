@@ -42,6 +42,45 @@
       <p class="font-body-sm">Parent: {{ parentName() }}</p>
     }
 
+    @if (isTopLevel()) {
+      <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Name on Shop Tabs (optional)</mat-label>
+        <input
+          matInput
+          type="text"
+          [attr.maxlength]="maxShopLabel"
+          [placeholder]="defaultTabName()"
+          [value]="shopLabel()"
+          (input)="shopLabel.set(textFrom($event)); error.set('')"
+        />
+        <mat-hint>Leave empty to show "{{ defaultTabName() }}" on the Shop page.</mat-hint>
+      </mat-form-field>
+    }
+
+    <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Size Chart</mat-label>
+      <mat-select [value]="sizeChart()" (selectionChange)="sizeChartChoice.set($event.value)">
+        <mat-option value="clothing">Clothing size chart</mat-option>
+        <mat-option value="none">None</mat-option>
+        @if (!isTopLevel()) {
+          <mat-option value="parent">Same as parent ({{ parentSizeChartLabel() }})</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Shows the clothing size table on product pages in this category that have sizes.</mat-hint>
+    </mat-form-field>
+
+    <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Details Title</mat-label>
+      <mat-select [value]="detailsTitle()" (selectionChange)="detailsTitleChoice.set($event.value)">
+        <mat-option value="materials">Materials</mat-option>
+        <mat-option value="specifications">Specifications</mat-option>
+        @if (!isTopLevel()) {
+          <mat-option value="parent">Same as parent ({{ parentDetailsTitleLabel() }})</mat-option>
+        }
+      </mat-select>
+      <mat-hint>The heading above a product's details list.</mat-hint>
+    </mat-form-field>
+
     <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
       <mat-label>Description (optional)</mat-label>
       <textarea

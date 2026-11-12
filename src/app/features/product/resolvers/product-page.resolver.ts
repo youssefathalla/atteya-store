@@ -1,7 +1,13 @@
 import { isPlatformServer } from '@angular/common';
 import { inject, Injector, makeStateKey, PLATFORM_ID, RESPONSE_INIT, TransferState } from '@angular/core';
 import type { ResolveFn } from '@angular/router';
-import { ProductCacheService, ProductService } from '@core/services/products';
+import {
+  type CategoryPageSettings,
+  ProductCacheService,
+  ProductService,
+  type ShopCategorySource,
+  ShopCategoriesService,
+} from '@core/services/products';
 import { offerMatch, type Offer } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
 import { type TransferOffer, toTransferOffer } from '@core/services/offers/offer-transfer';
@@ -14,6 +20,7 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   const products = inject(ProductService);
   const cache = inject(ProductCacheService);
   const offersReader = inject(PublicOffersReader);
+  const shopCategories = inject(ShopCategoriesService);
   const transfer = inject(TransferState);
   const isServer = isPlatformServer(inject(PLATFORM_ID));
   const injector = inject(Injector);
@@ -39,11 +46,17 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
         result = { status: 'missing' };
       } else {
         const view = toProductView(product);
+        // The published categories are already read for this request (main layout seed): no extra read.
+        const categorySettings = pageSettingsFor(
+          [view.categoryId, ...view.categoryIds],
+          await shopCategories.load(),
+        );
         const renderedAtMs = Date.now();
         result = {
           status: 'found',
           product: view,
           offers: relevantOffers(view, await offersPromise, renderedAtMs),
+          categorySettings,
           renderedAtMs,
         };
       }
@@ -71,6 +84,29 @@ export const productPageResolver: ResolveFn<ProductPageResult> = async (route) =
   }
   return result;
 };
+
+/**
+ * Size Chart and Details Title (ATS-250) of the product's categories. A hidden category is not in the
+ * published list, so its products use the built-in default or the parent's setting.
+ */
+function pageSettingsFor(
+  ids: readonly string[],
+  categories: readonly ShopCategorySource[],
+): CategoryPageSettings {
+  const out: Record<
+    string,
+    { sizeChart?: ShopCategorySource['sizeChart']; detailsTitle?: ShopCategorySource['detailsTitle'] }
+  > = {};
+  for (const category of categories) {
+    if (!ids.includes(category.id)) continue;
+    if (category.sizeChart === undefined && category.detailsTitle === undefined) continue;
+    out[category.id] = {
+      ...(category.sizeChart !== undefined ? { sizeChart: category.sizeChart } : {}),
+      ...(category.detailsTitle !== undefined ? { detailsTitle: category.detailsTitle } : {}),
+    };
+  }
+  return out;
+}
 
 /** 503 and missing product pages carry geo-priced layout; never CDN-cache. Found pages use the route header. */
 function pageCacheControl(status: ProductPageResult['status']): string | null {

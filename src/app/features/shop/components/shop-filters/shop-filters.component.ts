@@ -5,10 +5,10 @@ import type { ColorId } from '@core/services/products/catalog-taxonomy';
 import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import {
-  SHOP_CATEGORY_OPTIONS,
   SHOP_GENDER_OPTIONS,
   SHOP_SORT_OPTIONS,
   type ShopBrandOption,
+  type ShopCategoryOption,
   type ShopCategoryFilterId,
   type ShopColorOption,
   type ShopFilterState,
@@ -36,19 +36,21 @@ export class ShopFiltersComponent {
   readonly showSizes = input(false);
   /** When true, only Bags is offered under Category (Accessories tab). */
   readonly accessoriesSubOnly = input(false);
+  /** Shown categories from `shopCategoryOptionsFrom()` (the live list, server seed first). */
+  readonly categoryOptions = input<readonly ShopCategoryOption[]>([]);
 
   readonly sortOptions = SHOP_SORT_OPTIONS;
   readonly genderOptions = SHOP_GENDER_OPTIONS;
 
-  readonly categoryOptions = computed(() => {
+  readonly visibleCategoryOptions = computed(() => {
     if (this.accessoriesSubOnly()) {
-      return SHOP_CATEGORY_OPTIONS.filter((o) => o.id === 'bags');
+      return this.categoryOptions().filter((o) => o.id === 'bags');
     }
     if (this.tab() !== 'all') return [];
-    return SHOP_CATEGORY_OPTIONS;
+    return this.categoryOptions();
   });
 
-  readonly showCategorySection = computed(() => this.categoryOptions().length > 0);
+  readonly showCategorySection = computed(() => this.visibleCategoryOptions().length > 0);
 
   setSort(sort: ShopFilterState['sort']): void {
     this.#emit({ ...this.filters(), sort, page: 0 });
