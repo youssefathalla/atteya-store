@@ -377,6 +377,23 @@ export class AuthService {
   }
 
   /**
+   * Deletes the signed-in account for good (`deleteMyAccount` callable: profile, saved bag,
+   * favorites, email sign-up, then the sign-in itself; past orders stay in our records), then signs
+   * out on this device and returns home. Needs a sign-in from the last 10 minutes. Throws the
+   * callable's error (show it with `callableMessage()`).
+   */
+  async deleteAccount(): Promise<void> {
+    if (!isPlatformBrowser(this.#platformId) || !this.#auth.currentUser) return;
+    const call = await callableFrom<Record<string, never>, { deleted: true }>(
+      this.#functions(),
+      'deleteMyAccount',
+    );
+    await call({});
+    await this.logout().catch(() => undefined);
+    this.#snackbar.success('Your account was deleted.');
+  }
+
+  /**
    * Reloads the signed-in account so a just-confirmed email shows as confirmed and, when the
    * ID token was minted before that, gets a fresh one so callables see `email_verified`.
    * Returns whether the email is confirmed (false when signed out). Calls made while one is

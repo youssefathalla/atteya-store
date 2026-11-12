@@ -1,0 +1,41 @@
+@layer components {
+  /* /terms and /privacy: one centered column, a black title band, numbered section cards. */
+  .legal-page {
+    @apply w-full max-w-3xl mx-auto elements-start-col gap-6;
+  }
+
+  .legal-crumbs {
+    @apply w-full elements-center flex-wrap gap-2 font-label-sm uppercase;
+  }
+
+  .legal-hero {
+    @apply w-full elements-center-col gap-2 text-center p-8 max-sm:p-6 bg-primary text-on-primary border-shape;
+  }
+
+  .legal-hero__date {
+    @apply font-label-md text-on-primary/70;
+  }
+
+  .legal-body {
+    @apply w-full elements-start-col gap-4 font-body-md;
+    counter-reset: legal;
+  }
+
+  .legal-body > section {
+    @apply w-full elements-start-col gap-3 p-6 max-sm:p-4 bg-surface-container-lowest border border-outline-variant border-shape;
+    counter-increment: legal;
+  }
+
+  .legal-body > section > h2 {
+    @apply w-full elements-start gap-3 pb-3 border-b border-outline-variant font-title-md font-bold!;
+  }
+
+  .legal-body > section > h2::before {
+    @apply shrink-0 size-8 elements-center bg-primary text-on-primary font-label-md font-bold! border-shape;
+    content: counter(legal);
+  }
+
+  .legal-body a {
+    @apply underline font-bold!;
+  }
+}

@@ -80,7 +80,7 @@ export const STORE_INFO: StoreInfo = {
   website: '',
   contact: {
     whatsapp: '+20 120 565 8954',
-    phone: '',
+    phone: '01280035035',
     email: 'support@atteyastore.com',
   },
   address: {
@@ -102,9 +102,9 @@ export const STORE_INFO: StoreInfo = {
     },
   },
   social: {
-    instagram: '',
-    facebook: '',
-    tiktok: '',
+    instagram: 'https://www.instagram.com/atteya_store',
+    facebook: 'https://www.facebook.com/profile.php?id=61558435948246',
+    tiktok: 'https://www.tiktok.com/@atteya_padel_store',
     x: '',
     youtube: '',
   },

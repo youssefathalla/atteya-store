@@ -22,7 +22,7 @@ const FIXED_SHOP_PATHS = new Set(['/shop', '/brands', '/category/all', '/categor
  */
 @Component({
   selector: 'app-footer',
-  host: { class: 'block w-full mt-auto' },
+  host: { class: 'block w-full mt-auto sm:pt-24 pt-8' },
   imports: [RouterLink, LinkTargetPipe, FooterSignupComponent],
   templateUrl: './footer.component.html',
 })
