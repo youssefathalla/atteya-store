@@ -17,6 +17,7 @@ import {
   customerOrderFrom,
   emailLookupValues,
   CUSTOMER_ORDER_FIELDS,
+  isTeamAccount,
   MAX_CUSTOMER_ORDERS,
   orderFieldsChanged,
   normalizeCustomerEmail,
@@ -99,7 +100,14 @@ export async function rebuildCustomer(
     .select(...CUSTOMER_ORDER_FIELDS)
     .limit(MAX_CUSTOMER_ORDERS)
     .get();
-  const userSnap = user ? await db.collection('users').doc(user.uid).get() : null;
+  const [userSnap, roleSnap] = user
+    ? await Promise.all([
+        db.collection('users').doc(user.uid).get(),
+        db.collection('roles').doc(user.uid).get(),
+      ])
+    : [null, null];
+  // Admins and staff get no customer record (ATS-288); the doc is deleted below like an empty one.
+  const isTeam = user !== null && isTeamAccount(roleSnap?.get('role'), user.customClaims?.['role']);
 
   const orders = ordersSnap.docs.map((doc) =>
     customerOrderFrom(doc.id, doc.data(), toMs(doc.get('createdAt'))),
@@ -116,7 +124,7 @@ export async function rebuildCustomer(
           Date.parse(user.metadata.creationTime) || null,
         )
       : null;
-  const summary = buildCustomerSummary(email, orders, account, rawEmails);
+  const summary = isTeam ? null : buildCustomerSummary(email, orders, account, rawEmails);
   const readTime = ordersSnap.readTime;
 
   await db.runTransaction(async (tx) => {
@@ -161,6 +169,19 @@ async function rebuildForUid(uid: string): Promise<void> {
   }
   await rebuildCustomer(getFirestore(), user.email, [], user);
 }
+
+/**
+ * A role change (Settings → Team or `set-admin.mjs`, both write the `roles/{uid}` mirror) removes
+ * a new admin or staff member from Customers and brings back someone whose access was taken away
+ * (ATS-288).
+ */
+export const onRoleWrittenUpdateCustomer = onDocumentWritten(
+  { document: 'roles/{uid}', ...TRIGGER_OPTIONS },
+  async (event) => {
+    if (event.data?.before.get('role') === event.data?.after.get('role')) return;
+    await rebuildForUid(event.params.uid);
+  },
+);
 
 /** A new account makes (or joins) the customer for its email, even before any order. */
 export const onUserCreatedUpdateCustomer = onDocumentCreated(

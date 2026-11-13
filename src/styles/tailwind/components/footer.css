@@ -4,7 +4,14 @@
  *   .footer-heading  Column title (Shop, Help, Account)
  *   .footer-link     Text link or native button inside a column or the bottom row
  *   .footer-social   Square icon link holding an inline brand SVG (`.footer-social svg` is 20px)
+ *
+ * `html[data-signed-in]` (set before the first paint from the signed-in hint, ATS-287) hides the
+ * email sign-up, which the server renders for everyone, so a signed-in shopper never sees it flash.
  */
+html[data-signed-in] app-footer-signup {
+  display: none;
+}
+
 @layer components {
   .footer-heading {
     @apply font-title-sm font-bold! uppercase tracking-wider;

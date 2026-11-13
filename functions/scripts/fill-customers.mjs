@@ -10,7 +10,8 @@
  *   node scripts/fill-customers.mjs --project atteya-store-dev --apply   (writes)
  *
  * Prod needs --confirm-prod as well. Safe to run again: a customer that is already right is skipped,
- * and a customer doc left with no orders and no account is removed.
+ * and a customer doc left with no orders and no account is removed. Team accounts (admin or staff)
+ * get no customer doc (ATS-288), so their existing docs are removed too.
  */
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
@@ -50,6 +51,7 @@ const {
   customerEmailOf,
   customerIdFromEmail,
   customerOrderFrom,
+  isTeamAccount,
   MAX_CUSTOMER_ORDERS,
 } = require(join(__dirname, '../lib/customers/customer-summary.js'));
 
@@ -89,12 +91,17 @@ for (const doc of ordersSnap.docs) {
 // Accounts: an Auth user with an email and a `users/{uid}` doc.
 const usersSnap = await db.collection('users').get();
 const userDocs = new Map(usersSnap.docs.map((doc) => [doc.id, doc.data()]));
+const rolesSnap = await db.collection('roles').get();
+const mirrorRoles = new Map(rolesSnap.docs.map((doc) => [doc.id, doc.get('role')]));
 const accountByEmail = new Map();
+// Admins and staff get no customer record (ATS-288), like the triggers.
+const teamEmails = new Set();
 let pageToken;
 do {
   const page = await getAuth().listUsers(1000, pageToken);
   for (const user of page.users) {
     const email = customerEmailOf(user.email);
+    if (email && isTeamAccount(mirrorRoles.get(user.uid), user.customClaims?.role)) teamEmails.add(email);
     const data = userDocs.get(user.uid);
     if (!email || !data) continue;
     accountByEmail.set(
@@ -126,6 +133,7 @@ const writes = [];
 const keep = new Set();
 
 for (const email of new Set([...ordersByEmail.keys(), ...accountByEmail.keys()])) {
+  if (teamEmails.has(email)) continue;
   // The trigger reads at most MAX_CUSTOMER_ORDERS; use the newest ones so both agree.
   const allOrders = ordersByEmail.get(email) ?? [];
   if (allOrders.length > MAX_CUSTOMER_ORDERS) capped.push(email);
@@ -194,6 +202,8 @@ if (!dryRun) {
 
 if (noDate > 0) console.log(`CHECK: ${noDate} order(s) have no placed date and are left out.`);
 if (noEmail > 0) console.log(`CHECK: ${noEmail} order(s) have no usable email and belong to no customer.`);
+if (teamEmails.size > 0)
+  console.log(`Team accounts (admin or staff) left out of Customers: ${teamEmails.size}.`);
 if (capped.length > 0) {
   console.log(
     `CHECK: ${capped.length} customer(s) have more than ${MAX_CUSTOMER_ORDERS} orders; only the newest count.`,

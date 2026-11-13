@@ -1,5 +1,5 @@
 import { Service, computed, effect, inject, signal, untracked, PLATFORM_ID } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { FirebaseError } from 'firebase/app';
@@ -28,6 +28,7 @@ import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import { UserProfileService, type SignupConsent } from '@core/services/user-profile';
 import { notifyNotAdmin } from '@features/auth/utils/login-exit';
 import { AUTH_ERROR_MAPPINGS, DEFAULT_AUTH_ERROR } from './auth.errors';
+import { syncSignedInHint } from './signed-in-hint';
 import { AppRole, GoogleSignInOutcome, roleFromClaims } from './auth.model';
 import { parseRoleMirror, RoleMirror } from './role-mirror.schema';
 import {
@@ -183,11 +184,24 @@ export class AuthService {
     });
 
     if (isPlatformBrowser(this.#platformId)) {
+      this.#keepSignedInHint();
       this.#holdUntilConsent();
       this.#claimGuestOrdersOnSignIn();
       this.#watchEmailConfirmation();
       this.#sendConfirmationOnSignIn();
     }
+  }
+
+  /**
+   * Keeps the "signed in on this device" hint (`signed-in-hint.ts`, ATS-287) in step with auth once
+   * it is known, so the next page load hides the footer email sign-up from the first paint.
+   */
+  #keepSignedInHint(): void {
+    const document = inject(DOCUMENT);
+    effect(() => {
+      if (!this.#isAuthReady()) return;
+      syncSignedInHint(document, this.isAuthenticated());
+    });
   }
 
   /**

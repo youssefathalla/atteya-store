@@ -50,6 +50,7 @@ export { subscribeToEmails } from './marketing/subscribe-to-emails.fn.js';
 export { onHomeSettingsWrite, onNavigationSettingsWrite } from './settings/settings-history.trigger.js';
 export {
   onOrderWrittenUpdateCustomer,
+  onRoleWrittenUpdateCustomer,
   onUserCreatedUpdateCustomer,
   onUserDeletedUpdateCustomer,
   onUserUpdatedUpdateCustomer,
