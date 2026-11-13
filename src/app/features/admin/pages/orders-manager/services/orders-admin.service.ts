@@ -7,9 +7,11 @@ import {
   limit,
   orderBy,
   query,
+  startAfter,
   Timestamp,
   where,
   type QueryConstraint,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import * as v from 'valibot';
 import type { StaffOrderStatus } from '@core/config/order-status';
@@ -55,6 +57,13 @@ const ProductStockLookupSchema = v.object({
 export const ORDERS_PAGE_SIZE = 50;
 const PRODUCT_LOOKUP_CHUNK = 20;
 
+/** One batch of the admin Orders list (ATS-286). */
+export interface OrdersBatch {
+  readonly orders: readonly OrderDoc[];
+  /** Where the next batch starts; null when this batch came back short (no more orders). */
+  readonly next: QueryDocumentSnapshot<OrderDoc> | null;
+}
+
 export interface SetOrderStatusResult {
   readonly orderId: string;
   readonly status: StaffOrderStatus;
@@ -76,10 +85,15 @@ export class OrdersAdminService {
   readonly #functions = injectFunctionsAsync();
 
   /**
-   * Up to `ORDERS_PAGE_SIZE` orders. With no search and no dates: last changed first. With a search
-   * word (`searchTokens`, ATS-256) or dates (`createdAt`, whole days): newest placed first.
+   * Up to `size` orders (`ORDERS_PAGE_SIZE` per Show More Orders batch), starting after `after` when
+   * given. With no search and no dates: last changed first. With a search word (`searchTokens`,
+   * ATS-256) or dates (`createdAt`, whole days): newest placed first.
    */
-  async listOrders(filter: OrderListQuery): Promise<readonly OrderDoc[]> {
+  async listOrders(
+    filter: OrderListQuery,
+    after: QueryDocumentSnapshot<OrderDoc> | null = null,
+    size: number = ORDERS_PAGE_SIZE,
+  ): Promise<OrdersBatch> {
     const ordersCol = collection(this.#firestore, ORDERS_COLLECTION).withConverter(
       createValibotConverter(OrderSchema),
     );
@@ -94,10 +108,16 @@ export class OrdersAdminService {
       );
     }
     const byPlaced = filter.term !== null || filter.placed !== null;
-    constraints.push(orderBy(byPlaced ? 'createdAt' : 'updatedAt', 'desc'), limit(ORDERS_PAGE_SIZE));
+    constraints.push(orderBy(byPlaced ? 'createdAt' : 'updatedAt', 'desc'));
+    if (after) constraints.push(startAfter(after));
+    constraints.push(limit(size));
 
     const snap = await getDocs(query(ordersCol, ...constraints));
-    return snap.docs.map((item) => item.data());
+    const docs = snap.docs;
+    return {
+      orders: docs.map((item) => item.data()),
+      next: docs.length === size ? (docs[docs.length - 1] ?? null) : null,
+    };
   }
 
   /** One order by id for the tracking page; null when it doesn't exist. */
