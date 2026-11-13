@@ -216,7 +216,11 @@ export async function runReturnStep(
             order['returns'],
             requestId,
             target,
-            call.step === 'reject' ? call.input.reason : undefined,
+            call.step === 'reject'
+              ? { rejectReason: call.input.reason }
+              : call.step === 'refund-sent'
+                ? { refundSentEgp: call.input.amountEgp }
+                : {},
           ),
         });
       }

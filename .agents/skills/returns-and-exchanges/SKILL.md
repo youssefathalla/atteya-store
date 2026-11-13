@@ -85,7 +85,9 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - `returnRequests/{id}` holds `ref`, `orderId`, `orderRef`, `status`, `customerId`, `guest`, `customerEmail`, `customer` (name, phone, email, country, address), `items` (line, kind, reason, wants, refund, gift, autoGift, forLine, product, selection, name, photo, new piece, `askedLabel`, `refundEgp`), `note`, `refundTo`, `hasRefund`, `storeFault`, `itemsEgp`, `feeEgp`, `feePaid`, `refundEgp`, `cashAtDoorEgp`, `orderDeliveredAt`, `createdAt`, `updatedAt`.
 - `cancelReturnRequest` (`functions/src/returns/cancel-return-request.fn.ts`, same owner check, `{ requestId, viewKey? }`) sets the request to Cancelled while it is Requested, updates its entry in the order's `returns` and sends nothing; calling it again answers `changed: false`.
 - Every callable that moves a request updates the order's summary with `withReturnStatus()` in the same transaction, so `returns` always matches `returnRequests/{id}`.
-- Reject also passes its reason to `withReturnStatus(raw, id, 'rejected', reason)`, which saves it as `rejectReason` on that entry (trimmed; only with Rejected), so the shopper sees why.
+- Reject also passes its reason to `withReturnStatus(raw, id, 'rejected', { rejectReason })`, which saves it as `rejectReason` on that entry (trimmed; only with Rejected), so the shopper sees why.
+- Refund Sent passes `{ refundSentEgp }`, which replaces the entry's `refundEgp` with the amount staff really sent, so the shopper's box shows what was sent.
+- The request box never shows a refund of EGP 0 (the courier fee took it all): it then says the refund without an amount.
 - `orderViewFields()` copies `returns` into `orderViews/{viewKey}` so guests see the status.
 - Firestore rules: `returnRequests`, `returnStaffNotes` (staff-only history, written by the step callables) and `returnEmails` are read by admin and staff only, with no client writes; orders stay server-written, so `returns` is written only by Cloud Functions.
 

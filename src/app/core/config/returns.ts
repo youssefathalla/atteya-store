@@ -237,7 +237,7 @@ export interface ReturnSummary {
   readonly createdAtMs: number | null;
   /** Any item is Damaged or Wrong Item Sent (free courier, Send Photos on WhatsApp). */
   readonly storeFault?: boolean;
-  /** Refund after the courier fee, whole EGP (`returnRequests/{id}.refundEgp`). */
+  /** Refund after the courier fee, whole EGP (`returnRequests/{id}.refundEgp`); after Refund Sent, what was sent. */
   readonly refundEgp?: number;
   /** Why staff rejected it, as the shopper sees it (Rejected only). */
   readonly rejectReason?: string;
@@ -279,23 +279,36 @@ export function readReturnSummaries(raw: unknown): ReturnSummary[] {
   return out;
 }
 
+/** What a status change also saves on the summary entry, as the shopper sees it. */
+export interface ReturnStatusExtras {
+  /** Rejected: the reason the shopper sees (trimmed; an empty one is not written). */
+  readonly rejectReason?: string | null;
+  /** Refund Sent: the amount staff really sent, whole EGP (replaces the expected `refundEgp`). */
+  readonly refundSentEgp?: number | null;
+}
+
 /**
  * The order's raw `returns` array with one request's status changed (other fields and entries
  * kept as they are). Every callable that moves a request uses this, so the summary always matches
- * `returnRequests/{id}`.
+ * `returnRequests/{id}`. Reject passes its reason and Refund Sent the amount sent, so the shopper's
+ * request box shows them on any device.
  */
 export function withReturnStatus(
   raw: unknown,
   requestId: string,
   status: ReturnStatus,
-  rejectReason?: string,
+  extras: ReturnStatusExtras = {},
 ): unknown[] {
   if (!Array.isArray(raw)) return [];
-  const reason = status === 'rejected' && rejectReason?.trim() ? rejectReason.trim() : null;
+  const patch: Record<string, unknown> = { status };
+  const reason = extras.rejectReason?.trim();
+  if (status === 'rejected' && reason) patch['rejectReason'] = reason;
+  const sent = extras.refundSentEgp;
+  if (status === 'refund-sent' && typeof sent === 'number' && Number.isFinite(sent)) {
+    patch['refundEgp'] = wholeOrZero(sent);
+  }
   return raw.map((entry: unknown) =>
-    isRecord(entry) && entry['id'] === requestId
-      ? { ...entry, status, ...(reason ? { rejectReason: reason } : {}) }
-      : entry,
+    isRecord(entry) && entry['id'] === requestId ? { ...entry, ...patch } : entry,
   );
 }
 

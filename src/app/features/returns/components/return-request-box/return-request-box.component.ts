@@ -106,7 +106,8 @@ export class ReturnRequestBoxComponent {
 
   readonly refund = computed(() => {
     const amount = this.#details().refundEgp;
-    return amount !== null && this.request().hasRefund ? formatMoney(amount, 'EGP', 0) : null;
+    // EGP 0 (the courier fee took it all) is never shown as a refund on its way.
+    return amount !== null && amount > 0 && this.request().hasRefund ? formatMoney(amount, 'EGP', 0) : null;
   });
 
   /** One line about where the request is. */

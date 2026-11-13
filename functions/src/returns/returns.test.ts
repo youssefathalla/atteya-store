@@ -198,22 +198,33 @@ describe('statuses', () => {
     assert.deepEqual(withReturnStatus(null, 'r1', 'cancelled'), []);
   });
 
+  it('saves the amount staff really sent with Refund Sent', () => {
+    const raw = [{ id: 'r1', status: 'received', items: [], refundEgp: 580 }];
+    assert.deepEqual(withReturnStatus(raw, 'r1', 'refund-sent', { refundSentEgp: 700 }), [
+      { id: 'r1', status: 'refund-sent', items: [], refundEgp: 700 },
+    ]);
+    // Only Refund Sent changes the amount.
+    assert.deepEqual(withReturnStatus(raw, 'r1', 'rejected', { refundSentEgp: 700 }), [
+      { id: 'r1', status: 'rejected', items: [], refundEgp: 580 },
+    ]);
+  });
+
   it('saves the reject reason the shopper sees on the summary entry', () => {
     const raw = [
       { id: 'r1', status: 'approved', items: [], refundEgp: 580 },
       { id: 'r2', status: 'requested', items: [] },
     ];
-    assert.deepEqual(withReturnStatus(raw, 'r1', 'rejected', '  Worn after delivery. '), [
+    assert.deepEqual(withReturnStatus(raw, 'r1', 'rejected', { rejectReason: '  Worn after delivery. ' }), [
       { id: 'r1', status: 'rejected', items: [], refundEgp: 580, rejectReason: 'Worn after delivery.' },
       { id: 'r2', status: 'requested', items: [] },
     ]);
     // A reason only goes with Rejected, and an empty one is never written.
-    assert.deepEqual(withReturnStatus(raw, 'r2', 'approved', 'No')[1], {
+    assert.deepEqual(withReturnStatus(raw, 'r2', 'approved', { rejectReason: 'No' })[1], {
       id: 'r2',
       status: 'approved',
       items: [],
     });
-    assert.deepEqual(withReturnStatus(raw, 'r2', 'rejected', '  ')[1], {
+    assert.deepEqual(withReturnStatus(raw, 'r2', 'rejected', { rejectReason: '  ' })[1], {
       id: 'r2',
       status: 'rejected',
       items: [],
