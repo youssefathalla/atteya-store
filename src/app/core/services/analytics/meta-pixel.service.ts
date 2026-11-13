@@ -35,6 +35,7 @@ type Fbq = ((...args: unknown[]) => void) & {
   push: Fbq;
   loaded: boolean;
   version: string;
+  disablePushState?: boolean;
 };
 
 type PixelWindow = Window & { fbq?: Fbq; _fbq?: Fbq };
@@ -44,6 +45,14 @@ const SCRIPT_URL = 'https://connect.facebook.net/en_US/fbevents.js';
 const DEBUG_KEY = 'metaPixelDebug';
 /** Purchase ids already sent from this browser, so a reload of the order page doesn't count twice. */
 const SENT_PURCHASES_KEY = 'metaPixelPurchases';
+
+/** True when a URL (or its `?query` / `#hash` part) carries a guest order's view key (`key=`). */
+function hasViewKey(url: string): boolean {
+  const queryStart = url.indexOf('?');
+  if (queryStart === -1) return false;
+  const query = url.slice(queryStart + 1).split('#')[0] ?? '';
+  return new URLSearchParams(query).has('key');
+}
 
 /**
  * Meta's product fields from bag or order lines: ids, quantities (and unit prices in EGP when known).
@@ -106,6 +115,10 @@ export class MetaPixelService {
     const subscription = this.#router.events
       .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
       .subscribe((event) => {
+        // A guest order's view key (`?key=`) opens the order: never let Meta read it from the page
+        // URL. The order page takes it out with a `replaceUrl` navigation, and that one sends the
+        // PageView (the path is not recorded here, so it still counts as a new page).
+        if (hasViewKey(event.urlAfterRedirects)) return;
         const path = event.urlAfterRedirects.split(/[?#]/)[0] ?? '';
         if (path === lastPath) return;
         lastPath = path;
@@ -125,17 +138,23 @@ export class MetaPixelService {
     });
   }
 
-  /** Send one standard event. Does nothing on the server or when no Pixel id is set. */
-  track(event: MetaPixelEvent, params?: MetaPixelParams, eventId?: string): void {
-    if (!this.#isBrowser) return;
+  /**
+   * Send one standard event. Does nothing on the server, when no Pixel id is set, or while the
+   * address bar holds a guest order's view key. Returns true when the event went to Meta.
+   */
+  track(event: MetaPixelEvent, params?: MetaPixelParams, eventId?: string): boolean {
+    if (!this.#isBrowser) return false;
     const id = eventId ?? this.#newEventId(event);
 
     if (this.#debug()) console.info(`[Meta Pixel] ${event}`, params ?? {}, id);
 
     const fbq = this.#window()?.fbq;
-    if (!this.#pixelId || !fbq) return;
+    if (!this.#pixelId || !fbq) return false;
+    // Meta tags every event with the page URL: skip it while a guest order's view key is there.
+    if (this.#locationHasViewKey()) return false;
     if (params) fbq('track', event, params, { eventID: id });
     else fbq('track', event, {}, { eventID: id });
+    return true;
   }
 
   /**
@@ -166,7 +185,8 @@ export class MetaPixelService {
     if (!this.#isBrowser || !orderId) return;
     const sent = this.#readSentPurchases();
     if (sent.includes(orderId)) return;
-    this.track('Purchase', params, `purchase-${orderId}`);
+    // Not sent (no Pixel, or a view key still in the URL): leave it unmarked so a later call sends it.
+    if (!this.track('Purchase', params, `purchase-${orderId}`)) return;
     this.#writeSentPurchases([...sent, orderId].slice(-20));
   }
 
@@ -183,6 +203,10 @@ export class MetaPixelService {
     fbq.loaded = true;
     fbq.version = '2.0';
     fbq.queue = [];
+    // Meta's script would otherwise send its own PageView on every `history.pushState` /
+    // `replaceState`: admin pages, query-only changes, and every page twice. The router handler
+    // in `start()` sends the only PageViews.
+    fbq.disablePushState = true;
     win.fbq = fbq;
     win._fbq ??= fbq;
 
@@ -196,6 +220,11 @@ export class MetaPixelService {
 
   #window(): PixelWindow | null {
     return (this.#document.defaultView as PixelWindow | null) ?? null;
+  }
+
+  #locationHasViewKey(): boolean {
+    const location = this.#window()?.location;
+    return !!location && hasViewKey(`${location.search}${location.hash}`);
   }
 
   #newEventId(event: MetaPixelEvent): string {
