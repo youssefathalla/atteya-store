@@ -1,0 +1,96 @@
+@layer components {
+  /*! admin customers: summary boxes, filter chips and the list (ATS-277) */
+
+  /* One summary box: label, big number, small grey line. */
+  .customer-stat {
+    @apply bg-surface-container-low border border-outline-variant border-shape p-3 @3xl:p-4 elements-start-col gap-1 min-w-0;
+  }
+
+  .customer-stat__label {
+    @apply font-label-md text-on-surface-variant;
+  }
+
+  .customer-stat__value {
+    @apply font-headline-sm font-bold! tabular-nums;
+  }
+
+  .customer-stat__note {
+    @apply font-body-sm text-on-surface-variant;
+  }
+
+  /* A filter chip (wide screens); the chosen one is outlined black. */
+  .customer-chip {
+    @apply shrink-0 elements-center gap-2 border-shape border border-outline-variant px-3 py-1.5 font-label-md cursor-pointer;
+  }
+
+  .customer-chip--active {
+    @apply border-primary bg-surface-container-highest;
+  }
+
+  .customer-chip__count {
+    @apply text-on-surface-variant tabular-nums;
+  }
+
+  /* Account (black) or Guest (outlined). */
+  .customer-pill {
+    @apply shrink-0 items-center border border-primary border-shape px-2 py-0.5 font-label-sm;
+  }
+
+  .customer-pill--account {
+    @apply bg-primary text-on-primary;
+  }
+
+  /*
+   * One customer. Phone: a card (circle, name and "Account · 5 orders · Cairo", spent and last
+   * order on the right). From @3xl: one line of columns, like a table.
+   */
+  .customer-row {
+    @apply grid w-full grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 p-4 text-start;
+    @apply @3xl:grid-cols-[2.5rem_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.8fr)_4rem_7rem_6.5rem_1.5rem] @3xl:gap-4 @3xl:px-5 @3xl:py-3;
+  }
+
+  .customer-row:hover {
+    @apply bg-surface-container-low;
+  }
+
+  .customer-row__item {
+    @apply border-b border-outline-variant last:border-b-0;
+  }
+
+  .customer-row__head {
+    @apply hidden @3xl:grid grid-cols-[2.5rem_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.8fr)_4rem_7rem_6.5rem_1.5rem] gap-4 px-5 py-2.5 border-b border-outline-variant font-label-md text-on-surface-variant;
+  }
+
+  .customer-row__head > :first-child {
+    @apply col-span-2;
+  }
+
+  .customer-row__avatar {
+    @apply size-10 row-span-2 @3xl:row-span-1 elements-center rounded-full bg-primary text-on-primary font-title-md font-bold!;
+  }
+
+  .customer-row__who {
+    @apply row-span-2 @3xl:row-span-1 elements-start-col gap-0.5 min-w-0;
+  }
+
+  .customer-row__muted {
+    @apply font-body-sm text-on-surface-variant;
+  }
+
+  /* Phone, City and Orders only show as columns. */
+  .customer-row__cell {
+    @apply hidden @3xl:block font-body-md truncate;
+  }
+
+  .customer-row__spent {
+    @apply font-title-sm font-bold! tabular-nums text-end @3xl:text-center;
+  }
+
+  .customer-row__last {
+    @apply font-body-sm text-on-surface-variant text-end @3xl:text-start @3xl:font-body-md;
+  }
+
+  .customer-row__arrow {
+    @apply hidden @3xl:flex justify-end text-on-surface-variant;
+  }
+}
