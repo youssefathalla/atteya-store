@@ -35,6 +35,7 @@ import { bagOfferLook } from '@core/services/cart/bag-offer-state';
 import { cartLineKey } from '@core/services/cart/cart.model';
 import { CartService } from '@core/services/cart/cart.service';
 import { CurrencyService } from '@core/services/currency/currency.service';
+import { MetaPixelService, metaPixelContents } from '@core/services/analytics/meta-pixel.service';
 import { injectFirestore } from '@core/firebase';
 import { isEgyptMobile } from '@core/config/order-messages';
 import { isBankTransferLive, isCardOrWalletLive, STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
@@ -128,6 +129,14 @@ interface CheckoutProductInfo {
 }
 
 /** The bag priced in EGP and in the visitor's currency, before shipping. */
+/** Payment names as the store writes them, for the Meta Pixel. */
+const PIXEL_PAYMENT_NAMES: Record<CheckoutPaymentMethod, string> = {
+  paymob: 'Card',
+  'cash-on-delivery': 'Cash on Delivery',
+  instapay: 'InstaPay',
+  'bank-transfer': 'Bank Transfer',
+};
+
 type PricedBag =
   | { readonly state: 'loading' }
   | { readonly state: 'missing-item' }
@@ -729,7 +738,32 @@ export class CheckoutPageComponent implements OnInit {
     return amounts ? bankTransferSteps(amounts) : [];
   });
 
+  readonly #pixel = inject(MetaPixelService);
+  /** Meta Pixel InitiateCheckout and AddPaymentInfo go once per visit to checkout (ATS-290). */
+  #checkoutSent = false;
+  #paymentInfoSent = false;
+
   constructor() {
+    // Meta Pixel InitiateCheckout, once the bag is priced (ATS-290).
+    effect(() => {
+      const priced = this.#pricedBag();
+      if (this.#checkoutSent || priced.state !== 'ready' || !isPlatformBrowser(this.#platformId)) return;
+      this.#checkoutSent = true;
+      untracked(() => {
+        const lines = this.lines().flatMap((line, index) => {
+          const price = priced.lines[index];
+          return price
+            ? [{ productId: line.productId, quantity: line.quantity, unitEgp: price.unitEgp }]
+            : [];
+        });
+        this.#pixel.track('InitiateCheckout', {
+          ...metaPixelContents(lines),
+          currency: 'EGP',
+          value: priced.subtotalEgp,
+        });
+      });
+    });
+
     // Tell the shopper when an offer stops applying to their bag (notes above the summary).
     effect(() => {
       const look = this.#offerLook();
@@ -903,6 +937,21 @@ export class CheckoutPageComponent implements OnInit {
     if (method !== 'paymob' && !this.localMethodsAvailable()) return;
     if (method === 'paymob' && (!this.cardOrWalletLive || this.feeToBeAgreed())) return;
     this.#chosenMethod.set(method);
+    this.#trackPaymentInfo(method);
+  }
+
+  /** Meta Pixel AddPaymentInfo: when the shopper picks a way to pay, or at Place Order for the default. */
+  #trackPaymentInfo(method: CheckoutPaymentMethod): void {
+    if (this.#paymentInfoSent) return;
+    this.#paymentInfoSent = true;
+    const summary = this.orderSummary();
+    this.#pixel.track('AddPaymentInfo', {
+      payment_type: PIXEL_PAYMENT_NAMES[method],
+      currency: 'EGP',
+      ...(summary.state === 'ready' && summary.shown.totalEgp != null
+        ? { value: summary.shown.totalEgp }
+        : {}),
+    });
   }
 
   /** Removes a bag line from the order summary (used for items no longer available). */
@@ -1010,6 +1059,7 @@ export class CheckoutPageComponent implements OnInit {
     // The shipping fee and total this summary shows: the server refuses rather than charge more.
     const shownTotals = summary.shown;
 
+    this.#trackPaymentInfo(method);
     this.isSubmitting.set(true);
     try {
       const shipping: CheckoutShippingInput = {
@@ -1059,6 +1109,9 @@ export class CheckoutPageComponent implements OnInit {
       });
       const viewKey = guest ? (result.viewKey ?? null) : null;
       if (guest) rememberGuestOrder(result.orderId, { key: viewKey, email: guest });
+      // InstaPay, Cash on Delivery and Bank Transfer orders count as bought once placed.
+      // Card counts on the order page once Paymob confirms the payment.
+      this.#pixel.trackOrderPurchase(result.orderId, result.pricing);
       void this.#cart.clear();
       // A guest's order page reads the order by its key (`?key=`); the page keeps it and hides it.
       await this.#router.navigate(['/checkout', 'confirmation', result.orderId], {

@@ -1,4 +1,10 @@
-import { ApplicationConfig, ErrorHandler, inject, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  ErrorHandler,
+  inject,
+  provideAppInitializer,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import {
   provideRouter,
   withComponentInputBinding,
@@ -9,6 +15,7 @@ import {
   withNavigationErrorHandler,
 } from '@angular/router';
 import { AppErrorHandler, isChunkLoadError, PageLoadErrorService } from '@core/services/errors';
+import { MetaPixelService } from '@core/services/analytics/meta-pixel.service';
 import { StorefrontPreloadingStrategy } from '@core/routing/storefront-preloading.strategy';
 import { provideClientHydration } from '@angular/platform-browser';
 import { IMAGE_CONFIG } from '@angular/common';
@@ -68,5 +75,8 @@ export const appConfig: ApplicationConfig = {
     provideAuth(),
     provideFirestore(),
     provideAppCheck(environment.appCheck),
+
+    // Meta Pixel for the client's ads: browser only, live store only (ATS-290).
+    provideAppInitializer(() => inject(MetaPixelService).start()),
   ],
 };

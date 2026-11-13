@@ -14,6 +14,7 @@ export const environment: Environment = {
     measurementId: 'G-P2LKFPB4EK',
   },
   imageKitUrl: 'https://ik.imagekit.io/atteyastore',
+  metaPixelId: '1335306407951181',
   algolia: {
     appId: 'EW50BE3MCR',
     searchKey: 'e083ae4e173cbe8586b7472f87e5d592',

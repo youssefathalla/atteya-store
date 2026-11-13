@@ -1,6 +1,7 @@
 import { Component, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { CartService } from '@core/services/cart/cart.service';
+import { MetaPixelService } from '@core/services/analytics/meta-pixel.service';
 import { DrawerService } from '@core/services/drawer/drawer.service';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
@@ -32,12 +33,15 @@ export class AddToBagButtonComponent {
   readonly label = input<string>('Add to Bag');
   /** Out of stock or no longer sold. */
   readonly unavailable = input<boolean>(false);
+  /** Total in EGP for what this press adds, sent to the Meta Pixel. Null when the page doesn't know it. */
+  readonly valueEgp = input<number | null>(null);
 
   readonly choiceMissing = output<void>();
 
   readonly #cart = inject(CartService);
   readonly #drawer = inject(DrawerService);
   readonly #snackbar = inject(SnackbarService);
+  readonly #pixel = inject(MetaPixelService);
 
   addToBag(): void {
     const drafts = this.lines();
@@ -54,6 +58,7 @@ export class AddToBagButtonComponent {
       );
       return;
     }
+    this.#pixel.trackAddToCart(drafts, this.valueEgp());
     this.#snackbar.success('Added to your bag');
     this.#drawer.open('cart');
   }

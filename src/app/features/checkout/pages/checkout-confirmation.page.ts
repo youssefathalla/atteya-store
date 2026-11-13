@@ -1,5 +1,5 @@
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -24,6 +24,7 @@ import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
 import { orderStatusName } from '@core/services/orders/order-status-name';
 import { orderDate } from '@core/services/orders/shopper-orders.service';
+import { MetaPixelService } from '@core/services/analytics/meta-pixel.service';
 import {
   isOrderViewKey,
   orderFromView,
@@ -62,6 +63,9 @@ const VIEW_WAIT_MS = 20_000;
  * `paymentDue()` on the LIVE order only, never from defaults or the navigation seed, so a
  * paid order never flashes a request for money.
  */
+/** How long after a Card payment the order page still counts it as a Meta Pixel Purchase. */
+const PIXEL_PURCHASE_WINDOW_MS = 2 * 60 * 60 * 1000;
+
 @Component({
   selector: 'app-checkout-confirmation-page',
   host: { class: 'block w-full' },
@@ -87,6 +91,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   readonly #seo = inject(SeoService);
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
+  readonly #pixel = inject(MetaPixelService);
 
   /** Result handed over by checkout; only used for the heading until the live order arrives. */
   readonly seed = signal<CreateManualOrderResult | null>(readNavigationSeed());
@@ -485,6 +490,18 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     const total = formatMoney(pricing.totalDisplay, pricing.currency, displayDecimals(pricing.currency));
     return this.stage() === 'fee-to-be-agreed' ? `${total} + shipping` : total;
   });
+
+  constructor() {
+    // Meta Pixel Purchase for a Card order, once Paymob confirms the payment (ATS-290). Only on the
+    // shopper's return from Paymob (paid in the last 2 hours), not when the order link is opened later.
+    effect(() => {
+      const order = this.order();
+      if (!order || order.paymentMethod !== 'paymob' || !isPlatformBrowser(this.#platformId)) return;
+      const paidAt = orderDate(order.paymob?.paidAt);
+      if (!paidAt || Date.now() - paidAt.getTime() > PIXEL_PURCHASE_WINDOW_MS) return;
+      this.#pixel.trackOrderPurchase(this.orderId(), order.pricing);
+    });
+  }
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.#platformId)) {

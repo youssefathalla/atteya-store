@@ -184,6 +184,7 @@
           <app-add-to-bag-button
             [lines]="bagLines()"
             [label]="addLabel()"
+            [valueEgp]="addValueEgp()"
             [unavailable]="!inStock()"
             (choiceMissing)="onChoiceMissing()"
           />

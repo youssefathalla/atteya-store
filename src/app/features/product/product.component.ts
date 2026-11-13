@@ -9,6 +9,7 @@ import {
   linkedSignal,
   resource,
   signal,
+  untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
@@ -20,6 +21,7 @@ import { bagLineVariant, type BagPricingProduct, priceBag } from '@core/services
 import { giftCardColours, giftCardName } from '@core/services/cart/gift-card-label';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CurrencyService } from '@core/services/currency/currency.service';
+import { MetaPixelService } from '@core/services/analytics/meta-pixel.service';
 import {
   bundleOfferLink,
   canShopOffer,
@@ -173,6 +175,9 @@ export class ProductComponent {
 
   readonly #seo = inject(SeoService);
   readonly #catalog = inject(CatalogService);
+  readonly #pixel = inject(MetaPixelService);
+  /** Product the Meta Pixel ViewContent was last sent for, so live updates don't repeat it. */
+  #viewContentSentFor: string | null = null;
   readonly #playerList = inject(PlayerListService);
   readonly #offersReader = inject(PublicOffersReader);
   readonly #liveOffers = inject(OffersService);
@@ -723,18 +728,36 @@ export class ProductComponent {
    * than the pieces' own prices, because the bag uses the bundle only when it costs the shopper less.
    */
   readonly addLabel = computed(() => {
-    if (!this.bundleOffer() || !this.#bundleActive() || this.bundleLoading()) return 'Add to Bag';
+    const total = this.#bundleTotalEgp();
+    if (total === null) return 'Add to Bag';
+    const pieces = this.bundlePieces();
+    const money = this.#money(total);
+    return pieces === 1 ? `Add to Bag · ${money}` : `Add ${pieces} to Bag · ${money}`;
+  });
+
+  /** The Bundle price picker's total in EGP for the pieces chosen, or null when no bundle is being picked. */
+  readonly #bundleTotalEgp = computed<number | null>(() => {
+    if (!this.bundleOffer() || !this.#bundleActive() || this.bundleLoading()) return null;
     const pieces = this.bundlePieces();
     const row = this.#pickerRows().find((entry) => entry.quantity === pieces);
-    if (!row) return 'Add to Bag';
+    if (!row) return null;
     const picks = this.#bundlePicks();
     let own = 0;
     for (let piece = 0; piece < pieces; piece++) {
       const pick = picks[piece];
       own += pick ? this.#piecePrice(pick.productId) : this.#fullPrice();
     }
-    const total = this.#money(Math.min(row.price, own));
-    return pieces === 1 ? `Add to Bag · ${total}` : `Add ${pieces} to Bag · ${total}`;
+    return Math.min(row.price, own);
+  });
+
+  /** EGP total of what Add to Bag adds, for the Meta Pixel AddToCart (ATS-290). */
+  readonly addValueEgp = computed<number | null>(() => {
+    const bundle = this.#bundleTotalEgp();
+    if (bundle !== null) return bundle;
+    const lines = this.bagLines();
+    const unit = this.price()?.price;
+    if (!lines || unit == null) return null;
+    return unit * lines.reduce((sum, line) => sum + line.quantity, 0);
   });
 
   /**
@@ -1036,6 +1059,28 @@ export class ProductComponent {
       this.#live.set(null); // drop any older snapshot (e.g. A → B → back to A)
       const stop = watchProductDoc(this.#firestore, id, (doc) => this.#live.set({ id, doc }));
       onCleanup(stop);
+    });
+
+    // Meta Pixel ViewContent, once per product opened (ATS-290). Prices are stored in EGP.
+    effect(() => {
+      const page = this.page();
+      if (!this.#hydrated() || page.status !== 'found') return;
+      const p = page.product;
+      if (this.#viewContentSentFor === p.id) return;
+      this.#viewContentSentFor = p.id;
+      untracked(() => {
+        const value = this.price()?.price ?? p.price;
+        const category = this.#catalog.categoryBySlug(p.categoryId)?.name;
+        this.#pixel.track('ViewContent', {
+          content_ids: [p.id],
+          content_name: p.name,
+          content_type: 'product',
+          ...(category ? { content_category: category } : {}),
+          contents: [{ id: p.id, quantity: 1, item_price: value }],
+          currency: 'EGP',
+          value,
+        });
+      });
     });
 
     effect(() => {

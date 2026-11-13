@@ -39,6 +39,7 @@ import { fromTransferOffer } from '@core/services/offers/offer-transfer';
 import { OffersService } from '@core/services/offers/offers.service';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
+import { MetaPixelService } from '@core/services/analytics/meta-pixel.service';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll/horizontal-scroll.directive';
 import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
@@ -181,6 +182,7 @@ export class BundlePage {
   readonly #reader = inject(BundleProductsService);
   readonly #seo = inject(SeoService);
   readonly #snackbar = inject(SnackbarService);
+  readonly #pixel = inject(MetaPixelService);
   readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly #injector = inject(Injector);
   readonly #platformId = inject(PLATFORM_ID);
@@ -691,6 +693,7 @@ export class BundlePage {
       this.#snackbar.error('Your bag is full. Remove an item to add these.');
       return;
     }
+    this.#pixel.trackAddToCart(lines);
     this.#snackbar.success('Added to your bag');
     this.#drawer.open('cart');
   }
