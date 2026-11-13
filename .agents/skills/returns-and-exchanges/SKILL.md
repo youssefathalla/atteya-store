@@ -29,7 +29,7 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 ## Kinds
 
 - Kinds are chosen per item, with pieces and quantity per item: `different-size` (Different Size), `different-colour` (Different Colour), `return` (Return It), `damaged` (Damaged Item), `wrong-item` (Wrong Item Sent).
-- Different Size: same product, a size id from the product's `size` option that differs from the one bought.
+- Different Size: same product (still there and not hidden), a size id from the product's `size` option that differs from the one bought.
 - Different Colour: another product with the same non-empty `modelGroup`, not hidden (`published !== false`), with the same `price` as the product bought; a different price is refused with "Different price, message us on WhatsApp."; a size is required when the colour has sizes.
 - Return It needs a reason: `didnt-fit` (Didn't fit), `not-as-pictured` (Not as pictured), `changed-mind` (Changed my mind), `other` (Other).
 - Damaged Item wants `send-another` (Send Another) or `refund` (Refund); Wrong Item Sent wants `send-right-one` (Send the Right One) or `refund` (Refund).
@@ -48,12 +48,15 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 ## Free gifts
 
 - Gifts (`pricing.lines[].gift.forLine`) stay with the shopper on any exchange.
-- On a refund, the line's gifts come back too: floor(refunded pieces × gift pieces ÷ line pieces), and every gift piece left when the request takes the last pieces of the line (`giftsBack()`); they are added to the request automatically (`autoGift: true`, `forLine`).
+- On a refund, the line's gifts come back too: over all the order's requests, floor(refunded pieces × gift pieces ÷ line pieces), and all of them once every piece of the line is refunded; a request sends back only what that adds now (`giftsBack()`, which reads earlier refunds and returned gifts from the order's `returns`).
+- Returned gifts are added to the request automatically (`autoGift: true`, `forLine`); exchanged pieces never bring a gift back.
 - A gift line can be exchanged for size or colour, never returned alone for money.
 
 ## Money
 
-- Refund per piece = what was paid after offers: `lineDisplay ÷ quantity` (whole EGP, rounded), the whole line exactly (`refundEgpFor()`); older lines use `fullEgp − discountEgp`, else `unitEgp × quantity`.
+- Refund per piece = what was paid after offers: `lineDisplay ÷ quantity` (whole EGP), the whole line exactly (`refundEgpFor()`); older lines use `fullEgp − discountEgp`, else `unitEgp × quantity`.
+- Partial refunds are rounded on the running total of the line's refunded pieces, so every refund of one line together is exactly what was paid.
+- Buy X Get Y and bundle discounts are not taken back on a partial return: the refund is the line's own `lineDisplay` share (the brief's rule).
 - Courier fee = the order's own delivery fee (`pricing.shipping.priceEgp`, the agreed fee for `domestic-agreed`); when it was 0 (free shipping) the order box's normal price in `settings/shipping` (`normalEgyptBoxFee()`, the biggest Egypt box when the order has none) (`courierFeeEgp()`).
 - The fee is 0 when any item is Damaged or Wrong Item Sent (the store pays, `storeFault`).
 - Otherwise the fee is taken off the refund when there is one (`off-refund`), or paid in cash to the courier for an exchange-only request (`cash`) (`returnMoney()`); a refund smaller than the fee leaves the rest as `cashAtDoorEgp`.
@@ -74,10 +77,12 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 
 ## Data
 
+- `requestReturn` reads `settings/shipping` only when the order's delivery fee was 0.
 - `requestReturn` (`functions/src/returns/request-return.fn.ts`, `europe-west3`, App Check like every callable) takes `{ orderId, viewKey?, items[], note?, refundTo? }`; each item is `{ lineIndex, quantity, kind, reason?, wants?, size?, colourProductId? }`; it answers `{ requestId, ref }`.
-- In one transaction it creates `returnRequests/{id}` and appends to the order's `returns` array `{ id, ref, status, hasRefund, items: [{ lineIndex, quantity }], createdAt }` (a Timestamp from the function's clock, because arrays can't hold server time stamps).
+- In one transaction it creates `returnRequests/{id}` and appends to the order's `returns` array `{ id, ref, status, hasRefund, items: [{ lineIndex, quantity, refund, autoGift }], createdAt }` (a Timestamp from the function's clock, because arrays can't hold server time stamps).
 - `returnRequests/{id}` holds `ref`, `orderId`, `orderRef`, `status`, `customerId`, `guest`, `customerEmail`, `customer` (name, phone, email, country, address), `items` (line, kind, reason, wants, refund, gift, autoGift, forLine, product, selection, name, photo, new piece, `askedLabel`, `refundEgp`), `note`, `refundTo`, `hasRefund`, `storeFault`, `itemsEgp`, `feeEgp`, `feePaid`, `refundEgp`, `cashAtDoorEgp`, `orderDeliveredAt`, `createdAt`, `updatedAt`.
 - `cancelReturnRequest` (`functions/src/returns/cancel-return-request.fn.ts`, same owner check, `{ requestId, viewKey? }`) sets the request to Cancelled while it is Requested, updates its entry in the order's `returns` and sends nothing; calling it again answers `changed: false`.
+- Every callable that moves a request updates the order's summary with `withReturnStatus()` in the same transaction, so `returns` always matches `returnRequests/{id}`.
 - `orderViewFields()` copies `returns` into `orderViews/{viewKey}` so guests see the status.
 - Firestore rules: `returnRequests`, `returnStaffNotes` (staff-only notes, written in <KEY>-293) and `returnEmails` are read by admin and staff only, with no client writes; orders stay server-written, so `returns` is written only by Cloud Functions.
 

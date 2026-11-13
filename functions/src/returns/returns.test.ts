@@ -15,6 +15,7 @@ import {
   returnRef,
   returnStockPlan,
   undoStockStep,
+  withReturnStatus,
   type ReturnSummary,
 } from '../../lib/store/returns.js';
 import {
@@ -183,6 +184,18 @@ describe('statuses', () => {
     assert.equal(isOpenReturn('refund-sent', true), false);
   });
 
+  it('changes one request in the order summary and keeps the rest', () => {
+    const raw = [
+      { id: 'r1', status: 'requested', items: [] },
+      { id: 'r2', status: 'cancelled', items: [] },
+    ];
+    assert.deepEqual(withReturnStatus(raw, 'r1', 'cancelled'), [
+      { id: 'r1', status: 'cancelled', items: [] },
+      { id: 'r2', status: 'cancelled', items: [] },
+    ]);
+    assert.deepEqual(withReturnStatus(null, 'r1', 'cancelled'), []);
+  });
+
   it('makes a short ref like the order ref', () => {
     assert.equal(returnRef('k7q2m9xyz'), '#R-K7Q2M9');
   });
@@ -216,8 +229,11 @@ describe('pieces, gifts and money', () => {
 
   it('counts pieces left, skipping Rejected and Cancelled requests', () => {
     const returns = [
-      { ...summary('approved', true), items: [{ lineIndex: 0, quantity: 1 }] },
-      { ...summary('cancelled', true), items: [{ lineIndex: 2, quantity: 3 }] },
+      { ...summary('approved', true), items: [{ lineIndex: 0, quantity: 1, refund: true, autoGift: false }] },
+      {
+        ...summary('cancelled', true),
+        items: [{ lineIndex: 2, quantity: 3, refund: true, autoGift: false }],
+      },
     ];
     assert.deepEqual(piecesLeft(lines, returns), [1, 2, 3]);
   });
@@ -228,6 +244,9 @@ describe('pieces, gifts and money', () => {
     assert.equal(refundEgpFor(lines[2]!, 1), 367);
     assert.equal(refundEgpFor(lines[2]!, 3), 1100);
     assert.equal(refundEgpFor(lines[1]!, 1), 0);
+    // Rounded on the running total: refunds of one line never add up to more than was paid.
+    const odd = readReturnOrderLines([{ productId: 'p', quantity: 2, lineDisplay: 1301 }])[0]!;
+    assert.equal(refundEgpFor(odd, 1) + refundEgpFor(odd, 1, 1), 1301);
   });
 
   it('gifts come back with a refund: floor share, all of them with the last pieces', () => {
@@ -243,6 +262,33 @@ describe('pieces, gifts and money', () => {
       { lineIndex: 1, forLine: 0, quantity: 1 },
     ]);
     assert.deepEqual(giftsBack(lines, [], left, [1, 0, 0]), []);
+    // Exchanging one piece and returning the other sends back only the returned piece's share.
+    assert.deepEqual(giftsBack(lines, [{ lineIndex: 0, quantity: 1 }], left, [2, 0, 0]), [
+      { lineIndex: 1, forLine: 0, quantity: 1 },
+    ]);
+    // One piece was exchanged in an earlier request; refunding the last piece still sends back one gift.
+    const exchanged = [
+      {
+        ...summary('received', false),
+        items: [{ lineIndex: 0, quantity: 1, refund: false, autoGift: false }],
+      },
+    ];
+    assert.deepEqual(giftsBack(lines, [{ lineIndex: 0, quantity: 1 }], [1, 2, 3], [1, 0, 0], exchanged), [
+      { lineIndex: 1, forLine: 0, quantity: 1 },
+    ]);
+    // One piece was refunded earlier with its gift; refunding the last piece sends back the other gift.
+    const refundedOne = [
+      {
+        ...summary('refund-sent', true),
+        items: [
+          { lineIndex: 0, quantity: 1, refund: true, autoGift: false },
+          { lineIndex: 1, quantity: 1, refund: false, autoGift: true },
+        ],
+      },
+    ];
+    assert.deepEqual(giftsBack(lines, [{ lineIndex: 0, quantity: 1 }], [1, 1, 3], [1, 0, 0], refundedOne), [
+      { lineIndex: 1, forLine: 0, quantity: 1 },
+    ]);
   });
 
   it('courier fee: the order fee, the box price when it was free, 0 when the store is at fault', () => {
@@ -372,9 +418,9 @@ describe('requestReturn input and building', () => {
     assert.equal(built.refundEgp, 580);
     assert.equal(built.feePaid, 'off-refund');
     assert.deepEqual(built.summaryItems, [
-      { lineIndex: 0, quantity: 1 },
-      { lineIndex: 1, quantity: 1 },
-      { lineIndex: 2, quantity: 1 },
+      { lineIndex: 0, quantity: 1, refund: false, autoGift: false },
+      { lineIndex: 1, quantity: 1, refund: true, autoGift: false },
+      { lineIndex: 2, quantity: 1, refund: false, autoGift: true },
     ]);
     assert.equal(built.customer.guest, false);
   });
@@ -440,6 +486,11 @@ describe('requestReturn input and building', () => {
         /in progress/,
       ],
       [{ items: [{ lineIndex: 0, quantity: 1, kind: 'return' }], refundTo: 'x' }, {}, /why/],
+      [
+        { items: [{ lineIndex: 1, quantity: 1, kind: 'different-size', size: 'm' }] },
+        {},
+        /no longer available/,
+      ],
       [
         {
           items: [{ lineIndex: 0, quantity: 1, kind: 'damaged', wants: 'send-another' }],
@@ -570,6 +621,38 @@ describe('return emails', () => {
     assert.match(email.html, /\?key=v{43}/);
     assert.doesNotMatch(email.html, /Send Photos on WhatsApp/);
     assert.match(email.text, /Your refund: EGP\s?580/);
+  });
+
+  it('a free exchange-only visit says Free, never cash at the door', () => {
+    const exchangeOnly = {
+      ...data,
+      items: [data.items[0]],
+      hasRefund: false,
+      storeFault: true,
+      itemsEgp: 0,
+      feeEgp: 0,
+      feePaid: 'free',
+      refundEgp: 0,
+    };
+    const request = readReturnForEmail('k7q2m9abc', exchangeOnly, null)!;
+    for (const kind of ['return-requested', 'store-return-request'] as const) {
+      const email = renderReturnEmail(kind, request, ctx);
+      assert.doesNotMatch(email.text, /cash at (your|the) door: Free/);
+      assert.match(email.text, /Courier fee: Free/);
+    }
+  });
+
+  it('a returned gift shows once even when its line is split over two refund items', () => {
+    const split = {
+      ...data,
+      items: [
+        { ...data.items[1], quantity: 1 },
+        { ...data.items[1], quantity: 1, askedLabel: 'Return · Other' },
+        data.items[2],
+      ],
+    };
+    const email = renderReturnEmail('return-requested', readReturnForEmail('k7q2m9abc', split, null)!, ctx);
+    assert.equal(email.html.split('Please hand it back with the Training Tee.').length - 1, 1);
   });
 
   it('damaged or wrong items get Send Photos on WhatsApp with the request ref', () => {

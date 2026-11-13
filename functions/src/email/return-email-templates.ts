@@ -163,7 +163,7 @@ function shopperTotals(request: ReturnEmailRequest): {
       after: request.cashAtDoorEgp > 0 ? [['Cash to the courier', formatEgp(request.cashAtDoorEgp)]] : [],
     };
   }
-  return { rows: [['Courier fee, cash at your door', fee]], after: [] };
+  return { rows: [[request.feeEgp > 0 ? 'Courier fee, cash at your door' : 'Courier fee', fee]], after: [] };
 }
 
 /** Dashed box for damaged or wrong items: send photos on WhatsApp (or reply with them). */
@@ -306,7 +306,7 @@ function staffTotals(request: ReturnEmailRequest): { rows: [string, string][]; a
       after: joinWith([to, cash], ' ') || null,
     };
   }
-  return { rows: [['Courier fee, cash at the door', fee]], after: null };
+  return { rows: [[request.feeEgp > 0 ? 'Courier fee, cash at the door' : 'Courier fee', fee]], after: null };
 }
 
 function staffCustomer(request: ReturnEmailRequest, ctx: OrderEmailContext): { html: string; text: string } {
@@ -352,8 +352,14 @@ function itemCards(request: ReturnEmailRequest, ctx: OrderEmailContext, staff: b
   const chosen = request.items.filter((item) => !item.autoGift);
   const gifts = request.items.filter((item) => item.autoGift);
   const width = chosen.length > 4 ? 128 : 520;
+  // Each returned gift shows once, under the first refunded card of the line it came with.
+  const giftOwner = new Map<number, ReturnEmailItem>();
+  for (const item of chosen) {
+    if (item.refund && !giftOwner.has(item.lineIndex)) giftOwner.set(item.lineIndex, item);
+  }
   const cards: ItemCard[] = chosen.map((item) => {
-    const own = gifts.filter((gift) => gift.forLine === item.lineIndex && item.refund);
+    const own =
+      giftOwner.get(item.lineIndex) === item ? gifts.filter((gift) => gift.forLine === item.lineIndex) : [];
     return {
       name: itemTitle(item),
       details: staff

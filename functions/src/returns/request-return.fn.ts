@@ -34,8 +34,6 @@ export const requestReturn = onCall(
     const db = getFirestore();
     const orderRef = db.collection('orders').doc(input.orderId);
     const requestRef = db.collection(RETURN_REQUESTS_COLLECTION).doc();
-    const shippingSnap = await db.doc(SHIPPING_DOC_PATH).get();
-    const shippingSettings = parseCheckoutShippingConfig(shippingSnap.data()).settings;
 
     const built = await db.runTransaction(async (tx) => {
       const orderSnap = await tx.get(orderRef);
@@ -50,6 +48,16 @@ export const requestReturn = onCall(
       const products = new Map(productSnaps.map((snap) => [snap.id, snap.exists ? snap.data() : undefined]));
       const pricing = isRecord(order['pricing']) ? order['pricing'] : {};
       const shipping = isRecord(pricing['shipping']) ? pricing['shipping'] : {};
+      // The box's normal price is only needed when the order's own delivery fee was 0.
+      const orderFee = shipping['priceEgp'];
+      let normalBoxFeeEgp = 0;
+      if (!(typeof orderFee === 'number' && orderFee > 0)) {
+        const shippingSnap = await tx.get(db.doc(SHIPPING_DOC_PATH));
+        normalBoxFeeEgp = normalEgyptBoxFee(
+          parseCheckoutShippingConfig(shippingSnap.data()).settings,
+          shipping['boxId'],
+        );
+      }
 
       const result = run(() =>
         buildReturnRequest({
@@ -58,7 +66,7 @@ export const requestReturn = onCall(
           order,
           input,
           products,
-          normalBoxFeeEgp: normalEgyptBoxFee(shippingSettings, shipping['boxId']),
+          normalBoxFeeEgp,
           nowMs: Date.now(),
         }),
       );

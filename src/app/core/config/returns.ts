@@ -203,6 +203,10 @@ export interface ReturnSummaryItem {
   /** Index in the order's `pricing.lines`. */
   readonly lineIndex: number;
   readonly quantity: number;
+  /** Pieces paid back in money (Return It, or Refund for Damaged / Wrong Item Sent). */
+  readonly refund: boolean;
+  /** A gift that came back with a refunded item. */
+  readonly autoGift: boolean;
 }
 
 /** One entry of the order's `returns` array (written only by the server). */
@@ -233,7 +237,12 @@ export function readReturnSummaries(raw: unknown): ReturnSummary[] {
         const lineIndex = item['lineIndex'];
         const quantity = item['quantity'];
         if (!isWhole(lineIndex) || !isWhole(quantity) || quantity < 1) continue;
-        items.push({ lineIndex, quantity });
+        items.push({
+          lineIndex,
+          quantity,
+          refund: item['refund'] === true,
+          autoGift: item['autoGift'] === true,
+        });
       }
     }
     out.push({
@@ -246,6 +255,18 @@ export function readReturnSummaries(raw: unknown): ReturnSummary[] {
     });
   }
   return out;
+}
+
+/**
+ * The order's raw `returns` array with one request's status changed (other fields and entries
+ * kept as they are). Every callable that moves a request uses this, so the summary always matches
+ * `returnRequests/{id}`.
+ */
+export function withReturnStatus(raw: unknown, requestId: string, status: ReturnStatus): unknown[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry: unknown) =>
+    isRecord(entry) && entry['id'] === requestId ? { ...entry, status } : entry,
+  );
 }
 
 // ── Who and when ────────────────────────────────────────────────────────────
@@ -386,48 +407,82 @@ export interface ReturnGiftBack {
 }
 
 /**
- * Gifts that come back with a refund. Gifts stay with the shopper on any exchange. On a refund of
- * some pieces of a bought line, each of its gift lines sends back
- * floor(refunded pieces × gift pieces ÷ line pieces), and every gift piece left when this request
- * takes the last pieces of the line. Never more than the gift pieces still left after the
- * shopper's own items on that gift line in this request.
+ * Gifts that come back with a refund. Gifts stay with the shopper on any exchange. Over all the
+ * order's requests, a bought line's refunded pieces bring back
+ * floor(refunded pieces × gift pieces ÷ line pieces) of each of its gift lines, and all of them
+ * once every piece of the line is refunded. This request sends back what that adds now, never
+ * more than the gift pieces still left after the shopper's own items on that gift line.
  *
  * `leftBefore`: pieces left on each line before this request (`piecesLeft`). `askedNow`: pieces
- * of each line the shopper put in this request (any kind). `refunds`: the refund items.
+ * of each line the shopper put in this request (any kind). `refunds`: this request's refund
+ * items. `returns`: the order's earlier requests (only those that hold pieces count).
  */
 export function giftsBack(
   lines: readonly ReturnOrderLine[],
   refunds: readonly { readonly lineIndex: number; readonly quantity: number }[],
   leftBefore: readonly number[],
   askedNow: readonly number[],
+  returns: readonly ReturnSummary[] = [],
 ): ReturnGiftBack[] {
-  const refundedByLine = new Map<number, number>();
+  const refundedNow = new Map<number, number>();
   for (const refund of refunds) {
-    refundedByLine.set(refund.lineIndex, (refundedByLine.get(refund.lineIndex) ?? 0) + refund.quantity);
+    refundedNow.set(refund.lineIndex, (refundedNow.get(refund.lineIndex) ?? 0) + refund.quantity);
   }
+  const refundedBefore = earlierPieces(returns, (item) => item.refund);
+  const giftsBefore = earlierPieces(returns, (item) => item.autoGift);
   const out: ReturnGiftBack[] = [];
-  for (const [lineIndex, refunded] of refundedByLine) {
+  for (const [lineIndex, now] of refundedNow) {
     const bought = lines[lineIndex];
-    if (!bought || bought.giftForLine !== null || bought.quantity < 1 || refunded < 1) continue;
-    const lastPieces = (askedNow[lineIndex] ?? 0) >= (leftBefore[lineIndex] ?? 0);
+    if (!bought || bought.giftForLine !== null || bought.quantity < 1 || now < 1) continue;
+    const refunded = Math.min(bought.quantity, (refundedBefore.get(lineIndex) ?? 0) + now);
     for (const gift of lines) {
       if (gift.giftForLine !== bought.index || gift.quantity < 1) continue;
+      const target =
+        refunded >= bought.quantity
+          ? gift.quantity
+          : Math.floor((refunded * gift.quantity) / bought.quantity);
+      const due = target - (giftsBefore.get(gift.index) ?? 0);
       const giftLeft = Math.max(0, (leftBefore[gift.index] ?? 0) - (askedNow[gift.index] ?? 0));
-      const share = lastPieces ? giftLeft : Math.floor((refunded * gift.quantity) / bought.quantity);
-      const quantity = Math.min(giftLeft, share);
+      const quantity = Math.min(giftLeft, due);
       if (quantity > 0) out.push({ lineIndex: gift.index, forLine: bought.index, quantity });
     }
   }
   return out;
 }
 
+/** Pieces per line in earlier requests that hold pieces, counting only the items `pick` keeps. */
+function earlierPieces(
+  returns: readonly ReturnSummary[],
+  pick: (item: ReturnSummaryItem) => boolean,
+): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const entry of returns) {
+    if (!returnHoldsPieces(entry.status)) continue;
+    for (const item of entry.items) {
+      if (pick(item)) out.set(item.lineIndex, (out.get(item.lineIndex) ?? 0) + item.quantity);
+    }
+  }
+  return out;
+}
+
+/** Refunded pieces per line in the order's earlier requests that hold pieces. */
+export function refundedBefore(returns: readonly ReturnSummary[]): Map<number, number> {
+  return earlierPieces(returns, (item) => item.refund);
+}
+
 // ── Money ───────────────────────────────────────────────────────────────────
 
-/** What was paid for `quantity` pieces of the line: lineDisplay ÷ line pieces × pieces (whole EGP). */
-export function refundEgpFor(line: ReturnOrderLine, quantity: number): number {
+/**
+ * What was paid for `quantity` pieces of the line: lineDisplay ÷ line pieces × pieces (whole EGP).
+ * `alreadyRefunded`: pieces of this line refunded before (earlier requests or items).
+ */
+export function refundEgpFor(line: ReturnOrderLine, quantity: number, alreadyRefunded = 0): number {
   if (line.quantity < 1 || quantity < 1 || line.giftForLine !== null) return 0;
-  if (quantity >= line.quantity) return line.paidEgp;
-  return Math.round((line.paidEgp * quantity) / line.quantity);
+  // Rounded on the running total, so every refund of the line together is exactly what was paid.
+  const share = (pieces: number): number =>
+    pieces >= line.quantity ? line.paidEgp : Math.round((line.paidEgp * pieces) / line.quantity);
+  const before = Math.max(0, Math.min(line.quantity, alreadyRefunded));
+  return share(before + quantity) - share(before);
 }
 
 export interface CourierFeeInput {

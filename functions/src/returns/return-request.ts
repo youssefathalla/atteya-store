@@ -16,6 +16,7 @@ import {
   readReturnOrderLines,
   readReturnSummaries,
   refundEgpFor,
+  refundedBefore,
   returnEligibility,
   returnMoney,
   returnReasonLabel,
@@ -29,6 +30,7 @@ import {
   type ReturnKind,
   type ReturnOrderLine,
   type ReturnReason,
+  type ReturnSummaryItem,
   type ReturnWants,
 } from '../store/returns.js';
 
@@ -259,7 +261,7 @@ export interface BuiltReturnRequest {
   readonly cashAtDoorEgp: number;
   readonly deliveredAtMs: number | null;
   /** The order's `returns` summary entry, without its time stamp. */
-  readonly summaryItems: readonly { readonly lineIndex: number; readonly quantity: number }[];
+  readonly summaryItems: readonly ReturnSummaryItem[];
 }
 
 export interface BuildReturnInput {
@@ -293,6 +295,7 @@ export function buildReturnRequest(build: BuildReturnInput): BuiltReturnRequest 
 
   const lines = readReturnOrderLines(pricing['lines']);
   const leftBefore = piecesLeft(lines, returns);
+  const refunded = refundedBefore(returns);
   const askedNow = lines.map(() => 0);
   const items: StoredReturnItem[] = [];
 
@@ -301,7 +304,9 @@ export function buildReturnRequest(build: BuildReturnInput): BuiltReturnRequest 
     if (!line || line.quantity < 1 || !line.productId)
       throw new ReturnRequestError('invalid-argument', TRY_AGAIN);
     askedNow[line.index] = (askedNow[line.index] ?? 0) + item.quantity;
-    items.push(storedItem(line, item, build.products));
+    const stored = storedItem(line, item, build.products, refunded.get(line.index) ?? 0);
+    if (stored.refund) refunded.set(line.index, (refunded.get(line.index) ?? 0) + item.quantity);
+    items.push(stored);
   }
   for (const line of lines) {
     if ((askedNow[line.index] ?? 0) > (leftBefore[line.index] ?? 0)) {
@@ -313,7 +318,7 @@ export function buildReturnRequest(build: BuildReturnInput): BuiltReturnRequest 
   }
 
   const refunds = items.filter((item) => item.refund);
-  for (const back of giftsBack(lines, refunds, leftBefore, askedNow)) {
+  for (const back of giftsBack(lines, refunds, leftBefore, askedNow, returns)) {
     const gift = lines[back.lineIndex]!;
     const bought = lines[back.forLine]!;
     items.push({
@@ -349,9 +354,6 @@ export function buildReturnRequest(build: BuildReturnInput): BuiltReturnRequest 
   });
   const money = returnMoney(itemsEgp, fee, hasRefund);
 
-  const summary = new Map<number, number>();
-  for (const item of items) summary.set(item.lineIndex, (summary.get(item.lineIndex) ?? 0) + item.quantity);
-
   return {
     ref: returnRef(build.requestId),
     orderId: build.orderId,
@@ -368,7 +370,12 @@ export function buildReturnRequest(build: BuildReturnInput): BuiltReturnRequest 
     refundEgp: money.refundEgp,
     cashAtDoorEgp: money.cashAtDoorEgp,
     deliveredAtMs,
-    summaryItems: [...summary].map(([lineIndex, quantity]) => ({ lineIndex, quantity })),
+    summaryItems: items.map((item) => ({
+      lineIndex: item.lineIndex,
+      quantity: item.quantity,
+      refund: item.refund,
+      autoGift: item.autoGift,
+    })),
   };
 }
 
@@ -376,6 +383,7 @@ function storedItem(
   line: ReturnOrderLine,
   item: ReturnItemInput,
   products: BuildReturnInput['products'],
+  alreadyRefunded: number,
 ): StoredReturnItem {
   const isGift = line.giftForLine !== null;
   if (isGift && item.kind !== 'different-size' && item.kind !== 'different-colour') {
@@ -402,7 +410,7 @@ function storedItem(
     imagePath: line.imagePath,
     newProductId: null,
     newSelection: null,
-    refundEgp: refund ? refundEgpFor(line, item.quantity) : 0,
+    refundEgp: refund ? refundEgpFor(line, item.quantity, alreadyRefunded) : 0,
   };
 
   switch (item.kind) {
@@ -415,7 +423,13 @@ function storedItem(
     case 'different-size': {
       const product = products.get(line.productId);
       const current = line.selection['size'];
-      if (!product || !current) {
+      if (!product || product['published'] === false) {
+        throw new ReturnRequestError(
+          'failed-precondition',
+          'This item is no longer available in other sizes. Please message us on WhatsApp.',
+        );
+      }
+      if (!current) {
         throw new ReturnRequestError(
           'failed-precondition',
           'This item comes in one size only. Please message us on WhatsApp.',

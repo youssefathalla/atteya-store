@@ -1,7 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions, requireAppCheck } from '../auth/callable-options.js';
-import { nextReturnStatuses, isReturnStatus } from '../store/returns.js';
+import { isReturnStatus, nextReturnStatuses, withReturnStatus } from '../store/returns.js';
 import { isOrderShopper, RETURN_REQUESTS_COLLECTION } from './return-access.js';
 
 export interface CancelReturnRequestResponse {
@@ -64,12 +64,7 @@ export const cancelReturnRequest = onCall(
         cancelledBy: 'shopper',
         updatedAt: now,
       });
-      const returns = Array.isArray(order['returns']) ? order['returns'] : [];
-      tx.update(orderRef, {
-        returns: returns.map((entry: unknown) =>
-          isRecord(entry) && entry['id'] === requestId ? { ...entry, status: 'cancelled' } : entry,
-        ),
-      });
+      tx.update(orderRef, { returns: withReturnStatus(order['returns'], requestId, 'cancelled') });
       return true;
     });
     return { requestId, status: 'cancelled', changed };
