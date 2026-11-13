@@ -89,21 +89,9 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 ### 🖼️ Image Delivery & Optimization Architecture (ImageKit + Firebase Storage + Cloud Functions)
 
-- **Proxy Architecture**: Master media files reside permanently in Firebase Cloud Storage. ImageKit acts as an external Web Folder origin (`https://storage.googleapis.com/<bucket>/`), intercepting requests to perform real-time resizing, WebP/AVIF compression, and global CDN delivery. That Google Cloud Storage URL is authorized by bucket IAM, not by `firebase/storage.rules`. Shop-category images are stored under `categories/` and follow the same path (`NgOptimizedImage` → ImageKit, then `buildStorageUrl()` on failure). The public single-object `get` in storage rules (all four image folders: `hero/`, `categories/`, `products/`, `brands/`) only covers Firebase SDK and `firebasestorage.googleapis.com` reads; storefront images do not depend on it. Folder listing stays admin-only. Photos from the one-time EasyOrders copy live under `products/<docId>/<sha1 of the source URL>.<ext>`. DigitalOcean serves some JPEGs as `Content-Type: image/jpg`; `canonicalContentType()` in `functions/src/images/safe-image-fetch.ts` treats that as `image/jpeg` before the type and magic-byte checks.
-- **Environment Isolation**:
-  - **Dev (`environment.ts`)**: `https://ik.imagekit.io/atteyastore/dev/` fetching from `atteya-store-dev.firebasestorage.app`.
-  - **Prod (`environment.prod.ts`)**: `https://ik.imagekit.io/atteyastore/` fetching from `attiya-store.firebasestorage.app`.
-  - Dev uploads, previews, and tests never collide with or affect production assets or cache.
-- **Angular Image & Fallback Standards**:
-  - Provided via `provideImageKitLoader(environment.imageKitUrl)` in `app.config.ts`.
-  - **Strictly use `NgOptimizedImage` (`[ngSrc]`) paired with `AppImageFallbackDirective` (`[appImageFallback]`)** for all storefront and preview media. Raw `<img [src]>` for media assets is banned.
-  - `[appImageFallback]` automatically renders a monochrome `.skeleton` shimmer while loading and fails over once to `buildStorageUrl()` if ImageKit CDN fails or is still syncing.
-  - Never build Storage or ImageKit URLs by hand; always use `normalizeImageKitPath()`, `buildImageKitUrl()`, and `buildStorageUrl()` from `@shared/utils/image`.
-- **Media Uploads, Galleries & Validation**:
-  - Use `ImageAssetSchema` / `ImageGallerySchema` (`@shared/schemas`) with required SEO alt text (max 125 chars) and raster formats only (JPG, PNG, WebP, AVIF — SVG is banned).
-  - Use `<app-image-picker>` (`@shared/ui/image-picker`) for single images and `<app-image-gallery-editor>` (`@shared/ui/image-gallery-editor`) for multi-image galleries (max 8 images, index 0 = Main image, pre-generated ID folder `products/<productId>`).
-  - Use `ImageSourceService` (`@core/services/storage`) for validating uploads, probing ImageKit via CORS-safe `new Image()`, and importing external https links via the `importImageFromUrl` Callable Cloud Function (`functions/`). The browser does not fetch that URL itself.
-  - Track uncommitted session uploads per draft using `StorageAssetTracker` (`@core/services/storage`).
+- **Image storage, the ImageKit proxy, dev and prod image hosts, uploads, galleries and image import**: read the `image-delivery` skill.
+- **Strictly use `NgOptimizedImage` (`[ngSrc]`) paired with `AppImageFallbackDirective` (`[appImageFallback]`)** for all storefront and preview media. Raw `<img [src]>` for media assets is banned.
+- Never build Storage or ImageKit URLs by hand; always use `normalizeImageKitPath()`, `buildImageKitUrl()`, and `buildStorageUrl()` from `@shared/utils/image`.
 - **Skeleton Placeholders vs Blocking Spinners**:
   - Use `<app-skeleton>` (`@shared/ui/skeleton`) or `.skeleton` for layout/content placeholders (`@defer` placeholders, `resource.isLoading()` cards/lists/text) to prevent Cumulative Layout Shift (CLS).
   - Reserve `<mat-progress-spinner>` and `<app-loader>` for active button actions or blocking overlays.
@@ -233,18 +221,7 @@ Topic skills (moved out of this file, <KEY>-282; one fact per line, add new rule
 - The Firebase Functions SDK ends every callable error message with the HTTP status (`"One item in your bag is out of stock. [400]"`). Show a callable's message only through `callableMessage(error)` (`@shared/utils/firebase/firebase-errors`), which removes that suffix and returns null for the SDK's own status text so the page shows its fallback.
 - Firestore `set` with `{ merge: true }` deep-merges nested map fields. Do not patch scoped `settings/catalog` counts with dotted top-level keys in `set()` (for example `categories.<id>`); Firestore stores literal field names and the real `categories`/`brands`/`types` maps stop updating.
 
-### Catalogue, Search, Offers, Shipping, Checkout and Orders
-
-Each topic lives in its own skill (one fact per line); read the one you touch first:
-
-- **Categories, products, stock fields, the product editor and colours, the product page, size guides, colour cards, players, Shop tabs, admin product search, Algolia search and the catalogue data scripts**: read the `catalogue` skill.
-- **Admin Categories & Brands (add, edit, hide, delete, deleted built-ins, reorder, add to the menu)**: read the `categories-brands-admin` skill.
-- **Offers and the pricing engine**: read the `offers` skill.
-- **Shipping boxes, weights, fee to be agreed, prices outside Egypt**: read the `shipping-and-currency` skill.
-- **Bag, checkout, payments (InstaPay, Card, Cash on Delivery, Bank Transfer), guest checkout, store info, order stage, order status and admin Orders**: read the `checkout-and-orders` skill.
-- **Order emails and their design**: read the `order-emails` skill.
-- **Customers data and the admin Customers pages**: read the `customers-admin` skill.
-- **Allowed hosts, first paint hints, service worker**: read the `seo-and-hosting` skill.
+### Deploy
 
 - **Deploy**: the web app ships through App Hosting rollouts (GitHub-connected backend `atteya-store`; production sets `APP_HOSTING_ENV=prod` in `apphosting.production.yaml`). Default Firestore database `locationId` is `europe-west3` on both Firebase projects. `npm run fb:deploy:dev|prod` deploys Firestore, Storage and Functions only. `APP_CHECK_ENFORCED` is read at runtime by `requireAppCheck` inside `requireRole`.
 - **Deploy safety**: every Firebase deploy runs through `scripts/deploy.mjs` via `npm run fb:*`, which runs the branch guard (`scripts/firebase-guard.mjs`: clean tree on the project's deploy branch, matching its origin; `DEPLOY_BRANCH` is `develop` for dev and `main` for prod), the index check when indexes are included, a deploy summary, and (for prod) a typed `prod` confirmation. Use `npm run fb:deploy:dev|prod` for big features that change several of rules, indexes, storage, and functions at once; use the smaller `fb:indexes:*`, `fb:rules:*`, and `fb:fn:*` scripts for single-area changes. Read-only index reports: `npm run fb:indexes:check:dev|prod`. Do not use raw `firebase deploy`. Answer **N** to every Firebase delete prompt (indexes or functions) unless that exact deletion was agreed in the plan. Never pass `--force`. `firebase/firestore.indexes.json` is the single source of truth — add every new query index there in the same PR, never only via the console error link. **Who deploys and applies:** On dev (`atteya-store-dev`), the local manager agent runs data scripts (dry run first, shows the result, then `--apply`), admin tools such as Rebuild search when it can, and `npm run fb:*:dev` deploys after a change merges. On prod (`attiya-store`), it only does so when Youssef says so in chat for that exact step; otherwise Youssef runs prod himself. Cloud build sessions (the ticket routine) never run Firebase commands or `--apply`: they have no credentials. If a dry run shows anything unexpected (more or fewer documents than planned, products or fields the plan didn't name), stop and ask Youssef before `--apply`.

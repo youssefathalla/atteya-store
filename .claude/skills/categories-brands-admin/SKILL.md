@@ -1,6 +1,6 @@
 ---
 name: categories-brands-admin
-description: The admin Categories & Brands page: rows, show and hide, add, edit, delete and deleted built-ins, reordering, adding a new category or brand to the menu, and the callables behind it. Read it before changing catalog-manager or the saveCategory, saveBrand, deleteCategory, deleteBrand or reorderCatalog callables.
+description: "The admin Categories & Brands page: rows, show and hide, add, edit, delete and deleted built-ins, reordering, adding a new category or brand to the menu, and the callables behind it. Read it before changing catalog-manager or the saveCategory, saveBrand, deleteCategory, deleteBrand or reorderCatalog callables."
 ---
 
 # Categories and Brands Admin
