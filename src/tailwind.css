@@ -15,6 +15,7 @@
 @import './styles/tailwind/components/product-card';
 @import './styles/tailwind/components/footer';
 @import './styles/tailwind/components/product-page';
+@import './styles/tailwind/components/bundle-page';
 @import './styles/tailwind/components/home-product-rows';
 @import './styles/tailwind/components/shop';
 @import './styles/tailwind/components/side-panel';
@@ -25,6 +26,7 @@
 @import './styles/tailwind/components/deals';
 @import './styles/tailwind/components/order-confirmation';
 @import './styles/tailwind/components/admin-orders';
+@import './styles/tailwind/components/admin-customers';
 @import './styles/tailwind/components/admin-offers';
 @import './styles/tailwind/components/admin-catalog';
 @import './styles/tailwind/components/product-editor';

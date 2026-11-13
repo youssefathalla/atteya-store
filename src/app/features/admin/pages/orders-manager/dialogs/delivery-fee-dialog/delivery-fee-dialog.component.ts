@@ -19,30 +19,32 @@ const MAX_FEE_EGP = 100_000;
   imports: [MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
     <h2 mat-dialog-title class="font-title-lg font-bold!">
-      {{ data.currentFeeEgp === null ? 'Set' : 'Change' }} delivery fee for {{ data.orderRef }}
+      {{ data.currentFeeEgp === null ? 'Set' : 'Change' }} Delivery Fee for {{ data.orderRef }}
     </h2>
     <form (submit)="$event.preventDefault(); save()">
-      <mat-dialog-content class="elements-start-col gap-3">
-        <p class="font-body-md opacity-85">
-          Enter the fee you agreed with the customer on WhatsApp. Their order page and the amount to pay
-          update right away, and we email them the fee.
-        </p>
-        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-          <mat-label>Delivery fee (EGP)</mat-label>
-          <input
-            matInput
-            type="text"
-            inputmode="numeric"
-            autocomplete="off"
-            [value]="fee()"
-            (input)="fee.set($any($event.target).value)"
-            [attr.aria-invalid]="error() ? 'true' : null"
-          />
-          <!-- Plain input (no form control), so mat-error would never show: the hint carries it. -->
-          <mat-hint [attr.role]="error() ? 'alert' : null">
-            {{ error() || 'Whole pounds. Use 0 for free delivery.' }}
-          </mat-hint>
-        </mat-form-field>
+      <mat-dialog-content>
+        <div class="elements-start-col gap-3">
+          <p class="font-body-md opacity-85">
+            Enter the fee you agreed with the customer on WhatsApp. Their order page and the amount to pay
+            update right away, and we email them the fee.
+          </p>
+          <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+            <mat-label>Delivery fee (EGP)</mat-label>
+            <input
+              matInput
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              [value]="fee()"
+              (input)="fee.set($any($event.target).value)"
+              [attr.aria-invalid]="error() ? 'true' : null"
+            />
+            <!-- Plain input (no form control), so mat-error would never show: the hint carries it. -->
+            <mat-hint [attr.role]="error() ? 'alert' : null">
+              {{ error() || 'Whole pounds. Use 0 for free delivery.' }}
+            </mat-hint>
+          </mat-form-field>
+        </div>
       </mat-dialog-content>
       <mat-dialog-actions align="end" class="gap-2 px-6 pb-4">
         <button matButton="text" type="button" [mat-dialog-close]="undefined">Cancel</button>

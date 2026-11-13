@@ -14,7 +14,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 import { displayDecimals, toDisplayAmount, type Offer } from '@core/services/offers/engine';
-import { offerShopSubtitle, offerTitleVisible } from '@core/services/offers/offer-shop';
+import { bundleOfferLink, offerShopSubtitle, offerTitleVisible } from '@core/services/offers/offer-shop';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { ShopCategoriesService } from '@core/services/products/shop-categories.service';
@@ -212,6 +212,13 @@ export class ShopPage {
       );
     }
     return this.offerEnded() ? 'This offer has ended. Here is everything else in the store.' : null;
+  });
+
+  /** A Bundle & Save offer's heading links to its own page, where the whole bundle is picked (ATS-279). */
+  readonly headingLink = computed(() => {
+    const offer = this.#titledOffer();
+    if (!offer || offer.reward.kind !== 'bundleSet') return null;
+    return { label: 'Build Your Bundle', link: bundleOfferLink(offer) };
   });
 
   readonly pageTitle = computed(() => {

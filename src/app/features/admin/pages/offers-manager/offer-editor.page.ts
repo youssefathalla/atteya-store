@@ -86,6 +86,7 @@ import {
   type RewardPickerKind,
 } from './models/offer-admin.model';
 import { OffersAdminService } from './services/offers-admin.service';
+import { modelNames } from './models/offer-product-picks';
 
 type ProductsMode = 'all' | 'some';
 
@@ -184,6 +185,7 @@ export class OfferEditorPageComponent implements OnInit {
     categories: new Map(this.categories().map((category) => [category.id, category.name])),
     brands: new Map(this.brands().map((brand) => [brand.id, brand.name])),
     products: new Map(this.products().map((product) => [product.id, product.name])),
+    models: modelNames(this.products()),
   }));
 
   readonly pricedEntries = computed(() =>

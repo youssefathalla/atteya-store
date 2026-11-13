@@ -293,7 +293,7 @@ export class OffersManagerPageComponent implements OnInit {
       ConfirmDialogComponent,
       {
         data: {
-          title: 'Delete archived offer',
+          title: 'Delete Archived Offer',
           message: `Permanently delete "${offer.name}"? This cannot be undone.`,
           confirmText: 'Delete',
           cancelText: 'Cancel',

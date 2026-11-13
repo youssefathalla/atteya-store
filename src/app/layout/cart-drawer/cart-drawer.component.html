@@ -255,8 +255,8 @@
                     <span class="bag-card__strip-actions">
                       <a
                         matButton="outlined"
-                        routerLink="/shop"
-                        [queryParams]="box.shopQuery"
+                        [routerLink]="box.link.path"
+                        [queryParams]="box.link.query"
                         (click)="drawerService.close()"
                       >
                         {{ box.button }}

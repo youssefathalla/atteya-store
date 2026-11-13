@@ -30,7 +30,7 @@ export const CONDITION_FIELD_OPTIONS: readonly ConditionFieldOption[] = [
   { id: 'type', label: 'Product type' },
   { id: 'colors', label: 'Colour' },
   { id: 'sizes', label: 'Size' },
-  { id: 'modelGroup', label: 'Model group' },
+  { id: 'modelGroup', label: 'Product (all colours)' },
   { id: 'tags', label: 'Tag' },
   { id: 'productId', label: 'Specific product' },
   { id: 'price', label: 'Price (EGP)' },
@@ -131,7 +131,7 @@ export function readFreeItem(reward: BuyXGetYReward): {
   const atoms = setAtoms(reward.getConditions);
   const mode: FreeItemMode = !reward.getConditions
     ? 'cheapest'
-    : atoms.some((atom) => atom.field === 'productId')
+    : atoms.some((atom) => atom.field === 'productId' || atom.field === 'modelGroup')
       ? 'products'
       : 'categoryBrand';
   return {
@@ -661,16 +661,20 @@ export function defaultDealFor(kind: RewardPickerKind): {
   }
 }
 
-/** A field the Include / Leave out tags can hold. */
-export type TargetField = 'categoryIds' | 'brandId' | 'productId';
+/**
+ * A field the Include / Leave out tags can hold. `modelGroup` is a product picked with All colours
+ * (ATS-270), `productId` a product with one colour or the colours ticked.
+ */
+export type TargetField = 'categoryIds' | 'brandId' | 'modelGroup' | 'productId';
 
 export const TARGET_FIELD_LABEL: Readonly<Record<TargetField, string>> = {
   categoryIds: 'Category',
   brandId: 'Brand',
+  modelGroup: 'Product',
   productId: 'Product',
 };
 
-const TARGET_FIELDS: readonly TargetField[] = ['categoryIds', 'brandId', 'productId'];
+const TARGET_FIELDS: readonly TargetField[] = ['categoryIds', 'brandId', 'modelGroup', 'productId'];
 
 /** One Include or Leave out tag: "Category T-shirts". */
 export interface TargetTag {
@@ -739,11 +743,19 @@ export interface CatalogNames {
   readonly categories: ReadonlyMap<string, string>;
   readonly brands: ReadonlyMap<string, string>;
   readonly products: ReadonlyMap<string, string>;
+  /** Product name per model (`modelGroup`), for a product picked with All colours. */
+  readonly models: ReadonlyMap<string, string>;
 }
 
 export function targetName(tag: TargetTag, names: CatalogNames): string {
   const map =
-    tag.field === 'categoryIds' ? names.categories : tag.field === 'brandId' ? names.brands : names.products;
+    tag.field === 'categoryIds'
+      ? names.categories
+      : tag.field === 'brandId'
+        ? names.brands
+        : tag.field === 'modelGroup'
+          ? names.models
+          : names.products;
   return map.get(tag.value) ?? `${TARGET_FIELD_LABEL[tag.field]} not found`;
 }
 
@@ -763,6 +775,7 @@ function atomValueName(field: OfferConditionField, value: string, names: Catalog
   if (field === 'categoryIds') return names.categories.get(value) ?? value;
   if (field === 'brandId') return names.brands.get(value) ?? value;
   if (field === 'productId') return names.products.get(value) ?? value;
+  if (field === 'modelGroup') return names.models.get(value) ?? value;
   return value;
 }
 

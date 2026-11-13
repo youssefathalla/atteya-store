@@ -1,0 +1,145 @@
+<div class="elements-start-col items-stretch! gap-4 w-full">
+  <div>
+    <a matButton="text" routerLink="/admin/customers">
+      <mat-icon name="arrow_back" />
+      <span>All Customers</span>
+    </a>
+  </div>
+
+  @if (notFound()) {
+    <app-error-page kind="not-found" />
+  } @else if (failed()) {
+    <div class="surface-card p-5 grid gap-3 @3xl:justify-items-start" role="alert">
+      <p class="font-body-md">We couldn't load this customer. Check your connection and try again.</p>
+      <button matButton="outlined" type="button" (click)="customerResource.reload()">Try Again</button>
+    </div>
+  } @else if (view(); as v) {
+    <section class="customer-hero" aria-label="Customer">
+      <div class="elements-start gap-4 min-w-0">
+        <span class="customer-hero__avatar" aria-hidden="true">{{ v.initial }}</span>
+        <div class="elements-start-col gap-1 min-w-0">
+          <div class="elements-start flex-wrap gap-2 min-w-0">
+            <h1 class="font-headline-sm font-bold! break-words" dir="auto">{{ v.name }}</h1>
+            <span class="customer-hero__pill" [class.customer-hero__pill--solid]="v.customer.hasAccount">
+              {{ v.customer.hasAccount ? 'Account' : 'Guest' }}
+            </span>
+            @if (v.returning) {
+              <span class="customer-hero__pill">Returning</span>
+            }
+          </div>
+          @if (v.contact) {
+            <p class="font-body-md wrap-anywhere" dir="auto">{{ v.contact }}</p>
+          }
+          @if (v.since) {
+            <p class="font-body-sm customer-hero__muted">{{ v.since }}</p>
+          }
+        </div>
+      </div>
+
+      @if (v.whatsappUrl || v.phone) {
+        <div class="customer-hero__actions">
+          @if (v.whatsappUrl; as url) {
+            <a
+              class="customer-hero__button customer-hero__button--solid"
+              [href]="url"
+              target="_blank"
+              rel="noopener"
+            >
+              <span>Message on WhatsApp</span>
+            </a>
+          }
+          @if (v.phone) {
+            <button type="button" class="customer-hero__button" (click)="copyPhone(v.phone)">
+              <mat-icon name="call" />
+              <span>Copy Phone</span>
+            </button>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="grid grid-cols-2 @3xl:grid-cols-4 gap-3" aria-label="Customer totals">
+      <div class="customer-stat">
+        <span class="customer-stat__label">Orders</span>
+        <span class="customer-stat__value">{{ v.customer.orderCount }}</span>
+        <span class="customer-stat__note">{{ v.orderMix }}</span>
+      </div>
+      <div class="customer-stat">
+        <span class="customer-stat__label">Spent</span>
+        <span class="customer-stat__value">{{ v.customer.spentEgp | egpPrice }}</span>
+        <span class="customer-stat__note">Confirmed, shipped and delivered</span>
+      </div>
+      <div class="customer-stat">
+        <span class="customer-stat__label">Average order</span>
+        <span class="customer-stat__value">{{ v.customer.averageOrderEgp | egpPrice }}</span>
+        <span class="customer-stat__note">Across completed orders</span>
+      </div>
+      <div class="customer-stat">
+        <span class="customer-stat__label">Last order</span>
+        <span class="customer-stat__value">{{ v.lastOrder ?? '—' }}</span>
+        <span class="customer-stat__note">{{ v.firstOrder }}</span>
+      </div>
+    </section>
+
+    <div class="grid gap-4 items-start @5xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+      <app-customer-orders-card
+        [rows]="orderRows()"
+        [count]="v.customer.orderCount"
+        [firstLoading]="ordersFirstLoading()"
+        [moreLoading]="ordersMoreLoading()"
+        [failed]="ordersFailed()"
+        [hasMore]="hasMoreOrders()"
+        (showMore)="showMoreOrders()"
+        (retry)="retryOrders()"
+      />
+
+      <div class="elements-start-col items-stretch! gap-4 min-w-0">
+        <section
+          class="surface-card p-6 elements-start-col items-stretch! gap-5"
+          aria-labelledby="customer-addresses-title"
+        >
+          <h2 id="customer-addresses-title" class="font-title-md font-bold!">Delivery Addresses</h2>
+          @if (accountAddressFailed()) {
+            <div class="grid gap-2 justify-items-start" role="alert">
+              <p class="font-body-sm">We couldn't load the address saved on the account.</p>
+              <button matButton="outlined" type="button" (click)="accountAddressResource.reload()">
+                Try Again
+              </button>
+            </div>
+          }
+          @if (addressesLoading() && addresses().length === 0) {
+            <app-skeleton class="h-20 w-full" />
+          } @else if (addresses().length === 0) {
+            <p class="font-body-md text-on-surface-variant">No delivery address yet.</p>
+          } @else {
+            <ul class="elements-start-col items-stretch! gap-3">
+              @for (address of addresses(); track address.key) {
+                <li class="customer-address">
+                  <address class="not-italic elements-start-col gap-0.5">
+                    @for (line of address.lines; track $index) {
+                      <span class="break-words" dir="auto" [class.font-bold!]="$first">{{ line }}</span>
+                    }
+                  </address>
+                  <span class="font-body-sm text-on-surface-variant">{{ address.label }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+
+        <app-customer-note-card [customerId]="customerId()" />
+      </div>
+    </div>
+  } @else {
+    <div class="elements-start-col items-stretch! gap-4" aria-hidden="true">
+      <app-skeleton class="h-36 w-full" />
+      <div class="grid grid-cols-2 @3xl:grid-cols-4 gap-3">
+        <app-skeleton class="h-24 w-full" />
+        <app-skeleton class="h-24 w-full" />
+        <app-skeleton class="h-24 w-full" />
+        <app-skeleton class="h-24 w-full" />
+      </div>
+      <app-skeleton class="h-64 w-full" />
+    </div>
+  }
+</div>

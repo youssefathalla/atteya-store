@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
+import type { OfferLink } from '@core/services/offers/offer-shop';
 import type { ShopTab, ShopTabId } from '../../models/shop.model';
 
 @Component({
@@ -16,6 +17,8 @@ export class ShopHeaderComponent {
   readonly title = input.required<string>();
   /** One line under the title, e.g. "The cheapest one is free." on an offer's page. */
   readonly subtitle = input<string | null>(null);
+  /** A link under the subtitle, e.g. a Bundle & Save offer's "Build Your Bundle" (ATS-279). */
+  readonly headingLink = input<{ readonly label: string; readonly link: OfferLink } | null>(null);
   readonly activeTab = input.required<ShopTabId>();
   /** All + the shown top-level categories (`shopTabsFrom()`). */
   readonly tabs = input.required<readonly ShopTab[]>();

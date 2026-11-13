@@ -20,7 +20,12 @@ import { bagLineVariant, type BagPricingProduct, priceBag } from '@core/services
 import { giftCardColours, giftCardName } from '@core/services/cart/gift-card-label';
 import type { CartLineDraft } from '@core/services/cart/cart.model';
 import { CurrencyService } from '@core/services/currency/currency.service';
-import { canShopOffer, offerTitleVisible } from '@core/services/offers/offer-shop';
+import {
+  bundleOfferLink,
+  canShopOffer,
+  type OfferLink,
+  offerTitleVisible,
+} from '@core/services/offers/offer-shop';
 import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
 import {
   displayDecimals,
@@ -89,6 +94,7 @@ import {
 import {
   bundleSaveForProduct,
   bundleSaveHeaderSaving,
+  bundleSaveStripText,
   bundleSavePieces,
   bundleSaveSizeStepKey,
   bundleSaveSizeFits,
@@ -131,10 +137,13 @@ const MAX_BUNDLE_SAVE_READ = 60;
 /** Offer ids are Firestore document ids; anything else never goes into a search filter. */
 const OFFER_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
-/** One offer line under the price; `shopOfferId` makes it a link to that offer's Shop page. */
+/**
+ * One offer line under the price; `link` makes it a link: a Bundle price offer's Shop page, or a
+ * Bundle & Save offer's own page with this product picked (`/bundle/<id>?product=<id>`, ATS-279).
+ */
 interface ProductOfferLine {
   readonly text: string;
-  readonly shopOfferId: string | null;
+  readonly link: OfferLink | null;
 }
 
 @Component({
@@ -430,11 +439,19 @@ export class ProductComponent {
         if (offer && !offerTitleVisible(offer, country)) continue;
         const title = offer?.title.trim() || badge.text;
         if (lines.some((line) => line.text === title) || (hideEgp && /\bEGP\b/.test(title))) continue;
-        // A Bundle price or Bundle & Save line opens the offer's Shop page, where the shopper
-        // picks the other pieces.
-        const bundle = kind === 'bundlePrice' || kind === 'bundleSet';
-        const shopOfferId = offer && bundle && canShopOffer(offer) ? offer.id : null;
-        lines.push({ text: title, shopOfferId });
+        // A Bundle price line opens the offer's Shop page and a Bundle & Save line the offer's own
+        // page with this product already picked; there the shopper picks the other pieces.
+        // The Bundle & Save offer this product is in shows as the black strip instead (ATS-281).
+        if (offer && kind === 'bundleSet' && offer.id === this.bundleStrip()?.offerId) continue;
+        let link: OfferLink | null = null;
+        if (offer && kind === 'bundleSet') {
+          const base = bundleOfferLink(offer);
+          const productId = this.product()?.id;
+          link = productId ? { ...base, query: { product: productId } } : base;
+        } else if (offer && kind === 'bundlePrice' && canShopOffer(offer)) {
+          link = bundleOfferLink(offer);
+        }
+        lines.push({ text: title, link });
         continue;
       }
       shown.push(badge.text);
@@ -747,6 +764,25 @@ export class ProductComponent {
         (!!a && !!b && a.ownSlot === b.ownSlot && JSON.stringify(a.offer) === JSON.stringify(b.offer)),
     },
   );
+
+  /**
+   * The black Bundle & Save strip under the price (ATS-281): one link to the offer's page with
+   * this product already picked. Null when the product is in no Bundle & Save offer it can show.
+   */
+  readonly bundleStrip = computed<{
+    readonly offerId: string;
+    readonly text: string;
+    readonly link: OfferLink;
+  } | null>(() => {
+    const bundle = this.bundleSave();
+    const id = this.product()?.id;
+    if (!bundle || !id) return null;
+    return {
+      offerId: bundle.offer.id,
+      text: bundleSaveStripText(bundle, (egp) => this.#money(egp)),
+      link: { ...bundleOfferLink(bundle.offer), query: { product: id } },
+    };
+  });
 
   /** What the section's product read depends on; plain values, so a price or stock change reads nothing again. */
   readonly #bundleSaveReadKey = computed(

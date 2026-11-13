@@ -132,6 +132,26 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // One summary per customer email (ATS-276), written only by Cloud Functions.
+    match /customers/{customerId} {
+      allow read: if canManageStore();
+      allow write: if false;
+    }
+
+    // Private staff note on one customer (ATS-278), written from the admin customer page.
+    match /customerNotes/{customerId} {
+      allow read: if canManageStore();
+      allow create, update: if canManageStore()
+        && request.resource.data.keys().hasOnly(['note', 'updatedAt', 'updatedBy', 'updatedByEmail'])
+        && request.resource.data.keys().hasAll(['note', 'updatedAt', 'updatedBy', 'updatedByEmail'])
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 1000
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedByEmail == request.auth.token.get('email', '');
+      allow delete: if false;
+    }
+
     // Staff-only side of an order (status history with staff emails, cancel reason), kept off
     // orders/{id} because the owner can read that doc. Written by the Admin SDK only.
     match /orderStaffNotes/{orderId} {
@@ -338,9 +358,9 @@ service cloud.firestore {
     // Deny by default. Admins can reach future collections, but a matching
     // {document=**} rule is OR-ed with the rules above, so settings, roles,
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
-    // intlPricing, offerState, searchSyncErrors and settingsHistory stay on the rules written for them.
+    // intlPricing, offerState, searchSyncErrors, settingsHistory, customers and customerNotes stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if canManageStore() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends', 'offerState', 'searchSyncErrors', 'settingsHistory']);
+      allow read, write: if canManageStore() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends', 'offerState', 'searchSyncErrors', 'settingsHistory', 'customers', 'customerNotes']);
     }
   }
 }

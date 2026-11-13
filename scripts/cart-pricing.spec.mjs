@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import {
+  MISSING_CODE_RELOAD_WINDOW_MS,
+  shouldReloadForMissingCode,
+} from '../src/app/core/services/errors/page-load-error.ts';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
+import {
+  bundleEndsIn,
+  bundlePageState,
+  nextBundleAction,
+  pickProduct,
+  removeProductPiece,
+  startingPicks,
+} from '../src/app/features/bundle/utils/bundle-page.ts';
 import {
   decideBrandPage,
   decideCategoryPage,
@@ -78,6 +90,7 @@ import {
   earnedItemLabel,
   bundleNudgeText,
   bundleSetNudgeButton,
+  bundleOfferLink,
   bundleSetNudgeLoses,
   bundleSetNudgeText,
   bundleSetStripTitle,
@@ -87,6 +100,15 @@ import {
   shortItemWord,
 } from '../src/app/core/services/offers/offer-shop.ts';
 
+import {
+  colourChoiceValues,
+  groupOfferProducts,
+  newProductPick,
+  nextColourChoice,
+  productPickLabel,
+  readProductPicks,
+  writeProductPicks,
+} from '../src/app/features/admin/pages/offers-manager/models/offer-product-picks.ts';
 describe('cart-pricing (AS-33)', () => {
   it('lineDisplayAmount multiplies converted unit price by quantity', () => {
     assert.equal(lineDisplayAmount(100, 3), 300);
@@ -1452,5 +1474,251 @@ describe('category and brand pages never open empty (ATS-268)', () => {
   it('shows Page Not Found for a deleted brand and decides nothing when brands could not load', () => {
     assert.deepEqual(brand('babolat'), { kind: 'missing' });
     assert.deepEqual(brand('babolat', { published: null }), { kind: 'ok' });
+  });
+});
+
+describe('offer product picker: one product, then its colours (ATS-270)', () => {
+  const palette = { black: 'Black', white: 'White', grey: 'Grey' };
+  const info = (id) => (palette[id] ? { label: palette[id], swatch: null } : null);
+  const models = groupOfferProducts(
+    [
+      { id: 'nox-b', name: 'Nox Padel Shorts', modelGroup: 'nox-shorts', colors: ['black'] },
+      { id: 'nox-w', name: 'Nox Padel Shorts', modelGroup: 'nox-shorts', colors: ['white'] },
+      { id: 'nox-g', name: 'Nox Padel Shorts', modelGroup: 'nox-shorts', colors: ['grey'] },
+      { id: 'bottle', name: 'Babolat Bottle', modelGroup: null, colors: ['black'] },
+    ],
+    info,
+  );
+  const nox = models[0];
+  const bottle = models[1];
+
+  it('lists each product once with its colours', () => {
+    assert.equal(models.length, 2);
+    assert.deepEqual(
+      nox.colours.map((colour) => colour.label),
+      ['Black', 'White', 'Grey'],
+    );
+    assert.equal(bottle.colours.length, 1);
+  });
+
+  it('saves All colours as the model and a one-colour product as its id', () => {
+    const picks = [newProductPick(nox), newProductPick(bottle)];
+    assert.equal(productPickLabel(picks[0]), 'Nox Padel Shorts · All colours');
+    assert.equal(productPickLabel(picks[1]), 'Babolat Bottle');
+    assert.deepEqual(writeProductPicks(picks), { modelGroups: ['nox-shorts'], productIds: ['bottle'] });
+  });
+
+  it('ticks colours, clears them with All colours, and goes back to All colours when none is left', () => {
+    let pick = newProductPick(nox);
+    pick = nextColourChoice(pick, ['all', 'nox-w', 'nox-b']);
+    assert.equal(productPickLabel(pick), 'Nox Padel Shorts · Black, White');
+    assert.deepEqual(colourChoiceValues(pick), ['nox-b', 'nox-w']);
+    assert.deepEqual(writeProductPicks([pick]), { modelGroups: [], productIds: ['nox-b', 'nox-w'] });
+    assert.equal(nextColourChoice(pick, ['nox-b', 'nox-w', 'all']).all, true);
+    assert.equal(nextColourChoice(pick, []).all, true);
+  });
+
+  it('opens an older offer with several colour ids as one product with those colours ticked', () => {
+    const picks = readProductPicks({ modelGroups: [], productIds: ['nox-w', 'nox-b', 'bottle'] }, models);
+    assert.equal(picks.length, 2);
+    assert.equal(productPickLabel(picks[0]), 'Nox Padel Shorts · Black, White');
+    assert.deepEqual(writeProductPicks(picks), { modelGroups: [], productIds: ['nox-b', 'nox-w', 'bottle'] });
+  });
+
+  it('reads a saved model as All colours and keeps unknown ids', () => {
+    const picks = readProductPicks(
+      { modelGroups: ['nox-shorts', 'gone'], productIds: ['nox-b', 'old'] },
+      models,
+    );
+    assert.equal(picks.length, 3);
+    assert.equal(picks[0].all, true);
+    assert.deepEqual(writeProductPicks(picks), { modelGroups: ['nox-shorts', 'gone'], productIds: ['old'] });
+  });
+
+  it('names look-alike colours by every colour they have', () => {
+    const [shorts] = groupOfferProducts(
+      [
+        { id: 'a', name: 'Head Padel Shorts', modelGroup: 'head', colors: ['black', 'white'] },
+        { id: 'b', name: 'Head Padel Shorts', modelGroup: 'head', colors: ['black', 'grey'] },
+      ],
+      info,
+    );
+    assert.deepEqual(
+      shorts.colours.map((colour) => colour.label),
+      ['Black & White', 'Black & Grey'],
+    );
+  });
+
+  it('leaves hidden colours out when All colours can only name products', () => {
+    const [shorts] = groupOfferProducts(
+      [
+        { id: 'a', name: 'Shorts', modelGroup: 'm', colors: ['black'], published: true },
+        { id: 'b', name: 'Shorts', modelGroup: 'm', colors: ['white'], published: false },
+      ],
+      info,
+    );
+    assert.deepEqual(writeProductPicks([newProductPick(shorts)], true), {
+      modelGroups: [],
+      productIds: ['a'],
+    });
+  });
+
+  it('free gifts save every colour for All colours and read every colour back as All colours', () => {
+    const saved = writeProductPicks([newProductPick(nox)], true);
+    assert.deepEqual(saved, { modelGroups: [], productIds: ['nox-b', 'nox-w', 'nox-g'] });
+    const picks = readProductPicks(saved, models, true);
+    assert.equal(productPickLabel(picks[0]), 'Nox Padel Shorts · All colours');
+  });
+});
+
+describe('shouldReloadForMissingCode (missing page code after a release)', () => {
+  const now = 1_800_000_000_000;
+  it('reloads once when nothing was reloaded before', () => {
+    assert.equal(shouldReloadForMissingCode(null, true, now), true);
+  });
+  it('does not reload again within 30 seconds', () => {
+    assert.equal(shouldReloadForMissingCode(String(now - 5_000), true, now), false);
+  });
+  it('reloads again after 30 seconds', () => {
+    assert.equal(shouldReloadForMissingCode(String(now - MISSING_CODE_RELOAD_WINDOW_MS), true, now), true);
+  });
+  it('never reloads while offline', () => {
+    assert.equal(shouldReloadForMissingCode(null, false, now), false);
+  });
+  it('treats a broken or future saved time as no reload yet', () => {
+    assert.equal(shouldReloadForMissingCode('not a number', true, now), true);
+    assert.equal(shouldReloadForMissingCode(String(now + 60_000), true, now), true);
+  });
+});
+
+describe('Bundle & Save page (ATS-279)', () => {
+  const now = 1_800_000_000_000;
+  const offer = (over = {}) => ({
+    id: 'kit',
+    active: true,
+    archived: false,
+    visibility: 'public',
+    audience: 'everyone',
+    requiresCode: false,
+    limits: { perCustomer: null },
+    schedule: { startsAt: null, endsAt: null, timezone: 'Africa/Cairo' },
+    reward: {
+      kind: 'bundleSet',
+      slots: [
+        { id: 'slot-1', name: 'Racket', quantity: 1 },
+        { id: 'slot-2', name: 'Socks', quantity: 1 },
+      ],
+      setReward: { type: 'percent', percent: 60 },
+      maxSets: null,
+    },
+    ...over,
+  });
+  const card = (productId, sizes = null) => ({ productId, label: productId, sizes });
+
+  it('links Bundle & Save offers to their page and every other offer to Shop', () => {
+    assert.deepEqual(bundleOfferLink(offer()), { path: '/bundle/kit', query: null });
+    assert.deepEqual(bundleOfferLink(offer(), 'bag'), { path: '/bundle/kit', query: { from: 'bag' } });
+    const bundlePrice = offer({ reward: { kind: 'bundlePrice', rows: [] } });
+    assert.deepEqual(bundleOfferLink(bundlePrice), { path: '/shop', query: { offer: 'kit' } });
+    assert.deepEqual(bundleOfferLink({ ...bundlePrice, audience: 'signedIn' }), {
+      path: '/shop',
+      query: null,
+    });
+  });
+
+  it('says when the bundle can be bought', () => {
+    assert.equal(bundlePageState(offer(), now, false, 2), 'open');
+    assert.equal(bundlePageState(offer({ active: false }), now, false, 2), 'ended');
+    assert.equal(
+      bundlePageState(offer({ schedule: { startsAt: null, endsAt: new Date(now - 1) } }), now, false, 2),
+      'ended',
+    );
+    assert.equal(
+      bundlePageState(offer({ schedule: { startsAt: new Date(now + 1), endsAt: null } }), now, false, 2),
+      'upcoming',
+    );
+    assert.equal(bundlePageState(offer({ audience: 'signedIn' }), now, false, 2), 'members');
+    assert.equal(bundlePageState(offer({ audience: 'signedIn' }), now, true, 2), 'open');
+    assert.equal(bundlePageState(offer({ requiresCode: true }), now, true, 2), 'unavailable');
+    assert.equal(bundlePageState(offer(), now, true, 0), 'unavailable');
+  });
+
+  it('counts down to the end', () => {
+    assert.equal(bundleEndsIn(null, now), null);
+    assert.equal(bundleEndsIn(now + (2 * 24 + 14) * 3_600_000 + 60_000, now), 'Ends in 2d 14h');
+    assert.equal(bundleEndsIn(now + 5 * 3_600_000 + 12 * 60_000, now), 'Ends in 5h 12m');
+    assert.equal(bundleEndsIn(now - 1, now), null);
+  });
+
+  it('starts single-product groups picked and the rest unpicked, then names the next step', () => {
+    const groups = [
+      { name: 'Racket', quantity: 1, choices: [card('neuron')] },
+      {
+        name: 'Socks',
+        quantity: 1,
+        choices: [
+          card('nox', [
+            { id: 'm', label: 'M' },
+            { id: 'l', label: 'L' },
+          ]),
+          card('bp'),
+        ],
+      },
+    ];
+    const picks = startingPicks(groups, null, []);
+    assert.deepEqual(picks, [[{ productId: 'neuron', sizeId: null }], []]);
+    assert.deepEqual(nextBundleAction(groups, picks), { kind: 'product', group: 1, label: 'Choose Socks' });
+    const socks = pickProduct(groups[1], picks[1], 'nox');
+    assert.equal(nextBundleAction(groups, [picks[0], socks]).label, 'Choose a Socks Size');
+    const sized = [{ productId: 'nox', sizeId: 'm' }];
+    assert.equal(nextBundleAction(groups, [picks[0], sized]).label, 'Add Bundle to Bag');
+  });
+
+  it('picks the product the shopper came from and the bag pieces that fit', () => {
+    const groups = [
+      { name: 'Racket', quantity: 1, choices: [card('a'), card('b')] },
+      { name: 'Ball', quantity: 3, choices: [card('x'), card('y')] },
+      { name: 'Grip', quantity: 1, choices: [card('g'), card('h')] },
+    ];
+    const picks = startingPicks(groups, 'b', [
+      { productId: 'x', sizeId: null },
+      { productId: 'x', sizeId: null },
+      { productId: 'b', sizeId: null },
+    ]);
+    assert.deepEqual(picks[0], [{ productId: 'b', sizeId: null }]);
+    assert.deepEqual(picks[1], [
+      { productId: 'x', sizeId: null, inBag: true },
+      { productId: 'x', sizeId: null, inBag: true },
+    ]);
+    assert.deepEqual(picks[2], []);
+    assert.equal(nextBundleAction(groups, picks).label, 'Choose 1 × Ball');
+  });
+
+  it('marks a single-product group piece already in the bag so it is not added again', () => {
+    const groups = [
+      { name: 'Racket', quantity: 1, choices: [card('neuron')] },
+      { name: 'Socks', quantity: 1, choices: [card('nox'), card('bp')] },
+      { name: 'Grip', quantity: 2, choices: [card('g')] },
+    ];
+    const picks = startingPicks(groups, null, [
+      { productId: 'neuron', sizeId: null },
+      { productId: 'neuron', sizeId: null },
+      { productId: 'g', sizeId: null },
+    ]);
+    assert.deepEqual(picks[0], [{ productId: 'neuron', sizeId: null, inBag: true }]);
+    assert.deepEqual(picks[1], []);
+    assert.deepEqual(picks[2], [
+      { productId: 'g', sizeId: null, inBag: true },
+      { productId: 'g', sizeId: null },
+    ]);
+    assert.equal(nextBundleAction(groups, picks).label, 'Choose Socks');
+  });
+
+  it('adds and removes pieces of a group of 2+', () => {
+    const group = { name: 'Ball', quantity: 2, choices: [card('x'), card('y')] };
+    let picks = pickProduct(group, [], 'x');
+    picks = pickProduct(group, picks, 'y');
+    assert.equal(pickProduct(group, picks, 'x').length, 2);
+    assert.deepEqual(removeProductPiece(picks, 'x'), [{ productId: 'y', sizeId: null }]);
   });
 });

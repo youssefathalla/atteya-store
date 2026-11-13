@@ -1,3 +1,4 @@
+import type { OfferBundleSetReward } from '@core/services/offers/engine';
 import type { MarketingBadgeKind, MarketingBadgeStyle } from '@core/services/products/marketing-badge';
 import type { ProductGenderId } from '@core/services/products/product.model';
 
@@ -8,6 +9,12 @@ export interface ProductCardPrice {
   readonly partial: boolean;
   /** Always empty on listing cards; sale is bold + struck compare-at only (no % chips). */
   readonly badges: readonly string[];
+  /**
+   * The saving of the running Bundle & Save offer the bag would put this product in (the photo's
+   * "BUNDLE & SAVE 60%" tag, ATS-280), worked out with the same offers and context as the price;
+   * null when there is none or offers are not live.
+   */
+  readonly bundleSave: OfferBundleSetReward | null;
 }
 
 /** One colour in the card's colour row (always includes the card's own product, even when it is the only colour). */

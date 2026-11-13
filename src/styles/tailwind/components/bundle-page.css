@@ -1,0 +1,209 @@
+@layer components {
+  /**
+   * Bundle & Save page (`/bundle/<offer id>`, ATS-279): a bordered box with a black header (kicker,
+   * title, white saving tag), then the groups (side by side when each has one product, else
+   * numbered steps), a "Your bundle" box on desktop and a bar at the bottom on phone.
+   */
+  .bundle-page {
+    @apply w-full border border-primary border-shape bg-surface;
+  }
+
+  .bundle-page__header {
+    @apply elements-start-col gap-2 px-5 py-6 bg-primary text-on-primary lg:px-8 lg:py-8;
+  }
+
+  .bundle-page__kicker {
+    @apply font-label-sm uppercase tracking-widest opacity-80;
+  }
+
+  .bundle-page__title {
+    @apply font-headline-md font-bold! uppercase;
+  }
+
+  .bundle-page__tag {
+    @apply w-fit px-2 py-0.5 bg-on-primary text-primary border-shape font-label-md font-bold! uppercase;
+  }
+
+  .bundle-page__body {
+    @apply elements-start-col items-stretch! gap-[18px] p-5 lg:p-8;
+  }
+
+  /** The grey note when the bundle can't be bought, or a group is sold out. */
+  .bundle-note {
+    @apply w-full elements-start-col gap-1 p-4 bg-surface-container border-shape font-body-md;
+  }
+
+  .bundle-layout {
+    @apply grid w-full grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8;
+  }
+
+  .bundle-layout__main {
+    @apply elements-start-col items-stretch! min-w-0 gap-[18px];
+  }
+
+  /* Every group has one product: the products side by side with a "+" between them. */
+  .bundle-side {
+    @apply flex w-full items-start gap-3 lg:gap-5;
+  }
+
+  .bundle-side__item {
+    @apply elements-start-col items-stretch! min-w-0 flex-1 gap-3;
+  }
+
+  .bundle-side__plus {
+    @apply self-center font-headline-sm font-bold!;
+  }
+
+  /* Numbered steps, about 18px apart. */
+  .bundle-steps {
+    @apply elements-start-col items-stretch! gap-[18px] list-none m-0 p-0;
+  }
+
+  .bundle-step {
+    @apply elements-start-col items-stretch! gap-3 scroll-mt-[calc(var(--storefront-top-chrome,56px)+1rem)];
+  }
+
+  .bundle-step--waiting {
+    @apply opacity-40;
+  }
+
+  .bundle-step__title {
+    @apply elements-start gap-2 font-title-md font-bold!;
+  }
+
+  .bundle-step__mark {
+    @apply elements-center size-6 shrink-0 rounded-full bg-primary text-on-primary font-label-md font-bold!;
+  }
+
+  .bundle-step__mark--done {
+    @apply bg-surface text-primary border-2 border-primary;
+  }
+
+  .bundle-step--waiting .bundle-step__mark {
+    @apply bg-outline;
+  }
+
+  .bundle-step__hint {
+    @apply font-body-sm text-on-surface-variant;
+  }
+
+  .bundle-step__picked {
+    @apply font-body-md text-on-surface-variant;
+  }
+
+  /* "Change": a plain underlined text button. */
+  .bundle-link {
+    @apply bg-transparent border-0 p-0 underline underline-offset-2 cursor-pointer font-body-md;
+  }
+
+  /* An included product (its group has only this one). */
+  .bundle-fixed {
+    @apply elements-start gap-4 p-3 border border-outline-variant border-shape;
+  }
+
+  .bundle-fixed__photo {
+    @apply relative block size-20 shrink-0 overflow-hidden bg-surface-container;
+  }
+
+  /* A row of product cards. */
+  .bundle-row {
+    @apply gap-3 p-px pb-1;
+  }
+
+  .bundle-card {
+    @apply relative shrink-0 w-36 lg:w-40 elements-start-col items-stretch! border border-outline-variant border-shape bg-surface overflow-hidden text-start cursor-pointer transition-colors;
+    scroll-snap-align: start;
+  }
+
+  .bundle-side .bundle-card {
+    @apply w-full;
+  }
+
+  .bundle-card--static {
+    @apply cursor-default;
+  }
+
+  button.bundle-card:hover {
+    @apply border-primary;
+  }
+
+  /* Picked: a 2px black edge (the border plus a 1px outline, so the photo never moves). */
+  .bundle-card[aria-pressed='true'],
+  .bundle-card--picked {
+    @apply border-primary outline-1 outline-primary;
+  }
+
+  .bundle-card__photo {
+    @apply relative block w-full aspect-4/5 overflow-hidden bg-surface-container;
+  }
+
+  .bundle-card__check {
+    @apply absolute top-2 end-2 elements-center size-6 rounded-full bg-primary text-on-primary font-label-sm font-bold!;
+  }
+
+  .bundle-card__caption {
+    @apply elements-start-col items-stretch! gap-1 p-3;
+  }
+
+  .bundle-card__name {
+    @apply font-label-lg font-bold! line-clamp-2;
+  }
+
+  .bundle-card__price {
+    @apply elements-start flex-wrap gap-x-2 font-body-sm;
+  }
+
+  /* − / + on a card of a group of 2+ pieces. */
+  .bundle-qty {
+    @apply elements-between mx-3 mb-3 border border-outline-variant border-shape;
+  }
+
+  .bundle-qty__btn {
+    @apply elements-center size-9 bg-transparent border-0 cursor-pointer font-title-sm;
+  }
+
+  .bundle-qty__btn:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  .bundle-qty__count {
+    @apply font-label-lg tabular-nums;
+  }
+
+  .bundle-sizes {
+    @apply elements-start-col gap-2;
+  }
+
+  .bundle-sizes__btn {
+    @apply min-h-10 min-w-11;
+  }
+
+  /* Desktop: "Your bundle" beside the groups, sticky while scrolling. */
+  .bundle-summary {
+    @apply hidden lg:flex flex-col gap-3 p-5 border border-outline-variant border-shape lg:sticky lg:top-[calc(var(--storefront-top-chrome,56px)+1.5rem)];
+  }
+
+  .bundle-summary__row {
+    @apply elements-between gap-3 font-body-md;
+  }
+
+  .bundle-summary__row--normal {
+    @apply pb-3 border-b-2 border-primary text-on-surface-variant;
+  }
+
+  .bundle-summary__row--total {
+    @apply font-title-md font-bold!;
+  }
+
+  /* Phone: price and the one button in a bar that stays at the bottom, just above the store's bottom bar. */
+  .bundle-bar {
+    @apply sticky z-10 -mx-5 -mb-5 elements-between gap-3 px-5 py-3 border-t border-outline-variant bg-surface lg:hidden;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bundle-card {
+      transition: none;
+    }
+  }
+}

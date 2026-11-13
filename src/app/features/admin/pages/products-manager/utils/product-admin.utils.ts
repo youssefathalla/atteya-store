@@ -40,23 +40,52 @@ export function categoryLabel(id: string, categories?: ReadonlyMap<string, strin
   return categories?.get(id) ?? SEED_CATEGORY_LABELS.get(id) ?? id;
 }
 
-export function buildLeafCategoryOptions(categories: readonly Category[]): readonly CategoryOptionView[] {
-  const source = categories.length > 0 ? categories : SEED_CATEGORIES;
-  const byId = new Map(source.map((cat) => [cat.id, cat]));
-  // Every category is pickable, top-level ones with sub-categories too: products can sit directly
-  // in a top-level category (all rackets are in `rackets`), and adding a sub-category under it in
-  // Categories & Brands must not leave those products with an empty Category box.
-  return source.map((leaf) => {
-    const parent = leaf.parentId ? byId.get(leaf.parentId) : undefined;
-    const branch = leaf.parentId ? [leaf.parentId, leaf.id] : categoryIdsFor(leaf.id);
-    return {
-      id: leaf.id,
-      // Hidden categories are listed too, so staff can fill one before showing it.
-      label: leaf.published ? leaf.name : `${leaf.name} (hidden)`,
-      group: parent ? `${parent.name}${parent.published ? '' : ' (hidden)'}` : '',
-      categoryIds: branch,
-    };
-  });
+type CategoryNode = Pick<Category, 'id' | 'name' | 'parentId' | 'sortOrder' | 'published'>;
+
+/**
+ * The product editor's Category picker: one tree, each category once. Every main category in its
+ * Categories & Brands order (level 0), each followed by the ones inside it (level 1); a category
+ * whose main category is gone comes last. Every category is pickable, main ones too: products can
+ * sit directly in a main category (all rackets are in `rackets`), and adding a category inside it
+ * must not leave those products with an empty Category box. Hidden ones are listed and marked, so
+ * staff can fill one before showing it. `path` is what the closed box shows ("Apparel › Shorts").
+ */
+export function buildLeafCategoryOptions(categories: readonly CategoryNode[]): readonly CategoryOptionView[] {
+  const source: readonly CategoryNode[] = categories.length > 0 ? categories : SEED_CATEGORIES;
+  const bySort = (left: CategoryNode, right: CategoryNode): number =>
+    left.sortOrder - right.sortOrder || left.name.localeCompare(right.name);
+  const mark = (category: CategoryNode): string =>
+    category.published ? category.name : `${category.name} (hidden)`;
+  const ids = new Set(source.map((item) => item.id));
+  const options: CategoryOptionView[] = [];
+  for (const root of source.filter((item) => !item.parentId).sort(bySort)) {
+    options.push({
+      id: root.id,
+      label: mark(root),
+      path: mark(root),
+      level: 0,
+      categoryIds: categoryIdsFor(root.id),
+    });
+    for (const child of source.filter((item) => item.parentId === root.id).sort(bySort)) {
+      options.push({
+        id: child.id,
+        label: mark(child),
+        path: `${root.name} › ${mark(child)}`,
+        level: 1,
+        categoryIds: [root.id, child.id],
+      });
+    }
+  }
+  for (const orphan of source.filter((item) => item.parentId && !ids.has(item.parentId)).sort(bySort)) {
+    options.push({
+      id: orphan.id,
+      label: mark(orphan),
+      path: mark(orphan),
+      level: 0,
+      categoryIds: [orphan.parentId as string, orphan.id],
+    });
+  }
+  return options;
 }
 
 export function buildBrandOptions(brands: readonly Brand[]): readonly BrandOptionView[] {

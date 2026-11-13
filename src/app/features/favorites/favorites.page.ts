@@ -2,15 +2,12 @@ import { Component, computed, inject, linkedSignal, OnInit, resource } from '@an
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '@core/services/auth/auth.service';
-import { displayPrice } from '@core/services/offers/engine';
-import { toPricedProduct } from '@core/services/offers/offer.model';
 import { OffersService } from '@core/services/offers/offers.service';
 import { FavoritesService } from '@core/services/favorites';
 import { ProductService, type Product } from '@core/services/products';
 import { SeoService } from '@core/services/seo';
 import { ProductCardComponent } from '@shared/components/product-card/product-card.component';
-import type { ProductCardPrice } from '@shared/components/product-card/product-card.model';
-import { productToCardData } from '@shared/components/product-card/product-card.utils';
+import { productCardPrice, productToCardData } from '@shared/components/product-card/product-card.utils';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 
@@ -79,7 +76,7 @@ export class FavoritesPageComponent implements OnInit {
     };
 
     return products.map((product) => {
-      const price = priceFor(product, liveMode, offers, ctx);
+      const price = productCardPrice(product, liveMode ? offers : null, ctx);
       return productToCardData(product, price);
     });
   });
@@ -99,31 +96,4 @@ export class FavoritesPageComponent implements OnInit {
       noindex: true,
     });
   }
-}
-
-function priceFor(
-  product: Product,
-  liveMode: boolean,
-  offers: Parameters<typeof displayPrice>[1],
-  ctx: Parameters<typeof displayPrice>[2],
-): ProductCardPrice {
-  if (liveMode) {
-    const d = displayPrice(toPricedProduct(product), offers, ctx);
-    return {
-      price: d.partial ? product.price : d.fromPrice,
-      fromPrice: d.partial ? d.fromPrice : null,
-      listPrice: d.listPrice,
-      partial: d.partial,
-      badges: [],
-    };
-  }
-  const list = product.compareAtPrice;
-  const onSale = list !== null && list > product.price;
-  return {
-    price: product.price,
-    fromPrice: null,
-    listPrice: onSale ? list : null,
-    partial: false,
-    badges: [],
-  };
 }

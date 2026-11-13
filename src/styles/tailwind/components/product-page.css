@@ -76,6 +76,26 @@
     @apply font-label-sm font-mono uppercase tracking-wider;
   }
 
+  /**
+   * Black Bundle & Save strip under the price (ATS-281): the whole strip is one link; See Bundle
+   * sits on the right and drops under the text on a narrow phone.
+   */
+  .pdp-bundle-strip {
+    @apply elements-between flex-wrap gap-3 w-full p-4 border-shape bg-primary text-on-primary no-underline;
+  }
+
+  .pdp-bundle-strip:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  .pdp-bundle-strip-action {
+    @apply shrink-0 px-4 py-2 border border-on-primary border-shape font-label-lg font-bold! uppercase tracking-wider transition-colors;
+  }
+
+  .pdp-bundle-strip:hover .pdp-bundle-strip-action {
+    @apply bg-on-primary text-primary;
+  }
+
   /** Option boxes (size, gift, choice). Selected = aria-pressed. */
   .pdp-choice {
     @apply min-h-12 px-3 py-2 elements-center text-center border border-outline-variant border-shape bg-surface font-label-lg cursor-pointer transition-colors;

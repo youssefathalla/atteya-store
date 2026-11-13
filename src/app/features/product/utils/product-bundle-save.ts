@@ -219,3 +219,32 @@ export function bundleSaveHeaderSaving(reward: OfferBundleSetReward, money: (egp
       return `All for ${money(reward.price)}`;
   }
 }
+
+/**
+ * The bold line of the black Bundle & Save strip under the price (ATS-281): "Add socks and save
+ * 60%" when the offer has 2 groups and this product's group takes one piece (the other group's
+ * name in lower case: "a bag", "socks", "2 × ball"), "Complete the kit and save 60%" otherwise.
+ * The saving: "save 60%", "save EGP 500", "get the bundle for EGP 4,500", "get the cheapest one free".
+ */
+export function bundleSaveStripText(bundle: ProductBundleSave, money: (egp: number) => string): string {
+  const reward = bundleSaveStripReward(bundle.setReward, money);
+  const own = bundle.slots[bundle.ownSlot];
+  const other = bundle.slots.length === 2 ? bundle.slots[1 - bundle.ownSlot] : undefined;
+  if (!other || !own || own.quantity > 1) return `Complete the kit and ${reward}`;
+  const what =
+    other.quantity > 1 ? `${other.quantity} × ${other.name.trim().toLowerCase()}` : withArticle(other, 0);
+  return `Add ${what} and ${reward}`;
+}
+
+function bundleSaveStripReward(reward: OfferBundleSetReward, money: (egp: number) => string): string {
+  switch (reward.type) {
+    case 'percent':
+      return `save ${reward.percent}%`;
+    case 'amount':
+      return `save ${money(reward.amount)}`;
+    case 'total':
+      return `get the bundle for ${money(reward.price)}`;
+    case 'cheapestFree':
+      return 'get the cheapest one free';
+  }
+}
