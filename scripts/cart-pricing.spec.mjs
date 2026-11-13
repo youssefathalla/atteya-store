@@ -1694,6 +1694,26 @@ describe('Bundle & Save page (ATS-279)', () => {
     assert.equal(nextBundleAction(groups, picks).label, 'Choose 1 × Ball');
   });
 
+  it('marks a single-product group piece already in the bag so it is not added again', () => {
+    const groups = [
+      { name: 'Racket', quantity: 1, choices: [card('neuron')] },
+      { name: 'Socks', quantity: 1, choices: [card('nox'), card('bp')] },
+      { name: 'Grip', quantity: 2, choices: [card('g')] },
+    ];
+    const picks = startingPicks(groups, null, [
+      { productId: 'neuron', sizeId: null },
+      { productId: 'neuron', sizeId: null },
+      { productId: 'g', sizeId: null },
+    ]);
+    assert.deepEqual(picks[0], [{ productId: 'neuron', sizeId: null, inBag: true }]);
+    assert.deepEqual(picks[1], []);
+    assert.deepEqual(picks[2], [
+      { productId: 'g', sizeId: null, inBag: true },
+      { productId: 'g', sizeId: null },
+    ]);
+    assert.equal(nextBundleAction(groups, picks).label, 'Choose Socks');
+  });
+
   it('adds and removes pieces of a group of 2+', () => {
     const group = { name: 'Ball', quantity: 2, choices: [card('x'), card('y')] };
     let picks = pickProduct(group, [], 'x');

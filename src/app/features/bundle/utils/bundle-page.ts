@@ -124,7 +124,8 @@ export function groupFixed(group: BundleGroupFacts): boolean {
  * The picks the page starts with. Groups with one product start with it (every piece). Then the
  * product the shopper came from (`?product=`) goes into the first group it fits, and the bag's
  * lines (`?from=bag`, one entry per piece left outside a finished set) fill the groups they fit,
- * each only up to its pieces, marked `inBag` so they aren't added twice.
+ * each only up to its pieces, marked `inBag` so they aren't added twice (in a one-product group
+ * a bag piece takes the place of one of its starting pieces).
  * Groups with several products otherwise start unpicked.
  */
 export function startingPicks(
@@ -142,17 +143,25 @@ export function startingPicks(
   );
   const place = (pick: BundlePiecePick, needSize: boolean, inBag: boolean): boolean => {
     const at = groups.findIndex((group, index) => {
-      if (groupFixed(group) || picks[index]!.length >= group.quantity) return false;
       const choice = choiceOf(group, pick.productId);
       if (!choice) return false;
-      return !needSize || !choice.sizes || choice.sizes.some((size) => size.id === pick.sizeId);
+      if (needSize && choice.sizes && !choice.sizes.some((size) => size.id === pick.sizeId)) return false;
+      // A fixed group already holds its product: a bag piece of it takes one of its unmarked pieces.
+      if (groupFixed(group)) return inBag && picks[index]!.some((entry) => !entry.inBag);
+      return picks[index]!.length < group.quantity;
     });
     if (at < 0) return false;
     const choice = choiceOf(groups[at]!, pick.productId);
     const sizeId = choice?.sizes?.some((size) => size.id === pick.sizeId) ? pick.sizeId : startSize(choice);
-    picks[at]!.push(
-      inBag ? { productId: pick.productId, sizeId, inBag: true } : { productId: pick.productId, sizeId },
-    );
+    const placed: BundlePiecePick = inBag
+      ? { productId: pick.productId, sizeId, inBag: true }
+      : { productId: pick.productId, sizeId };
+    if (groupFixed(groups[at]!)) {
+      const slot = picks[at]!.findIndex((entry) => !entry.inBag);
+      picks[at]![slot] = placed;
+    } else {
+      picks[at]!.push(placed);
+    }
     return true;
   };
   if (productId) place({ productId, sizeId: null }, false, false);
