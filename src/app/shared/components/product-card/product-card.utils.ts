@@ -1,6 +1,8 @@
 import {
+  bundleSetOffersForItem,
   displayPrice,
   type Offer,
+  type OfferBundleSetReward,
   type PricedProduct,
   type PricingContext,
 } from '@core/services/offers/engine';
@@ -96,13 +98,15 @@ export function productCardPrice(
   ctx: PricingContext,
 ): ProductCardPrice {
   if (offers) {
-    const d = displayPrice(toPricedProduct(product), offers, ctx);
+    const priced = toPricedProduct(product);
+    const d = displayPrice(priced, offers, ctx);
     return {
       price: d.partial ? product.price : d.fromPrice,
       fromPrice: d.partial ? d.fromPrice : null,
       listPrice: d.listPrice,
       partial: d.partial,
       badges: [],
+      bundleSave: bundleSaveReward(priced, offers, ctx),
     };
   }
   const list = product.compareAtPrice;
@@ -113,6 +117,7 @@ export function productCardPrice(
     listPrice: onSale ? list : null,
     partial: false,
     badges: [],
+    bundleSave: null,
   };
 }
 
@@ -169,6 +174,7 @@ export function searchHitCardPrice(
       listPrice: d.listPrice,
       partial: d.partial,
       badges: [],
+      bundleSave: bundleSaveReward(priced, offers, ctx),
     };
   }
 
@@ -177,8 +183,23 @@ export function searchHitCardPrice(
   const varies = hit.pricePartial ?? shown !== hit.price;
   const listPrice = hit.listPrice ?? hit.compareAtPrice;
   return varies
-    ? { price: hit.price, fromPrice: shown, listPrice, partial: true, badges: [] }
-    : { price: shown, fromPrice: null, listPrice, partial: false, badges: [] };
+    ? { price: hit.price, fromPrice: shown, listPrice, partial: true, badges: [], bundleSave: null }
+    : { price: shown, fromPrice: null, listPrice, partial: false, badges: [], bundleSave: null };
+}
+
+/**
+ * The saving of the Bundle & Save offer the bag would put this product in (ATS-280): the bag's own
+ * rules and order (`bundleSetOffersForItem`: running, the visitor can get it, highest priority then
+ * newest edit), for the product rather than one size. Null when no Bundle & Save offer covers it.
+ */
+function bundleSaveReward(
+  product: PricedProduct,
+  offers: readonly Offer[],
+  ctx: PricingContext,
+): OfferBundleSetReward | null {
+  const onSale = product.compareAtPrice !== null && product.compareAtPrice > product.price;
+  const offer = bundleSetOffersForItem(offers, ctx, { product, variant: null, onSale })[0];
+  return offer?.reward.kind === 'bundleSet' ? offer.reward.setReward : null;
 }
 
 export function searchHitToCardData(hit: SearchHit, price: ProductCardPrice): ProductCardData {

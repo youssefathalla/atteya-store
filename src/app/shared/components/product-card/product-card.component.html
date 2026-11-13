@@ -21,6 +21,11 @@
           (animationend)="onPhotoShown(layer.path, $event)"
         />
       }
+      @if (bundleTag(); as tag) {
+        <span class="product-card__bundle-tag" [class.product-card__bundle-tag--money]="tag.money">{{
+          tag.text
+        }}</span>
+      }
     </div>
   </a>
 

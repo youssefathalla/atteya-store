@@ -148,6 +148,12 @@ The rules for offers, moved here from one long AGENTS.md paragraph so offers PRs
 - **Add Bundle to Bag** adds one line per piece through `CartService.addAll()` (all or nothing when the bag is full: "Your bag is full. Remove an item to add these.") and opens the bag, which prices the set as before.
 - A group with nothing in stock shows "All socks in this bundle are sold out right now.", turns the button off and offers **Message Us on WhatsApp** (only when `contact.whatsapp` is set). A failed products read shows Something Went Wrong inside the box.
 
+## Bundle & Save tag on product cards (<KEY>-280)
+
+- Every `app-product-card` for a product in a running Bundle & Save offer the visitor can get shows "BUNDLE & SAVE 60%" at the bottom left of the photo (`bundleSaveTagText()` in `offer-shop.ts`: "Bundle & Save 60%", "Bundle & Save EGP 500" in the visitor's currency, plain "Bundle & Save" for cheapest one free and a set price; capitals come from CSS).
+- The saving travels in `ProductCardPrice.bundleSave`, set by `productCardPrice()` / `searchHitCardPrice()` from the same offers and context as the card price (`bundleSetOffersForItem()` for the product with `variant: null`, so the bag's rules and order: highest priority, then newest edit). Null when offers are not live, so the server paint and the first browser paint match and no card reads anything for it.
+- An amount tag ("Bundle & Save EGP 500") carries `.product-card__bundle-tag--money` and is hidden with the prices while a foreign currency loads (`html[data-cur-pending]` in `_base.scss`).
+
 - Engine tests: `functions/src/offers/engine/bundle-set.test.ts` (the four savings, 1 / 2 / 3 sets, `maxSets`, a piece that fits two groups, an incomplete set and its nudge, per-item offers, Buy X Get Y and Bundle price on the same pieces, sale items and excluded products, cards, validation, reading and overlap warnings).
 
 ## Free gift offers

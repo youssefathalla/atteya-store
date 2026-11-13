@@ -134,6 +134,26 @@ export function bundleSetSavingLabel(
 }
 
 /**
+ * The product card's photo tag for a Bundle & Save offer (ATS-280): "Bundle & Save 60%",
+ * "Bundle & Save EGP 500", or just "Bundle & Save" for "cheapest one free" and a set price.
+ * The card shows it in capitals.
+ */
+export function bundleSaveTagText(
+  reward: OfferBundleSetReward,
+  money: (egp: number) => string = egpText,
+): string {
+  switch (reward.type) {
+    case 'percent':
+      return `Bundle & Save ${reward.percent}%`;
+    case 'amount':
+      return `Bundle & Save ${money(reward.amount)}`;
+    case 'total':
+    case 'cheapestFree':
+      return 'Bundle & Save';
+  }
+}
+
+/**
  * The bag's grey strip for a Bundle & Save offer: the offer title, plus "2 bundles" with more
  * than one complete set. Null while no set is complete.
  */
