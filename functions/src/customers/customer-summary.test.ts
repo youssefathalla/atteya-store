@@ -11,6 +11,7 @@ import {
   customerOrderFrom,
   customerSearchTokens,
   emailLookupValues,
+  isTeamAccount,
   orderCounts,
   orderFieldsChanged,
   orderIsCompleted,
@@ -258,5 +259,20 @@ describe('reading docs', () => {
     const at = (ms: number) => ({ toMillis: () => ms });
     assert.equal(orderFieldsChanged({ ...base, createdAt: at(1) }, { ...base, createdAt: at(1) }), false);
     assert.equal(orderFieldsChanged({ ...base, createdAt: at(1) }, { ...base, createdAt: at(2) }), true);
+  });
+});
+
+describe('isTeamAccount (ATS-288)', () => {
+  it('treats admin and staff as team, from the mirror first', () => {
+    assert.equal(isTeamAccount('admin', undefined), true);
+    assert.equal(isTeamAccount('staff', 'user'), true);
+    assert.equal(isTeamAccount('user', 'admin'), false);
+  });
+
+  it('falls back to the claim when there is no mirror', () => {
+    assert.equal(isTeamAccount(undefined, 'staff'), true);
+    assert.equal(isTeamAccount(undefined, 'admin'), true);
+    assert.equal(isTeamAccount(undefined, undefined), false);
+    assert.equal(isTeamAccount(undefined, 'user'), false);
   });
 });

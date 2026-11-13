@@ -32,6 +32,12 @@
           }
         }
       } catch (e) {}
+      // Signed in on this device (signed-in-hint.ts, ATS-287): footer.css hides the email sign-up.
+      try {
+        if (localStorage.getItem('atteya-signed-in') === '1') {
+          document.documentElement.setAttribute('data-signed-in', '');
+        }
+      } catch (e) {}
     </script>
   </head>
   <body>
