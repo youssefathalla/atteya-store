@@ -63,7 +63,7 @@ export class HomeDialogService {
       ConfirmDialogComponent,
       {
         data: {
-          title: 'Remove category link',
+          title: 'Remove Category Link',
           message: `Remove "${name}" from the category list?`,
           confirmText: 'Remove',
           cancelText: 'Keep',
@@ -83,7 +83,7 @@ export class HomeDialogService {
       ConfirmDialogComponent,
       {
         data: {
-          title: 'Use menu links',
+          title: 'Use Menu Links',
           message: 'Replace this list with the links from your menu? Photos on these links will be cleared.',
           confirmText: 'Replace Links',
           cancelText: 'Keep Editing',

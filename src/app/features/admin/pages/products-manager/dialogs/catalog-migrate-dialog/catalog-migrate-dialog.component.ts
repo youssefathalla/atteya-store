@@ -12,7 +12,7 @@ export class CatalogMigrateDialogComponent {
   readonly #dialogRef = inject(MatDialogRef<CatalogMigrateDialogComponent, boolean>);
   readonly report = inject<MigrateReport>(MAT_DIALOG_DATA);
 
-  readonly title = this.report.pass === 'add' ? 'Check catalogue structure' : 'Remove old fields';
+  readonly title = this.report.pass === 'add' ? 'Check Catalogue Structure' : 'Remove Old Fields';
 
   readonly description =
     this.report.pass === 'add'

@@ -8,7 +8,7 @@ export type FavoritesSignInDialogResult = 'sign-in' | 'create' | null;
   selector: 'app-favorites-sign-in-dialog',
   imports: [MatDialogModule, MatButtonModule],
   template: `
-    <h2 mat-dialog-title class="font-title-lg font-bold!">Save to favorites</h2>
+    <h2 mat-dialog-title class="font-title-lg font-bold!">Save to Favorites</h2>
     <mat-dialog-content>
       <p class="font-body-md opacity-85 py-1">Sign in or create an account to save favorites.</p>
     </mat-dialog-content>

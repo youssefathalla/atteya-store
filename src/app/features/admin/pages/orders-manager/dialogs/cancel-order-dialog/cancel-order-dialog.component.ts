@@ -24,34 +24,36 @@ export interface CancelOrderDialogResult {
   selector: 'app-cancel-order-dialog',
   imports: [MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
-    <h2 mat-dialog-title class="font-title-lg font-bold!">Cancel order {{ data.orderRef }}?</h2>
+    <h2 mat-dialog-title class="font-title-lg font-bold!">Cancel Order {{ data.orderRef }}?</h2>
     <form (submit)="$event.preventDefault(); save()">
-      <mat-dialog-content class="elements-start-col gap-3">
-        <p class="font-body-md opacity-85">
-          {{
-            data.stockTaken
-              ? 'The items go back into stock.'
-              : "Nothing was taken out of stock, so there's nothing to put back."
-          }}
-          No email is sent; message the shopper on WhatsApp if needed.
-        </p>
-        @if (data.confirmed) {
-          <p class="font-body-md">
-            This order is confirmed, so the shopper may have paid already. Send their money back yourself; the
-            dashboard doesn't refund it.
+      <mat-dialog-content>
+        <div class="elements-start-col gap-3">
+          <p class="font-body-md opacity-85">
+            {{
+              data.stockTaken
+                ? 'The items go back into stock.'
+                : "Nothing was taken out of stock, so there's nothing to put back."
+            }}
+            No email is sent; message the shopper on WhatsApp if needed.
           </p>
-        }
-        <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
-          <mat-label>Reason (optional)</mat-label>
-          <textarea
-            matInput
-            rows="3"
-            [attr.maxlength]="max"
-            [value]="reason()"
-            (input)="reason.set($any($event.target).value)"
-          ></textarea>
-          <mat-hint>Only staff see this. {{ length() }} / {{ max }}</mat-hint>
-        </mat-form-field>
+          @if (data.confirmed) {
+            <p class="font-body-md">
+              This order is confirmed, so the shopper may have paid already. Send their money back yourself;
+              the dashboard doesn't refund it.
+            </p>
+          }
+          <mat-form-field class="w-full" subscriptSizing="dynamic" appearance="outline">
+            <mat-label>Reason (optional)</mat-label>
+            <textarea
+              matInput
+              rows="3"
+              [attr.maxlength]="max"
+              [value]="reason()"
+              (input)="reason.set($any($event.target).value)"
+            ></textarea>
+            <mat-hint>Only staff see this. {{ length() }} / {{ max }}</mat-hint>
+          </mat-form-field>
+        </div>
       </mat-dialog-content>
       <mat-dialog-actions align="end" class="gap-2 px-6 pb-4">
         <button matButton="text" type="button" [mat-dialog-close]="undefined">Keep Order</button>

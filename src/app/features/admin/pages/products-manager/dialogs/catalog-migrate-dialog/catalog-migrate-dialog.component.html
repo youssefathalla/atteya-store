@@ -1,82 +1,84 @@
 <h2 mat-dialog-title class="font-title-lg font-bold!">{{ title }}</h2>
-<mat-dialog-content class="elements-start-col gap-4">
-  <p class="font-body-md">{{ description }}</p>
+<mat-dialog-content>
+  <div class="elements-start-col gap-4">
+    <p class="font-body-md">{{ description }}</p>
 
-  @if (report.pass === 'add') {
-    <div class="elements-start-col gap-1 font-body-sm">
-      <p>
-        <span class="font-bold!">Categories:</span>
-        {{ report.categories.created }} to create, {{ report.categories.repaired }} to repair,
-        {{ report.categories.unchanged }} unchanged
-      </p>
-      <p>
-        <span class="font-bold!">Brands:</span>
-        {{ report.brands.created }} to create, {{ report.brands.repaired }} to repair,
-        {{ report.brands.unchanged }} unchanged
-      </p>
-      @let deleted = report.deletedByStaff;
-      @if (deleted && deleted.categories.length + deleted.brands.length > 0) {
+    @if (report.pass === 'add') {
+      <div class="elements-start-col gap-1 font-body-sm">
         <p>
-          <span class="font-bold!">Deleted by staff:</span>
-          {{ deleted.categories.concat(deleted.brands).join(', ') }} (not added back)
+          <span class="font-bold!">Categories:</span>
+          {{ report.categories.created }} to create, {{ report.categories.repaired }} to repair,
+          {{ report.categories.unchanged }} unchanged
+        </p>
+        <p>
+          <span class="font-bold!">Brands:</span>
+          {{ report.brands.created }} to create, {{ report.brands.repaired }} to repair,
+          {{ report.brands.unchanged }} unchanged
+        </p>
+        @let deleted = report.deletedByStaff;
+        @if (deleted && deleted.categories.length + deleted.brands.length > 0) {
+          <p>
+            <span class="font-bold!">Deleted by staff:</span>
+            {{ deleted.categories.concat(deleted.brands).join(', ') }} (not added back)
+          </p>
+        }
+      </div>
+    }
+
+    <p class="font-body-sm">
+      <span class="font-bold!">Products:</span>
+      {{ report.products.updated }} to update, {{ report.products.unchanged }} unchanged
+      @if (report.products.missingNewFields > 0) {
+        ({{ report.products.missingNewFields }} missing category or brand)
+      }
+    </p>
+
+    @if (report.shippingSeeded) {
+      <p class="font-body-sm">Default shipping fees will be added.</p>
+    }
+
+    @if (report.pass === 'add') {
+      <p class="font-body-sm">
+        <span class="font-bold!">Colours:</span>
+        {{ report.products.colorsKept }} already set and kept, {{ report.products.colorsFromOptions }} filled
+        from options, {{ report.products.colorsFromName }} filled from name,
+        {{ report.products.colorsMissing }} still without a colour
+      </p>
+      @if (report.products.stockMissing > 0) {
+        <p class="font-body-sm">
+          <span class="font-bold!">Stock:</span>
+          {{ report.products.stockMissing }} products have no stock count yet. Open each one and set how many
+          you have.
         </p>
       }
-    </div>
-  }
-
-  <p class="font-body-sm">
-    <span class="font-bold!">Products:</span>
-    {{ report.products.updated }} to update, {{ report.products.unchanged }} unchanged
-    @if (report.products.missingNewFields > 0) {
-      ({{ report.products.missingNewFields }} missing category or brand)
     }
-  </p>
 
-  @if (report.shippingSeeded) {
-    <p class="font-body-sm">Default shipping fees will be added.</p>
-  }
-
-  @if (report.pass === 'add') {
-    <p class="font-body-sm">
-      <span class="font-bold!">Colours:</span>
-      {{ report.products.colorsKept }} already set and kept, {{ report.products.colorsFromOptions }} filled
-      from options, {{ report.products.colorsFromName }} filled from name,
-      {{ report.products.colorsMissing }} still without a colour
-    </p>
-    @if (report.products.stockMissing > 0) {
-      <p class="font-body-sm">
-        <span class="font-bold!">Stock:</span>
-        {{ report.products.stockMissing }} products have no stock count yet. Open each one and set how many
-        you have.
-      </p>
-    }
-  }
-
-  @if (report.sample.length > 0) {
-    <div class="w-full overflow-x-auto">
-      <h3 class="font-title-sm font-bold! pb-2">Sample changes (first {{ report.sample.length }})</h3>
-      <table class="w-full font-body-sm">
-        <thead>
-          <tr>
-            <th class="text-left font-label-md py-2">Product</th>
-            <th class="text-left font-label-md py-2">Category</th>
-            <th class="text-left font-label-md py-2">Brand</th>
-            <th class="text-left font-label-md py-2">Changes</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of report.sample; track row.id) {
-            <tr class="border-t border-outline-variant">
-              <td class="py-2 pr-3">{{ row.name }}</td>
-              <td class="py-2 pr-3">{{ row.categoryIds.join(' > ') }}</td>
-              <td class="py-2 pr-3">{{ row.brandId }}</td>
-              <td class="py-2">{{ row.summary }}</td>
+    @if (report.sample.length > 0) {
+      <div class="w-full overflow-x-auto">
+        <h3 class="font-title-sm font-bold! pb-2">Sample changes (first {{ report.sample.length }})</h3>
+        <table class="w-full font-body-sm">
+          <thead>
+            <tr>
+              <th class="text-left font-label-md py-2">Product</th>
+              <th class="text-left font-label-md py-2">Category</th>
+              <th class="text-left font-label-md py-2">Brand</th>
+              <th class="text-left font-label-md py-2">Changes</th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  }
+          </thead>
+          <tbody>
+            @for (row of report.sample; track row.id) {
+              <tr class="border-t border-outline-variant">
+                <td class="py-2 pr-3">{{ row.name }}</td>
+                <td class="py-2 pr-3">{{ row.categoryIds.join(' > ') }}</td>
+                <td class="py-2 pr-3">{{ row.brandId }}</td>
+                <td class="py-2">{{ row.summary }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button matButton="text" type="button" [mat-dialog-close]="false">Cancel</button>

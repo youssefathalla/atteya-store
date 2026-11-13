@@ -4,53 +4,59 @@
     <p class="font-body-sm opacity-70 pt-1">The link opens the Shop with these filters already on.</p>
   </div>
 
-  <mat-dialog-content class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 py-2!">
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Brand</mat-label>
-      <mat-select name="shop-filter-brand" [ngModel]="brand()" (ngModelChange)="brand.set($event)">
-        <mat-option [value]="null">Any brand</mat-option>
-        @for (entry of data.brands; track entry.id) {
-          <mat-option [value]="entry.id">{{ entry.name }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+  <mat-dialog-content>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Brand</mat-label>
+        <mat-select name="shop-filter-brand" [ngModel]="brand()" (ngModelChange)="brand.set($event)">
+          <mat-option [value]="null">Any brand</mat-option>
+          @for (entry of data.brands; track entry.id) {
+            <mat-option [value]="entry.id">{{ entry.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Player</mat-label>
-      <mat-select name="shop-filter-player" [ngModel]="player()" (ngModelChange)="player.set($event)">
-        <mat-option [value]="null">Any player</mat-option>
-        @for (entry of players(); track entry.id) {
-          <mat-option [value]="entry.id">{{ entry.name }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Player</mat-label>
+        <mat-select name="shop-filter-player" [ngModel]="player()" (ngModelChange)="player.set($event)">
+          <mat-option [value]="null">Any player</mat-option>
+          @for (entry of players(); track entry.id) {
+            <mat-option [value]="entry.id">{{ entry.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Category</mat-label>
-      <mat-select name="shop-filter-category" [ngModel]="category()" (ngModelChange)="category.set($event)">
-        <mat-option [value]="null">Any category</mat-option>
-        @for (entry of categories; track entry.id) {
-          <mat-option [value]="entry.id">{{ entry.label }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Category</mat-label>
+        <mat-select name="shop-filter-category" [ngModel]="category()" (ngModelChange)="category.set($event)">
+          <mat-option [value]="null">Any category</mat-option>
+          @for (entry of categories; track entry.id) {
+            <mat-option [value]="entry.id">{{ entry.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Gender</mat-label>
-      <mat-select name="shop-filter-gender" [ngModel]="gender()" (ngModelChange)="gender.set($event)">
-        <mat-option [value]="null">Everyone</mat-option>
-        @for (entry of genders; track entry.id) {
-          <mat-option [value]="entry.id">{{ entry.label }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Gender</mat-label>
+        <mat-select name="shop-filter-gender" [ngModel]="gender()" (ngModelChange)="gender.set($event)">
+          <mat-option [value]="null">Everyone</mat-option>
+          @for (entry of genders; track entry.id) {
+            <mat-option [value]="entry.id">{{ entry.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-checkbox name="shop-filter-sale" [ngModel]="onSale()" (ngModelChange)="onSale.set($event)">
-      <span>On Sale</span>
-    </mat-checkbox>
-    <mat-checkbox name="shop-filter-new" [ngModel]="newArrivals()" (ngModelChange)="newArrivals.set($event)">
-      <span>New Arrivals</span>
-    </mat-checkbox>
+      <mat-checkbox name="shop-filter-sale" [ngModel]="onSale()" (ngModelChange)="onSale.set($event)">
+        <span>On Sale</span>
+      </mat-checkbox>
+      <mat-checkbox
+        name="shop-filter-new"
+        [ngModel]="newArrivals()"
+        (ngModelChange)="newArrivals.set($event)"
+      >
+        <span>New Arrivals</span>
+      </mat-checkbox>
+    </div>
   </mat-dialog-content>
 
   <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">

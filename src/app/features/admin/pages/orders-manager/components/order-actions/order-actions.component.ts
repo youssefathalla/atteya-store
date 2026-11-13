@@ -173,7 +173,7 @@ export class OrderActionsComponent {
     let reason: string | null = null;
     if (move.status === 'confirmed' && row.confirmAction === 'confirm-payment') {
       const ok = await this.#ask({
-        title: `Confirm payment for ${row.orderRef}?`,
+        title: `Confirm Payment for ${row.orderRef}?`,
         message: `Only confirm after you see ${row.amountDueLabel ?? 'the full amount'} arrive in your bank app. A screenshot alone isn't proof. This takes the items out of stock and emails the shopper.`,
         confirmText: 'Payment Received',
         cancelText: 'Not Yet',
