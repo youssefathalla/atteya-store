@@ -478,8 +478,11 @@ export function savedStep(step: StockStep): { take: StockPiece[]; putBack: Stock
   return { take: plain(step.take), putBack: plain(step.putBack) };
 }
 
-/** Approve: the moves for the items (every wrong item must have its sent piece by now). */
-export function approveStep(items: readonly StaffReturnItem[]): StockStep {
+/**
+ * Approve: the moves for the items (every wrong item must have its sent piece by now), and the
+ * moves a later Reject makes (saved on the request as `rejectStock`, ATS-298).
+ */
+export function approvePlan(items: readonly StaffReturnItem[]): { approve: StockStep; reject: StockStep } {
   const plan = returnStockPlan(stockItemsFor(items));
   if (plan.missing.length > 0) {
     const item = items[plan.missing[0]!];
@@ -490,12 +493,34 @@ export function approveStep(items: readonly StaffReturnItem[]): StockStep {
         : 'One exchange on this request has no new piece saved. Reject it and ask the customer to send a new request.',
     );
   }
-  return plan.approve;
+  return { approve: plan.approve, reject: plan.reject };
 }
 
-/** Reject after Approve: the opposite of what Approve moved. */
+/** Approve: the moves for the items (every wrong item must have its sent piece by now). */
+export function approveStep(items: readonly StaffReturnItem[]): StockStep {
+  return approvePlan(items).approve;
+}
+
+/** Reject after Approve, for a request approved before `rejectStock` was saved: the opposite of what Approve moved. */
 export function rejectUndoStep(saved: StockStep): StockStep {
   return undoStockStep(saved);
+}
+
+/**
+ * Reject after Approve: the moves saved at Approve (`rejectStock`), which keep the Wrong Item Sent
+ * corrections. A request approved before that was saved undoes what Approve moved (`approveStock`).
+ */
+export function rejectStep(rejectStock: unknown, approveStock: unknown): StockStep {
+  return isRecord(rejectStock) ? readSavedStep(rejectStock) : rejectUndoStep(readSavedStep(approveStock));
+}
+
+/**
+ * The stock Reject moves for a saved request: nothing unless Approve took stock and no Reject has
+ * undone it yet (`stockTakenAt`, `stockUndoneAt`), so rejecting twice moves nothing more.
+ */
+export function rejectStockFor(request: Readonly<Record<string, unknown>>): StockStep | null {
+  if (!request['stockTakenAt'] || request['stockUndoneAt']) return null;
+  return rejectStep(request['rejectStock'], request['approveStock']);
 }
 
 /**

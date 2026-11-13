@@ -7,8 +7,10 @@ import { REJECT_REASON_MAX } from '@core/config/returns';
 
 export interface RejectReturnDialogData {
   readonly ref: string;
-  /** Approved already: what Approve took out of stock goes back. */
+  /** Approved already: Reject moves stock as `stockLines` say. */
   readonly approved: boolean;
+  /** What Reject does to stock, one line per item (`rejectStockLines`). */
+  readonly stockLines: readonly string[];
 }
 
 /** Closes with the reason, trimmed; Keep Request closes with nothing. */
@@ -25,13 +27,15 @@ export interface RejectReturnDialogResult {
     <form (submit)="$event.preventDefault(); save()">
       <mat-dialog-content>
         <div class="return-dialog-fields">
-          <p class="font-body-md opacity-85">
-            {{
-              data.approved
-                ? 'The new pieces taken out of stock at Approve go back on the shelf.'
-                : 'Nothing was taken out of stock yet.'
-            }}
-          </p>
+          @if (!data.approved) {
+            <p class="font-body-md opacity-85">Nothing was taken out of stock yet.</p>
+          } @else if (data.stockLines.length === 0) {
+            <p class="font-body-md opacity-85">Stock stays as it is.</p>
+          } @else {
+            @for (line of data.stockLines; track $index) {
+              <p class="font-body-md opacity-85">{{ line }}</p>
+            }
+          }
           <mat-form-field class="w-full" appearance="outline">
             <mat-label>Reason</mat-label>
             <textarea

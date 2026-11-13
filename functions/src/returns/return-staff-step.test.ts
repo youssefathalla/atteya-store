@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import {
   applyStockMoves,
+  approvePlan,
   approveStep,
   mergeItemChoices,
   parseApprove,
@@ -12,6 +13,8 @@ import {
   readSavedStep,
   readStaffItems,
   receiveStep,
+  rejectStep,
+  rejectStockFor,
   rejectUndoStep,
   ReturnStepError,
   savedStep,
@@ -194,25 +197,96 @@ describe('staff steps: refusals, undo and double clicks', () => {
   });
 
   it('Reject after Approve undoes exactly what Approve moved, floored at 0', () => {
+    const live = products({ shorts: sized(1, 1) });
+    const items = readStaffItems([
+      { ...base, kind: 'different-size', newProductId: 'shorts', newSelection: { size: 'l' } },
+    ]);
+    const plan = approvePlan(items);
+    // Saved on the request at Approve and read back on Reject.
+    const saved = JSON.parse(JSON.stringify(savedStep(plan.reject)));
+    const undo = rejectStep(saved, savedStep(plan.approve));
+    const afterApprove = applyStockMoves(live, plan.approve, { short: 'refuse' });
+    assert.deepEqual(afterApprove.next.get('shorts')?.stockBySize, { m: 1, l: 0 });
+    const after = applyStockMoves(products({ shorts: sized(1, 0) }), undo, { short: 'floor' });
+    assert.deepEqual(after.next.get('shorts')?.stockBySize, { m: 1, l: 1 });
+    // A request approved before rejectStock was saved undoes what Approve moved.
+    assert.deepEqual(rejectStep(undefined, savedStep(plan.approve)), undo);
+  });
+
+  it('legacy undo of a Wrong Item Refund stops at 0 instead of blocking the reject', () => {
     const live = products({ shorts: sized(1, 1), tee: sized(4, 4, 'Club Tee') });
     const items = withSentPieces(
       item({ kind: 'wrong-item', wants: 'refund' }),
       [{ itemIndex: 0, productId: 'tee', size: 'm' }],
       live,
     );
-    const approve = approveStep(items);
-    // Saved on the request and read back on Reject.
-    const undo = rejectUndoStep(readSavedStep(JSON.parse(JSON.stringify(savedStep(approve)))));
-    const after = applyStockMoves(products({ shorts: sized(2, 1), tee: sized(3, 4, 'Club Tee') }), undo, {
-      short: 'floor',
-    });
-    assert.deepEqual(after.next.get('tee')?.stockBySize, { m: 4, l: 4 });
-    assert.deepEqual(after.next.get('shorts')?.stockBySize, { m: 1, l: 1 });
-    // The ordered piece sold meanwhile: the undo stops at 0 instead of blocking the reject.
+    const undo = rejectStep(undefined, JSON.parse(JSON.stringify(savedStep(approveStep(items)))));
     const sold = applyStockMoves(products({ shorts: sized(0, 1), tee: sized(3, 4) }), undo, {
       short: 'floor',
     });
     assert.deepEqual(sold.next.get('shorts')?.stockBySize, { m: 0, l: 1 });
+  });
+
+  /** Approve then Reject (with the saved `rejectStock`), returning the counts after each. */
+  function approveThenReject(wants: string) {
+    const live = products({ shorts: sized(5, 5), tee: sized(5, 5, 'Club Tee') });
+    const items = withSentPieces(
+      item({ kind: 'wrong-item', wants }),
+      [{ itemIndex: 0, productId: 'tee', size: 'm' }],
+      live,
+    );
+    const plan = approvePlan(items);
+    const approved = applyStockMoves(live, plan.approve, { short: 'refuse' });
+    const merged = new Map(live);
+    for (const [id, next] of approved.next) {
+      merged.set(id, { ...merged.get(id)!, stock: next.stock, stockBySize: next.stockBySize });
+    }
+    const saved = JSON.parse(JSON.stringify(savedStep(plan.reject)));
+    const rejected = applyStockMoves(merged, rejectStep(saved, savedStep(approved.applied)), {
+      short: 'floor',
+    });
+    const count = (id: string) =>
+      rejected.next.get(id)?.stockBySize ?? approved.next.get(id)?.stockBySize ?? live.get(id)?.stockBySize;
+    return { shorts: count('shorts'), tee: count('tee') };
+  }
+
+  it('Reject after Approve of Wrong Item · Send the Right One keeps sent −1 and ordered +1', () => {
+    // Before Approve: shorts M 5, tee M 5. The tee we sent is with the customer, the shorts stay.
+    const after = approveThenReject('send-right-one');
+    assert.deepEqual(after.tee, { m: 4, l: 5 });
+    assert.deepEqual(after.shorts, { m: 6, l: 5 });
+  });
+
+  it('Reject after Approve of Wrong Item · Refund moves no stock', () => {
+    const after = approveThenReject('refund');
+    assert.deepEqual(after.tee, { m: 4, l: 5 });
+    assert.deepEqual(after.shorts, { m: 6, l: 5 });
+    const items = withSentPieces(
+      item({ kind: 'wrong-item', wants: 'refund' }),
+      [{ itemIndex: 0, productId: 'tee', size: 'm' }],
+      products({ tee: sized(5, 5) }),
+    );
+    assert.deepEqual(approvePlan(items).reject, { take: [], putBack: [] });
+  });
+
+  it('Reject moves stock once only: a second Reject, or one before Approve, moves nothing', () => {
+    const items = withSentPieces(
+      item({ kind: 'wrong-item', wants: 'send-right-one' }),
+      [{ itemIndex: 0, productId: 'tee', size: 'm' }],
+      products({ tee: sized(5, 5) }),
+    );
+    const plan = approvePlan(items);
+    const request = {
+      stockTakenAt: 'set',
+      approveStock: savedStep(plan.approve),
+      rejectStock: savedStep(plan.reject),
+    };
+    assert.deepEqual(rejectStockFor(request), {
+      take: [],
+      putBack: [{ productId: 'shorts', selection: { size: 'm' }, quantity: 1 }],
+    });
+    assert.equal(rejectStockFor({ ...request, stockUndoneAt: 'set' }), null);
+    assert.equal(rejectStockFor({}), null);
   });
 
   it('pieces whose product or size is gone count in notReturned', () => {

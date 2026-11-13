@@ -654,6 +654,13 @@ export interface StockStep {
 
 export interface ReturnStockPlan {
   readonly approve: StockStep;
+  /**
+   * The moves Reject makes after Approve (ATS-298). Every kind undoes what Approve moved, except
+   * Wrong Item Sent: the customer still has the piece we sent and the ordered piece is still on our
+   * shelf, so those two corrections stay. Only Send the Right One gives its ordered piece back,
+   * because we never sent it.
+   */
+  readonly reject: StockStep;
   readonly received: StockStep;
   /** Indexes of items that can't be planned yet: a wrong item with no `sentPiece`, an exchange with no `newPiece`. */
   readonly missing: readonly number[];
@@ -662,19 +669,21 @@ export interface ReturnStockPlan {
 /**
  * Turns a request into the stock moves of each step (the moves themselves happen in ticket 3):
  *
- * | Kind | At Approve | At Received |
- * | Different Size / Colour | new piece −1 | returned piece +1 (if it can be sold again) |
- * | Return It | nothing | piece +1 (if it can be sold again) |
- * | Damaged · Send Another | same piece −1 | nothing by default |
- * | Damaged · Refund | nothing | nothing by default |
- * | Wrong · Send the Right One | sent piece −1 (ordered +1 then −1 = no change) | sent piece +1 |
- * | Wrong · Refund | sent piece −1, ordered piece +1 | sent piece +1 |
+ * | Kind | At Approve | On Reject after Approve | At Received |
+ * | Different Size / Colour | new piece −1 | new piece +1 | returned piece +1 (if it can be sold again) |
+ * | Return It | nothing | nothing | piece +1 (if it can be sold again) |
+ * | Damaged · Send Another | same piece −1 | same piece +1 | nothing by default |
+ * | Damaged · Refund | nothing | nothing | nothing by default |
+ * | Wrong · Send the Right One | sent piece −1 (ordered +1 then −1 = no change) | ordered piece +1 | sent piece +1 |
+ * | Wrong · Refund | sent piece −1, ordered piece +1 | nothing | sent piece +1 |
  *
- * Rejecting or cancelling after Approve undoes the Approve moves (`undoStockStep`).
+ * Reject keeps the Wrong Item Sent corrections (the customer has the sent piece, the ordered one
+ * is on our shelf) and undoes only the Send the Right One piece (ATS-298).
  */
 export function returnStockPlan(items: readonly ReturnStockItem[]): ReturnStockPlan {
   const approveTake: StockPiece[] = [];
   const approvePut: StockPiece[] = [];
+  const rejectPut: StockPiece[] = [];
   const receivedPut: StockPiece[] = [];
   const missing: number[] = [];
 
@@ -695,13 +704,17 @@ export function returnStockPlan(items: readonly ReturnStockItem[]): ReturnStockP
           return;
         }
         approveTake.push(piece(item.newPiece));
+        rejectPut.push(piece(item.newPiece));
         if (sellable) receivedPut.push(piece(item.ordered));
         return;
       case 'return':
         if (sellable) receivedPut.push(piece(item.ordered));
         return;
       case 'damaged':
-        if (item.wants === 'send-another') approveTake.push(piece(item.ordered));
+        if (item.wants === 'send-another') {
+          approveTake.push(piece(item.ordered));
+          rejectPut.push(piece(item.ordered));
+        }
         if (sellable) receivedPut.push(piece(item.ordered));
         return;
       case 'wrong-item':
@@ -713,6 +726,8 @@ export function returnStockPlan(items: readonly ReturnStockItem[]): ReturnStockP
         // Refund: the ordered piece never left the shelf. Send the Right One: it goes back on the
         // shelf and straight out again, so nothing changes for it.
         if (item.wants === 'refund') approvePut.push(piece(item.ordered));
+        // Reject keeps both corrections; Send the Right One gives back the piece we never sent.
+        if (item.wants !== 'refund') rejectPut.push(piece(item.ordered));
         if (sellable) receivedPut.push(piece(item.sentPiece));
         return;
     }
@@ -720,12 +735,13 @@ export function returnStockPlan(items: readonly ReturnStockItem[]): ReturnStockP
 
   return {
     approve: { take: approveTake, putBack: approvePut },
+    reject: { take: [], putBack: rejectPut },
     received: { take: [], putBack: receivedPut },
     missing,
   };
 }
 
-/** The moves that undo a step (Rejected or Cancelled after Approve). */
+/** The moves that undo a step (Reject of a request approved before `rejectStock` was saved). */
 export function undoStockStep(step: StockStep): StockStep {
   return { take: step.putBack, putBack: step.take };
 }
