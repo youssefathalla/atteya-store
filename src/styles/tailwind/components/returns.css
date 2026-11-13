@@ -58,14 +58,9 @@
     @apply shrink-0 px-1.5 py-0.5 bg-primary text-on-primary border-shape font-label-sm font-bold! uppercase;
   }
 
-  /* Send Request with what is still missing above it. */
+  /* Send Request (full width) with what is still missing above it. */
   .return-actions {
-    @apply elements-start-col! items-stretch! gap-2 px-6! pb-6!;
-  }
-
-  /* Send Another / Refund: two equal halves across the field. */
-  .return-wants {
-    @apply grid! grid-cols-2 w-full;
+    @apply grid w-full gap-2 px-2 pb-2;
   }
 
   /* The request box on the order page: black title bar, status steps, items. */

@@ -1,5 +1,15 @@
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
-import { Component, computed, effect, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  OnInit,
+  PLATFORM_ID,
+  signal,
+  untracked,
+} from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,7 +28,7 @@ import {
   shopperWhatsappText,
   type OrderStage,
 } from '@core/config/order-messages';
-import { readReturnSummaries, RETURN_WINDOW_DAYS } from '@core/config/returns';
+import { readReturnSummaries } from '@core/config/returns';
 import { formatIban, STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
 import { FALLBACK_GIFT_NAME } from '@core/services/cart/cart-gifts';
 import type { CreateManualOrderResult } from '@core/services/orders/checkout-order.service';
@@ -26,12 +36,7 @@ import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
 import { orderStatusName } from '@core/services/orders/order-status-name';
 import { orderDate } from '@core/services/orders/shopper-orders.service';
-import {
-  returnEntry,
-  returnOrderFacts,
-  shortDay,
-  type ReturnEntry,
-} from '@core/services/orders/order-returns';
+import { returnEntry, type ReturnEntry } from '@core/services/orders/order-returns';
 import { MetaPixelService } from '@core/services/analytics/meta-pixel.service';
 import {
   isOrderViewKey,
@@ -484,13 +489,10 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     return order ? readReturnSummaries(order.returns).reverse() : [];
   });
 
-  /** "24 Nov" while the 14 days after delivery are still open (also with a request in progress). */
+  /** "24 Nov" while a new request can be sent (a cancelled request's box says so). */
   readonly returnsUntil = computed(() => {
-    const order = this.order();
-    const delivered = order ? returnOrderFacts(order).deliveredAtMs : null;
-    if (delivered === null || order?.status !== 'delivered') return null;
-    const closes = delivered + RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-    return Date.now() <= closes ? shortDay(closes) : null;
+    const entry = this.returnEntry();
+    return entry.kind === 'open' ? entry.until : null;
   });
 
   readonly returnsClosedUrl = whatsappChatUrl(STORE_INFO.contact.whatsapp);
@@ -546,7 +548,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       if (!this.#openReturnOnLoad() || this.order() === undefined) return;
       this.#openReturnOnLoad.set(false);
       clearOpenReturnRequest();
-      if (this.returnEntry().kind === 'open') this.openReturn();
+      if (this.returnEntry().kind === 'open') untracked(() => this.openReturn());
     });
     // Meta Pixel Purchase for a Card order, once Paymob confirms the payment (ATS-290). Only on the
     // shopper's return from Paymob (paid in the last 2 hours), not when the order link is opened later.

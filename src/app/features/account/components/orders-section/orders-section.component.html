@@ -105,7 +105,7 @@
 
 <!-- Delivered in the last 14 days: open the order with the Return or Exchange screen. -->
 <ng-template #returnLink let-row>
-  <div class="grid gap-1 pt-2 pb-3 @xl:flex @xl:items-center @xl:gap-3">
+  <div class="grid gap-1 pt-2 pb-3 @xl:elements-start @xl:gap-3">
     <a
       matButton="outlined"
       [routerLink]="['/checkout', 'confirmation', row.id]"

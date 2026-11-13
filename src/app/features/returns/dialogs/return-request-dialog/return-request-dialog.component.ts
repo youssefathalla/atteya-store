@@ -70,6 +70,7 @@ export const RETURN_REQUEST_DIALOG_CONFIG = {
   width: '40rem',
   maxWidth: '96vw',
   autoFocus: 'first-heading',
+  ariaLabelledBy: 'return-request-title',
   panelClass: 'return-request-pane',
 } as const;
 
@@ -125,24 +126,28 @@ export class ReturnRequestDialogComponent {
   readonly isSending = signal(false);
   readonly sendError = signal<string | null>(null);
 
+  readonly #readProducts = this.#returns.productReader();
+
   /** Products needed for the size and colour choices, read when an item asks for one. */
-  readonly #productIds = computed(() => {
-    const ids = new Set<string>();
+  readonly #productRequests = computed(() => {
+    const byId = new Map<string, boolean>();
     for (const line of this.lines) {
       const choice = this.choices()[line.index];
       if (choice?.picked && (choice.kind === 'different-size' || choice.kind === 'different-colour')) {
-        ids.add(line.productId);
+        byId.set(line.productId, (byId.get(line.productId) ?? false) || choice.kind === 'different-colour');
       }
     }
-    return [...ids].sort();
+    return [...byId.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([productId, withColours]) => ({ productId, withColours }));
   });
 
   readonly #productsResource = resource({
     params: () => {
-      const ids = this.#productIds();
-      return ids.length > 0 ? { ids } : undefined;
+      const requests = this.#productRequests();
+      return requests.length > 0 ? { requests } : undefined;
     },
-    loader: ({ params }) => this.#returns.choicesFor(params.ids),
+    loader: ({ params }) => this.#readProducts(params.requests),
   });
 
   /** Every product read so far, kept while a new one loads so the chips never blink. */
@@ -160,7 +165,9 @@ export class ReturnRequestDialogComponent {
   readonly rows = computed(() =>
     this.lines.map((line) => {
       const choice = this.choices()[line.index] ?? EMPTY_CHOICE;
-      const loaded = this.#products().get(line.productId);
+      const found = this.#products().get(line.productId);
+      // Read for sizes only: the colours are still on their way.
+      const loaded = choice.kind === 'different-colour' && found && !found.withColours ? undefined : found;
       const product = loaded?.product ?? null;
       const currentSize = line.selection['size'] ?? null;
       const tiles = colourTiles(product, loaded?.siblings ?? []);
@@ -187,6 +194,7 @@ export class ReturnRequestDialogComponent {
           .map((tile) => tile.name)
           .join(', '),
         colourName: colour ? colourName(colour) : null,
+        product,
         hasSizes: choice.kind === 'different-colour' ? (colour ? sizes.length > 0 : null) : sizes.length > 0,
         giftBack: this.preview().gifts.find((gift) => gift.forLine === line.index)?.quantity ?? 0,
       };
@@ -264,6 +272,9 @@ export class ReturnRequestDialogComponent {
       if (!row.choice.picked || row.line.left < 1) continue;
       const problem = choiceProblem(row.line, row.choice, row.hasSizes);
       if (problem) return problem;
+    }
+    if (this.#feeUnknown() && !this.preview().storeFault) {
+      return 'Getting the courier fee… one moment.';
     }
     if (this.needsRefundTo() && !this.refundTo().trim()) {
       return 'Add your InstaPay number or address so we can send your refund.';
@@ -350,24 +361,27 @@ export class ReturnRequestDialogComponent {
     }
   }
 
-  /** What was asked, worded like the server's `askedLabel`. */
+  /** What was asked, worded like the server's `askedLabel` (`buildReturnRequest()`). */
   #askedLabel(row: RequestRow): string {
     const { choice, line } = row;
     const sizeLabel = row.sizes.find((size) => size.id === choice.size)?.label ?? choice.size ?? '';
     switch (choice.kind) {
       case 'different-size': {
-        const current = line.selection['size'];
-        const was = row.sizes.find((size) => size.id === current)?.label ?? current ?? '';
-        return was ? `Size ${was} → ${sizeLabel}` : `Size ${sizeLabel}`;
+        const current = line.selection['size'] ?? '';
+        const was = row.sizes.find((size) => size.id === current)?.label ?? current;
+        return `Size ${was} → ${sizeLabel}`;
       }
-      case 'different-colour':
-        return `${row.colourName ?? 'Other colour'}${sizeLabel ? ` · Size ${sizeLabel}` : ''}`;
+      case 'different-colour': {
+        const from = row.product ? colourName(row.product) : line.name;
+        const sizePart = sizeLabel ? ` · Size ${sizeLabel}` : '';
+        return `${from} → ${row.colourName ?? 'Other colour'}${sizePart}`;
+      }
       case 'return':
-        return `Return It · ${returnReasonLabel(choice.reason ?? 'other')}`;
+        return `Return · ${returnReasonLabel(choice.reason ?? 'other')}`;
       case 'damaged':
-        return `Damaged Item · ${returnWantsLabel(choice.wants ?? 'refund')}`;
+        return `Damaged · ${returnWantsLabel(choice.wants ?? 'refund')}`;
       case 'wrong-item':
-        return `Wrong Item Sent · ${returnWantsLabel(choice.wants ?? 'refund')}`;
+        return `Wrong Item · ${returnWantsLabel(choice.wants ?? 'refund')}`;
       default:
         return '';
     }

@@ -30,18 +30,23 @@ export interface RequestReturnResult {
 export interface ReturnProductChoices {
   readonly product: Product | null;
   readonly siblings: readonly Product[];
+  /** False when only the sizes were asked for (`siblings` is then empty). */
+  readonly withColours: boolean;
+}
+
+export interface ProductChoiceRequest {
+  readonly productId: string;
+  readonly withColours: boolean;
 }
 
 /**
  * Sends and cancels return or exchange requests (`requestReturn`, `cancelReturnRequest`, ATS-291)
- * and reads the products a request can swap to. Product reads are kept for the page's life, so
- * switching an item between kinds reads nothing again.
+ * and reads the products a request can swap to (`productReader()`).
  */
 @Service()
 export class ReturnsService {
   readonly #functions = injectFunctionsAsync();
   readonly #products = inject(ProductService);
-  readonly #cache = new Map<string, Promise<Product | null>>();
 
   async requestReturn(data: RequestReturnData): Promise<RequestReturnResult> {
     const call = await callableFrom<RequestReturnData, RequestReturnResult>(
@@ -59,37 +64,44 @@ export class ReturnsService {
     await call(viewKey ? { requestId, viewKey } : { requestId });
   }
 
-  /** Each product (by id) with its model's other colours. Missing or hidden products read as null. */
-  async choicesFor(productIds: readonly string[]): Promise<ReadonlyMap<string, ReturnProductChoices>> {
-    const out = new Map<string, ReturnProductChoices>();
-    await Promise.all(
-      productIds.map(async (id) => {
-        const product = await this.#product(id);
-        const siblingIds = (product?.colorSiblings ?? [])
-          .map((entry) => entry.id)
-          .filter((other) => other !== id);
-        const siblings = await Promise.all(siblingIds.map((other) => this.#product(other)));
-        out.set(id, {
-          product,
-          siblings: siblings.filter((other): other is Product => other !== null),
-        });
-      }),
-    );
-    return out;
-  }
-
-  #product(id: string): Promise<Product | null> {
-    let pending = this.#cache.get(id);
-    if (!pending) {
-      pending = this.#products
-        .getById(id)
-        .then((product) => (product?.published ? product : null))
-        .catch((error: unknown) => {
-          this.#cache.delete(id);
+  /**
+   * A reader for one request screen: each product (by id), with its model's other colours when
+   * `withColours` (one query). Reads are kept for that screen only, so reopening it shows live stock.
+   * Missing or hidden products read as null.
+   */
+  productReader(): (
+    requests: readonly ProductChoiceRequest[],
+  ) => Promise<ReadonlyMap<string, ReturnProductChoices>> {
+    const products = new Map<string, Promise<Product | null>>();
+    const groups = new Map<string, Promise<readonly Product[]>>();
+    const remember = <T>(cache: Map<string, Promise<T>>, key: string, read: () => Promise<T>): Promise<T> => {
+      let pending = cache.get(key);
+      if (!pending) {
+        pending = read().catch((error: unknown) => {
+          cache.delete(key);
           throw error;
         });
-      this.#cache.set(id, pending);
-    }
-    return pending;
+        cache.set(key, pending);
+      }
+      return pending;
+    };
+    return async (requests) => {
+      const out = new Map<string, ReturnProductChoices>();
+      await Promise.all(
+        requests.map(async ({ productId, withColours }) => {
+          const product = await remember(products, productId, async () => {
+            const found = await this.#products.getById(productId);
+            return found?.published ? found : null;
+          });
+          const group = product?.modelGroup;
+          const siblings =
+            withColours && group
+              ? await remember(groups, group, () => this.#products.listModelGroup(group, 12))
+              : [];
+          out.set(productId, { product, siblings, withColours });
+        }),
+      );
+      return out;
+    };
   }
 }

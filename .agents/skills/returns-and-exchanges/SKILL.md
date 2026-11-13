@@ -93,7 +93,10 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - The order schema (`OrderSchema` and `OrderViewSchema`) keeps the order's `returns` raw; read it with `readReturnSummaries()`.
 - The request screen opens with `RETURN_REQUEST_DIALOG_CONFIG` (`panelClass: 'return-request-pane'`: a 40rem dialog on desktop, full screen below 640 px in `_dialog.scss`).
 - Account → Orders opens the order page with router state `{ openReturn: true }`, and the page opens the screen once the order loads (then clears the state so a reload doesn't reopen it).
-- Sizes and colours are read live per product (`ReturnsService.choicesFor()`, the product and its `colorSiblings`); sold-out sizes and the size they have are disabled, colours with another price are greyed out.
+- Sizes and colours are read live when an item asks for them (`ReturnsService.productReader()`: the product, and for Different Colour its `modelGroup` in one query), kept only while the screen is open; sold-out sizes and the size they have are disabled, colours with another price are greyed out.
+- Send Another / Refund is a `mat-button-toggle-group.return-wants` (two equal halves, `_button-toggle.scss`).
+- Send Request waits for `settings/shipping` when the order's delivery fee was 0, so the refund after the fee is never shown or saved without the fee.
+- The button shows only while some piece is left to ask for (`piecesLeft()`).
 - The refund, courier fee and returned gifts on the screen come from `returnPreview()` (`features/returns/utils/return-request.utils.ts`), which calls the same shared rules as `buildReturnRequest()`; the courier fee's box price uses `normalBoxFeeEgp()` with `ShippingSettingsService.settings()`, like `normalEgyptBoxFee()` on the server.
 - Send Request calls `requestReturn`; errors show `callableMessage()`; on success the snackbar says "Request sent. We'll message you on WhatsApp."
 - The order page shows `app-return-request-box` for each entry of the order's `returns`, newest first, live; **Cancel Request** (asks first) calls `cancelReturnRequest` while Requested.

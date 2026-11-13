@@ -3,7 +3,7 @@
     <mat-icon name="close" />
   </button>
   <div class="elements-start-col min-w-0">
-    <h2 mat-dialog-title class="font-title-lg font-bold! p-0! m-0!">Return or Exchange</h2>
+    <h2 id="return-request-title" class="font-title-lg font-bold!">Return or Exchange</h2>
     <p class="font-body-sm text-on-surface-variant">Order {{ orderRef }} · until {{ data.until }}</p>
   </div>
 </header>
@@ -291,13 +291,14 @@
   }
 </mat-dialog-content>
 
-<mat-dialog-actions class="return-actions">
-  @if (sendError(); as error) {
-    <p class="font-body-md text-error w-full" role="alert">{{ error }}</p>
-  } @else if (problem(); as problem) {
-    <p class="font-body-sm text-on-surface-variant w-full" aria-live="polite">{{ problem }}</p>
-  }
-  <div class="grid w-full">
+<mat-dialog-actions>
+  <div class="return-actions">
+    @if (sendError(); as error) {
+      <p class="font-body-md text-error w-full" role="alert">{{ error }}</p>
+    } @else if (problem(); as problem) {
+      <p class="font-body-sm text-on-surface-variant w-full" aria-live="polite">{{ problem }}</p>
+    }
+
     <button
       matButton="filled"
       type="button"

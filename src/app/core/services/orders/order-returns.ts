@@ -1,4 +1,6 @@
 import {
+  piecesLeft,
+  readReturnOrderLines,
   readReturnSummaries,
   returnEligibility,
   RETURN_WINDOW_DAYS,
@@ -26,7 +28,8 @@ export function returnOrderFacts(order: OrderDoc): ReturnOrderFacts {
 /**
  * What the order page and Account → Orders show about returns:
  * `open` = the **Return or Exchange** button (until `until`), `closed` = the 14 days are over
- * ("Returns closed on 27 Nov."), `none` = nothing (not delivered, abroad, or a request in progress).
+ * ("Returns closed on 27 Nov."), `none` = nothing (not delivered, abroad, a request in progress, or
+ * every piece already requested).
  */
 export type ReturnEntry =
   | { readonly kind: 'open'; readonly until: string; readonly closesAtMs: number }
@@ -37,6 +40,9 @@ export function returnEntry(order: OrderDoc, nowMs: number): ReturnEntry {
   const facts = returnOrderFacts(order);
   const eligibility: ReturnEligibility = returnEligibility(facts, nowMs);
   if (eligibility.ok) {
+    // Every piece is already in a request: nothing left to pick.
+    const left = piecesLeft(readReturnOrderLines(order.pricing.lines), facts.returns);
+    if (!left.some((pieces) => pieces > 0)) return { kind: 'none' };
     return { kind: 'open', until: shortDay(eligibility.closesAtMs), closesAtMs: eligibility.closesAtMs };
   }
   if (eligibility.reason === 'window-closed' && facts.deliveredAtMs !== null) {
