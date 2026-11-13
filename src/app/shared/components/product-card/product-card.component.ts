@@ -118,15 +118,17 @@ export class ProductCardComponent {
   /**
    * The photo's "BUNDLE & SAVE 60%" tag (ATS-280) for the colour on screen, or null. It comes with
    * the card's price (same offers, same moment), so the server and the first browser paint agree
-   * and no card reads anything for it. While a picked colour's price loads, the card's own tag stays.
+   * and no card reads anything for it (an amount waits for the visitor's currency, like the price). While a picked colour's price loads, the card's own tag stays.
    */
   readonly bundleTag = computed(() => {
     const reward = (this.shownPrice() ?? this.product().price).bundleSave;
     if (!reward) return null;
-    return bundleSaveTagText(reward, (egp) => {
+    const text = bundleSaveTagText(reward, (egp) => {
       const entry = this.#currency.entry();
       return formatMoney(toDisplayAmount(egp, entry), entry.code, displayDecimals(entry.code));
     });
+    // An amount is hidden like the price while a foreign currency is still loading (`_base.scss`).
+    return { text, money: reward.type === 'amount' };
   });
 
   /** Whether the picked colour couldn't be read (failed, unpublished or a stale link). */
