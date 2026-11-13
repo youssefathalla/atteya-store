@@ -1,0 +1,117 @@
+<section
+  class="return-box"
+  [class.return-box--done]="done()"
+  [attr.aria-label]="'Return or Exchange ' + request().ref"
+>
+  <div class="return-box__head elements-between gap-3">
+    <h3 class="font-title-md font-bold!">Return or Exchange {{ request().ref }}</h3>
+    @if (done()) {
+      <span class="font-label-lg font-bold!">{{ statusLabel() }}</span>
+    }
+  </div>
+
+  <div class="elements-start-col items-stretch! gap-4 p-5">
+    @if (!done()) {
+      <div class="elements-start-col items-stretch! gap-2">
+        <div class="return-steps" aria-hidden="true">
+          @for (step of steps(); track step.status) {
+            <span class="return-steps__bar" [class.return-steps__bar--done]="step.done"></span>
+          }
+        </div>
+        <ol class="return-steps">
+          @for (step of steps(); track step.status) {
+            <li
+              [class]="
+                step.status === request().status
+                  ? 'font-label-md font-bold!'
+                  : 'font-label-md text-on-surface-variant'
+              "
+              [attr.aria-current]="step.status === request().status ? 'step' : null"
+            >
+              {{ step.label }}
+            </li>
+          }
+        </ol>
+      </div>
+    }
+
+    @if (rejectReason(); as reason) {
+      <p class="font-body-md">"{{ reason }}"</p>
+    }
+    @if (request().status === 'rejected') {
+      <p class="font-body-md">
+        @if (whatsappUrl) {
+          <a class="underline" [href]="whatsappUrl" target="_blank" rel="noopener">Message us on WhatsApp</a>
+          if you have questions.
+        } @else {
+          We couldn't accept this request.
+        }
+      </p>
+    } @else if (message()) {
+      <p class="font-body-md">{{ message() }}</p>
+    }
+
+    <ul class="elements-start-col items-stretch! gap-3">
+      @for (item of items(); track item.key) {
+        <li class="elements-start gap-3">
+          <div class="return-item__photo" aria-hidden="true">
+            @if (item.imagePath; as path) {
+              <img
+                [ngSrc]="item.imageSrc"
+                [appImageFallback]="path"
+                alt=""
+                width="56"
+                height="56"
+                class="size-full object-contain p-1"
+              />
+            }
+          </div>
+          <div class="min-w-0 flex-1 elements-start-col gap-0.5">
+            <p class="font-title-sm font-bold! break-words">
+              {{ item.name }}
+              @if (item.details) {
+                <span> · {{ item.details }}</span>
+              }
+            </p>
+            <p class="font-body-sm text-on-surface-variant">{{ item.what }}</p>
+          </div>
+        </li>
+      }
+    </ul>
+
+    @if (refund(); as amount) {
+      @if (!done()) {
+        <div class="elements-between items-baseline! gap-4 border-t border-outline-variant pt-3">
+          <span class="font-body-md">Your refund after the courier fee</span>
+          <span class="font-title-md font-bold! whitespace-nowrap">{{ amount }}</span>
+        </div>
+      }
+    }
+
+    @if (photosUrl() || request().status === 'requested') {
+      <div class="grid gap-3">
+        @if (photosUrl(); as url) {
+          <a matButton="filled" [href]="url" target="_blank" rel="noopener">
+            <mat-icon name="photo_library" />
+            <span>Send Photos on WhatsApp</span>
+          </a>
+        }
+        @if (request().status === 'requested') {
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="isCancelling()"
+            [attr.aria-label]="isCancelling() ? 'Cancelling your request…' : null"
+            (click)="cancel()"
+          >
+            @if (isCancelling()) {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>Cancel Request</span>
+            }
+          </button>
+        }
+      </div>
+    }
+  </div>
+</section>

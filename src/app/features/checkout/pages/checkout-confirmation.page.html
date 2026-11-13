@@ -39,8 +39,17 @@
 </section>
 
 @if (order() === undefined) {
-  <div class="container-content order-section max-w-6xl mx-auto">
-    <p class="font-body-md opacity-70">Loading your order…</p>
+  <div
+    class="container-content order-section max-w-6xl mx-auto grid gap-10 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]"
+    aria-label="Loading your order"
+  >
+    <div class="elements-start-col items-stretch! gap-4">
+      <app-skeleton class="h-7 w-48" />
+      @for (row of [0, 1, 2]; track row) {
+        <app-skeleton class="h-14 w-full" />
+      }
+    </div>
+    <app-skeleton class="h-64 w-full" />
   </div>
 } @else if (order() === null) {
   <div class="container-content order-section max-w-6xl mx-auto elements-start-col gap-4">
@@ -213,6 +222,42 @@
             </li>
           }
         </ol>
+      }
+      @let entry = returnEntry();
+      @if (entry.kind === 'open') {
+        <div
+          class="bg-surface-container-low border-shape p-5 elements-start-col items-stretch! gap-3"
+          aria-labelledby="return-heading"
+        >
+          <h2 id="return-heading" class="font-title-md font-bold!">Something not right?</h2>
+          <p class="font-body-md">You can return or exchange items until {{ entry.until }}.</p>
+          <div class="grid @xl:flex">
+            <button matButton="outlined" type="button" (click)="openReturn()">Return or Exchange</button>
+          </div>
+        </div>
+      } @else if (entry.kind === 'closed') {
+        <p class="font-body-md text-on-surface-variant">
+          Returns closed on {{ entry.closedOn }}.
+          @if (returnsClosedUrl) {
+            <a class="underline" [href]="returnsClosedUrl" target="_blank" rel="noopener"
+              >Message us on WhatsApp</a
+            >
+          } @else {
+            Message us on WhatsApp
+          }
+          if something is wrong.
+        </p>
+      }
+      @if (order(); as liveOrder) {
+        @for (request of returnRequests(); track request.id) {
+          <app-return-request-box
+            [request]="request"
+            [order]="liveOrder"
+            [orderId]="orderId()"
+            [viewKey]="viewKey()"
+            [newUntil]="returnsUntil()"
+          />
+        }
       }
       <!-- Guest order: offer an account after the order (never before), or save it to the signed-in one. -->
       @if (viewKey(); as key) {
