@@ -185,6 +185,7 @@ Located in `src/styles/tailwind/components/`. Use these classes directly in your
 Located in `src/app/core/services/` or layout services. Inject them using `inject(ServiceName)`:
 
 - **`SettingsHistoryService`** (`src/app/core/services/settings-history/`, <KEY>-251): `list(docId)` reads `settingsHistory/{docId}/versions` newest first (30 at most) as `SettingsVersion` (`savedAtMs`, `savedByEmail`, `summary`, unchecked `data`). The model file has `cairoDateTime(ms)` ("12 Nov, 14:07") and `restoredVersionNote(ms)`.
+- **`CustomerSchema` / `customerConverter`** (`src/app/core/services/customers/`, <KEY>-276): the valibot schema and Firestore converter for `customers/{sha256(email)}` (one summary per customer email, written only by Cloud Functions; staff and admins read). Use it for every read of `customers` in the admin Customers pages.
 
 - **`DrawerService`** (`src/app/core/services/drawer/drawer.service.ts`):
   - `activeDrawer()`: Signal representing current open drawer (`'cart'`, `'menu'`, or `null`).
