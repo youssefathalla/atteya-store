@@ -46,22 +46,33 @@ const DEBUG_KEY = 'metaPixelDebug';
 /** Purchase ids already sent from this browser, so a reload of the order page doesn't count twice. */
 const SENT_PURCHASES_KEY = 'metaPixelPurchases';
 
-/** True when a URL (or its `?query` / `#hash` part) carries a guest order's view key (`key=`). */
-function hasViewKey(url: string): boolean {
-  // Also inside another link in the URL, e.g. `/login?returnUrl=%2Fcheckout%2Fconfirmation%2F…%3Fkey%3D…`.
+/** The URL and up to 3 decoded forms of it, to find a link wrapped in another (`?returnUrl=%2F…`). */
+function urlForms(url: string): string[] {
+  const forms = [url];
   let text = url;
   for (let round = 0; round < 3; round++) {
-    if (/[?&]key=/.test(text)) return true;
     let decoded: string;
     try {
       decoded = decodeURIComponent(text);
     } catch {
-      return false;
+      break;
     }
-    if (decoded === text) return false;
+    if (decoded === text) break;
+    forms.push(decoded);
     text = decoded;
   }
-  return /[?&]key=/.test(text);
+  return forms;
+}
+
+/**
+ * True when Meta must not see this URL, also when it sits inside another link (a sign-in
+ * `returnUrl`): a guest order's view key (`key=`), or an order page with anything after its path
+ * (Paymob's return details, which can hold a wallet phone number).
+ */
+function isPrivateUrl(url: string): boolean {
+  return urlForms(url).some(
+    (form) => /[?&]key=/.test(form) || /\/checkout\/confirmation\/[^?#&\s]*[?#][^&#?\s]/.test(form),
+  );
 }
 
 /**
@@ -126,7 +137,7 @@ export class MetaPixelService {
         // A guest order's view key (`?key=`) opens the order: never let Meta read it from the page
         // URL. The order page takes it out with a `replaceUrl` navigation, and that one sends the
         // PageView (the path is not recorded here, so it still counts as a new page).
-        if (hasViewKey(event.urlAfterRedirects)) return;
+        if (isPrivateUrl(event.urlAfterRedirects)) return;
         const path = event.urlAfterRedirects.split(/[?#]/)[0] ?? '';
         if (path === lastPath) return;
         lastPath = path;
@@ -160,8 +171,8 @@ export class MetaPixelService {
 
     const fbq = this.#window()?.fbq;
     if (!this.#pixelId || !fbq) return false;
-    // Meta tags every event with the page URL: skip it while a guest order's view key is there.
-    if (this.#locationHasViewKey()) return false;
+    // Meta tags every event with the page URL: skip it while that holds a view key or Paymob details.
+    if (this.#locationIsPrivate()) return false;
     if (params) fbq('track', event, params, { eventID: id });
     else fbq('track', event, {}, { eventID: id });
     return true;
@@ -234,9 +245,9 @@ export class MetaPixelService {
     return (this.#document.defaultView as PixelWindow | null) ?? null;
   }
 
-  #locationHasViewKey(): boolean {
+  #locationIsPrivate(): boolean {
     const location = this.#window()?.location;
-    return !!location && hasViewKey(`${location.search}${location.hash}`);
+    return !!location && isPrivateUrl(`${location.pathname}${location.search}${location.hash}`);
   }
 
   #newEventId(event: MetaPixelEvent): string {

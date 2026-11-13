@@ -92,6 +92,8 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #pixel = inject(MetaPixelService);
+  /** True once the address holds no `?key=` or Paymob details (Meta Pixel Purchase waits for it). */
+  readonly #addressClean = signal(false);
 
   /** Result handed over by checkout; only used for the heading until the live order arrives. */
   readonly seed = signal<CreateManualOrderResult | null>(readNavigationSeed());
@@ -494,11 +496,11 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   constructor() {
     // Meta Pixel Purchase for a Card order, once Paymob confirms the payment (ATS-290). Only on the
     // shopper's return from Paymob (paid in the last 2 hours), not when the order link is opened later.
-    // A guest returns with `?key=` in the address: wait until ngOnInit has taken it out (the `key`
-    // input then clears and this runs again), so Meta never sees it.
+    // Wait until ngOnInit has cleaned the address (a guest's `?key=`, Paymob's return details), so
+    // Meta never sees them.
     effect(() => {
       const order = this.order();
-      if (this.key()) return;
+      if (!this.#addressClean()) return;
       if (!order || order.paymentMethod !== 'paymob' || !isPlatformBrowser(this.#platformId)) return;
       const paidAt = orderDate(order.paymob?.paidAt);
       if (!paidAt || Date.now() - paidAt.getTime() > PIXEL_PURCHASE_WINDOW_MS) return;
@@ -511,20 +513,26 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       const id = this.orderId();
       const memory = readGuestOrder(id);
       const fromLink = this.key();
+      // The key opens the order: keep it out of the address bar (and of anything copied from it),
+      // but only once it is saved on this device, or a reload would lose the order.
+      let keepKey = false;
       if (isOrderViewKey(fromLink)) {
-        const saved = rememberGuestOrder(id, { key: fromLink });
+        keepKey = !rememberGuestOrder(id, { key: fromLink });
         this.#savedKey.set(fromLink);
-        // The key opens the order: keep it out of the address bar (and of anything copied from it),
-        // but only once it is saved on this device, or a reload would lose the order.
-        if (saved) {
-          void this.#router.navigate([], {
-            queryParams: { key: null },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-          });
-        }
       } else {
         this.#savedKey.set(memory.key);
+      }
+      // Paymob adds its payment details to the return address (for a wallet, the phone number), and
+      // this page reads none of them: leave just the order's own address.
+      const query = this.#router.parseUrl(this.#router.url).queryParams;
+      if (keepKey) {
+        // Nothing goes to the Meta Pixel while the key is in the address.
+      } else if (Object.keys(query).length > 0) {
+        void this.#router
+          .navigate(['/checkout', 'confirmation', id], { replaceUrl: true })
+          .then(() => this.#addressClean.set(true));
+      } else {
+        this.#addressClean.set(true);
       }
       this.guestEmail.set(memory.email);
     }
