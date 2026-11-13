@@ -282,6 +282,30 @@
         { "fieldPath": "orderCount", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lastOrderAt", "order": "DESCENDING" },
+        { "fieldPath": "orderCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "spentEgp", "order": "DESCENDING" },
+        { "fieldPath": "orderCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "orderCount", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

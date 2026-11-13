@@ -186,6 +186,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 
 - **`SettingsHistoryService`** (`src/app/core/services/settings-history/`, <KEY>-251): `list(docId)` reads `settingsHistory/{docId}/versions` newest first (30 at most) as `SettingsVersion` (`savedAtMs`, `savedByEmail`, `summary`, unchecked `data`). The model file has `cairoDateTime(ms)` ("12 Nov, 14:07") and `restoredVersionNote(ms)`.
 - **`CustomerSchema` / `customerConverter`** (`src/app/core/services/customers/`, <KEY>-276): the valibot schema and Firestore converter for `customers/{sha256(email)}` (one summary per customer email, written only by Cloud Functions; staff and admins read). Use it for every read of `customers` in the admin Customers pages.
+- **`CustomersAdminService`** (`src/app/features/admin/pages/customers-manager/services/`, <KEY>-277): `listPage({ filter, sort, term, after })` (50 customers per page, `next` cursor for Show More) and `summary(monthStart)` (the Customers summary boxes and chip counts, each a server count or average; a failed one is null). Extracted classes: `.customer-stat*`, `.customer-chip*`, `.customer-pill*`, `.customer-row*` in `src/styles/tailwind/components/admin-customers.css`.
 
 - **`DrawerService`** (`src/app/core/services/drawer/drawer.service.ts`):
   - `activeDrawer()`: Signal representing current open drawer (`'cart'`, `'menu'`, or `null`).

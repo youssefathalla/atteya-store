@@ -1,0 +1,235 @@
+<div class="elements-start-col items-stretch! gap-4 w-full">
+  <section
+    class="surface-card p-4 @5xl:p-5 w-full elements-start-col items-stretch! gap-4"
+    aria-label="Customers summary"
+  >
+    <div class="elements-start-col gap-1">
+      <h1 class="font-title-lg font-bold!">Customers</h1>
+      <p class="font-body-md text-on-surface-variant">Everyone who placed an order or made an account.</p>
+    </div>
+
+    @let counts = summary();
+    <div class="grid grid-cols-2 @3xl:grid-cols-4 gap-3">
+      <div class="customer-stat">
+        <span class="customer-stat__label">Customers</span>
+        @if (summaryResource.isLoading()) {
+          <app-skeleton class="h-8 w-16" />
+        } @else {
+          <span class="customer-stat__value">{{ counts?.total ?? '—' }}</span>
+          @if ((counts?.newThisMonth ?? null) !== null) {
+            <span class="customer-stat__note">{{ counts?.newThisMonth }} new this month</span>
+          }
+        }
+      </div>
+      <div class="customer-stat">
+        <span class="customer-stat__label">Ordered more than once</span>
+        @if (summaryResource.isLoading()) {
+          <app-skeleton class="h-8 w-16" />
+        } @else {
+          <span class="customer-stat__value">{{ counts?.repeat ?? '—' }}</span>
+          @if (repeatLine(); as line) {
+            <span class="customer-stat__note">{{ line }}</span>
+          }
+        }
+      </div>
+      <div class="customer-stat">
+        <span class="customer-stat__label">Average spent</span>
+        @if (summaryResource.isLoading()) {
+          <app-skeleton class="h-8 w-24" />
+        } @else {
+          <span class="customer-stat__value">
+            @if ((counts?.averageSpentEgp ?? null) !== null) {
+              {{ counts?.averageSpentEgp ?? null | egpPrice }}
+            } @else {
+              —
+            }
+          </span>
+          <span class="customer-stat__note">Confirmed orders only</span>
+        }
+      </div>
+      <div class="customer-stat">
+        <span class="customer-stat__label">With an account</span>
+        @if (summaryResource.isLoading()) {
+          <app-skeleton class="h-8 w-16" />
+        } @else {
+          <span class="customer-stat__value">{{ counts?.accounts ?? '—' }}</span>
+          @if ((counts?.guests ?? null) !== null) {
+            <span class="customer-stat__note">{{ counts?.guests }} ordered as guests</span>
+          }
+        }
+      </div>
+    </div>
+  </section>
+
+  <section
+    class="surface-card p-4 @5xl:p-5 w-full elements-start-col items-stretch! gap-4"
+    aria-label="Find customers"
+  >
+    <div class="grid gap-3 @3xl:grid-cols-[minmax(0,1fr)_16rem] @3xl:items-start">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Search customers</mat-label>
+        <mat-icon matPrefix name="search" />
+        <input
+          matInput
+          type="text"
+          dir="auto"
+          autocomplete="off"
+          enterkeyhint="search"
+          [value]="searchText()"
+          (input)="onSearchInput($event)"
+          (keydown.escape)="clearSearch()"
+        />
+        @if (searchText()) {
+          <button matIconButton matSuffix type="button" aria-label="Clear search" (click)="clearSearch()">
+            <mat-icon name="close" />
+          </button>
+        }
+        <mat-hint>Name, phone, email or order number</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Sort by</mat-label>
+        <mat-select [value]="sort()" (selectionChange)="sort.set($event.value)">
+          @for (option of sorts; track option.id) {
+            <mat-option [value]="option.id">{{ option.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <!-- Phone: the chips are one Show select. -->
+    <div class="grid @3xl:hidden">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Show</mat-label>
+        <mat-select [value]="filter()" (selectionChange)="setFilter($event.value)">
+          @for (option of filters; track option.id) {
+            <mat-option [value]="option.id">
+              {{ option.label }}
+              @if (chipCount(option.id) !== null) {
+                ({{ chipCount(option.id) }})
+              }
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="hidden @3xl:flex flex-wrap gap-2" role="tablist" aria-label="Filter customers">
+      @for (option of filters; track option.id) {
+        <button
+          type="button"
+          role="tab"
+          class="customer-chip"
+          [class.customer-chip--active]="filter() === option.id"
+          [attr.aria-selected]="filter() === option.id"
+          (click)="setFilter(option.id)"
+        >
+          {{ option.label }}
+          @if (chipCount(option.id) !== null) {
+            <span class="customer-chip__count">{{ chipCount(option.id) }}</span>
+          }
+        </button>
+      }
+    </div>
+  </section>
+
+  <section class="w-full" aria-label="Customers list">
+    @if (firstLoading()) {
+      <div class="elements-start-col items-stretch! gap-2" aria-hidden="true">
+        <app-skeleton class="h-16 w-full" />
+        <app-skeleton class="h-16 w-full" />
+        <app-skeleton class="h-16 w-full" />
+        <app-skeleton class="h-16 w-full" />
+      </div>
+    } @else if (failed() && rows().length === 0) {
+      <div class="surface-card p-5 grid gap-3 @3xl:justify-items-start" role="alert">
+        <p class="font-body-md">We couldn't load the customers. Check your connection and try again.</p>
+        <button matButton="outlined" type="button" (click)="tryAgain()">Try Again</button>
+      </div>
+    } @else if (rows().length === 0 && !hasMore()) {
+      <div class="surface-card p-5 grid gap-3 @3xl:justify-items-start">
+        @if (searching()) {
+          <p class="font-body-md break-words">No customers match "{{ searchQuote() }}".</p>
+          <button matButton="outlined" type="button" (click)="clearSearch()">Clear Search</button>
+        } @else if (filter() === 'all') {
+          <p class="font-body-md">No customers yet. They appear here after the first order or account.</p>
+        } @else {
+          <p class="font-body-md">No customers here yet.</p>
+        }
+      </div>
+    } @else {
+      <div class="surface-card w-full">
+        <div class="customer-row__head" aria-hidden="true">
+          <span>Customer</span>
+          <span>Phone</span>
+          <span>City</span>
+          <span class="text-center">Orders</span>
+          <span class="text-center">Spent</span>
+          <span>Last Order</span>
+          <span></span>
+        </div>
+        <ul class="w-full" aria-label="Customers">
+          @for (row of rows(); track row.customer.id) {
+            <li class="customer-row__item">
+              <a class="customer-row" [routerLink]="['/admin/customers', row.customer.id]">
+                <span class="customer-row__avatar" aria-hidden="true">{{ row.initial }}</span>
+
+                <span class="customer-row__who">
+                  <span class="elements-start flex-wrap gap-2 min-w-0">
+                    <span class="font-title-sm font-bold! truncate" dir="auto">{{ row.name }}</span>
+                    <span
+                      class="customer-pill hidden @3xl:inline-flex"
+                      [class.customer-pill--account]="row.customer.hasAccount"
+                    >
+                      {{ row.customer.hasAccount ? 'Account' : 'Guest' }}
+                    </span>
+                  </span>
+                  <span class="customer-row__muted truncate hidden @3xl:block">{{ row.customer.email }}</span>
+                  <span class="customer-row__muted @3xl:hidden" dir="auto">{{ row.cardLine }}</span>
+                </span>
+
+                <span class="customer-row__cell" dir="ltr">{{ row.customer.phone || '—' }}</span>
+                <span class="customer-row__cell" dir="auto">{{ row.customer.city || '—' }}</span>
+                <span class="customer-row__cell text-center">{{ row.customer.orderCount }}</span>
+
+                <span class="customer-row__spent">{{ row.customer.spentEgp | egpPrice }}</span>
+
+                <span class="customer-row__last">
+                  @if (row.lastOrder; as last) {
+                    {{ last | date: 'd MMM' }}
+                  } @else {
+                    No orders yet
+                  }
+                </span>
+
+                <span class="customer-row__arrow" aria-hidden="true"><mat-icon name="chevron_right" /></span>
+              </a>
+            </li>
+          }
+        </ul>
+      </div>
+
+      <div class="grid gap-3 pt-4 @3xl:flex @3xl:items-center">
+        <span class="font-label-lg" role="status">{{ showing() }}</span>
+        @if (failed()) {
+          <span class="font-body-md" role="alert">We couldn't load more customers.</span>
+          <button matButton="outlined" type="button" (click)="tryAgain()">Try Again</button>
+        } @else if (hasMore()) {
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="moreLoading()"
+            [attr.aria-label]="moreLoading() ? 'Loading more customers' : null"
+            (click)="showMore()"
+          >
+            @if (moreLoading()) {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>Show More Customers</span>
+            }
+          </button>
+        }
+      </div>
+    }
+  </section>
+</div>
