@@ -1,160 +1,175 @@
 <form class="catalog-dialog" (submit)="$event.preventDefault(); save()">
   <h2 mat-dialog-title class="font-title-lg font-bold!">{{ title }}</h2>
-  <mat-dialog-content class="elements-start-col items-stretch! gap-5">
-    <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Name</mat-label>
-      <input
-        matInput
-        type="text"
-        required
-        [attr.maxlength]="maxName"
-        [value]="name()"
-        (input)="name.set(textFrom($event)); error.set('')"
-      />
-      <mat-hint>
-        @if (address()) {
-          Address: {{ address() }}
-        } @else {
-          The address comes from the name.
-        }
-      </mat-hint>
-      <mat-hint align="end">{{ name().length }} / {{ maxName }}</mat-hint>
-    </mat-form-field>
-
-    @if (isNew) {
+  <mat-dialog-content>
+    <div class="catalog-dialog-body">
       <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Inside</mat-label>
-        <mat-select [value]="parentId()" (selectionChange)="parentId.set($event.value)">
-          <mat-option [value]="null">Nothing (a main category)</mat-option>
-          @for (option of parentOptions; track option.id) {
-            <mat-option [value]="option.id">
-              {{ option.name }}{{ option.published ? '' : ' (hidden)' }}
-            </mat-option>
+        <mat-label>Name</mat-label>
+        <input
+          matInput
+          type="text"
+          required
+          [attr.maxlength]="maxName"
+          [value]="name()"
+          (input)="name.set(textFrom($event)); error.set('')"
+        />
+        <mat-hint>
+          @if (address()) {
+            Address: {{ address() }}
+          } @else {
+            The address comes from the name.
           }
-        </mat-select>
-        <mat-hint>Pick "Nothing" to make a main category. This can't be changed later.</mat-hint>
+        </mat-hint>
+        <mat-hint align="end">{{ name().length }} / {{ maxName }}</mat-hint>
       </mat-form-field>
 
-      <app-menu-placement
-        kind="category"
-        [shown]="published()"
-        [parent]="menuParent()"
-        [(enabled)]="addToMenu"
-        [(menuId)]="menuId"
-        [(columnIndex)]="menuColumn"
-      />
-    } @else {
-      <p class="font-body-md">
-        @if (parentId()) {
-          Inside {{ parentName() }}.
-        } @else {
-          A main category.
-        }
-      </p>
-    }
-
-    <div class="catalog-switch-row">
-      <span id="category-shown-label" class="font-body-md font-bold!">Shown on the store</span>
-      <mat-slide-toggle
-        aria-labelledby="category-shown-label"
-        [checked]="published()"
-        (change)="published.set($event.checked)"
-      />
-    </div>
-
-    <details class="catalog-more">
-      <summary>
-        <span class="catalog-row__chevron" aria-hidden="true"
-          ><mat-icon name="chevron_right" size="lg"
-        /></span>
-        <span class="elements-start-col gap-0.5 min-w-0">
-          <span class="font-label-lg font-bold!">More Options</span>
-          <span class="font-body-sm text-on-surface-variant">{{ moreSummary() }}</span>
-        </span>
-      </summary>
-
-      <div class="catalog-more__body">
+      @if (isNew) {
         <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Size Chart</mat-label>
-          <mat-select [value]="sizeChart()" (selectionChange)="sizeChartChoice.set($event.value)">
-            @if (!isTopLevel()) {
-              <mat-option value="parent"
-                >Same as {{ parentName() }} ({{ parentSizeChartLabel() }})</mat-option
-              >
+          <mat-label>Inside</mat-label>
+          <mat-select [value]="parentId()" (selectionChange)="parentId.set($event.value)">
+            <mat-option [value]="null">Nothing (a main category)</mat-option>
+            @for (option of parentOptions; track option.id) {
+              <mat-option [value]="option.id">
+                {{ option.name }}{{ option.published ? '' : ' (hidden)' }}
+              </mat-option>
             }
-            <mat-option value="clothing">Clothing size chart</mat-option>
-            <mat-option value="none">No size chart</mat-option>
           </mat-select>
-          <mat-hint>The clothing size table on product pages that have sizes.</mat-hint>
+          <mat-hint>Pick "Nothing" to make a main category. This can't be changed later.</mat-hint>
         </mat-form-field>
-
-        <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Details Title</mat-label>
-          <mat-select [value]="detailsTitle()" (selectionChange)="detailsTitleChoice.set($event.value)">
-            @if (!isTopLevel()) {
-              <mat-option value="parent"
-                >Same as {{ parentName() }} ({{ parentDetailsTitleLabel() }})</mat-option
-              >
-            }
-            <mat-option value="materials">Materials</mat-option>
-            <mat-option value="specifications">Specifications</mat-option>
-          </mat-select>
-          <mat-hint>The heading above a product's details list.</mat-hint>
-        </mat-form-field>
-
-        <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Shipping weight (g, optional)</mat-label>
-          <input
-            matInput
-            type="text"
-            inputmode="numeric"
-            [value]="weightText()"
-            (input)="weightText.set(textFrom($event))"
-          />
-          @if (weightError()) {
-            <mat-hint>{{ weightError() }}</mat-hint>
-          } @else if (isTopLevel()) {
-            <mat-hint>Products here with no weight of their own use this. Leave empty for none.</mat-hint>
+      } @else {
+        <p class="font-body-md">
+          @if (parentId()) {
+            Inside {{ parentName() }}.
           } @else {
-            <mat-hint>
-              Products here with no weight of their own use this. Leave empty to use {{ parentName() }}'s.
-            </mat-hint>
+            A main category.
           }
-        </mat-form-field>
+        </p>
+      }
 
-        @if (isTopLevel()) {
-          <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Name on Shop Tabs (optional)</mat-label>
-            <input
-              matInput
-              type="text"
-              [attr.maxlength]="maxShopLabel"
-              [placeholder]="defaultTabName()"
-              [value]="shopLabel()"
-              (input)="shopLabel.set(textFrom($event)); error.set('')"
-            />
-            <mat-hint>Leave empty to show "{{ defaultTabName() }}" on the Shop page.</mat-hint>
-          </mat-form-field>
-        }
-
-        <div class="w-full">
-          <app-image-picker
-            [folder]="photoFolder()"
-            label="Photo"
-            subtitle="Shown when someone shares this category's link."
-            altPlaceholder="e.g. Black padel cap"
-            aspectClass="aspect-square"
-            [allowRemove]="true"
-            [asset]="image()"
-            (assetChange)="image.set($event)"
+      <div class="catalog-dialog-box">
+        <div class="catalog-switch-row">
+          <span class="elements-start-col gap-0.5 min-w-0">
+            <span id="category-shown-label" class="font-body-md font-bold!">Shown on the store</span>
+            <span class="font-body-sm text-on-surface-variant">
+              @if (published()) {
+                Shoppers can find it once a product is live in it.
+              } @else {
+                Hidden from shoppers until you turn this on.
+              }
+            </span>
+          </span>
+          <mat-slide-toggle
+            aria-labelledby="category-shown-label"
+            [checked]="published()"
+            (change)="published.set($event.checked)"
           />
         </div>
       </div>
-    </details>
 
-    @if (error()) {
-      <p class="font-body-sm text-error" role="alert">{{ error() }}</p>
-    }
+      @if (isNew) {
+        <app-menu-placement
+          kind="category"
+          [shown]="published()"
+          [parent]="menuParent()"
+          [(enabled)]="addToMenu"
+          [(menuId)]="menuId"
+          [(columnIndex)]="menuColumn"
+        />
+      }
+
+      <details class="catalog-more">
+        <summary>
+          <span class="catalog-row__chevron" aria-hidden="true"
+            ><mat-icon name="chevron_right" size="lg"
+          /></span>
+          <span class="elements-start-col gap-0.5 min-w-0">
+            <span class="font-label-lg font-bold!">More Options</span>
+            <span class="font-body-sm text-on-surface-variant">{{ moreSummary() }}</span>
+          </span>
+        </summary>
+
+        <div class="catalog-more__body">
+          <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Size Chart</mat-label>
+            <mat-select [value]="sizeChart()" (selectionChange)="sizeChartChoice.set($event.value)">
+              @if (!isTopLevel()) {
+                <mat-option value="parent"
+                  >Same as {{ parentName() }} ({{ parentSizeChartLabel() }})</mat-option
+                >
+              }
+              <mat-option value="clothing">Clothing size chart</mat-option>
+              <mat-option value="none">No size chart</mat-option>
+            </mat-select>
+            <mat-hint>The clothing size table on product pages that have sizes.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Details Title</mat-label>
+            <mat-select [value]="detailsTitle()" (selectionChange)="detailsTitleChoice.set($event.value)">
+              @if (!isTopLevel()) {
+                <mat-option value="parent"
+                  >Same as {{ parentName() }} ({{ parentDetailsTitleLabel() }})</mat-option
+                >
+              }
+              <mat-option value="materials">Materials</mat-option>
+              <mat-option value="specifications">Specifications</mat-option>
+            </mat-select>
+            <mat-hint>The heading above a product's details list.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Shipping weight (g, optional)</mat-label>
+            <input
+              matInput
+              type="text"
+              inputmode="numeric"
+              [value]="weightText()"
+              (input)="weightText.set(textFrom($event))"
+            />
+            @if (weightError()) {
+              <mat-hint>{{ weightError() }}</mat-hint>
+            } @else if (isTopLevel()) {
+              <mat-hint>Products here with no weight of their own use this. Leave empty for none.</mat-hint>
+            } @else {
+              <mat-hint>
+                Products here with no weight of their own use this. Leave empty to use {{ parentName() }}'s.
+              </mat-hint>
+            }
+          </mat-form-field>
+
+          @if (isTopLevel()) {
+            <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Name on Shop Tabs (optional)</mat-label>
+              <input
+                matInput
+                type="text"
+                [attr.maxlength]="maxShopLabel"
+                [placeholder]="defaultTabName()"
+                [value]="shopLabel()"
+                (input)="shopLabel.set(textFrom($event)); error.set('')"
+              />
+              <mat-hint>Leave empty to show "{{ defaultTabName() }}" on the Shop page.</mat-hint>
+            </mat-form-field>
+          }
+
+          <div class="w-full">
+            <app-image-picker
+              [folder]="photoFolder()"
+              label="Photo"
+              subtitle="Shown when someone shares this category's link."
+              altPlaceholder="e.g. Black padel cap"
+              aspectClass="aspect-square"
+              [allowRemove]="true"
+              [asset]="image()"
+              (assetChange)="image.set($event)"
+            />
+          </div>
+        </div>
+      </details>
+
+      @if (error()) {
+        <p class="font-body-sm text-error" role="alert">{{ error() }}</p>
+      }
+    </div>
   </mat-dialog-content>
   <mat-dialog-actions class="catalog-dialog-actions">
     @if (!isNew) {
