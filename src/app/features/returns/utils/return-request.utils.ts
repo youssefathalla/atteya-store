@@ -16,7 +16,6 @@ import {
   type ReturnSummary,
   type ReturnWants,
 } from '@core/config/returns';
-import type { ShippingSettings } from '@core/services/offers/engine';
 import { COLOR_PALETTE } from '@core/services/products/catalog-taxonomy';
 import type { Product } from '@core/services/products';
 import type { OrderDoc } from '@core/services/orders/order.schema';
@@ -176,17 +175,6 @@ export function returnPreview(input: PreviewInput): ReturnPreview {
     refundByLine,
     gifts: giftsBack(lines, refunds, leftBefore, askedNow, input.summaries),
   };
-}
-
-/**
- * The order box's normal price in `settings/shipping`, used for the courier fee when the order's
- * own delivery fee was 0: the same box, else the biggest Egypt box (as `requestReturn` does).
- */
-export function normalBoxFeeEgp(settings: ShippingSettings | null, boxId: string | null | undefined): number {
-  const boxes = settings?.egyptBoxes ?? [];
-  const box = boxes.find((entry) => entry.id === boxId);
-  if (box) return box.feeEgp;
-  return boxes.reduce((max, entry) => Math.max(max, entry.feeEgp), 0);
 }
 
 // ── Live sizes and colours ──────────────────────────────────────────────────
