@@ -73,11 +73,11 @@
               [badges]="pr.badges"
             />
             @for (line of pr.offerLines; track line.text) {
-              @if (line.shopOfferId; as offerId) {
+              @if (line.link; as link) {
                 <a
                   class="block w-fit font-label-lg underline underline-offset-2"
-                  routerLink="/shop"
-                  [queryParams]="{ offer: offerId }"
+                  [routerLink]="link.path"
+                  [queryParams]="link.query"
                 >
                   {{ line.text }}
                 </a>

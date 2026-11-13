@@ -3,7 +3,13 @@ import { Component, computed, DestroyRef, effect, inject, PLATFORM_ID, signal } 
 import { RouterLink } from '@angular/router';
 import { CurrencyService } from '@core/services/currency/currency.service';
 import { BannerOffersService } from '@core/services/offers/banner-offers.service';
-import { bannerCountdown, bannerOffers, bannerText, offerShopQuery } from '@core/services/offers/offer-shop';
+import {
+  bannerCountdown,
+  bannerOffers,
+  bannerText,
+  bundleOfferLink,
+  type OfferLink,
+} from '@core/services/offers/offer-shop';
 import { ShippingSettingsService } from '@core/services/shipping/shipping-settings.service';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 
@@ -14,8 +20,8 @@ export interface AnnouncementSlide {
   readonly text: string;
   /** "Ends in 2d 14h 05m" / "Ends in 05:12:33", or null. */
   readonly countdown: string | null;
-  /** `/shop` query params of the offer's products; null for the shipping message. */
-  readonly shopQuery: { readonly offer: string } | null;
+  /** Where the offer opens (its Shop page, or a Bundle & Save offer's own page); null for the shipping message. */
+  readonly link: OfferLink | null;
 }
 
 /** Each slide shows this long before the bar fades to the next one. */
@@ -66,11 +72,11 @@ export class AnnouncementBarComponent {
       kind: 'offer',
       text: bannerText(offer),
       countdown: bannerCountdown(offer, now),
-      shopQuery: offerShopQuery(offer.id),
+      link: bundleOfferLink(offer),
     }));
     const shipping = this.#shipping.bannerText();
     if (shipping) {
-      slides.push({ id: 'shipping', kind: 'shipping', text: shipping, countdown: null, shopQuery: null });
+      slides.push({ id: 'shipping', kind: 'shipping', text: shipping, countdown: null, link: null });
     }
     return slides;
   });

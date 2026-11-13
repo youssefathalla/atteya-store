@@ -40,6 +40,26 @@ export function offerShopQuery(offerId: string): { readonly offer: string } {
   return { offer: offerId };
 }
 
+/** Where a link to an offer goes: a router path plus its query params (null = none). */
+export interface OfferLink {
+  readonly path: string;
+  readonly query: Readonly<Record<string, string>> | null;
+}
+
+/**
+ * The page a link to an offer opens (ATS-279): a Bundle & Save offer opens its own page,
+ * `/bundle/<id>` (with `from` as `?from=` when given, e.g. `bag`); every other offer opens its
+ * Shop page, `/shop?offer=<id>`, or plain `/shop` when Shop can't list it (`canShopOffer()`).
+ */
+export function bundleOfferLink(offer: Offer, from: string | null = null): OfferLink {
+  if (offer.reward.kind === 'bundleSet') {
+    return { path: `/bundle/${offer.id}`, query: from ? { from } : null };
+  }
+  return canShopOffer(offer)
+    ? { path: '/shop', query: offerShopQuery(offer.id) }
+    : { path: '/shop', query: null };
+}
+
 /**
  * The line under the offer's Shop heading: which piece is free in a Buy X Get Y offer whose free
  * pieces come from the same items ("The cheapest one is free."), a Bundle price offer's rows

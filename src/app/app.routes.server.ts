@@ -34,6 +34,12 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Server,
     headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
   },
+  // Bundle & Save page (ATS-279): prices in the visitor's currency, like the product page.
+  {
+    path: 'bundle/**',
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': GEO_PRICED_HTML_CACHE },
+  },
   {
     path: 'search',
     renderMode: RenderMode.Server,

@@ -6,6 +6,14 @@ import {
 } from '../src/app/core/services/errors/page-load-error.ts';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
+  bundleEndsIn,
+  bundlePageState,
+  nextBundleAction,
+  pickProduct,
+  removeProductPiece,
+  startingPicks,
+} from '../src/app/features/bundle/utils/bundle-page.ts';
+import {
   decideBrandPage,
   decideCategoryPage,
 } from '../src/app/features/category/utils/catalog-page-state.ts';
@@ -82,6 +90,7 @@ import {
   earnedItemLabel,
   bundleNudgeText,
   bundleSetNudgeButton,
+  bundleOfferLink,
   bundleSetNudgeLoses,
   bundleSetNudgeText,
   bundleSetStripTitle,
@@ -1579,5 +1588,113 @@ describe('shouldReloadForMissingCode (missing page code after a release)', () =>
   it('treats a broken or future saved time as no reload yet', () => {
     assert.equal(shouldReloadForMissingCode('not a number', true, now), true);
     assert.equal(shouldReloadForMissingCode(String(now + 60_000), true, now), true);
+  });
+});
+
+describe('Bundle & Save page (ATS-279)', () => {
+  const now = 1_800_000_000_000;
+  const offer = (over = {}) => ({
+    id: 'kit',
+    active: true,
+    archived: false,
+    visibility: 'public',
+    audience: 'everyone',
+    requiresCode: false,
+    limits: { perCustomer: null },
+    schedule: { startsAt: null, endsAt: null, timezone: 'Africa/Cairo' },
+    reward: {
+      kind: 'bundleSet',
+      slots: [
+        { id: 'slot-1', name: 'Racket', quantity: 1 },
+        { id: 'slot-2', name: 'Socks', quantity: 1 },
+      ],
+      setReward: { type: 'percent', percent: 60 },
+      maxSets: null,
+    },
+    ...over,
+  });
+  const card = (productId, sizes = null) => ({ productId, label: productId, sizes });
+
+  it('links Bundle & Save offers to their page and every other offer to Shop', () => {
+    assert.deepEqual(bundleOfferLink(offer()), { path: '/bundle/kit', query: null });
+    assert.deepEqual(bundleOfferLink(offer(), 'bag'), { path: '/bundle/kit', query: { from: 'bag' } });
+    const bundlePrice = offer({ reward: { kind: 'bundlePrice', rows: [] } });
+    assert.deepEqual(bundleOfferLink(bundlePrice), { path: '/shop', query: { offer: 'kit' } });
+    assert.deepEqual(bundleOfferLink({ ...bundlePrice, audience: 'signedIn' }), {
+      path: '/shop',
+      query: null,
+    });
+  });
+
+  it('says when the bundle can be bought', () => {
+    assert.equal(bundlePageState(offer(), now, false), 'open');
+    assert.equal(bundlePageState(offer({ active: false }), now, false), 'ended');
+    assert.equal(
+      bundlePageState(offer({ schedule: { startsAt: null, endsAt: new Date(now - 1) } }), now, false),
+      'ended',
+    );
+    assert.equal(
+      bundlePageState(offer({ schedule: { startsAt: new Date(now + 1), endsAt: null } }), now, false),
+      'upcoming',
+    );
+    assert.equal(bundlePageState(offer({ audience: 'signedIn' }), now, false), 'members');
+    assert.equal(bundlePageState(offer({ audience: 'signedIn' }), now, true), 'open');
+    assert.equal(bundlePageState(offer({ requiresCode: true }), now, true), 'unavailable');
+  });
+
+  it('counts down to the end', () => {
+    assert.equal(bundleEndsIn(null, now), null);
+    assert.equal(bundleEndsIn(now + (2 * 24 + 14) * 3_600_000 + 60_000, now), 'Ends in 2d 14h');
+    assert.equal(bundleEndsIn(now + 5 * 3_600_000 + 12 * 60_000, now), 'Ends in 5h 12m');
+    assert.equal(bundleEndsIn(now - 1, now), null);
+  });
+
+  it('starts single-product groups picked and the rest unpicked, then names the next step', () => {
+    const groups = [
+      { name: 'Racket', quantity: 1, choices: [card('neuron')] },
+      {
+        name: 'Socks',
+        quantity: 1,
+        choices: [
+          card('nox', [
+            { id: 'm', label: 'M' },
+            { id: 'l', label: 'L' },
+          ]),
+          card('bp'),
+        ],
+      },
+    ];
+    const picks = startingPicks(groups, null, []);
+    assert.deepEqual(picks, [[{ productId: 'neuron', sizeId: null }], []]);
+    assert.deepEqual(nextBundleAction(groups, picks), { kind: 'product', group: 1, label: 'Choose Socks' });
+    const socks = pickProduct(groups[1], picks[1], 'nox');
+    assert.equal(nextBundleAction(groups, [picks[0], socks]).label, 'Choose a Socks Size');
+    const sized = [{ productId: 'nox', sizeId: 'm' }];
+    assert.equal(nextBundleAction(groups, [picks[0], sized]).label, 'Add Bundle to Bag');
+  });
+
+  it('picks the product the shopper came from and the bag pieces that fit', () => {
+    const groups = [
+      { name: 'Racket', quantity: 1, choices: [card('a'), card('b')] },
+      { name: 'Ball', quantity: 3, choices: [card('x'), card('y')] },
+      { name: 'Grip', quantity: 1, choices: [card('g'), card('h')] },
+    ];
+    const picks = startingPicks(groups, 'b', [
+      { productId: 'x', sizeId: null },
+      { productId: 'x', sizeId: null },
+      { productId: 'b', sizeId: null },
+    ]);
+    assert.deepEqual(picks[0], [{ productId: 'b', sizeId: null }]);
+    assert.equal(picks[1].length, 2);
+    assert.deepEqual(picks[2], []);
+    assert.equal(nextBundleAction(groups, picks).label, 'Choose 1 × Ball');
+  });
+
+  it('adds and removes pieces of a group of 2+', () => {
+    const group = { name: 'Ball', quantity: 2, choices: [card('x'), card('y')] };
+    let picks = pickProduct(group, [], 'x');
+    picks = pickProduct(group, picks, 'y');
+    assert.equal(pickProduct(group, picks, 'x').length, 2);
+    assert.deepEqual(removeProductPiece(picks, 'x'), [{ productId: 'y', sizeId: null }]);
   });
 });

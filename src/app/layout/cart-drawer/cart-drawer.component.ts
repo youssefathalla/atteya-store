@@ -20,6 +20,7 @@ import { BagOfferNotesService } from '@core/services/cart/bag-offer-notes.servic
 import { bagOfferLook, type BagNotesProduct } from '@core/services/cart/bag-offer-state';
 import {
   bundleNudgeText,
+  bundleOfferLink,
   bundleSetNudgeButton,
   bundleSetNudgeText,
   bundleSetStripTitle,
@@ -29,6 +30,7 @@ import {
   dealHintText,
   earnedItemLabel,
   offerShopQuery,
+  type OfferLink,
   shortItemWord,
 } from '@core/services/offers/offer-shop';
 import { CatalogService } from '@core/services/products/catalog.service';
@@ -145,8 +147,8 @@ interface CartSetBox {
   /** Null when no group is missing (or completing the set would lose to the items' own offers). */
   readonly nudge: string | null;
   readonly button: string;
-  /** Query params of the button: the offer's Shop page, or plain Shop when it can't be filtered. */
-  readonly shopQuery: { readonly offer: string } | null;
+  /** Where the button goes: the offer's own page (`/bundle/<id>?from=bag`, ATS-279), or Shop when it is unknown. */
+  readonly link: OfferLink;
 }
 
 /** One Buy X Get Y nudge under an item, with its wording and what its button does. */
@@ -538,7 +540,7 @@ export class CartDrawerComponent {
         saving: strip && set.saving > 0 ? `You save ${money(set.saving)}` : '',
         nudge,
         button: bundleSetNudgeButton(set.missing),
-        shopQuery: offer && canShopOffer(offer) ? offerShopQuery(offer.id) : null,
+        link: offer ? bundleOfferLink(offer, 'bag') : { path: '/shop', query: null },
       };
       map.set(set.lineIndex, [...(map.get(set.lineIndex) ?? []), box]);
     }
