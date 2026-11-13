@@ -22,6 +22,18 @@ export const MAX_CUSTOMER_ORDER_REFS = 50;
  */
 export const MAX_EMAIL_VARIANTS = 30;
 
+/** The only order fields the summary reads (the trigger and the fill script select these). */
+export const CUSTOMER_ORDER_FIELDS = [
+  'status',
+  'customerEmail',
+  'createdAt',
+  'pricing.totalEgp',
+  'shipping.fullName',
+  'shipping.phone',
+  'shipping.city',
+  'shipping.country',
+] as const;
+
 /** Statuses whose `totalEgp` counts toward `spentEgp`. */
 const COMPLETED_STATUSES: ReadonlySet<string> = new Set(['confirmed', 'shipped', 'delivered']);
 
@@ -254,6 +266,42 @@ export function customerAccountFrom(
     emailVerified,
     createdAtMs,
   };
+}
+
+const fieldAt = (data: Record<string, unknown> | undefined, path: string): unknown => {
+  let value: unknown = data;
+  for (const key of path.split('.')) {
+    if (value === null || typeof value !== 'object') return undefined;
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value;
+};
+
+/** Comparable form of a field value (Firestore Timestamps compare by their epoch ms). */
+const comparable = (value: unknown): string => {
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { toMillis?: unknown }).toMillis === 'function'
+  ) {
+    return `ts:${(value as { toMillis: () => number }).toMillis()}`;
+  }
+  return JSON.stringify(value ?? null);
+};
+
+/**
+ * True when an order write can change its customer: a create or delete, or a change to one of
+ * `CUSTOMER_ORDER_FIELDS`. Writes that touch only other fields (`searchTokens`, `claimedAt`,
+ * `updatedAt`, Paymob details) are skipped.
+ */
+export function orderFieldsChanged(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown> | undefined,
+): boolean {
+  if (!before || !after) return before !== after;
+  return CUSTOMER_ORDER_FIELDS.some(
+    (path) => comparable(fieldAt(before, path)) !== comparable(fieldAt(after, path)),
+  );
 }
 
 /** True when a `users/{uid}` update changed something the customer shows. */

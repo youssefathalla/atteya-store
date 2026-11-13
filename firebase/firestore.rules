@@ -132,14 +132,14 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    // Staff-only side of an order (status history with staff emails, cancel reason), kept off
-    // orders/{id} because the owner can read that doc. Written by the Admin SDK only.
     // One summary per customer email (ATS-276), written only by Cloud Functions.
     match /customers/{customerId} {
       allow read: if canManageStore();
       allow write: if false;
     }
 
+    // Staff-only side of an order (status history with staff emails, cancel reason), kept off
+    // orders/{id} because the owner can read that doc. Written by the Admin SDK only.
     match /orderStaffNotes/{orderId} {
       allow read: if canManageStore();
       allow write: if false;

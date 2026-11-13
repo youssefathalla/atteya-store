@@ -44,6 +44,7 @@ if (projectId === 'attiya-store' && !dryRun && !confirmProd) {
 
 const {
   buildCustomerSummary,
+  CUSTOMER_ORDER_FIELDS,
   CUSTOMERS_COLLECTION,
   customerAccountFrom,
   customerEmailOf,
@@ -62,20 +63,17 @@ const toTimestamp = (ms) => (ms === null ? null : Timestamp.fromMillis(ms));
 const ordersByEmail = new Map();
 const rawByEmail = new Map();
 let noEmail = 0;
+let noDate = 0;
 const ordersSnap = await db
   .collection('orders')
-  .select(
-    'status',
-    'customerEmail',
-    'createdAt',
-    'pricing.totalEgp',
-    'shipping.fullName',
-    'shipping.phone',
-    'shipping.city',
-    'shipping.country',
-  )
+  .select(...CUSTOMER_ORDER_FIELDS)
   .get();
 for (const doc of ordersSnap.docs) {
+  // The trigger orders by `createdAt`, which leaves out orders without it; do the same here.
+  if (doc.get('createdAt') === undefined) {
+    noDate += 1;
+    continue;
+  }
   const raw = doc.get('customerEmail');
   const email = customerEmailOf(raw);
   if (!email) {
@@ -109,9 +107,11 @@ do {
 
 const existingSnap = await db.collection(CUSTOMERS_COLLECTION).get();
 const existing = new Map(existingSnap.docs.map((doc) => [doc.id, doc.data()]));
+const updateTimes = new Map(existingSnap.docs.map((doc) => [doc.id, doc.updateTime]));
 
 const comparable = (data) => {
-  const { updatedAt: _updatedAt, ...rest } = data ?? {};
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { updatedAt: _updatedAt, builtFromReadTime: _builtFrom, ...rest } = data ?? {};
   return Object.fromEntries(
     Object.entries(rest).map(([key, value]) => [key, value instanceof Timestamp ? value.toMillis() : value]),
   );
@@ -160,32 +160,39 @@ for (const email of new Set([...ordersByEmail.keys(), ...accountByEmail.keys()])
       `${before ? 'CHANGE' : 'NEW'} ${id.slice(0, 8)}…: ${summary.orderCount} orders, EGP ${summary.spentEgp}`,
     );
   }
-  writes.push({ id, doc: { ...doc, updatedAt: FieldValue.serverTimestamp() } });
+  writes.push({
+    id,
+    doc: { ...doc, builtFromReadTime: ordersSnap.readTime, updatedAt: FieldValue.serverTimestamp() },
+  });
 }
 
 const toRemove = [...existing.keys()].filter((id) => !keep.has(id));
 removed = toRemove.length;
 
+// Each write is checked against the doc as it was read: a customer the triggers changed meanwhile
+// is left alone (they already wrote newer totals) and counted, so a second run can pick it up.
+let changedMeanwhile = 0;
 if (!dryRun) {
-  let batch = db.batch();
-  let inBatch = 0;
-  const flush = async () => {
-    if (inBatch === 0) return;
-    await batch.commit();
-    batch = db.batch();
-    inBatch = 0;
+  const ref = (id) => db.collection(CUSTOMERS_COLLECTION).doc(id);
+  const guarded = async (write) => {
+    try {
+      await write();
+    } catch (error) {
+      // ALREADY_EXISTS (6) or FAILED_PRECONDITION (9): someone wrote the doc after it was read.
+      if (error?.code === 6 || error?.code === 9) changedMeanwhile += 1;
+      else throw error;
+    }
   };
   for (const { id, doc } of writes) {
-    batch.set(db.collection(CUSTOMERS_COLLECTION).doc(id), doc);
-    if (++inBatch === 400) await flush();
+    const lastUpdateTime = updateTimes.get(id);
+    await guarded(() => (lastUpdateTime ? ref(id).update(doc, { lastUpdateTime }) : ref(id).create(doc)));
   }
   for (const id of toRemove) {
-    batch.delete(db.collection(CUSTOMERS_COLLECTION).doc(id));
-    if (++inBatch === 400) await flush();
+    await guarded(() => ref(id).delete({ lastUpdateTime: updateTimes.get(id) }));
   }
-  await flush();
 }
 
+if (noDate > 0) console.log(`CHECK: ${noDate} order(s) have no placed date and are left out.`);
 if (noEmail > 0) console.log(`CHECK: ${noEmail} order(s) have no usable email and belong to no customer.`);
 if (capped.length > 0) {
   console.log(
@@ -196,5 +203,6 @@ console.log(
   `${ordersSnap.size} orders, ${accountByEmail.size} accounts. ` +
     `${dryRun ? 'Would create' : 'Created'} ${created}, ${dryRun ? 'would change' : 'changed'} ${changed}, ` +
     `${dryRun ? 'would remove' : 'removed'} ${removed}, already right ${unchanged}.` +
+    (dryRun ? '' : ` Changed meanwhile ${changedMeanwhile} (run again to check them).`) +
     (dryRun ? ' Dry run: pass --apply to write.' : ''),
 );

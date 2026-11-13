@@ -12,6 +12,7 @@ import {
   customerSearchTokens,
   emailLookupValues,
   orderCounts,
+  orderFieldsChanged,
   orderIsCompleted,
   type CustomerOrderInput,
 } from '../../lib/customers/customer-summary.js';
@@ -235,5 +236,27 @@ describe('reading docs', () => {
     assert.equal(accountFieldsChanged({ name: 'a' }, { name: 'b' }), true);
     assert.equal(accountFieldsChanged({ marketingOptIn: false }, { marketingOptIn: true }), true);
     assert.equal(accountFieldsChanged({ address: { city: 'a' } }, { address: { city: 'b' } }), true);
+  });
+
+  it('rebuilds only for order writes that change what the customer shows', () => {
+    const base = {
+      status: 'pending',
+      customerEmail: 'a@b.com',
+      pricing: { totalEgp: 100 },
+      shipping: { city: 'Cairo' },
+    };
+    assert.equal(orderFieldsChanged(undefined, base), true);
+    assert.equal(orderFieldsChanged(base, undefined), true);
+    assert.equal(
+      orderFieldsChanged(base, { ...base, searchTokens: ['x'], claimedAt: 1, updatedAt: 2 }),
+      false,
+    );
+    assert.equal(orderFieldsChanged(base, { ...base, status: 'confirmed' }), true);
+    assert.equal(orderFieldsChanged(base, { ...base, pricing: { totalEgp: 250, lines: [] } }), true);
+    assert.equal(orderFieldsChanged(base, { ...base, shipping: { city: 'Giza' } }), true);
+    assert.equal(orderFieldsChanged(base, { ...base, customerEmail: 'c@d.com' }), true);
+    const at = (ms: number) => ({ toMillis: () => ms });
+    assert.equal(orderFieldsChanged({ ...base, createdAt: at(1) }, { ...base, createdAt: at(1) }), false);
+    assert.equal(orderFieldsChanged({ ...base, createdAt: at(1) }, { ...base, createdAt: at(2) }), true);
   });
 });
