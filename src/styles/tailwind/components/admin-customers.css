@@ -18,17 +18,21 @@
     @apply font-body-sm text-on-surface-variant;
   }
 
-  /* A filter chip (wide screens); the chosen one is outlined black. */
+  /* A filter chip (wide screens); the chosen one is filled black with white text and count. */
   .customer-chip {
-    @apply shrink-0 elements-center gap-2 border-shape border border-outline-variant px-3 py-1.5 font-label-md cursor-pointer;
+    @apply shrink-0 elements-center gap-2 border-shape border border-primary bg-surface px-3 py-1.5 font-label-md cursor-pointer;
   }
 
   .customer-chip--active {
-    @apply border-primary bg-surface-container-highest;
+    @apply bg-primary text-on-primary;
   }
 
   .customer-chip__count {
     @apply text-on-surface-variant tabular-nums;
+  }
+
+  .customer-chip--active .customer-chip__count {
+    @apply text-on-primary;
   }
 
   /* Account (black) or Guest (outlined). */

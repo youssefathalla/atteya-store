@@ -17,7 +17,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { orderSearchTerms } from '@core/config/order-search';
 import type { Customer } from '@core/services/customers';
 import { longestSearchWord } from '@core/services/products/search-tokens';
 import { SeoService } from '@core/services/seo';
@@ -38,10 +37,13 @@ import {
   customerDisplayName,
   customerInitial,
   lastOrderDateFormat,
+  customerSearch,
   matchesAllCustomerWords,
+  matchesEmailStart,
   matchesCustomerFilter,
   repeatShareLine,
-  sameWords,
+  sameSearch,
+  type CustomerSearch,
   showingLabel,
   startOfMonth,
   type CustomerFilter,
@@ -49,6 +51,7 @@ import {
 } from './utils/customers-list.utils';
 
 const SEARCH_DELAY_MS = 300;
+const NO_SEARCH: CustomerSearch = { words: [], emailStart: null };
 
 /** One customer row, with the text the row shows worked out once. */
 interface CustomerRow {
@@ -105,14 +108,14 @@ export class CustomersManagerPageComponent implements OnInit {
   readonly filter = signal<CustomerFilter>('all');
   readonly sort = signal<CustomerSort>('last-order');
 
-  /** "Search customers" as typed; `searchTerms` follows it 300 ms after typing stops. */
+  /** "Search customers" as typed; `search` follows it 300 ms after typing stops. */
   readonly searchText = signal('');
-  readonly searchTerms = signal<readonly string[]>([], { equal: sameWords });
+  readonly search = signal<CustomerSearch>(NO_SEARCH, { equal: sameSearch });
 
   constructor() {
     effect((onCleanup) => {
       const text = this.searchText();
-      const timer = setTimeout(() => this.searchTerms.set(orderSearchTerms(text)), SEARCH_DELAY_MS);
+      const timer = setTimeout(() => this.search.set(customerSearch(text)), SEARCH_DELAY_MS);
       onCleanup(() => clearTimeout(timer));
     });
   }
@@ -130,7 +133,7 @@ export class CustomersManagerPageComponent implements OnInit {
 
   /** What the list shows; changing any of it starts again from the first page. */
   readonly #listKey = computed(
-    () => ({ filter: this.filter(), sort: this.sort(), term: longestSearchWord(this.searchTerms()) }),
+    () => ({ filter: this.filter(), sort: this.sort(), term: longestSearchWord(this.search().words) }),
     {
       equal: (left, right) =>
         left.filter === right.filter && left.sort === right.sort && left.term === right.term,
@@ -173,12 +176,15 @@ export class CustomersManagerPageComponent implements OnInit {
   });
 
   readonly rows = computed((): readonly CustomerRow[] => {
-    const words = this.searchTerms();
+    const { words, emailStart } = this.search();
     const filter = this.filter();
     return this.#pages()
       .flatMap((page) => page.customers)
       .filter(
-        (customer) => matchesAllCustomerWords(customer, words) && matchesCustomerFilter(customer, filter),
+        (customer) =>
+          matchesAllCustomerWords(customer, words) &&
+          matchesEmailStart(customer, emailStart) &&
+          matchesCustomerFilter(customer, filter),
       )
       .map((customer) => toRow(customer, this.#now));
   });
@@ -191,7 +197,7 @@ export class CustomersManagerPageComponent implements OnInit {
   readonly moreLoading = computed(() => this.pageResource.isLoading() && this.#cursor() !== null);
   readonly failed = computed(() => this.pageResource.status() === 'error');
 
-  readonly searching = computed(() => this.searchTerms().length > 0);
+  readonly searching = computed(() => this.search().words.length > 0);
   readonly searchQuote = computed(() => this.searchText().trim());
 
   /** The count for each chip; null while loading or when its read failed. */
@@ -234,7 +240,7 @@ export class CustomersManagerPageComponent implements OnInit {
 
   clearSearch(): void {
     this.searchText.set('');
-    this.searchTerms.set([]);
+    this.search.set(NO_SEARCH);
   }
 
   showMore(): void {
