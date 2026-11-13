@@ -2,9 +2,11 @@ import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { adminCallableOptions, requireAppCheck } from '../auth/callable-options.js';
 import { parseCheckoutShippingConfig, SHIPPING_DOC_PATH } from '../shipping/shipping-settings.js';
-import { isOrderShopper, normalEgyptBoxFee, RETURN_REQUESTS_COLLECTION } from './return-access.js';
+import { normalBoxFeeEgp } from '../store/returns.js';
+import { isOrderShopper, RETURN_REQUESTS_COLLECTION } from './return-access.js';
 import {
   buildReturnRequest,
+  returnSummaryEntry,
   parseRequestReturn,
   productIdsFor,
   ReturnRequestError,
@@ -50,10 +52,10 @@ export const requestReturn = onCall(
       const shipping = isRecord(pricing['shipping']) ? pricing['shipping'] : {};
       // The box's normal price is only needed when the order's own delivery fee was 0.
       const orderFee = shipping['priceEgp'];
-      let normalBoxFeeEgp = 0;
+      let boxFeeEgp = 0;
       if (!(typeof orderFee === 'number' && orderFee > 0)) {
         const shippingSnap = await tx.get(db.doc(SHIPPING_DOC_PATH));
-        normalBoxFeeEgp = normalEgyptBoxFee(
+        boxFeeEgp = normalBoxFeeEgp(
           parseCheckoutShippingConfig(shippingSnap.data()).settings,
           shipping['boxId'],
         );
@@ -66,7 +68,7 @@ export const requestReturn = onCall(
           order,
           input,
           products,
-          normalBoxFeeEgp,
+          normalBoxFeeEgp: boxFeeEgp,
           nowMs: Date.now(),
         }),
       );
@@ -96,13 +98,10 @@ export const requestReturn = onCall(
         updatedAt: now,
       });
       // Arrays can't hold server time stamps, so the summary carries the transaction's clock.
+      // Only what the shopper may see: never `refundTo`, the staff history or staff notes.
       tx.update(orderRef, {
         returns: FieldValue.arrayUnion({
-          id: requestRef.id,
-          ref: result.ref,
-          status: 'requested',
-          hasRefund: result.hasRefund,
-          items: result.summaryItems,
+          ...returnSummaryEntry(requestRef.id, result),
           createdAt: Timestamp.now(),
         }),
       });

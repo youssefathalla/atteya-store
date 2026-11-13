@@ -211,7 +211,18 @@ export async function runReturnStep(
 
       tx.update(requestRef, { ...patch, status: target, updatedAt: now });
       if (orderSnap.exists && order) {
-        tx.update(orderRef, { returns: withReturnStatus(order['returns'], requestId, target) });
+        tx.update(orderRef, {
+          returns: withReturnStatus(
+            order['returns'],
+            requestId,
+            target,
+            call.step === 'reject'
+              ? { rejectReason: call.input.reason }
+              : call.step === 'refund-sent'
+                ? { refundSentEgp: call.input.amountEgp }
+                : {},
+          ),
+        });
       }
       tx.set(
         db.collection(RETURN_STAFF_NOTES_COLLECTION).doc(requestId),

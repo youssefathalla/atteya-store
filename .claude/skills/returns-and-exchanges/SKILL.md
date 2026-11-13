@@ -57,7 +57,7 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - Refund per piece = what was paid after offers: `lineDisplay ÷ quantity` (whole EGP), the whole line exactly (`refundEgpFor()`); older lines use `fullEgp − discountEgp`, else `unitEgp × quantity`.
 - Partial refunds are rounded on the running total of the line's refunded pieces, so every refund of one line together is exactly what was paid.
 - Buy X Get Y and bundle discounts are not taken back on a partial return: the refund is the line's own `lineDisplay` share (the brief's rule).
-- Courier fee = the order's own delivery fee (`pricing.shipping.priceEgp`, the agreed fee for `domestic-agreed`); when it was 0 (free shipping) the order box's normal price in `settings/shipping` (`normalEgyptBoxFee()`, the biggest Egypt box when the order has none) (`courierFeeEgp()`).
+- Courier fee = the order's own delivery fee (`pricing.shipping.priceEgp`, the agreed fee for `domestic-agreed`); when it was 0 (free shipping) the order box's normal price in `settings/shipping` (`normalBoxFeeEgp()` in `functions/src/store/returns.ts`, the biggest Egypt box when the order has none) (`courierFeeEgp()`).
 - The fee is 0 when any item is Damaged or Wrong Item Sent (the store pays, `storeFault`).
 - Otherwise the fee is taken off the refund when there is one (`off-refund`), or paid in cash to the courier for an exchange-only request (`cash`) (`returnMoney()`); a refund smaller than the fee leaves the rest as `cashAtDoorEgp`.
 - The original delivery fee is never refunded.
@@ -79,10 +79,15 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 
 - `requestReturn` reads `settings/shipping` only when the order's delivery fee was 0.
 - `requestReturn` (`functions/src/returns/request-return.fn.ts`, `europe-west3`, App Check like every callable) takes `{ orderId, viewKey?, items[], note?, refundTo? }`; each item is `{ lineIndex, quantity, kind, reason?, wants?, size?, colourProductId? }`; it answers `{ requestId, ref }`.
-- In one transaction it creates `returnRequests/{id}` and appends to the order's `returns` array `{ id, ref, status, hasRefund, items: [{ lineIndex, quantity, refund, autoGift }], createdAt }` (a Timestamp from the function's clock, because arrays can't hold server time stamps).
+- In one transaction it creates `returnRequests/{id}` and appends to the order's `returns` array `{ id, ref, status, hasRefund, storeFault, refundEgp, items: [{ lineIndex, quantity, refund, autoGift, askedLabel }], createdAt }` (built by `returnSummaryEntry()`; `createdAt` is a Timestamp from the function's clock, because arrays can't hold server time stamps).
+- The summary carries only what the shopper's request box shows (<KEY>-296): `askedLabel` is the same text as `returnRequests/{id}.items[].askedLabel`, `refundEgp` is the refund after the courier fee; never `refundTo`, the note, the customer, the staff history or staff notes, because shoppers and guests (`orderViews`) read it.
+- Entries written before <KEY>-296 have no `storeFault`, `refundEgp` or `askedLabel`; `readReturnSummaries()` leaves these out, the website reads them with `readRequestDetails()`.
 - `returnRequests/{id}` holds `ref`, `orderId`, `orderRef`, `status`, `customerId`, `guest`, `customerEmail`, `customer` (name, phone, email, country, address), `items` (line, kind, reason, wants, refund, gift, autoGift, forLine, product, selection, name, photo, new piece, `askedLabel`, `refundEgp`), `note`, `refundTo`, `hasRefund`, `storeFault`, `itemsEgp`, `feeEgp`, `feePaid`, `refundEgp`, `cashAtDoorEgp`, `orderDeliveredAt`, `createdAt`, `updatedAt`.
 - `cancelReturnRequest` (`functions/src/returns/cancel-return-request.fn.ts`, same owner check, `{ requestId, viewKey? }`) sets the request to Cancelled while it is Requested, updates its entry in the order's `returns` and sends nothing; calling it again answers `changed: false`.
 - Every callable that moves a request updates the order's summary with `withReturnStatus()` in the same transaction, so `returns` always matches `returnRequests/{id}`.
+- Reject also passes its reason to `withReturnStatus(raw, id, 'rejected', { rejectReason })`, which saves it as `rejectReason` on that entry (trimmed; only with Rejected), so the shopper sees why.
+- Refund Sent passes `{ refundSentEgp }`, which saves the amount staff really sent as `refundSentEgp` on the entry (`refundEgp` stays the planned refund); the shopper's box shows `refundSentEgp` when it is there (`readRequestDetails()`).
+- The request box never shows a refund of EGP 0 (the courier fee took it all): it then says the refund without an amount.
 - `orderViewFields()` copies `returns` into `orderViews/{viewKey}` so guests see the status.
 - Firestore rules: `returnRequests`, `returnStaffNotes` (staff-only history, written by the step callables) and `returnEmails` are read by admin and staff only, with no client writes; orders stay server-written, so `returns` is written only by Cloud Functions.
 
@@ -97,10 +102,10 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - Send Another / Refund is a `mat-button-toggle-group.return-wants` (two equal halves, `_button-toggle.scss`).
 - Send Request waits for `settings/shipping` when the order's delivery fee was 0, so the refund after the fee is never shown or saved without the fee.
 - The button shows only while some piece is left to ask for (`piecesLeft()`).
-- The refund, courier fee and returned gifts on the screen come from `returnPreview()` (`features/returns/utils/return-request.utils.ts`), which calls the same shared rules as `buildReturnRequest()`; the courier fee's box price uses `normalBoxFeeEgp()` with `ShippingSettingsService.settings()`, like `normalEgyptBoxFee()` on the server.
+- The refund, courier fee and returned gifts on the screen come from `returnPreview()` (`features/returns/utils/return-request.utils.ts`), which calls the same shared rules as `buildReturnRequest()`; the courier fee's box price uses the shared `normalBoxFeeEgp()` (`@core/config/returns`) with `ShippingSettingsService.settings()`, the same function `requestReturn` calls, so the fee on the screen and the saved fee never differ.
 - Send Request calls `requestReturn`; errors show `callableMessage()`; on success the snackbar says "Request sent. We'll message you on WhatsApp."
 - The order page shows `app-return-request-box` for each entry of the order's `returns`, newest first, live; **Cancel Request** (asks first) calls `cancelReturnRequest` while Requested.
-- The order's `returns` summary has no per-item `askedLabel`, no `storeFault` and no reject reason yet, so the box reads them when present (`readRequestDetails()`), else from what this browser sent (`localStorage.returnRequests`, `return-memory.ts`), else shows Refund / Exchange per item and no **Send Photos on WhatsApp**.
+- The box reads each item's `askedLabel`, `storeFault`, `refundEgp` and `rejectReason` from the order's `returns` summary (`readRequestDetails()`), so any browser shows the same box; for entries written before <KEY>-296 it falls back to what this browser sent (`localStorage.returnRequests`, `return-memory.ts`), else shows Refund / Exchange per item and no **Send Photos on WhatsApp**.
 
 ## Emails
 

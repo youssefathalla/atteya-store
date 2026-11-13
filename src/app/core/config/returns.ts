@@ -213,9 +213,19 @@ export interface ReturnSummaryItem {
   readonly refund: boolean;
   /** A gift that came back with a refunded item. */
   readonly autoGift: boolean;
+  /**
+   * What was asked (`Size M → L`), the same words staff see on `returnRequests/{id}`.
+   */
+  readonly askedLabel?: string;
 }
 
-/** One entry of the order's `returns` array (written only by the server). */
+/**
+ * One entry of the order's `returns` array (written only by the server). `storeFault`,
+ * `refundEgp`, `refundSentEgp`, `rejectReason` and each item's `askedLabel` are what the shopper's request box
+ * shows (ATS-296): older entries have none, the website reads them with `readRequestDetails()`,
+ * and `readReturnSummaries()` leaves them out. The summary never carries the InstaPay details,
+ * the staff history or staff notes, because shoppers (and guests, through `orderViews`) read it.
+ */
 export interface ReturnSummary {
   readonly id: string;
   readonly ref: string;
@@ -225,6 +235,14 @@ export interface ReturnSummary {
   readonly items: readonly ReturnSummaryItem[];
   /** When the request was sent, epoch ms (Firestore stores a Timestamp), or null. */
   readonly createdAtMs: number | null;
+  /** Any item is Damaged or Wrong Item Sent (free courier, Send Photos on WhatsApp). */
+  readonly storeFault?: boolean;
+  /** Refund after the courier fee, whole EGP (`returnRequests/{id}.refundEgp`). */
+  readonly refundEgp?: number;
+  /** Refund Sent: what staff really sent, whole EGP; the shopper's box shows this over `refundEgp`. */
+  readonly refundSentEgp?: number;
+  /** Why staff rejected it, as the shopper sees it (Rejected only). */
+  readonly rejectReason?: string;
 }
 
 /** Reads the order's `returns` field; unreadable entries are skipped. */
@@ -263,15 +281,36 @@ export function readReturnSummaries(raw: unknown): ReturnSummary[] {
   return out;
 }
 
+/** What a status change also saves on the summary entry, as the shopper sees it. */
+export interface ReturnStatusExtras {
+  /** Rejected: the reason the shopper sees (trimmed; an empty one is not written). */
+  readonly rejectReason?: string | null;
+  /** Refund Sent: the amount staff really sent, whole EGP (saved as `refundSentEgp`). */
+  readonly refundSentEgp?: number | null;
+}
+
 /**
  * The order's raw `returns` array with one request's status changed (other fields and entries
  * kept as they are). Every callable that moves a request uses this, so the summary always matches
- * `returnRequests/{id}`.
+ * `returnRequests/{id}`. Reject passes its reason and Refund Sent the amount sent, so the shopper's
+ * request box shows them on any device.
  */
-export function withReturnStatus(raw: unknown, requestId: string, status: ReturnStatus): unknown[] {
+export function withReturnStatus(
+  raw: unknown,
+  requestId: string,
+  status: ReturnStatus,
+  extras: ReturnStatusExtras = {},
+): unknown[] {
   if (!Array.isArray(raw)) return [];
+  const patch: Record<string, unknown> = { status };
+  const reason = extras.rejectReason?.trim();
+  if (status === 'rejected' && reason) patch['rejectReason'] = reason;
+  const sent = extras.refundSentEgp;
+  if (status === 'refund-sent' && typeof sent === 'number' && Number.isFinite(sent)) {
+    patch['refundSentEgp'] = wholeOrZero(sent);
+  }
   return raw.map((entry: unknown) =>
-    isRecord(entry) && entry['id'] === requestId ? { ...entry, status } : entry,
+    isRecord(entry) && entry['id'] === requestId ? { ...entry, ...patch } : entry,
   );
 }
 
@@ -498,6 +537,24 @@ export interface CourierFeeInput {
   readonly normalBoxFeeEgp: number;
   /** Any item is Damaged or Wrong Item Sent: the store pays. */
   readonly storeFault: boolean;
+}
+
+/** The Egypt boxes of `settings/shipping`, as the courier fee reads them. */
+export interface ReturnBoxSettings {
+  readonly egyptBoxes: readonly { readonly id: string; readonly feeEgp: number }[];
+}
+
+/**
+ * The normal price of the order's Egypt box in `settings/shipping`, used for the courier fee when
+ * the order's own delivery fee was 0 (a free shipping offer). An order with no box (or a box no
+ * longer listed) uses the biggest Egypt box's price. `requestReturn` and the request screen both
+ * call this, so the fee the shopper sees is the fee the server saves.
+ */
+export function normalBoxFeeEgp(settings: ReturnBoxSettings | null | undefined, boxId: unknown): number {
+  const boxes = settings?.egyptBoxes ?? [];
+  const box = boxes.find((entry) => entry.id === boxId);
+  if (box) return wholeOrZero(box.feeEgp);
+  return boxes.reduce((max, entry) => Math.max(max, wholeOrZero(entry.feeEgp)), 0);
 }
 
 /** The courier fee for the return visit (whole EGP). */

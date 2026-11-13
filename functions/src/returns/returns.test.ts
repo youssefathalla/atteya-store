@@ -11,6 +11,7 @@ import {
   readReturnSummaries,
   refundEgpFor,
   returnEligibility,
+  normalBoxFeeEgp,
   returnMoney,
   returnRef,
   returnStockPlan,
@@ -22,8 +23,9 @@ import {
   buildReturnRequest,
   parseRequestReturn,
   ReturnRequestError,
+  returnSummaryEntry,
 } from '../../lib/returns/return-request.js';
-import { isOrderShopper, normalEgyptBoxFee } from '../../lib/returns/return-access.js';
+import { isOrderShopper } from '../../lib/returns/return-access.js';
 import { orderViewFields } from '../../lib/orders/order-view.js';
 import { returnEmailsForWrite, returnClaimId } from '../../lib/email/return-email-events.js';
 import { readReturnForEmail } from '../../lib/email/return-email-model.js';
@@ -196,6 +198,39 @@ describe('statuses', () => {
     assert.deepEqual(withReturnStatus(null, 'r1', 'cancelled'), []);
   });
 
+  it('saves the amount staff really sent with Refund Sent', () => {
+    const raw = [{ id: 'r1', status: 'received', items: [], refundEgp: 580 }];
+    assert.deepEqual(withReturnStatus(raw, 'r1', 'refund-sent', { refundSentEgp: 700 }), [
+      { id: 'r1', status: 'refund-sent', items: [], refundEgp: 580, refundSentEgp: 700 },
+    ]);
+    // Only Refund Sent changes the amount.
+    assert.deepEqual(withReturnStatus(raw, 'r1', 'rejected', { refundSentEgp: 700 }), [
+      { id: 'r1', status: 'rejected', items: [], refundEgp: 580 },
+    ]);
+  });
+
+  it('saves the reject reason the shopper sees on the summary entry', () => {
+    const raw = [
+      { id: 'r1', status: 'approved', items: [], refundEgp: 580 },
+      { id: 'r2', status: 'requested', items: [] },
+    ];
+    assert.deepEqual(withReturnStatus(raw, 'r1', 'rejected', { rejectReason: '  Worn after delivery. ' }), [
+      { id: 'r1', status: 'rejected', items: [], refundEgp: 580, rejectReason: 'Worn after delivery.' },
+      { id: 'r2', status: 'requested', items: [] },
+    ]);
+    // A reason only goes with Rejected, and an empty one is never written.
+    assert.deepEqual(withReturnStatus(raw, 'r2', 'approved', { rejectReason: 'No' })[1], {
+      id: 'r2',
+      status: 'approved',
+      items: [],
+    });
+    assert.deepEqual(withReturnStatus(raw, 'r2', 'rejected', { rejectReason: '  ' })[1], {
+      id: 'r2',
+      status: 'rejected',
+      items: [],
+    });
+  });
+
   it('makes a short ref like the order ref', () => {
     assert.equal(returnRef('k7q2m9xyz'), '#R-K7Q2M9');
   });
@@ -317,8 +352,10 @@ describe('pieces, gifts and money', () => {
   });
 
   it('the normal box price comes from settings, else the biggest Egypt box', () => {
-    assert.equal(normalEgyptBoxFee(DEFAULT_SHIPPING_SETTINGS, 'box1'), 115);
-    assert.equal(normalEgyptBoxFee(DEFAULT_SHIPPING_SETTINGS, null), 135);
+    assert.equal(normalBoxFeeEgp(DEFAULT_SHIPPING_SETTINGS, 'box1'), 115);
+    assert.equal(normalBoxFeeEgp(DEFAULT_SHIPPING_SETTINGS, null), 135);
+    assert.equal(normalBoxFeeEgp(DEFAULT_SHIPPING_SETTINGS, 'gone'), 135);
+    assert.equal(normalBoxFeeEgp(null, 'box1'), 0);
   });
 });
 
@@ -418,10 +455,28 @@ describe('requestReturn input and building', () => {
     assert.equal(built.refundEgp, 580);
     assert.equal(built.feePaid, 'off-refund');
     assert.deepEqual(built.summaryItems, [
-      { lineIndex: 0, quantity: 1, refund: false, autoGift: false },
-      { lineIndex: 1, quantity: 1, refund: true, autoGift: false },
-      { lineIndex: 2, quantity: 1, refund: false, autoGift: true },
+      { lineIndex: 0, quantity: 1, refund: false, autoGift: false, askedLabel: 'Size M → L' },
+      { lineIndex: 1, quantity: 1, refund: true, autoGift: false, askedLabel: "Return · Didn't fit" },
+      {
+        lineIndex: 2,
+        quantity: 1,
+        refund: false,
+        autoGift: true,
+        askedLabel: 'Free gift · comes back with Training Tee',
+      },
     ]);
+    const entry = returnSummaryEntry('k7q2m9abc', built);
+    assert.deepEqual(entry, {
+      id: 'k7q2m9abc',
+      ref: '#R-K7Q2M9',
+      status: 'requested',
+      hasRefund: true,
+      items: built.summaryItems,
+      storeFault: false,
+      refundEgp: 580,
+    });
+    // Shoppers and guests read the summary: no InstaPay details, note or customer.
+    for (const key of ['refundTo', 'note', 'customer', 'customerEmail']) assert.equal(key in entry, false);
     assert.equal(built.customer.guest, false);
   });
 
@@ -450,6 +505,10 @@ describe('requestReturn input and building', () => {
     assert.equal(built.storeFault, true);
     assert.equal(built.feeEgp, 0);
     assert.equal(built.hasRefund, false);
+    const entry = returnSummaryEntry('k7q2m9abc', built);
+    assert.equal(entry.storeFault, true);
+    assert.equal(entry.refundEgp, 0);
+    assert.equal(entry.items[0]!.askedLabel, 'Damaged · Send Another');
     assert.throws(
       () =>
         parseRequestReturn({
@@ -523,6 +582,17 @@ describe('requestReturn input and building', () => {
     const view = orderViewFields('a1', { returns: [{ id: 'r1', status: 'requested' }] });
     assert.deepEqual(view['returns'], [{ id: 'r1', status: 'requested' }]);
     assert.deepEqual(orderViewFields('a1', {})['returns'], []);
+    const full = [
+      {
+        id: 'r1',
+        status: 'rejected',
+        storeFault: true,
+        refundEgp: 580,
+        rejectReason: 'Worn after delivery.',
+        items: [{ lineIndex: 0, quantity: 1, refund: true, autoGift: false, askedLabel: 'Damaged · Refund' }],
+      },
+    ];
+    assert.deepEqual(orderViewFields('a1', { returns: full })['returns'], full);
   });
 
   it('reads the order returns field', () => {

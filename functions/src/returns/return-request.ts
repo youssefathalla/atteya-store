@@ -30,6 +30,7 @@ import {
   type ReturnKind,
   type ReturnOrderLine,
   type ReturnReason,
+  type ReturnSummary,
   type ReturnSummaryItem,
   type ReturnWants,
 } from '../store/returns.js';
@@ -260,7 +261,7 @@ export interface BuiltReturnRequest {
   readonly refundEgp: number;
   readonly cashAtDoorEgp: number;
   readonly deliveredAtMs: number | null;
-  /** The order's `returns` summary entry, without its time stamp. */
+  /** The items of the order's `returns` summary entry (with `askedLabel`, as staff see it). */
   readonly summaryItems: readonly ReturnSummaryItem[];
 }
 
@@ -375,7 +376,29 @@ export function buildReturnRequest(build: BuildReturnInput): BuiltReturnRequest 
       quantity: item.quantity,
       refund: item.refund,
       autoGift: item.autoGift,
+      askedLabel: item.askedLabel,
     })),
+  };
+}
+
+/**
+ * The order's `returns` summary entry for a new request, without its time stamp (ATS-296). It
+ * carries only what the shopper's request box shows: the status, what was asked per item, the
+ * damaged / wrong flag and the refund after the courier fee. Never `refundTo`, the staff history
+ * or staff notes: shoppers and guests (`orderViews`) read the order.
+ */
+export function returnSummaryEntry(
+  requestId: string,
+  built: Pick<BuiltReturnRequest, 'ref' | 'hasRefund' | 'storeFault' | 'refundEgp' | 'summaryItems'>,
+): Omit<ReturnSummary, 'createdAtMs'> {
+  return {
+    id: requestId,
+    ref: built.ref,
+    status: 'requested',
+    hasRefund: built.hasRefund,
+    items: built.summaryItems,
+    storeFault: built.storeFault,
+    refundEgp: built.refundEgp,
   };
 }
 
