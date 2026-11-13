@@ -75,12 +75,7 @@ function returnRequested(request: ReturnEmailRequest, ctx: OrderEmailContext): R
   const stepList = shopperSteps(request);
   const cards = itemCards(request, ctx, false);
   const rows = shopperTotals(request);
-  const view = ctx.storefrontUrl
-    ? {
-        label: 'View Your Order',
-        url: orderConfirmationUrl(ctx.storefrontUrl, request.orderId, request.viewKey),
-      }
-    : null;
+  const view = viewButton(request, ctx);
   const waNumber = ctx.whatsappNumber.trim();
   const photos = request.storeFault
     ? whatsappChatUrl(waNumber, returnPhotosWhatsappText(request.ref, request.orderRef))
@@ -276,7 +271,7 @@ function viewButton(request: ReturnEmailRequest, ctx: OrderEmailContext): EmailB
 function itemsPart(request: ReturnEmailRequest, ctx: OrderEmailContext, giftNote: GiftNote): EmailPart {
   return {
     html: section(`${sectionTitle('Your Items')}${itemGrid(itemCards(request, ctx, false, giftNote))}`, 40),
-    text: `Your Items:\n${itemsText(request, false)}`,
+    text: `Your Items:\n${itemsText(request, false, giftNote)}`,
   };
 }
 
@@ -293,15 +288,18 @@ function labelled(label: string, value: string, padTop = 32): EmailPart {
 }
 
 /** Text in a grey box (the courier fee line, staff's reason). */
-function greyBox(value: string, textLabel: string | null, padTop = 24): EmailPart {
+function greyBox(value: string, label: string | null, padTop = 24): EmailPart {
+  const labelHtml = label
+    ? `<p style="margin:0 0 8px;${FONT}font-size:11px;font-weight:600;letter-spacing:2px;color:${TEXT_MUTED};">${escapeHtml(label.toUpperCase())}</p>\n`
+    : '';
   return {
     html: section(
       `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${GREY_BOX};"><tr><td style="padding:18px 20px;">
-<p style="margin:0;${FONT}font-size:15px;line-height:1.55;color:${INK};">${escapeHtml(value)}</p>
+${labelHtml}<p style="margin:0;${FONT}font-size:15px;line-height:1.55;color:${INK};">${escapeHtml(value)}</p>
 </td></tr></table>`,
       padTop,
     ),
-    text: textLabel ? `${textLabel}: ${value}` : value,
+    text: label ? `${label}: ${value}` : value,
   };
 }
 
@@ -323,7 +321,13 @@ function returnApproved(request: ReturnEmailRequest, ctx: OrderEmailContext): Re
 /** Every piece the courier takes, free gifts going back included: `Padel Shorts · M, Sport Socks`. */
 function handOverText(request: ReturnEmailRequest): string {
   return listText(
-    request.items.map((item) => `${item.quantity > 1 ? `${item.quantity} × ` : ''}${itemTitle(item)}`),
+    request.items.map((item) => {
+      const count = item.quantity > 1 ? `${item.quantity} × ` : '';
+      // The shopper holds the piece we sent by mistake, not the one on the order.
+      return item.kind === 'wrong-item'
+        ? `${count}the item we sent instead of ${itemTitle(item)}`
+        : `${count}${itemTitle(item)}`;
+    }),
   );
 }
 
@@ -339,9 +343,9 @@ function youGetText(request: ReturnEmailRequest): string {
       const next = arrow >= 0 ? item.askedLabel.slice(arrow + 1).trim() : '';
       parts.push(next ? `${count}${name} in ${next}` : `${count}${name} in your new choice`);
     } else if (item.kind === 'damaged') {
-      parts.push(`${count}a new ${name}`);
+      parts.push(item.quantity > 1 ? `${item.quantity} new ${name}` : `a new ${name}`);
     } else if (item.kind === 'wrong-item') {
-      parts.push(`${count}the right ${name}`);
+      parts.push(`the right ${name}${item.quantity > 1 ? ` (×${item.quantity})` : ''}`);
     }
   }
   if (request.hasRefund) {
@@ -375,7 +379,7 @@ function returnRejected(request: ReturnEmailRequest, ctx: OrderEmailContext): Re
   const waLink = whatsappChatUrl(waNumber);
   const wa: EmailButton | null = waLink ? { label: 'Message Us on WhatsApp', url: waLink } : null;
   const body: EmailPart[] = [];
-  if (request.rejectReason) body.push(greyBox(`"${request.rejectReason}"`, 'Our reason'));
+  if (request.rejectReason) body.push(greyBox(`"${request.rejectReason}"`, 'Our Reason'));
   if (wa) {
     body.push({
       html: section(fullWidthLink(wa, 'outlined'), 24),
@@ -395,11 +399,13 @@ function returnRejected(request: ReturnEmailRequest, ctx: OrderEmailContext): Re
 // Received
 
 function returnReceived(request: ReturnEmailRequest, ctx: OrderEmailContext): RenderedEmail {
+  const exchange = request.items.some((item) => !item.autoGift && !item.refund);
+  const got = exchange ? 'We got your items, and your new pieces are with you.' : 'We got your items.';
   const sentence = !request.hasRefund
     ? 'Your exchange is done. Enjoy your new pieces!'
     : request.refundEgp > 0
-      ? `We got your items. Your refund of ${formatEgp(request.refundEgp)} is on its way by InstaPay.`
-      : 'We got your items. The courier fee covered the refund, so there is nothing more to send.';
+      ? `${got} Your refund of ${formatEgp(request.refundEgp)} is on its way by InstaPay.`
+      : `${got} The courier fee covered the refund, so there is nothing more to send.`;
   return shopperStatusEmail(request, ctx, {
     subject: request.hasRefund
       ? `We got your items for ${request.ref}`
@@ -441,10 +447,16 @@ function returnRefundSent(request: ReturnEmailRequest, ctx: OrderEmailContext): 
   });
 }
 
-/** The last 4 characters of an InstaPay number or address (spaces left out), never the whole thing. */
+/**
+ * Only the last 4 characters of an InstaPay number (spaces left out), never the whole thing. For an
+ * address (`name@instapay`) the last 4 characters of the name, so it isn't always `…apay`.
+ */
 function lastFour(value: string | null): string | null {
   const compact = (value ?? '').replace(/\s+/g, '');
-  return compact.length > 0 ? compact.slice(-4) : null;
+  if (!compact) return null;
+  const at = compact.lastIndexOf('@');
+  if (at > 0) return `${compact.slice(Math.max(0, at - 4), at)}${compact.slice(at)}`;
+  return compact.slice(-4);
 }
 
 function listText(parts: readonly string[]): string {
@@ -674,13 +686,17 @@ function giftStrip(
   }
 }
 
-function itemsText(request: ReturnEmailRequest, staff: boolean): string {
+function itemsText(request: ReturnEmailRequest, staff: boolean, giftNote: GiftNote = 'hand-back'): string {
   return request.items
     .map((item) => {
-      const options = optionTags(item).join(' · ');
-      const head = `${item.autoGift ? '  + ' : '- '}×${item.quantity} ${itemTitle(item)}${options ? ` (${options})` : ''}`;
+      const head = `${item.autoGift ? '  + ' : '- '}×${item.quantity} ${itemTitle(item)}`;
       const money = staff && item.refund ? ` · ${formatEgp(item.refundEgp)}` : '';
-      return `${head}: ${item.askedLabel}${money}`;
+      const owner = request.items.find((other) => !other.autoGift && other.lineIndex === item.forLine);
+      const asked =
+        !staff && item.autoGift && giftNote !== 'hand-back' && owner
+          ? `Free gift · ${giftStrip(item, owner, false, giftNote).details}`
+          : item.askedLabel;
+      return `${head}: ${asked}${money}`;
     })
     .join('\n');
 }

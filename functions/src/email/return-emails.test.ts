@@ -179,7 +179,7 @@ describe('return status emails', () => {
     assert.match(email.html, /Message Us on WhatsApp/);
     assert.match(email.html, /wa\.me\/201000000000/);
     assert.equal(email.html.split('Message Us on WhatsApp').length - 1, 1);
-    assert.match(email.text, /Our reason: "The tee has been worn and washed\."/);
+    assert.match(email.text, /Our Reason: "The tee has been worn and washed\."/);
   });
 
   it('Received: exchange-only says the exchange is done; a refund says it is on its way', () => {
@@ -190,7 +190,11 @@ describe('return status emails', () => {
     );
     assert.match(exchange.text, /Your exchange is done\./);
     assert.doesNotMatch(exchange.text, /refund/i);
-    const refund = renderReturnEmail('return-received', request({ status: 'received', refundEgp: 850 }), ctx);
+    const refund = renderReturnEmail(
+      'return-received',
+      request({ status: 'received', refundEgp: 850, items: [RETURNED, GIFT] }),
+      ctx,
+    );
     assert.match(refund.text, /We got your items\. Your refund of EGP\s?850 is on its way by InstaPay\./);
     assert.match(refund.html, /Came back with the Training Tee\./);
     assert.doesNotMatch(refund.html, /Please hand it back/);
@@ -208,6 +212,62 @@ describe('return status emails', () => {
     for (const body of [email.html, email.text]) {
       assert.doesNotMatch(body, /010 1234 5678|01012345678|1234 ?5678/);
     }
+  });
+
+  it('Rejected: the reason has a label and the gift stays, in both versions', () => {
+    const email = renderReturnEmail(
+      'return-rejected',
+      request({ status: 'rejected', rejectReason: 'Worn.' }),
+      ctx,
+    );
+    assert.match(email.html, /OUR REASON/);
+    assert.match(email.html, /Stays with the Training Tee\./);
+    assert.match(email.text, /Sport Socks: Free gift · Stays with the Training Tee\./);
+    assert.doesNotMatch(email.text, /comes back with/);
+  });
+
+  it('Received: a mixed request mentions the new pieces and the refund', () => {
+    const email = renderReturnEmail('return-received', request({ status: 'received' }), ctx);
+    assert.match(
+      email.text,
+      /your new pieces are with you\. Your refund of EGP\s?580 is on its way by InstaPay\./,
+    );
+    assert.match(email.text, /Free gift · Came back with the Training Tee\./);
+  });
+
+  it('Approved: a wrong item hands over what we sent; quantities read naturally', () => {
+    const email = renderReturnEmail(
+      'return-approved',
+      request({
+        items: [
+          {
+            ...EXCHANGE,
+            kind: 'wrong-item',
+            wants: 'send-right-one',
+            askedLabel: 'Wrong Item · Send the Right One',
+          },
+          { ...EXCHANGE, lineIndex: 3, quantity: 2, kind: 'damaged', askedLabel: 'Damaged · Send Another' },
+        ],
+        hasRefund: false,
+        storeFault: true,
+        feeEgp: 0,
+        feePaid: 'free',
+        refundEgp: 0,
+      }),
+      ctx,
+    );
+    assert.match(email.text, /Hand Over: the item we sent instead of Padel Shorts · M, 2 × Padel Shorts · M/);
+    assert.match(email.text, /You Get: The right Padel Shorts, and 2 new Padel Shorts/);
+  });
+
+  it('Refund Sent to an InstaPay address shows only the end of the name', () => {
+    const email = renderReturnEmail(
+      'return-refund-sent',
+      request({ status: 'refund-sent', refundSentEgp: 580, refundTo: 'mariamhassan@instapay' }),
+      ctx,
+    );
+    assert.match(email.text, /Sent by InstaPay to …ssan@instapay/);
+    assert.doesNotMatch(email.text, /mariamhassan/);
   });
 
   it('every status email has a plain-text version with the same facts in the same order', () => {

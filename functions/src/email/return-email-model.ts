@@ -9,15 +9,12 @@ import {
   type CourierFeePaid,
   type ReturnKind,
   type ReturnStatus,
-  type ReturnWants,
 } from '../store/returns.js';
 
 export interface ReturnEmailItem {
   readonly lineIndex: number;
   readonly quantity: number;
   readonly kind: ReturnKind;
-  /** Damaged or Wrong Item Sent: what the shopper wants (another piece, the right one, or money). */
-  readonly wants: ReturnWants | null;
   readonly refund: boolean;
   /** A gift added by the server: it comes back with the refunded item on line `forLine`. */
   readonly autoGift: boolean;
@@ -92,7 +89,6 @@ export function readReturnForEmail(
       lineIndex: whole(raw['lineIndex']),
       quantity,
       kind,
-      wants: readWants(raw['wants']),
       refund: raw['refund'] === true,
       autoGift: raw['autoGift'] === true,
       forLine: typeof raw['forLine'] === 'number' ? whole(raw['forLine']) : null,
@@ -141,10 +137,6 @@ export function readReturnForEmail(
     deliveredAtMs: timestampMs(data['orderDeliveredAt']),
     viewKey: viewKey || null,
   };
-}
-
-function readWants(raw: unknown): ReturnWants | null {
-  return raw === 'send-another' || raw === 'send-right-one' || raw === 'refund' ? raw : null;
 }
 
 function readOptionLabels(raw: unknown): { label: string; value: string }[] {
