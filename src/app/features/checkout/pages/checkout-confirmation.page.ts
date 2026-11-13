@@ -1,7 +1,7 @@
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -24,6 +24,7 @@ import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
 import { orderStatusName } from '@core/services/orders/order-status-name';
 import { orderDate } from '@core/services/orders/shopper-orders.service';
+import { MetaPixelService } from '@core/services/analytics/meta-pixel.service';
 import {
   isOrderViewKey,
   orderFromView,
@@ -62,6 +63,9 @@ const VIEW_WAIT_MS = 20_000;
  * `paymentDue()` on the LIVE order only, never from defaults or the navigation seed, so a
  * paid order never flashes a request for money.
  */
+/** How long after a Card payment the order page still counts it as a Meta Pixel Purchase. */
+const PIXEL_PURCHASE_WINDOW_MS = 2 * 60 * 60 * 1000;
+
 @Component({
   selector: 'app-checkout-confirmation-page',
   host: { class: 'block w-full' },
@@ -83,16 +87,21 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   readonly key = input<string>();
 
   readonly #router = inject(Router);
+  readonly #route = inject(ActivatedRoute);
   readonly #firestore = injectFirestore();
   readonly #seo = inject(SeoService);
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
+  readonly #pixel = inject(MetaPixelService);
 
   /** Result handed over by checkout; only used for the heading until the live order arrives. */
   readonly seed = signal<CreateManualOrderResult | null>(readNavigationSeed());
 
   /** The key this browser saved for the order (checkout, or an earlier visit from the link). */
   readonly #savedKey = signal<string | null>(null);
+
+  /** True once the address bar holds no query parameters the page doesn't need (Paymob's return details). */
+  readonly #urlClean = signal(false);
 
   /**
    * The guest order's view key: from the link, else saved on this device. Null = read the order
@@ -486,25 +495,46 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     return this.stage() === 'fee-to-be-agreed' ? `${total} + shipping` : total;
   });
 
+  constructor() {
+    // Meta Pixel Purchase for a Card order, once Paymob confirms the payment (ATS-290). Only on the
+    // shopper's return from Paymob (paid in the last 2 hours), not when the order link is opened later.
+    // A guest returns with `?key=` in the address: wait until ngOnInit has taken it out (the `key`
+    // input then clears and this runs again), so Meta never sees it.
+    effect(() => {
+      const order = this.order();
+      if (this.key() || !this.#urlClean()) return;
+      if (!order || order.paymentMethod !== 'paymob' || !isPlatformBrowser(this.#platformId)) return;
+      const paidAt = orderDate(order.paymob?.paidAt);
+      if (!paidAt || Date.now() - paidAt.getTime() > PIXEL_PURCHASE_WINDOW_MS) return;
+      this.#pixel.trackOrderPurchase(this.orderId(), order.pricing);
+    });
+  }
+
   ngOnInit(): void {
     if (isPlatformBrowser(this.#platformId)) {
       const id = this.orderId();
       const memory = readGuestOrder(id);
       const fromLink = this.key();
+      // Paymob's return adds the payment details (amount, card's last digits, hmac, …) to the
+      // address. The page never reads them: clear every query parameter before Meta can read the
+      // URL (ATS-290), keeping only a guest's key when it could not be saved on this device.
+      const queryKeys = Object.keys(this.#route.snapshot.queryParams);
+      let keep: Record<string, string> = {};
       if (isOrderViewKey(fromLink)) {
         const saved = rememberGuestOrder(id, { key: fromLink });
         this.#savedKey.set(fromLink);
         // The key opens the order: keep it out of the address bar (and of anything copied from it),
         // but only once it is saved on this device, or a reload would lose the order.
-        if (saved) {
-          void this.#router.navigate([], {
-            queryParams: { key: null },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-          });
-        }
+        if (!saved) keep = { key: fromLink };
       } else {
         this.#savedKey.set(memory.key);
+      }
+      if (queryKeys.some((name) => !(name in keep))) {
+        void this.#router
+          .navigate([], { queryParams: keep, replaceUrl: true })
+          .finally(() => this.#urlClean.set(true));
+      } else {
+        this.#urlClean.set(true);
       }
       this.guestEmail.set(memory.email);
     }
