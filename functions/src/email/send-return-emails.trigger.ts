@@ -10,9 +10,10 @@ import { readReturnForEmail, type ReturnEmailRequest } from './return-email-mode
 import { renderReturnEmail } from './return-email-templates.js';
 
 /**
- * Sends return and exchange emails (ATS-291): a new request sends the staff alert
+ * Sends return and exchange emails (ATS-291, ATS-294): a new request sends the staff alert
  * (`store-return-request`, to `STORE_ALERT_EMAIL`) and the shopper's "Request Sent"
- * (`return-requested`). Which emails: `returnEmailsForWrite`. Each (request, email) pair is
+ * (`return-requested`); each staff step forward sends the shopper one status email (Approved,
+ * Rejected, Received, Refund Sent). Which emails: `returnEmailsForWrite`. Each (request, email) pair is
  * claimed in `returnEmails/{requestId}_{kind}` before sending, so a repeated trigger never sends
  * twice; a failed send is recorded there and not retried automatically (same as order emails).
  */

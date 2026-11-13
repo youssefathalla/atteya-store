@@ -13,7 +13,7 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 
 - Every rule is in `functions/src/store/returns.ts` (pure, no Firestore). Edit only that file, then run `npm run sync:engine`, which copies it to `src/app/core/config/returns.ts` for the website.
 - The callable input check and the request builder are in `functions/src/returns/return-request.ts` (`parseRequestReturn()`, `buildReturnRequest()`), pure and unit tested.
-- Tests: `functions/src/returns/returns.test.ts` (in `npm test --prefix functions`) covers every row of the stock table, the window, gifts, money, refusals and both emails.
+- Tests: `functions/src/returns/returns.test.ts` (in `npm test --prefix functions`) covers every row of the stock table, the window, gifts, money, refusals and the two request emails.
 - Returns are recorded next to the order, never by changing `pricing.lines` or any order total.
 
 ## Who and when
@@ -116,7 +116,15 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - Staff alert: kicker `RETURN REQUEST · 13 NOV · 14:32` (Cairo), the request ref very large, `For order #A1B2C3 · delivered 10 Nov`, a strip of Items, Refund and Courier Fee (with "off the refund", "cash at the door" or "the store pays"), the next-step box "Approve or reject this request", the customer with **Message Customer on WhatsApp** (`returnStaffWhatsappText()`), What They Asked For (×N tag, `askedLabel`, refund amount, gifts as strips), the customer's note, the money and **Open Request** to `/admin/returns/<id>`.
 - Shopper email: header with the order ref, kicker `RETURN OR EXCHANGE · #R-…`, status `REQUEST SENT`, What Happens Next (we check it, the courier comes to the delivery address, the InstaPay refund), Your Items, the money, **View Your Order** (`orderConfirmationUrl()`, with `?key=` for guests).
 - Damaged or wrong items add a dashed box with **Send Photos on WhatsApp**, prefilled with the request and order refs (`returnPhotosWhatsappText()`); without a store WhatsApp it asks for a reply with a photo when replies reach an inbox.
-- The Approved, Rejected, Received and Refund Sent emails come in <KEY>-294.
+- Each staff step forward sends one shopper email (<KEY>-294): Requested → Approved sends `return-approved`, Requested or Approved → Rejected sends `return-rejected`, Approved → Received sends `return-received`, Received → Refund Sent sends `return-refund-sent`.
+- Cancelled, a step back, a skipped step, the same status written again, or a request created in a later status sends nothing.
+- A Refund Sent of EGP 0 (the courier fee used up the refund) sends nothing; the Received email already says there is nothing more to send.
+- Every shopper status email has the black header with the order ref, kicker `RETURN OR EXCHANGE · #R-…`, **View Your Order** and the WhatsApp or reply footer, plus a plain-text version with the same facts in the same order.
+- Approved (`REQUEST APPROVED`): "Our courier will come to your delivery address.", Hand Over (every piece, free gifts going back included), You Get (new pieces, then the InstaPay refund), and a grey box with the courier fee (free / cash at your door / taken off your refund).
+- Rejected (`WE CAN'T TAKE IT BACK`): staff's `rejectReason` in a grey box, a full-width **Message Us on WhatsApp** button (no second one in the footer), and the items with gifts marked "Stays with the …".
+- Received (`ITEMS RECEIVED`): exchange-only says "Your exchange is done."; with a refund it says "We got your items. Your refund of EGP 850 is on its way by InstaPay."
+- Refund Sent (`REFUND SENT`): the amount staff sent (`refundSentEgp`), "Sent by InstaPay to …5678" (only the last 4 characters of `refundTo`, spaces left out) and the reference when staff gave one, then only the refunded items.
+- Tests for which email each status change sends and the four templates: `functions/src/email/return-emails.test.ts` (in `npm test --prefix functions`).
 
 ## Staff steps (admin Returns)
 

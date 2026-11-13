@@ -1,16 +1,20 @@
 /**
- * Return and exchange emails (ATS-291), built from the "Bold Black" blocks in `email-blocks.ts`:
- * the staff alert `store-return-request` and the shopper's `return-requested` ("Request Sent").
- * Pure, unit tested in `returns/returns.test.ts`. Amounts are whole EGP from the saved request.
+ * Return and exchange emails, built from the "Bold Black" blocks in `email-blocks.ts`: the staff
+ * alert `store-return-request` and the shopper's `return-requested` ("Request Sent") from ATS-291,
+ * and the shopper's status emails from ATS-294: `return-approved`, `return-rejected`,
+ * `return-received` and `return-refund-sent`. Pure, unit tested in `returns/returns.test.ts` and
+ * `email/return-emails.test.ts`. Amounts are whole EGP from the saved request.
  */
 import { shopperWhatsappNumber } from '../store/order-messages.js';
 import { returnPhotosWhatsappText, returnStaffWhatsappText } from '../store/returns.js';
 import { whatsappChatUrl } from '../store/store-info.js';
 import {
+  amountBlock,
   emailDocument,
   escapeHtml,
   FONT,
   footer,
+  GREY_BOX,
   fullWidthLink,
   header,
   INK,
@@ -47,6 +51,14 @@ export function renderReturnEmail(
       return storeReturnRequest(request, ctx);
     case 'return-requested':
       return returnRequested(request, ctx);
+    case 'return-approved':
+      return returnApproved(request, ctx);
+    case 'return-rejected':
+      return returnRejected(request, ctx);
+    case 'return-received':
+      return returnReceived(request, ctx);
+    case 'return-refund-sent':
+      return returnRefundSent(request, ctx);
   }
 }
 
@@ -194,6 +206,253 @@ function footerHelp(
   }
   const reply = ctx.canReply ? 'Questions? Just reply to this email.' : null;
   return { line: reply, button: null, text: reply };
+}
+
+// ── Shopper: status emails (ATS-294) ────────────────────────────────────────
+
+/** One part of a status email: its HTML rows and the matching plain-text block (same order). */
+interface EmailPart {
+  readonly html: string;
+  readonly text: string | null;
+}
+
+/**
+ * The frame every shopper status email shares: the black header (kicker `RETURN OR EXCHANGE ·
+ * #R-…`, the order ref on the right), the parts, **View Your Order**, then the footer.
+ */
+function shopperStatusEmail(
+  request: ReturnEmailRequest,
+  ctx: OrderEmailContext,
+  parts: {
+    readonly subject: string;
+    readonly status: readonly string[];
+    readonly sentence: string;
+    readonly body: readonly EmailPart[];
+    readonly hasWhatsappButton?: boolean;
+  },
+): RenderedEmail {
+  const kicker = `Return or Exchange · ${request.ref}`;
+  const view = viewButton(request, ctx);
+  const help = footerHelp(ctx, parts.hasWhatsappButton === true);
+  const html = emailDocument(parts.subject, [
+    header({
+      storeName: ctx.storeName,
+      ref: request.orderRef,
+      kicker,
+      status: [...parts.status],
+      sentence: parts.sentence,
+    }),
+    ...parts.body.map((part) => part.html),
+    view ? mainButton(view) : '',
+    SPACER,
+    footer({
+      storeName: ctx.storeName,
+      line: help.line,
+      button: help.button,
+      site: siteLabel(ctx.storefrontUrl),
+      siteUrl: ctx.storefrontUrl,
+    }),
+  ]);
+  const text = joinText([
+    `${parts.status.join(' ').toUpperCase()}\n${kicker} · Order ${request.orderRef}`,
+    parts.sentence,
+    ...parts.body.map((part) => part.text),
+    view ? `${view.label}: ${view.url}` : null,
+    help.text,
+  ]);
+  return { subject: parts.subject, html, text };
+}
+
+function viewButton(request: ReturnEmailRequest, ctx: OrderEmailContext): EmailButton | null {
+  return ctx.storefrontUrl
+    ? {
+        label: 'View Your Order',
+        url: orderConfirmationUrl(ctx.storefrontUrl, request.orderId, request.viewKey),
+      }
+    : null;
+}
+
+/** The items as cards, with the plain-text list. */
+function itemsPart(request: ReturnEmailRequest, ctx: OrderEmailContext, giftNote: GiftNote): EmailPart {
+  return {
+    html: section(`${sectionTitle('Your Items')}${itemGrid(itemCards(request, ctx, false, giftNote))}`, 40),
+    text: `Your Items:\n${itemsText(request, false)}`,
+  };
+}
+
+/** A small grey label over a line of text ("HAND OVER", "YOU GET", "AMOUNT"). */
+function labelled(label: string, value: string, padTop = 32): EmailPart {
+  return {
+    html: section(
+      `<p style="margin:0 0 8px;${FONT}font-size:11px;font-weight:600;letter-spacing:2px;color:${TEXT_MUTED};">${escapeHtml(label.toUpperCase())}</p>
+<p style="margin:0;${FONT}font-size:16px;line-height:1.55;color:${INK};">${escapeHtml(value)}</p>`,
+      padTop,
+    ),
+    text: `${label}: ${value}`,
+  };
+}
+
+/** Text in a grey box (the courier fee line, staff's reason). */
+function greyBox(value: string, textLabel: string | null, padTop = 24): EmailPart {
+  return {
+    html: section(
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${GREY_BOX};"><tr><td style="padding:18px 20px;">
+<p style="margin:0;${FONT}font-size:15px;line-height:1.55;color:${INK};">${escapeHtml(value)}</p>
+</td></tr></table>`,
+      padTop,
+    ),
+    text: textLabel ? `${textLabel}: ${value}` : value,
+  };
+}
+
+// Approved
+
+function returnApproved(request: ReturnEmailRequest, ctx: OrderEmailContext): RenderedEmail {
+  return shopperStatusEmail(request, ctx, {
+    subject: `Your return or exchange ${request.ref} is approved`,
+    status: ['Request', 'Approved'],
+    sentence: 'Our courier will come to your delivery address.',
+    body: [
+      labelled('Hand Over', handOverText(request)),
+      labelled('You Get', youGetText(request), 20),
+      greyBox(approvedFeeLine(request), null),
+    ],
+  });
+}
+
+/** Every piece the courier takes, free gifts going back included: `Padel Shorts · M, Sport Socks`. */
+function handOverText(request: ReturnEmailRequest): string {
+  return listText(
+    request.items.map((item) => `${item.quantity > 1 ? `${item.quantity} × ` : ''}${itemTitle(item)}`),
+  );
+}
+
+/** New pieces for exchanges, then the refund: `Padel Shorts in L, and EGP 580 by InstaPay once they're back`. */
+function youGetText(request: ReturnEmailRequest): string {
+  const parts: string[] = [];
+  for (const item of request.items) {
+    if (item.autoGift || item.refund) continue;
+    const name = item.name || 'Item';
+    const count = item.quantity > 1 ? `${item.quantity} × ` : '';
+    if (item.kind === 'different-size' || item.kind === 'different-colour') {
+      const arrow = item.askedLabel.indexOf('→');
+      const next = arrow >= 0 ? item.askedLabel.slice(arrow + 1).trim() : '';
+      parts.push(next ? `${count}${name} in ${next}` : `${count}${name} in your new choice`);
+    } else if (item.kind === 'damaged') {
+      parts.push(`${count}a new ${name}`);
+    } else if (item.kind === 'wrong-item') {
+      parts.push(`${count}the right ${name}`);
+    }
+  }
+  if (request.hasRefund) {
+    parts.push(
+      request.refundEgp > 0
+        ? `${formatEgp(request.refundEgp)} by InstaPay once they're back`
+        : 'no refund, as the courier fee covers the items',
+    );
+  }
+  const text =
+    parts.length > 1 ? `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}` : (parts[0] ?? '');
+  return capitalise(text) || 'Your request as you sent it';
+}
+
+/** The courier fee: free, cash at the door, or taken off the refund. */
+function approvedFeeLine(request: ReturnEmailRequest): string {
+  if (request.feeEgp === 0) return 'The courier visit is free.';
+  const fee = formatEgp(request.feeEgp);
+  if (request.feePaid === 'cash') return `Courier fee ${fee}, cash at your door.`;
+  const cash =
+    request.cashAtDoorEgp > 0
+      ? ` Please pay the courier the other ${formatEgp(request.cashAtDoorEgp)} in cash.`
+      : '';
+  return `Courier fee ${fee}, taken off your refund.${cash}`;
+}
+
+// Rejected
+
+function returnRejected(request: ReturnEmailRequest, ctx: OrderEmailContext): RenderedEmail {
+  const waNumber = ctx.whatsappNumber.trim();
+  const waLink = whatsappChatUrl(waNumber);
+  const wa: EmailButton | null = waLink ? { label: 'Message Us on WhatsApp', url: waLink } : null;
+  const body: EmailPart[] = [];
+  if (request.rejectReason) body.push(greyBox(`"${request.rejectReason}"`, 'Our reason'));
+  if (wa) {
+    body.push({
+      html: section(fullWidthLink(wa, 'outlined'), 24),
+      text: `${wa.label}: ${waNumber} (${wa.url})`,
+    });
+  }
+  body.push(itemsPart(request, ctx, 'stays'));
+  return shopperStatusEmail(request, ctx, {
+    subject: `About your return or exchange request ${request.ref}`,
+    status: ["We Can't", 'Take It Back'],
+    sentence: "We looked at your request and can't accept it this time.",
+    body,
+    hasWhatsappButton: wa !== null,
+  });
+}
+
+// Received
+
+function returnReceived(request: ReturnEmailRequest, ctx: OrderEmailContext): RenderedEmail {
+  const sentence = !request.hasRefund
+    ? 'Your exchange is done. Enjoy your new pieces!'
+    : request.refundEgp > 0
+      ? `We got your items. Your refund of ${formatEgp(request.refundEgp)} is on its way by InstaPay.`
+      : 'We got your items. The courier fee covered the refund, so there is nothing more to send.';
+  return shopperStatusEmail(request, ctx, {
+    subject: request.hasRefund
+      ? `We got your items for ${request.ref}`
+      : `Your exchange ${request.ref} is done`,
+    status: ['Items', 'Received'],
+    sentence,
+    body: [itemsPart(request, ctx, 'came-back')],
+  });
+}
+
+// Refund Sent
+
+function returnRefundSent(request: ReturnEmailRequest, ctx: OrderEmailContext): RenderedEmail {
+  const amount = formatEgp(request.refundSentEgp);
+  const to = lastFour(request.refundTo);
+  const sentLine = joinWith(
+    [
+      to ? `Sent by InstaPay to …${to}` : 'Sent by InstaPay',
+      request.refundReference ? `Reference ${request.refundReference}` : null,
+    ],
+    ' · ',
+  );
+  return shopperStatusEmail(request, ctx, {
+    subject: `Refund Sent: ${amount} for ${request.ref}`,
+    status: ['Refund', 'Sent'],
+    sentence: `We sent your refund of ${amount}. It can take a little while to show in your account.`,
+    body: [
+      {
+        html: amountBlock([{ label: 'Amount', amount, note: sentLine }]),
+        text: `Amount: ${amount}\n${sentLine}`,
+      },
+      // Only the items paid back (and gifts that went with them), not the exchanged ones.
+      itemsPart(
+        { ...request, items: request.items.filter((item) => item.refund || item.autoGift) },
+        ctx,
+        'came-back',
+      ),
+    ],
+  });
+}
+
+/** The last 4 characters of an InstaPay number or address (spaces left out), never the whole thing. */
+function lastFour(value: string | null): string | null {
+  const compact = (value ?? '').replace(/\s+/g, '');
+  return compact.length > 0 ? compact.slice(-4) : null;
+}
+
+function listText(parts: readonly string[]): string {
+  return parts.filter((part) => part.trim()).join(', ');
+}
+
+function capitalise(value: string): string {
+  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
 }
 
 // ── Staff alert ─────────────────────────────────────────────────────────────
@@ -348,7 +607,12 @@ ${wa ? `<div style="margin-top:18px;">${outlinedButton(wa)}</div>` : ''}`,
  * One card per item the shopper chose; a gift that comes back with a refund is a strip under the
  * item it came with. Staff cards carry a black `×2` tag and the refund amount.
  */
-function itemCards(request: ReturnEmailRequest, ctx: OrderEmailContext, staff: boolean): ItemCard[] {
+function itemCards(
+  request: ReturnEmailRequest,
+  ctx: OrderEmailContext,
+  staff: boolean,
+  giftNote: GiftNote = 'hand-back',
+): ItemCard[] {
   const chosen = request.items.filter((item) => !item.autoGift);
   const gifts = request.items.filter((item) => item.autoGift);
   const width = chosen.length > 4 ? 128 : 520;
@@ -368,7 +632,7 @@ function itemCards(request: ReturnEmailRequest, ctx: OrderEmailContext, staff: b
       price: staff && item.refund ? formatEgp(item.refundEgp) : null,
       imageSrc: imageUrl(item.imagePath, ctx, width),
       tags: staff ? [`×${item.quantity}`] : [],
-      ...(own.length ? { gifts: own.map((gift) => giftStrip(gift, item, staff)) } : {}),
+      ...(own.length ? { gifts: own.map((gift) => giftStrip(gift, item, staff, giftNote)) } : {}),
     };
   });
   // A gift whose item isn't in the list (should not happen) still shows as its own card.
@@ -385,15 +649,29 @@ function itemCards(request: ReturnEmailRequest, ctx: OrderEmailContext, staff: b
   return cards;
 }
 
+/**
+ * What the shopper's gift strip says: `hand-back` before the courier comes, `came-back` once the
+ * items are with us, `stays` when the request was rejected.
+ */
+type GiftNote = 'hand-back' | 'came-back' | 'stays';
+
 function giftStrip(
   gift: ReturnEmailItem,
   item: ReturnEmailItem,
   staff: boolean,
+  note: GiftNote,
 ): { name: string; details: string } {
   const owner = item.name || 'the item';
-  return staff
-    ? { name: gift.name || 'Free gift', details: `×${gift.quantity} · comes back with the ${owner}` }
-    : { name: gift.name || 'Free gift', details: `Please hand it back with the ${owner}.` };
+  const name = gift.name || 'Free gift';
+  if (staff) return { name, details: `×${gift.quantity} · comes back with the ${owner}` };
+  switch (note) {
+    case 'came-back':
+      return { name, details: `Came back with the ${owner}.` };
+    case 'stays':
+      return { name, details: `Stays with the ${owner}.` };
+    default:
+      return { name, details: `Please hand it back with the ${owner}.` };
+  }
 }
 
 function itemsText(request: ReturnEmailRequest, staff: boolean): string {

@@ -9,12 +9,15 @@ import {
   type CourierFeePaid,
   type ReturnKind,
   type ReturnStatus,
+  type ReturnWants,
 } from '../store/returns.js';
 
 export interface ReturnEmailItem {
   readonly lineIndex: number;
   readonly quantity: number;
   readonly kind: ReturnKind;
+  /** Damaged or Wrong Item Sent: what the shopper wants (another piece, the right one, or money). */
+  readonly wants: ReturnWants | null;
   readonly refund: boolean;
   /** A gift added by the server: it comes back with the refunded item on line `forLine`. */
   readonly autoGift: boolean;
@@ -56,6 +59,12 @@ export interface ReturnEmailRequest {
   readonly feePaid: CourierFeePaid;
   readonly refundEgp: number;
   readonly cashAtDoorEgp: number;
+  /** Staff's reason when the request is Rejected (shown to the shopper). */
+  readonly rejectReason: string | null;
+  /** What staff sent at Refund Sent; the planned `refundEgp` before that. */
+  readonly refundSentEgp: number;
+  /** The InstaPay reference staff saved with Refund Sent, if any. */
+  readonly refundReference: string | null;
   readonly createdAtMs: number | null;
   readonly deliveredAtMs: number | null;
   /** The order's secret view key, for a guest's "View Your Order" link; null for signed-in orders. */
@@ -83,6 +92,7 @@ export function readReturnForEmail(
       lineIndex: whole(raw['lineIndex']),
       quantity,
       kind,
+      wants: readWants(raw['wants']),
       refund: raw['refund'] === true,
       autoGift: raw['autoGift'] === true,
       forLine: typeof raw['forLine'] === 'number' ? whole(raw['forLine']) : null,
@@ -123,10 +133,18 @@ export function readReturnForEmail(
     feePaid: feePaid === 'off-refund' || feePaid === 'cash' ? feePaid : 'free',
     refundEgp: whole(data['refundEgp']),
     cashAtDoorEgp: whole(data['cashAtDoorEgp']),
+    rejectReason: text(data['rejectReason']) || null,
+    refundSentEgp:
+      typeof data['refundSentEgp'] === 'number' ? whole(data['refundSentEgp']) : whole(data['refundEgp']),
+    refundReference: text(data['refundReference']) || null,
     createdAtMs: timestampMs(data['createdAt']),
     deliveredAtMs: timestampMs(data['orderDeliveredAt']),
     viewKey: viewKey || null,
   };
+}
+
+function readWants(raw: unknown): ReturnWants | null {
+  return raw === 'send-another' || raw === 'send-right-one' || raw === 'refund' ? raw : null;
 }
 
 function readOptionLabels(raw: unknown): { label: string; value: string }[] {
