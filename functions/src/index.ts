@@ -49,6 +49,10 @@ export { sendOrderEmails } from './email/send-order-emails.trigger.js';
 export { sendReturnEmails } from './email/send-return-emails.trigger.js';
 export { requestReturn } from './returns/request-return.fn.js';
 export { cancelReturnRequest } from './returns/cancel-return-request.fn.js';
+export { approveReturnRequest } from './returns/approve-return-request.fn.js';
+export { rejectReturnRequest } from './returns/reject-return-request.fn.js';
+export { receiveReturnRequest } from './returns/receive-return-request.fn.js';
+export { markRefundSent } from './returns/mark-refund-sent.fn.js';
 export { subscribeToEmails } from './marketing/subscribe-to-emails.fn.js';
 export { onHomeSettingsWrite, onNavigationSettingsWrite } from './settings/settings-history.trigger.js';
 export {

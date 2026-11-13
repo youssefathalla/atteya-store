@@ -64,6 +64,12 @@ export const RETURN_NOTE_MAX = 500;
 /** Longest InstaPay number or address (`refundTo`). */
 export const RETURN_REFUND_TO_MAX = 100;
 
+/** Longest reason the shopper sees when staff reject a request. */
+export const REJECT_REASON_MAX = 300;
+
+/** Longest InstaPay reference staff save with Refund Sent. */
+export const REFUND_REFERENCE_MAX = 100;
+
 /** Requests one order can ever have (cancelled and rejected ones included), so a loop can't flood staff. */
 export const RETURN_REQUESTS_PER_ORDER_MAX = 10;
 

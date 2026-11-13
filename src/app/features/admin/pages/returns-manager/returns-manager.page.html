@@ -1,0 +1,129 @@
+<div class="elements-start-col items-stretch! gap-4 w-full">
+  <section class="surface-card p-4 @5xl:p-5 w-full elements-start-col gap-4" aria-label="Returns toolbar">
+    <h1 class="font-title-lg font-bold!">Returns</h1>
+
+    <mat-form-field class="w-full @3xl:max-w-md" appearance="outline">
+      <mat-label>Search requests</mat-label>
+      <mat-icon matPrefix name="search" />
+      <input
+        matInput
+        type="search"
+        [value]="searchText()"
+        (input)="searchText.set($any($event.target).value)"
+      />
+      <mat-hint>Request or order number, name, phone or email of the requests shown.</mat-hint>
+    </mat-form-field>
+
+    <div
+      class="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 @3xl:flex-wrap @3xl:overflow-visible @3xl:pb-0 @3xl:mx-0 @3xl:px-0"
+      role="tablist"
+      aria-label="Filter requests by status"
+    >
+      @for (tab of filterTabs; track tab.id) {
+        <button
+          type="button"
+          role="tab"
+          class="shrink-0 border-shape border px-3 py-1.5 font-label-md cursor-pointer"
+          [class.border-primary]="statusFilter() === tab.id"
+          [class.bg-surface-container-highest]="statusFilter() === tab.id"
+          [class.border-outline-variant]="statusFilter() !== tab.id"
+          [attr.aria-selected]="statusFilter() === tab.id"
+          (click)="setFilter(tab.id)"
+        >
+          {{ tab.label }}
+        </button>
+      }
+    </div>
+  </section>
+
+  <section class="w-full" aria-label="Requests list">
+    @if (firstLoading()) {
+      <div class="elements-start-col items-stretch! gap-2" aria-hidden="true">
+        <app-skeleton class="h-20 w-full" />
+        <app-skeleton class="h-20 w-full" />
+        <app-skeleton class="h-20 w-full" />
+      </div>
+    } @else if (loadErrorMessage(); as message) {
+      <p class="surface-card p-5 font-body-md break-words" role="alert">{{ message }}</p>
+    } @else if (rows().length === 0) {
+      @if (searchText().trim()) {
+        <p class="surface-card p-5 font-body-md">
+          No request on screen matches this search.
+          @if (hasMore()) {
+            Show more requests or pick another tab.
+          }
+        </p>
+      } @else {
+        <p class="surface-card p-5 font-body-md">No requests in this view yet.</p>
+      }
+    } @else {
+      <ul class="surface-card w-full">
+        @for (row of rows(); track row.id) {
+          <li>
+            <a
+              class="return-row"
+              [routerLink]="['/admin/returns', row.id]"
+              [attr.aria-label]="'Open request ' + row.ref"
+            >
+              <span class="elements-start-col min-w-0">
+                <span class="font-title-sm font-bold!">{{ row.ref }}</span>
+                <span class="admin-order-muted">Order {{ row.orderRef }}</span>
+              </span>
+              <span class="justify-self-end @5xl:hidden">
+                <app-status-badge [value]="row.status" [statusConfig]="statusConfig" />
+              </span>
+              <span class="elements-start-col min-w-0">
+                <span class="font-body-md font-bold! truncate max-w-full">{{ row.customerName }}</span>
+                <span class="admin-order-muted">{{ row.createdAt }}</span>
+              </span>
+              <span class="elements-start flex-wrap gap-1.5 min-w-0 col-span-2 @5xl:col-span-1">
+                @for (chip of row.chips; track chip.label) {
+                  <span class="return-kind-chip" [class.return-kind-chip--strong]="chip.strong">{{
+                    chip.label
+                  }}</span>
+                }
+                <span class="admin-order-muted">{{ row.pieces }}</span>
+              </span>
+              <span class="font-body-md col-span-2 @5xl:col-span-1">{{ row.money }}</span>
+              <span class="hidden @5xl:block">
+                <app-status-badge [value]="row.status" [statusConfig]="statusConfig" />
+              </span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (!firstLoading() && !loadErrorMessage()) {
+      @if (moreErrorMessage(); as message) {
+        <div class="grid gap-3 pt-4 @3xl:flex @3xl:items-center">
+          <span class="font-body-md" role="alert">{{ message }}</span>
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="dataResource.isLoading()"
+            (click)="retryLoad()"
+          >
+            Try Again
+          </button>
+        </div>
+      } @else if (hasMore()) {
+        <div class="grid pt-4 @3xl:justify-items-start">
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="dataResource.isLoading()"
+            [attr.aria-label]="moreLoading() ? 'Loading more requests' : null"
+            (click)="showMore()"
+          >
+            @if (moreLoading()) {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>Show More Requests</span>
+            }
+          </button>
+        </div>
+      }
+    }
+  </section>
+</div>

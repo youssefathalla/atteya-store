@@ -65,7 +65,7 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 
 ## Stock plan
 
-- `returnStockPlan(items)` turns a request into `approve` and `received` steps of `take` / `putBack` pieces (`{ productId, selection, quantity }`, ready for `aggregateOrderStockDemand`); the moves themselves happen in <KEY>-293.
+- `returnStockPlan(items)` turns a request into `approve` and `received` steps of `take` / `putBack` pieces (`{ productId, selection, quantity }`); `applyStockMoves()` applies them (see Staff steps).
 - Different Size / Different Colour: new piece −1 at Approve; returned piece +1 at Received if it can be sold again.
 - Return It: nothing at Approve; piece +1 at Received if it can be sold again.
 - Damaged · Send Another: the same piece −1 at Approve; nothing back by default (`canBeSoldAgain` defaults off for Damaged).
@@ -84,7 +84,7 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - `cancelReturnRequest` (`functions/src/returns/cancel-return-request.fn.ts`, same owner check, `{ requestId, viewKey? }`) sets the request to Cancelled while it is Requested, updates its entry in the order's `returns` and sends nothing; calling it again answers `changed: false`.
 - Every callable that moves a request updates the order's summary with `withReturnStatus()` in the same transaction, so `returns` always matches `returnRequests/{id}`.
 - `orderViewFields()` copies `returns` into `orderViews/{viewKey}` so guests see the status.
-- Firestore rules: `returnRequests`, `returnStaffNotes` (staff-only notes, written in <KEY>-293) and `returnEmails` are read by admin and staff only, with no client writes; orders stay server-written, so `returns` is written only by Cloud Functions.
+- Firestore rules: `returnRequests`, `returnStaffNotes` (staff-only history, written by the step callables) and `returnEmails` are read by admin and staff only, with no client writes; orders stay server-written, so `returns` is written only by Cloud Functions.
 
 ## Shopper screen (website)
 
@@ -112,6 +112,24 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - Shopper email: header with the order ref, kicker `RETURN OR EXCHANGE · #R-…`, status `REQUEST SENT`, What Happens Next (we check it, the courier comes to the delivery address, the InstaPay refund), Your Items, the money, **View Your Order** (`orderConfirmationUrl()`, with `?key=` for guests).
 - Damaged or wrong items add a dashed box with **Send Photos on WhatsApp**, prefilled with the request and order refs (`returnPhotosWhatsappText()`); without a store WhatsApp it asks for a reply with a photo when replies reach an inbox.
 - The Approved, Rejected, Received and Refund Sent emails come in <KEY>-294.
+
+## Staff steps (admin Returns)
+
+- `/admin/returns` (`ReturnsManagerPageComponent`, `features/admin/pages/returns-manager/`) lists requests newest first, 20 per **Show More Requests**, with tabs Requested, Approved, Received, Refund Sent, Rejected, Cancelled, All (index `returnRequests` `status` + `createdAt` desc); the search field filters the requests on screen.
+- The admin menu's **Returns** item shows the count of Requested (`AdminNavService`, `getCountFromServer`), read again after each step (`refreshReturnsCount()`).
+- `/admin/returns/:requestId` (`ReturnDetailsPageComponent`) shows refs (order ref links to `/admin/orders/:id`), the customer with **Message Customer on WhatsApp** (`returnStaffWhatsappText()`), items with photo, options, what was asked and live stock per piece (now and what each step does), money, the shopper's InstaPay details and note, and the staff history.
+- `/admin/orders/:id` and the open order in the Orders list show a **Returns** line (`app-order-returns-line`, reads `returnRequests` by `orderId`).
+- Callables (`europe-west3`, `requireRole`): `approveReturnRequest`, `rejectReturnRequest`, `receiveReturnRequest` (admin and staff) and `markRefundSent` (admin only, checked on the server).
+- All four run `runReturnStep()` (`functions/src/returns/return-staff-transaction.ts`): one transaction reads the request, order and products, checks the move with `nextReturnStatuses()`, moves stock, stamps the request, updates the order's `returns` with `withReturnStatus()` and appends `{ status, from, at, by, byEmail?, reason? }` to `returnStaffNotes/{id}.history`.
+- The pure part is `functions/src/returns/return-staff-step.ts` (input checks, `withSentPieces()`, `approveStep()`, `receiveStep()`, `rejectUndoStep()`, `applyStockMoves()`), tested in `return-staff-step.test.ts`.
+- Already in the target status answers `changed: false` and writes nothing, so a double click or two staff at once never move stock twice.
+- Approve: Wrong Item Sent first asks "What Did We Send Instead?" (`app-sent-piece-picker` searches any product with `ProductsAdminService.searchProducts()`, then a size) and saves `sentProductId` / `sentSelection` on the item.
+- Approve applies the plan's Approve moves once (`stockTakenAt`) and saves them as `approveStock`; a sold-out new piece refuses with "Size L is sold out. Ask the customer to pick another size or switch this item to a refund." and nothing changes.
+- Reject needs a reason the shopper sees (300 characters, `rejectReason`), works from Requested or Approved, and from Approved undoes `approveStock` once (`stockUndoneAt`); a count that is too low stops at 0 so a reject is never blocked.
+- Item Received (from Approved) saves each item's `canBeSoldAgain` (on by default, off for Damaged Item, always on for Wrong Item Sent, which shows no switch) and puts those pieces back once (`stockReturnedAt`); exchange-only requests are done here.
+- Refund Sent (admin, from Received with a refund) saves `refundSentEgp` and an optional `refundReference`; no stock moves.
+- Stamps: `approvedAt` / `approvedBy`, `rejectedAt` / `rejectedBy`, `receivedAt` / `receivedBy`, `refundSentAt` / `refundSentBy`.
+- Pieces whose product or size is gone are counted in `stockNotReturned` and the snackbar asks staff to check that product.
 
 ## How items come back
 

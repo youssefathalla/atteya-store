@@ -1,0 +1,262 @@
+<div class="elements-start-col items-stretch! gap-4 w-full">
+  <div>
+    <a matButton="text" routerLink="/admin/returns">
+      <mat-icon name="arrow_back" />
+      <span>Back to Returns</span>
+    </a>
+  </div>
+
+  @if (dataResource.isLoading() && !dataResource.hasValue()) {
+    <div class="elements-start-col items-stretch! gap-4 w-full" aria-hidden="true">
+      <app-skeleton class="h-32 w-full" />
+      <app-skeleton class="h-64 w-full" />
+    </div>
+  } @else if (loadErrorMessage(); as message) {
+    <p class="surface-card p-5 font-body-md break-words" role="alert">{{ message }}</p>
+  } @else if (request(); as r) {
+    <section
+      class="surface-card p-4 @4xl:p-5 w-full elements-between flex-wrap gap-4"
+      aria-label="Request summary"
+    >
+      <div class="elements-start-col gap-1 min-w-0">
+        <div class="elements-start flex-wrap gap-3">
+          <h1 class="font-headline-sm font-bold! break-all" [attr.title]="r.id">{{ r.ref }}</h1>
+          <app-status-badge [value]="r.status" [statusConfig]="statusConfig" />
+        </div>
+        <p class="admin-order-muted">
+          For order
+          <a class="admin-order-customer-link" [routerLink]="['/admin/orders', r.orderId]">{{
+            r.orderRef
+          }}</a>
+          · Sent {{ createdAt() }}
+        </p>
+      </div>
+      <div class="grid w-full gap-2 @3xl:w-auto @3xl:flex @3xl:flex-wrap @3xl:items-center">
+        @if (canReject()) {
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="busy() !== null"
+            [attr.aria-label]="busy() === 'reject' ? 'Rejecting…' : null"
+            (click)="reject()"
+          >
+            @if (busy() === 'reject') {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>Reject</span>
+            }
+          </button>
+        }
+        @if (canApprove()) {
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="busy() !== null"
+            [attr.aria-label]="busy() === 'approve' ? 'Approving…' : null"
+            (click)="approve()"
+          >
+            @if (busy() === 'approve') {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>Approve</span>
+            }
+          </button>
+        }
+        @if (canReceive()) {
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="busy() !== null"
+            [attr.aria-label]="busy() === 'receive' ? 'Saving…' : null"
+            (click)="receive()"
+          >
+            @if (busy() === 'receive') {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>Item Received</span>
+            }
+          </button>
+        }
+        @if (canRefund()) {
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="busy() !== null"
+            [attr.aria-label]="busy() === 'refund' ? 'Saving…' : null"
+            (click)="refundSent()"
+          >
+            @if (busy() === 'refund') {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>Refund Sent</span>
+            }
+          </button>
+        }
+      </div>
+    </section>
+
+    @if (nextStep(); as step) {
+      <p class="admin-order-next">
+        <span class="font-bold!">Next step:</span> {{ step }}
+        @if (refundWaitsForAdmin()) {
+          An admin marks the refund as sent.
+        }
+      </p>
+    }
+    @if (r.rejectReason && r.status === 'rejected') {
+      <p class="admin-order-box break-words">Reason the customer sees: {{ r.rejectReason }}</p>
+    }
+    @if (notReturnedNote(); as note) {
+      <p class="admin-order-box">{{ note }}</p>
+    }
+
+    <div class="grid gap-4 items-start @5xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <aside
+        class="order-first grid gap-4 @xl:grid-cols-2 @5xl:order-last @5xl:grid-cols-1"
+        aria-label="Customer and money"
+      >
+        <section class="admin-order-box" aria-label="Customer">
+          <h2 class="admin-order-box__title">Customer</h2>
+          <p class="font-bold! break-words">
+            {{ r.customer.name }}
+            @if (r.guest) {
+              <span class="ms-1 px-1.5 border border-outline-variant border-shape font-label-sm">Guest</span>
+            }
+          </p>
+          <p class="break-all" dir="ltr">{{ r.customer.phone }}</p>
+          @if (r.customer.email; as email) {
+            <p class="break-all">{{ email }}</p>
+          }
+          <address class="not-italic elements-start-col gap-0.5 admin-order-muted">
+            @for (line of address(); track $index) {
+              <span class="break-words">{{ line }}</span>
+            }
+          </address>
+          @if (whatsappUrl(); as url) {
+            <a matButton="outlined" [href]="url" target="_blank" rel="noopener">
+              <mat-icon name="chat_bubble" />
+              <span>Message Customer on WhatsApp</span>
+            </a>
+          }
+        </section>
+
+        @if (money(); as m) {
+          <section class="admin-order-box" aria-label="Money">
+            <h2 class="admin-order-box__title">Money</h2>
+            @if (r.hasRefund) {
+              <div class="admin-order-pair">
+                <span>Items</span><span>{{ m.items }}</span>
+              </div>
+            }
+            <div class="admin-order-pair">
+              <span>Courier fee</span><span>{{ m.fee }}</span>
+            </div>
+            @if (m.refund; as refund) {
+              <div class="admin-order-pair">
+                <span class="font-bold!">Refund</span><span class="font-bold!">{{ refund }}</span>
+              </div>
+            }
+            @if (m.cash; as cash) {
+              <div class="admin-order-pair">
+                <span>Cash at the door</span><span>{{ cash }}</span>
+              </div>
+            }
+            @if (m.sent; as sent) {
+              <div class="admin-order-pair">
+                <span>Refund sent</span><span>{{ sent }}</span>
+              </div>
+            }
+            @if (r.refundReference; as reference) {
+              <div class="admin-order-pair">
+                <span>InstaPay reference</span><span class="break-all">{{ reference }}</span>
+              </div>
+            }
+          </section>
+        }
+
+        @if (r.refundTo || r.note) {
+          <section class="admin-order-box" aria-label="From the customer">
+            <h2 class="admin-order-box__title">From the Customer</h2>
+            @if (r.refundTo; as to) {
+              <p>
+                InstaPay: <span class="font-bold! break-all" dir="auto">{{ to }}</span>
+              </p>
+            }
+            @if (r.note; as note) {
+              <p class="break-words whitespace-pre-line" dir="auto">{{ note }}</p>
+            }
+          </section>
+        }
+      </aside>
+
+      <div class="elements-start-col items-stretch! gap-4 min-w-0">
+        <section class="admin-order-box" aria-label="Items">
+          <h2 class="admin-order-box__title">What They Asked For</h2>
+          <ul class="elements-start-col items-stretch! w-full">
+            @for (item of items(); track item.index) {
+              <li class="flex gap-3 w-full border-t border-outline-variant py-3">
+                <span class="size-16 shrink-0 admin-order-photo">
+                  @if (item.imageSrc) {
+                    <img
+                      [ngSrc]="item.imageSrc"
+                      [appImageFallback]="item.imagePath ?? ''"
+                      alt=""
+                      width="64"
+                      height="64"
+                      class="size-full object-contain p-0.5"
+                    />
+                  }
+                </span>
+                <div class="elements-start-col gap-1 min-w-0 grow">
+                  <div class="elements-start flex-wrap gap-2">
+                    <span
+                      class="return-kind-chip"
+                      [class.return-kind-chip--strong]="item.isDamaged || item.isWrongItem"
+                      >{{ item.kindLabel }}</span
+                    >
+                    <span class="font-label-md">× {{ item.quantity }}</span>
+                  </div>
+                  <span class="font-body-md font-bold! break-words">{{ item.name }}</span>
+                  @if (item.options) {
+                    <span class="admin-order-muted break-words">{{ item.options }}</span>
+                  }
+                  <span class="font-body-md break-words">{{ item.asked }}</span>
+                  @if (item.refund; as refund) {
+                    <span class="font-body-md">Refund {{ refund }}</span>
+                  }
+                  @if (item.soldAgain; as sold) {
+                    <span class="admin-order-muted">{{ sold }}</span>
+                  }
+                  @for (fact of item.stock; track $index) {
+                    <span class="font-label-md break-words">
+                      <span class="text-on-surface-variant">{{ fact.label }}</span> · {{ fact.value }}
+                    </span>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+
+        <section class="admin-order-box" aria-label="History">
+          <h2 class="admin-order-box__title">Every Change</h2>
+          <ol class="elements-start-col items-stretch! w-full">
+            @for (entry of history(); track $index) {
+              <li class="w-full border-t border-outline-variant py-2 elements-start-col">
+                <span class="font-body-md">{{ entry.label }}</span>
+                <span class="font-label-md text-on-surface-variant break-all">
+                  {{ entry.when }}{{ entry.by ? ' · ' + entry.by : '' }}
+                </span>
+                @if (entry.reason) {
+                  <span class="font-label-md break-words">Reason: {{ entry.reason }}</span>
+                }
+              </li>
+            }
+          </ol>
+        </section>
+      </div>
+    </div>
+  } @else {
+    <p class="surface-card p-5 font-body-md">We couldn't find this request. It may have been removed.</p>
+  }
+</div>

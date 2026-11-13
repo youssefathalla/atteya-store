@@ -9,6 +9,7 @@ import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.compo
 import { OrderActionsComponent } from '../components/order-actions/order-actions.component';
 import { OrderInfoBoxesComponent } from '../components/order-info-boxes/order-info-boxes.component';
 import { OrderItemsComponent } from '../components/order-items/order-items.component';
+import { OrderReturnsLineComponent } from '../components/order-returns-line/order-returns-line.component';
 import { ORDER_STATUS_CONFIG } from '../models/order-status-config';
 import { OrdersAdminService } from '../services/orders-admin.service';
 import { toOrderLineAdminRows } from '../utils/order-admin.utils';
@@ -33,6 +34,7 @@ import { trackingSteps } from '../utils/order-tracking.utils';
     OrderActionsComponent,
     OrderInfoBoxesComponent,
     OrderItemsComponent,
+    OrderReturnsLineComponent,
   ],
   templateUrl: './order-tracking.page.html',
 })

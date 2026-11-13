@@ -227,6 +227,7 @@
                   @if (row.cancelReason; as reason) {
                     <p class="admin-order-box">Cancel reason: {{ reason }}</p>
                   }
+                  <app-order-returns-line [orderId]="row.orderId" />
 
                   <div class="grid gap-4 @xl:grid-cols-2 @5xl:grid-cols-3">
                     <app-order-info-boxes [details]="d" />
