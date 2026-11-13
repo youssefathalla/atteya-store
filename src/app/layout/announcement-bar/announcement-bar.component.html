@@ -31,11 +31,11 @@
           [attr.aria-hidden]="active ? null : 'true'"
           [attr.inert]="active ? null : ''"
         >
-          @if (slide.shopQuery) {
+          @if (slide.link; as link) {
             <a
               class="announcement-bar__message announcement-bar__link"
-              routerLink="/shop"
-              [queryParams]="slide.shopQuery"
+              [routerLink]="link.path"
+              [queryParams]="link.query"
             >
               <span class="truncate">{{ slide.text }}</span>
               @if (slide.countdown) {

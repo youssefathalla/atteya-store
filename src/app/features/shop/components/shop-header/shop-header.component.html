@@ -8,6 +8,15 @@
     @if (subtitle(); as text) {
       <p class="font-body-lg opacity-80">{{ text }}</p>
     }
+    @if (headingLink(); as heading) {
+      <a
+        class="w-fit font-label-lg underline underline-offset-2"
+        [routerLink]="heading.link.path"
+        [queryParams]="heading.link.query"
+      >
+        {{ heading.label }}
+      </a>
+    }
   </div>
 
   <nav aria-label="Shop categories" class="flex items-center gap-2 flex-wrap">

@@ -16,6 +16,7 @@ import { bannerOffersResolver } from '@core/services/offers/banner-offers.resolv
 import { homeSettingsResolver } from './features/home/resolvers/home-settings.resolver';
 import { FOCUS_CHROME } from './layout/main/chrome-mode';
 import { productPageResolver } from './features/product/resolvers/product-page.resolver';
+import { bundlePageResolver } from './features/bundle/resolvers/bundle-page.resolver';
 import { catalogPageResolver } from './features/category/resolvers/catalog-page.resolver';
 import { brandPageResolver } from './features/category/resolvers/brand-page.resolver';
 
@@ -131,6 +132,13 @@ export const routes: Routes = [
         runGuardsAndResolvers: 'always',
         title: 'Product | Atteya Store',
         data: { preload: true },
+      },
+      {
+        path: 'bundle/:offerId',
+        loadComponent: () => import('./features/bundle/bundle.page').then((m) => m.BundlePage),
+        resolve: { page: bundlePageResolver },
+        runGuardsAndResolvers: 'paramsChange',
+        title: 'Bundle & Save | Atteya Store',
       },
       {
         path: 'search',
