@@ -1,6 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 import type { Customer } from '@core/services/customers';
 import { accountInitial } from '@core/services/user-profile/profile-display';
+import { orderSearchTerms, orderSearchWords } from '@core/config/order-search';
 
 /** The Customers list shows this many at a time (ATS-277). */
 export const CUSTOMERS_PAGE_SIZE = 50;
@@ -64,6 +65,48 @@ export function matchesAllCustomerWords(customer: Customer, words: readonly stri
   if (words.length < 2) return true;
   const tokens = new Set(customer.searchTokens);
   return words.every((word) => tokens.has(word));
+}
+
+/** What staff typed, as the words Firestore looks for plus, for an email, how it must start. */
+export interface CustomerSearch {
+  readonly words: readonly string[];
+  /** The email start typed ("test2@te"); null when no "@" was typed. */
+  readonly emailStart: string | null;
+}
+
+/**
+ * The saved search words hold the whole email and the starts of its name part, never the starts of
+ * the part after the "@". A whole email is looked up as itself; a typed email start ("test2@", "test2@te") asks Firestore for the
+ * longest word of its name part, and `matchesEmailStart()` then keeps only the emails that begin
+ * with everything typed.
+ */
+export function customerSearch(typed: string): CustomerSearch {
+  const text = typed.trim().toLowerCase();
+  if (!text.includes('@')) return { words: orderSearchTerms(typed), emailStart: null };
+  // Only the part with the "@" is an email start; any other typed word is searched as usual.
+  const parts = text.split(/\s+/);
+  const emailStart = parts.find((part) => part.includes('@')) ?? text;
+  const others = orderSearchTerms(parts.filter((part) => part !== emailStart).join(' '));
+  // A whole email ("test2@gmail.com") is saved as one search word: look it up directly.
+  const [namePart = '', domain = ''] = emailStart.split('@');
+  if (namePart.length > 0 && /^[^@\s]+\.[a-z]{2,}$/.test(domain)) {
+    return { words: [...others, emailStart], emailStart };
+  }
+  const nameWords = orderSearchWords(emailStart.split('@')[0] ?? '').filter((word) => word.length >= 2);
+  const longest = nameWords.reduce((best, word) => (word.length > best.length ? word : best), '');
+  return { words: longest ? [...others, longest] : orderSearchTerms(typed), emailStart };
+}
+
+/** With a typed email start, the customer's email (or an older spelling of it) must begin with it. */
+export function matchesEmailStart(customer: Customer, emailStart: string | null): boolean {
+  if (emailStart === null) return true;
+  return [customer.email, ...customer.emailVariants].some((email) =>
+    email.toLowerCase().startsWith(emailStart),
+  );
+}
+
+export function sameSearch(left: CustomerSearch, right: CustomerSearch): boolean {
+  return left.emailStart === right.emailStart && sameWords(left.words, right.words);
 }
 
 export function sameWords(left: readonly string[], right: readonly string[]): boolean {

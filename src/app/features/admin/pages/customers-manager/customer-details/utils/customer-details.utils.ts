@@ -167,10 +167,17 @@ export interface CustomerAddress {
 
 const squash = (value: string | null | undefined): string => (value ?? '').trim().replace(/\s+/g, ' ');
 
-/** Same street, city and country = same address (case and spaces ignored). */
+/** Case, spaces and punctuation ignored: "1 Test Street, Nasr City" = "1 test street nasr city". */
+const keyPart = (value: string | null | undefined): string =>
+  squash(value)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, ' ')
+    .trim();
+
+/** Same street, city and country = same address (case, spaces and punctuation ignored). */
 export function addressKey(address: AddressFields): string {
   return [address.line1, address.line2, address.city, address.region, address.postalCode, address.country]
-    .map((part) => squash(part).toLowerCase())
+    .map(keyPart)
     .join('|');
 }
 
@@ -207,7 +214,10 @@ export function customerAddresses(
     const group = groups.get(key);
     if (group) {
       group.count += 1;
-      if (placed > group.newest) group.newest = placed;
+      if (placed > group.newest) {
+        group.newest = placed;
+        group.address = order.shipping;
+      }
     } else {
       groups.set(key, { address: order.shipping, count: 1, ref: shortOrderRef(order.id), newest: placed });
     }
