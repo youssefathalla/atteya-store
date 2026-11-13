@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import {
+  MISSING_CODE_RELOAD_WINDOW_MS,
+  shouldReloadForMissingCode,
+} from '../src/app/core/services/errors/page-load-error.ts';
 import { onePerModel } from '../src/app/core/services/products/utils/one-per-model.ts';
 import {
   decideBrandPage,
@@ -1452,5 +1456,25 @@ describe('category and brand pages never open empty (ATS-268)', () => {
   it('shows Page Not Found for a deleted brand and decides nothing when brands could not load', () => {
     assert.deepEqual(brand('babolat'), { kind: 'missing' });
     assert.deepEqual(brand('babolat', { published: null }), { kind: 'ok' });
+  });
+});
+
+describe('shouldReloadForMissingCode (missing page code after a release)', () => {
+  const now = 1_800_000_000_000;
+  it('reloads once when nothing was reloaded before', () => {
+    assert.equal(shouldReloadForMissingCode(null, true, now), true);
+  });
+  it('does not reload again within 30 seconds', () => {
+    assert.equal(shouldReloadForMissingCode(String(now - 5_000), true, now), false);
+  });
+  it('reloads again after 30 seconds', () => {
+    assert.equal(shouldReloadForMissingCode(String(now - MISSING_CODE_RELOAD_WINDOW_MS), true, now), true);
+  });
+  it('never reloads while offline', () => {
+    assert.equal(shouldReloadForMissingCode(null, false, now), false);
+  });
+  it('treats a broken or future saved time as no reload yet', () => {
+    assert.equal(shouldReloadForMissingCode('not a number', true, now), true);
+    assert.equal(shouldReloadForMissingCode(String(now + 60_000), true, now), true);
   });
 });
