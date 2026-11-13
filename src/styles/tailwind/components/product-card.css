@@ -67,6 +67,16 @@
     @apply cursor-default opacity-60;
   }
 
+  /*
+   * "BUNDLE & SAVE 60%" on the photo's bottom left (ATS-280): white, thin black border, bold
+   * capitals. The heart sits top right, so the two never meet.
+   */
+  .product-card__bundle-tag {
+    @apply absolute bottom-2 start-2 sm:bottom-3 sm:start-3 z-1 max-w-[calc(100%-1rem)] truncate;
+    @apply px-1.5 py-0.5 bg-surface-container-lowest border border-primary border-shape;
+    @apply font-label-sm font-bold! uppercase tracking-wide text-primary pointer-events-none;
+  }
+
   .product-card__photo {
     @apply object-contain p-3 sm:p-4;
     filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.12));

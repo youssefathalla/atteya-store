@@ -12,7 +12,10 @@ import {
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
+import { CurrencyService } from '@core/services/currency/currency.service';
 import { FavoritesGateService, FavoritesService } from '@core/services/favorites';
+import { displayDecimals, toDisplayAmount } from '@core/services/offers/engine';
+import { bundleSaveTagText } from '@core/services/offers/offer-shop';
 import { OffersService } from '@core/services/offers/offers.service';
 import { CatalogService } from '@core/services/products/catalog.service';
 import { ProductCacheService } from '@core/services/products/product-cache.service';
@@ -22,6 +25,7 @@ import { PrefetchProductDirective } from '@shared/directives/prefetch-product';
 import { HorizontalScrollDirective } from '@shared/directives/horizontal-scroll';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { normalizeImageKitPath } from '@shared/utils/image';
+import { formatMoney } from '@shared/utils/money';
 import type { ProductCardColorway, ProductCardData, ProductCardPrice } from './product-card.model';
 import { genderCategoryLine, productCardPrice, visibleColorways } from './product-card.utils';
 
@@ -63,6 +67,7 @@ export class ProductCardComponent {
   readonly #router = inject(Router);
   readonly #productCache = inject(ProductCacheService);
   readonly #offers = inject(OffersService);
+  readonly #currency = inject(CurrencyService);
 
   /** Colour picked by a click or tap; the card shows its photo (and opens it) until another is picked. */
   readonly #preview = signal<ProductCardColorway | null>(null);
@@ -107,6 +112,20 @@ export class ProductCardComponent {
     return productCardPrice(picked, live ? this.#offers.all() : null, {
       now: this.#offers.now(),
       signedIn: this.#auth.offerSignedIn(),
+    });
+  });
+
+  /**
+   * The photo's "BUNDLE & SAVE 60%" tag (ATS-280) for the colour on screen, or null. It comes with
+   * the card's price (same offers, same moment), so the server and the first browser paint agree
+   * and no card reads anything for it. While a picked colour's price loads, the card's own tag stays.
+   */
+  readonly bundleTag = computed(() => {
+    const reward = (this.shownPrice() ?? this.product().price).bundleSave;
+    if (!reward) return null;
+    return bundleSaveTagText(reward, (egp) => {
+      const entry = this.#currency.entry();
+      return formatMoney(toDisplayAmount(egp, entry), entry.code, displayDecimals(entry.code));
     });
   });
 
