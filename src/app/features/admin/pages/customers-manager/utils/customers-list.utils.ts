@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import type { Customer } from '@core/services/customers';
+import { accountInitial } from '@core/services/user-profile/profile-display';
 
 /** The Customers list shows this many at a time (ATS-277). */
 export const CUSTOMERS_PAGE_SIZE = 50;
@@ -65,14 +66,6 @@ export function matchesAllCustomerWords(customer: Customer, words: readonly stri
   return words.every((word) => tokens.has(word));
 }
 
-/** The word Firestore looks up: the longest one matches the fewest customers. */
-export function longestWord(words: readonly string[]): string | null {
-  return words.reduce<string | null>(
-    (best, word) => (best === null || word.length > best.length ? word : best),
-    null,
-  );
-}
-
 export function sameWords(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((word, index) => word === right[index]);
 }
@@ -92,8 +85,12 @@ export function startOfMonth(now: Date): Date {
 
 /** "A" from "Ahmed Ali", "أ" from "أحمد"; the email's first letter when there is no name. */
 export function customerInitial(customer: Customer): string {
-  const source = customer.name.trim() || customer.email.trim();
-  return (Array.from(source)[0] ?? '?').toUpperCase();
+  return accountInitial(customer.name.trim() || customer.email);
+}
+
+/** "9 Nov" this year, "9 Nov 2025" for an earlier year, so old orders don't look recent. */
+export function lastOrderDateFormat(date: Date, now: Date): string {
+  return date.getFullYear() === now.getFullYear() ? 'd MMM' : 'd MMM y';
 }
 
 /** The name shown in the list; the email's name part when the customer has no name yet. */

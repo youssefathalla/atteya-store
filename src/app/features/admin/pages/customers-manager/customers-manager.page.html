@@ -114,14 +114,13 @@
       </mat-form-field>
     </div>
 
-    <div class="hidden @3xl:flex flex-wrap gap-2" role="tablist" aria-label="Filter customers">
+    <div class="hidden @3xl:flex flex-wrap gap-2" role="group" aria-label="Filter customers">
       @for (option of filters; track option.id) {
         <button
           type="button"
-          role="tab"
           class="customer-chip"
           [class.customer-chip--active]="filter() === option.id"
-          [attr.aria-selected]="filter() === option.id"
+          [attr.aria-pressed]="filter() === option.id"
           (click)="setFilter(option.id)"
         >
           {{ option.label }}
@@ -146,10 +145,26 @@
         <p class="font-body-md">We couldn't load the customers. Check your connection and try again.</p>
         <button matButton="outlined" type="button" (click)="tryAgain()">Try Again</button>
       </div>
-    } @else if (rows().length === 0 && !hasMore()) {
+    } @else if (rows().length === 0) {
       <div class="surface-card p-5 grid gap-3 @3xl:justify-items-start">
         @if (searching()) {
           <p class="font-body-md break-words">No customers match "{{ searchQuote() }}".</p>
+          @if (hasMore()) {
+            <!-- Part of this filter is checked on this device, so a page can hold no match. -->
+            <button
+              matButton="outlined"
+              type="button"
+              [disabled]="moreLoading()"
+              [attr.aria-label]="moreLoading() ? 'Loading more customers' : null"
+              (click)="showMore()"
+            >
+              @if (moreLoading()) {
+                <mat-progress-spinner mode="indeterminate" diameter="18" />
+              } @else {
+                <span>Show More Customers</span>
+              }
+            </button>
+          }
           <button matButton="outlined" type="button" (click)="clearSearch()">Clear Search</button>
         } @else if (filter() === 'all') {
           <p class="font-body-md">No customers yet. They appear here after the first order or account.</p>
@@ -196,7 +211,7 @@
 
                 <span class="customer-row__last">
                   @if (row.lastOrder; as last) {
-                    {{ last | date: 'd MMM' }}
+                    {{ last | date: row.lastOrderFormat }}
                   } @else {
                     No orders yet
                   }

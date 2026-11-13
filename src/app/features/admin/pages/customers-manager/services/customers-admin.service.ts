@@ -133,7 +133,7 @@ export class CustomersAdminService {
             spent: average('spentEgp'),
           }).then((snap) => {
             const value = snap.data().spent;
-            return value === null ? 0 : Math.round(value);
+            return value === null ? null : Math.round(value);
           }),
         ),
         count(where('hasAccount', '==', true)),

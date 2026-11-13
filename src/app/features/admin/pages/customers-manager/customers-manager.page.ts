@@ -19,6 +19,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { orderSearchTerms } from '@core/config/order-search';
 import type { Customer } from '@core/services/customers';
+import { longestSearchWord } from '@core/services/products/search-tokens';
 import { SeoService } from '@core/services/seo';
 import { EgpPricePipe } from '@shared/pipes/egp-price.pipe';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -36,7 +37,7 @@ import {
   customerDate,
   customerDisplayName,
   customerInitial,
-  longestWord,
+  lastOrderDateFormat,
   matchesAllCustomerWords,
   matchesCustomerFilter,
   repeatShareLine,
@@ -56,15 +57,18 @@ interface CustomerRow {
   readonly initial: string;
   readonly cardLine: string;
   readonly lastOrder: Date | null;
+  readonly lastOrderFormat: string;
 }
 
-function toRow(customer: Customer): CustomerRow {
+function toRow(customer: Customer, now: Date): CustomerRow {
+  const lastOrder = customerDate(customer.lastOrderAt);
   return {
     customer,
     name: customerDisplayName(customer),
     initial: customerInitial(customer),
     cardLine: customerCardLine(customer),
-    lastOrder: customerDate(customer.lastOrderAt),
+    lastOrder,
+    lastOrderFormat: lastOrderDateFormat(lastOrder ?? now, now),
   };
 }
 
@@ -93,6 +97,7 @@ export class CustomersManagerPageComponent implements OnInit {
   readonly #customersAdmin = inject(CustomersAdminService);
   readonly #seo = inject(SeoService);
   readonly #browser = isPlatformBrowser(inject(PLATFORM_ID));
+  readonly #now = new Date();
 
   readonly filters = CUSTOMER_FILTERS;
   readonly sorts = CUSTOMER_SORTS;
@@ -125,7 +130,7 @@ export class CustomersManagerPageComponent implements OnInit {
 
   /** What the list shows; changing any of it starts again from the first page. */
   readonly #listKey = computed(
-    () => ({ filter: this.filter(), sort: this.sort(), term: longestWord(this.searchTerms()) }),
+    () => ({ filter: this.filter(), sort: this.sort(), term: longestSearchWord(this.searchTerms()) }),
     {
       equal: (left, right) =>
         left.filter === right.filter && left.sort === right.sort && left.term === right.term,
@@ -152,10 +157,17 @@ export class CustomersManagerPageComponent implements OnInit {
   });
 
   /** Every page loaded so far for the current search, filter and sort. */
-  readonly #pages = linkedSignal<CustomerPage | null | undefined, readonly CustomerPage[]>({
-    source: () => (this.pageResource.hasValue() ? this.pageResource.value() : undefined),
-    computation: (page, previous) => {
-      if (!page) return previous?.value ?? [];
+  readonly #pages = linkedSignal<
+    { page: CustomerPage | null | undefined; firstPage: boolean },
+    readonly CustomerPage[]
+  >({
+    source: () => ({
+      page: this.pageResource.hasValue() ? this.pageResource.value() : undefined,
+      firstPage: this.#cursor() === null,
+    }),
+    computation: ({ page, firstPage }, previous) => {
+      // A new search, filter or sort that is loading or failed never shows the old rows.
+      if (!page) return firstPage ? [] : (previous?.value ?? []);
       return page.query.after === null ? [page] : [...(previous?.value ?? []), page];
     },
   });
@@ -168,7 +180,7 @@ export class CustomersManagerPageComponent implements OnInit {
       .filter(
         (customer) => matchesAllCustomerWords(customer, words) && matchesCustomerFilter(customer, filter),
       )
-      .map(toRow);
+      .map((customer) => toRow(customer, this.#now));
   });
 
   readonly #nextCursor = computed(() => this.#pages().at(-1)?.next ?? null);
@@ -185,7 +197,8 @@ export class CustomersManagerPageComponent implements OnInit {
   /** The count for each chip; null while loading or when its read failed. */
   chipCount(filter: CustomerFilter): number | null {
     const counts = this.summary();
-    if (!counts) return null;
+    // The counts are for the whole store, so they would mislead next to search results.
+    if (!counts || this.searching()) return null;
     switch (filter) {
       case 'all':
         return counts.total;
@@ -201,9 +214,7 @@ export class CustomersManagerPageComponent implements OnInit {
   }
 
   /** "Showing 50 of 312 customers"; with a search the total isn't known. */
-  readonly showing = computed(() =>
-    showingLabel(this.rows().length, this.searching() ? null : this.chipCount(this.filter())),
-  );
+  readonly showing = computed(() => showingLabel(this.rows().length, this.chipCount(this.filter())));
 
   ngOnInit(): void {
     this.#seo.setPageMetadata({
@@ -233,6 +244,7 @@ export class CustomersManagerPageComponent implements OnInit {
 
   tryAgain(): void {
     this.pageResource.reload();
-    if (this.summaryResource.status() === 'error') this.summaryResource.reload();
+    const counts = this.summary();
+    if (!counts || Object.values(counts).some((value) => value === null)) this.summaryResource.reload();
   }
 }
