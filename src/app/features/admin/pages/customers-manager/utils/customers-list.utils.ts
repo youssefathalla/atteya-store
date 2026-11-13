@@ -76,7 +76,7 @@ export interface CustomerSearch {
 
 /**
  * The saved search words hold the whole email and the starts of its name part, never the starts of
- * the part after the "@". So a typed email start ("test2@", "test2@te") asks Firestore for the
+ * the part after the "@". A whole email is looked up as itself; a typed email start ("test2@", "test2@te") asks Firestore for the
  * longest word of its name part, and `matchesEmailStart()` then keeps only the emails that begin
  * with everything typed.
  */
@@ -87,6 +87,11 @@ export function customerSearch(typed: string): CustomerSearch {
   const parts = text.split(/\s+/);
   const emailStart = parts.find((part) => part.includes('@')) ?? text;
   const others = orderSearchTerms(parts.filter((part) => part !== emailStart).join(' '));
+  // A whole email ("test2@gmail.com") is saved as one search word: look it up directly.
+  const [namePart = '', domain = ''] = emailStart.split('@');
+  if (namePart.length > 0 && /^[^@\s]+\.[a-z]{2,}$/.test(domain)) {
+    return { words: [...others, emailStart], emailStart };
+  }
   const nameWords = orderSearchWords(emailStart.split('@')[0] ?? '').filter((word) => word.length >= 2);
   const longest = nameWords.reduce((best, word) => (word.length > best.length ? word : best), '');
   return { words: longest ? [...others, longest] : orderSearchTerms(typed), emailStart };
