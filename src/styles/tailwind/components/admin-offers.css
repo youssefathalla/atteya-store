@@ -178,9 +178,24 @@
     @apply border border-dashed border-outline border-shape px-4 py-2 font-label-lg font-bold! cursor-pointer bg-surface-container-lowest;
   }
 
-  /* A picked product with several colours: its tag, then the Colours dropdown (stacked on phone). */
+  /* A picked product with several colours: a card with its name, count and remove button, then the
+     Colours dropdown (as wide as the search box, full width on phone). */
   .offer-colour-pick {
-    @apply w-full elements-start-col items-stretch! gap-2 @3xl:flex-row @3xl:items-center!;
+    @apply w-full elements-start-col items-stretch! gap-3 border border-outline-variant border-shape bg-surface-container-lowest p-4;
+  }
+
+  .offer-colour-pick__head {
+    @apply elements-between gap-2;
+  }
+
+  /* The closed Colours field: one round dot per picked colour (no names), or one multicolour dot
+     for All colours; a thin ring with a white gap so white and light colours still read. */
+  .offer-colour-dots {
+    @apply elements-start items-center! flex-wrap gap-2;
+  }
+
+  .offer-colour-dot {
+    @apply inline-flex size-7 shrink-0 rounded-full border border-outline-variant bg-surface p-0.5;
   }
 
   /* A grey note box (overlaps, the run line, Good to know). */

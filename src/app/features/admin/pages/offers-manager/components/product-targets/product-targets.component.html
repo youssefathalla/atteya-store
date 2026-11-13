@@ -9,16 +9,22 @@
   @for (row of colourPicks(); track row.pick.key) {
     @let pick = row.pick;
     <div class="offer-colour-pick">
-      <mat-chip-set [attr.aria-labelledby]="headingId()">
-        <mat-chip (removed)="removePick(pick)">
+      <div class="offer-colour-pick__head">
+        <p class="font-body-lg">
           <span class="text-on-surface-variant">{{ fieldLabel.productId }}</span>
-          <span class="font-bold!">&nbsp;{{ pickLabel(pick) }}</span>
-          <button matChipRemove type="button" [attr.aria-label]="'Remove ' + pickLabel(pick)">
-            <mat-icon name="close" />
-          </button>
-        </mat-chip>
-      </mat-chip-set>
-      <mat-form-field class="w-full @3xl:w-64" appearance="outline" subscriptSizing="dynamic">
+          <span class="font-bold!">&nbsp;{{ pick.model?.name }}</span>
+          <span class="font-body-md text-on-surface-variant"> · {{ colourCount(pick) }}</span>
+        </p>
+        <button
+          matIconButton
+          type="button"
+          [attr.aria-label]="'Remove ' + pickLabel(pick)"
+          (click)="removePick(pick)"
+        >
+          <mat-icon name="close" />
+        </button>
+      </div>
+      <mat-form-field class="w-full @3xl:w-96" appearance="outline" subscriptSizing="dynamic">
         <mat-label>Colours</mat-label>
         <mat-select
           multiple
@@ -26,11 +32,38 @@
           [attr.aria-label]="'Colours of ' + pick.model?.name"
           (selectionChange)="onColoursChange(pick, $event.value)"
         >
-          <mat-option [value]="allColours">All colours</mat-option>
+          <mat-select-trigger>
+            <span class="offer-colour-dots">
+              @if (pick.all) {
+                <span class="offer-colour-dot" title="All colours">
+                  <app-color-swatch class="size-full" colorId="multi" round />
+                  <span class="sr-only">All colours</span>
+                </span>
+              } @else {
+                @for (colour of pickedColours(pick); track colour.productId) {
+                  <span class="offer-colour-dot" [title]="colour.label">
+                    <app-color-swatch
+                      class="size-full"
+                      [colorId]="colour.colorId"
+                      [swatch]="colour.swatch"
+                      round
+                    />
+                    <span class="sr-only">{{ colour.label }}</span>
+                  </span>
+                }
+              }
+            </span>
+          </mat-select-trigger>
+          <mat-option [value]="allColours">
+            <span class="elements-start items-center! gap-2">
+              <app-color-swatch class="size-4" colorId="multi" round />
+              <span>All colours</span>
+            </span>
+          </mat-option>
           @for (colour of pick.model?.colours; track colour.productId) {
             <mat-option [value]="colour.productId">
               <span class="elements-start items-center! gap-2">
-                <app-color-swatch class="size-3" [colorId]="colour.colorId" [swatch]="colour.swatch" />
+                <app-color-swatch class="size-4" [colorId]="colour.colorId" [swatch]="colour.swatch" round />
                 <span>{{ colour.label }}</span>
                 @if (colour.hidden) {
                   <span class="text-on-surface-variant">(hidden)</span>
