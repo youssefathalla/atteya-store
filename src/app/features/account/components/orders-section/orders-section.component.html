@@ -65,6 +65,9 @@
       </span>
     </span>
   </a>
+  @if (order.returnsUntil) {
+    <ng-container [ngTemplateOutlet]="returnLink" [ngTemplateOutletContext]="{ $implicit: order }" />
+  }
 
   @if (earlier().length > 0) {
     <h3 class="font-label-lg font-bold! uppercase pt-2">Earlier Orders</h3>
@@ -83,6 +86,9 @@
               <span class="font-body-sm text-on-surface-variant">{{ row.statusName }}</span>
             </span>
           </a>
+          @if (row.returnsUntil) {
+            <ng-container [ngTemplateOutlet]="returnLink" [ngTemplateOutletContext]="{ $implicit: row }" />
+          }
         </li>
       }
     </ul>
@@ -96,3 +102,16 @@
   <p class="font-body-md text-on-surface-variant">You haven't placed an order yet.</p>
   <a matButton="outlined" routerLink="/shop">Start Shopping</a>
 }
+
+<!-- Delivered in the last 14 days: open the order with the Return or Exchange screen. -->
+<ng-template #returnLink let-row>
+  <div class="grid gap-1 pt-2 pb-3 @xl:flex @xl:items-center @xl:gap-3">
+    <a
+      matButton="outlined"
+      [routerLink]="['/checkout', 'confirmation', row.id]"
+      [state]="{ openReturn: true }"
+      >Return or Exchange</a
+    >
+    <span class="font-body-sm text-on-surface-variant">Until {{ row.returnsUntil }}</span>
+  </div>
+</ng-template>

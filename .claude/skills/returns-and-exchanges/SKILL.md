@@ -86,6 +86,19 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - `orderViewFields()` copies `returns` into `orderViews/{viewKey}` so guests see the status.
 - Firestore rules: `returnRequests`, `returnStaffNotes` (staff-only notes, written in <KEY>-293) and `returnEmails` are read by admin and staff only, with no client writes; orders stay server-written, so `returns` is written only by Cloud Functions.
 
+## Shopper screen (website)
+
+- Feature folder: `src/app/features/returns/` (`dialogs/return-request-dialog`, `components/return-request-box`, `services/returns.service.ts`, `utils/`).
+- `returnEntry(order, nowMs)` (`src/app/core/services/orders/order-returns.ts`) decides what the order page and Account → Orders show: the **Return or Exchange** button (`open`, with the last day), "Returns closed on 27 Nov. Message us on WhatsApp if something is wrong." (`closed`), or nothing; it wraps `returnEligibility()`.
+- The order schema (`OrderSchema` and `OrderViewSchema`) keeps the order's `returns` raw; read it with `readReturnSummaries()`.
+- The request screen opens with `RETURN_REQUEST_DIALOG_CONFIG` (`panelClass: 'return-request-pane'`: a 40rem dialog on desktop, full screen below 640 px in `_dialog.scss`).
+- Account → Orders opens the order page with router state `{ openReturn: true }`, and the page opens the screen once the order loads (then clears the state so a reload doesn't reopen it).
+- Sizes and colours are read live per product (`ReturnsService.choicesFor()`, the product and its `colorSiblings`); sold-out sizes and the size they have are disabled, colours with another price are greyed out.
+- The refund, courier fee and returned gifts on the screen come from `returnPreview()` (`features/returns/utils/return-request.utils.ts`), which calls the same shared rules as `buildReturnRequest()`; the courier fee's box price uses `normalBoxFeeEgp()` with `ShippingSettingsService.settings()`, like `normalEgyptBoxFee()` on the server.
+- Send Request calls `requestReturn`; errors show `callableMessage()`; on success the snackbar says "Request sent. We'll message you on WhatsApp."
+- The order page shows `app-return-request-box` for each entry of the order's `returns`, newest first, live; **Cancel Request** (asks first) calls `cancelReturnRequest` while Requested.
+- The order's `returns` summary has no per-item `askedLabel`, no `storeFault` and no reject reason yet, so the box reads them when present (`readRequestDetails()`), else from what this browser sent (`localStorage.returnRequests`, `return-memory.ts`), else shows Refund / Exchange per item and no **Send Photos on WhatsApp**.
+
 ## Emails
 
 - `sendReturnEmails` (`functions/src/email/send-return-emails.trigger.ts`, `onDocumentWritten returnRequests/{requestId}`, `europe-west3`, no retry) sends through Resend like the order emails.

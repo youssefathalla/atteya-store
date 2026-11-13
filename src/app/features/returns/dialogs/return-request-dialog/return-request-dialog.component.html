@@ -1,0 +1,367 @@
+<header class="elements-start gap-2 px-4 pt-4 pb-2">
+  <button matIconButton type="button" aria-label="Close" [disabled]="isSending()" (click)="close()">
+    <mat-icon name="close" />
+  </button>
+  <div class="elements-start-col min-w-0">
+    <h2 mat-dialog-title class="font-title-lg font-bold! p-0! m-0!">Return or Exchange</h2>
+    <p class="font-body-sm text-on-surface-variant">Order {{ orderRef }} · until {{ data.until }}</p>
+  </div>
+</header>
+
+<mat-dialog-content class="elements-start-col items-stretch! gap-6">
+  <section class="elements-start-col items-stretch! gap-4" aria-labelledby="return-pick-heading">
+    <h3 id="return-pick-heading" class="font-title-md font-bold!">Pick the items</h3>
+
+    @for (row of rows(); track row.line.index) {
+      <div class="return-item" [class.return-item--picked]="row.choice.picked && row.line.left > 0">
+        <div class="elements-start gap-3">
+          <mat-checkbox
+            [checked]="row.choice.picked && row.line.left > 0"
+            [disabled]="row.line.left < 1"
+            [attr.aria-label]="'Return or exchange ' + row.line.name"
+            (change)="update(row.line.index, { picked: $event.checked })"
+          />
+          <div class="return-item__photo" aria-hidden="true">
+            @if (row.line.imagePath; as path) {
+              <img
+                [ngSrc]="row.line.imageSrc"
+                [appImageFallback]="path"
+                alt=""
+                width="56"
+                height="56"
+                class="size-full object-contain p-1"
+              />
+            }
+          </div>
+          <div class="min-w-0 flex-1 elements-start-col gap-0.5">
+            <p class="font-title-sm font-bold! break-words">{{ row.line.name }}</p>
+            @if (row.line.giftFor; as giftFor) {
+              <p class="font-body-sm text-on-surface-variant">Free gift · came with {{ giftFor }}</p>
+            }
+            @if (row.line.details) {
+              <p class="font-body-sm text-on-surface-variant">{{ row.line.details }}</p>
+            }
+            @if (row.line.left < 1) {
+              <p class="font-body-sm text-on-surface-variant">Already requested</p>
+            } @else if (row.line.left < row.line.quantity) {
+              <p class="font-body-sm text-on-surface-variant">
+                {{ row.line.quantity - row.line.left }} already requested
+              </p>
+            }
+          </div>
+          @if (row.choice.picked && row.line.left > 1) {
+            <div class="return-stepper" role="group" [attr.aria-label]="'Pieces of ' + row.line.name">
+              <button
+                matIconButton
+                type="button"
+                aria-label="One less"
+                [disabled]="row.choice.quantity <= 1"
+                (click)="step(row.line, -1)"
+              >
+                <mat-icon name="remove" />
+              </button>
+              <span class="font-title-sm font-bold! min-w-6 text-center" aria-live="polite">{{
+                row.choice.quantity
+              }}</span>
+              <button
+                matIconButton
+                type="button"
+                aria-label="One more"
+                [disabled]="row.choice.quantity >= row.line.left"
+                (click)="step(row.line, 1)"
+              >
+                <mat-icon name="add" />
+              </button>
+            </div>
+          }
+        </div>
+
+        @if (row.choice.picked && row.line.left > 0) {
+          <div class="elements-start-col items-stretch! gap-6 pt-6">
+            @if (row.line.left > 1) {
+              <p class="font-body-sm text-on-surface-variant -mt-4">
+                {{ row.choice.quantity }} of {{ row.line.left }} pieces
+              </p>
+            }
+
+            <mat-form-field class="w-full" appearance="outline">
+              <mat-label>What would you like?</mat-label>
+              <mat-select [value]="row.choice.kind" (selectionChange)="setKind(row.line.index, $event.value)">
+                @for (kind of row.kinds; track kind) {
+                  <mat-option [value]="kind">{{ kindLabel(kind) }}</mat-option>
+                }
+              </mat-select>
+              @if (row.line.giftFor) {
+                <mat-hint>A free gift can be swapped for another size or colour.</mat-hint>
+              }
+            </mat-form-field>
+
+            @switch (row.choice.kind) {
+              @case ('different-size') {
+                @if (row.loading) {
+                  <app-skeleton class="h-10 w-full" />
+                } @else if (row.missing || row.sizes.length === 0) {
+                  <p class="font-body-md">
+                    This item has no other sizes right now.
+                    @if (whatsappUrl) {
+                      <a class="underline" [href]="whatsappUrl" target="_blank" rel="noopener"
+                        >Message us on WhatsApp</a
+                      >.
+                    }
+                  </p>
+                } @else {
+                  <ng-container
+                    [ngTemplateOutlet]="sizeChipsTpl"
+                    [ngTemplateOutletContext]="{ $implicit: row }"
+                  />
+                }
+              }
+              @case ('different-colour') {
+                @if (row.loading) {
+                  <app-skeleton class="h-24 w-full" />
+                } @else if (row.tiles.length === 0) {
+                  <p class="font-body-md">
+                    This item has no other colours right now.
+                    @if (whatsappUrl) {
+                      <a class="underline" [href]="whatsappUrl" target="_blank" rel="noopener"
+                        >Message us on WhatsApp</a
+                      >.
+                    }
+                  </p>
+                } @else {
+                  <div class="elements-start-col items-stretch! gap-3">
+                    <p class="font-label-lg" [id]="'colour-label-' + row.line.index">New colour</p>
+                    <div
+                      class="grid grid-cols-3 gap-3"
+                      role="radiogroup"
+                      [attr.aria-labelledby]="'colour-label-' + row.line.index"
+                    >
+                      @for (tile of row.tiles; track tile.productId) {
+                        <button
+                          type="button"
+                          role="radio"
+                          class="return-colour"
+                          [class.return-colour--on]="row.choice.colourProductId === tile.productId"
+                          [attr.aria-checked]="row.choice.colourProductId === tile.productId"
+                          [disabled]="!tile.samePrice"
+                          (click)="setColour(row.line.index, tile.productId)"
+                        >
+                          <span class="return-colour__photo">
+                            @if (tile.imagePath; as tilePath) {
+                              <img
+                                [ngSrc]="tile.imageSrc"
+                                [appImageFallback]="tilePath"
+                                alt=""
+                                width="72"
+                                height="72"
+                                class="size-full object-contain p-1"
+                              />
+                            }
+                          </span>
+                          <span class="font-label-lg">{{ tile.name }}</span>
+                        </button>
+                      }
+                    </div>
+                    @if (row.differentPrice) {
+                      <p class="font-body-sm text-on-surface-variant">
+                        {{ row.differentPrice }}: different price,
+                        @if (whatsappUrl) {
+                          <a class="underline" [href]="whatsappUrl" target="_blank" rel="noopener"
+                            >message us on WhatsApp</a
+                          >.
+                        } @else {
+                          message us on WhatsApp.
+                        }
+                      </p>
+                    }
+                  </div>
+                  @if (row.choice.colourProductId && row.sizes.length > 0) {
+                    <ng-container
+                      [ngTemplateOutlet]="sizeChipsTpl"
+                      [ngTemplateOutletContext]="{ $implicit: row }"
+                    />
+                  }
+                }
+              }
+              @case ('return') {
+                <mat-form-field class="w-full" appearance="outline">
+                  <mat-label>Why?</mat-label>
+                  <mat-select
+                    [value]="row.choice.reason"
+                    (selectionChange)="setReason(row.line.index, $event.value)"
+                  >
+                    @for (reason of reasons; track reason) {
+                      <mat-option [value]="reason">{{ reasonLabel(reason) }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
+              @case ('damaged') {
+                <ng-container [ngTemplateOutlet]="wantsTpl" [ngTemplateOutletContext]="{ $implicit: row }" />
+              }
+              @case ('wrong-item') {
+                <ng-container [ngTemplateOutlet]="wantsTpl" [ngTemplateOutletContext]="{ $implicit: row }" />
+              }
+            }
+
+            @if (row.giftBack > 0) {
+              <p class="return-gift-note font-body-sm">
+                <span class="return-gift-note__tag">Free gift</span>
+                <span
+                  >Your free gift goes back with it ({{ row.giftBack }}
+                  {{ row.giftBack === 1 ? 'piece' : 'pieces' }}).</span
+                >
+              </p>
+            }
+          </div>
+        }
+      </div>
+    }
+    @if (productsFailed()) {
+      <p class="font-body-md" role="alert">
+        We couldn't load the sizes and colours. Close this and try again in a moment.
+      </p>
+    }
+  </section>
+
+  @if (needsRefundTo()) {
+    <section class="elements-start-col items-stretch! gap-4" aria-labelledby="return-refund-heading">
+      <h3 id="return-refund-heading" class="font-title-md font-bold!">Your refund</h3>
+      <mat-form-field class="w-full" appearance="outline">
+        <mat-label>InstaPay number or address</mat-label>
+        <input
+          matInput
+          required
+          autocomplete="off"
+          [attr.maxlength]="refundToMax"
+          [value]="refundTo()"
+          (input)="refundTo.set(readText($event))"
+        />
+        <mat-hint>We send your refund here once the items are back with us.</mat-hint>
+      </mat-form-field>
+    </section>
+  }
+
+  <mat-form-field class="w-full" appearance="outline">
+    <mat-label>Note (optional)</mat-label>
+    <textarea
+      matInput
+      rows="3"
+      [attr.maxlength]="noteMax"
+      [value]="note()"
+      (input)="note.set(readText($event))"
+    ></textarea>
+    <mat-hint align="end">{{ note().length }} / {{ noteMax }}</mat-hint>
+  </mat-form-field>
+
+  @if (summary(); as sum) {
+    <section
+      class="bg-surface-container-low border-shape p-4 elements-start-col items-stretch! gap-2"
+      aria-labelledby="return-summary-heading"
+    >
+      <h3 id="return-summary-heading" class="font-title-md font-bold!">Summary</h3>
+      <dl class="elements-start-col items-stretch! gap-2">
+        @for (item of sum.rows; track item.key) {
+          <div class="elements-between gap-4">
+            <dt class="font-body-md min-w-0 break-words">{{ item.label }}</dt>
+            <dd class="font-body-md whitespace-nowrap">{{ item.value }}</dd>
+          </div>
+        }
+        @if (sum.fee; as fee) {
+          <div class="elements-between gap-4">
+            <dt class="font-body-md text-on-surface-variant">{{ fee.label }}</dt>
+            <dd class="font-body-md whitespace-nowrap">{{ fee.value }}</dd>
+          </div>
+        }
+        @if (sum.refund; as refund) {
+          <div class="elements-between items-baseline! gap-4 border-t border-outline-variant pt-2">
+            <dt class="font-title-md font-bold!">Your refund</dt>
+            <dd class="font-title-md font-bold! whitespace-nowrap">{{ refund }}</dd>
+          </div>
+        }
+        @if (sum.cashAtDoor; as cash) {
+          <div class="elements-between gap-4">
+            <dt class="font-body-md text-on-surface-variant">The rest of the fee, in cash at the door</dt>
+            <dd class="font-body-md whitespace-nowrap">{{ cash }}</dd>
+          </div>
+        }
+      </dl>
+      <p class="font-body-sm text-on-surface-variant">Our courier will collect from your delivery address.</p>
+    </section>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions class="return-actions">
+  @if (sendError(); as error) {
+    <p class="font-body-md text-error w-full" role="alert">{{ error }}</p>
+  } @else if (problem(); as problem) {
+    <p class="font-body-sm text-on-surface-variant w-full" aria-live="polite">{{ problem }}</p>
+  }
+  <div class="grid w-full">
+    <button
+      matButton="filled"
+      type="button"
+      [disabled]="!!problem() || isSending()"
+      [attr.aria-label]="isSending() ? 'Sending your request…' : null"
+      (click)="send()"
+    >
+      @if (isSending()) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" />
+      } @else {
+        <span>Send Request</span>
+      }
+    </button>
+  </div>
+</mat-dialog-actions>
+
+<ng-template #sizeChipsTpl let-row>
+  <div class="elements-start-col items-stretch! gap-3">
+    <p class="font-label-lg" [id]="'size-label-' + row.line.index">New size</p>
+    <div
+      class="flex flex-wrap gap-2"
+      role="radiogroup"
+      [attr.aria-labelledby]="'size-label-' + row.line.index"
+    >
+      @for (size of row.sizes; track size.id) {
+        <button
+          type="button"
+          role="radio"
+          class="return-size"
+          [class.return-size--on]="row.choice.size === size.id"
+          [class.line-through]="size.soldOut && !size.yours"
+          [attr.aria-checked]="row.choice.size === size.id"
+          [attr.aria-label]="size.ariaLabel"
+          [disabled]="size.disabled"
+          (click)="update(row.line.index, { size: size.id })"
+        >
+          {{ size.label }}
+          @if (size.yours) {
+            <span class="font-label-sm"> · yours</span>
+          }
+        </button>
+      }
+    </div>
+    @if (row.soldOutNote) {
+      <p class="font-body-sm text-on-surface-variant">{{ row.soldOutNote }} sold out right now.</p>
+    }
+  </div>
+</ng-template>
+
+<ng-template #wantsTpl let-row>
+  <div class="elements-start-col items-stretch! gap-3">
+    <p class="font-label-lg" [id]="'wants-label-' + row.line.index">What should we do?</p>
+    <mat-button-toggle-group
+      class="return-wants"
+      [value]="row.choice.wants"
+      [attr.aria-labelledby]="'wants-label-' + row.line.index"
+      (change)="setWants(row.line.index, $event.value)"
+    >
+      @for (wants of row.wants; track wants) {
+        <mat-button-toggle [value]="wants">{{ wantsLabel(wants) }}</mat-button-toggle>
+      }
+    </mat-button-toggle-group>
+    <p class="font-body-sm text-on-surface-variant">
+      After you send this, please send us a photo on WhatsApp. The courier visit is on us.
+    </p>
+  </div>
+</ng-template>

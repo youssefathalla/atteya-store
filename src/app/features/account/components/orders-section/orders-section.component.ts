@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { NgOptimizedImage } from '@angular/common';
+import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { of } from 'rxjs';
@@ -21,6 +21,7 @@ const PAGE_SIZE = 20;
   host: { class: 'block w-full account-section' },
   imports: [
     NgOptimizedImage,
+    NgTemplateOutlet,
     RouterLink,
     MatButtonModule,
     SharedIconModule,
