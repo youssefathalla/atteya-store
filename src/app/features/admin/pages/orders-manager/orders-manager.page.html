@@ -260,14 +260,26 @@
       @if (moreErrorMessage(); as message) {
         <div class="grid gap-3 pt-4 @3xl:flex @3xl:items-center">
           <span class="font-body-md" role="alert">{{ message }}</span>
-          <button matButton="outlined" type="button" (click)="retryLoad()">Try Again</button>
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="dataResource.isLoading()"
+            [attr.aria-label]="dataResource.isLoading() ? 'Trying again' : null"
+            (click)="retryLoad()"
+          >
+            @if (dataResource.isLoading()) {
+              <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+              <span>Try Again</span>
+            }
+          </button>
         </div>
       } @else if (hasMore()) {
         <div class="grid pt-4 @3xl:justify-items-start">
           <button
             matButton="outlined"
             type="button"
-            [disabled]="moreLoading()"
+            [disabled]="dataResource.isLoading()"
             [attr.aria-label]="moreLoading() ? 'Loading more orders' : null"
             (click)="showMore()"
           >

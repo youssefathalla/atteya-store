@@ -87,8 +87,6 @@ interface OrdersPage {
   readonly notesById: ReadonlyMap<string, OrderStaffNotes>;
 }
 
-const FIRST_REQUEST: OrdersRequest = { after: null, size: ORDERS_PAGE_SIZE, keep: false };
-
 const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: string }[] = [
   { id: 'all', label: 'All Recent' },
   { id: 'pending', label: 'Waiting for Payment' },
@@ -163,10 +161,10 @@ export class OrdersManagerPageComponent implements OnInit {
     };
   });
 
-  /** A new status tab, search or dates goes back to the first batch. */
+  /** A new status tab, search or dates goes back to the first batch (a new object each time). */
   readonly #request = linkedSignal<OrderListQuery, OrdersRequest>({
     source: this.#query,
-    computation: () => FIRST_REQUEST,
+    computation: () => ({ after: null, size: ORDERS_PAGE_SIZE, keep: false }),
   });
 
   readonly dataResource = resource({
@@ -233,7 +231,10 @@ export class OrdersManagerPageComponent implements OnInit {
   readonly checkedCount = computed(() => this.#orders().length);
 
   readonly firstLoading = computed(() => this.dataResource.isLoading() && this.#pages().length === 0);
-  readonly moreLoading = computed(() => this.dataResource.isLoading() && this.#pages().length > 0);
+  /** Show More Orders is reading the next batch (not a refresh after a save). */
+  readonly moreLoading = computed(
+    () => this.dataResource.isLoading() && this.#pages().length > 0 && this.#request().after !== null,
+  );
 
   readonly loadErrorMessage = computed((): string | null => {
     if (this.#pages().length > 0) return null;
