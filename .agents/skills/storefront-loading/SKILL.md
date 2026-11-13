@@ -20,7 +20,7 @@ Use **blocking resolvers** / route `resources` (SSR + `TransferState`) when the 
 - Examples: `productPageResolver`, `homeSettingsResolver`, `serverCurrencyResolver`, `shippingSettingsResolver`, `navigationSettingsResolver` (main layout).
 - **Rule:** If showing the route without data would mislead (404, wrong SSR price, empty hero), resolve on the server first **or** show a dedicated loading/error shell for that route — not an empty template that fills in later.
 - **Client navigation:** a server-only resolver leaves later in-app visits with no data. Make it wait in the browser too (`homeSettingsResolver` awaits `HomeService.whenReady()`: seed, a schema-checked saved copy, or the first snapshot, capped at 3 s) so built-in defaults never flash before the real content.
-- Geo-priced HTML routes use `Cache-Control: private, no-store` per `AGENTS.md`.
+- Geo-priced HTML routes use `Cache-Control: private, no-store` per the `shipping-and-currency` and `catalogue` skills.
 
 ### Tier 2 — App shell (first paint after hydration)
 

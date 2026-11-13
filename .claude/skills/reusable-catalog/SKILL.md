@@ -295,7 +295,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 - **`RowScrollNavComponent`** (`app-row-scroll-nav`, `@shared/ui/row-scroll-nav`): ← / → icon buttons ("Previous" / "Next", disabled at each end) and a thin progress line (`role="progressbar"`). Inputs `progress` (0–1), `canPrev`, `canNext`; outputs `prev`, `next`. Show it only when the row can scroll. Row helpers `rowScrollProgress`, `rowItemTarget`, `scrollRowByItem` live in `@shared/utils/row-scroll.utils`. `[showProgress]="false"` (default true) hides the line when the page draws its own (the Gift Box).
 - **`RowScrollLockDirective`** (`src/app/features/home/directives/row-scroll-lock.directive.ts`, home only):
   - `<div class="scroll-row" appHorizontalScroll appRowScrollLock #lock="rowScrollLock" [enableWheel]="false" [snapToItems]="!lock.enabled()">` inside the section's `<section>`; arrows call `lock.step(±1)`.
-  - Desktop scroll lock for New Arrivals and Padel: GSAP ScrollTrigger scrub, sticky section + spacer in the component host. Details and limits in `AGENTS.md` → Storefront motion.
+  - Desktop scroll lock for New Arrivals and Padel: GSAP ScrollTrigger scrub, sticky section + spacer in the component host. Details and limits in the `navigation-and-home` skill (Home Page and motion).
   - `rowLockFit=".product-card__media"` (optional, New Arrivals): a section taller than the window shrinks those photos so heading, cards and arrows fit below the nav while locked. The directive sets `--row-lock-media-max` (px) on the section; the section's CSS caps the photo height with it (`home-product-rows.css`).
 - **`TemplateTypeDirective`** (`src/app/shared/directives/template-type`):
   - Provides type-safety for `ng-template` context variables.

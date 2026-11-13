@@ -11,6 +11,7 @@ The rules for offers, moved here from one long AGENTS.md paragraph so offers PRs
 
 ## Who can read offers
 
+- **Offers**: `offers/{id}` is public-read only when `active == true && visibility == 'public'`; `offerCodes` is admin-only; `offerUsage` is Admin SDK only. Offer prices are never baked into product docs: they come from the shared engine in `functions/src/offers/engine/` (edit only that copy; `npm run sync:engine` copies it to the app). Every other offer rule (top banner, overlap warnings, free gifts and the Gift Box, Buy X Get Y, one discount per item, offer limits, the price, total and ended-offer guards at Place Order, offer notes, bag bundles and the socks scripts) is in the **`offers`** skill (`.agents/skills/offers/SKILL.md`), one fact per line. Read it before changing offers, pricing, the bag, checkout or the order callables, and add new offer rules there, not here.
 - `offers/{id}` is public-read only when `active == true && visibility == 'public'`; `offerCodes` is admin-only; `offerUsage` is Admin SDK only.
 
 ## Top banner (<KEY>-145)

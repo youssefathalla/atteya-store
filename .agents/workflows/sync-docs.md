@@ -64,6 +64,7 @@ If any item is missing or outdated:
 - Maintain consistent formatting: table rows, bullet points, file paths, and accurate TypeScript/HTML examples.
 - One fact per line: add a new rule as its own list item, never at the end of an existing paragraph. Git merges line by line, so two PRs editing the same long line conflict even when they change different sentences.
 - Offer rules go in `.agents/skills/offers/SKILL.md` under the heading they belong to (new topic = new `##` heading), not in AGENTS.md.
+- The same goes for every topic skill AGENTS.md lists under "Topic skills" (catalogue, checkout-and-orders, auth-and-access, …): add the rule to that skill, not to AGENTS.md (<KEY>-282).
 
 ---
 
