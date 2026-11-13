@@ -171,7 +171,7 @@ const squash = (value: string | null | undefined): string => (value ?? '').trim(
 const keyPart = (value: string | null | undefined): string =>
   squash(value)
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, ' ')
     .trim();
 
 /** Same street, city and country = same address (case, spaces and punctuation ignored). */

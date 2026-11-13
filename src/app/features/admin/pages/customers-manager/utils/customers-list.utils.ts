@@ -83,9 +83,13 @@ export interface CustomerSearch {
 export function customerSearch(typed: string): CustomerSearch {
   const text = typed.trim().toLowerCase();
   if (!text.includes('@')) return { words: orderSearchTerms(typed), emailStart: null };
-  const nameWords = orderSearchWords(text.split('@')[0] ?? '').filter((word) => word.length >= 2);
+  // Only the part with the "@" is an email start; any other typed word is searched as usual.
+  const parts = text.split(/\s+/);
+  const emailStart = parts.find((part) => part.includes('@')) ?? text;
+  const others = orderSearchTerms(parts.filter((part) => part !== emailStart).join(' '));
+  const nameWords = orderSearchWords(emailStart.split('@')[0] ?? '').filter((word) => word.length >= 2);
   const longest = nameWords.reduce((best, word) => (word.length > best.length ? word : best), '');
-  return { words: longest ? [longest] : orderSearchTerms(typed), emailStart: text };
+  return { words: longest ? [...others, longest] : orderSearchTerms(typed), emailStart };
 }
 
 /** With a typed email start, the customer's email (or an older spelling of it) must begin with it. */
