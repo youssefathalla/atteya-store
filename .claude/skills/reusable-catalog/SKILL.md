@@ -37,7 +37,7 @@ All controls integrate seamlessly with **Angular 22 Signal Forms**.
   - `<app-text-input>`: Single-line input with prefix/suffix icon support.
   - `<app-text-field-input>`: Multi-line textarea control.
   - `<app-password-input>`: Password input with built-in visibility toggle.
-  - `<app-select-input [options]="options">`: Accessible select dropdown.
+  - `<app-select-input [options]="options">`: Accessible select dropdown. `levelKey` (0 = main item in bold, 1 = pushed in under it) shows a one-level tree with every option once; `triggerKey` sets what the closed box shows ("Apparel › Shorts").
   - `<app-date-input>`: Material Datepicker input.
   - `<app-location-input>`: Location search and autocomplete input.
   - `<app-file-input>`: Drag-and-drop file uploader with size validation.

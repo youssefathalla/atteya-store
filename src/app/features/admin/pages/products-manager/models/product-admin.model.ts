@@ -152,7 +152,10 @@ export interface ColourDraft {
 export interface CategoryOptionView {
   readonly id: string;
   readonly label: string;
-  readonly group: string;
+  /** What the closed Category box shows: "Apparel › Shorts", or the name for a main category. */
+  readonly path: string;
+  /** 0 = a main category, 1 = a category inside the main category listed above it. */
+  readonly level: 0 | 1;
   readonly categoryIds: readonly string[];
 }
 

@@ -14,7 +14,9 @@ import {
 import { FormField, form, submit, validate } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
 import { offerMatch, type Offer } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
@@ -99,7 +101,7 @@ const MAX_SIZES = 20;
 const STOCK_MESSAGE = 'Stock must be a whole number from 0 to 100,000.';
 const WEIGHT_MESSAGE = 'Weight must be a whole number of grams from 0 to 100,000.';
 const PRICE_MESSAGE = 'Enter a price in whole pounds.';
-const COMPARE_MESSAGE = 'The old price must be higher than the price.';
+const COMPARE_MESSAGE = 'The price before discount must be higher than the selling price.';
 
 interface SharedFields {
   name: string;
@@ -141,7 +143,9 @@ const GENDER_OPTIONS: readonly { readonly id: '' | ProductGenderId; readonly lab
     FormField,
     MatButtonModule,
     MatCheckboxModule,
+    MatFormFieldModule,
     MatProgressSpinnerModule,
+    MatSelectModule,
     RouterLink,
     SelectInputComponent,
     TextInputComponent,
@@ -264,6 +268,13 @@ export class ProductEditorPageComponent implements OnInit {
   );
   readonly brandOptions = computed(() => buildBrandOptions(this.editorResource.value()?.brands ?? []));
   readonly sharedPrice = computed(() => parseWholePounds(asText(this.model().price)));
+  /** The prices as shoppers see them, under the Price boxes; the crossed-out one only when it is higher. */
+  readonly pricePreview = computed((): { price: number; before: number | null } | null => {
+    const price = this.sharedPrice();
+    if (price === null) return null;
+    const before = parseWholePounds(asText(this.model().compareAtPrice));
+    return { price, before: before !== null && before > price ? before : null };
+  });
   readonly activeColour = computed(() => this.colours()[this.activeIndex()] ?? null);
   readonly activeName = computed(() => colourName(this.activeColour()?.colors ?? []));
   readonly photoFolder = computed(
@@ -757,17 +768,12 @@ export class ProductEditorPageComponent implements OnInit {
     this.tags.update((list) => list.filter((item) => item !== tag));
   }
 
-  onMarketingBadgeKindChange(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    const value = target.value;
-    this.marketingBadgeKind.set(value === '' ? '' : (value as MarketingBadgeKind));
+  onMarketingBadgeKindChange(value: MarketingBadgeKind | ''): void {
+    this.marketingBadgeKind.set(value);
   }
 
-  onMarketingBadgeStyleChange(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    this.marketingBadgeStyle.set(target.value as MarketingBadgeStyle);
+  onMarketingBadgeStyleChange(value: MarketingBadgeStyle): void {
+    this.marketingBadgeStyle.set(value);
   }
 
   onNewArrivalToggle(checked: boolean): void {
@@ -971,7 +977,8 @@ export class ProductEditorPageComponent implements OnInit {
     if (this.ownPriceError(colour) || (colour.ownPrice && parseWholePounds(colour.price) === null)) {
       return `Enter a price for ${name} in whole pounds.`;
     }
-    if (this.ownCompareError(colour)) return `The old price of ${name} must be higher than its price.`;
+    if (this.ownCompareError(colour))
+      return `The price before discount of ${name} must be higher than its selling price.`;
     if (sizes.length === 0) {
       return parseCount(colour.flatStock) === null ? `Enter the stock for ${name}.` : '';
     }
