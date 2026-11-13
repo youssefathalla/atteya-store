@@ -1,10 +1,8 @@
 import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
-import { STOREFRONT_URL } from '../paymob/paymob-config.js';
-import { currentProjectId } from '../project-id.js';
-import { STORE_INFO } from '../store/store-info.js';
 import { RESEND_API_KEY, RESEND_FROM, RESEND_REPLY_TO, STORE_ALERT_EMAIL } from './email-config.js';
+import { emailContext } from './email-context.js';
 import { claimId, orderEmailsForWrite, type OrderEmailKind } from './order-email-events.js';
 import { readOrderForEmail, type OrderEmailOrder } from './order-email-model.js';
 import { renderOrderEmail, type OrderEmailContext } from './order-email-templates.js';
@@ -94,25 +92,6 @@ function recipientFor(kind: OrderEmailKind, order: OrderEmailOrder): string | nu
     return alert.includes('@') ? alert : null;
   }
   return order.customerEmail;
-}
-
-function emailContext(): OrderEmailContext {
-  return {
-    storefrontUrl: STOREFRONT_URL.value().trim().replace(/\/+$/, ''),
-    imageBaseUrl: imageKitBase(currentProjectId()),
-    canReply: RESEND_REPLY_TO.value().trim().includes('@'),
-    storeName: STORE_INFO.name,
-    whatsappNumber: STORE_INFO.contact.whatsapp,
-    instapay: STORE_INFO.payments.instapay,
-    bankTransfer: STORE_INFO.payments.bankTransfer,
-  };
-}
-
-/** Same ImageKit folders as `environment*.ts` (dev photos live under `/dev`). */
-function imageKitBase(projectId: string): string {
-  return projectId === 'atteya-store-dev'
-    ? 'https://ik.imagekit.io/atteyastore/dev'
-    : 'https://ik.imagekit.io/atteyastore';
 }
 
 /** Orders placed before line names were saved: fill names from the product docs. */

@@ -55,6 +55,8 @@ export function orderViewFields(
     shippedAt: data['shippedAt'] ?? null,
     deliveredAt: data['deliveredAt'] ?? null,
     deliveryFeeSetAt: data['deliveryFeeSetAt'] ?? null,
+    // Return and exchange requests (id, ref, status, items): the order page shows their status.
+    returns: Array.isArray(data['returns']) ? data['returns'] : [],
   };
 }
 

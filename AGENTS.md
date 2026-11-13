@@ -67,6 +67,7 @@ Adhere strictly to these core directives to ensure maximum performance, clean ar
 
 - **Roles (admin, staff), Settings → Team, sign-in, create account, terms, confirm your email, delete account, saving guest orders to an account, and who may read or write each collection and Storage folder**: read the `auth-and-access` skill.
 - **Guest checkout on the server, orderViews, Delete Order**: read the `checkout-and-orders` skill.
+- **Returns & Exchanges (requests, the order's `returns` summary, return emails)**: read the `returns-and-exchanges` skill.
 - **Delete Product and the admin Products list (Move to Category, Live / Hidden)**: read the `catalogue` skill.
 - **Previous Versions of settings/navigation and settings/home**: read the `navigation-and-home` skill.
 - **Own sign-in domain and the /__/auth proxy**: read the `seo-and-hosting` skill.
@@ -211,6 +212,7 @@ Topic skills (moved out of this file, <KEY>-282; one fact per line, add new rule
 - **`checkout-and-orders`** for the bag, checkout, payments, guest checkout, order stage and status, admin Orders.
 - **`order-emails`** for order emails and their design.
 - **`customers-admin`** for customer summaries and the admin Customers pages.
+- **`returns-and-exchanges`** for return and exchange requests: who and when, kinds, statuses, gifts, refund and fee math, the stock plan, `requestReturn` / `cancelReturnRequest` and the return emails.
 - **`catalogue`** for products, stock, the product editor and page, Shop tabs, search and catalogue data scripts.
 - **`categories-brands-admin`** for the admin Categories & Brands page.
 - **`shipping-and-currency`** for shipping boxes, weights and prices outside Egypt.
