@@ -1,62 +1,66 @@
 <h2 mat-dialog-title class="font-title-lg font-bold!">Stock</h2>
 <form novalidate (submit)="onSave($event)">
-  <mat-dialog-content class="elements-start-col gap-5">
-    <div class="elements-start-col gap-1">
-      <p class="font-body-lg font-bold!">{{ data.product.name }}</p>
-      <p class="font-body-md text-on-surface-variant">
-        {{
-          rows.length > 1 ? 'Enter how many pieces you have of each size.' : 'Enter how many pieces you have.'
-        }}
-      </p>
-    </div>
-
-    @if (flatTotal !== null) {
-      <div class="w-full elements-start-col gap-1 border-shape bg-surface-container p-3">
-        <p class="font-body-sm">Stock is saved as one total ({{ flatTotal }}). Enter it per size.</p>
-        <p class="font-body-sm">Saving sets a count for each size and replaces the current total.</p>
-      </div>
-    }
-
-    <div class="stock-grid w-full">
-      @for (row of rows; track row.id) {
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>{{ row.label }}</mat-label>
-          <input
-            matInput
-            [id]="inputId(row.id)"
-            type="number"
-            min="0"
-            max="100000"
-            step="1"
-            inputmode="numeric"
-            [value]="count(row.id)"
-            [attr.aria-invalid]="fieldError(row.id) ? true : null"
-            (input)="onCountInput(row.id, $event)"
-          />
-          @if (fieldError(row.id); as message) {
-            <mat-hint role="alert">{{ message }}</mat-hint>
-          }
-        </mat-form-field>
-      }
-    </div>
-
-    <div class="w-full elements-between gap-4 border-t border-outline-variant pt-4">
+  <mat-dialog-content>
+    <div class="elements-start-col gap-5">
       <div class="elements-start-col gap-1">
-        <span class="font-label-md text-on-surface-variant">Total</span>
-        <span class="font-headline-sm font-bold! tabular-nums">{{ totalText() }}</span>
+        <p class="font-body-lg font-bold!">{{ data.product.name }}</p>
+        <p class="font-body-md text-on-surface-variant">
+          {{
+            rows.length > 1
+              ? 'Enter how many pieces you have of each size.'
+              : 'Enter how many pieces you have.'
+          }}
+        </p>
       </div>
-      @if (availabilityText(); as status) {
-        <span class="elements-start gap-2 font-body-md" [class.text-on-surface-variant]="total() === 0">
-          <mat-icon
-            [name]="total() === 0 ? 'block' : 'check_circle'"
-            [iconColor]="total() === 0 ? undefined : 'success'"
-            size="lg"
-          />
-          {{ status }}
-        </span>
+
+      @if (flatTotal !== null) {
+        <div class="w-full elements-start-col gap-1 border-shape bg-surface-container p-3">
+          <p class="font-body-sm">Stock is saved as one total ({{ flatTotal }}). Enter it per size.</p>
+          <p class="font-body-sm">Saving sets a count for each size and replaces the current total.</p>
+        </div>
       }
+
+      <div class="stock-grid w-full">
+        @for (row of rows; track row.id) {
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{ row.label }}</mat-label>
+            <input
+              matInput
+              [id]="inputId(row.id)"
+              type="number"
+              min="0"
+              max="100000"
+              step="1"
+              inputmode="numeric"
+              [value]="count(row.id)"
+              [attr.aria-invalid]="fieldError(row.id) ? true : null"
+              (input)="onCountInput(row.id, $event)"
+            />
+            @if (fieldError(row.id); as message) {
+              <mat-hint role="alert">{{ message }}</mat-hint>
+            }
+          </mat-form-field>
+        }
+      </div>
+
+      <div class="w-full elements-between gap-4 border-t border-outline-variant pt-4">
+        <div class="elements-start-col gap-1">
+          <span class="font-label-md text-on-surface-variant">Total</span>
+          <span class="font-headline-sm font-bold! tabular-nums">{{ totalText() }}</span>
+        </div>
+        @if (availabilityText(); as status) {
+          <span class="elements-start gap-2 font-body-md" [class.text-on-surface-variant]="total() === 0">
+            <mat-icon
+              [name]="total() === 0 ? 'block' : 'check_circle'"
+              [iconColor]="total() === 0 ? undefined : 'success'"
+              size="lg"
+            />
+            {{ status }}
+          </span>
+        }
+      </div>
+      <p class="font-body-sm text-on-surface-variant">{{ savedSummary }}</p>
     </div>
-    <p class="font-body-sm text-on-surface-variant">{{ savedSummary }}</p>
   </mat-dialog-content>
   <mat-dialog-actions align="end">
     <button matButton="text" type="button" [mat-dialog-close]="null">Cancel</button>

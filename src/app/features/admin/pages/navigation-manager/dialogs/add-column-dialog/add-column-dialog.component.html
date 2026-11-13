@@ -10,23 +10,25 @@
     </p>
   </div>
 
-  <mat-dialog-content class="space-y-4 py-2!">
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Column Title</mat-label>
-      <input
-        matInput
-        id="new-col-title"
-        name="new-col-title"
-        autocomplete="off"
-        aria-label="Column Title"
-        [ngModel]="title()"
-        (ngModelChange)="title.set($event)"
-        placeholder="e.g. Featured"
-        required
-        cdkFocusInitial
-      />
-      <mat-hint>Heading displayed above the group of links</mat-hint>
-    </mat-form-field>
+  <mat-dialog-content>
+    <div class="space-y-4">
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Column Title</mat-label>
+        <input
+          matInput
+          id="new-col-title"
+          name="new-col-title"
+          autocomplete="off"
+          aria-label="Column Title"
+          [ngModel]="title()"
+          (ngModelChange)="title.set($event)"
+          placeholder="e.g. Featured"
+          required
+          cdkFocusInitial
+        />
+        <mat-hint>Heading displayed above the group of links</mat-hint>
+      </mat-form-field>
+    </div>
   </mat-dialog-content>
 
   <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">

@@ -6,34 +6,36 @@
     </p>
   </div>
 
-  <mat-dialog-content class="space-y-4 py-2!">
-    <!-- Category Label -->
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Category Name</mat-label>
-      <input
-        matInput
-        id="new-cat-label"
-        name="new-cat-label"
-        autocomplete="off"
-        aria-label="Category Name"
-        [ngModel]="label()"
-        (ngModelChange)="onLabelChange($event)"
-        placeholder="e.g. Rackets"
-        required
-        cdkFocusInitial
-      />
-      <mat-hint>Visible navigation text</mat-hint>
-    </mat-form-field>
+  <mat-dialog-content>
+    <div class="space-y-4">
+      <!-- Category Label -->
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Category Name</mat-label>
+        <input
+          matInput
+          id="new-cat-label"
+          name="new-cat-label"
+          autocomplete="off"
+          aria-label="Category Name"
+          [ngModel]="label()"
+          (ngModelChange)="onLabelChange($event)"
+          placeholder="e.g. Rackets"
+          required
+          cdkFocusInitial
+        />
+        <mat-hint>Visible navigation text</mat-hint>
+      </mat-form-field>
 
-    <!-- Links To -->
-    <app-nav-target-field
-      fieldId="new-cat"
-      [target]="target() ?? undefined"
-      [path]="path()"
-      [allowMenuOnly]="true"
-      [allowOutside]="false"
-      (targetChange)="onTargetChange($event)"
-    />
+      <!-- Links To -->
+      <app-nav-target-field
+        fieldId="new-cat"
+        [target]="target() ?? undefined"
+        [path]="path()"
+        [allowMenuOnly]="true"
+        [allowOutside]="false"
+        (targetChange)="onTargetChange($event)"
+      />
+    </div>
   </mat-dialog-content>
 
   <mat-dialog-actions align="end" class="gap-2 px-6 pb-4 pt-2">

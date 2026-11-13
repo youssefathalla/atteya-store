@@ -74,7 +74,7 @@ export class ProductsDialogService {
       ConfirmDialogComponent,
       {
         data: {
-          title: 'Rebuild search',
+          title: 'Rebuild Search',
           message: `This will apply search settings and sync ${preview.indexed} published products to ${preview.indexName}.`,
           confirmText: 'Rebuild Search',
           cancelText: 'Cancel',

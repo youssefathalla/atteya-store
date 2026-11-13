@@ -11,60 +11,62 @@
     </p>
   </div>
 
-  <mat-dialog-content class="space-y-4 py-2!">
-    <!-- Link Label -->
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Link Label</mat-label>
-      <input
-        matInput
-        id="new-link-label"
-        name="new-link-label"
-        autocomplete="off"
-        aria-label="Link Label"
-        [ngModel]="label()"
-        (ngModelChange)="label.set($event)"
-        placeholder="e.g. Diamond Rackets"
-        required
-        cdkFocusInitial
+  <mat-dialog-content>
+    <div class="space-y-4">
+      <!-- Link Label -->
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Link Label</mat-label>
+        <input
+          matInput
+          id="new-link-label"
+          name="new-link-label"
+          autocomplete="off"
+          aria-label="Link Label"
+          [ngModel]="label()"
+          (ngModelChange)="label.set($event)"
+          placeholder="e.g. Diamond Rackets"
+          required
+          cdkFocusInitial
+        />
+        <mat-hint>Text displayed to users</mat-hint>
+      </mat-form-field>
+
+      <!-- Links To -->
+      <app-nav-target-field
+        fieldId="new-link"
+        [target]="target() ?? undefined"
+        [path]="path()"
+        (targetChange)="onTargetChange($event)"
       />
-      <mat-hint>Text displayed to users</mat-hint>
-    </mat-form-field>
 
-    <!-- Links To -->
-    <app-nav-target-field
-      fieldId="new-link"
-      [target]="target() ?? undefined"
-      [path]="path()"
-      (targetChange)="onTargetChange($event)"
-    />
+      <!-- Optional Badge -->
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Badge Tag (Optional)</mat-label>
+        <input
+          matInput
+          id="new-link-badge"
+          name="new-link-badge"
+          autocomplete="off"
+          aria-label="Badge Tag"
+          [ngModel]="badge()"
+          (ngModelChange)="badge.set($event)"
+          placeholder="e.g. NEW"
+        />
+        <mat-hint>Optional highlight chip shown beside link</mat-hint>
+      </mat-form-field>
 
-    <!-- Optional Badge -->
-    <mat-form-field appearance="outline" class="w-full">
-      <mat-label>Badge Tag (Optional)</mat-label>
-      <input
-        matInput
-        id="new-link-badge"
-        name="new-link-badge"
-        autocomplete="off"
-        aria-label="Badge Tag"
-        [ngModel]="badge()"
-        (ngModelChange)="badge.set($event)"
-        placeholder="e.g. NEW"
-      />
-      <mat-hint>Optional highlight chip shown beside link</mat-hint>
-    </mat-form-field>
-
-    <!-- Brand Link Checkbox -->
-    <div class="pt-1">
-      <mat-checkbox
-        id="new-link-is-brand"
-        name="new-link-is-brand"
-        [ngModel]="isBrand()"
-        (ngModelChange)="isBrand.set($event)"
-      >
-        <span>Brand Link</span>
-      </mat-checkbox>
-      <p class="font-body-xs opacity-70 pl-8">Shows this link in the brand style</p>
+      <!-- Brand Link Checkbox -->
+      <div class="pt-1">
+        <mat-checkbox
+          id="new-link-is-brand"
+          name="new-link-is-brand"
+          [ngModel]="isBrand()"
+          (ngModelChange)="isBrand.set($event)"
+        >
+          <span>Brand Link</span>
+        </mat-checkbox>
+        <p class="font-body-xs opacity-70 pl-8">Shows this link in the brand style</p>
+      </div>
     </div>
   </mat-dialog-content>
 
