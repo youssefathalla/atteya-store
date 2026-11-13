@@ -331,36 +331,18 @@
         </mat-radio-group>
 
         @if (free.mode === 'products') {
-          @if (free.selection.productIds.length === 0) {
+          <app-product-targets
+            heading="Products that can be free"
+            addLabel="Add Product"
+            kinds="products"
+            [conditions]="freeItemProducts()"
+            [products]="products()"
+            [names]="names()"
+            (conditionsChange)="onFreeItemProductsChange($event)"
+          />
+          @if (freeItemProducts().anyOf.length === 0) {
             <p class="font-body-sm text-on-surface-variant">No products yet. Add at least one.</p>
-          } @else {
-            <mat-chip-set aria-label="Free item products">
-              @for (productId of free.selection.productIds; track productId) {
-                <mat-chip (removed)="removeFreeItemValue('productIds', productId)">
-                  {{ productNames().get(productId) ?? 'Product not found' }}
-                  <button
-                    matChipRemove
-                    type="button"
-                    [attr.aria-label]="
-                      'Remove ' + (productNames().get(productId) ?? 'product') + ' from the free items'
-                    "
-                  >
-                    <mat-icon name="close" />
-                  </button>
-                </mat-chip>
-              }
-            </mat-chip-set>
           }
-          <mat-form-field class="w-full sm:max-w-xs" appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Add a product</mat-label>
-            <mat-select [value]="null" (selectionChange)="addFreeItemValue('productIds', $event)">
-              @for (p of products(); track p.id) {
-                @if (!free.selection.productIds.includes(p.id)) {
-                  <mat-option [value]="p.id">{{ p.name }}</mat-option>
-                }
-              }
-            </mat-select>
-          </mat-form-field>
         } @else if (free.mode === 'categoryBrand') {
           <p class="font-body-sm text-on-surface-variant">Pick at least one category or brand.</p>
           @if (free.selection.categoryIds.length > 0 || free.selection.brandIds.length > 0) {
@@ -448,38 +430,24 @@
           </mat-form-field>
 
           <div class="w-full elements-start-col items-stretch! gap-2">
-            <span class="font-label-md">Products shoppers can choose from</span>
+            <app-product-targets
+              heading="Products shoppers can choose from"
+              addLabel="Add Product"
+              kinds="products"
+              [expandModels]="true"
+              [conditions]="giftConditions().get(gift.id) ?? noProducts"
+              [products]="products()"
+              [names]="names()"
+              (conditionsChange)="onGiftProductsChange(gift.id, $event)"
+            />
             @if (gift.productIds.length === 0) {
               <p class="font-body-sm text-on-surface-variant">No products yet. Add at least one.</p>
-            } @else {
-              <mat-chip-set [attr.aria-label]="'Products for gift ' + ($index + 1)">
-                @for (productId of gift.productIds; track productId) {
-                  <mat-chip (removed)="removeGiftChoice(gift.id, productId)">
-                    {{ productNames().get(productId) ?? 'Product not found' }}
-                    <button
-                      matChipRemove
-                      type="button"
-                      [attr.aria-label]="
-                        'Remove ' + (productNames().get(productId) ?? 'product') + ' from this gift'
-                      "
-                    >
-                      <mat-icon name="close" />
-                    </button>
-                  </mat-chip>
-                }
-              </mat-chip-set>
             }
-            @if (gift.productIds.length < maxGiftChoices) {
-              <mat-form-field class="w-full sm:max-w-xs" appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Add a product</mat-label>
-                <mat-select [value]="null" (selectionChange)="onGiftChoiceAdd(gift.id, $event)">
-                  @for (p of products(); track p.id) {
-                    @if (!gift.productIds.includes(p.id)) {
-                      <mat-option [value]="p.id">{{ p.name }}</mat-option>
-                    }
-                  }
-                </mat-select>
-              </mat-form-field>
+            @if (gift.productIds.length > maxGiftChoices) {
+              <p class="font-body-sm text-error" role="alert">
+                Each gift can offer up to {{ maxGiftChoices }} products to choose from. Remove some colours or
+                products.
+              </p>
             }
           </div>
 

@@ -6,14 +6,56 @@
     }
   </p>
 
+  @for (pick of colourPicks(); track pick.key) {
+    <div class="offer-colour-pick">
+      <mat-chip-set [attr.aria-labelledby]="headingId()">
+        <mat-chip (removed)="removePick(pick)">
+          <span class="text-on-surface-variant">{{ fieldLabel.productId }}</span>
+          <span class="font-bold!">&nbsp;{{ pickLabel(pick) }}</span>
+          <button matChipRemove type="button" [attr.aria-label]="'Remove ' + pickLabel(pick)">
+            <mat-icon name="close" />
+          </button>
+        </mat-chip>
+      </mat-chip-set>
+      <mat-form-field class="w-full @3xl:w-64" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Colours</mat-label>
+        <mat-select
+          multiple
+          [value]="colourValues(pick)"
+          [attr.aria-label]="'Colours of ' + pick.model?.name"
+          (selectionChange)="onColoursChange(pick, $event.value)"
+        >
+          <mat-option [value]="allColours">All colours</mat-option>
+          @for (colour of pick.model?.colours; track colour.productId) {
+            <mat-option [value]="colour.productId">
+              <span class="elements-start items-center! gap-2">
+                <app-color-swatch class="size-3" [colorId]="colour.colorId" [swatch]="colour.swatch" />
+                <span>{{ colour.label }}</span>
+              </span>
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+  }
+
   <div class="elements-start items-center! flex-wrap gap-2">
-    @if (view().tags.length > 0 || view().advanced.length > 0) {
+    @if (hasPlainTags()) {
       <mat-chip-grid #grid [attr.aria-labelledby]="headingId()">
-        @for (tag of view().tags; track tag.field + ':' + tag.value) {
+        @for (tag of groupTags(); track tag.field + ':' + tag.value) {
           <mat-chip-row (removed)="removeTag(tag)">
             <span class="text-on-surface-variant">{{ fieldLabel[tag.field] }}</span>
             <span class="font-bold!">&nbsp;{{ nameOf(tag) }}</span>
             <button matChipRemove type="button" [attr.aria-label]="'Remove ' + nameOf(tag)">
+              <mat-icon name="close" />
+            </button>
+          </mat-chip-row>
+        }
+        @for (pick of plainPicks(); track pick.key) {
+          <mat-chip-row (removed)="removePick(pick)">
+            <span class="text-on-surface-variant">{{ fieldLabel.productId }}</span>
+            <span class="font-bold!">&nbsp;{{ pickLabel(pick) }}</span>
+            <button matChipRemove type="button" [attr.aria-label]="'Remove ' + pickLabel(pick)">
               <mat-icon name="close" />
             </button>
           </mat-chip-row>
@@ -40,7 +82,7 @@
   @if (picking()) {
     <div class="elements-start items-center! flex-wrap gap-2 w-full">
       <mat-form-field class="w-full @3xl:w-96" appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Search categories, brands and products</mat-label>
+        <mat-label>{{ searchLabel() }}</mat-label>
         <mat-icon matPrefix name="search" />
         <input
           #searchInput
@@ -54,13 +96,19 @@
         />
         <mat-autocomplete
           #auto="matAutocomplete"
+          [autoActiveFirstOption]="true"
           [displayWith]="emptyDisplay"
           (optionSelected)="onPicked($event)"
         >
           @for (group of options(); track group.label) {
             <mat-optgroup [label]="group.label">
-              @for (option of group.options; track option.field + ':' + option.value) {
-                <mat-option [value]="option">{{ option.name }}</mat-option>
+              @for (option of group.options; track optionKey(option)) {
+                <mat-option [value]="option">
+                  <span>{{ option.name }}</span>
+                  @if (option.note) {
+                    <span class="text-on-surface-variant"> · {{ option.note }}</span>
+                  }
+                </mat-option>
               }
             </mat-optgroup>
           } @empty {

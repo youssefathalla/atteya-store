@@ -178,6 +178,11 @@
     @apply border border-dashed border-outline border-shape px-4 py-2 font-label-lg font-bold! cursor-pointer bg-surface-container-lowest;
   }
 
+  /* A picked product with several colours: its tag, then the Colours dropdown (stacked on phone). */
+  .offer-colour-pick {
+    @apply w-full elements-start-col items-stretch! gap-2 @3xl:flex-row @3xl:items-center!;
+  }
+
   /* A grey note box (overlaps, the run line, Good to know). */
   .offer-note {
     @apply w-full bg-surface-container border-shape p-4 font-body-md elements-start-col items-stretch! gap-2;

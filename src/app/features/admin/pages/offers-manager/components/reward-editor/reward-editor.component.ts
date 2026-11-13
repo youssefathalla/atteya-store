@@ -154,6 +154,32 @@ export class RewardEditorComponent {
     this.reward.set(withFreeItem(r, mode, current.selection));
   }
 
+  /** The products that can be free, as a product rule (empty rules left out). */
+  readonly freeItemProducts = computed<OfferConditions>(() => {
+    const r = this.reward();
+    if (r.kind !== 'buyXGetY' || !r.getConditions) return { anyOf: [] };
+    return {
+      anyOf: r.getConditions.anyOf.filter((group) =>
+        group.allOf.some(
+          (atom) => (atom.field === 'productId' || atom.field === 'modelGroup') && (atom.in?.length ?? 0) > 0,
+        ),
+      ),
+    };
+  });
+
+  /**
+   * Products picked for the free item: a product with All colours is saved as its model, so a
+   * colour added later can be free too. Nothing picked keeps an empty product rule, so the form
+   * stays on "One of these products" and validation asks for one.
+   */
+  onFreeItemProductsChange(conditions: OfferConditions): void {
+    const r = this.reward();
+    if (r.kind !== 'buyXGetY') return;
+    const getConditions: OfferConditions =
+      conditions.anyOf.length > 0 ? conditions : { anyOf: [{ allOf: [{ field: 'productId', in: [] }] }] };
+    this.reward.set({ ...r, getConditions, cheapestFree: true });
+  }
+
   addFreeItemValue(kind: 'productIds' | 'categoryIds' | 'brandIds', event: MatSelectChange): void {
     const value = typeof event.value === 'string' ? event.value : '';
     event.source.value = null;
@@ -254,10 +280,6 @@ export class RewardEditorComponent {
   readonly maxGiftChoices = MAX_GIFT_CHOICES;
   readonly maxGiftName = MAX_GIFT_NAME;
 
-  readonly productNames = computed(
-    () => new Map(this.products().map((product) => [product.id, product.name])),
-  );
-
   addGift(): void {
     this.#updateGifts((gifts) => {
       if (gifts.length >= MAX_OFFER_GIFTS) return gifts;
@@ -277,22 +299,38 @@ export class RewardEditorComponent {
     this.#updateGift(giftId, (gift) => ({ ...gift, name: value }));
   }
 
-  onGiftChoiceAdd(giftId: string, event: MatSelectChange): void {
-    const productId = typeof event.value === 'string' ? event.value : '';
-    event.source.value = null;
-    if (!productId) return;
-    this.#updateGift(giftId, (gift) =>
-      gift.productIds.includes(productId) || gift.productIds.length >= MAX_GIFT_CHOICES
-        ? gift
-        : { ...gift, productIds: [...gift.productIds, productId] },
-    );
-  }
+  /** Empty product choices, for a gift with nothing picked yet. */
+  readonly noProducts: OfferConditions = { anyOf: [] };
 
-  removeGiftChoice(giftId: string, productId: string): void {
-    this.#updateGift(giftId, (gift) => ({
-      ...gift,
-      productIds: gift.productIds.filter((id) => id !== productId),
-    }));
+  /** Each gift's products as one product rule, for the product picker. */
+  readonly giftConditions = computed(() => {
+    const r = this.reward();
+    const byGift = new Map<string, OfferConditions>();
+    if (r.kind !== 'freeGift') return byGift;
+    for (const gift of r.gifts) {
+      byGift.set(
+        gift.id,
+        gift.productIds.length > 0
+          ? { anyOf: [{ allOf: [{ field: 'productId', in: gift.productIds }] }] }
+          : this.noProducts,
+      );
+    }
+    return byGift;
+  });
+
+  /**
+   * A gift names products only, so the picker saves every colour of a product picked with All
+   * colours (a colour added later is not included until staff open the offer and save again).
+   */
+  onGiftProductsChange(giftId: string, conditions: OfferConditions): void {
+    const productIds: string[] = [];
+    for (const group of conditions.anyOf) {
+      for (const atom of group.allOf) {
+        if (atom.field !== 'productId') continue;
+        for (const id of atom.in ?? []) if (!productIds.includes(id)) productIds.push(id);
+      }
+    }
+    this.#updateGift(giftId, (gift) => ({ ...gift, productIds }));
   }
 
   #updateGift(giftId: string, change: (gift: OfferGift) => OfferGift): void {
