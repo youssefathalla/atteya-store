@@ -114,23 +114,28 @@
     @apply elements-start-col items-stretch! h-full;
   }
 
-  /* A bordered group inside the dialog (Show in the menu). */
-  .catalog-dialog-box {
-    @apply w-full elements-start-col items-stretch! gap-3 p-4 border border-outline-variant border-shape;
+  /* The fields inside mat-dialog-content (a native div, so Material's own display never wins). */
+  .catalog-dialog-body {
+    @apply w-full elements-start-col items-stretch! gap-6 pt-2 pb-1;
   }
 
-  /* Words on the left, switch on the right. */
+  /* A bordered group inside the dialog (Shown on the store, Show in the menu). */
+  .catalog-dialog-box {
+    @apply w-full elements-start-col items-stretch! gap-4 p-4 border border-outline-variant border-shape;
+  }
+
+  /* Words on the left, switch on the right; every switch row lines up the same way. */
   .catalog-switch-row {
-    @apply w-full elements-between gap-3;
+    @apply w-full elements-between gap-4 min-h-10;
   }
 
   /* The closed "More Options" section (native details). */
   .catalog-more {
-    @apply w-full border-t border-outline-variant pt-3;
+    @apply w-full border-t border-outline-variant pt-4;
   }
 
   .catalog-more > summary {
-    @apply elements-start gap-2 cursor-pointer list-none py-1 focus-visible:outline-2 focus-visible:outline-primary;
+    @apply elements-start gap-2 cursor-pointer list-none py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
   }
 
   .catalog-more > summary::-webkit-details-marker {
@@ -142,7 +147,7 @@
   }
 
   .catalog-more__body {
-    @apply elements-start-col items-stretch! gap-4 pt-4;
+    @apply elements-start-col items-stretch! gap-6 pt-5;
   }
 
   /* Dialog buttons: stacked full width on phone, side by side from sm. */
