@@ -48,10 +48,20 @@ const SENT_PURCHASES_KEY = 'metaPixelPurchases';
 
 /** True when a URL (or its `?query` / `#hash` part) carries a guest order's view key (`key=`). */
 function hasViewKey(url: string): boolean {
-  const queryStart = url.indexOf('?');
-  if (queryStart === -1) return false;
-  const query = url.slice(queryStart + 1).split('#')[0] ?? '';
-  return new URLSearchParams(query).has('key');
+  // Also inside another link in the URL, e.g. `/login?returnUrl=%2Fcheckout%2Fconfirmation%2F…%3Fkey%3D…`.
+  let text = url;
+  for (let round = 0; round < 3; round++) {
+    if (/[?&]key=/.test(text)) return true;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(text);
+    } catch {
+      return false;
+    }
+    if (decoded === text) return false;
+    text = decoded;
+  }
+  return /[?&]key=/.test(text);
 }
 
 /**
@@ -88,7 +98,7 @@ export function metaPixelContents(
  *
  * - Runs in the browser only, and only when `environment.metaPixelId` is set (the live store).
  *   The dev site has no id, so dev clicks never reach the client's ad data.
- * - The Meta script loads after the app starts and never blocks the page.
+ * - The Meta script loads on the first store page (never on `/admin`) and never blocks the page.
  * - PageView is sent on every finished navigation (the store is a single-page app).
  * - Every event gets an `eventID`, ready for Conversions API de-duplication later.
  */
@@ -107,8 +117,6 @@ export class MetaPixelService {
     if (!this.#isBrowser || this.#started) return;
     this.#started = true;
 
-    if (this.#pixelId) this.#load();
-
     // One PageView per page: query-only changes (Shop filters, a cleaned-up link) are the same page,
     // and staff pages are not the store.
     let lastPath: string | null = null;
@@ -123,6 +131,8 @@ export class MetaPixelService {
         if (path === lastPath) return;
         lastPath = path;
         if (path === '/admin' || path.startsWith('/admin/')) return;
+        // Meta's script loads on the first store page, never on staff pages.
+        if (this.#pixelId) this.#load();
         this.track('PageView');
       });
     this.#destroyRef.onDestroy(() => subscription.unsubscribe());
