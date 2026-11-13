@@ -3,9 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-
-/** Longest reject reason (the server checks the same). */
-export const REJECT_REASON_MAX = 300;
+import { REJECT_REASON_MAX } from '@core/config/returns';
 
 export interface RejectReturnDialogData {
   readonly ref: string;

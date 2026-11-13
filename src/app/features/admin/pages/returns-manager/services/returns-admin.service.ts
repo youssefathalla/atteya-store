@@ -14,6 +14,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import * as v from 'valibot';
+import { RETURN_REQUESTS_PER_ORDER_MAX, RETURN_STATUSES } from '@core/config/returns';
 import { callableFrom, injectFirestore, injectFunctionsAsync } from '@core/firebase';
 import { PRODUCTS_COLLECTION } from '@core/services/products/product.constants';
 import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
@@ -30,8 +31,6 @@ import {
 } from '../models/return-admin.model';
 
 export const RETURNS_PAGE_SIZE = 20;
-/** Requests one order can ever have (`RETURN_REQUESTS_PER_ORDER_MAX`). */
-const REQUESTS_PER_ORDER = 10;
 
 const wholeNumber = v.pipe(v.number(), v.integer(), v.minValue(0));
 
@@ -49,6 +48,14 @@ const ProductLookupSchema = v.object({
     ),
     [],
   ),
+});
+
+/** What every step callable answers. */
+const ReturnStepResultSchema = v.object({
+  requestId: v.string(),
+  status: v.picklist(RETURN_STATUSES),
+  changed: v.boolean(),
+  notReturned: v.optional(wholeNumber, 0),
 });
 
 /** One batch of the Returns list. */
@@ -109,7 +116,9 @@ export class ReturnsAdminService {
   /** Every request of one order (at most 10), newest first. */
   async requestsForOrder(orderId: string): Promise<readonly ReturnRequestDoc[]> {
     const col = collection(this.#firestore, RETURN_REQUESTS_COLLECTION).withConverter(this.#converter);
-    const snap = await getDocs(query(col, where('orderId', '==', orderId), limit(REQUESTS_PER_ORDER)));
+    const snap = await getDocs(
+      query(col, where('orderId', '==', orderId), limit(RETURN_REQUESTS_PER_ORDER_MAX)),
+    );
     return snap.docs.map((item) => item.data()).sort((a, b) => millis(b.createdAt) - millis(a.createdAt));
   }
 
@@ -165,9 +174,9 @@ export class ReturnsAdminService {
   }
 
   async #step(name: string, payload: object): Promise<ReturnStepResult> {
-    const call = await callableFrom<object, ReturnStepResult>(this.#functions(), name);
+    const call = await callableFrom<object, unknown>(this.#functions(), name);
     const response = await call(payload);
-    return response.data;
+    return v.parse(ReturnStepResultSchema, response.data);
   }
 }
 

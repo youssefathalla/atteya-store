@@ -278,7 +278,13 @@ export class ReturnDetailsPageComponent implements OnInit {
     const ref = this.#dialog.open<RefundSentDialogComponent, RefundSentDialogData, RefundSentDialogResult>(
       RefundSentDialogComponent,
       {
-        data: { ref: request.ref, refundEgp: request.refundEgp, refundTo: request.refundTo },
+        data: {
+          ref: request.ref,
+          refundEgp: request.refundEgp,
+          refundLabel: egp(request.refundEgp),
+          itemsEgp: request.itemsEgp,
+          refundTo: request.refundTo,
+        },
         width: DIALOG_WIDTH,
       },
     );
@@ -290,8 +296,6 @@ export class ReturnDetailsPageComponent implements OnInit {
       `Refund saved. Request ${request.ref} is done.`,
     );
   }
-
-  statusLabel = returnStatusLabel;
 
   async #run(action: ReturnAction, call: () => Promise<ReturnStepResult>, done: string): Promise<void> {
     this.busy.set(action);

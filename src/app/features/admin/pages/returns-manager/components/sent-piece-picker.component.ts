@@ -35,7 +35,7 @@ export interface SentPiece {
           [matAutocomplete]="auto"
           (input)="onType($any($event.target).value)"
         />
-        <mat-autocomplete #auto="matAutocomplete" (optionSelected)="pick($event)">
+        <mat-autocomplete #auto="matAutocomplete" [displayWith]="nameOf" (optionSelected)="pick($event)">
           @for (product of results(); track product.id) {
             <mat-option [value]="product.id">{{ product.name }}</mat-option>
           }
@@ -108,6 +108,10 @@ export class SentPiecePickerComponent {
       this.pieceChange.emit({ productId: product.id, size: this.sizes().length > 0 ? size : null });
     });
   }
+
+  /** The input shows the product's name, never its id. */
+  readonly nameOf = (id: string | null): string =>
+    this.results().find((entry) => entry.id === id)?.name ?? this.picked()?.name ?? '';
 
   onType(value: string): void {
     this.text.set(value);

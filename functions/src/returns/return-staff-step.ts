@@ -7,6 +7,8 @@
 import { readSizeValueIds, stockFields, type StockFields } from '../products/stock.js';
 import {
   isReturnKind,
+  REFUND_REFERENCE_MAX,
+  REJECT_REASON_MAX,
   returnStockPlan,
   undoStockStep,
   type ReturnKind,
@@ -26,13 +28,6 @@ export class ReturnStepError extends Error {
     this.name = 'ReturnStepError';
   }
 }
-
-/** Longest reason the shopper sees when a request is rejected. */
-export const REJECT_REASON_MAX = 300;
-/** Longest InstaPay reference saved with Refund Sent. */
-export const REFUND_REFERENCE_MAX = 100;
-/** Largest refund amount staff can type (whole EGP). */
-export const REFUND_AMOUNT_MAX = 1_000_000;
 
 const NOT_FOUND = "We couldn't find that request. Refresh the list and try again.";
 
@@ -221,7 +216,7 @@ export function parseRefundSent(raw: unknown): RefundSentInput {
   const data = isRecord(raw) ? raw : {};
   const requestId = requestIdOf(data);
   const amount = data['amountEgp'];
-  if (typeof amount !== 'number' || !Number.isInteger(amount) || amount < 1 || amount > REFUND_AMOUNT_MAX) {
+  if (typeof amount !== 'number' || !Number.isInteger(amount) || amount < 1) {
     throw new ReturnStepError('invalid-argument', 'Write the amount you sent, in whole pounds.');
   }
   const refRaw = data['reference'];
@@ -295,6 +290,8 @@ export function sentProductIds(sent: readonly SentPieceInput[]): string[] {
 export interface StockMoveResult {
   /** The new stock fields per product id (only products that changed). */
   readonly next: ReadonlyMap<string, StockFields>;
+  /** The moves that really happened (skipped pieces left out), saved so Reject undoes only these. */
+  readonly applied: StockStep;
   /** Pieces that couldn't go back (the product or its size is gone). Staff check by hand. */
   readonly notReturned: number;
 }
@@ -324,6 +321,8 @@ export function applyStockMoves(
     return live.get(productId) ?? null;
   };
   const changed = new Set<string>();
+  const putBack: StockPiece[] = [];
+  const take: StockPiece[] = [];
   let notReturned = 0;
 
   for (const piece of step.putBack) {
@@ -343,6 +342,7 @@ export function applyStockMoves(
       stock.flat += piece.quantity;
     }
     changed.add(piece.productId);
+    putBack.push(piece);
   }
 
   for (const piece of step.take) {
@@ -353,7 +353,9 @@ export function applyStockMoves(
       if (opts.short === 'floor') continue;
       throw new ReturnStepError(
         'failed-precondition',
-        `${product?.name || 'One product'} no longer exists. Ask the customer to pick something else or switch this item to a refund.`,
+        product
+          ? `Stock is not set up for ${product.name || 'this product'}. Set its stock in Products, then approve again.`
+          : 'One product on this request no longer exists. Ask the customer to pick something else or switch this item to a refund.',
       );
     }
     if (stock.bySize) {
@@ -388,6 +390,7 @@ export function applyStockMoves(
       stock.flat -= piece.quantity;
     }
     changed.add(piece.productId);
+    take.push(piece);
   }
 
   const next = new Map<string, StockFields>();
@@ -396,7 +399,7 @@ export function applyStockMoves(
     if (!stock) continue;
     next.set(productId, stock.bySize ? stockFields(stock.bySize) : stockFields(null, stock.flat));
   }
-  return { next, notReturned };
+  return { next, applied: { take, putBack }, notReturned };
 }
 
 interface LiveStock {

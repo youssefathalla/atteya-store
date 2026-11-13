@@ -243,6 +243,32 @@ describe('staff steps: refusals, undo and double clicks', () => {
     assert.deepEqual(moved.next.get('shorts')?.stockBySize, { m: 1, l: 0 });
   });
 
+  it('saves only the moves that happened, so Reject never undoes a skipped piece', () => {
+    const live = products({ shorts: sized(1, 1), tee: sized(4, 4, 'Club Tee') });
+    const items = withSentPieces(
+      item({ kind: 'wrong-item', wants: 'refund', selection: { size: 'xl' } }),
+      [{ itemIndex: 0, productId: 'tee', size: 'm' }],
+      live,
+    );
+    const moved = applyStockMoves(live, approveStep(items), { short: 'refuse' });
+    assert.equal(moved.notReturned, 1);
+    assert.equal(moved.applied.putBack.length, 0);
+    assert.equal(moved.applied.take.length, 1);
+    const undo = rejectUndoStep(moved.applied);
+    assert.deepEqual(undo.take, []);
+  });
+
+  it('a product with no stock set up says so instead of calling it removed', () => {
+    const live = products({
+      shorts: { stock: undefined, stockBySize: undefined, options: [], name: 'Club Shorts' },
+    });
+    const step = approveStep(item({ kind: 'damaged', wants: 'send-another', selection: {} }));
+    assert.throws(
+      () => applyStockMoves(live, step, { short: 'refuse' }),
+      /Stock is not set up for Club Shorts/,
+    );
+  });
+
   it('saves the staff choices back on the items, keeping every other field', () => {
     const raw = [{ ...base, kind: 'wrong-item', wants: 'refund', askedLabel: 'Wrong Item · Refund' }];
     const live = products({ tee: sized(1, 1) });

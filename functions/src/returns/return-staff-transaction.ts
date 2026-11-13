@@ -110,7 +110,9 @@ export async function runReturnStep(
       const order = orderSnap.data();
 
       const rawItems: unknown[] = Array.isArray(saved['items']) ? saved['items'] : [];
-      let items: StaffReturnItem[] = call.step === 'refund-sent' ? [] : readStaffItems(rawItems);
+      // Reject and Refund Sent never read the items, so one unreadable item can't block them.
+      let items: StaffReturnItem[] =
+        call.step === 'approve' || call.step === 'receive' ? readStaffItems(rawItems) : [];
       let step: StockStep | null = null;
       let short: 'refuse' | 'floor' = 'floor';
       const patch: DocumentData = {};
@@ -139,7 +141,6 @@ export async function runReturnStep(
         if (!saved['stockTakenAt']) {
           step = approveStep(items);
           short = 'refuse';
-          patch['approveStock'] = savedStep(step);
           patch['stockTakenAt'] = now;
         }
         patch['items'] = mergeItemChoices(rawItems, items);
@@ -166,6 +167,13 @@ export async function runReturnStep(
         patch['receivedAt'] = now;
         patch['receivedBy'] = actor.uid;
       } else {
+        const itemsEgp = typeof saved['itemsEgp'] === 'number' ? saved['itemsEgp'] : 0;
+        if (call.input.amountEgp > itemsEgp) {
+          throw new ReturnStepError(
+            'invalid-argument',
+            `That is more than the refunded items cost (EGP ${itemsEgp.toLocaleString('en-US')}). Check the amount.`,
+          );
+        }
         patch['refundSentEgp'] = call.input.amountEgp;
         patch['refundReference'] = call.input.reference;
         patch['refundSentAt'] = now;
@@ -186,7 +194,10 @@ export async function runReturnStep(
             updatedBy: actor.uid,
           });
         }
-        if (call.step !== 'approve') patch['stockNotReturned'] = notReturned;
+        // Approve saves only what really moved, so Reject never undoes a piece that was skipped.
+        if (call.step === 'approve') patch['approveStock'] = savedStep(moved.applied);
+        const before = typeof saved['stockNotReturned'] === 'number' ? saved['stockNotReturned'] : 0;
+        if (notReturned > 0) patch['stockNotReturned'] = before + notReturned;
         if (notReturned > 0) {
           console.warn('Return stock could not all go back', { requestId, notReturned });
         }

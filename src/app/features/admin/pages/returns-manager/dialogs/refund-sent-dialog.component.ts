@@ -3,12 +3,15 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-
-const REFERENCE_MAX = 100;
+import { REFUND_REFERENCE_MAX as REFERENCE_MAX } from '@core/config/returns';
 
 export interface RefundSentDialogData {
   readonly ref: string;
   readonly refundEgp: number;
+  /** "EGP 1,250". */
+  readonly refundLabel: string;
+  /** What the refunded items cost: the most the server accepts. */
+  readonly itemsEgp: number;
   /** The InstaPay number or address the customer gave. */
   readonly refundTo: string | null;
 }
@@ -45,9 +48,9 @@ export interface RefundSentDialogResult {
               (input)="amount.set($any($event.target).value)"
             />
             @if (amountValid()) {
-              <mat-hint>The refund total is EGP {{ data.refundEgp }}.</mat-hint>
+              <mat-hint>The refund total is {{ data.refundLabel }}.</mat-hint>
             } @else {
-              <mat-hint>Write the amount in whole pounds.</mat-hint>
+              <mat-hint>Write the amount in whole pounds, up to what the items cost.</mat-hint>
             }
           </mat-form-field>
           <mat-form-field class="w-full" appearance="outline">
@@ -79,7 +82,7 @@ export class RefundSentDialogComponent {
   readonly #amountEgp = computed(() => Number(this.amount()));
   readonly amountValid = computed(() => {
     const value = this.#amountEgp();
-    return Number.isInteger(value) && value >= 1 && value <= 1_000_000;
+    return Number.isInteger(value) && value >= 1 && value <= this.data.itemsEgp;
   });
 
   save(): void {
