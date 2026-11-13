@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
   input,
   linkedSignal,
@@ -18,6 +19,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 import { AuthService } from '@core/services/auth/auth.service';
+import { MetaPixelService } from '@core/services/analytics/meta-pixel.service';
 import { OffersService } from '@core/services/offers/offers.service';
 import { SearchService, type SearchSort } from '@core/services/search';
 import { SeoService } from '@core/services/seo';
@@ -59,6 +61,9 @@ export class SearchComponent implements OnInit {
   readonly #offers = inject(OffersService);
   readonly #auth = inject(AuthService);
   readonly #seo = inject(SeoService);
+  readonly #pixel = inject(MetaPixelService);
+  /** Query the Meta Pixel Search event was last sent for (ATS-290). */
+  #searchSentFor: string | null = null;
   readonly #destroyRef = inject(DestroyRef);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #document = inject(DOCUMENT);
@@ -155,6 +160,14 @@ export class SearchComponent implements OnInit {
       this.#nowMs.set(Date.now());
       const id = setInterval(() => this.#nowMs.set(Date.now()), 60_000);
       this.#destroyRef.onDestroy(() => clearInterval(id));
+    });
+
+    // Meta Pixel Search, once per query the shopper settles on (ATS-290).
+    effect(() => {
+      const query = this.normalizedQuery();
+      if (!this.#hydrated() || !this.hasMinQuery() || query === this.#searchSentFor) return;
+      this.#searchSentFor = query;
+      this.#pixel.track('Search', { search_string: query });
     });
 
     this.#destroyRef.onDestroy(() => {

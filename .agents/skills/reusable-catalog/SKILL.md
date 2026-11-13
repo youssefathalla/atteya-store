@@ -191,6 +191,7 @@ Located in `src/app/core/services/` or layout services. Inject them using `injec
 - **`customerIdForEmail(email)`** (`@core/services/customers`, <KEY>-278): the `customers/{id}` id for an email (SHA-256 hex of the trimmed, lower-cased email, Web Crypto, browser only; null without an email). Use it to link anything with an email to its customer page.
 - **Customer page pieces** (`customers-manager/customer-details/`, <KEY>-278): `app-customer-orders-card` (rows from `customerOrderRow()`, Show More Orders and Try Again outputs) and `app-customer-note-card` (`customerId` input; loads and saves `customerNotes/{id}`); pure helpers in `utils/customer-details.utils.ts`.
 
+- **`MetaPixelService`** (`src/app/core/services/analytics/meta-pixel.service.ts`, <KEY>-290): Meta Pixel for the client's ads, live store only (`environment.metaPixelId`). `start()` (app initializer, PageView per path), `track(event, params?, eventId?)`, `trackAddToCart(lines, valueEgp?)`, `trackOrderPurchase(orderId, pricing)` (once per order per browser). `metaPixelContents(lines)` turns bag or order lines into Meta's `content_ids` / `contents` / `num_items`. Debug: `localStorage.metaPixelDebug = '1'`.
 - **`DrawerService`** (`src/app/core/services/drawer/drawer.service.ts`):
   - `activeDrawer()`: Signal representing current open drawer (`'cart'`, `'menu'`, or `null`).
   - `open(name)`: Opens specified drawer.
