@@ -314,3 +314,13 @@ export function accountFieldsChanged(
   }
   return false;
 }
+
+/**
+ * True for a team account (Admin or Staff), which gets no customer record (ATS-288): team members
+ * are listed on Settings → Team, not in Customers. The `roles/{uid}` mirror wins when it exists,
+ * because `setUserRole` writes it before the Auth claim; otherwise the claim decides.
+ */
+export function isTeamAccount(mirrorRole: unknown, claimRole: unknown): boolean {
+  const role = mirrorRole === undefined ? claimRole : mirrorRole;
+  return role === 'admin' || role === 'staff';
+}

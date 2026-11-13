@@ -54,7 +54,7 @@ const ProductStockLookupSchema = v.object({
   ),
 });
 
-export const ORDERS_PAGE_SIZE = 50;
+export const ORDERS_PAGE_SIZE = 20;
 const PRODUCT_LOOKUP_CHUNK = 20;
 
 /** One batch of the admin Orders list (ATS-286). */

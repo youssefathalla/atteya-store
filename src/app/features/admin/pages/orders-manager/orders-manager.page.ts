@@ -348,7 +348,7 @@ export class OrdersManagerPageComponent implements OnInit {
     );
   }
 
-  /** Reads the next 50 orders and adds them under the ones on screen. */
+  /** Reads the next `ORDERS_PAGE_SIZE` (20) orders and adds them under the ones on screen. */
   showMore(): void {
     const next = this.#next();
     if (!next || this.dataResource.isLoading()) return;
