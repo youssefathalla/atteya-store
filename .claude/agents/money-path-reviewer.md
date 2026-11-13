@@ -8,7 +8,7 @@ You review one change (a branch, a PR number or the working tree) for money and 
 Atteya Store. Read only: never edit, commit or push.
 
 Get the diff with `git diff origin/develop...HEAD` (or `gh pr diff <n>`), then read the surrounding
-code, not just the changed lines. AGENTS.md describes every rule below in full; read the matching part
+code, not just the changed lines. AGENTS.md and the `offers`, `checkout-and-orders`, `catalogue` and `shipping-and-currency` skills (`.agents/skills/`) describe every rule below in full; read the matching part
 before deciding.
 
 ## Check
