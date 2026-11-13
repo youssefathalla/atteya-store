@@ -46,12 +46,17 @@ const DEBUG_KEY = 'metaPixelDebug';
 /** Purchase ids already sent from this browser, so a reload of the order page doesn't count twice. */
 const SENT_PURCHASES_KEY = 'metaPixelPurchases';
 
-/** True when a URL (or its `?query` / `#hash` part) carries a guest order's view key (`key=`). */
-function hasViewKey(url: string): boolean {
-  // Also inside another link in the URL, e.g. `/login?returnUrl=%2Fcheckout%2Fconfirmation%2F…%3Fkey%3D…`.
+/**
+ * True when a URL holds something Meta must not see, also inside another link in it (a sign-in
+ * `returnUrl=%2F…`): a guest order's view key (`key=`), or an order page address with Paymob's
+ * return details after it (they can hold a wallet phone number).
+ */
+function hasPrivateLink(url: string): boolean {
+  const isPrivate = (text: string) =>
+    /[?&]key=/.test(text) || /\/checkout\/confirmation\/[^?#&\s]*\?[^&#?\s]/.test(text);
   let text = url;
   for (let round = 0; round < 3; round++) {
-    if (/[?&]key=/.test(text)) return true;
+    if (isPrivate(text)) return true;
     let decoded: string;
     try {
       decoded = decodeURIComponent(text);
@@ -61,7 +66,7 @@ function hasViewKey(url: string): boolean {
     if (decoded === text) return false;
     text = decoded;
   }
-  return /[?&]key=/.test(text);
+  return isPrivate(text);
 }
 
 /**
@@ -135,7 +140,7 @@ export class MetaPixelService {
         // A guest order's view key (`?key=`) opens the order: never let Meta read it from the page
         // URL. The order page takes it out with a `replaceUrl` navigation, and that one sends the
         // PageView (the path is not recorded here, so it still counts as a new page).
-        if (hasViewKey(event.urlAfterRedirects)) return;
+        if (hasPrivateLink(event.urlAfterRedirects)) return;
         const path = event.urlAfterRedirects.split(/[?#]/)[0] ?? '';
         const query = event.urlAfterRedirects.split('#')[0]?.slice(path.length + 1) ?? '';
         if (isOrderPageWithQuery(path, query)) return;
@@ -249,7 +254,7 @@ export class MetaPixelService {
     const location = this.#window()?.location;
     if (!location) return false;
     if (isOrderPageWithQuery(location.pathname, location.search.replace(/^\?/, ''))) return true;
-    return hasViewKey(`${location.search}${location.hash}`);
+    return hasPrivateLink(`${location.search}${location.hash}`);
   }
 
   #newEventId(event: MetaPixelEvent): string {
