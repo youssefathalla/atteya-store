@@ -30,7 +30,6 @@ import {
 } from '@core/services/customers';
 import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
 import { SavedAddressSchema, USERS_COLLECTION, type SavedAddress } from '@core/services/user-profile';
-import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
 import {
   CUSTOMER_ORDERS_PAGE_SIZE,
   orderEmailValues,
@@ -77,7 +76,7 @@ export interface CustomerSummaryCounts {
 export interface CustomerOrdersPage {
   readonly orders: readonly OrderDoc[];
   /** Where the next page starts; null when this page was the last. */
-  readonly next: QueryDocumentSnapshot<OrderDoc> | null;
+  readonly next: QueryDocumentSnapshot | null;
 }
 
 /** Firestore filters for a chip. With a search, only the account filters run on the server. */
@@ -180,13 +179,8 @@ export class CustomersAdminService {
    * Up to `CUSTOMER_ORDERS_PAGE_SIZE` of the customer's orders, newest placed first: every order
    * saved with their email (lower-cased, or another spelling the customer summary found).
    */
-  async listOrders(
-    customer: Customer,
-    after: QueryDocumentSnapshot<OrderDoc> | null,
-  ): Promise<CustomerOrdersPage> {
-    const orders = collection(this.#firestore, ORDERS_COLLECTION).withConverter(
-      createValibotConverter(OrderSchema),
-    );
+  async listOrders(customer: Customer, after: QueryDocumentSnapshot | null): Promise<CustomerOrdersPage> {
+    const orders = collection(this.#firestore, ORDERS_COLLECTION);
     const snap = await getDocs(
       query(
         orders,
@@ -197,8 +191,17 @@ export class CustomersAdminService {
       ),
     );
     const docs = snap.docs;
+    const parsed: OrderDoc[] = [];
+    for (const item of docs) {
+      // One order that doesn't parse is left out instead of failing the whole card.
+      const result = v.safeParse(OrderSchema, {
+        ...item.data({ serverTimestamps: 'estimate' }),
+        id: item.id,
+      });
+      if (result.success) parsed.push(result.output);
+    }
     return {
-      orders: docs.map((item) => item.data()),
+      orders: parsed,
       next: docs.length === CUSTOMER_ORDERS_PAGE_SIZE ? (docs[docs.length - 1] ?? null) : null,
     };
   }

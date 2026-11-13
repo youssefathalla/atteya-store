@@ -99,6 +99,14 @@
           aria-labelledby="customer-addresses-title"
         >
           <h2 id="customer-addresses-title" class="font-title-md font-bold!">Delivery Addresses</h2>
+          @if (accountAddressFailed()) {
+            <div class="grid gap-2 justify-items-start" role="alert">
+              <p class="font-body-sm">We couldn't load the address saved on the account.</p>
+              <button matButton="outlined" type="button" (click)="accountAddressResource.reload()">
+                Try Again
+              </button>
+            </div>
+          }
           @if (addressesLoading() && addresses().length === 0) {
             <app-skeleton class="h-20 w-full" />
           } @else if (addresses().length === 0) {
@@ -119,7 +127,7 @@
           }
         </section>
 
-        <app-customer-note-card [customerId]="v.customer.id" />
+        <app-customer-note-card [customerId]="customerId()" />
       </div>
     </div>
   } @else {

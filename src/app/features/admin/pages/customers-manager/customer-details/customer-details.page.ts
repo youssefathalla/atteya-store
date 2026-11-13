@@ -13,7 +13,6 @@ import { RouterLink } from '@angular/router';
 import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import { MatButtonModule } from '@angular/material/button';
 import type { Customer } from '@core/services/customers';
-import type { OrderDoc } from '@core/services/orders/order.schema';
 import { SeoService } from '@core/services/seo';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import type { SavedAddress } from '@core/services/user-profile';
@@ -110,7 +109,7 @@ export class CustomerDetailsPageComponent implements OnInit {
   });
 
   /** Where the orders page being loaded starts (Show More Orders moves it on). */
-  readonly #cursor = linkedSignal<unknown, QueryDocumentSnapshot<OrderDoc> | null>({
+  readonly #cursor = linkedSignal<unknown, QueryDocumentSnapshot | null>({
     source: this.customer,
     computation: () => null,
   });
@@ -142,7 +141,12 @@ export class CustomerDetailsPageComponent implements OnInit {
   });
 
   readonly #orders = computed(() => this.#pages().flatMap((page) => page.orders));
-  readonly orderRows = computed(() => this.#orders().map((order) => customerOrderRow(order, this.#now)));
+  /** Payment Failed orders are left out, like in the Orders count (only a failed card attempt). */
+  readonly orderRows = computed(() =>
+    this.#orders()
+      .filter((order) => order.status !== 'failed')
+      .map((order) => customerOrderRow(order, this.#now)),
+  );
   readonly #nextCursor = computed(() => this.#pages().at(-1)?.next ?? null);
   readonly hasMoreOrders = computed(() => this.#nextCursor() !== null);
   readonly ordersFirstLoading = computed(
@@ -156,15 +160,7 @@ export class CustomerDetailsPageComponent implements OnInit {
       const uid = this.customer()?.uid;
       return uid ? { uid } : undefined;
     },
-    loader: async ({ params }): Promise<SavedAddress | null> => {
-      try {
-        return await this.#customersAdmin.getAccountAddress(params.uid);
-      } catch (error: unknown) {
-        // The saved address is extra; the order addresses still show without it.
-        console.error('[admin/customers] account address read failed', error);
-        return null;
-      }
-    },
+    loader: ({ params }): Promise<SavedAddress | null> => this.#customersAdmin.getAccountAddress(params.uid),
   });
 
   readonly addresses = computed(() =>
@@ -176,6 +172,8 @@ export class CustomerDetailsPageComponent implements OnInit {
   readonly addressesLoading = computed(
     () => this.ordersFirstLoading() || this.accountAddressResource.isLoading(),
   );
+  /** The account's saved address couldn't be read; the order addresses still show. */
+  readonly accountAddressFailed = computed(() => this.accountAddressResource.status() === 'error');
 
   ngOnInit(): void {
     this.#seo.setPageMetadata({

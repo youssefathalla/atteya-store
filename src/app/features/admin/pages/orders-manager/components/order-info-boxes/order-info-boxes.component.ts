@@ -103,9 +103,10 @@ export class OrderInfoBoxesComponent {
   readonly customerId = resource({
     params: () => {
       const email = this.details().customer.email;
-      return email && this.#browser ? { email } : undefined;
+      // The email itself (not a new object), so a live order update doesn't hash it again.
+      return email && this.#browser ? email : undefined;
     },
-    loader: ({ params }) => customerIdForEmail(params.email),
+    loader: ({ params }) => customerIdForEmail(params),
   });
 
   async copy(text: string, what: string): Promise<void> {

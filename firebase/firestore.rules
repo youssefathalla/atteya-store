@@ -148,8 +148,7 @@ service cloud.firestore {
         && request.resource.data.note.size() <= 1000
         && request.resource.data.updatedAt == request.time
         && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.updatedByEmail is string
-        && request.resource.data.updatedByEmail.size() <= 320;
+        && request.resource.data.updatedByEmail == request.auth.token.get('email', '');
       allow delete: if false;
     }
 

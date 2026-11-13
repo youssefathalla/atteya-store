@@ -9,6 +9,7 @@ import {
   resource,
   signal,
 } from '@angular/core';
+import { Timestamp } from 'firebase/firestore';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -118,8 +119,11 @@ export class CustomerNoteCardComponent {
     if (!user || this.isSaving()) return;
     this.isSaving.set(true);
     try {
-      await this.#customersAdmin.saveNote(this.customerId(), this.draft(), user.uid, user.email ?? '');
-      this.noteResource.reload();
+      const note = this.draft();
+      const email = user.email ?? '';
+      await this.#customersAdmin.saveNote(this.customerId(), note, user.uid, email);
+      // Show what was saved straight away (no second read that could fail or reset the box).
+      this.noteResource.set({ note, updatedAt: Timestamp.now(), updatedBy: user.uid, updatedByEmail: email });
       this.#snackbar.success('Note saved.');
     } catch (error: unknown) {
       console.error('[admin/customers] note save failed', error);
