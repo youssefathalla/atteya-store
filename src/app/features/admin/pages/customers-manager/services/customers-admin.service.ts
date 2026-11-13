@@ -2,20 +2,39 @@ import { Service } from '@angular/core';
 import {
   average,
   collection,
+  doc,
   getAggregateFromServer,
   getCountFromServer,
+  getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  serverTimestamp,
+  setDoc,
   startAfter,
   Timestamp,
   where,
   type QueryConstraint,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import * as v from 'valibot';
 import { injectFirestore } from '@core/firebase';
-import { CUSTOMERS_COLLECTION, customerConverter, type Customer } from '@core/services/customers';
+import {
+  CUSTOMER_NOTES_COLLECTION,
+  CUSTOMERS_COLLECTION,
+  customerConverter,
+  customerNoteConverter,
+  type Customer,
+  type CustomerNote,
+} from '@core/services/customers';
+import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from '@core/services/orders/order.schema';
+import { SavedAddressSchema, USERS_COLLECTION, type SavedAddress } from '@core/services/user-profile';
+import { createValibotConverter } from '@shared/utils/firebase/firestore-converter';
+import {
+  CUSTOMER_ORDERS_PAGE_SIZE,
+  orderEmailValues,
+} from '../customer-details/utils/customer-details.utils';
 import {
   CUSTOMER_SORT_FIELD,
   CUSTOMERS_PAGE_SIZE,
@@ -52,6 +71,13 @@ export interface CustomerSummaryCounts {
   readonly accounts: CustomerCount;
   readonly guests: CustomerCount;
   readonly accountNoOrder: CustomerCount;
+}
+
+/** One page of a customer's orders (customer page, ATS-278). */
+export interface CustomerOrdersPage {
+  readonly orders: readonly OrderDoc[];
+  /** Where the next page starts; null when this page was the last. */
+  readonly next: QueryDocumentSnapshot<OrderDoc> | null;
 }
 
 /** Firestore filters for a chip. With a search, only the account filters run on the server. */
@@ -142,5 +168,64 @@ export class CustomersAdminService {
       ]);
 
     return { total, newThisMonth, ordered, repeat, averageSpentEgp, accounts, guests, accountNoOrder };
+  }
+
+  /** One customer by id (customer page, ATS-278); null when there is no such customer. */
+  async getCustomer(customerId: string): Promise<Customer | null> {
+    const snap = await getDoc(doc(this.#collection(), customerId));
+    return snap.exists() ? snap.data() : null;
+  }
+
+  /**
+   * Up to `CUSTOMER_ORDERS_PAGE_SIZE` of the customer's orders, newest placed first: every order
+   * saved with their email (lower-cased, or another spelling the customer summary found).
+   */
+  async listOrders(
+    customer: Customer,
+    after: QueryDocumentSnapshot<OrderDoc> | null,
+  ): Promise<CustomerOrdersPage> {
+    const orders = collection(this.#firestore, ORDERS_COLLECTION).withConverter(
+      createValibotConverter(OrderSchema),
+    );
+    const snap = await getDocs(
+      query(
+        orders,
+        where('customerEmail', 'in', orderEmailValues(customer)),
+        orderBy('createdAt', 'desc'),
+        ...(after ? [startAfter(after)] : []),
+        limit(CUSTOMER_ORDERS_PAGE_SIZE),
+      ),
+    );
+    const docs = snap.docs;
+    return {
+      orders: docs.map((item) => item.data()),
+      next: docs.length === CUSTOMER_ORDERS_PAGE_SIZE ? (docs[docs.length - 1] ?? null) : null,
+    };
+  }
+
+  /** The address saved on the account (`users/{uid}.address`); null when none or unreadable. */
+  async getAccountAddress(uid: string): Promise<SavedAddress | null> {
+    const snap = await getDoc(doc(this.#firestore, USERS_COLLECTION, uid));
+    if (!snap.exists()) return null;
+    const parsed = v.safeParse(SavedAddressSchema, snap.get('address'));
+    return parsed.success ? parsed.output : null;
+  }
+
+  /** The staff note on a customer; null when nobody wrote one yet. */
+  async getNote(customerId: string): Promise<CustomerNote | null> {
+    const snap = await getDoc(
+      doc(this.#firestore, CUSTOMER_NOTES_COLLECTION, customerId).withConverter(customerNoteConverter),
+    );
+    return snap.exists() ? snap.data() : null;
+  }
+
+  /** Saves the whole note (the rules check the length, the server time and the saver's uid). */
+  async saveNote(customerId: string, note: string, uid: string, email: string): Promise<void> {
+    await setDoc(doc(this.#firestore, CUSTOMER_NOTES_COLLECTION, customerId), {
+      note,
+      updatedAt: serverTimestamp(),
+      updatedBy: uid,
+      updatedByEmail: email,
+    });
   }
 }

@@ -1,5 +1,8 @@
-import { Component, inject, input } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Component, inject, input, PLATFORM_ID, resource } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { customerIdForEmail } from '@core/services/customers';
 import { SnackbarService } from '@core/services/snack-bar/snack-bar.service';
 import type { OrderDetails } from '../../models/order-admin.model';
 
@@ -10,12 +13,16 @@ import type { OrderDetails } from '../../models/order-admin.model';
 @Component({
   selector: 'app-order-info-boxes',
   host: { class: 'contents' },
-  imports: [MatButtonModule],
+  imports: [MatButtonModule, RouterLink],
   template: `
     @let d = details();
     <section class="admin-order-box" aria-label="Customer">
       <h3 class="admin-order-box__title">Customer</h3>
-      <p class="font-bold! break-words">{{ d.customer.name }}</p>
+      @if (customerId.hasValue() && customerId.value(); as id) {
+        <a class="admin-order-customer-link" [routerLink]="['/admin/customers', id]">{{ d.customer.name }}</a>
+      } @else {
+        <p class="font-bold! break-words">{{ d.customer.name }}</p>
+      }
       @if (d.customer.email; as email) {
         <div class="admin-order-copy">
           <span class="break-all">{{ email }}</span>
@@ -89,6 +96,17 @@ export class OrderInfoBoxesComponent {
   readonly #snackbar = inject(SnackbarService);
 
   readonly details = input.required<OrderDetails>();
+
+  readonly #browser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  /** The customer page id (SHA-256 of the lower-cased order email, ATS-278); null without an email. */
+  readonly customerId = resource({
+    params: () => {
+      const email = this.details().customer.email;
+      return email && this.#browser ? { email } : undefined;
+    },
+    loader: ({ params }) => customerIdForEmail(params.email),
+  });
 
   async copy(text: string, what: string): Promise<void> {
     try {

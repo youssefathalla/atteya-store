@@ -10,6 +10,11 @@
     @apply font-title-sm font-bold!;
   }
 
+  /* The customer's name in the Customer box opens their customer page (ATS-278). */
+  .admin-order-customer-link {
+    @apply font-bold! break-words underline underline-offset-2 hover:no-underline;
+  }
+
   /* "Subtotal ........ EGP 5,000": label on the left, value on the right, wraps on a narrow box. */
   .admin-order-pair {
     @apply elements-between flex-wrap gap-x-3 gap-y-0.5 min-w-0;

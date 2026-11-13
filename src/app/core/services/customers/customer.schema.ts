@@ -42,6 +42,8 @@ export const CustomerSchema = v.object({
   createdAt: optionalDate,
   updatedAt: optionalDate,
   searchTokens: v.fallback(v.array(v.string()), []),
+  /** Other spellings of the email that orders were saved with (`Mariam@Gmail.com`). */
+  emailVariants: v.fallback(v.array(v.string()), []),
 });
 
 export type Customer = v.InferOutput<typeof CustomerSchema>;

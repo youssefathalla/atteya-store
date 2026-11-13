@@ -93,4 +93,108 @@
   .customer-row__arrow {
     @apply hidden @3xl:flex justify-end text-on-surface-variant;
   }
+
+  /*! admin customer page: black header, orders, addresses (ATS-278) */
+
+  /* Black header: circle, name and pills, contact line, buttons (full width on phone). */
+  .customer-hero {
+    @apply bg-primary text-on-primary border-shape p-5 @3xl:p-6 grid gap-5 @3xl:flex @3xl:items-start @3xl:justify-between;
+  }
+
+  .customer-hero__avatar {
+    @apply size-14 shrink-0 elements-center rounded-full bg-on-primary text-primary font-headline-sm font-bold!;
+  }
+
+  .customer-hero__muted {
+    @apply opacity-75;
+  }
+
+  /* Outlined white pill (Guest, Returning); Account is solid white. */
+  .customer-hero__pill {
+    @apply shrink-0 inline-flex items-center border border-on-primary border-shape px-2 py-0.5 font-label-sm;
+  }
+
+  .customer-hero__pill--solid {
+    @apply bg-on-primary text-primary;
+  }
+
+  .customer-hero__actions {
+    @apply grid gap-2 @3xl:flex @3xl:shrink-0 @3xl:flex-wrap;
+  }
+
+  /* Outlined white button on the black header; --solid is the white one. */
+  .customer-hero__button {
+    @apply elements-center gap-2 h-10 px-4 border border-on-primary border-shape font-label-lg cursor-pointer w-full @3xl:w-auto;
+  }
+
+  .customer-hero__button:hover {
+    @apply bg-on-primary/10;
+  }
+
+  .customer-hero__button--solid {
+    @apply bg-on-primary text-primary;
+  }
+
+  .customer-hero__button--solid:hover {
+    @apply bg-on-primary/90;
+  }
+
+  /*
+   * One order on the customer page. Phone: ref and date, then photos, then items · payment with
+   * status and total. From @3xl: one line.
+   */
+  .customer-order {
+    @apply grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 p-4 text-start;
+    @apply @3xl:grid-cols-[7rem_7.5rem_minmax(0,1fr)_auto_6.5rem_1.5rem] @3xl:gap-4 @3xl:px-5 @3xl:py-3;
+  }
+
+  .customer-order:hover {
+    @apply bg-surface-container-low;
+  }
+
+  .customer-order__item {
+    @apply border-b border-outline-variant last:border-b-0;
+  }
+
+  .customer-order__ref {
+    @apply elements-start-col gap-0.5 min-w-0;
+  }
+
+  .customer-order__photos {
+    @apply elements-start gap-1.5 min-w-0 justify-end @3xl:justify-start;
+  }
+
+  .customer-order__summary {
+    @apply font-body-md text-on-surface-variant min-w-0 truncate;
+  }
+
+  .customer-order__status {
+    @apply elements-start justify-end @3xl:justify-start;
+  }
+
+  .customer-order__total {
+    @apply font-title-sm font-bold! tabular-nums col-span-2 text-end @3xl:col-span-1;
+  }
+
+  .customer-order__arrow {
+    @apply hidden @3xl:flex justify-end text-on-surface-variant;
+  }
+
+  /* Order status pill: black (confirmed, shipped, delivered), outlined (waiting), light grey (the rest). */
+  .customer-status {
+    @apply inline-flex items-center border border-primary border-shape px-2 py-0.5 font-label-sm whitespace-nowrap;
+  }
+
+  .customer-status[data-tone='solid'] {
+    @apply bg-primary text-on-primary;
+  }
+
+  .customer-status[data-tone='muted'] {
+    @apply border-surface-container-highest bg-surface-container-highest text-on-surface-variant;
+  }
+
+  /* One delivery address. */
+  .customer-address {
+    @apply elements-start-col gap-1.5 border border-outline-variant border-shape p-3;
+  }
 }

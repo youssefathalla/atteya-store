@@ -94,6 +94,14 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Customers | Atteya Admin',
       },
       {
+        path: 'customers/:customerId',
+        loadComponent: () =>
+          import('./pages/customers-manager/customer-details/customer-details.page').then(
+            (m) => m.CustomerDetailsPageComponent,
+          ),
+        title: 'Customer | Atteya Admin',
+      },
+      {
         // Componentless parent: each Settings sidebar entry is a standalone page
         // (no shared in-page tab/switcher duplicating the admin sidebar).
         path: 'settings',
