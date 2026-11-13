@@ -29,5 +29,6 @@
 @import './styles/tailwind/components/admin-customers';
 @import './styles/tailwind/components/admin-offers';
 @import './styles/tailwind/components/admin-catalog';
+@import './styles/tailwind/components/admin-returns';
 @import './styles/tailwind/components/product-editor';
 @import './styles/tailwind/utils-base';

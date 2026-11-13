@@ -1,10 +1,21 @@
-import { computed, DestroyRef, inject, Service, signal, WritableSignal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import {
+  computed,
+  DestroyRef,
+  inject,
+  PLATFORM_ID,
+  resource,
+  Service,
+  signal,
+  WritableSignal,
+} from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '@core/services/auth/auth.service';
 import { AdminNavCategory } from './admin-nav.model';
 import { ADMIN_NAV_CATEGORIES } from './admin-nav.data';
+import { ReturnsAdminService } from '../pages/returns-manager/services/returns-admin.service';
 
 const SIDEBAR_STORAGE_KEY = 'atteya_admin_sidebar_open';
 
@@ -36,15 +47,35 @@ export class AdminNavService {
   readonly #router = inject(Router);
   readonly #destroyRef = inject(DestroyRef);
   readonly #auth = inject(AuthService);
+  readonly #returns = inject(ReturnsAdminService);
+  readonly #browser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  /** The sidebar; staff don't see admin-only pages (Team). */
+  /** Bumped after a Returns step so the menu count reads again. */
+  readonly #returnsCountVersion = signal(0);
+
+  /** Requests waiting for Approve or Reject (ATS-293); shown on the Returns menu item. */
+  readonly #requestedCount = resource({
+    params: () =>
+      this.#browser && this.#auth.canManageStore() ? { version: this.#returnsCountVersion() } : undefined,
+    loader: () => this.#returns.countRequested(),
+  });
+
+  /** The sidebar; staff don't see admin-only pages (Team). Returns shows its Requested count. */
   readonly categories = computed<readonly AdminNavCategory[]>(() => {
-    if (this.#auth.isAdmin()) return ADMIN_NAV_CATEGORIES;
+    const isAdmin = this.#auth.isAdmin();
+    const count = this.#requestedCount.hasValue() ? this.#requestedCount.value() : 0;
     return ADMIN_NAV_CATEGORIES.map((category) => ({
       ...category,
-      subItems: category.subItems?.filter((item) => !item.adminOnly),
+      subItems: category.subItems
+        ?.filter((item) => isAdmin || !item.adminOnly)
+        .map((item) => (item.id === 'returns' && count > 0 ? { ...item, badge: String(count) } : item)),
     }));
   });
+
+  /** Reads the Returns count again (after Approve or Reject). */
+  refreshReturnsCount(): void {
+    this.#returnsCountVersion.update((version) => version + 1);
+  }
   readonly isMobileMenuOpen = signal<boolean>(false);
   readonly selectedCategory = signal<AdminNavCategory | null>(null);
 
