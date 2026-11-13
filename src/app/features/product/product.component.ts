@@ -442,7 +442,7 @@ export class ProductComponent {
         // A Bundle price line opens the offer's Shop page and a Bundle & Save line the offer's own
         // page with this product already picked; there the shopper picks the other pieces.
         // The Bundle & Save offer this product is in shows as the black strip instead (ATS-281).
-        if (offer && kind === 'bundleSet' && offer.id === this.bundleSave()?.offer.id) continue;
+        if (offer && kind === 'bundleSet' && offer.id === this.bundleStrip()?.offerId) continue;
         let link: OfferLink | null = null;
         if (offer && kind === 'bundleSet') {
           const base = bundleOfferLink(offer);
@@ -769,11 +769,16 @@ export class ProductComponent {
    * The black Bundle & Save strip under the price (ATS-281): one link to the offer's page with
    * this product already picked. Null when the product is in no Bundle & Save offer it can show.
    */
-  readonly bundleStrip = computed<{ readonly text: string; readonly link: OfferLink } | null>(() => {
+  readonly bundleStrip = computed<{
+    readonly offerId: string;
+    readonly text: string;
+    readonly link: OfferLink;
+  } | null>(() => {
     const bundle = this.bundleSave();
     const id = this.product()?.id;
     if (!bundle || !id) return null;
     return {
+      offerId: bundle.offer.id,
       text: bundleSaveStripText(bundle, (egp) => this.#money(egp)),
       link: { ...bundleOfferLink(bundle.offer), query: { product: id } },
     };

@@ -1,5 +1,4 @@
 import type { GiftChoiceView } from '@core/services/cart/cart-gifts';
-import { bundleSetNudgeReward } from '@core/services/offers/offer-shop';
 import {
   bundleSetOffersForItem,
   bundleSetSlotFits,
@@ -223,15 +222,29 @@ export function bundleSaveHeaderSaving(reward: OfferBundleSetReward, money: (egp
 
 /**
  * The bold line of the black Bundle & Save strip under the price (ATS-281): "Add socks and save
- * 60%" when the offer has 2 groups (the other group's name in lower case, "2 × ball" for a group
- * of 2+), "Complete the kit and save 60%" for 3 or more. The saving reads like the bag's nudge
- * ("save EGP 500", "get it for EGP 4,500", "get the cheapest one free").
+ * 60%" when the offer has 2 groups and this product's group takes one piece (the other group's
+ * name in lower case: "a bag", "socks", "2 × ball"), "Complete the kit and save 60%" otherwise.
+ * The saving: "save 60%", "save EGP 500", "get the bundle for EGP 4,500", "get the cheapest one free".
  */
 export function bundleSaveStripText(bundle: ProductBundleSave, money: (egp: number) => string): string {
-  const reward = bundleSetNudgeReward(bundle.setReward, money);
+  const reward = bundleSaveStripReward(bundle.setReward, money);
+  const own = bundle.slots[bundle.ownSlot];
   const other = bundle.slots.length === 2 ? bundle.slots[1 - bundle.ownSlot] : undefined;
-  if (!other) return `Complete the kit and ${reward}`;
-  const name = other.name.trim().toLowerCase();
-  const what = other.quantity > 1 ? `${other.quantity} × ${name}` : name;
+  if (!other || !own || own.quantity > 1) return `Complete the kit and ${reward}`;
+  const what =
+    other.quantity > 1 ? `${other.quantity} × ${other.name.trim().toLowerCase()}` : withArticle(other, 0);
   return `Add ${what} and ${reward}`;
+}
+
+function bundleSaveStripReward(reward: OfferBundleSetReward, money: (egp: number) => string): string {
+  switch (reward.type) {
+    case 'percent':
+      return `save ${reward.percent}%`;
+    case 'amount':
+      return `save ${money(reward.amount)}`;
+    case 'total':
+      return `get the bundle for ${money(reward.price)}`;
+    case 'cheapestFree':
+      return 'get the cheapest one free';
+  }
 }

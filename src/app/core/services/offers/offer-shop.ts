@@ -184,14 +184,7 @@ export function bundleSetNudgeLoses(
   return least >= reward.amount;
 }
 
-/**
- * What a full Bundle & Save set gets the shopper, to follow "and": "save 15%", "save EGP 500",
- * "get it for EGP 4,500" or "get the cheapest one free".
- */
-export function bundleSetNudgeReward(
-  reward: OfferBundleSetReward,
-  money: (egp: number) => string = egpText,
-): string {
+function bundleSetNudgeReward(reward: OfferBundleSetReward, money: (egp: number) => string): string {
   switch (reward.type) {
     case 'percent':
       return `save ${reward.percent}%`;
