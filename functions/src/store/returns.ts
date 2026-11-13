@@ -220,7 +220,7 @@ export interface ReturnSummaryItem {
 
 /**
  * One entry of the order's `returns` array (written only by the server). `storeFault`,
- * `refundEgp`, `rejectReason` and each item's `askedLabel` are what the shopper's request box
+ * `refundEgp`, `refundSentEgp`, `rejectReason` and each item's `askedLabel` are what the shopper's request box
  * shows (ATS-296): older entries have none, the website reads them with `readRequestDetails()`,
  * and `readReturnSummaries()` leaves them out. The summary never carries the InstaPay details,
  * the staff history or staff notes, because shoppers (and guests, through `orderViews`) read it.
@@ -236,8 +236,10 @@ export interface ReturnSummary {
   readonly createdAtMs: number | null;
   /** Any item is Damaged or Wrong Item Sent (free courier, Send Photos on WhatsApp). */
   readonly storeFault?: boolean;
-  /** Refund after the courier fee, whole EGP (`returnRequests/{id}.refundEgp`); after Refund Sent, what was sent. */
+  /** Refund after the courier fee, whole EGP (`returnRequests/{id}.refundEgp`). */
   readonly refundEgp?: number;
+  /** Refund Sent: what staff really sent, whole EGP; the shopper's box shows this over `refundEgp`. */
+  readonly refundSentEgp?: number;
   /** Why staff rejected it, as the shopper sees it (Rejected only). */
   readonly rejectReason?: string;
 }
@@ -282,7 +284,7 @@ export function readReturnSummaries(raw: unknown): ReturnSummary[] {
 export interface ReturnStatusExtras {
   /** Rejected: the reason the shopper sees (trimmed; an empty one is not written). */
   readonly rejectReason?: string | null;
-  /** Refund Sent: the amount staff really sent, whole EGP (replaces the expected `refundEgp`). */
+  /** Refund Sent: the amount staff really sent, whole EGP (saved as `refundSentEgp`). */
   readonly refundSentEgp?: number | null;
 }
 
@@ -304,7 +306,7 @@ export function withReturnStatus(
   if (status === 'rejected' && reason) patch['rejectReason'] = reason;
   const sent = extras.refundSentEgp;
   if (status === 'refund-sent' && typeof sent === 'number' && Number.isFinite(sent)) {
-    patch['refundEgp'] = wholeOrZero(sent);
+    patch['refundSentEgp'] = wholeOrZero(sent);
   }
   return raw.map((entry: unknown) =>
     isRecord(entry) && entry['id'] === requestId ? { ...entry, ...patch } : entry,

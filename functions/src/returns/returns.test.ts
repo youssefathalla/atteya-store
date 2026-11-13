@@ -201,7 +201,7 @@ describe('statuses', () => {
   it('saves the amount staff really sent with Refund Sent', () => {
     const raw = [{ id: 'r1', status: 'received', items: [], refundEgp: 580 }];
     assert.deepEqual(withReturnStatus(raw, 'r1', 'refund-sent', { refundSentEgp: 700 }), [
-      { id: 'r1', status: 'refund-sent', items: [], refundEgp: 700 },
+      { id: 'r1', status: 'refund-sent', items: [], refundEgp: 580, refundSentEgp: 700 },
     ]);
     // Only Refund Sent changes the amount.
     assert.deepEqual(withReturnStatus(raw, 'r1', 'rejected', { refundSentEgp: 700 }), [

@@ -259,7 +259,7 @@ export interface ReturnRequestDetails {
 
 /**
  * Extra fields the server may add to an entry of the order's `returns` summary (`askedLabel`
- * per item, `storeFault`, `refundEgp`, `rejectReason`). `readReturnSummaries()` keeps only the
+ * per item, `storeFault`, `refundEgp`, `refundSentEgp`, `rejectReason`). `readReturnSummaries()` keeps only the
  * fields every entry has, so these are read here; anything missing is null.
  */
 export function readRequestDetails(raw: unknown, requestId: string): Partial<ReturnRequestDetails> {
@@ -280,9 +280,11 @@ export function readRequestDetails(raw: unknown, requestId: string): Partial<Ret
   const out: { -readonly [K in keyof ReturnRequestDetails]?: ReturnRequestDetails[K] } = {};
   if (Object.keys(asked).length > 0) out.asked = asked;
   if (typeof entry['storeFault'] === 'boolean') out.storeFault = entry['storeFault'];
-  if (typeof entry['refundEgp'] === 'number' && Number.isFinite(entry['refundEgp'])) {
-    out.refundEgp = Math.max(0, Math.round(entry['refundEgp']));
-  }
+  // After Refund Sent the box shows what staff really sent (`refundSentEgp`), else the planned refund.
+  const refund = [entry['refundSentEgp'], entry['refundEgp']].find(
+    (value): value is number => typeof value === 'number' && Number.isFinite(value),
+  );
+  if (refund !== undefined) out.refundEgp = Math.max(0, Math.round(refund));
   const reason = entry['rejectReason'];
   if (typeof reason === 'string' && reason.trim()) out.rejectReason = reason.trim();
   return out;
