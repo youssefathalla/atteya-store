@@ -183,6 +183,25 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Return and exchange requests (ATS-291): saved by the requestReturn / cancelReturnRequest
+    // callables, read by admin and staff only. Shoppers see their request through the order's
+    // `returns` summary (orders are server-written only). Staff-only notes go in returnStaffNotes.
+    match /returnRequests/{requestId} {
+      allow read: if canManageStore();
+      allow write: if false;
+    }
+
+    match /returnStaffNotes/{requestId} {
+      allow read: if canManageStore();
+      allow write: if false;
+    }
+
+    // One claim per (return request, email), written only by the sendReturnEmails trigger.
+    match /returnEmails/{emailId} {
+      allow read: if canManageStore();
+      allow write: if false;
+    }
+
     // Footer email sign-ups (new arrivals and offers) and their per-connection daily counters.
     // Only the subscribeToEmails callable (Admin SDK) reads or writes them. No client access,
     // admins included: the list holds personal emails and is exported from the console.
@@ -360,7 +379,7 @@ service cloud.firestore {
     // auditLogs, products, categories, brands, offers, offerCodes, offerUsage,
     // intlPricing, offerState, searchSyncErrors, settingsHistory, customers and customerNotes stay on the rules written for them.
     match /{collection}/{document=**} {
-      allow read, write: if canManageStore() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends', 'offerState', 'searchSyncErrors', 'settingsHistory', 'customers', 'customerNotes']);
+      allow read, write: if canManageStore() && !(collection in ['settings', 'roles', 'auditLogs', 'products', 'categories', 'brands', 'offers', 'offerCodes', 'offerUsage', 'intlPricing', 'orders', 'orderStaffNotes', 'orderViews', 'orderRateLimits', 'paymobWebhookEvents', 'orderEmails', 'favorites', 'carts', 'users', 'emailSignups', 'emailSignupRateLimits', 'emailVerificationSends', 'offerState', 'searchSyncErrors', 'settingsHistory', 'customers', 'customerNotes', 'returnRequests', 'returnStaffNotes', 'returnEmails']);
     }
   }
 }

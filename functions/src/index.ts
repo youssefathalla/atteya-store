@@ -46,6 +46,9 @@ export { sendVerificationEmail } from './auth/send-verification-email.fn.js';
 export { deleteMyAccount } from './auth/delete-account.fn.js';
 export { syncOrderView } from './orders/order-view.trigger.js';
 export { sendOrderEmails } from './email/send-order-emails.trigger.js';
+export { sendReturnEmails } from './email/send-return-emails.trigger.js';
+export { requestReturn } from './returns/request-return.fn.js';
+export { cancelReturnRequest } from './returns/cancel-return-request.fn.js';
 export { subscribeToEmails } from './marketing/subscribe-to-emails.fn.js';
 export { onHomeSettingsWrite, onNavigationSettingsWrite } from './settings/settings-history.trigger.js';
 export {
