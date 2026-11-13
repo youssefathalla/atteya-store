@@ -168,7 +168,13 @@ export async function runReturnStep(
         patch['receivedBy'] = actor.uid;
       } else {
         const itemsEgp = typeof saved['itemsEgp'] === 'number' ? saved['itemsEgp'] : 0;
-        if (call.input.amountEgp > itemsEgp) {
+        const refundEgp = typeof saved['refundEgp'] === 'number' ? saved['refundEgp'] : null;
+        // Nothing to send (the courier fee was at least the items): close it with EGP 0.
+        const nothingToSend = refundEgp !== null && refundEgp <= 0;
+        if (call.input.amountEgp < 1 && !nothingToSend) {
+          throw new ReturnStepError('invalid-argument', 'Write the amount you sent, in whole pounds.');
+        }
+        if (call.input.amountEgp > itemsEgp && call.input.amountEgp > 0) {
           throw new ReturnStepError(
             'invalid-argument',
             `That is more than the refunded items cost (EGP ${itemsEgp.toLocaleString('en-US')}). Check the amount.`,

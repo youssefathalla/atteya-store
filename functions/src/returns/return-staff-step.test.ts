@@ -296,7 +296,9 @@ describe('staff steps: refusals, undo and double clicks', () => {
       reference: 'TX1',
     });
     assert.throws(() => parseRefundSent({ requestId: 'abc', amountEgp: 9.5 }), ReturnStepError);
-    assert.throws(() => parseRefundSent({ requestId: 'abc', amountEgp: 0 }), ReturnStepError);
+    assert.throws(() => parseRefundSent({ requestId: 'abc', amountEgp: -1 }), ReturnStepError);
+    // 0 passes the parse; the transaction accepts it only when the saved refund is 0.
+    assert.equal(parseRefundSent({ requestId: 'abc', amountEgp: 0 }).amountEgp, 0);
     assert.equal(
       parseReceive({ requestId: 'abc', sellable: [{ itemIndex: 1, canBeSoldAgain: false }] }).sellable.get(1),
       false,

@@ -216,7 +216,8 @@ export function parseRefundSent(raw: unknown): RefundSentInput {
   const data = isRecord(raw) ? raw : {};
   const requestId = requestIdOf(data);
   const amount = data['amountEgp'];
-  if (typeof amount !== 'number' || !Number.isInteger(amount) || amount < 1) {
+  // 0 is only accepted when the saved refund is 0 (the courier fee ate it); the transaction checks.
+  if (typeof amount !== 'number' || !Number.isInteger(amount) || amount < 0) {
     throw new ReturnStepError('invalid-argument', 'Write the amount you sent, in whole pounds.');
   }
   const refRaw = data['reference'];

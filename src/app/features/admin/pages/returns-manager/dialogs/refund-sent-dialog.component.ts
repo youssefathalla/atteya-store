@@ -41,13 +41,15 @@ export interface RefundSentDialogResult {
               matInput
               type="number"
               inputmode="numeric"
-              min="1"
+              [attr.min]="nothingToSend ? 0 : 1"
               step="1"
               required
               [value]="amount()"
               (input)="amount.set($any($event.target).value)"
             />
-            @if (amountValid()) {
+            @if (nothingToSend) {
+              <mat-hint>The courier fee covers the items, so there is nothing to send. Save EGP 0.</mat-hint>
+            } @else if (amountValid()) {
               <mat-hint>The refund total is {{ data.refundLabel }}.</mat-hint>
             } @else {
               <mat-hint>Write the amount in whole pounds, up to what the items cost.</mat-hint>
@@ -77,12 +79,16 @@ export class RefundSentDialogComponent {
   readonly #ref = inject<MatDialogRef<RefundSentDialogComponent, RefundSentDialogResult>>(MatDialogRef);
 
   readonly referenceMax = REFERENCE_MAX;
+  readonly nothingToSend = this.data.refundEgp <= 0;
   readonly amount = signal(String(this.data.refundEgp));
   readonly reference = signal('');
   readonly #amountEgp = computed(() => Number(this.amount()));
   readonly amountValid = computed(() => {
     const value = this.#amountEgp();
-    return Number.isInteger(value) && value >= 1 && value <= this.data.itemsEgp;
+    if (!Number.isInteger(value)) return false;
+    // Nothing to send (the courier fee was at least the items): EGP 0 closes the request.
+    if (this.nothingToSend) return value === 0;
+    return value >= 1 && value <= this.data.itemsEgp;
   });
 
   save(): void {
