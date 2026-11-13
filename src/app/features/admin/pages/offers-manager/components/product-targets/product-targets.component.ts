@@ -41,6 +41,7 @@ import {
   productPickLabel,
   readProductPicks,
   writeProductPicks,
+  type OfferProductColour,
   type OfferProductModel,
   type PickerColourInfo,
   type ProductPick,
@@ -204,6 +205,18 @@ export class ProductTargetsComponent {
 
   pickLabel(pick: ProductPick): string {
     return productPickLabel(pick);
+  }
+
+  /** The colours ticked on a product, in the product's own colour order. */
+  pickedColours(pick: ProductPick): readonly OfferProductColour[] {
+    const ticked = new Set(pick.productIds);
+    return (pick.model?.colours ?? []).filter((colour) => ticked.has(colour.productId));
+  }
+
+  /** "All 4 colours" or "2 of 4 colours", next to the product's name. */
+  colourCount(pick: ProductPick): string {
+    const total = pick.model?.colours.length ?? 0;
+    return pick.all ? `All ${total} colours` : `${this.pickedColours(pick).length} of ${total} colours`;
   }
 
   describe(group: OfferConditionGroup): string {

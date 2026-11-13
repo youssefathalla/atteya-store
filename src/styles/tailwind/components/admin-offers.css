@@ -178,10 +178,23 @@
     @apply border border-dashed border-outline border-shape px-4 py-2 font-label-lg font-bold! cursor-pointer bg-surface-container-lowest;
   }
 
-  /* A picked product with several colours: its tag at the top left, the Colours dropdown under it
-     (as wide as the search box, full width on phone). */
+  /* A picked product with several colours: a card with its name, count and remove button, then the
+     Colours dropdown (as wide as the search box, full width on phone) showing the picked colours as
+     white pills, or one multicolour "All colours" pill. */
   .offer-colour-pick {
-    @apply w-full elements-start-col items-start! gap-2;
+    @apply w-full elements-start-col items-stretch! gap-3 border border-outline-variant border-shape bg-surface-container-lowest p-4;
+  }
+
+  .offer-colour-pick__head {
+    @apply elements-between gap-2;
+  }
+
+  .offer-colour-pills {
+    @apply elements-start items-center! flex-wrap gap-2;
+  }
+
+  .offer-colour-pill {
+    @apply elements-start items-center! gap-1.5 border border-outline-variant rounded-full bg-surface px-3 py-0.5 font-label-lg;
   }
 
   /* A grey note box (overlaps, the run line, Good to know). */
