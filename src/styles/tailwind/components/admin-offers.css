@@ -179,8 +179,7 @@
   }
 
   /* A picked product with several colours: a card with its name, count and remove button, then the
-     Colours dropdown (as wide as the search box, full width on phone) showing the picked colours as
-     white pills, or one multicolour "All colours" pill. */
+     Colours dropdown (as wide as the search box, full width on phone). */
   .offer-colour-pick {
     @apply w-full elements-start-col items-stretch! gap-3 border border-outline-variant border-shape bg-surface-container-lowest p-4;
   }
@@ -189,12 +188,14 @@
     @apply elements-between gap-2;
   }
 
-  .offer-colour-pills {
+  /* The closed Colours field: one round dot per picked colour (no names), or one multicolour dot
+     for All colours; a thin ring with a white gap so white and light colours still read. */
+  .offer-colour-dots {
     @apply elements-start items-center! flex-wrap gap-2;
   }
 
-  .offer-colour-pill {
-    @apply elements-start items-center! gap-1.5 border border-outline-variant rounded-full bg-surface px-3 py-0.5 font-label-lg;
+  .offer-colour-dot {
+    @apply inline-flex size-7 shrink-0 rounded-full border border-outline-variant bg-surface p-0.5;
   }
 
   /* A grey note box (overlaps, the run line, Good to know). */

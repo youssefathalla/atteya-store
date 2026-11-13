@@ -33,17 +33,22 @@
           (selectionChange)="onColoursChange(pick, $event.value)"
         >
           <mat-select-trigger>
-            <span class="offer-colour-pills">
+            <span class="offer-colour-dots">
               @if (pick.all) {
-                <span class="offer-colour-pill">
-                  <app-color-swatch class="size-3" colorId="multi" />
-                  <span>All colours</span>
+                <span class="offer-colour-dot" title="All colours">
+                  <app-color-swatch class="size-full" colorId="multi" round />
+                  <span class="sr-only">All colours</span>
                 </span>
               } @else {
                 @for (colour of pickedColours(pick); track colour.productId) {
-                  <span class="offer-colour-pill">
-                    <app-color-swatch class="size-3" [colorId]="colour.colorId" [swatch]="colour.swatch" />
-                    <span>{{ colour.label }}</span>
+                  <span class="offer-colour-dot" [title]="colour.label">
+                    <app-color-swatch
+                      class="size-full"
+                      [colorId]="colour.colorId"
+                      [swatch]="colour.swatch"
+                      round
+                    />
+                    <span class="sr-only">{{ colour.label }}</span>
                   </span>
                 }
               }
@@ -51,14 +56,14 @@
           </mat-select-trigger>
           <mat-option [value]="allColours">
             <span class="elements-start items-center! gap-2">
-              <app-color-swatch class="size-3" colorId="multi" />
+              <app-color-swatch class="size-4" colorId="multi" round />
               <span>All colours</span>
             </span>
           </mat-option>
           @for (colour of pick.model?.colours; track colour.productId) {
             <mat-option [value]="colour.productId">
               <span class="elements-start items-center! gap-2">
-                <app-color-swatch class="size-3" [colorId]="colour.colorId" [swatch]="colour.swatch" />
+                <app-color-swatch class="size-4" [colorId]="colour.colorId" [swatch]="colour.swatch" round />
                 <span>{{ colour.label }}</span>
                 @if (colour.hidden) {
                   <span class="text-on-surface-variant">(hidden)</span>
