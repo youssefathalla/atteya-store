@@ -1,6 +1,6 @@
 ---
 name: storefront-chrome
-description: The store layout around every page: shell readiness, announcement bar, footer and email sign-up, account panel and /account, shopping bag, Bundle & Save page, product grid first row, search panel, closed phone panels, focus chrome, Page Not Found and Something Went Wrong, and category and brand address redirects. Read it before changing the store layout, bag, footer, account pages or error pages.
+description: "The store layout around every page: shell readiness, announcement bar, footer and email sign-up, account panel and /account, shopping bag, Bundle & Save page, product grid first row, search panel, closed phone panels, focus chrome, Page Not Found and Something Went Wrong, and category and brand address redirects. Read it before changing the store layout, bag, footer, account pages or error pages."
 ---
 
 # Storefront Chrome
