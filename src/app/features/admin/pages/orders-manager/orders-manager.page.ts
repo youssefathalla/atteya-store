@@ -7,6 +7,7 @@ import {
   ElementRef,
   inject,
   Injector,
+  linkedSignal,
   OnInit,
   PLATFORM_ID,
   resource,
@@ -15,8 +16,10 @@ import {
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import { orderSearchTerms, orderSearchTokens } from '@core/config/order-search';
-import type { OrderDoc } from '@core/services/orders/order.schema';
+import type { OrderDoc, OrderStaffNotes } from '@core/services/orders/order.schema';
 import { SeoService } from '@core/services/seo';
 import { AppImageFallbackDirective } from '@shared/directives/image-fallback';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -26,7 +29,13 @@ import { OrderActionsComponent } from './components/order-actions/order-actions.
 import { OrderInfoBoxesComponent } from './components/order-info-boxes/order-info-boxes.component';
 import { OrderItemsComponent } from './components/order-items/order-items.component';
 import { OrdersFilterBarComponent } from './components/orders-filter-bar/orders-filter-bar.component';
-import type { OrderCard, OrderDetails, OrderListQuery, OrderStatusFilter } from './models/order-admin.model';
+import type {
+  OrderCard,
+  OrderDetails,
+  OrderListQuery,
+  OrderStatusFilter,
+  ProductStockLookup,
+} from './models/order-admin.model';
 import { ORDER_STATUS_CONFIG } from './models/order-status-config';
 import { ORDERS_PAGE_SIZE, OrdersAdminService } from './services/orders-admin.service';
 import { createdAtBounds, orderDateRangeLabel, type OrderDateFilter } from './utils/order-date-filter.utils';
@@ -60,6 +69,24 @@ function matchesAllWords(order: OrderDoc, words: readonly string[]): boolean {
   return words.every((word) => tokens.has(word));
 }
 
+/** What the next read asks for (ATS-286). */
+interface OrdersRequest {
+  /** Where the batch starts; null reads from the newest. */
+  readonly after: QueryDocumentSnapshot<OrderDoc> | null;
+  readonly size: number;
+  /** False for a new filter (skeleton); true for Show More Orders and a reload after a save. */
+  readonly keep: boolean;
+}
+
+/** One batch read, with the stock and staff notes for its orders only. */
+interface OrdersPage {
+  readonly request: OrdersRequest;
+  readonly orders: readonly OrderDoc[];
+  readonly next: QueryDocumentSnapshot<OrderDoc> | null;
+  readonly productsById: ReadonlyMap<string, ProductStockLookup>;
+  readonly notesById: ReadonlyMap<string, OrderStaffNotes>;
+}
+
 const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: string }[] = [
   { id: 'all', label: 'All Recent' },
   { id: 'pending', label: 'Waiting for Payment' },
@@ -78,6 +105,7 @@ const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: st
     RouterLink,
     MatButtonModule,
     MatChipsModule,
+    MatProgressSpinnerModule,
     AppImageFallbackDirective,
     SharedIconModule,
     SkeletonComponent,
@@ -124,26 +152,34 @@ export class OrdersManagerPageComponent implements OnInit {
     });
   }
 
+  readonly #query = computed((): OrderListQuery => {
+    const date = this.dateFilter();
+    return {
+      status: this.statusFilter(),
+      term: longestWord(this.searchTerms()),
+      placed: date ? createdAtBounds(date) : null,
+    };
+  });
+
+  /** A new status tab, search or dates goes back to the first batch (a new object each time). */
+  readonly #request = linkedSignal<OrderListQuery, OrdersRequest>({
+    source: this.#query,
+    computation: () => ({ after: null, size: ORDERS_PAGE_SIZE, keep: false }),
+  });
+
   readonly dataResource = resource({
-    params: (): OrderListQuery => {
-      const date = this.dateFilter();
-      return {
-        status: this.statusFilter(),
-        term: longestWord(this.searchTerms()),
-        placed: date ? createdAtBounds(date) : null,
-      };
-    },
-    loader: async ({ params }) => {
+    params: () => ({ filter: this.#query(), request: this.#request() }),
+    loader: async ({ params: { filter, request } }): Promise<OrdersPage> => {
       if (!isPlatformBrowser(this.#platformId)) {
-        return { orders: [] as readonly OrderDoc[], productsById: new Map(), notesById: new Map() };
+        return { request, orders: [], next: null, productsById: new Map(), notesById: new Map() };
       }
       try {
-        const orders = await this.#ordersAdmin.listOrders(params);
+        const { orders, next } = await this.#ordersAdmin.listOrders(filter, request.after, request.size);
         const [productsById, notesById] = await Promise.all([
           this.#ordersAdmin.loadProductStock(orders),
           this.#ordersAdmin.loadStaffNotes(orders),
         ]);
-        return { orders, productsById, notesById };
+        return { request, orders, next, productsById, notesById };
       } catch (error: unknown) {
         console.error('[admin/orders] load failed', error);
         throw error;
@@ -151,38 +187,92 @@ export class OrdersManagerPageComponent implements OnInit {
     },
   });
 
+  /**
+   * Every batch on screen. A new filter starts over, Show More Orders adds the next batch under the
+   * others, and a reload after a save swaps them all for one fresh read.
+   */
+  readonly #pages = linkedSignal<
+    { readonly page: OrdersPage | undefined; readonly request: OrdersRequest },
+    readonly OrdersPage[]
+  >({
+    source: () => ({
+      page: this.dataResource.hasValue() ? this.dataResource.value() : undefined,
+      request: this.#request(),
+    }),
+    computation: ({ page, request }, previous) => {
+      const kept = previous?.value ?? [];
+      if (!page || page.request !== request) return request.keep ? kept : [];
+      if (kept.at(-1)?.request === request) return kept;
+      return request.after === null ? [page] : [...kept, page];
+    },
+  });
+
+  /** Orders on screen, oldest batch last; an order that shows up in two batches is kept once. */
+  readonly #orders = computed((): readonly OrderDoc[] => {
+    const seen = new Set<string>();
+    const orders: OrderDoc[] = [];
+    for (const page of this.#pages()) {
+      for (const order of page.orders) {
+        if (seen.has(order.id)) continue;
+        seen.add(order.id);
+        orders.push(order);
+      }
+    }
+    return orders;
+  });
+
+  readonly #productsById = computed(() => new Map(this.#pages().flatMap((page) => [...page.productsById])));
+  readonly #notesById = computed(() => new Map(this.#pages().flatMap((page) => [...page.notesById])));
+
+  readonly #next = computed(() => this.#pages().at(-1)?.next ?? null);
+  /** The last batch came back full, so older orders may exist. */
+  readonly hasMore = computed(() => this.#next() !== null);
+  /** How many orders were read (before the extra search words are checked). */
+  readonly checkedCount = computed(() => this.#orders().length);
+
+  readonly firstLoading = computed(() => this.dataResource.isLoading() && this.#pages().length === 0);
+  /** Show More Orders is reading the next batch (not a refresh after a save). */
+  readonly moreLoading = computed(
+    () => this.dataResource.isLoading() && this.#pages().length > 0 && this.#request().after !== null,
+  );
+
   readonly loadErrorMessage = computed((): string | null => {
+    if (this.#pages().length > 0) return null;
     const error = this.dataResource.error();
     return error == null ? null : orderListError(error);
   });
 
+  /** A later read failed while orders are on screen; they stay and a Try Again shows under them. */
+  readonly moreErrorMessage = computed((): string | null => {
+    if (this.#pages().length === 0 || this.dataResource.error() == null) return null;
+    return this.#request().after === null
+      ? "We couldn't refresh the orders."
+      : "We couldn't load more orders.";
+  });
+
   readonly cards = computed((): readonly OrderCard[] => {
-    const data = this.dataResource.value();
-    if (!data) return [];
     // Firestore matched one word; every other typed word must match too.
     const terms = this.searchTerms();
-    const orders =
-      terms.length > 1 ? data.orders.filter((order) => matchesAllWords(order, terms)) : data.orders;
-    const rows = toOrderLineAdminRows(orders, data.productsById, data.notesById);
+    const all = this.#orders();
+    const orders = terms.length > 1 ? all.filter((order) => matchesAllWords(order, terms)) : all;
+    const productsById = this.#productsById();
+    const rows = toOrderLineAdminRows(orders, productsById, this.#notesById());
     const details = new Map<string, OrderDetails>(
-      orders.map((order) => [order.id, orderDetails(order, data.productsById)]),
+      orders.map((order) => [order.id, orderDetails(order, productsById)]),
     );
     return groupOrderCards(rows, details);
   });
 
-  /** Firestore stopped at the page size, so older matches exist. */
-  readonly hitLimit = computed(() => (this.dataResource.value()?.orders.length ?? 0) >= ORDERS_PAGE_SIZE);
-
   /**
-   * "3 orders", "1 order"; "Newest 50 orders" when there may be more. With several words,
-   * Firestore only matched one of them, so the label says the matches come from that newest page.
+   * "3 orders", "1 order"; "Newest 100 orders" when there may be more. With several words,
+   * Firestore only matched one of them, so the label says the matches come from the orders read.
    */
   readonly countLabel = computed(() => {
     const count = this.cards().length;
-    if (this.hitLimit()) {
+    if (this.hasMore()) {
       if (this.searchTerms().length < 2) return `Newest ${count} orders`;
       const matches = count === 1 ? '1 match' : `${count} matches`;
-      return `${matches} among the newest ${ORDERS_PAGE_SIZE} orders`;
+      return `${matches} among the newest ${this.checkedCount()} orders`;
     }
     return count === 1 ? '1 order' : `${count} orders`;
   });
@@ -258,8 +348,24 @@ export class OrdersManagerPageComponent implements OnInit {
     );
   }
 
-  /** Passed to `app-order-actions`, which calls it after a save. */
-  readonly reloadFn = (): void => {
+  /** Reads the next 50 orders and adds them under the ones on screen. */
+  showMore(): void {
+    const next = this.#next();
+    if (!next || this.dataResource.isLoading()) return;
+    this.#request.set({ after: next, size: ORDERS_PAGE_SIZE, keep: true });
+  }
+
+  retryLoad(): void {
     this.dataResource.reload();
+  }
+
+  /**
+   * Passed to `app-order-actions`, which calls it after a save. Reads again as many orders as are on
+   * screen, in one go, so the list stays as long as it was.
+   */
+  readonly reloadFn = (): void => {
+    const loaded = this.checkedCount();
+    const size = Math.max(ORDERS_PAGE_SIZE, Math.ceil(loaded / ORDERS_PAGE_SIZE) * ORDERS_PAGE_SIZE);
+    this.#request.set({ after: null, size, keep: true });
   };
 }
