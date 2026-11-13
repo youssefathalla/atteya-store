@@ -56,6 +56,12 @@ export interface ReturnEmailRequest {
   readonly feePaid: CourierFeePaid;
   readonly refundEgp: number;
   readonly cashAtDoorEgp: number;
+  /** Staff's reason when the request is Rejected (shown to the shopper). */
+  readonly rejectReason: string | null;
+  /** What staff sent at Refund Sent; the planned `refundEgp` before that. */
+  readonly refundSentEgp: number;
+  /** The InstaPay reference staff saved with Refund Sent, if any. */
+  readonly refundReference: string | null;
   readonly createdAtMs: number | null;
   readonly deliveredAtMs: number | null;
   /** The order's secret view key, for a guest's "View Your Order" link; null for signed-in orders. */
@@ -123,6 +129,10 @@ export function readReturnForEmail(
     feePaid: feePaid === 'off-refund' || feePaid === 'cash' ? feePaid : 'free',
     refundEgp: whole(data['refundEgp']),
     cashAtDoorEgp: whole(data['cashAtDoorEgp']),
+    rejectReason: text(data['rejectReason']) || null,
+    refundSentEgp:
+      typeof data['refundSentEgp'] === 'number' ? whole(data['refundSentEgp']) : whole(data['refundEgp']),
+    refundReference: text(data['refundReference']) || null,
     createdAtMs: timestampMs(data['createdAt']),
     deliveredAtMs: timestampMs(data['orderDeliveredAt']),
     viewKey: viewKey || null,

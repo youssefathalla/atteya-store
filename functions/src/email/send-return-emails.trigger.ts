@@ -8,11 +8,13 @@ import { sendResendEmail } from './resend-client.js';
 import { returnClaimId, returnEmailsForWrite, type ReturnEmailKind } from './return-email-events.js';
 import { readReturnForEmail, type ReturnEmailRequest } from './return-email-model.js';
 import { renderReturnEmail } from './return-email-templates.js';
+import { isReturnStatus } from '../store/returns.js';
 
 /**
- * Sends return and exchange emails (ATS-291): a new request sends the staff alert
+ * Sends return and exchange emails (ATS-291, ATS-294): a new request sends the staff alert
  * (`store-return-request`, to `STORE_ALERT_EMAIL`) and the shopper's "Request Sent"
- * (`return-requested`). Which emails: `returnEmailsForWrite`. Each (request, email) pair is
+ * (`return-requested`); each staff step forward sends the shopper one status email (Approved,
+ * Rejected, Received, Refund Sent). Which emails: `returnEmailsForWrite`. Each (request, email) pair is
  * claimed in `returnEmails/{requestId}_{kind}` before sending, so a repeated trigger never sends
  * twice; a failed send is recorded there and not retried automatically (same as order emails).
  */
@@ -27,8 +29,21 @@ export const sendReturnEmails = onDocumentWritten(
     const requestId = event.params.requestId;
     const beforeData = event.data?.before.exists ? event.data.before.data() : null;
     const afterData = event.data?.after.exists ? event.data.after.data() : null;
-    const before = readReturnForEmail(requestId, beforeData, null);
+    // An update must never look like a new request, even when the old document can't be read in full.
+    const beforeStatus = beforeData?.['status'];
+    const before = beforeData
+      ? (readReturnForEmail(requestId, beforeData, null) ??
+        (isReturnStatus(beforeStatus) ? { status: beforeStatus } : null))
+      : null;
     const after = readReturnForEmail(requestId, afterData, null);
+    if (beforeData && !before) {
+      logger.warn('Return email skipped: the earlier request could not be read', { requestId });
+      return;
+    }
+    if (afterData && !after) {
+      logger.warn('Return email skipped: the request could not be read', { requestId });
+      return;
+    }
     const kinds = returnEmailsForWrite(before, after);
     if (!after || kinds.length === 0) return;
 
