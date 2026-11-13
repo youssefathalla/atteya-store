@@ -65,6 +65,15 @@ function hasViewKey(url: string): boolean {
 }
 
 /**
+ * True on the order page while its address still has a query string: Paymob's return adds the
+ * payment details there (amount, card's last digits, hmac, …). The page clears them with a
+ * `replaceUrl` navigation, which then sends the PageView.
+ */
+function isOrderPageWithQuery(path: string, query: string): boolean {
+  return path.startsWith('/checkout/confirmation/') && query.length > 0;
+}
+
+/**
  * Meta's product fields from bag or order lines: ids, quantities (and unit prices in EGP when known).
  * Lines of the same product are merged.
  */
@@ -128,6 +137,8 @@ export class MetaPixelService {
         // PageView (the path is not recorded here, so it still counts as a new page).
         if (hasViewKey(event.urlAfterRedirects)) return;
         const path = event.urlAfterRedirects.split(/[?#]/)[0] ?? '';
+        const query = event.urlAfterRedirects.split('#')[0]?.slice(path.length + 1) ?? '';
+        if (isOrderPageWithQuery(path, query)) return;
         if (path === lastPath) return;
         lastPath = path;
         if (path === '/admin' || path.startsWith('/admin/')) return;
@@ -236,7 +247,9 @@ export class MetaPixelService {
 
   #locationHasViewKey(): boolean {
     const location = this.#window()?.location;
-    return !!location && hasViewKey(`${location.search}${location.hash}`);
+    if (!location) return false;
+    if (isOrderPageWithQuery(location.pathname, location.search.replace(/^\?/, ''))) return true;
+    return hasViewKey(`${location.search}${location.hash}`);
   }
 
   #newEventId(event: MetaPixelEvent): string {

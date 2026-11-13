@@ -1,7 +1,7 @@
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
 import { Component, computed, effect, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -87,6 +87,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   readonly key = input<string>();
 
   readonly #router = inject(Router);
+  readonly #route = inject(ActivatedRoute);
   readonly #firestore = injectFirestore();
   readonly #seo = inject(SeoService);
   readonly #snackbar = inject(SnackbarService);
@@ -98,6 +99,9 @@ export class CheckoutConfirmationPageComponent implements OnInit {
 
   /** The key this browser saved for the order (checkout, or an earlier visit from the link). */
   readonly #savedKey = signal<string | null>(null);
+
+  /** True once the address bar holds no query parameters the page doesn't need (Paymob's return details). */
+  readonly #urlClean = signal(false);
 
   /**
    * The guest order's view key: from the link, else saved on this device. Null = read the order
@@ -498,7 +502,7 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     // input then clears and this runs again), so Meta never sees it.
     effect(() => {
       const order = this.order();
-      if (this.key()) return;
+      if (this.key() || !this.#urlClean()) return;
       if (!order || order.paymentMethod !== 'paymob' || !isPlatformBrowser(this.#platformId)) return;
       const paidAt = orderDate(order.paymob?.paidAt);
       if (!paidAt || Date.now() - paidAt.getTime() > PIXEL_PURCHASE_WINDOW_MS) return;
@@ -511,20 +515,26 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       const id = this.orderId();
       const memory = readGuestOrder(id);
       const fromLink = this.key();
+      // Paymob's return adds the payment details (amount, card's last digits, hmac, …) to the
+      // address. The page never reads them: clear every query parameter before Meta can read the
+      // URL (ATS-290), keeping only a guest's key when it could not be saved on this device.
+      const queryKeys = Object.keys(this.#route.snapshot.queryParams);
+      let keep: Record<string, string> = {};
       if (isOrderViewKey(fromLink)) {
         const saved = rememberGuestOrder(id, { key: fromLink });
         this.#savedKey.set(fromLink);
         // The key opens the order: keep it out of the address bar (and of anything copied from it),
         // but only once it is saved on this device, or a reload would lose the order.
-        if (saved) {
-          void this.#router.navigate([], {
-            queryParams: { key: null },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-          });
-        }
+        if (!saved) keep = { key: fromLink };
       } else {
         this.#savedKey.set(memory.key);
+      }
+      if (queryKeys.some((name) => !(name in keep))) {
+        void this.#router
+          .navigate([], { queryParams: keep, replaceUrl: true })
+          .finally(() => this.#urlClean.set(true));
+      } else {
+        this.#urlClean.set(true);
       }
       this.guestEmail.set(memory.email);
     }
