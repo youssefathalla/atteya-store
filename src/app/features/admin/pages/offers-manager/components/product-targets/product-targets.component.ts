@@ -136,8 +136,12 @@ export class ProductTargetsComponent {
 
   /** Products with one colour (or no longer found): a plain tag. */
   readonly plainPicks = computed(() => this.picks().filter((pick) => !hasColourChoice(pick.model)));
-  /** Products with several colours: a tag with a Colours dropdown. */
-  readonly colourPicks = computed(() => this.picks().filter((pick) => hasColourChoice(pick.model)));
+  /** Products with several colours: a tag with a Colours dropdown and its ticked values. */
+  readonly colourPicks = computed(() =>
+    this.picks()
+      .filter((pick) => hasColourChoice(pick.model))
+      .map((pick) => ({ pick, values: colourChoiceValues(pick) })),
+  );
 
   /** Anything for the plain tag row: categories, brands, one-colour products or advanced rules. */
   readonly hasPlainTags = computed(
@@ -200,10 +204,6 @@ export class ProductTargetsComponent {
 
   pickLabel(pick: ProductPick): string {
     return productPickLabel(pick);
-  }
-
-  colourValues(pick: ProductPick): readonly string[] {
-    return colourChoiceValues(pick);
   }
 
   describe(group: OfferConditionGroup): string {

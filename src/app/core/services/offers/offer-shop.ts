@@ -230,12 +230,15 @@ export function dealHintText(
 
 type ConditionAtom = OfferConditions['anyOf'][number]['allOf'][number];
 
-/** The offer's conditions name exactly one product and nothing else. */
+/**
+ * The offer's conditions name exactly one product and nothing else: one product id, or one
+ * product with all its colours (its model, ATS-270).
+ */
 function coversOneProduct(offer: Offer): boolean {
   const atom = onlyAtom(offer);
   return (
     atom !== null &&
-    atom.field === 'productId' &&
+    (atom.field === 'productId' || atom.field === 'modelGroup') &&
     (atom.in?.length ?? 0) === 1 &&
     (atom.notIn?.length ?? 0) === 0
   );

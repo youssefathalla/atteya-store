@@ -11,6 +11,7 @@ export interface PickerProduct {
   readonly name: string;
   readonly modelGroup?: string | null;
   readonly colors?: readonly string[];
+  readonly published?: boolean;
 }
 
 /** A colour's name and dot, from the colour palette. */
@@ -24,6 +25,8 @@ export interface OfferProductColour {
   readonly colorId: string | null;
   readonly label: string;
   readonly swatch: string | null;
+  /** Hidden from the store (not published). */
+  readonly hidden: boolean;
 }
 
 /** One product as staff see it: every colour of one model, or one product without a model. */
@@ -56,7 +59,8 @@ export function groupOfferProducts(
 ): OfferProductModel[] {
   const buckets = new Map<string, { modelGroup: string | null; items: PickerProduct[] }>();
   for (const product of products) {
-    const modelGroup = product.modelGroup?.trim() || null;
+    // Kept exactly as saved: offers match the product's own value.
+    const modelGroup = product.modelGroup || null;
     const key = modelGroup ? `model:${modelGroup}` : `product:${product.id}`;
     const bucket = buckets.get(key);
     if (bucket) bucket.items.push(product);
@@ -66,17 +70,44 @@ export function groupOfferProducts(
     key,
     modelGroup: bucket.modelGroup,
     name: bucket.items[0]!.name,
-    colours: bucket.items.map((product, index) => {
-      const colorId = product.colors?.[0] ?? null;
-      const info = colorId ? colourInfo(colorId) : null;
-      return {
-        productId: product.id,
-        colorId,
-        label: info?.label ?? `Colour ${index + 1}`,
-        swatch: info?.swatch ?? null,
-      };
-    }),
+    colours: colourRows(bucket.items, colourInfo),
   }));
+}
+
+/**
+ * Each colour's name: its main colour, or every colour it has ("Black & Red") when two colours of
+ * the product share the main colour (look-alikes told apart by an accent colour).
+ */
+function colourRows(
+  items: readonly PickerProduct[],
+  colourInfo: (colorId: string) => PickerColourInfo | null,
+): OfferProductColour[] {
+  const labelOf = (colorId: string): string => colourInfo(colorId)?.label ?? colorId;
+  const firstLabels = items.map((product) => (product.colors?.[0] ? labelOf(product.colors[0]) : null));
+  return items.map((product, index) => {
+    const colorId = product.colors?.[0] ?? null;
+    const first = firstLabels[index];
+    const shared = first !== null && firstLabels.filter((label) => label === first).length > 1;
+    const label =
+      first === null
+        ? `Colour ${index + 1}`
+        : shared && (product.colors?.length ?? 0) > 1
+          ? product.colors!.map(labelOf).join(' & ')
+          : first;
+    return {
+      productId: product.id,
+      colorId,
+      label,
+      swatch: colorId ? (colourInfo(colorId)?.swatch ?? null) : null,
+      hidden: product.published === false,
+    };
+  });
+}
+
+/** The colours All colours saves when it can only name products: the shown ones, or all when none is shown. */
+function expandedColours(model: OfferProductModel): readonly OfferProductColour[] {
+  const shown = model.colours.filter((colour) => !colour.hidden);
+  return shown.length > 0 ? shown : model.colours;
 }
 
 /** True when the product has 2 or more colours, so staff pick All colours or some of them. */
@@ -122,7 +153,7 @@ export function readProductPicks(
       expandModels &&
       !pick.all &&
       hasColourChoice(pick.model) &&
-      pick.model!.colours.every((colour) => pick.productIds.includes(colour.productId));
+      expandedColours(pick.model!).every((colour) => pick.productIds.includes(colour.productId));
     if (everyColour) return { key, model: pick.model, all: true, productIds: [] };
     if (pick.all) return { key, model: pick.model, all: true, productIds: [] };
     // Keep the colours in the product's own order.
@@ -138,8 +169,9 @@ function rank(order: readonly string[], id: string): number {
 }
 
 /**
- * The saved form of the picks. All colours saves the model, unless `expandModels` (free gifts,
- * which can only name products): then it saves every colour the product has today.
+ * The saved form of the picks. All colours saves the model, unless `expandModels` (free gifts and
+ * the Buy X Get Y free item, which name products): then it saves every colour shown on the store
+ * today (hidden colours are left out, unless every colour is hidden).
  */
 export function writeProductPicks(picks: readonly ProductPick[], expandModels = false): SavedProductPicks {
   const modelGroups: string[] = [];
@@ -151,7 +183,7 @@ export function writeProductPicks(picks: readonly ProductPick[], expandModels = 
     if (pick.all) {
       const modelGroup = pick.model?.modelGroup ?? (pick.key.startsWith('model:') ? pick.key.slice(6) : null);
       if (expandModels && pick.model) {
-        pick.model.colours.forEach((colour) => addProduct(colour.productId));
+        expandedColours(pick.model).forEach((colour) => addProduct(colour.productId));
       } else if (modelGroup && !modelGroups.includes(modelGroup)) {
         modelGroups.push(modelGroup);
       }
@@ -217,7 +249,7 @@ export function colourCountNote(model: OfferProductModel): string | null {
 export function modelNames(products: readonly PickerProduct[]): Map<string, string> {
   const names = new Map<string, string>();
   for (const product of products) {
-    const modelGroup = product.modelGroup?.trim();
+    const modelGroup = product.modelGroup;
     if (modelGroup && !names.has(modelGroup)) names.set(modelGroup, product.name);
   }
   return names;

@@ -168,9 +168,10 @@ export class RewardEditorComponent {
   });
 
   /**
-   * Products picked for the free item: a product with All colours is saved as its model, so a
-   * colour added later can be free too. Nothing picked keeps an empty product rule, so the form
-   * stays on "One of these products" and validation asks for one.
+   * Products picked for the free item. The bag shows the free item as tiles to tap, which needs
+   * product ids, so All colours saves every shown colour the product has today. Nothing picked
+   * keeps an empty product rule, so the form stays on "One of these products" and validation
+   * asks for one.
    */
   onFreeItemProductsChange(conditions: OfferConditions): void {
     const r = this.reward();

@@ -1522,6 +1522,34 @@ describe('offer product picker: one product, then its colours (ATS-270)', () => 
     assert.deepEqual(writeProductPicks(picks), { modelGroups: ['nox-shorts', 'gone'], productIds: ['old'] });
   });
 
+  it('names look-alike colours by every colour they have', () => {
+    const [shorts] = groupOfferProducts(
+      [
+        { id: 'a', name: 'Head Padel Shorts', modelGroup: 'head', colors: ['black', 'white'] },
+        { id: 'b', name: 'Head Padel Shorts', modelGroup: 'head', colors: ['black', 'grey'] },
+      ],
+      info,
+    );
+    assert.deepEqual(
+      shorts.colours.map((colour) => colour.label),
+      ['Black & White', 'Black & Grey'],
+    );
+  });
+
+  it('leaves hidden colours out when All colours can only name products', () => {
+    const [shorts] = groupOfferProducts(
+      [
+        { id: 'a', name: 'Shorts', modelGroup: 'm', colors: ['black'], published: true },
+        { id: 'b', name: 'Shorts', modelGroup: 'm', colors: ['white'], published: false },
+      ],
+      info,
+    );
+    assert.deepEqual(writeProductPicks([newProductPick(shorts)], true), {
+      modelGroups: [],
+      productIds: ['a'],
+    });
+  });
+
   it('free gifts save every colour for All colours and read every colour back as All colours', () => {
     const saved = writeProductPicks([newProductPick(nox)], true);
     assert.deepEqual(saved, { modelGroups: [], productIds: ['nox-b', 'nox-w', 'nox-g'] });

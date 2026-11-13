@@ -6,7 +6,8 @@
     }
   </p>
 
-  @for (pick of colourPicks(); track pick.key) {
+  @for (row of colourPicks(); track row.pick.key) {
+    @let pick = row.pick;
     <div class="offer-colour-pick">
       <mat-chip-set [attr.aria-labelledby]="headingId()">
         <mat-chip (removed)="removePick(pick)">
@@ -21,7 +22,7 @@
         <mat-label>Colours</mat-label>
         <mat-select
           multiple
-          [value]="colourValues(pick)"
+          [value]="row.values"
           [attr.aria-label]="'Colours of ' + pick.model?.name"
           (selectionChange)="onColoursChange(pick, $event.value)"
         >
@@ -31,6 +32,9 @@
               <span class="elements-start items-center! gap-2">
                 <app-color-swatch class="size-3" [colorId]="colour.colorId" [swatch]="colour.swatch" />
                 <span>{{ colour.label }}</span>
+                @if (colour.hidden) {
+                  <span class="text-on-surface-variant">(hidden)</span>
+                }
               </span>
             </mat-option>
           }

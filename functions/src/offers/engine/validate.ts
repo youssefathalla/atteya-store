@@ -281,8 +281,7 @@ function validateRewardErrors(
 
 /**
  * "Which item is free?" of a Buy X get Y offer. No conditions = the cheapest item of the group.
- * Otherwise the choice must name at least one product (or a product's model), or at least one
- * category or brand.
+ * Otherwise the choice must name at least one product, or at least one category or brand.
  */
 function validateFreeItem(getConditions: OfferConditions | null, errors: OfferIssue[]): void {
   if (!getConditions) return;
@@ -293,8 +292,7 @@ function validateFreeItem(getConditions: OfferConditions | null, errors: OfferIs
     for (const atom of group.allOf) {
       if (atom.field === 'price') continue;
       const count = atom.in?.length ?? 0;
-      // A product picked with All colours is saved as its model (ATS-270).
-      if (atom.field === 'productId' || atom.field === 'modelGroup') {
+      if (atom.field === 'productId') {
         wantsProducts = true;
         products += count;
       } else if (atom.field === 'categoryIds' || atom.field === 'brandId') {

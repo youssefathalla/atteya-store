@@ -48,14 +48,15 @@ The rules for offers, moved here from one long AGENTS.md paragraph so offers PRs
 
 ## Offer product picker: a product once, then its colours (<KEY>-270)
 
-- Every offer product picker uses `app-product-targets`: step 2 Include / Leave out, Bundle & Save groups, Bundle price and Buy X Get Y (step 2 tags), Buy X Get Y "One of these products" (`kinds="products"`, saved in `getConditions`) and each Free gift's choices (`kinds="products"`, `[expandModels]="true"`).
+- Every offer product picker uses `app-product-targets`: step 2 Include / Leave out, Bundle & Save groups, Bundle price and Buy X Get Y (step 2 tags), Buy X Get Y "One of these products" (`kinds="products"`, `[expandModels]="true"`, saved in `getConditions`) and each Free gift's choices (`kinds="products"`, `[expandModels]="true"`).
 - The search lists each product once (all colours of one `modelGroup` together, `groupOfferProducts()` in `offers-manager/models/offer-product-picks.ts`, pure, tested by `npm run test:cart`), with "3 colours" next to a product with several; an empty box lists Categories, Brands and Products (up to 60 each, the list scrolls), typing narrows to 8 each.
 - Enter adds the top match (`autoActiveFirstOption`); Enter with no match does nothing.
 - A product with 2 or more colours gets its tag ("Nox Padel Shorts · All colours" / "Nox Padel Shorts · Black, White", `productPickLabel()`) and a **Colours** `mat-select multiple` next to it (full width on phone, `.offer-colour-pick`): "All colours" first and ticked by default, then that product's colours with their dots (`nextColourChoice()`: ticking a colour unticks All colours, ticking All colours clears the colours, unticking every colour goes back to All colours).
 - All colours is saved as a `modelGroup` rule (target field `modelGroup`, `writeProductPicks()`), so a colour added to that model later is in the offer; specific colours, and a product with one colour, are saved as `productId`s.
 - An offer saved before this (several `productId`s of one model) opens grouped as that product with those colours ticked (`readProductPicks()`); unknown ids and models are kept as they were.
-- Free gifts can only name products, so All colours on a gift saves every colour the product has today (`expandModels`), and a gift whose every colour is picked reads as All colours; a colour added later joins only when the offer is saved again.
-- `validateFreeItem()` counts a `modelGroup` rule as a product, so "One of these products" with All colours saves.
+- Free gifts and the Buy X Get Y free item name products (the bag's free-pick tiles need product ids, `freeItemProductIds()`), so there All colours saves every colour shown on the store today (`expandModels`; hidden colours are left out unless every colour is hidden), and a choice holding every shown colour reads as All colours; a colour added later joins only when the offer is saved again.
+- Colour names come from each colour's first `colors` entry; when two colours of one product share it (look-alikes with an accent colour) both show every colour ("Black & White"); hidden colours show "(hidden)" in the Colours dropdown.
+- `coversOneProduct()` (`offer-shop.ts`) counts one `modelGroup` value like one product id, so a Buy X Get Y on one product with All colours keeps the bag's "Add 1 more to get 1 free" and **Add 1**.
 - `CatalogNames.models` (model → product name, `modelNames()`) names `modelGroup` tags in the sentences; the Advanced Rules editor calls the field "Product (all colours)" and lists "Specific product" choices as "Nox Padel Shorts · Black".
 
 ## Overlap warnings
