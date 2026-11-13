@@ -1,12 +1,13 @@
 @layer components {
   /*
    * Admin product editor layout. The page keeps one order (Product, then Sizes / Tags and badges /
-   * Offers / What shoppers see, then Price and Organise, then Colours) and the grid places it by the
-   * admin <main> width (it is an @container, so the sidebar counts):
+   * Offers / What shoppers see, then Price and Organise, then Colours) and places it by the admin
+   * <main> width (it is an @container, so the sidebar counts), never leaving a gap under a short card:
    * phone: one column in that order;
-   * tablet (40rem+): Product beside Price and Organise, the four small cards in a 2 × 2 row under them;
-   * desktop (64rem+): three columns, Product | the four small cards | Price and Organise.
-   * Colours always spans the full width underneath.
+   * tablet (40rem+): two newspaper columns (CSS columns, not grid rows, so each card sits right under
+   * the one above it), Colours across both underneath;
+   * desktop (64rem+): three columns, Product then Colours | the four small cards | Price and Organise;
+   * Product is about twice as wide as each of the others.
    */
   .product-editor-grid {
     @apply grid w-full gap-6 items-start;
@@ -17,10 +18,13 @@
       grid-area: product;
     }
 
+    > .product-editor__extras,
+    > .product-editor__side {
+      @apply w-full min-w-0 elements-start-col gap-6;
+    }
+
     > .product-editor__extras {
-      @apply grid w-full gap-6 items-start;
       grid-area: extras;
-      grid-template-columns: minmax(0, 1fr);
     }
 
     > .product-editor__side {
@@ -32,20 +36,43 @@
     }
 
     @container (min-width: 40rem) {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      grid-template-areas: 'product side' 'extras extras' 'colours colours';
+      @apply block;
+      columns: 2;
+      column-gap: 1.5rem;
 
-      > .product-editor__extras {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      > .product-editor__extras,
+      > .product-editor__side {
+        display: contents;
+      }
+
+      > .product-editor__product,
+      > .product-editor__extras > section,
+      > .product-editor__side > section {
+        @apply mb-6;
+        break-inside: avoid;
+      }
+
+      > .product-editor__colours {
+        column-span: all;
       }
     }
 
     @container (min-width: 64rem) {
-      grid-template-columns: minmax(0, 1fr) 18rem 20rem;
-      grid-template-areas: 'product extras side' 'colours colours colours';
+      @apply grid;
+      columns: auto;
+      grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr) minmax(20rem, 1fr);
+      grid-template-rows: auto 1fr;
+      grid-template-areas: 'product extras side' 'colours extras side';
 
-      > .product-editor__extras {
-        grid-template-columns: minmax(0, 1fr);
+      > .product-editor__extras,
+      > .product-editor__side {
+        display: flex;
+      }
+
+      > .product-editor__product,
+      > .product-editor__extras > section,
+      > .product-editor__side > section {
+        @apply mb-0;
       }
     }
   }
