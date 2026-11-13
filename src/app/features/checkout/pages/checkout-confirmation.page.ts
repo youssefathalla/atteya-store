@@ -494,8 +494,11 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   constructor() {
     // Meta Pixel Purchase for a Card order, once Paymob confirms the payment (ATS-290). Only on the
     // shopper's return from Paymob (paid in the last 2 hours), not when the order link is opened later.
+    // A guest returns with `?key=` in the address: wait until ngOnInit has taken it out (the `key`
+    // input then clears and this runs again), so Meta never sees it.
     effect(() => {
       const order = this.order();
+      if (this.key()) return;
       if (!order || order.paymentMethod !== 'paymob' || !isPlatformBrowser(this.#platformId)) return;
       const paidAt = orderDate(order.paymob?.paidAt);
       if (!paidAt || Date.now() - paidAt.getTime() > PIXEL_PURCHASE_WINDOW_MS) return;

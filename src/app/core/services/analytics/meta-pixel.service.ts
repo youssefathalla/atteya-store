@@ -215,6 +215,8 @@ export class MetaPixelService {
     script.src = SCRIPT_URL;
     this.#document.head.appendChild(script);
 
+    // No automatic button-click or page-data events: Meta only gets the events this service sends.
+    fbq('set', 'autoConfig', false, this.#pixelId);
     fbq('init', this.#pixelId);
   }
 
