@@ -72,6 +72,15 @@
               [partial]="pr.partial"
               [badges]="pr.badges"
             />
+            @if (bundleStrip(); as strip) {
+              <a class="pdp-bundle-strip" [routerLink]="strip.link.path" [queryParams]="strip.link.query">
+                <span class="elements-start-col min-w-48 flex-1 gap-1">
+                  <span class="pdp-kicker opacity-70">Bundle &amp; Save</span>
+                  <span class="font-title-md font-bold!">{{ strip.text }}</span>
+                </span>
+                <span class="pdp-bundle-strip-action">See Bundle →</span>
+              </a>
+            }
             @for (line of pr.offerLines; track line.text) {
               @if (line.link; as link) {
                 <a

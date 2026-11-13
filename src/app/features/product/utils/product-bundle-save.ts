@@ -1,4 +1,5 @@
 import type { GiftChoiceView } from '@core/services/cart/cart-gifts';
+import { bundleSetNudgeReward } from '@core/services/offers/offer-shop';
 import {
   bundleSetOffersForItem,
   bundleSetSlotFits,
@@ -218,4 +219,19 @@ export function bundleSaveHeaderSaving(reward: OfferBundleSetReward, money: (egp
     case 'total':
       return `All for ${money(reward.price)}`;
   }
+}
+
+/**
+ * The bold line of the black Bundle & Save strip under the price (ATS-281): "Add socks and save
+ * 60%" when the offer has 2 groups (the other group's name in lower case, "2 × ball" for a group
+ * of 2+), "Complete the kit and save 60%" for 3 or more. The saving reads like the bag's nudge
+ * ("save EGP 500", "get it for EGP 4,500", "get the cheapest one free").
+ */
+export function bundleSaveStripText(bundle: ProductBundleSave, money: (egp: number) => string): string {
+  const reward = bundleSetNudgeReward(bundle.setReward, money);
+  const other = bundle.slots.length === 2 ? bundle.slots[1 - bundle.ownSlot] : undefined;
+  if (!other) return `Complete the kit and ${reward}`;
+  const name = other.name.trim().toLowerCase();
+  const what = other.quantity > 1 ? `${other.quantity} × ${name}` : name;
+  return `Add ${what} and ${reward}`;
 }
