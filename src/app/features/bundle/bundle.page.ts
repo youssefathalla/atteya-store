@@ -30,6 +30,7 @@ import {
   displayPrice,
   type Offer,
   type OfferBundleSlot,
+  bundleSetSlots,
   toDisplayAmount,
 } from '@core/services/offers/engine';
 import { toPricedProduct } from '@core/services/offers/offer.model';
@@ -195,9 +196,17 @@ export class BundlePage {
     return p.status === 'found' ? p.renderedAtMs : Date.now();
   });
   /** The group the shopper opened with Change or the button; null = the first one not finished. */
-  readonly #openGroup = signal<number | null>(null);
-  /** Scrolled to the first missing group once (`?from=bag`). */
-  #scrolled = false;
+  readonly #openGroup = linkedSignal<string, number | null>({
+    source: () => this.#offerId(),
+    computation: () => null,
+  });
+  /** The offer whose page already scrolled to its first missing group (`?from=bag`). */
+  #scrolledFor: string | null = null;
+
+  readonly #offerId = computed(() => {
+    const p = this.page();
+    return p.status === 'found' ? p.offer.id : '';
+  });
 
   readonly offer = computed<Offer | null>(() => {
     const p = this.page();
@@ -205,8 +214,16 @@ export class BundlePage {
   });
 
   readonly slots = computed<readonly OfferBundleSlot[]>(() => {
+    // The engine's reader: a malformed reward has no groups, exactly as the bag prices it.
     const reward = this.offer()?.reward;
-    return reward?.kind === 'bundleSet' ? reward.slots : [];
+    return reward ? bundleSetSlots(reward) : [];
+  });
+
+  /** The live offers no longer have it (paused, archived or deleted since the page opened). */
+  readonly #goneLive = computed(() => {
+    const offer = this.offer();
+    if (!offer || !this.#hydrated() || !this.#liveOffers.ready() || this.#liveOffers.failed()) return false;
+    return !this.#liveOffers.all().some((entry) => entry.id === offer.id);
   });
 
   /** Live offers after hydration (other offers change the pieces' own prices), always with this one. */
@@ -227,7 +244,8 @@ export class BundlePage {
   readonly state = computed(() => {
     const offer = this.offer();
     if (!offer) return 'unavailable' as const;
-    const state = bundlePageState(offer, this.#nowMs(), this.#pricingCtx().signedIn);
+    if (this.#goneLive()) return 'ended' as const;
+    const state = bundlePageState(offer, this.#nowMs(), this.#pricingCtx().signedIn, this.slots().length);
     if (state === 'members' && !(this.#hydrated() && this.#auth.isAuthReady())) return 'checking' as const;
     return state;
   });
@@ -335,19 +353,43 @@ export class BundlePage {
 
   readonly #picks = linkedSignal<string, BundleGroupPicks>({
     source: () => this.#picksKey(),
+    // Untracked: a later bag change (another tab, Add Bundle to Bag itself) never resets the picks.
     computation: (key) =>
-      key ? startingPicks(this.#groups(), this.product() ?? null, this.#bagPieces()) : [],
+      key ? untracked(() => startingPicks(this.#groups(), this.product() ?? null, this.#bagPieces())) : [],
   });
 
-  /** The bag's pieces of this offer's products (`?from=bag`), one entry per piece. */
+  /**
+   * The bag's pieces of this offer's products that are not in a finished set yet (`?from=bag`),
+   * one entry per piece, priced by the bag's own `priceBag()` to know which pieces a set took.
+   */
   #bagPieces(): BundlePiecePick[] {
-    if (this.from() !== 'bag') return [];
-    return this.#cart.lines().flatMap((line) =>
-      Array.from({ length: Math.min(line.quantity, 5) }, () => ({
+    const offer = this.offer();
+    if (this.from() !== 'bag' || !offer) return [];
+    const lines = this.#cart.lines();
+    const priced = priceBag(lines, this.#pricingProducts(), this.#offers(), this.#pricingCtx());
+    return lines.flatMap((line, index) => {
+      const inSets = (priced.lines[index]?.deals.deals ?? [])
+        .filter((deal) => deal.set && deal.offerId === offer.id)
+        .reduce((sum, deal) => sum + deal.units, 0);
+      const left = Math.min(Math.max(0, line.quantity - inSets), 5);
+      return Array.from({ length: left }, () => ({
         productId: line.productId,
         sizeId: line.selection['size'] ?? null,
-      })),
-    );
+      }));
+    });
+  }
+
+  /** The products the page read, as the bag prices them. */
+  #pricingProducts(): Map<string, BagPricingProduct> {
+    const products = new Map<string, BagPricingProduct>();
+    for (const choice of (this.#choiceLists() ?? []).flat()) {
+      products.set(choice.product.id, {
+        priced: toPricedProduct(choice.product),
+        options: choice.product.options,
+        variants: choice.product.variants,
+      });
+    }
+    return products;
   }
 
   readonly soldOut = computed(() => this.#groups().some((group) => group.choices.length === 0));
@@ -455,11 +497,12 @@ export class BundlePage {
 
   /**
    * The picked pieces as bag lines (a piece whose size is still open is priced without one), and
-   * the group of each line.
+   * the group of each line, and whether it is already in the bag.
    */
-  #draftLines(strict: boolean): { lines: CartLineDraft[]; groups: number[] } | null {
+  #draftLines(strict: boolean): { lines: CartLineDraft[]; groups: number[]; inBag: boolean[] } | null {
     const lines: CartLineDraft[] = [];
     const groups: number[] = [];
+    const inBag: boolean[] = [];
     const picks = this.#picks();
     for (let index = 0; index < picks.length; index++) {
       for (const pick of picks[index] ?? []) {
@@ -472,9 +515,10 @@ export class BundlePage {
         if (!line && strict) return null;
         lines.push(line ?? { productId: choice.product.id, variantId: null, selection: {}, quantity: 1 });
         groups.push(index);
+        inBag.push(pick.inBag === true);
       }
     }
-    return { lines, groups };
+    return { lines, groups, inBag };
   }
 
   /** The picked pieces priced by the bag's own `priceBag()`. */
@@ -483,15 +527,7 @@ export class BundlePage {
     const draft = this.#draftLines(false);
     const lists = this.#choiceLists();
     if (!draft || !lists || draft.lines.length === 0) return { normal: 0, total: 0, byGroup };
-    const products = new Map<string, BagPricingProduct>();
-    for (const choice of lists.flat()) {
-      products.set(choice.product.id, {
-        priced: toPricedProduct(choice.product),
-        options: choice.product.options,
-        variants: choice.product.variants,
-      });
-    }
-    const priced = priceBag(draft.lines, products, this.#offers(), this.#pricingCtx());
+    const priced = priceBag(draft.lines, this.#pricingProducts(), this.#offers(), this.#pricingCtx());
     let normal = 0;
     let total = 0;
     priced.lines.forEach((line, n) => {
@@ -509,10 +545,15 @@ export class BundlePage {
     return { normal, total, byGroup };
   });
 
-  /** What Add Bundle to Bag adds: one line per piece, or null while anything is open. */
+  /**
+   * What Add Bundle to Bag adds: one line per piece not already in the bag (`?from=bag`), or null
+   * while anything is open.
+   */
   readonly #bundleLines = computed(() => {
     if (this.action().kind !== 'add') return null;
-    return this.#draftLines(true)?.lines ?? null;
+    const draft = this.#draftLines(true);
+    if (!draft) return null;
+    return draft.lines.filter((_, n) => !draft.inBag[n]);
   });
 
   readonly complete = computed(() => this.#bundleLines() !== null);
@@ -581,8 +622,9 @@ export class BundlePage {
 
     // From the bag: once the picks start, scroll to the first group still missing a piece.
     effect(() => {
-      if (this.from() !== 'bag' || this.#scrolled || this.#picksKey() === '') return;
-      this.#scrolled = true;
+      const offerId = this.#offerId();
+      if (this.from() !== 'bag' || this.#scrolledFor === offerId || this.#picksKey() === '') return;
+      this.#scrolledFor = offerId;
       const group = untracked(() => firstOpenGroup(this.#groups(), this.#picks()));
       afterNextRender({ write: () => this.#scrollTo(group, false) }, { injector: this.#injector });
     });
@@ -640,6 +682,11 @@ export class BundlePage {
     }
     const lines = this.#bundleLines();
     if (!lines || this.soldOut()) return;
+    if (lines.length === 0) {
+      // Every piece is already in the bag: show it there.
+      this.#drawer.open('cart');
+      return;
+    }
     if (!this.#cart.addAll(lines)) {
       this.#snackbar.error('Your bag is full. Remove an item to add these.');
       return;

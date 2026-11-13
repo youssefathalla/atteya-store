@@ -1627,19 +1627,20 @@ describe('Bundle & Save page (ATS-279)', () => {
   });
 
   it('says when the bundle can be bought', () => {
-    assert.equal(bundlePageState(offer(), now, false), 'open');
-    assert.equal(bundlePageState(offer({ active: false }), now, false), 'ended');
+    assert.equal(bundlePageState(offer(), now, false, 2), 'open');
+    assert.equal(bundlePageState(offer({ active: false }), now, false, 2), 'ended');
     assert.equal(
-      bundlePageState(offer({ schedule: { startsAt: null, endsAt: new Date(now - 1) } }), now, false),
+      bundlePageState(offer({ schedule: { startsAt: null, endsAt: new Date(now - 1) } }), now, false, 2),
       'ended',
     );
     assert.equal(
-      bundlePageState(offer({ schedule: { startsAt: new Date(now + 1), endsAt: null } }), now, false),
+      bundlePageState(offer({ schedule: { startsAt: new Date(now + 1), endsAt: null } }), now, false, 2),
       'upcoming',
     );
-    assert.equal(bundlePageState(offer({ audience: 'signedIn' }), now, false), 'members');
-    assert.equal(bundlePageState(offer({ audience: 'signedIn' }), now, true), 'open');
-    assert.equal(bundlePageState(offer({ requiresCode: true }), now, true), 'unavailable');
+    assert.equal(bundlePageState(offer({ audience: 'signedIn' }), now, false, 2), 'members');
+    assert.equal(bundlePageState(offer({ audience: 'signedIn' }), now, true, 2), 'open');
+    assert.equal(bundlePageState(offer({ requiresCode: true }), now, true, 2), 'unavailable');
+    assert.equal(bundlePageState(offer(), now, true, 0), 'unavailable');
   });
 
   it('counts down to the end', () => {
@@ -1685,7 +1686,10 @@ describe('Bundle & Save page (ATS-279)', () => {
       { productId: 'b', sizeId: null },
     ]);
     assert.deepEqual(picks[0], [{ productId: 'b', sizeId: null }]);
-    assert.equal(picks[1].length, 2);
+    assert.deepEqual(picks[1], [
+      { productId: 'x', sizeId: null, inBag: true },
+      { productId: 'x', sizeId: null, inBag: true },
+    ]);
     assert.deepEqual(picks[2], []);
     assert.equal(nextBundleAction(groups, picks).label, 'Choose 1 × Ball');
   });

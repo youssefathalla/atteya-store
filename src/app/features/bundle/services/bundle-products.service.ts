@@ -11,7 +11,7 @@ import { bundleSaveSlotChoices } from '../../product/utils/product-bundle-save';
 /** Products listed per group (the product page's Bundle & Save section lists as many). */
 export const MAX_GROUP_CHOICES = 20;
 /** Search hits read for a whole offer Shop can list. */
-const MAX_OFFER_HITS = 60;
+const MAX_OFFER_HITS = 96;
 /** Products read per category, brand, model or type a group names (offers Shop can't list). */
 const MAX_PER_QUERY = 40;
 /** List reads per offer (offers Shop can't list). */
@@ -24,6 +24,7 @@ const MAX_EXACT_PRODUCTS = 60;
  * An offer Shop can list uses Shop's search (`offerIds:"<id>" AND inStock:true`, every colour on
  * its own), like the product page's section; any other (signed-in only, once per customer) reads
  * Firestore by what its groups name: exact products, a model, a category, a brand or a type.
+ * A group the search leaves empty (a bigger group filled it) is read the second way.
  * Each product is then read from Firestore, kept only while published and in stock
  * (`toGiftChoice()`), and split per group by the bag's own rules (`bundleSaveSlotChoices()`), with
  * only the sizes the bag would count there.
@@ -34,12 +35,21 @@ export class BundleProductsService {
   readonly #products = inject(ProductService);
 
   async choicesByGroup(offer: Offer, slots: readonly OfferBundleSlot[]): Promise<BundleChoice[][]> {
-    const products = canShopOffer(offer) ? await this.#fromSearch(offer.id) : await this.#fromGroups(slots);
-    const all = products.flatMap((product): BundleChoice[] => {
-      const view = toGiftChoice(product);
-      return view ? [{ view, product: toProductView(product) }] : [];
-    });
-    return slots.map((slot) => bundleSaveSlotChoices(all, offer, slot, MAX_GROUP_CHOICES));
+    const split = (products: readonly Product[]): BundleChoice[][] => {
+      const all = products.flatMap((product): BundleChoice[] => {
+        const view = toGiftChoice(product);
+        return view ? [{ view, product: toProductView(product) }] : [];
+      });
+      return slots.map((slot) => bundleSaveSlotChoices(all, offer, slot, MAX_GROUP_CHOICES));
+    };
+    if (!canShopOffer(offer)) return split(await this.#fromGroups(slots));
+    const groups = split(await this.#fromSearch(offer.id));
+    // One search lists every group together, so a big group can fill it: read a group it left
+    // empty by what that group names.
+    const empty = slots.filter((_, index) => groups[index]!.length === 0);
+    if (empty.length === 0) return groups;
+    const more = split(await this.#fromGroups(empty));
+    return groups.map((list, index) => (list.length > 0 ? list : more[index]!));
   }
 
   async #fromSearch(offerId: string): Promise<Product[]> {

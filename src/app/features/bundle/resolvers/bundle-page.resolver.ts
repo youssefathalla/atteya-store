@@ -3,6 +3,7 @@ import { inject, makeStateKey, PLATFORM_ID, RESPONSE_INIT, TransferState } from 
 import type { ResolveFn } from '@angular/router';
 import { toTransferOffer } from '@core/services/offers/offer-transfer';
 import { PublicOffersReader } from '@core/services/offers/public-offers.reader';
+import { markNotFound } from '@shared/utils/error-response';
 import type { BundlePageResult } from '../models/bundle-page.model';
 
 /** Offer ids are Firestore ids: letters, digits, `-` and `_`. */
@@ -44,8 +45,10 @@ export const bundlePageResolver: ResolveFn<BundlePageResult> = async (route) => 
   }
 
   if (isServer) {
-    if (responseInit && result.status !== 'found') {
-      responseInit.status = result.status === 'missing' ? 404 : 503;
+    if (responseInit && result.status === 'missing') {
+      markNotFound(responseInit);
+    } else if (responseInit && result.status === 'error') {
+      responseInit.status = 503;
       const headers = new Headers(responseInit.headers);
       headers.set('Cache-Control', 'private, no-store');
       responseInit.headers = headers;

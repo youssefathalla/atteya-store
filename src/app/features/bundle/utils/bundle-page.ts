@@ -16,13 +16,19 @@ export type BundlePageState = 'open' | 'ended' | 'upcoming' | 'members' | 'unava
  * code or has no groups; `members`: for signed-in shoppers (with a confirmed email) only, or once
  * per customer, and this shopper isn't one; `open`: it can be bought.
  */
-export function bundlePageState(offer: Offer, nowMs: number, signedIn: boolean): BundlePageState {
+export function bundlePageState(
+  offer: Offer,
+  nowMs: number,
+  signedIn: boolean,
+  /** The offer's usable groups (`bundleSetSlots()`: none when the reward is malformed). */
+  slotCount: number,
+): BundlePageState {
   if (!offer.active || offer.archived) return 'ended';
   const { startsAt, endsAt } = offer.schedule;
   if (endsAt && nowMs >= endsAt.getTime()) return 'ended';
   if (startsAt && nowMs < startsAt.getTime()) return 'upcoming';
   if (offer.requiresCode || offer.visibility === 'code') return 'unavailable';
-  if (offer.reward.kind !== 'bundleSet' || offer.reward.slots.length < 2) return 'unavailable';
+  if (offer.reward.kind !== 'bundleSet' || slotCount < 2) return 'unavailable';
   if ((offer.audience === 'signedIn' || offer.limits.perCustomer !== null) && !signedIn) return 'members';
   return 'open';
 }
@@ -57,6 +63,8 @@ export function bundleStartsOn(startsAt: Date): string {
 export interface BundlePiecePick {
   readonly productId: string;
   readonly sizeId: string | null;
+  /** Already in the bag (`?from=bag`): it counts toward the bundle but Add Bundle to Bag doesn't add it again. */
+  readonly inBag?: true;
 }
 
 /** Picks per group, in the offer's group order. */
@@ -115,7 +123,8 @@ export function groupFixed(group: BundleGroupFacts): boolean {
 /**
  * The picks the page starts with. Groups with one product start with it (every piece). Then the
  * product the shopper came from (`?product=`) goes into the first group it fits, and the bag's
- * lines (`?from=bag`, one entry per piece) fill the groups they fit, each only up to its pieces.
+ * lines (`?from=bag`, one entry per piece left outside a finished set) fill the groups they fit,
+ * each only up to its pieces, marked `inBag` so they aren't added twice.
  * Groups with several products otherwise start unpicked.
  */
 export function startingPicks(
@@ -123,7 +132,7 @@ export function startingPicks(
   productId: string | null,
   bagPieces: readonly BundlePiecePick[],
 ): BundlePiecePick[][] {
-  const picks = groups.map((group) =>
+  const picks: BundlePiecePick[][] = groups.map((group) =>
     groupFixed(group)
       ? Array.from({ length: group.quantity }, () => ({
           productId: group.choices[0]!.productId,
@@ -131,7 +140,7 @@ export function startingPicks(
         }))
       : [],
   );
-  const place = (pick: BundlePiecePick, needSize: boolean): boolean => {
+  const place = (pick: BundlePiecePick, needSize: boolean, inBag: boolean): boolean => {
     const at = groups.findIndex((group, index) => {
       if (groupFixed(group) || picks[index]!.length >= group.quantity) return false;
       const choice = choiceOf(group, pick.productId);
@@ -141,11 +150,13 @@ export function startingPicks(
     if (at < 0) return false;
     const choice = choiceOf(groups[at]!, pick.productId);
     const sizeId = choice?.sizes?.some((size) => size.id === pick.sizeId) ? pick.sizeId : startSize(choice);
-    picks[at]!.push({ productId: pick.productId, sizeId });
+    picks[at]!.push(
+      inBag ? { productId: pick.productId, sizeId, inBag: true } : { productId: pick.productId, sizeId },
+    );
     return true;
   };
-  if (productId) place({ productId, sizeId: null }, false);
-  for (const piece of bagPieces) place(piece, true);
+  if (productId) place({ productId, sizeId: null }, false, false);
+  for (const piece of bagPieces) place(piece, true, true);
   return picks;
 }
 
@@ -185,7 +196,11 @@ export function nextBundleAction(
       return { kind: 'product', group: index, label };
     }
     if (!groupComplete(group, groupPicks)) {
-      return { kind: 'size', group: index, label: `Choose a ${group.name} Size` };
+      return {
+        kind: 'size',
+        group: index,
+        label: `Choose ${/^[aeiou]/i.test(group.name) ? 'an' : 'a'} ${group.name} Size`,
+      };
     }
   }
   return { kind: 'add', label: 'Add Bundle to Bag' };
@@ -223,7 +238,11 @@ export function pickSize(
   piece: number,
   sizeId: string,
 ): BundlePiecePick[] {
-  return picks.map((pick, index) => (index === piece ? { ...pick, sizeId } : pick));
+  return picks.map((pick, index) => {
+    if (index !== piece || pick.sizeId === sizeId) return pick;
+    // Another size is another item: a piece taken from the bag is then added as a new one.
+    return { productId: pick.productId, sizeId };
+  });
 }
 
 /** "Balls · choose 3" hint: "3 of 3 chosen". */
