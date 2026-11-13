@@ -8,7 +8,8 @@
  * Waiting for Payment (`pending`, Cash on Delivery / InstaPay / Bank Transfer only) → Confirmed, Cancelled
  * Confirmed → Shipped, Cancelled, back to Waiting for Payment (Cash on Delivery / InstaPay / Bank Transfer only)
  * Shipped → Delivered, back to Confirmed
- * Delivered → back to Shipped (not while a return or exchange request holds pieces, ATS-297)
+ * Delivered → back to Shipped
+ * While a return or exchange request holds pieces, only forward moves are offered (ATS-297).
  * Cancelled and Payment Failed are final. Card (Paymob) orders: `pending` / `failed` are set by
  * Paymob only, and a paid card order is never cancelled here (refunds are not built).
  */
@@ -31,14 +32,14 @@ export type StaffOrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered'
 
 export const CANCEL_REASON_MAX = 300;
 
-/** Why Back to Shipped is refused while a return or exchange request holds pieces. */
+/** Why a step back or cancel is refused while a return or exchange request holds pieces. */
 export const RETURN_BLOCKS_STEP_BACK_MESSAGE =
   'This order has a return or exchange. Finish or reject it first, then change the order.';
 
 export interface OrderStatusFacts {
   readonly status: unknown;
   readonly paymentMethod: unknown;
-  /** The order's raw `returns` array. A request that holds pieces blocks the step back from Delivered. */
+  /** The order's raw `returns` array. A request that holds pieces blocks step backs and cancels. */
   readonly returns?: unknown;
 }
 
@@ -63,6 +64,18 @@ export function isManualPayment(method: unknown): boolean {
 
 /** The statuses staff may move this order to now, in the order the dropdown lists them. */
 export function allowedStatusMoves(order: OrderStatusFacts): StaffOrderStatus[] {
+  const moves = movesByStatus(order);
+  return hasReturnHoldingPieces(order.returns)
+    ? moves.filter((target) => isForwardMove(order.status, target))
+    : moves;
+}
+
+/**
+ * The move table without returns. While a return or exchange request holds pieces, only forward
+ * moves stay (`allowedStatusMoves`): a step back could end in Cancelled, which puts every line
+ * back into stock on top of the pieces a return already put back or an exchange already took.
+ */
+function movesByStatus(order: OrderStatusFacts): StaffOrderStatus[] {
   const manual = isManualPayment(order.paymentMethod);
   const card = order.paymentMethod === 'paymob';
   if (!manual && !card) return [];
@@ -74,17 +87,23 @@ export function allowedStatusMoves(order: OrderStatusFacts): StaffOrderStatus[] 
     case 'shipped':
       return ['delivered', 'confirmed'];
     case 'delivered':
-      // A step back could end in Cancelled, which puts every line back into stock, on top of the
-      // pieces a return already put back or an exchange already took.
-      return hasReturnHoldingPieces(order.returns) ? [] : ['shipped'];
+      return ['shipped'];
     default:
       return [];
   }
 }
 
-/** Delivered, with a return or exchange request that still holds pieces. */
-export function returnBlocksStepBack(order: OrderStatusFacts): boolean {
-  return order.status === 'delivered' && hasReturnHoldingPieces(order.returns);
+const STEP_ORDER: readonly unknown[] = ['pending', 'confirmed', 'shipped', 'delivered'];
+
+function isForwardMove(from: unknown, to: StaffOrderStatus): boolean {
+  const a = STEP_ORDER.indexOf(from);
+  const b = STEP_ORDER.indexOf(to);
+  return a >= 0 && b > a;
+}
+
+/** The move would be allowed, but a return or exchange request that holds pieces stops it. */
+export function returnBlocksMove(order: OrderStatusFacts, target: StaffOrderStatus): boolean {
+  return movesByStatus(order).includes(target) && !canMoveStatus(order, target);
 }
 
 export function canMoveStatus(order: OrderStatusFacts, target: StaffOrderStatus): boolean {

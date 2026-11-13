@@ -25,7 +25,7 @@ import {
   orderStatusLabel,
   orderStockTaken,
   RETURN_BLOCKS_STEP_BACK_MESSAGE,
-  returnBlocksStepBack,
+  returnBlocksMove,
   stampsClearedBy,
   statusStampField,
   stockMoveFor,
@@ -274,7 +274,7 @@ function moveRefusal(order: DocumentData, target: StaffOrderStatus): string {
       return "Paid card orders can't be cancelled here, because the payment can't be refunded from the dashboard yet.";
     }
   }
-  if (returnBlocksStepBack(order as OrderStatusFacts)) {
+  if (returnBlocksMove(order as OrderStatusFacts, target)) {
     return RETURN_BLOCKS_STEP_BACK_MESSAGE;
   }
   if (isOrderStatus(current)) {
