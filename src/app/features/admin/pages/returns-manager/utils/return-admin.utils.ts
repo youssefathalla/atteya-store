@@ -214,6 +214,10 @@ export function rejectStockLines(
   request: ReturnRequestDoc,
   products: ReadonlyMap<string, ReturnProductLookup>,
 ): string[] {
+  // Approved before ATS-298: the server undoes exactly what Approve moved.
+  if (request.rejectStock == null) {
+    return ['What Approve took out of stock goes back, and what it put back comes out again.'];
+  }
   const lines: string[] = [];
   for (const item of request.items) {
     const count = item.quantity > 1 ? `${item.quantity} × ` : '';

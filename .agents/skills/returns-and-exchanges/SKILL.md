@@ -78,6 +78,7 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - Wrong Item Sent · Send the Right One rejected after Approve puts the ordered piece back +1 (the −1 for the right one is undone, since we never sent it); Wrong Item Sent · Refund rejected moves no stock.
 - `undoStockStep()` (swap `take` and `putBack`) is only the fallback for requests approved before `rejectStock` was saved.
 - While any request on an order holds pieces (not Rejected or Cancelled), staff can't step the Delivered order back to Shipped (`hasReturnHoldingPieces()`), so a later cancel never puts those pieces into stock a second time. Details in the `checkout-and-orders` skill.
+- Known gap (<KEY>-299): a Wrong Item Sent request rejected after Approve keeps its stock corrections but no longer holds pieces, so its line can be asked for again and the order can be stepped back and cancelled.
 
 ## Data
 
@@ -145,7 +146,7 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - Reject needs a reason the shopper sees (300 characters, `rejectReason`), works from Requested or Approved, and from Approved moves `rejectStock` once (`rejectStockFor()`, `stockUndoneAt`; a request without `rejectStock` undoes `approveStock`); a count that is too low stops at 0 so a reject is never blocked.
 - Item Received (from Approved) saves each item's `canBeSoldAgain` (on by default, off for Damaged Item, always on for Wrong Item Sent, which shows no switch) and puts those pieces back once (`stockReturnedAt`); exchange-only requests are done here.
 - Refund Sent (admin, from Received with a refund) saves `refundSentEgp` and an optional `refundReference`; no stock moves.
-- The Reject dialog lists what happens to stock per item (`rejectStockLines()`), e.g. "Club Tee, Size M stays with the customer. Club Shorts, Size M goes back into stock."
+- The Reject dialog lists what happens to stock per item (`rejectStockLines()`; a request approved before `rejectStock` existed shows one line saying Approve is undone), e.g. "Club Tee, Size M stays with the customer. Club Shorts, Size M goes back into stock."
 - Stamps: `approvedAt` / `approvedBy`, `rejectedAt` / `rejectedBy`, `receivedAt` / `receivedBy`, `refundSentAt` / `refundSentBy`.
 - Pieces whose product or size is gone are counted in `stockNotReturned` and the snackbar asks staff to check that product.
 

@@ -4,7 +4,6 @@ import { describe, it } from 'node:test';
 import {
   applyStockMoves,
   approvePlan,
-  approveStep,
   mergeItemChoices,
   parseApprove,
   parseRefundSent,
@@ -15,7 +14,6 @@ import {
   receiveStep,
   rejectStep,
   rejectStockFor,
-  rejectUndoStep,
   ReturnStepError,
   savedStep,
   withSentPieces,
@@ -56,7 +54,7 @@ function run(
 ) {
   const live = products(stock);
   const items = withSentPieces(item(rawItem), sent, live);
-  const approve = approveStep(items);
+  const approve = approvePlan(items).approve;
   const afterApprove = applyStockMoves(live, approve, { short: 'refuse' });
   const merged = new Map(live);
   for (const [id, next] of afterApprove.next) {
@@ -170,9 +168,9 @@ describe('staff steps: every row of the stock plan', () => {
 describe('staff steps: refusals, undo and double clicks', () => {
   it('a sold-out new piece refuses with the size name and nothing changes', () => {
     const live = products({ shorts: sized(2, 0) });
-    const step = approveStep(
+    const step = approvePlan(
       item({ kind: 'different-size', newProductId: 'shorts', newSelection: { size: 'l' } }),
-    );
+    ).approve;
     assert.throws(
       () => applyStockMoves(live, step, { short: 'refuse' }),
       (error: unknown) =>
@@ -220,7 +218,7 @@ describe('staff steps: refusals, undo and double clicks', () => {
       [{ itemIndex: 0, productId: 'tee', size: 'm' }],
       live,
     );
-    const undo = rejectStep(undefined, JSON.parse(JSON.stringify(savedStep(approveStep(items)))));
+    const undo = rejectStep(undefined, JSON.parse(JSON.stringify(savedStep(approvePlan(items).approve))));
     const sold = applyStockMoves(products({ shorts: sized(0, 1), tee: sized(3, 4) }), undo, {
       short: 'floor',
     });
@@ -324,11 +322,11 @@ describe('staff steps: refusals, undo and double clicks', () => {
       [{ itemIndex: 0, productId: 'tee', size: 'm' }],
       live,
     );
-    const moved = applyStockMoves(live, approveStep(items), { short: 'refuse' });
+    const moved = applyStockMoves(live, approvePlan(items).approve, { short: 'refuse' });
     assert.equal(moved.notReturned, 1);
     assert.equal(moved.applied.putBack.length, 0);
     assert.equal(moved.applied.take.length, 1);
-    const undo = rejectUndoStep(moved.applied);
+    const undo = rejectStep(undefined, savedStep(moved.applied));
     assert.deepEqual(undo.take, []);
   });
 
@@ -336,7 +334,7 @@ describe('staff steps: refusals, undo and double clicks', () => {
     const live = products({
       shorts: { stock: undefined, stockBySize: undefined, options: [], name: 'Club Shorts' },
     });
-    const step = approveStep(item({ kind: 'damaged', wants: 'send-another', selection: {} }));
+    const step = approvePlan(item({ kind: 'damaged', wants: 'send-another', selection: {} })).approve;
     assert.throws(
       () => applyStockMoves(live, step, { short: 'refuse' }),
       /Stock is not set up for Club Shorts/,

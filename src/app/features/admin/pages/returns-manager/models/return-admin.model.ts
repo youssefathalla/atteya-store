@@ -69,6 +69,8 @@ export const ReturnRequestSchema = v.object({
   refundSentEgp: v.optional(v.nullable(whole), null),
   refundReference: text,
   stockNotReturned: v.optional(v.nullable(whole), null),
+  /** What Reject moves after Approve (saved at Approve since ATS-298); only its presence is read. */
+  rejectStock: v.optional(v.nullable(v.unknown()), null),
   createdAt: v.optional(v.nullable(timestampSchema), null),
   updatedAt: v.optional(v.nullable(timestampSchema), null),
 });

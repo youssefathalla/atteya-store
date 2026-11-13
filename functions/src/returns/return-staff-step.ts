@@ -496,22 +496,14 @@ export function approvePlan(items: readonly StaffReturnItem[]): { approve: Stock
   return { approve: plan.approve, reject: plan.reject };
 }
 
-/** Approve: the moves for the items (every wrong item must have its sent piece by now). */
-export function approveStep(items: readonly StaffReturnItem[]): StockStep {
-  return approvePlan(items).approve;
-}
-
-/** Reject after Approve, for a request approved before `rejectStock` was saved: the opposite of what Approve moved. */
-export function rejectUndoStep(saved: StockStep): StockStep {
-  return undoStockStep(saved);
-}
-
 /**
  * Reject after Approve: the moves saved at Approve (`rejectStock`), which keep the Wrong Item Sent
- * corrections. A request approved before that was saved undoes what Approve moved (`approveStock`).
+ * corrections. `rejectStock` comes from the plan, not from what moved: its puts are the undo of
+ * Approve takes (which never skip, Approve refuses instead) plus the Send the Right One ordered
+ * piece, which belongs on the shelf whatever Approve did. A request approved before that was saved undoes what Approve moved (`approveStock`).
  */
 export function rejectStep(rejectStock: unknown, approveStock: unknown): StockStep {
-  return isRecord(rejectStock) ? readSavedStep(rejectStock) : rejectUndoStep(readSavedStep(approveStock));
+  return isRecord(rejectStock) ? readSavedStep(rejectStock) : undoStockStep(readSavedStep(approveStock));
 }
 
 /**
