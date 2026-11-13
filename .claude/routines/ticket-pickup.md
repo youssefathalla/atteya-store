@@ -75,7 +75,7 @@ Do NOT build, and stop after this step, when any of these is true:
 
 - Base `develop`. Title starts with the issue id: `<id> <plain summary>`.
 - Body: first line `Linear: [<id>](https://linear.app/<workspace>/issue/<id>)`, a clickable link to the issue (`workspace` from `linear.config.json`). Then what changed and why, and any deploy step it needs (for example `fb:rules:dev` or `fb:fn:dev`) for the person who deploys. Never write closing words like "Fixes <id>" or "Closes <id>".
-- Add a `## How to Test on Dev` section to the body, written for Youssef testing on his phone after the merge (AGENTS.md, "How to Test on Dev"):
+- Add a `## How to Test on Dev` section to the body, written for Youssef testing on his phone after the merge (AGENTS.md, "How to Test on Dev", and the `linear-board` skill):
   - First line: the rough time, `About 5 minutes.`
   - `Setup:` then one line per thing to do on dev first (deploy step, data script with its exact command, Rebuild search, a test offer or product to create, a signed-in test account), or `Setup: none`.
   - 3 to 6 `- [ ]` steps, each one action and what you should see, with "phone" or "desktop" where it matters and pages named by path. Base them on the ticket's "Done when" list. Mark steps that need sign-in (`Admin, signed in: …`).
