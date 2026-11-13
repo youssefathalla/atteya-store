@@ -182,7 +182,11 @@ function amountDueLabel(due: ReturnType<typeof paymentDue>): string | null {
  * agreed. A step back reads "Back to …".
  */
 export function statusMoves(order: OrderDoc, feeToBeAgreed: boolean): OrderStatusMove[] {
-  return allowedStatusMoves({ status: order.status, paymentMethod: order.paymentMethod })
+  return allowedStatusMoves({
+    status: order.status,
+    paymentMethod: order.paymentMethod,
+    returns: order.returns,
+  })
     .filter((status) => !(status === 'confirmed' && order.status === 'pending' && feeToBeAgreed))
     .map((status) => ({
       status,

@@ -10,6 +10,8 @@ import {
   cleanCancelReason,
   orderStockTaken,
   parseSetOrderStatusRequest,
+  RETURN_BLOCKS_STEP_BACK_MESSAGE,
+  returnBlocksMove,
   stampsClearedBy,
   stockMoveFor,
 } from '../../lib/store/order-status.js';
@@ -52,6 +54,67 @@ describe('allowed status moves', () => {
     assert.deepEqual(
       allowedStatusMoves({ status: 'pending', paymentMethod: 'international-bank-transfer' }),
       [],
+    );
+  });
+});
+
+describe('returns block the step back from Delivered (ATS-297)', () => {
+  const request = (status: string) => ({ id: `r-${status}`, status, hasRefund: true, items: [] });
+
+  it('refuses Back to Shipped while a request is open or finished', () => {
+    for (const status of ['requested', 'approved', 'received', 'refund-sent', 'something-new']) {
+      for (const paymentMethod of ['cash-on-delivery', 'instapay', 'paymob']) {
+        const order = { status: 'delivered', paymentMethod, returns: [request(status)] };
+        assert.deepEqual(allowedStatusMoves(order), [], `${paymentMethod} ${status}`);
+        assert.equal(canMoveStatus(order, 'shipped'), false);
+        assert.equal(returnBlocksMove(order, 'shipped'), true);
+        assert.equal(returnBlocksMove(order, 'cancelled'), false, 'never allowed, so not a returns refusal');
+      }
+    }
+    const mixed = {
+      status: 'delivered',
+      paymentMethod: 'instapay',
+      returns: [request('rejected'), request('received')],
+    };
+    assert.equal(canMoveStatus(mixed, 'shipped'), false);
+  });
+
+  it('allows it again once every request is Rejected or Cancelled', () => {
+    const order = {
+      status: 'delivered',
+      paymentMethod: 'cash-on-delivery',
+      returns: [request('rejected'), request('cancelled')],
+    };
+    assert.deepEqual(allowedStatusMoves(order), ['shipped']);
+    assert.equal(returnBlocksMove(order, 'shipped'), false);
+  });
+
+  it('an order with no returns moves and returns stock as before', () => {
+    for (const returns of [undefined, [], null, 'junk']) {
+      const order = { status: 'delivered', paymentMethod: 'instapay', returns };
+      assert.deepEqual(allowedStatusMoves(order), ['shipped']);
+      assert.equal(returnBlocksMove(order, 'shipped'), false);
+    }
+    assert.deepEqual(allowedStatusMoves({ status: 'confirmed', paymentMethod: 'instapay', returns: [] }), [
+      'shipped',
+      'pending',
+      'cancelled',
+    ]);
+    assert.equal(stockMoveFor('cancelled', true), 'return');
+  });
+
+  it('an order already stepped back keeps only forward moves, so it cannot be cancelled', () => {
+    const returns = [request('approved')];
+    const shipped = { status: 'shipped', paymentMethod: 'instapay', returns };
+    assert.deepEqual(allowedStatusMoves(shipped), ['delivered']);
+    assert.equal(returnBlocksMove(shipped, 'confirmed'), true);
+    const confirmed = { status: 'confirmed', paymentMethod: 'cash-on-delivery', returns };
+    assert.deepEqual(allowedStatusMoves(confirmed), ['shipped']);
+    assert.equal(returnBlocksMove(confirmed, 'cancelled'), true);
+    assert.equal(returnBlocksMove(confirmed, 'pending'), true);
+    assert.equal(
+      RETURN_BLOCKS_STEP_BACK_MESSAGE,
+      'This order has a return or exchange. Finish or reject it first, then change the order.',
     );
   });
 });
