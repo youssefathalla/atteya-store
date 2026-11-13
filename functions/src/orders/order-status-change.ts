@@ -24,10 +24,13 @@ import {
   isOrderStatus,
   orderStatusLabel,
   orderStockTaken,
+  RETURN_BLOCKS_STEP_BACK_MESSAGE,
+  returnBlocksStepBack,
   stampsClearedBy,
   statusStampField,
   stockMoveFor,
   type OrderStatus,
+  type OrderStatusFacts,
   type StaffOrderStatus,
 } from '../store/order-status.js';
 
@@ -88,7 +91,7 @@ export async function changeOrderStatus(
         opts.onlyFromMessage ?? onlyFromRefusal(order, target, opts.onlyFrom),
       );
     }
-    if (!canMoveStatus(order as { status: unknown; paymentMethod: unknown }, target)) {
+    if (!canMoveStatus(order as OrderStatusFacts, target)) {
       throw new HttpsError('failed-precondition', moveRefusal(order, target));
     }
     if (target === 'confirmed' && current === 'pending') {
@@ -251,7 +254,7 @@ function onlyFromRefusal(
   target: StaffOrderStatus,
   onlyFrom: readonly OrderStatus[],
 ): string {
-  if (!canMoveStatus(order as { status: unknown; paymentMethod: unknown }, target)) {
+  if (!canMoveStatus(order as OrderStatusFacts, target)) {
     return moveRefusal(order, target);
   }
   const names = onlyFrom.map((status) => orderStatusLabel(status)).join(' or ');
@@ -270,6 +273,9 @@ function moveRefusal(order: DocumentData, target: StaffOrderStatus): string {
     if (target === 'cancelled') {
       return "Paid card orders can't be cancelled here, because the payment can't be refunded from the dashboard yet.";
     }
+  }
+  if (returnBlocksStepBack(order as OrderStatusFacts)) {
+    return RETURN_BLOCKS_STEP_BACK_MESSAGE;
   }
   if (isOrderStatus(current)) {
     return `An order that is ${orderStatusLabel(current)} can't be marked as ${orderStatusLabel(target)}. Refresh the list and try again.`;

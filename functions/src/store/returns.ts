@@ -176,6 +176,21 @@ export function returnHoldsPieces(status: ReturnStatus): boolean {
 }
 
 /**
+ * Whether any request in the order's raw `returns` array still holds pieces (anything but Rejected
+ * or Cancelled). Read straight from the raw array so an entry with an unknown status also counts:
+ * staff can't step such an order back, because a cancel would put those pieces into stock twice
+ * (ATS-297).
+ */
+export function hasReturnHoldingPieces(rawReturns: unknown): boolean {
+  if (!Array.isArray(rawReturns)) return false;
+  return rawReturns.some((entry) => {
+    if (!isRecord(entry)) return false;
+    const status = entry['status'];
+    return !isReturnStatus(status) || returnHoldsPieces(status);
+  });
+}
+
+/**
  * The statuses a request may move to next. `byShopper` asks for the shopper's own move
  * (Cancelled while Requested); staff get Approved, Rejected, Received and Refund Sent.
  */

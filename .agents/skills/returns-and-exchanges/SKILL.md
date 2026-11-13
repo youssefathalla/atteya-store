@@ -74,6 +74,7 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - Wrong Item Sent · Refund: the sent piece −1 and the ordered piece +1 at Approve; the sent piece +1 at Received.
 - For wrong items staff choose the piece actually sent at Approve (`sentPiece`); until then the item is listed in `missing`.
 - Rejecting or cancelling after Approve undoes the Approve moves (`undoStockStep()`).
+- While any request on an order holds pieces (not Rejected or Cancelled), staff can't step the Delivered order back to Shipped (`hasReturnHoldingPieces()`), so a later cancel never puts those pieces into stock a second time. Details in the `checkout-and-orders` skill.
 
 ## Data
 

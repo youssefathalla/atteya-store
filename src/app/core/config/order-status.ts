@@ -8,10 +8,12 @@
  * Waiting for Payment (`pending`, Cash on Delivery / InstaPay / Bank Transfer only) → Confirmed, Cancelled
  * Confirmed → Shipped, Cancelled, back to Waiting for Payment (Cash on Delivery / InstaPay / Bank Transfer only)
  * Shipped → Delivered, back to Confirmed
- * Delivered → back to Shipped
+ * Delivered → back to Shipped (not while a return or exchange request holds pieces, ATS-297)
  * Cancelled and Payment Failed are final. Card (Paymob) orders: `pending` / `failed` are set by
  * Paymob only, and a paid card order is never cancelled here (refunds are not built).
  */
+
+import { hasReturnHoldingPieces } from './returns';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
 
@@ -29,9 +31,15 @@ export type StaffOrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered'
 
 export const CANCEL_REASON_MAX = 300;
 
+/** Why Back to Shipped is refused while a return or exchange request holds pieces. */
+export const RETURN_BLOCKS_STEP_BACK_MESSAGE =
+  'This order has a return or exchange. Finish or reject it first, then change the order.';
+
 export interface OrderStatusFacts {
   readonly status: unknown;
   readonly paymentMethod: unknown;
+  /** The order's raw `returns` array. A request that holds pieces blocks the step back from Delivered. */
+  readonly returns?: unknown;
 }
 
 export function isOrderStatus(value: unknown): value is OrderStatus {
@@ -66,10 +74,17 @@ export function allowedStatusMoves(order: OrderStatusFacts): StaffOrderStatus[] 
     case 'shipped':
       return ['delivered', 'confirmed'];
     case 'delivered':
-      return ['shipped'];
+      // A step back could end in Cancelled, which puts every line back into stock, on top of the
+      // pieces a return already put back or an exchange already took.
+      return hasReturnHoldingPieces(order.returns) ? [] : ['shipped'];
     default:
       return [];
   }
+}
+
+/** Delivered, with a return or exchange request that still holds pieces. */
+export function returnBlocksStepBack(order: OrderStatusFacts): boolean {
+  return order.status === 'delivered' && hasReturnHoldingPieces(order.returns);
 }
 
 export function canMoveStatus(order: OrderStatusFacts, target: StaffOrderStatus): boolean {
