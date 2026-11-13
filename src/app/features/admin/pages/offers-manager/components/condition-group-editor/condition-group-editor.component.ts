@@ -17,6 +17,7 @@ import type { Brand, Category, Product } from '@core/services/products/product.m
 import { ColorSwatchComponent } from '@shared/ui/color-swatch/color-swatch.component';
 import { SharedIconModule } from '@shared/ui/mat-icon';
 import { CONDITION_FIELD_OPTIONS } from '../../models/offer-admin.model';
+import { groupOfferProducts, hasColourChoice } from '../../models/offer-product-picks';
 
 export interface ValueChoice {
   readonly id: string;
@@ -47,15 +48,33 @@ export class ConditionGroupEditorComponent {
 
   readonly fieldOptions = CONDITION_FIELD_OPTIONS;
 
-  readonly modelGroups = computed<readonly ValueChoice[]>(() => {
-    const groups = new Set<string>();
-    for (const p of this.products()) {
-      if (p.modelGroup) groups.add(p.modelGroup);
-    }
-    return Array.from(groups)
-      .sort()
-      .map((id) => ({ id, label: id }));
-  });
+  /** Products grouped by model, so a colour shows under its product's name (ATS-270). */
+  readonly #models = computed(() =>
+    groupOfferProducts(this.products(), (colorId) => {
+      const entry = COLOR_PALETTE.find((colour) => colour.id === colorId);
+      return entry ? { label: entry.label, swatch: entry.swatch } : null;
+    }),
+  );
+
+  /** One choice per product with a model, named after the product. */
+  readonly modelGroups = computed<readonly ValueChoice[]>(() =>
+    this.#models()
+      .flatMap((item) => (item.modelGroup ? [{ id: item.modelGroup, label: item.name }] : []))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  );
+
+  /** One choice per colour: "Nox Padel Shorts · Black" when the product has several colours. */
+  readonly productChoices = computed<readonly ValueChoice[]>(() =>
+    this.#models()
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .flatMap((item) =>
+        item.colours.map((colour) => ({
+          id: colour.productId,
+          label: hasColourChoice(item) ? `${item.name} · ${colour.label}` : item.name,
+        })),
+      ),
+  );
 
   readonly existingTags = computed<readonly ValueChoice[]>(() => {
     const tags = new Set<string>();
@@ -87,7 +106,7 @@ export class ConditionGroupEditorComponent {
       case 'tags':
         return this.existingTags();
       case 'productId':
-        return this.products().map((p) => ({ id: p.id, label: p.name }));
+        return this.productChoices();
       case 'price':
         return [];
     }

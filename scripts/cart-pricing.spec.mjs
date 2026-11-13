@@ -91,6 +91,15 @@ import {
   shortItemWord,
 } from '../src/app/core/services/offers/offer-shop.ts';
 
+import {
+  colourChoiceValues,
+  groupOfferProducts,
+  newProductPick,
+  nextColourChoice,
+  productPickLabel,
+  readProductPicks,
+  writeProductPicks,
+} from '../src/app/features/admin/pages/offers-manager/models/offer-product-picks.ts';
 describe('cart-pricing (AS-33)', () => {
   it('lineDisplayAmount multiplies converted unit price by quantity', () => {
     assert.equal(lineDisplayAmount(100, 3), 300);
@@ -1456,6 +1465,100 @@ describe('category and brand pages never open empty (ATS-268)', () => {
   it('shows Page Not Found for a deleted brand and decides nothing when brands could not load', () => {
     assert.deepEqual(brand('babolat'), { kind: 'missing' });
     assert.deepEqual(brand('babolat', { published: null }), { kind: 'ok' });
+  });
+});
+
+describe('offer product picker: one product, then its colours (ATS-270)', () => {
+  const palette = { black: 'Black', white: 'White', grey: 'Grey' };
+  const info = (id) => (palette[id] ? { label: palette[id], swatch: null } : null);
+  const models = groupOfferProducts(
+    [
+      { id: 'nox-b', name: 'Nox Padel Shorts', modelGroup: 'nox-shorts', colors: ['black'] },
+      { id: 'nox-w', name: 'Nox Padel Shorts', modelGroup: 'nox-shorts', colors: ['white'] },
+      { id: 'nox-g', name: 'Nox Padel Shorts', modelGroup: 'nox-shorts', colors: ['grey'] },
+      { id: 'bottle', name: 'Babolat Bottle', modelGroup: null, colors: ['black'] },
+    ],
+    info,
+  );
+  const nox = models[0];
+  const bottle = models[1];
+
+  it('lists each product once with its colours', () => {
+    assert.equal(models.length, 2);
+    assert.deepEqual(
+      nox.colours.map((colour) => colour.label),
+      ['Black', 'White', 'Grey'],
+    );
+    assert.equal(bottle.colours.length, 1);
+  });
+
+  it('saves All colours as the model and a one-colour product as its id', () => {
+    const picks = [newProductPick(nox), newProductPick(bottle)];
+    assert.equal(productPickLabel(picks[0]), 'Nox Padel Shorts · All colours');
+    assert.equal(productPickLabel(picks[1]), 'Babolat Bottle');
+    assert.deepEqual(writeProductPicks(picks), { modelGroups: ['nox-shorts'], productIds: ['bottle'] });
+  });
+
+  it('ticks colours, clears them with All colours, and goes back to All colours when none is left', () => {
+    let pick = newProductPick(nox);
+    pick = nextColourChoice(pick, ['all', 'nox-w', 'nox-b']);
+    assert.equal(productPickLabel(pick), 'Nox Padel Shorts · Black, White');
+    assert.deepEqual(colourChoiceValues(pick), ['nox-b', 'nox-w']);
+    assert.deepEqual(writeProductPicks([pick]), { modelGroups: [], productIds: ['nox-b', 'nox-w'] });
+    assert.equal(nextColourChoice(pick, ['nox-b', 'nox-w', 'all']).all, true);
+    assert.equal(nextColourChoice(pick, []).all, true);
+  });
+
+  it('opens an older offer with several colour ids as one product with those colours ticked', () => {
+    const picks = readProductPicks({ modelGroups: [], productIds: ['nox-w', 'nox-b', 'bottle'] }, models);
+    assert.equal(picks.length, 2);
+    assert.equal(productPickLabel(picks[0]), 'Nox Padel Shorts · Black, White');
+    assert.deepEqual(writeProductPicks(picks), { modelGroups: [], productIds: ['nox-b', 'nox-w', 'bottle'] });
+  });
+
+  it('reads a saved model as All colours and keeps unknown ids', () => {
+    const picks = readProductPicks(
+      { modelGroups: ['nox-shorts', 'gone'], productIds: ['nox-b', 'old'] },
+      models,
+    );
+    assert.equal(picks.length, 3);
+    assert.equal(picks[0].all, true);
+    assert.deepEqual(writeProductPicks(picks), { modelGroups: ['nox-shorts', 'gone'], productIds: ['old'] });
+  });
+
+  it('names look-alike colours by every colour they have', () => {
+    const [shorts] = groupOfferProducts(
+      [
+        { id: 'a', name: 'Head Padel Shorts', modelGroup: 'head', colors: ['black', 'white'] },
+        { id: 'b', name: 'Head Padel Shorts', modelGroup: 'head', colors: ['black', 'grey'] },
+      ],
+      info,
+    );
+    assert.deepEqual(
+      shorts.colours.map((colour) => colour.label),
+      ['Black & White', 'Black & Grey'],
+    );
+  });
+
+  it('leaves hidden colours out when All colours can only name products', () => {
+    const [shorts] = groupOfferProducts(
+      [
+        { id: 'a', name: 'Shorts', modelGroup: 'm', colors: ['black'], published: true },
+        { id: 'b', name: 'Shorts', modelGroup: 'm', colors: ['white'], published: false },
+      ],
+      info,
+    );
+    assert.deepEqual(writeProductPicks([newProductPick(shorts)], true), {
+      modelGroups: [],
+      productIds: ['a'],
+    });
+  });
+
+  it('free gifts save every colour for All colours and read every colour back as All colours', () => {
+    const saved = writeProductPicks([newProductPick(nox)], true);
+    assert.deepEqual(saved, { modelGroups: [], productIds: ['nox-b', 'nox-w', 'nox-g'] });
+    const picks = readProductPicks(saved, models, true);
+    assert.equal(productPickLabel(picks[0]), 'Nox Padel Shorts · All colours');
   });
 });
 
