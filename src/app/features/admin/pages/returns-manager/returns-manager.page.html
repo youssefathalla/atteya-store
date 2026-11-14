@@ -1,5 +1,5 @@
 <div class="elements-start-col items-stretch! gap-4 w-full">
-  <section class="surface-card p-4 @5xl:p-5 w-full elements-start-col gap-4" aria-label="Returns toolbar">
+  <section class="surface-card p-4 @5xl:p-5 w-full elements-start-col gap-6" aria-label="Returns toolbar">
     <h1 class="font-title-lg font-bold!">Returns</h1>
 
     <mat-form-field class="w-full @3xl:max-w-md" appearance="outline">
@@ -11,7 +11,7 @@
         [value]="searchText()"
         (input)="searchText.set($any($event.target).value)"
       />
-      <mat-hint>Request or order number, name, phone or email of the requests shown.</mat-hint>
+      <mat-hint>Request or order number, name, phone or email</mat-hint>
     </mat-form-field>
 
     <div

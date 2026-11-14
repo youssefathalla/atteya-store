@@ -88,11 +88,36 @@ export function returnPickLines(order: OrderDoc, summaries: readonly ReturnSumma
     }));
 }
 
-/** The kinds a line can ask for: a free gift can only be swapped for another size or colour. */
-export function kindsFor(line: Pick<ReturnPickLine, 'giftFor'>): readonly ReturnKind[] {
-  return line.giftFor !== null
-    ? ['different-size', 'different-colour']
-    : ['different-size', 'different-colour', 'return', 'damaged', 'wrong-item'];
+/** True when the product has a size option with more than one size (Different Size makes sense). */
+export function hasSizeChoice(product: Product | null): boolean {
+  const option = product?.options.find((entry) => entry.key === 'size');
+  return (option?.values.length ?? 0) > 1;
+}
+
+/**
+ * True when the product has other live colours: its stored `colorSiblings` list names another
+ * product, or (before that list is filled in) it belongs to a model (`modelGroup`).
+ */
+export function hasColourChoice(product: Product | null): boolean {
+  if (!product) return false;
+  if (product.colorSiblings.length > 0) return product.colorSiblings.some((other) => other.id !== product.id);
+  return !!product.modelGroup;
+}
+
+/**
+ * The kinds a line can ask for, from its live product: Different Size only when the product has
+ * more than one size, Different Colour only when it has other colours. A free gift can only be
+ * swapped for another size or colour, so a gift with neither gets an empty list.
+ */
+export function kindsFor(
+  line: Pick<ReturnPickLine, 'giftFor'>,
+  product: Product | null,
+): readonly ReturnKind[] {
+  const swaps: ReturnKind[] = [
+    ...(hasSizeChoice(product) ? (['different-size'] as const) : []),
+    ...(hasColourChoice(product) ? (['different-colour'] as const) : []),
+  ];
+  return line.giftFor !== null ? swaps : [...swaps, 'return', 'damaged', 'wrong-item'];
 }
 
 /** What is still missing before the item can be sent, in plain words; null when complete. */

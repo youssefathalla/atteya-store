@@ -78,6 +78,14 @@ type RequestRow = ReturnType<ReturnRequestDialogComponent['rows']>[number];
 
 const FALLBACK_ERROR = "We couldn't send your request. Please try again.";
 
+/** The free gift's hint under "What would you like?", naming only the swaps it really has. */
+function giftSwapHint(kinds: readonly ReturnKind[]): string {
+  const size = kinds.includes('different-size');
+  const colour = kinds.includes('different-colour');
+  const swaps = size && colour ? 'another size or colour' : size ? 'another size' : 'another colour';
+  return `A free gift can be swapped for ${swaps}.`;
+}
+
 /**
  * The shopper's Return or Exchange screen (ATS-292): pick items and pieces, say what they want
  * for each, see the refund and courier fee (shared rules in `@core/config/returns`, the same
@@ -128,19 +136,31 @@ export class ReturnRequestDialogComponent {
 
   readonly #readProducts = this.#returns.productReader();
 
-  /** Products needed for the size and colour choices, read when an item asks for one. */
-  readonly #productRequests = computed(() => {
-    const byId = new Map<string, boolean>();
-    for (const line of this.lines) {
-      const choice = this.choices()[line.index];
-      if (choice?.picked && (choice.kind === 'different-size' || choice.kind === 'different-colour')) {
-        byId.set(line.productId, (byId.get(line.productId) ?? false) || choice.kind === 'different-colour');
+  /**
+   * Every item's live product, read when the screen opens (one read per product) so "What would
+   * you like?" only offers the sizes and colours it really has. The model's other colours are
+   * read once an item asks for Different Colour.
+   */
+  readonly #productRequests = computed(
+    () => {
+      const byId = new Map<string, boolean>();
+      for (const line of this.lines) {
+        if (line.left < 1) continue;
+        const choice = this.choices()[line.index];
+        const colours = !!choice?.picked && choice.kind === 'different-colour';
+        byId.set(line.productId, (byId.get(line.productId) ?? false) || colours);
       }
-    }
-    return [...byId.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([productId, withColours]) => ({ productId, withColours }));
-  });
+      return [...byId.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([productId, withColours]) => ({ productId, withColours }));
+    },
+    // A quantity, reason or size change gives the same list: don't read the products again.
+    {
+      equal: (a, b) =>
+        a.length === b.length &&
+        a.every((item, i) => item.productId === b[i]?.productId && item.withColours === b[i]?.withColours),
+    },
+  );
 
   readonly #productsResource = resource({
     params: () => {
@@ -161,6 +181,30 @@ export class ReturnRequestDialogComponent {
 
   readonly productsFailed = computed(() => !!this.#productsResource.error());
 
+  /**
+   * The kinds each item can ask for, by line index, from its live product; null until the
+   * product is read (or when the read failed: the screen then says so and offers nothing wrong).
+   */
+  readonly #lineKinds = computed(() => {
+    const out = new Map<number, readonly ReturnKind[] | null>();
+    for (const line of this.lines) {
+      const found = this.#products().get(line.productId);
+      out.set(line.index, found ? kindsFor(line, found.product) : null);
+    }
+    return out;
+  });
+
+  /**
+   * True when the item can be ticked: pieces left, and for a free gift, its product read and
+   * something to swap it for (so a gift never shows ticked and then disabled).
+   */
+  #canPick(line: ReturnPickLine): boolean {
+    const kinds = this.#lineKinds().get(line.index) ?? null;
+    if (line.left < 1) return false;
+    if (line.giftFor === null) return true;
+    return kinds !== null && kinds.length > 0;
+  }
+
   /** Per line: the choice, the kinds offered and the live size and colour choices. */
   readonly rows = computed(() =>
     this.lines.map((line) => {
@@ -176,10 +220,22 @@ export class ReturnRequestDialogComponent {
         : null;
       const sizes =
         choice.kind === 'different-colour' ? sizeChips(colour, null) : sizeChips(product, currentSize);
+      const kinds = this.#lineKinds().get(line.index) ?? null;
+      const otherSizes = choice.kind === 'different-size' ? sizes.filter((size) => !size.yours) : [];
+      const cannotSwap = line.left > 0 && kinds !== null && kinds.length === 0;
       return {
         line,
         choice,
-        kinds: kindsFor(line),
+        kinds: kinds ?? [],
+        kindsLoading: kinds === null && !this.productsFailed(),
+        canPick: this.#canPick(line),
+        /** A free gift with no other size or colour (known only once its product is read). */
+        cannotSwap,
+        checkboxLabel:
+          `Return or exchange ${line.name}${line.details ? `, ${line.details}` : ''}` +
+          (cannotSwap ? ". This gift can't be exchanged." : ''),
+        giftHint: giftSwapHint(kinds ?? []),
+        noOtherSizeInStock: otherSizes.length > 0 && otherSizes.every((size) => size.soldOut),
         wants: choice.kind ? wantsFor(choice.kind) : [],
         loading: loaded === undefined,
         missing: loaded !== undefined && product === null,
@@ -204,7 +260,7 @@ export class ReturnRequestDialogComponent {
   readonly #picked = computed(() =>
     this.lines
       .map((line) => ({ line, choice: this.choices()[line.index] ?? EMPTY_CHOICE }))
-      .filter(({ line, choice }) => choice.picked && line.left > 0),
+      .filter(({ line, choice }) => choice.picked && this.#canPick(line)),
   );
 
   readonly preview = computed(() =>
@@ -269,7 +325,7 @@ export class ReturnRequestDialogComponent {
     const picked = this.#picked();
     if (picked.length === 0) return 'Choose the items you want to return or exchange.';
     for (const row of this.rows()) {
-      if (!row.choice.picked || row.line.left < 1) continue;
+      if (!row.choice.picked || !row.canPick) continue;
       const problem = choiceProblem(row.line, row.choice, row.hasSizes);
       if (problem) return problem;
     }
@@ -318,7 +374,7 @@ export class ReturnRequestDialogComponent {
 
   async send(): Promise<void> {
     if (this.problem() || this.isSending()) return;
-    const rows = this.rows().filter((row) => row.choice.picked && row.line.left > 0 && row.choice.kind);
+    const rows = this.rows().filter((row) => row.choice.picked && row.canPick && row.choice.kind);
     const items: RequestReturnItem[] = rows.map(({ line, choice }) => {
       const kind = choice.kind as ReturnKind;
       return {
