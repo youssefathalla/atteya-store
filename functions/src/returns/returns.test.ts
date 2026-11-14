@@ -577,6 +577,21 @@ describe('requestReturn input and building', () => {
     }
   });
 
+  it('refuses a line held by a Wrong Item Sent request rejected after Approve (ATS-299)', () => {
+    const ask = { items: [{ lineIndex: 0, quantity: 1, kind: 'damaged', wants: 'send-another' }] };
+    const rejected = {
+      id: 'r1',
+      status: 'rejected',
+      hasRefund: true,
+      items: [{ lineIndex: 0, quantity: 1, refund: true }],
+    };
+    assert.throws(
+      () => build(ask, { returns: [{ ...rejected, keptItems: [{ lineIndex: 0, quantity: 1 }] }] }),
+      (error: unknown) => error instanceof ReturnRequestError && /more pieces/.test(error.message),
+    );
+    assert.doesNotThrow(() => build(ask, { returns: [rejected] }), 'rejected before Approve holds nothing');
+  });
+
   it('finds the shopper by uid or by the order view key', () => {
     assert.equal(isOrderShopper(order, { auth: { uid: 'uid-1' } as never }, null), true);
     assert.equal(isOrderShopper(order, { auth: { uid: 'uid-2' } as never }, null), false);
