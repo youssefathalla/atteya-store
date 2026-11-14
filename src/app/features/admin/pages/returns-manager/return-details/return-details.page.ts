@@ -46,6 +46,7 @@ import {
   feeLine,
   notReturnedMessage,
   productIdsOfRequest,
+  rejectStockLines,
   returnActionError,
   returnDate,
   returnHistory,
@@ -230,7 +231,11 @@ export class ReturnDetailsPageComponent implements OnInit {
       RejectReturnDialogData,
       RejectReturnDialogResult
     >(RejectReturnDialogComponent, {
-      data: { ref: request.ref, approved: request.status === 'approved' },
+      data: {
+        ref: request.ref,
+        approved: request.status === 'approved',
+        stockLines: rejectStockLines(request, this.dataResource.value()?.products ?? new Map()),
+      },
       width: DIALOG_WIDTH,
     });
     const result = await firstValueFrom(ref.afterClosed());

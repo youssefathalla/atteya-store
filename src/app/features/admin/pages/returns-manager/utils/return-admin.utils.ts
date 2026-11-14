@@ -205,6 +205,48 @@ function stockFacts(
   return facts;
 }
 
+/**
+ * What Reject does to stock for a request Approve already moved, one line per item (ATS-298).
+ * Wrong Item Sent keeps both corrections: the piece we sent stays with the customer, and the
+ * ordered piece stays on the shelf (Send the Right One gives it back, as we never sent it).
+ */
+export function rejectStockLines(
+  request: ReturnRequestDoc,
+  products: ReadonlyMap<string, ReturnProductLookup>,
+): string[] {
+  // Approved before ATS-298: the server undoes exactly what Approve moved.
+  if (request.rejectStock == null) {
+    return ['What Approve took out of stock goes back, and what it put back comes out again.'];
+  }
+  const lines: string[] = [];
+  for (const item of request.items) {
+    const count = item.quantity > 1 ? `${item.quantity} × ` : '';
+    const name = (productId: string, selection: Record<string, string>) =>
+      `${count}${pieceName(products.get(productId), selection)}`;
+    const ordered = name(item.productId, item.selection);
+    switch (item.kind) {
+      case 'different-size':
+      case 'different-colour':
+        if (item.newProductId)
+          lines.push(`${name(item.newProductId, item.newSelection ?? {})} goes back into stock.`);
+        break;
+      case 'damaged':
+        if (item.wants === 'send-another') lines.push(`${ordered} goes back into stock.`);
+        break;
+      case 'wrong-item': {
+        const sent = item.sentProductId
+          ? `${name(item.sentProductId, item.sentSelection ?? {})} stays with the customer. `
+          : '';
+        lines.push(
+          `${sent}${ordered} ${item.wants === 'refund' ? 'stays in stock' : 'goes back into stock'}.`,
+        );
+        break;
+      }
+    }
+  }
+  return lines;
+}
+
 function pieceName(product: ReturnProductLookup | undefined, selection: Record<string, string>): string {
   const size = selection['size'];
   const sizeName = size

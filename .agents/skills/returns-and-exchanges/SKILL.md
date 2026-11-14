@@ -65,7 +65,7 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 
 ## Stock plan
 
-- `returnStockPlan(items)` turns a request into `approve` and `received` steps of `take` / `putBack` pieces (`{ productId, selection, quantity }`); `applyStockMoves()` applies them (see Staff steps).
+- `returnStockPlan(items)` turns a request into `approve`, `reject` and `received` steps of `take` / `putBack` pieces (`{ productId, selection, quantity }`); `applyStockMoves()` applies them (see Staff steps).
 - Different Size / Different Colour: new piece −1 at Approve; returned piece +1 at Received if it can be sold again.
 - Return It: nothing at Approve; piece +1 at Received if it can be sold again.
 - Damaged · Send Another: the same piece −1 at Approve; nothing back by default (`canBeSoldAgain` defaults off for Damaged).
@@ -73,8 +73,12 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - Wrong Item Sent · Send the Right One: the piece actually sent −1 at Approve (the ordered piece +1 then −1 = no change); the sent piece +1 at Received.
 - Wrong Item Sent · Refund: the sent piece −1 and the ordered piece +1 at Approve; the sent piece +1 at Received.
 - For wrong items staff choose the piece actually sent at Approve (`sentPiece`); until then the item is listed in `missing`.
-- Rejecting or cancelling after Approve undoes the Approve moves (`undoStockStep()`).
+- Reject after Approve moves the plan's `reject` step (<KEY>-298): every kind undoes what Approve took, except Wrong Item Sent.
+- Wrong Item Sent rejected after Approve keeps both corrections: the piece we sent stays −1 (the customer has it) and the ordered piece stays +1 (it is on our shelf).
+- Wrong Item Sent · Send the Right One rejected after Approve puts the ordered piece back +1 (the −1 for the right one is undone, since we never sent it); Wrong Item Sent · Refund rejected moves no stock.
+- `undoStockStep()` (swap `take` and `putBack`) is only the fallback for requests approved before `rejectStock` was saved.
 - While any request on an order holds pieces (not Rejected or Cancelled), staff can't step the Delivered order back to Shipped (`hasReturnHoldingPieces()`), so a later cancel never puts those pieces into stock a second time. Details in the `checkout-and-orders` skill.
+- Known gap (<KEY>-299): a Wrong Item Sent request rejected after Approve keeps its stock corrections but no longer holds pieces, so its line can be asked for again and the order can be stepped back and cancelled.
 
 ## Data
 
@@ -135,13 +139,14 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - `/admin/orders/:id` and the open order in the Orders list show a **Returns** line (`app-order-returns-line`, reads `returnRequests` by `orderId`).
 - Callables (`europe-west3`, `requireRole`): `approveReturnRequest`, `rejectReturnRequest`, `receiveReturnRequest` (admin and staff) and `markRefundSent` (admin only, checked on the server).
 - All four run `runReturnStep()` (`functions/src/returns/return-staff-transaction.ts`): one transaction reads the request, order and products, checks the move with `nextReturnStatuses()`, moves stock, stamps the request, updates the order's `returns` with `withReturnStatus()` and appends `{ status, from, at, by, byEmail?, reason? }` to `returnStaffNotes/{id}.history`.
-- The pure part is `functions/src/returns/return-staff-step.ts` (input checks, `withSentPieces()`, `approveStep()`, `receiveStep()`, `rejectUndoStep()`, `applyStockMoves()`), tested in `return-staff-step.test.ts`.
+- The pure part is `functions/src/returns/return-staff-step.ts` (input checks, `withSentPieces()`, `approvePlan()`, `approveStep()`, `receiveStep()`, `rejectStockFor()`, `applyStockMoves()`), tested in `return-staff-step.test.ts`.
 - Already in the target status answers `changed: false` and writes nothing, so a double click or two staff at once never move stock twice.
 - Approve: Wrong Item Sent first asks "What Did We Send Instead?" (`app-sent-piece-picker` searches any product with `ProductsAdminService.searchProducts()`, then a size) and saves `sentProductId` / `sentSelection` on the item.
-- Approve applies the plan's Approve moves once (`stockTakenAt`) and saves them as `approveStock`; a sold-out new piece refuses with "Size L is sold out. Ask the customer to pick another size or switch this item to a refund." and nothing changes.
-- Reject needs a reason the shopper sees (300 characters, `rejectReason`), works from Requested or Approved, and from Approved undoes `approveStock` once (`stockUndoneAt`); a count that is too low stops at 0 so a reject is never blocked.
+- Approve applies the plan's Approve moves once (`stockTakenAt`) and saves them as `approveStock`, plus the plan's Reject moves as `rejectStock`; a sold-out new piece refuses with "Size L is sold out. Ask the customer to pick another size or switch this item to a refund." and nothing changes.
+- Reject needs a reason the shopper sees (300 characters, `rejectReason`), works from Requested or Approved, and from Approved moves `rejectStock` once (`rejectStockFor()`, `stockUndoneAt`; a request without `rejectStock` undoes `approveStock`); a count that is too low stops at 0 so a reject is never blocked.
 - Item Received (from Approved) saves each item's `canBeSoldAgain` (on by default, off for Damaged Item, always on for Wrong Item Sent, which shows no switch) and puts those pieces back once (`stockReturnedAt`); exchange-only requests are done here.
 - Refund Sent (admin, from Received with a refund) saves `refundSentEgp` and an optional `refundReference`; no stock moves.
+- The Reject dialog lists what happens to stock per item (`rejectStockLines()`; a request approved before `rejectStock` existed shows one line saying Approve is undone), e.g. "Club Tee, Size M stays with the customer. Club Shorts, Size M goes back into stock."
 - Stamps: `approvedAt` / `approvedBy`, `rejectedAt` / `rejectedBy`, `receivedAt` / `receivedBy`, `refundSentAt` / `refundSentBy`.
 - Pieces whose product or size is gone are counted in `stockNotReturned` and the snackbar asks staff to check that product.
 

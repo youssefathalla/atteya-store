@@ -108,6 +108,16 @@ describe('returnStockPlan (every row of the table)', () => {
       putBack: [{ ...SHORTS, quantity: 1 }],
     });
     assert.deepEqual(plan.received.putBack, [{ ...SHORTS_L, quantity: 1 }]);
+    // Reject keeps both corrections (ATS-298).
+    assert.deepEqual(plan.reject, { take: [], putBack: [] });
+  });
+
+  it('Wrong Item Sent · Send the Right One: Reject gives back only the ordered piece', () => {
+    const plan = returnStockPlan([
+      { kind: 'wrong-item', wants: 'send-right-one', quantity: 2, ordered: SHORTS, sentPiece: SHORTS_L },
+    ]);
+    assert.deepEqual(plan.approve, { take: [{ ...SHORTS_L, quantity: 2 }], putBack: [] });
+    assert.deepEqual(plan.reject, { take: [], putBack: [{ ...SHORTS, quantity: 2 }] });
   });
 
   it('lists wrong items with no sent piece and exchanges with no new piece as missing', () => {

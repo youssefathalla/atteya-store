@@ -9,22 +9,23 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import type { RequiredCaller } from '../auth/require-role.js';
 import {
   isReturnStatus,
+  keptStockItems,
   nextReturnStatuses,
   returnStatusLabel,
   withReturnStatus,
+  type ReturnKeptItem,
   type ReturnStatus,
   type StockStep,
 } from '../store/returns.js';
 import { RETURN_REQUESTS_COLLECTION } from './return-access.js';
 import {
   applyStockMoves,
-  approveStep,
+  approvePlan,
   mergeItemChoices,
   productIdsOf,
-  readSavedStep,
   readStaffItems,
   receiveStep,
-  rejectUndoStep,
+  rejectStockFor,
   ReturnStepError,
   savedStep,
   sentProductIds,
@@ -68,7 +69,8 @@ const TARGET: Record<ReturnStepCall['step'], ReturnStatus> = {
 /**
  * One staff step on a return or exchange request, in a transaction against the live request,
  * order and products (ATS-293). Checks the move (`nextReturnStatuses`), moves stock exactly once
- * per step (`stockTakenAt` at Approve, `stockUndoneAt` on Reject after Approve, `stockReturnedAt`
+ * per step (`stockTakenAt` at Approve, `stockUndoneAt` on Reject after Approve, using the
+ * `rejectStock` saved at Approve, `stockReturnedAt`
  * at Item Received), stamps `approvedAt` / `rejectedAt` / `receivedAt` / `refundSentAt`, updates
  * the order's `returns` summary and appends the history row to `returnStaffNotes/{id}`. Pressing
  * twice, or two staff at once, finds the request already moved and answers `changed: false`.
@@ -115,6 +117,7 @@ export async function runReturnStep(
         call.step === 'approve' || call.step === 'receive' ? readStaffItems(rawItems) : [];
       let step: StockStep | null = null;
       let short: 'refuse' | 'floor' = 'floor';
+      let keptItems: ReturnKeptItem[] = [];
       const patch: DocumentData = {};
       const now = FieldValue.serverTimestamp();
 
@@ -139,18 +142,29 @@ export async function runReturnStep(
         await readProducts([...ids]);
         items = withSentPieces(items, call.input.sent, products);
         if (!saved['stockTakenAt']) {
-          step = approveStep(items);
+          const plan = approvePlan(items);
+          step = plan.approve;
           short = 'refuse';
           patch['stockTakenAt'] = now;
+          // What a later Reject moves: keeps the Wrong Item Sent corrections (ATS-298).
+          patch['rejectStock'] = savedStep(plan.reject);
         }
         patch['items'] = mergeItemChoices(rawItems, items);
         patch['approvedAt'] = now;
         patch['approvedBy'] = actor.uid;
       } else if (call.step === 'reject') {
-        if (saved['stockTakenAt'] && !saved['stockUndoneAt']) {
-          step = rejectUndoStep(readSavedStep(saved['approveStock']));
+        const undo = rejectStockFor(saved);
+        if (undo) {
+          step = undo;
           await readProducts(productIdsOf(step));
           patch['stockUndoneAt'] = now;
+          // `rejectStock` keeps the Wrong Item Sent corrections, so those line pieces stay held
+          // (the order can't step back, the shopper can't ask for them again). A request approved
+          // before `rejectStock` was saved undoes everything and keeps nothing.
+          if (isRecord(saved['rejectStock'])) {
+            keptItems = keptStockItems(rawItems);
+            if (keptItems.length > 0) patch['keptItems'] = keptItems;
+          }
         }
         patch['rejectReason'] = call.input.reason;
         patch['rejectedAt'] = now;
@@ -217,7 +231,7 @@ export async function runReturnStep(
             requestId,
             target,
             call.step === 'reject'
-              ? { rejectReason: call.input.reason }
+              ? { rejectReason: call.input.reason, keptItems }
               : call.step === 'refund-sent'
                 ? { refundSentEgp: call.input.amountEgp }
                 : {},
@@ -258,6 +272,10 @@ function stepProduct(data: DocumentData): StepProduct {
     options: data['options'],
     name: typeof data['name'] === 'string' ? data['name'] : '',
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function moveRefusal(current: ReturnStatus, target: ReturnStatus, hasRefund: boolean): string {

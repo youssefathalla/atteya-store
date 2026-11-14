@@ -6,7 +6,7 @@ import { parseReject, ReturnStepError } from './return-staff-step.js';
 import { runReturnStep, type ReturnStepResult } from './return-staff-transaction.js';
 
 /**
- * Reject (admin and staff, ATS-293): Requested or Approved → Rejected, with a reason the shopper sees. From Approved it undoes what Approve moved, once (`stockUndoneAt`).
+ * Reject (admin and staff, ATS-293): Requested or Approved → Rejected, with a reason the shopper sees. From Approved it moves the `rejectStock` saved at Approve, once (`stockUndoneAt`): every kind undoes what Approve took, but Wrong Item Sent keeps its corrections (ATS-298).
  */
 export const rejectReturnRequest = onCall(
   adminCallableOptions(),
