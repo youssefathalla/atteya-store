@@ -7,10 +7,12 @@
 import { readSizeValueIds, stockFields, type StockFields } from '../products/stock.js';
 import {
   isReturnKind,
+  keptStockItems,
   REFUND_REFERENCE_MAX,
   REJECT_REASON_MAX,
   returnStockPlan,
   undoStockStep,
+  type ReturnKeptItem,
   type ReturnKind,
   type ReturnStockItem,
   type ReturnWants,
@@ -513,6 +515,18 @@ export function rejectStep(rejectStock: unknown, approveStock: unknown): StockSt
 export function rejectStockFor(request: Readonly<Record<string, unknown>>): StockStep | null {
   if (!request['stockTakenAt'] || request['stockUndoneAt']) return null;
   return rejectStep(request['rejectStock'], request['approveStock']);
+}
+
+/**
+ * Reject: the Wrong Item Sent line pieces that stay held, because Reject keeps their stock
+ * corrections (ATS-299). Saved as `keptItems` on the request and its order `returns` entry, so the
+ * shopper can't ask for them again and the order can't step back. Nothing for a request rejected
+ * before Approve, one already undone, or one approved before `rejectStock` was saved (its Reject
+ * undoes everything); every other kind keeps nothing.
+ */
+export function rejectKeptItems(request: Readonly<Record<string, unknown>>): ReturnKeptItem[] {
+  if (!rejectStockFor(request) || !isRecord(request['rejectStock'])) return [];
+  return keptStockItems(request['items']);
 }
 
 /**

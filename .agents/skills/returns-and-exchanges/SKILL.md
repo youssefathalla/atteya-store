@@ -77,8 +77,13 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - Wrong Item Sent rejected after Approve keeps both corrections: the piece we sent stays −1 (the customer has it) and the ordered piece stays +1 (it is on our shelf).
 - Wrong Item Sent · Send the Right One rejected after Approve puts the ordered piece back +1 (the −1 for the right one is undone, since we never sent it); Wrong Item Sent · Refund rejected moves no stock.
 - `undoStockStep()` (swap `take` and `putBack`) is only the fallback for requests approved before `rejectStock` was saved.
-- While any request on an order holds pieces (not Rejected or Cancelled), staff can't step the Delivered order back to Shipped (`hasReturnHoldingPieces()`), so a later cancel never puts those pieces into stock a second time. Details in the `checkout-and-orders` skill.
-- Known gap (<KEY>-299): a Wrong Item Sent request rejected after Approve keeps its stock corrections but no longer holds pieces, so its line can be asked for again and the order can be stepped back and cancelled.
+- While any request on an order holds pieces (not Rejected or Cancelled, or Rejected with `keptItems`), staff can't step the Delivered order back to Shipped (`hasReturnHoldingPieces()`), so a later cancel never puts those pieces into stock a second time. Details in the `checkout-and-orders` skill.
+- A Wrong Item Sent request rejected after Approve keeps holding its pieces (<KEY>-299), because Reject keeps their stock corrections.
+- Reject saves those line pieces as `keptItems` on `returnRequests/{id}` and on the order's `returns` entry, in the same transaction (`rejectKeptItems()` in `return-staff-step.ts`).
+- `piecesLeft()` counts `keptItems` as used, so the shopper's screen shows "Already requested" for that line and `requestReturn` refuses it.
+- `hasReturnHoldingPieces()` counts a Rejected entry with `keptItems`, so the admin menu hides Back to Shipped and the server refuses the step back.
+- Requests rejected before Approve, requests approved before `rejectStock` was saved, and every other kind rejected after Approve keep nothing and hold no pieces.
+- If the shopper needs anything more for that item, staff handle it on WhatsApp.
 
 ## Data
 
