@@ -11,6 +11,7 @@ import { orderMessageInput } from './order-message-input';
 import { shortOrderRef } from './order-ref';
 import { OrderSchema, ORDERS_COLLECTION, type OrderDoc } from './order.schema';
 import { orderStatusName } from './order-status-name';
+import { returnEntry } from './order-returns';
 
 /** One row of the shopper's order history (Account → Orders, account panel "Latest Order"). */
 export interface ShopperOrderRow {
@@ -27,6 +28,8 @@ export interface ShopperOrderRow {
   readonly photos: readonly ShopperOrderPhoto[];
   /** Steps reached out of Placed, Confirmed, Shipped, Delivered (1–4); 0 when cancelled or failed. */
   readonly progress: number;
+  /** "24 Nov" while the order can still send a return or exchange request; null otherwise. */
+  readonly returnsUntil: string | null;
 }
 
 export interface ShopperOrderPhoto {
@@ -100,6 +103,7 @@ export function toShopperOrderRow(order: OrderDoc): ShopperOrderRow {
   const stage = orderStage(input);
   const amount = formatMoney(input.totalEgp ?? order.pricing.subtotalEgp, 'EGP', 0);
   const total = input.feeToBeAgreed ? `${amount} + shipping` : amount;
+  const entry = returnEntry(order, Date.now());
   return {
     id: order.id,
     ref: shortOrderRef(order.id),
@@ -109,6 +113,7 @@ export function toShopperOrderRow(order: OrderDoc): ShopperOrderRow {
     itemCount: order.pricing.lines.reduce((sum, line) => sum + line.quantity, 0),
     photos: orderPhotos(order),
     progress: ORDER_PROGRESS[order.status] ?? 0,
+    returnsUntil: entry.kind === 'open' ? entry.until : null,
   };
 }
 

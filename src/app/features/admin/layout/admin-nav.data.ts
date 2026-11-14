@@ -117,6 +117,13 @@ export const ADMIN_NAV_CATEGORIES: readonly AdminNavCategory[] = [
         description: 'Track orders and check live product stock on each line',
       },
       {
+        id: 'returns',
+        label: 'Returns',
+        path: '/admin/returns',
+        icon: 'restart_alt',
+        description: 'Return and exchange requests from customers',
+      },
+      {
         id: 'customers',
         label: 'Customers',
         path: '/admin/customers',

@@ -28,6 +28,7 @@ import { StatusBadgeComponent } from '@shared/ui/status-badge/status-badge.compo
 import { OrderActionsComponent } from './components/order-actions/order-actions.component';
 import { OrderInfoBoxesComponent } from './components/order-info-boxes/order-info-boxes.component';
 import { OrderItemsComponent } from './components/order-items/order-items.component';
+import { OrderReturnsLineComponent } from './components/order-returns-line/order-returns-line.component';
 import { OrdersFilterBarComponent } from './components/orders-filter-bar/orders-filter-bar.component';
 import type {
   OrderCard,
@@ -113,6 +114,7 @@ const FILTER_TABS: readonly { readonly id: OrderStatusFilter; readonly label: st
     OrderActionsComponent,
     OrderInfoBoxesComponent,
     OrderItemsComponent,
+    OrderReturnsLineComponent,
     OrdersFilterBarComponent,
   ],
   templateUrl: './orders-manager.page.html',

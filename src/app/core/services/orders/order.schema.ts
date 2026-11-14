@@ -170,6 +170,11 @@ const OrderBaseFields = {
   confirmedBy: v.nullable(v.string(), null),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
+  /**
+   * Return and exchange requests (server-written summary, ATS-291), kept raw: read it with
+   * `readReturnSummaries()` from `@core/config/returns`.
+   */
+  returns: v.optional(v.fallback(v.array(v.unknown()), []), []),
 };
 
 export const StoreOrderSchema = v.object({
@@ -231,6 +236,8 @@ export const OrderViewSchema = v.object({
   cancelledAt: v.optional(v.nullable(timestampSchema), null),
   shippedAt: v.optional(v.nullable(timestampSchema), null),
   deliveredAt: v.optional(v.nullable(timestampSchema), null),
+  /** The order's return and exchange summary, copied by `orderViewFields()`. */
+  returns: v.optional(v.fallback(v.array(v.unknown()), []), []),
 });
 
 export type OrderViewDoc = v.InferOutput<typeof OrderViewSchema>;
@@ -274,5 +281,6 @@ export function orderFromView(view: OrderViewDoc): StoreOrderDoc {
     cancelledBy: null,
     shippedAt: view.shippedAt,
     deliveredAt: view.deliveredAt,
+    returns: view.returns,
   };
 }

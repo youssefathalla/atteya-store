@@ -1,9 +1,20 @@
 import { isPlatformBrowser, NgOptimizedImage } from '@angular/common';
-import { Component, computed, effect, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  OnInit,
+  PLATFORM_ID,
+  signal,
+  untracked,
+} from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDialog } from '@angular/material/dialog';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Observable, of } from 'rxjs';
 import * as v from 'valibot';
@@ -17,6 +28,7 @@ import {
   shopperWhatsappText,
   type OrderStage,
 } from '@core/config/order-messages';
+import { readReturnSummaries } from '@core/config/returns';
 import { formatIban, STORE_INFO, whatsappChatUrl } from '@core/config/store-info';
 import { FALLBACK_GIFT_NAME } from '@core/services/cart/cart-gifts';
 import type { CreateManualOrderResult } from '@core/services/orders/checkout-order.service';
@@ -24,6 +36,7 @@ import { orderMessageInput } from '@core/services/orders/order-message-input';
 import { shortOrderRef } from '@core/services/orders/order-ref';
 import { orderStatusName } from '@core/services/orders/order-status-name';
 import { orderDate } from '@core/services/orders/shopper-orders.service';
+import { returnEntry, type ReturnEntry } from '@core/services/orders/order-returns';
 import { MetaPixelService } from '@core/services/analytics/meta-pixel.service';
 import {
   isOrderViewKey,
@@ -48,6 +61,14 @@ import { confirmationSteps } from '../utils/confirmation-steps';
 import { paymentParts as buildPaymentParts, paymentTagTone } from '../utils/confirmation-payment';
 import { readGuestOrder, rememberGuestOrder } from '../utils/guest-order-storage';
 import { GuestAccountCardComponent } from '../components/guest-account-card/guest-account-card.component';
+import { SkeletonComponent } from '@shared/ui/skeleton';
+import { ReturnRequestBoxComponent } from '../../returns/components/return-request-box/return-request-box.component';
+import {
+  RETURN_REQUEST_DIALOG_CONFIG,
+  ReturnRequestDialogComponent,
+  type ReturnRequestDialogData,
+  type ReturnRequestDialogResult,
+} from '../../returns/dialogs/return-request-dialog/return-request-dialog.component';
 
 /**
  * How long a guest's order page waits for `orderViews/{key}` to appear (the `syncOrderView`
@@ -78,6 +99,8 @@ const PIXEL_PURCHASE_WINDOW_MS = 2 * 60 * 60 * 1000;
     SharedIconModule,
     PaymentMarkComponent,
     GuestAccountCardComponent,
+    SkeletonComponent,
+    ReturnRequestBoxComponent,
   ],
   templateUrl: './checkout-confirmation.page.html',
 })
@@ -93,6 +116,10 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   readonly #snackbar = inject(SnackbarService);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #pixel = inject(MetaPixelService);
+  readonly #dialog = inject(MatDialog);
+
+  /** Account → Orders opened this page with **Return or Exchange**: open the screen once the order loads. */
+  readonly #openReturnOnLoad = signal(readOpenReturnRequest());
 
   /** Result handed over by checkout; only used for the heading until the live order arrives. */
   readonly seed = signal<CreateManualOrderResult | null>(readNavigationSeed());
@@ -450,6 +477,26 @@ export class CheckoutConfirmationPageComponent implements OnInit {
     return items;
   });
 
+  /** Return or Exchange: the button (while the 14 days are open), the "Returns closed" line, or nothing. */
+  readonly returnEntry = computed<ReturnEntry>(() => {
+    const order = this.order();
+    return order ? returnEntry(order, Date.now()) : { kind: 'none' };
+  });
+
+  /** The order's return and exchange requests, newest first (live, from the order's summary). */
+  readonly returnRequests = computed(() => {
+    const order = this.order();
+    return order ? readReturnSummaries(order.returns).reverse() : [];
+  });
+
+  /** "24 Nov" while a new request can be sent (a cancelled request's box says so). */
+  readonly returnsUntil = computed(() => {
+    const entry = this.returnEntry();
+    return entry.kind === 'open' ? entry.until : null;
+  });
+
+  readonly returnsClosedUrl = whatsappChatUrl(STORE_INFO.contact.whatsapp);
+
   /** "6 items": pieces, like the bag. */
   readonly pieces = computed(() => {
     const count = (this.order()?.pricing.lines ?? [])
@@ -496,6 +543,13 @@ export class CheckoutConfirmationPageComponent implements OnInit {
   });
 
   constructor() {
+    // Opened from Account → Orders with Return or Exchange: open the screen once, when it applies.
+    effect(() => {
+      if (!this.#openReturnOnLoad() || this.order() === undefined) return;
+      this.#openReturnOnLoad.set(false);
+      clearOpenReturnRequest();
+      if (this.returnEntry().kind === 'open') untracked(() => this.openReturn());
+    });
     // Meta Pixel Purchase for a Card order, once Paymob confirms the payment (ATS-290). Only on the
     // shopper's return from Paymob (paid in the last 2 hours), not when the order link is opened later.
     // A guest returns with `?key=` in the address: wait until ngOnInit has taken it out (the `key`
@@ -542,6 +596,24 @@ export class CheckoutConfirmationPageComponent implements OnInit {
       title: 'Order status | Atteya Store',
       description: 'Your Atteya Store order status.',
       noindex: true,
+    });
+  }
+
+  /** Opens the Return or Exchange screen (dialog on desktop, full screen on phone). */
+  openReturn(): void {
+    const order = this.order();
+    const entry = this.returnEntry();
+    if (!order || entry.kind !== 'open') return;
+    const ref = this.#dialog.open<
+      ReturnRequestDialogComponent,
+      ReturnRequestDialogData,
+      ReturnRequestDialogResult
+    >(ReturnRequestDialogComponent, {
+      ...RETURN_REQUEST_DIALOG_CONFIG,
+      data: { orderId: this.orderId(), viewKey: this.viewKey(), order, until: entry.until },
+    });
+    ref.afterClosed().subscribe((result) => {
+      if (result) this.#snackbar.success("Request sent. We'll message you on WhatsApp.", 'Close', 5000);
     });
   }
 
@@ -667,6 +739,22 @@ function countryName(code: string): string {
     return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code;
   } catch {
     return code;
+  }
+}
+
+/** True when Account → Orders opened the order with Return or Exchange (router state). */
+function readOpenReturnRequest(): boolean {
+  if (typeof history === 'undefined') return false;
+  const state = history.state as { openReturn?: unknown } | null;
+  return state?.openReturn === true;
+}
+
+/** Forgets the request, so a reload doesn't open the screen again. */
+function clearOpenReturnRequest(): void {
+  try {
+    history.replaceState({ ...(history.state as object), openReturn: false }, '');
+  } catch {
+    // Nothing to forget outside a browser.
   }
 }
 

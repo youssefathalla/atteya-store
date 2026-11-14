@@ -1,0 +1,94 @@
+@layer components {
+  /*! Returns & Exchanges (ATS-292): the request screen and the request box on the order page */
+
+  /* One order item on the request screen; black border once picked. */
+  .return-item {
+    @apply border border-outline-variant border-shape p-4;
+  }
+
+  .return-item--picked {
+    @apply border-primary;
+  }
+
+  .return-item__photo {
+    @apply size-14 shrink-0 overflow-hidden bg-surface border border-outline-variant border-shape;
+  }
+
+  /* − 1 + next to a picked item with more than one piece. */
+  .return-stepper {
+    @apply elements-center shrink-0 border border-outline-variant border-shape;
+  }
+
+  /* Size chips: outlined, black when chosen, faded when sold out or the size they have. */
+  .return-size {
+    @apply min-w-12 h-10 px-3 elements-center border border-outline border-shape bg-surface-container-lowest font-label-lg cursor-pointer;
+  }
+
+  .return-size--on {
+    @apply bg-primary text-on-primary border-primary;
+  }
+
+  .return-size:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  /* Colour tiles: photo and colour name; greyed out when the price is different. */
+  .return-colour {
+    @apply elements-start-col items-center! gap-2 p-2 border border-outline-variant border-shape bg-surface-container-lowest cursor-pointer;
+  }
+
+  .return-colour--on {
+    @apply border-primary outline-2 outline-primary;
+  }
+
+  .return-colour:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .return-colour__photo {
+    @apply block size-18 overflow-hidden bg-surface;
+  }
+
+  /* "Your free gift goes back with it" under a refunded item. */
+  .return-gift-note {
+    @apply elements-start gap-3 bg-surface-container-low border-shape p-3;
+  }
+
+  .return-gift-note__tag {
+    @apply shrink-0 px-1.5 py-0.5 bg-primary text-on-primary border-shape font-label-sm font-bold! uppercase;
+  }
+
+  /* Send Request (full width) with what is still missing above it. */
+  .return-actions {
+    @apply grid w-full gap-2 px-2 pb-2;
+  }
+
+  /* The request box on the order page: black title bar, status steps, items. */
+  .return-box {
+    @apply border border-primary border-shape bg-surface-container-lowest;
+  }
+
+  .return-box--done {
+    @apply border-outline-variant;
+  }
+
+  .return-box__head {
+    @apply bg-primary text-on-primary px-5 py-3;
+  }
+
+  .return-box--done .return-box__head {
+    @apply bg-surface-container-high text-on-surface-variant;
+  }
+
+  .return-steps {
+    @apply grid grid-flow-col auto-cols-fr gap-1;
+  }
+
+  .return-steps__bar {
+    @apply h-1 bg-surface-container-highest;
+  }
+
+  .return-steps__bar--done {
+    @apply bg-primary;
+  }
+}

@@ -624,7 +624,7 @@ ${sentence}
 </td></tr>`;
 }
 
-/** Two or three amounts side by side under the staff header (ITEMS / FEE BY INSTAPAY / CASH AT DOOR). */
+/** Two or three amounts side by side under the staff header (ITEMS / FEE BY INSTAPAY / CASH AT DOOR), each with an optional small note under it. */
 export function statStrip(cells: readonly AmountCell[]): string {
   const width = `${Math.floor(100 / Math.max(1, cells.length))}%`;
   const tds = cells
@@ -635,7 +635,11 @@ export function statStrip(cells: readonly AmountCell[]): string {
       const pad = `padding:24px ${last ? SIDE : 16}px 24px ${first ? SIDE : 20}px;`;
       return `<td class="${first ? 'px statcell' : 'statcell'}" valign="top" width="${width}" style="${pad}${divider}">
 <p style="margin:0 0 6px;${FONT}font-size:11px;font-weight:600;letter-spacing:2px;color:${TEXT_MUTED};">${escapeHtml(cell.label.toUpperCase())}</p>
-<p class="stat" style="margin:0;${FONT}font-size:24px;line-height:1.15;font-weight:800;letter-spacing:-0.5px;color:${INK};overflow-wrap:break-word;">${escapeHtml(cell.amount)}</p>
+<p class="stat" style="margin:0;${FONT}font-size:24px;line-height:1.15;font-weight:800;letter-spacing:-0.5px;color:${INK};overflow-wrap:break-word;">${escapeHtml(cell.amount)}</p>${
+        cell.note
+          ? `\n<p style="margin:6px 0 0;${FONT}font-size:13px;line-height:1.4;color:${TEXT_MUTED};">${escapeHtml(cell.note)}</p>`
+          : ''
+      }
 </td>`;
     })
     .join('\n');

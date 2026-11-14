@@ -86,6 +86,20 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Track Order | Atteya Admin',
       },
       {
+        path: 'returns',
+        loadComponent: () =>
+          import('./pages/returns-manager/returns-manager.page').then((m) => m.ReturnsManagerPageComponent),
+        title: 'Returns | Atteya Admin',
+      },
+      {
+        path: 'returns/:requestId',
+        loadComponent: () =>
+          import('./pages/returns-manager/return-details/return-details.page').then(
+            (m) => m.ReturnDetailsPageComponent,
+          ),
+        title: 'Return Request | Atteya Admin',
+      },
+      {
         path: 'customers',
         loadComponent: () =>
           import('./pages/customers-manager/customers-manager.page').then(

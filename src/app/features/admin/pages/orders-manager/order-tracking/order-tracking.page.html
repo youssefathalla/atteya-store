@@ -35,6 +35,7 @@
     @if (d.nextStep; as step) {
       <p class="admin-order-next"><span class="font-bold!">Next step:</span> {{ step }}</p>
     }
+    <app-order-returns-line [orderId]="row.orderId" />
 
     <div class="grid gap-4 items-start @5xl:grid-cols-[minmax(0,1fr)_22rem]">
       <aside
