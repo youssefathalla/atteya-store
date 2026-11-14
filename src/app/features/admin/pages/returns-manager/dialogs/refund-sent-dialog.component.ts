@@ -63,7 +63,7 @@ export interface RefundSentDialogResult {
               [value]="reference()"
               (input)="reference.set($any($event.target).value)"
             />
-            <mat-hint>Only staff see this.</mat-hint>
+            <mat-hint>The customer sees this in their refund email.</mat-hint>
           </mat-form-field>
         </div>
       </mat-dialog-content>
