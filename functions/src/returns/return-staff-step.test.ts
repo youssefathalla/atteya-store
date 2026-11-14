@@ -12,6 +12,7 @@ import {
   readSavedStep,
   readStaffItems,
   receiveStep,
+  rejectKeptItems,
   rejectStep,
   rejectStockFor,
   ReturnStepError,
@@ -19,6 +20,14 @@ import {
   withSentPieces,
   type StepProduct,
 } from '../../lib/returns/return-staff-step.js';
+import {
+  hasReturnHoldingPieces,
+  piecesLeft,
+  readReturnOrderLines,
+  readReturnSummaries,
+  withReturnStatus,
+} from '../../lib/store/returns.js';
+import { allowedStatusMoves, canMoveStatus, returnBlocksMove } from '../../lib/store/order-status.js';
 
 const SIZES = [
   {
@@ -381,5 +390,94 @@ describe('staff steps: refusals, undo and double clicks', () => {
       () => parseApprove({ requestId: 'abc', sent: [{ itemIndex: 0, productId: 'a/b' }] }),
       ReturnStepError,
     );
+  });
+});
+
+describe('a Wrong Item Sent request rejected after Approve keeps holding its pieces (ATS-299)', () => {
+  const lines = readReturnOrderLines([
+    { productId: 'shorts', selection: { size: 'm' }, quantity: 1, lineDisplay: 700, name: 'Club Shorts' },
+    { productId: 'tee', selection: { size: 'l' }, quantity: 2, lineDisplay: 900, name: 'Training Tee' },
+  ]);
+
+  /** The saved request after Approve (or before it, when `approved` is false). */
+  function savedRequest(rawItem: Record<string, unknown>, approved = true): Record<string, unknown> {
+    const raw = [{ ...base, lineIndex: 0, ...rawItem }];
+    if (!approved) return { items: raw };
+    const sent =
+      rawItem['kind'] === 'wrong-item'
+        ? [{ itemIndex: 0, productId: 'tee', size: 'm' as string | null }]
+        : [];
+    const items = withSentPieces(
+      readStaffItems(raw),
+      sent,
+      products({ tee: sized(5, 5), shorts: sized(5, 5) }),
+    );
+    const plan = approvePlan(items);
+    return {
+      items: raw,
+      stockTakenAt: 'set',
+      approveStock: savedStep(plan.approve),
+      rejectStock: savedStep(plan.reject),
+    };
+  }
+
+  /** Rejects the request and returns the order as staff and the shopper then read it. */
+  function rejectOn(request: Record<string, unknown>, hasRefund: boolean) {
+    const before = [
+      {
+        id: 'r1',
+        status: request['stockTakenAt'] ? 'approved' : 'requested',
+        hasRefund,
+        items: [{ lineIndex: 0, quantity: 1, refund: hasRefund, autoGift: false }],
+      },
+    ];
+    const keptItems = rejectKeptItems(request);
+    const returns = JSON.parse(
+      JSON.stringify(withReturnStatus(before, 'r1', 'rejected', { rejectReason: 'Not ours', keptItems })),
+    );
+    return { status: 'delivered', paymentMethod: 'instapay', returns };
+  }
+
+  for (const wants of ['send-right-one', 'refund'] as const) {
+    it(`Wrong Item Sent · ${wants}: the line can't be asked for again and the order can't step back`, () => {
+      const order = rejectOn(savedRequest({ kind: 'wrong-item', wants }), wants === 'refund');
+      assert.deepEqual(order.returns[0].keptItems, [{ lineIndex: 0, quantity: 1 }]);
+      const summaries = readReturnSummaries(order.returns);
+      assert.deepEqual(summaries[0]!.keptItems, [{ lineIndex: 0, quantity: 1 }]);
+      assert.deepEqual(piecesLeft(lines, summaries), [0, 2]);
+      assert.equal(hasReturnHoldingPieces(order.returns), true);
+      assert.deepEqual(allowedStatusMoves(order), []);
+      assert.equal(canMoveStatus(order, 'shipped'), false);
+      assert.equal(returnBlocksMove(order, 'shipped'), true);
+    });
+  }
+
+  it('a Wrong Item Sent request rejected before Approve holds nothing', () => {
+    const order = rejectOn(savedRequest({ kind: 'wrong-item', wants: 'refund' }, false), true);
+    assert.equal('keptItems' in order.returns[0], false);
+    assert.deepEqual(piecesLeft(lines, readReturnSummaries(order.returns)), [1, 2]);
+    assert.equal(hasReturnHoldingPieces(order.returns), false);
+    assert.deepEqual(allowedStatusMoves(order), ['shipped']);
+  });
+
+  it('a Different Size request rejected after Approve holds nothing', () => {
+    const request = savedRequest({
+      kind: 'different-size',
+      newProductId: 'shorts',
+      newSelection: { size: 'l' },
+    });
+    assert.ok(rejectStockFor(request), 'Approve took stock');
+    const order = rejectOn(request, false);
+    assert.equal('keptItems' in order.returns[0], false);
+    assert.deepEqual(piecesLeft(lines, readReturnSummaries(order.returns)), [1, 2]);
+    assert.equal(hasReturnHoldingPieces(order.returns), false);
+    assert.deepEqual(allowedStatusMoves(order), ['shipped']);
+  });
+
+  it('a second Reject, or a request approved before rejectStock was saved, keeps nothing', () => {
+    const request = savedRequest({ kind: 'wrong-item', wants: 'refund' });
+    assert.deepEqual(rejectKeptItems({ ...request, stockUndoneAt: 'set' }), []);
+    const { rejectStock: _legacy, ...older } = request;
+    assert.deepEqual(rejectKeptItems(older), []);
   });
 });
