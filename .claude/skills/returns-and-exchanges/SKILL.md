@@ -103,7 +103,11 @@ Built in four tickets: <KEY>-291 (server, shared rules, first emails), <KEY>-292
 - The order schema (`OrderSchema` and `OrderViewSchema`) keeps the order's `returns` raw; read it with `readReturnSummaries()`.
 - The request screen opens with `RETURN_REQUEST_DIALOG_CONFIG` (`panelClass: 'return-request-pane'`: a 40rem dialog on desktop, full screen below 640 px in `_dialog.scss`).
 - Account → Orders opens the order page with router state `{ openReturn: true }`, and the page opens the screen once the order loads (then clears the state so a reload doesn't reopen it).
-- Sizes and colours are read live when an item asks for them (`ReturnsService.productReader()`: the product, and for Different Colour its `modelGroup` in one query), kept only while the screen is open; sold-out sizes and the size they have are disabled, colours with another price are greyed out.
+- Each item's live product is read when the screen opens (`ReturnsService.productReader()`, one read per product); the model's other colours (`modelGroup`, one query) are read once an item asks for Different Colour. Reads are kept only while the screen is open; sold-out sizes and the size they have are disabled, colours with another price are greyed out.
+- "What would you like?" comes from the live product (`kindsFor(line, product)`): Different Size only when its `size` option has more than one size, Different Colour only when `colorSiblings` names another product (or, before that list is filled, it has a `modelGroup`). It shows `<app-skeleton>` while the product loads.
+- A free gift whose product has neither choice can't be ticked: its checkbox is disabled with "This gift can't be exchanged." It still comes back with a refunded item.
+- When every other size is sold out the sizes stay, disabled, with "No other sizes in stock right now."
+- Request screen spacing: 24px (`gap-6`) between item cards, sections and fields; long field explanations sit as text under the section heading, not as a two-line `mat-hint` (fixed hint space, no `subscriptSizing="dynamic"`).
 - Send Another / Refund is a `mat-button-toggle-group.return-wants` (two equal halves, `_button-toggle.scss`).
 - Send Request waits for `settings/shipping` when the order's delivery fee was 0, so the refund after the fee is never shown or saved without the fee.
 - The button shows only while some piece is left to ask for (`piecesLeft()`).
