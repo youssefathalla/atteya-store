@@ -171,24 +171,65 @@ export function isOpenReturn(status: ReturnStatus, hasRefund: boolean): boolean 
   return status === 'received' && hasRefund;
 }
 
-/** Pieces in a Rejected or Cancelled request can be asked for again; all others are taken. */
+/**
+ * Pieces in a Rejected or Cancelled request can be asked for again; all others are taken. A
+ * Rejected request still holds the Wrong Item Sent pieces whose corrections it kept (`keptItems`).
+ */
 export function returnHoldsPieces(status: ReturnStatus): boolean {
   return status !== 'rejected' && status !== 'cancelled';
 }
 
 /**
  * Whether any request in the order's raw `returns` array still holds pieces (anything but Rejected
- * or Cancelled). Read straight from the raw array so an entry with an unknown status also counts:
- * staff can't step such an order back, because a cancel would put those pieces into stock twice
- * (ATS-297).
+ * or Cancelled, or a Rejected one whose Wrong Item Sent stock corrections were kept, `keptItems`).
+ * Read straight from the raw array so an entry with an unknown status also counts: staff can't
+ * step such an order back, because a cancel would put those pieces into stock twice (ATS-297).
  */
 export function hasReturnHoldingPieces(rawReturns: unknown): boolean {
   if (!Array.isArray(rawReturns)) return false;
   return rawReturns.some((entry) => {
     if (!isRecord(entry)) return false;
     const status = entry['status'];
-    return !isReturnStatus(status) || returnHoldsPieces(status);
+    if (!isReturnStatus(status) || returnHoldsPieces(status)) return true;
+    return status === 'rejected' && readKeptItems(entry['keptItems']).length > 0;
   });
+}
+
+/** Pieces of an order line whose stock corrections a Rejected request kept (ATS-298). */
+export interface ReturnKeptItem {
+  readonly lineIndex: number;
+  readonly quantity: number;
+}
+
+/**
+ * The Wrong Item Sent items of a request's raw `items`: Reject after Approve keeps their stock
+ * corrections (the customer has the piece we sent, the ordered one is on our shelf), so those line
+ * pieces stay held after Reject and can't be asked for or put back into stock again.
+ */
+export function keptStockItems(rawItems: unknown): ReturnKeptItem[] {
+  if (!Array.isArray(rawItems)) return [];
+  const out: ReturnKeptItem[] = [];
+  for (const item of rawItems) {
+    if (!isRecord(item) || item['kind'] !== 'wrong-item') continue;
+    const lineIndex = item['lineIndex'];
+    const quantity = item['quantity'];
+    if (!isWhole(lineIndex) || !isWhole(quantity) || quantity < 1) continue;
+    out.push({ lineIndex, quantity });
+  }
+  return out;
+}
+
+function readKeptItems(raw: unknown): ReturnKeptItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ReturnKeptItem[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    const lineIndex = item['lineIndex'];
+    const quantity = item['quantity'];
+    if (!isWhole(lineIndex) || !isWhole(quantity) || quantity < 1) continue;
+    out.push({ lineIndex, quantity });
+  }
+  return out;
 }
 
 /**
@@ -258,6 +299,11 @@ export interface ReturnSummary {
   readonly refundSentEgp?: number;
   /** Why staff rejected it, as the shopper sees it (Rejected only). */
   readonly rejectReason?: string;
+  /**
+   * Rejected after Approve: the Wrong Item Sent line pieces whose stock corrections were kept, so
+   * they stay held (`piecesLeft`, `hasReturnHoldingPieces`). Absent otherwise.
+   */
+  readonly keptItems?: readonly ReturnKeptItem[];
 }
 
 /** Reads the order's `returns` field; unreadable entries are skipped. */
@@ -284,6 +330,7 @@ export function readReturnSummaries(raw: unknown): ReturnSummary[] {
         });
       }
     }
+    const keptItems = status === 'rejected' ? readKeptItems(entry['keptItems']) : [];
     out.push({
       id,
       ref: typeof entry['ref'] === 'string' ? entry['ref'] : returnRef(id),
@@ -291,6 +338,7 @@ export function readReturnSummaries(raw: unknown): ReturnSummary[] {
       hasRefund: entry['hasRefund'] === true,
       items,
       createdAtMs: timestampMs(entry['createdAt']),
+      ...(keptItems.length > 0 ? { keptItems } : {}),
     });
   }
   return out;
@@ -302,6 +350,8 @@ export interface ReturnStatusExtras {
   readonly rejectReason?: string | null;
   /** Refund Sent: the amount staff really sent, whole EGP (saved as `refundSentEgp`). */
   readonly refundSentEgp?: number | null;
+  /** Rejected after Approve: the line pieces whose stock corrections were kept (saved as `keptItems`). */
+  readonly keptItems?: readonly ReturnKeptItem[] | null;
 }
 
 /**
@@ -324,6 +374,8 @@ export function withReturnStatus(
   if (status === 'refund-sent' && typeof sent === 'number' && Number.isFinite(sent)) {
     patch['refundSentEgp'] = wholeOrZero(sent);
   }
+  const kept = readKeptItems(extras.keptItems);
+  if (status === 'rejected' && kept.length > 0) patch['keptItems'] = kept;
   return raw.map((entry: unknown) =>
     isRecord(entry) && entry['id'] === requestId ? { ...entry, ...patch } : entry,
   );
@@ -442,12 +494,19 @@ function linePaidEgp(line: Readonly<Record<string, unknown>>, quantity: number):
   return Math.max(0, full - discount);
 }
 
-/** Pieces of each line not yet in a request that holds pieces (by line index). */
+/**
+ * Pieces of each line not yet in a request that holds pieces (by line index). A Rejected request
+ * still holds the Wrong Item Sent pieces whose stock corrections it kept (`keptItems`).
+ */
 export function piecesLeft(lines: readonly ReturnOrderLine[], returns: readonly ReturnSummary[]): number[] {
   const left = lines.map((line) => line.quantity);
   for (const entry of returns) {
-    if (!returnHoldsPieces(entry.status)) continue;
-    for (const item of entry.items) {
+    const held = returnHoldsPieces(entry.status)
+      ? entry.items
+      : entry.status === 'rejected'
+        ? (entry.keptItems ?? [])
+        : [];
+    for (const item of held) {
       if (item.lineIndex >= 0 && item.lineIndex < left.length) {
         left[item.lineIndex] = Math.max(0, left[item.lineIndex]! - item.quantity);
       }

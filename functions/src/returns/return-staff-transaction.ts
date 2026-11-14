@@ -9,9 +9,11 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import type { RequiredCaller } from '../auth/require-role.js';
 import {
   isReturnStatus,
+  keptStockItems,
   nextReturnStatuses,
   returnStatusLabel,
   withReturnStatus,
+  type ReturnKeptItem,
   type ReturnStatus,
   type StockStep,
 } from '../store/returns.js';
@@ -115,6 +117,7 @@ export async function runReturnStep(
         call.step === 'approve' || call.step === 'receive' ? readStaffItems(rawItems) : [];
       let step: StockStep | null = null;
       let short: 'refuse' | 'floor' = 'floor';
+      let keptItems: ReturnKeptItem[] = [];
       const patch: DocumentData = {};
       const now = FieldValue.serverTimestamp();
 
@@ -155,6 +158,13 @@ export async function runReturnStep(
           step = undo;
           await readProducts(productIdsOf(step));
           patch['stockUndoneAt'] = now;
+          // `rejectStock` keeps the Wrong Item Sent corrections, so those line pieces stay held
+          // (the order can't step back, the shopper can't ask for them again). A request approved
+          // before `rejectStock` was saved undoes everything and keeps nothing.
+          if (isRecord(saved['rejectStock'])) {
+            keptItems = keptStockItems(rawItems);
+            if (keptItems.length > 0) patch['keptItems'] = keptItems;
+          }
         }
         patch['rejectReason'] = call.input.reason;
         patch['rejectedAt'] = now;
@@ -221,7 +231,7 @@ export async function runReturnStep(
             requestId,
             target,
             call.step === 'reject'
-              ? { rejectReason: call.input.reason }
+              ? { rejectReason: call.input.reason, keptItems }
               : call.step === 'refund-sent'
                 ? { refundSentEgp: call.input.amountEgp }
                 : {},
@@ -262,6 +272,10 @@ function stepProduct(data: DocumentData): StepProduct {
     options: data['options'],
     name: typeof data['name'] === 'string' ? data['name'] : '',
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function moveRefusal(current: ReturnStatus, target: ReturnStatus, hasRefund: boolean): string {
