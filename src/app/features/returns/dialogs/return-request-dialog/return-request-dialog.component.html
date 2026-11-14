@@ -20,7 +20,6 @@
               [checked]="row.choice.picked && row.canPick"
               [disabled]="!row.canPick"
               [aria-label]="row.checkboxLabel"
-              [aria-describedby]="row.cannotSwap ? 'return-no-swap-' + row.line.index : ''"
               (change)="update(row.line.index, { picked: $event.checked })"
             />
             <div class="return-item__photo" aria-hidden="true">
@@ -46,9 +45,7 @@
               @if (row.line.left < 1) {
                 <p class="font-body-sm text-on-surface-variant">Already requested</p>
               } @else if (row.cannotSwap) {
-                <p class="font-body-sm text-on-surface-variant" [id]="'return-no-swap-' + row.line.index">
-                  This gift can't be exchanged.
-                </p>
+                <p class="font-body-sm text-on-surface-variant">This gift can't be exchanged.</p>
               } @else if (row.line.left < row.line.quantity) {
                 <p class="font-body-sm text-on-surface-variant">
                   {{ row.line.quantity - row.line.left }} already requested
@@ -92,7 +89,7 @@
 
               @if (row.kindsLoading) {
                 <app-skeleton class="h-14 w-full" />
-              } @else {
+              } @else if (row.kinds.length > 0) {
                 <mat-form-field class="w-full" appearance="outline">
                   <mat-label>What would you like?</mat-label>
                   <mat-select
@@ -104,7 +101,7 @@
                     }
                   </mat-select>
                   @if (row.line.giftFor) {
-                    <mat-hint>A free gift can be swapped for another size or colour.</mat-hint>
+                    <mat-hint>{{ row.giftHint }}</mat-hint>
                   }
                 </mat-form-field>
               }
