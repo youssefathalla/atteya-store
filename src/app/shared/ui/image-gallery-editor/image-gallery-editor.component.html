@@ -123,7 +123,7 @@
             @if (isUploadingFiles()) {
               <mat-progress-spinner mode="indeterminate" diameter="28" />
             } @else {
-              <mat-icon name="add_photo_alternate" size="3xl" />
+              <mat-icon name="add_photo_alternate" />
               <span class="font-label-lg font-bold!">Add Photos</span>
               <span class="font-body-sm text-on-surface-variant">Up to {{ remainingSlots() }} more</span>
             }
@@ -131,10 +131,11 @@
           <button
             type="button"
             class="gallery-tile__link"
+            [disabled]="isUploadingFiles()"
             [attr.aria-expanded]="showWebLinkBar()"
             (click)="toggleWebLinkBar()"
           >
-            <mat-icon [name]="showWebLinkBar() ? 'visibility_off' : 'link'" size="lg" />
+            <mat-icon [name]="showWebLinkBar() ? 'visibility_off' : 'link'" />
             <span>{{ showWebLinkBar() ? 'Hide Link' : 'Add from a Link' }}</span>
           </button>
         </div>

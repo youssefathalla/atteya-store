@@ -591,6 +591,10 @@
 
   .gallery-tile__link {
     @apply elements-start gap-1.5 py-1.5 font-label-lg underline underline-offset-2 cursor-pointer;
+
+    &:disabled {
+      @apply cursor-wait opacity-60;
+    }
   }
 }
 

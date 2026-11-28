@@ -1,8 +1,14 @@
 import type { ColorId } from '@core/services/products/catalog-taxonomy';
-import { PRODUCT_GENDERS } from '@core/services/products/product.constants';
 import type { ProductGenderId } from '@core/services/products/product.model';
 import { cardShortDescription } from '@core/services/products/utils/card-short-description';
-import { detailLinesFromText, productDetailsTitle } from '@core/services/products/utils/product-details';
+import {
+  type CategoryPageSettings,
+  categoryPageFor,
+  detailLinesFromText,
+  productDetailsTitle,
+} from '@core/services/products/utils/product-details';
+import { PRODUCT_CARD_COLORWAY_CAP } from '@shared/components/product-card/product-card.model';
+import { genderCategoryLine } from '@shared/components/product-card/product-card.utils';
 import { checkPhotoFit, PHOTO_SPOTS } from '@shared/utils/image';
 import type {
   EditorCardView,
@@ -84,6 +90,21 @@ function swatchesFor(
   }));
 }
 
+/** The Shop card's colour row: capped like the store card (`visibleColorways`), keeping the current colour. */
+function cardSwatches(swatches: readonly EditorSwatchView[]): readonly EditorSwatchView[] {
+  if (swatches.length <= PRODUCT_CARD_COLORWAY_CAP) return swatches;
+  const shown = swatches.slice(0, PRODUCT_CARD_COLORWAY_CAP);
+  const current = swatches.find((swatch) => swatch.selected);
+  return current && !shown.includes(current)
+    ? [...shown.slice(0, PRODUCT_CARD_COLORWAY_CAP - 1), current]
+    : shown;
+}
+
+/** A stock box left empty (a Save blocker), not the same as 0 (sold out). */
+function stockOf(colour: ColourDraft, key: string): number | null {
+  return parseCount(colour.stock[key] ?? '');
+}
+
 function categoryOf(source: PreviewSource, id: string): PreviewCategory | null {
   return source.categories.find((category) => category.id === id) ?? null;
 }
@@ -98,25 +119,21 @@ export function buildCardView(
   if (!colour) return null;
   const photo = colour.images[0];
   const { price, before } = colourPrices(colour, source);
-  const genderLabel = source.gender
-    ? (PRODUCT_GENDERS.find((entry) => entry.id === source.gender)?.label ?? null)
-    : null;
   const category = categoryOf(source, source.categoryId);
   const name = source.name.trim() || 'Product name';
   // Same rule as the store card (`genderCategoryLine`, then `cardShortDescription`).
-  const secondLine = genderLabel
-    ? category
-      ? `${genderLabel} – ${category.name}`
-      : genderLabel
-    : cardShortDescription(source.summary.trim() || paragraphsOf(source.description)[0] || '', null);
+  const genderLine = genderCategoryLine(source.gender || null, category?.name ?? null);
+  const secondLine =
+    genderLine ??
+    cardShortDescription(source.summary.trim() || paragraphsOf(source.description)[0] || '', null);
   return {
     name,
     secondLine,
-    secondLineIsSummary: !genderLabel && source.summary.trim().length > 0,
+    secondLineIsSummary: genderLine === null && source.summary.trim().length > 0,
     photo: photo ? { path: photo.path, alt: photo.alt || name } : null,
     price,
     before,
-    swatches: swatchesFor(source, index, showHidden),
+    swatches: cardSwatches(swatchesFor(source, index, showHidden)),
     badge: source.badge,
   };
 }
@@ -134,7 +151,7 @@ export function buildPageView(
   const parent = leaf?.parentId ? categoryOf(source, leaf.parentId) : null;
   const sizes = source.sizes
     .filter((size) => !colour.notMade.includes(size.key))
-    .map((size) => ({ label: size.label, soldOut: (parseCount(colour.stock[size.key] ?? '') ?? 0) === 0 }));
+    .map((size) => ({ label: size.label, soldOut: (stockOf(colour, size.key) ?? 0) === 0 }));
   const others = rowColours(source, index, showHidden);
   return {
     crumbs: ['Shop', ...(parent ? [parent.name] : []), ...(leaf ? [leaf.name] : [])],
@@ -145,7 +162,7 @@ export function buildPageView(
     before,
     paragraphs: paragraphsOf(source.description),
     details: detailLinesFromText(source.details),
-    detailsTitle: productDetailsTitle(leaf?.detailsTitle ?? parent?.detailsTitle ?? 'specifications'),
+    detailsTitle: productDetailsTitle(detailsTitleFor(source)),
     photos: colour.images.map((image) => ({ path: image.path, alt: image.alt })),
     // The store lists other colours only when there is at least one more in stock.
     swatches: others.length > 1 ? swatchesFor(source, index, showHidden) : [],
@@ -154,6 +171,22 @@ export function buildPageView(
     soldOut: colourTotal(colour, source.sizes) === 0,
     slug: colour.slug ?? 'new-colour',
   };
+}
+
+/** Materials or Specifications, by the same rule as the store (`categoryPageFor`). */
+function detailsTitleFor(source: PreviewSource): 'materials' | 'specifications' {
+  const saved: Record<string, { detailsTitle?: 'materials' | 'specifications' | null }> = {};
+  for (const category of source.categories) {
+    saved[category.id] = category.detailsTitle === undefined ? {} : { detailsTitle: category.detailsTitle };
+  }
+  const ancestors: string[] = [];
+  let parentId = categoryOf(source, source.categoryId)?.parentId ?? null;
+  while (parentId && !ancestors.includes(parentId)) {
+    ancestors.push(parentId);
+    parentId = categoryOf(source, parentId)?.parentId ?? null;
+  }
+  const settings: CategoryPageSettings = saved;
+  return categoryPageFor({ categoryId: source.categoryId, categoryIds: ancestors }, settings).detailsTitle;
 }
 
 /** Colour chips at the top of the Preview tab. */
@@ -224,9 +257,10 @@ export function buildChecks(source: PreviewSource): readonly EditorCheck[] {
     });
   }
 
-  const missingAlt = shown.filter(({ colour }) =>
-    colour.images.some((image) => image.alt.trim().length === 0),
-  );
+  // Save asks for a description on every colour's photos, hidden ones too.
+  const missingAlt = source.colours
+    .map((colour, index) => ({ colour, index, name: colourName(colour.colors) }))
+    .filter(({ colour }) => colour.images.some((image) => image.alt.trim().length === 0));
   if (missingAlt.length > 0) {
     checks.push({
       id: 'alt',
@@ -248,10 +282,25 @@ export function buildChecks(source: PreviewSource): readonly EditorCheck[] {
     });
   }
 
+  for (const [index, colour] of source.colours.entries()) {
+    const name = colourName(colour.colors);
+    const empty = source.sizes.filter(
+      (size) => !colour.notMade.includes(size.key) && stockOf(colour, size.key) === null,
+    );
+    if (empty.length === 0) continue;
+    checks.push({
+      id: `no-stock-${colour.productId}`,
+      tone: 'warn',
+      title: `${name} has no stock entered for ${joinNames(empty.map((size) => size.label))}`,
+      text: 'Enter a number, 0 if there is none, or mark the size Not Made.',
+      action: { label: `Edit ${name} Stock`, colourIndex: index },
+    });
+  }
+
   for (const { colour, index, name } of offered) {
     if (source.sizes.length === 0) continue;
     const out = source.sizes.filter(
-      (size) => !colour.notMade.includes(size.key) && (parseCount(colour.stock[size.key] ?? '') ?? 0) === 0,
+      (size) => !colour.notMade.includes(size.key) && stockOf(colour, size.key) === 0,
     );
     if (out.length === 0) continue;
     checks.push({

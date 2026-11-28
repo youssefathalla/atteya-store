@@ -979,11 +979,17 @@ export class ProductEditorPageComponent implements OnInit {
     this.#saveTried.set(true);
     if (this.tagInput().trim()) {
       this.addPendingTag();
-      if (this.tagError()) return;
+      if (this.tagError()) {
+        this.tab.set('sizes');
+        return;
+      }
     }
     if (this.sizeInput().trim()) {
       this.addPendingSize();
-      if (this.sizeError()) return;
+      if (this.sizeError()) {
+        this.tab.set('sizes');
+        return;
+      }
     }
     this.formError.set(this.#blockers());
     const problemTab = this.#problemTab();
@@ -1106,22 +1112,11 @@ export class ProductEditorPageComponent implements OnInit {
     this.#savedImagePaths.set(products.flatMap((product) => product.images.map((image) => image.path)));
   }
 
-  /** The tab that holds the first thing stopping the save, in the order `#blockers` checks. */
+  /**
+   * The tab to open after a blocked save. A field with its own message comes first (the
+   * banner above the tabs still shows any other problem), then the tab the banner is about.
+   */
   #problemTab(): EditorTab | null {
-    const message = this.formError();
-    if (message) {
-      if (this.colours().length === 0) return 'colours';
-      if (
-        message === this.sizeError() ||
-        message === this.tagError() ||
-        message === this.newArrivalError() ||
-        message.includes('New arrival')
-      ) {
-        return 'sizes';
-      }
-      if (message === this.weightError()) return 'price';
-      return 'colours';
-    }
     const fields = this.editForm;
     if (
       fields.name().invalid() ||
@@ -1139,7 +1134,19 @@ export class ProductEditorPageComponent implements OnInit {
     ) {
       return 'price';
     }
-    return null;
+    const message = this.formError();
+    if (!message) return null;
+    if (this.colours().length === 0) return 'colours';
+    if (
+      message === this.sizeError() ||
+      message === this.tagError() ||
+      message === this.newArrivalError() ||
+      message.includes('New arrival')
+    ) {
+      return 'sizes';
+    }
+    if (message === this.weightError()) return 'price';
+    return 'colours';
   }
 
   #blockers(): string {

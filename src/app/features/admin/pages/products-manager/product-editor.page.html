@@ -44,7 +44,7 @@
             (click)="tab.set(item.id)"
             (keydown)="onTabKeydown($event, i)"
           >
-            <mat-icon [name]="item.icon" size="xl" />
+            <mat-icon [name]="item.icon" />
             <span>{{ item.label }}</span>
             @if (item.count !== null) {
               <span class="editor-tab__count">{{ item.count }}</span>
@@ -272,7 +272,7 @@
                 [disabled]="photosBusy()"
                 (click)="togglePicking()"
               >
-                <mat-icon name="add" size="xl" />
+                <mat-icon name="add" />
                 <span>{{ addColourLabel() }}</span>
               </button>
             }
