@@ -1,10 +1,11 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgOptimizedImage } from '@angular/common';
+import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { SharedIconModule } from '@shared/ui/mat-icon';
@@ -32,6 +33,7 @@ import {
   imports: [
     FormsModule,
     NgOptimizedImage,
+    NgTemplateOutlet,
     AppImageFallbackDirective,
     CdkDropList,
     CdkDrag,
@@ -39,6 +41,7 @@ import {
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
+    MatMenuModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
     SharedIconModule,
@@ -60,6 +63,12 @@ export class ImageGalleryEditorComponent {
   readonly defaultAlt = input<string>('');
   /** Where these photos show on the store: sets the size line, thumbnail shape and fit check (ATS-328). */
   readonly spot = input<PhotoSpotId>('product');
+  /**
+   * `list`: one wide row per photo with its buttons (default). `tiles` (product editor, ATS-393):
+   * store-shaped photo tiles, five across on a computer, a swipe row on a phone, with an Add Photos
+   * tile at the end; each photo keeps one menu for Make Main, Move and Remove.
+   */
+  readonly layout = input<'list' | 'tiles'>('list');
 
   readonly imagesChange = output<ImageAsset[]>();
   readonly uploaded = output<string>();

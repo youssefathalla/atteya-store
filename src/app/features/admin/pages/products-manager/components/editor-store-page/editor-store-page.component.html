@@ -1,0 +1,168 @@
+@let p = page();
+<div
+  class="editor-store"
+  [class.editor-store--phone]="device() === 'phone'"
+  [class.editor-store--compact]="compact()"
+>
+  @if (!compact()) {
+    <div class="editor-store__nav">
+      <app-logo />
+      @if (device() === 'computer') {
+        <span class="editor-store__links font-label-lg">
+          <span>Rackets</span>
+          <span>Shoes</span>
+          <span>Bags</span>
+          <span>Clothing</span>
+          <span>Shop All</span>
+        </span>
+      }
+      <span class="elements-center gap-3">
+        <mat-icon name="search" size="xl" />
+        <mat-icon name="favorite" size="xl" weight="400" />
+        <mat-icon name="shopping_bag" size="xl" weight="400" />
+      </span>
+    </div>
+  }
+
+  <div class="editor-store__body">
+    @if (!compact()) {
+      <div class="editor-store__gallery">
+        <div class="editor-store__photos">
+          @for (photo of shownPhotos(); track $index) {
+            <div class="pdp-gallery-slide editor-store__slide">
+              <img
+                [ngSrc]="imagePath(photo.path)"
+                [appImageFallback]="photo.path"
+                [alt]="photo.alt"
+                fill
+                sizes="(min-width: 1280px) 30vw, 90vw"
+                class="object-contain"
+              />
+            </div>
+          } @empty {
+            <div
+              class="pdp-gallery-slide editor-store__slide elements-center-col gap-2 font-label-md text-on-surface-variant"
+            >
+              <mat-icon name="add_photo_alternate" size="3xl" />
+              No photos yet
+            </div>
+          }
+        </div>
+        @if (p.photos.length > 1) {
+          <p class="editor-store__counter font-label-sm font-mono">
+            <mat-icon name="arrow_back" size="base" /> 1 / {{ p.photos.length }}
+            <mat-icon name="arrow_forward" size="base" />
+          </p>
+        }
+      </div>
+    }
+
+    <div class="editor-store__details">
+      <p class="pdp-kicker">{{ p.crumbs.join(' › ') }}</p>
+      <div class="elements-start-col gap-2 w-full">
+        <p class="font-headline-sm font-bold!" [class.editor-mark]="marked()">{{ p.name }}</p>
+        @if (p.brand) {
+          <p class="font-body-md text-on-surface-variant">{{ p.brand }}</p>
+        }
+      </div>
+      @if (p.badge) {
+        <p class="pdp-kicker">{{ p.badge }}</p>
+      }
+      <div class="elements-center flex-wrap gap-1.5">
+        <span class="font-title-sm font-bold!">{{ p.price === null ? 'EGP —' : (p.price | egpPrice) }}</span>
+        @if (p.before !== null) {
+          <span class="font-body-sm text-on-surface-variant line-through">{{ p.before | egpPrice }}</span>
+        }
+      </div>
+      @if (p.soldOut && !compact()) {
+        <p class="font-label-lg uppercase">Out of stock</p>
+      }
+      @if (p.paragraphs.length > 0) {
+        <div class="pdp-description" [class.editor-mark--dotted]="marked()">
+          @for (paragraph of p.paragraphs; track $index) {
+            <p class="whitespace-pre-line">{{ paragraph }}</p>
+          }
+        </div>
+      } @else if (marked()) {
+        <p class="font-body-md text-on-surface-variant editor-mark--dotted">Your description shows here.</p>
+      }
+
+      @if (!compact()) {
+        @if (p.swatches.length > 0) {
+          <div class="w-full elements-start-col gap-2">
+            <p class="font-label-lg">More Colours</p>
+            <div class="flex flex-wrap gap-2">
+              @for (swatch of p.swatches; track swatch.key) {
+                <span class="pdp-colour-thumb" [attr.aria-current]="swatch.selected ? 'page' : null">
+                  @if (swatch.path) {
+                    <img
+                      [ngSrc]="imagePath(swatch.path)"
+                      [appImageFallback]="swatch.path"
+                      alt=""
+                      width="64"
+                      height="64"
+                      class="size-full object-contain"
+                    />
+                  }
+                </span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (p.sizes.length > 0) {
+          <div class="w-full elements-start-col gap-2">
+            <span class="pdp-size-toggle">
+              <span>{{ p.pickedSize ? 'Size: ' + p.pickedSize : 'Select a Size' }}</span>
+              <span class="elements-center -rotate-90" aria-hidden="true"
+                ><mat-icon name="chevron_right"
+              /></span>
+            </span>
+            <div class="grid w-full grid-cols-3 gap-2">
+              @for (size of p.sizes; track size.label) {
+                <span
+                  class="pdp-choice"
+                  [class.pdp-choice--sold-out]="size.soldOut"
+                  [attr.aria-pressed]="size.label === p.pickedSize"
+                  >{{ size.label }}</span
+                >
+              }
+            </div>
+          </div>
+        }
+
+        <button matButton="filled" class="btn-block" type="button" tabindex="-1" [disabled]="p.soldOut">
+          {{ addLabel() }}
+        </button>
+      }
+    </div>
+
+    @if (p.details.length > 0 || marked()) {
+      <div class="editor-store__sections w-full border-t border-outline">
+        <details class="pdp-section" open>
+          <summary>
+            <span>{{ p.detailsTitle }}</span>
+            <span class="pdp-section__icon" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
+          </summary>
+          <div class="pdp-section__body">
+            <ul class="pdp-section__list" [class.editor-mark--dotted-light]="marked()">
+              @for (line of p.details; track $index) {
+                <li>{{ line }}</li>
+              } @empty {
+                <li class="text-on-surface-variant">Your details show here, one fact per line.</li>
+              }
+            </ul>
+          </div>
+        </details>
+        @if (!compact()) {
+          <details class="pdp-section">
+            <summary>
+              <span>Shipping</span>
+              <span class="pdp-section__icon" aria-hidden="true"><mat-icon name="add" size="lg" /></span>
+            </summary>
+          </details>
+        }
+      </div>
+    }
+  </div>
+</div>

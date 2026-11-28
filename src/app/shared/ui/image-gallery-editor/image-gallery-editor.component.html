@@ -1,109 +1,33 @@
-<section class="surface-card p-5 sm:p-6 space-y-5" [attr.aria-label]="title()">
-  <!-- Gallery Header & Actions -->
-  <div class="border-b border-outline-variant pb-4 elements-between flex-wrap gap-4">
-    <div>
-      <div class="elements-start gap-2.5">
-        <h3 class="font-title-md font-bold!">{{ title() }}</h3>
-        <span
-          class="px-2.5 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold! opacity-80"
-        >
-          {{ images().length }} / {{ maxImages() }} Images
+@if (layout() === 'tiles') {
+  <section class="w-full elements-start-col gap-3" [attr.aria-label]="title()">
+    <div class="elements-start-col gap-1">
+      <div class="elements-start gap-2">
+        <h4 class="font-title-sm font-bold!">{{ title() }}</h4>
+        <span class="px-2 py-0.5 border-shape bg-surface-container font-label-sm font-bold!">
+          {{ images().length }} / {{ maxImages() }}
         </span>
       </div>
-      <p class="font-body-sm opacity-70 pt-0.5">{{ subtitle() }}</p>
-      <app-photo-size-line class="pt-2" [spot]="photoSpot()" />
+      <p class="font-body-sm text-on-surface-variant">{{ subtitle() }}</p>
+      <app-photo-size-line [spot]="photoSpot()" />
     </div>
 
-    <div class="elements-start flex-wrap gap-2 max-sm:w-full max-sm:[&>button]:w-full">
-      <button matButton="outlined" type="button" [disabled]="isFull()" (click)="toggleWebLinkBar()">
-        <mat-icon [name]="showWebLinkBar() ? 'visibility_off' : 'link'" />
-        <span>{{ showWebLinkBar() ? 'Hide Link' : 'Add from Link' }}</span>
-      </button>
+    <input
+      #tileFileInput
+      type="file"
+      multiple
+      accept="image/png,image/jpeg,image/webp,image/avif"
+      class="hidden"
+      (change)="onFilesSelected($event)"
+    />
 
-      <input
-        #galleryFileInput
-        type="file"
-        multiple
-        accept="image/png,image/jpeg,image/webp,image/avif"
-        class="hidden"
-        (change)="onFilesSelected($event)"
-      />
-
-      <button
-        matButton="filled"
-        type="button"
-        [disabled]="isFull() || isUploadingFiles()"
-        (click)="galleryFileInput.click()"
-        [attr.aria-label]="isUploadingFiles() ? 'Uploading images...' : null"
-      >
-        @if (isUploadingFiles()) {
-          <mat-progress-spinner mode="indeterminate" diameter="18" />
-        } @else {
-          <mat-icon name="add_photo_alternate" />
-        }
-        @if (!isUploadingFiles()) {
-          <span>Add Photos</span>
-        }
-      </button>
-    </div>
-  </div>
-
-  <!-- Optional Web Link Import Bar -->
-  @if (showWebLinkBar() && !isFull()) {
-    <div class="p-4 bg-surface-container-low panel-border elements-between flex-wrap gap-3">
-      <div class="flex-1 min-w-60">
-        <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
-          <mat-label>Paste Web Image URL or Storage Path</mat-label>
-          <input
-            matInput
-            id="gallery-web-url-input"
-            name="gallery-web-url-input"
-            autocomplete="off"
-            aria-label="Paste Web Image URL or Storage Path"
-            [ngModel]="webLinkInput()"
-            (ngModelChange)="setWebLinkInput($event)"
-            placeholder="https://images.unsplash.com/..."
-          />
-        </mat-form-field>
-      </div>
-
-      <div class="max-sm:w-full max-sm:[&>button]:w-full">
-        <button
-          theme="success"
-          matButton="tonal"
-          type="button"
-          [disabled]="isImportingUrl() || !webLinkInput().trim()"
-          (click)="importWebLink()"
-          [attr.aria-label]="isImportingUrl() ? 'Importing image...' : null"
-        >
-          @if (isImportingUrl()) {
-            <mat-progress-spinner mode="indeterminate" diameter="18" />
-          } @else {
-            <mat-icon [name]="isExternalUrlInput() ? 'cloud_download' : 'check'" />
-          }
-          @if (!isImportingUrl()) {
-            <span>{{ isExternalUrlInput() ? 'Import & Add' : 'Add Path' }}</span>
-          }
-        </button>
-      </div>
-    </div>
-  }
-
-  <!-- Empty State -->
-  @if (images().length === 0) {
     <div
-      class="p-10 bg-surface-container-low panel-border border-dashed elements-center-col text-center gap-2"
+      cdkDropList
+      cdkDropListOrientation="mixed"
+      class="gallery-tiles"
+      role="list"
+      aria-label="Photos, first one is the main photo"
+      (cdkDropListDropped)="onDrop($event)"
     >
-      <mat-icon name="collections" size="3xl" />
-      <span class="font-title-sm font-bold!">No gallery images yet</span>
-      <p class="font-body-sm opacity-70 max-w-md">
-        Upload up to {{ maxImages() }} product images or import them from a web link. The first image will
-        automatically serve as the Main Image.
-      </p>
-    </div>
-  } @else {
-    <!-- Drag-and-Drop Gallery List -->
-    <div cdkDropList (cdkDropListDropped)="onDrop($event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
       @for (
         item of images();
         track item.path + '-' + $index;
@@ -112,142 +36,372 @@
         let isLast = $last
       ) {
         @let imgPath = getDisplayPath(item);
-
-        <div
-          cdkDrag
-          class="p-4 bg-surface-container-low panel-border flex flex-col gap-3 transition-shadow"
-          [class.ring-2]="isFirst"
-          [class.ring-primary]="isFirst"
-        >
-          <!-- Top Bar: Drag Handle + Position / Main Badge + Reorder & Remove Actions -->
-          <div class="elements-between gap-2">
-            <div class="elements-start gap-2">
-              <span
-                cdkDragHandle
-                class="drag-handle-wrapper"
-                matTooltip="Drag to reorder"
-                aria-label="Drag to reorder image"
-              >
-                <mat-icon name="drag_indicator" size="lg" />
-              </span>
-
-              @if (isFirst) {
-                <span class="px-2.5 py-0.5 border-shape bg-primary text-on-primary font-label-sm font-bold!">
-                  Main Image
-                </span>
-              } @else {
-                <span class="px-2 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold!">
-                  #{{ idx + 1 }}
-                </span>
-              }
-            </div>
-
-            <div class="elements-end gap-0.5">
-              @if (!isFirst) {
-                <button
-                  matIconButton
-                  type="button"
-                  (click)="promoteToMain(idx)"
-                  matTooltip="Set as Main Image"
-                  aria-label="Set as Main Image"
-                >
-                  <mat-icon name="star" />
-                </button>
-              }
-
+        <div cdkDrag class="gallery-tile" role="listitem">
+          <div
+            cdkDragHandle
+            class="gallery-tile__frame"
+            [class.gallery-tile__frame--main]="isFirst"
+            [class]="photoSpot().aspectClass"
+          >
+            @if (imgPath) {
+              <img
+                [ngSrc]="imgPath"
+                [appImageFallback]="imgPath"
+                [alt]="item.alt || 'Photo ' + (idx + 1)"
+                fill
+                sizes="(min-width: 1024px) 14rem, 70vw"
+                class="object-contain"
+              />
+            }
+            <span class="gallery-tile__badge" [class.gallery-tile__badge--main]="isFirst">
+              {{ isFirst ? 'Main Photo' : '#' + (idx + 1) }}
+            </span>
+            <span class="gallery-tile__menu">
               <button
                 matIconButton
                 type="button"
-                [disabled]="isFirst"
-                (click)="moveItem(idx, 'up')"
-                matTooltip="Move earlier"
-                aria-label="Move image earlier"
+                [matMenuTriggerFor]="photoMenu"
+                [attr.aria-label]="'Options for photo ' + (idx + 1)"
               >
-                <mat-icon name="arrow_upward" />
+                <mat-icon name="more_vert" />
               </button>
-
-              <button
-                matIconButton
-                type="button"
-                [disabled]="isLast"
-                (click)="moveItem(idx, 'down')"
-                matTooltip="Move later"
-                aria-label="Move image later"
-              >
-                <mat-icon name="arrow_downward" />
-              </button>
-
-              <button
-                matIconButton
-                theme="error"
-                type="button"
-                (click)="removeImage(idx)"
-                matTooltip="Remove image"
-                aria-label="Remove image"
-              >
-                <mat-icon name="delete" />
-              </button>
-            </div>
+            </span>
           </div>
+          <mat-menu #photoMenu="matMenu">
+            @if (!isFirst) {
+              <button mat-menu-item type="button" (click)="promoteToMain(idx)">
+                <mat-icon name="star" />
+                <span>Make It the Main Photo</span>
+              </button>
+              <button mat-menu-item type="button" (click)="moveItem(idx, 'up')">
+                <mat-icon name="arrow_back" />
+                <span>Move Earlier</span>
+              </button>
+            }
+            @if (!isLast) {
+              <button mat-menu-item type="button" (click)="moveItem(idx, 'down')">
+                <mat-icon name="arrow_forward" />
+                <span>Move Later</span>
+              </button>
+            }
+            <button mat-menu-item type="button" theme="error" (click)="removeImage(idx)">
+              <mat-icon name="delete" />
+              <span>Remove Photo</span>
+            </button>
+          </mat-menu>
 
-          <!-- Thumbnail + Alt Text Input -->
-          <div class="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            @let fit = fitOf(item);
-            @let showsCut = !!fit && !fit.fits;
-            <div
-              [class]="
-                'relative w-full sm:w-28 shrink-0 overflow-hidden panel-border bg-surface-container-lowest ' +
-                photoSpot().aspectClass
-              "
-            >
-              @if (imgPath) {
-                <img
-                  [ngSrc]="imgPath"
-                  [appImageFallback]="imgPath"
-                  [alt]="item.alt || 'Gallery image'"
-                  fill
-                  sizes="(min-width: 640px) 7rem, 100vw"
-                  class="object-center"
-                  [class.object-cover]="!showsCut"
-                  [class.object-contain]="showsCut"
-                />
-                @if (showsCut) {
-                  <span
-                    class="photo-fit-frame"
-                    [style.width.%]="fit?.framePercent"
-                    [style.height.%]="fit?.framePercent"
-                    aria-hidden="true"
-                  ></span>
-                }
-              }
-            </div>
-
-            <div class="flex-1 min-w-0">
-              <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
-                <mat-label>Alt Text (Image #{{ idx + 1 }})</mat-label>
-                <input
-                  matInput
-                  [id]="'gallery-alt-' + idx"
-                  [name]="'gallery-alt-' + idx"
-                  autocomplete="off"
-                  [attr.aria-label]="'Alt text for image ' + (idx + 1)"
-                  [maxLength]="maxAltLength"
-                  [ngModel]="item.alt"
-                  (ngModelChange)="updateAlt(idx, $event)"
-                  placeholder="Describe this angle, color, or detail"
-                  required
-                />
-                <mat-hint>{{ item.alt.length }} / {{ maxAltLength }} characters</mat-hint>
-              </mat-form-field>
-            </div>
-          </div>
-
-          <!-- Fit check: full card width, so the warning isn't squeezed beside the thumbnail -->
+          <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
+            <mat-label>Describe photo {{ idx + 1 }}</mat-label>
+            <input
+              matInput
+              [id]="'gallery-alt-' + idx"
+              [name]="'gallery-alt-' + idx"
+              autocomplete="off"
+              [maxLength]="maxAltLength"
+              [ngModel]="item.alt"
+              (ngModelChange)="updateAlt(idx, $event)"
+              required
+            />
+            <mat-hint>{{ item.alt.length }} / {{ maxAltLength }}</mat-hint>
+          </mat-form-field>
           @if (fitOf(item)) {
             <app-photo-fit-note [spot]="photoSpot()" [width]="item.width" [height]="item.height" />
           }
         </div>
       }
+
+      @if (!isFull()) {
+        <div class="gallery-tile">
+          <button
+            type="button"
+            class="gallery-tile__add"
+            [class]="photoSpot().aspectClass"
+            [disabled]="isUploadingFiles()"
+            [attr.aria-label]="isUploadingFiles() ? 'Uploading photos' : null"
+            (click)="tileFileInput.click()"
+          >
+            @if (isUploadingFiles()) {
+              <mat-progress-spinner mode="indeterminate" diameter="28" />
+            } @else {
+              <mat-icon name="add_photo_alternate" size="3xl" />
+              <span class="font-label-lg font-bold!">Add Photos</span>
+              <span class="font-body-sm text-on-surface-variant">Up to {{ remainingSlots() }} more</span>
+            }
+          </button>
+          <button
+            type="button"
+            class="gallery-tile__link"
+            [attr.aria-expanded]="showWebLinkBar()"
+            (click)="toggleWebLinkBar()"
+          >
+            <mat-icon [name]="showWebLinkBar() ? 'visibility_off' : 'link'" size="lg" />
+            <span>{{ showWebLinkBar() ? 'Hide Link' : 'Add from a Link' }}</span>
+          </button>
+        </div>
+      }
     </div>
-  }
-</section>
+
+    @if (showWebLinkBar() && !isFull()) {
+      <ng-container [ngTemplateOutlet]="linkBar" />
+    }
+  </section>
+} @else {
+  <section class="surface-card p-5 sm:p-6 space-y-5" [attr.aria-label]="title()">
+    <!-- Gallery Header & Actions -->
+    <div class="border-b border-outline-variant pb-4 elements-between flex-wrap gap-4">
+      <div>
+        <div class="elements-start gap-2.5">
+          <h3 class="font-title-md font-bold!">{{ title() }}</h3>
+          <span
+            class="px-2.5 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold! opacity-80"
+          >
+            {{ images().length }} / {{ maxImages() }} Images
+          </span>
+        </div>
+        <p class="font-body-sm opacity-70 pt-0.5">{{ subtitle() }}</p>
+        <app-photo-size-line class="pt-2" [spot]="photoSpot()" />
+      </div>
+
+      <div class="elements-start flex-wrap gap-2 max-sm:w-full max-sm:[&>button]:w-full">
+        <button matButton="outlined" type="button" [disabled]="isFull()" (click)="toggleWebLinkBar()">
+          <mat-icon [name]="showWebLinkBar() ? 'visibility_off' : 'link'" />
+          <span>{{ showWebLinkBar() ? 'Hide Link' : 'Add from Link' }}</span>
+        </button>
+
+        <input
+          #galleryFileInput
+          type="file"
+          multiple
+          accept="image/png,image/jpeg,image/webp,image/avif"
+          class="hidden"
+          (change)="onFilesSelected($event)"
+        />
+
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="isFull() || isUploadingFiles()"
+          (click)="galleryFileInput.click()"
+          [attr.aria-label]="isUploadingFiles() ? 'Uploading images...' : null"
+        >
+          @if (isUploadingFiles()) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <mat-icon name="add_photo_alternate" />
+          }
+          @if (!isUploadingFiles()) {
+            <span>Add Photos</span>
+          }
+        </button>
+      </div>
+    </div>
+
+    @if (showWebLinkBar() && !isFull()) {
+      <ng-container [ngTemplateOutlet]="linkBar" />
+    }
+
+    <!-- Empty State -->
+    @if (images().length === 0) {
+      <div
+        class="p-10 bg-surface-container-low panel-border border-dashed elements-center-col text-center gap-2"
+      >
+        <mat-icon name="collections" size="3xl" />
+        <span class="font-title-sm font-bold!">No gallery images yet</span>
+        <p class="font-body-sm opacity-70 max-w-md">
+          Upload up to {{ maxImages() }} product images or import them from a web link. The first image will
+          automatically serve as the Main Image.
+        </p>
+      </div>
+    } @else {
+      <!-- Drag-and-Drop Gallery List -->
+      <div cdkDropList (cdkDropListDropped)="onDrop($event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        @for (
+          item of images();
+          track item.path + '-' + $index;
+          let idx = $index;
+          let isFirst = $first;
+          let isLast = $last
+        ) {
+          @let imgPath = getDisplayPath(item);
+
+          <div
+            cdkDrag
+            class="p-4 bg-surface-container-low panel-border flex flex-col gap-3 transition-shadow"
+            [class.ring-2]="isFirst"
+            [class.ring-primary]="isFirst"
+          >
+            <!-- Top Bar: Drag Handle + Position / Main Badge + Reorder & Remove Actions -->
+            <div class="elements-between gap-2">
+              <div class="elements-start gap-2">
+                <span
+                  cdkDragHandle
+                  class="drag-handle-wrapper"
+                  matTooltip="Drag to reorder"
+                  aria-label="Drag to reorder image"
+                >
+                  <mat-icon name="drag_indicator" size="lg" />
+                </span>
+
+                @if (isFirst) {
+                  <span
+                    class="px-2.5 py-0.5 border-shape bg-primary text-on-primary font-label-sm font-bold!"
+                  >
+                    Main Image
+                  </span>
+                } @else {
+                  <span class="px-2 py-0.5 border-shape bg-surface-container-high font-label-sm font-bold!">
+                    #{{ idx + 1 }}
+                  </span>
+                }
+              </div>
+
+              <div class="elements-end gap-0.5">
+                @if (!isFirst) {
+                  <button
+                    matIconButton
+                    type="button"
+                    (click)="promoteToMain(idx)"
+                    matTooltip="Set as Main Image"
+                    aria-label="Set as Main Image"
+                  >
+                    <mat-icon name="star" />
+                  </button>
+                }
+
+                <button
+                  matIconButton
+                  type="button"
+                  [disabled]="isFirst"
+                  (click)="moveItem(idx, 'up')"
+                  matTooltip="Move earlier"
+                  aria-label="Move image earlier"
+                >
+                  <mat-icon name="arrow_upward" />
+                </button>
+
+                <button
+                  matIconButton
+                  type="button"
+                  [disabled]="isLast"
+                  (click)="moveItem(idx, 'down')"
+                  matTooltip="Move later"
+                  aria-label="Move image later"
+                >
+                  <mat-icon name="arrow_downward" />
+                </button>
+
+                <button
+                  matIconButton
+                  theme="error"
+                  type="button"
+                  (click)="removeImage(idx)"
+                  matTooltip="Remove image"
+                  aria-label="Remove image"
+                >
+                  <mat-icon name="delete" />
+                </button>
+              </div>
+            </div>
+
+            <!-- Thumbnail + Alt Text Input -->
+            <div class="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+              @let fit = fitOf(item);
+              @let showsCut = !!fit && !fit.fits;
+              <div
+                [class]="
+                  'relative w-full sm:w-28 shrink-0 overflow-hidden panel-border bg-surface-container-lowest ' +
+                  photoSpot().aspectClass
+                "
+              >
+                @if (imgPath) {
+                  <img
+                    [ngSrc]="imgPath"
+                    [appImageFallback]="imgPath"
+                    [alt]="item.alt || 'Gallery image'"
+                    fill
+                    sizes="(min-width: 640px) 7rem, 100vw"
+                    class="object-center"
+                    [class.object-cover]="!showsCut"
+                    [class.object-contain]="showsCut"
+                  />
+                  @if (showsCut) {
+                    <span
+                      class="photo-fit-frame"
+                      [style.width.%]="fit?.framePercent"
+                      [style.height.%]="fit?.framePercent"
+                      aria-hidden="true"
+                    ></span>
+                  }
+                }
+              </div>
+
+              <div class="flex-1 min-w-0">
+                <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
+                  <mat-label>Alt Text (Image #{{ idx + 1 }})</mat-label>
+                  <input
+                    matInput
+                    [id]="'gallery-alt-' + idx"
+                    [name]="'gallery-alt-' + idx"
+                    autocomplete="off"
+                    [attr.aria-label]="'Alt text for image ' + (idx + 1)"
+                    [maxLength]="maxAltLength"
+                    [ngModel]="item.alt"
+                    (ngModelChange)="updateAlt(idx, $event)"
+                    placeholder="Describe this angle, color, or detail"
+                    required
+                  />
+                  <mat-hint>{{ item.alt.length }} / {{ maxAltLength }} characters</mat-hint>
+                </mat-form-field>
+              </div>
+            </div>
+
+            <!-- Fit check: full card width, so the warning isn't squeezed beside the thumbnail -->
+            @if (fitOf(item)) {
+              <app-photo-fit-note [spot]="photoSpot()" [width]="item.width" [height]="item.height" />
+            }
+          </div>
+        }
+      </div>
+    }
+  </section>
+}
+
+<ng-template #linkBar>
+  <div class="p-4 bg-surface-container-low panel-border elements-between flex-wrap gap-3">
+    <div class="flex-1 min-w-60">
+      <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
+        <mat-label>Paste Web Image URL or Storage Path</mat-label>
+        <input
+          matInput
+          id="gallery-web-url-input"
+          name="gallery-web-url-input"
+          autocomplete="off"
+          aria-label="Paste Web Image URL or Storage Path"
+          [ngModel]="webLinkInput()"
+          (ngModelChange)="setWebLinkInput($event)"
+          placeholder="https://images.unsplash.com/..."
+        />
+      </mat-form-field>
+    </div>
+
+    <div class="max-sm:w-full max-sm:[&>button]:w-full">
+      <button
+        theme="success"
+        matButton="tonal"
+        type="button"
+        [disabled]="isImportingUrl() || !webLinkInput().trim()"
+        (click)="importWebLink()"
+        [attr.aria-label]="isImportingUrl() ? 'Importing image...' : null"
+      >
+        @if (isImportingUrl()) {
+          <mat-progress-spinner mode="indeterminate" diameter="18" />
+        } @else {
+          <mat-icon [name]="isExternalUrlInput() ? 'cloud_download' : 'check'" />
+        }
+        @if (!isImportingUrl()) {
+          <span>{{ isExternalUrlInput() ? 'Import & Add' : 'Add Path' }}</span>
+        }
+      </button>
+    </div>
+  </div>
+</ng-template>

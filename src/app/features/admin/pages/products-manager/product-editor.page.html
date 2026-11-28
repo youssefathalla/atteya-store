@@ -1,41 +1,71 @@
-<div class="elements-start-col gap-6 w-full">
-  <header class="surface-card p-5 w-full elements-between flex-wrap gap-3 sticky top-0 z-10">
-    <div class="elements-start-col gap-1 min-w-0">
-      <span class="font-label-md text-on-surface-variant">{{ crumb() }}</span>
-      <h1 class="font-title-lg font-bold!">{{ heading() }}</h1>
-      @if (showForm()) {
-        <p class="font-body-md text-on-surface-variant">{{ overview() }}</p>
-      }
-    </div>
-    <div class="elements-center gap-2">
-      <button matButton="text" type="button" [disabled]="isSaving()" (click)="cancel()">
-        <span>Cancel</span>
-      </button>
-      <button
-        matButton="filled"
-        type="submit"
-        form="product-editor-form"
-        [disabled]="isSaving() || !showForm() || photosBusy()"
-        [attr.aria-label]="isSaving() ? 'Saving product' : null"
-      >
-        @if (isSaving()) {
-          <mat-progress-spinner mode="indeterminate" diameter="18" />
-        } @else {
-          <mat-icon name="check" />
+<div class="product-editor elements-start-col gap-4 w-full">
+  <header class="surface-card editor-head w-full elements-start-col gap-4 sticky top-0 z-10">
+    <div class="w-full elements-between flex-wrap gap-3">
+      <div class="elements-start-col gap-1 min-w-0">
+        <span class="font-label-md text-on-surface-variant">{{ crumb() }}</span>
+        <h1 class="font-title-lg font-bold!">{{ heading() }}</h1>
+        @if (showForm()) {
+          <p class="font-body-md text-on-surface-variant">{{ overview() }}</p>
         }
-        @if (!isSaving()) {
-          <span>{{ saveLabel() }}</span>
-        }
-      </button>
+      </div>
+      <div class="editor-head__actions">
+        <button matButton="text" type="button" [disabled]="isSaving()" (click)="cancel()">
+          <span>Cancel</span>
+        </button>
+        <button
+          matButton="filled"
+          type="submit"
+          form="product-editor-form"
+          [disabled]="isSaving() || !showForm() || photosBusy()"
+          [attr.aria-label]="isSaving() ? 'Saving product' : null"
+        >
+          @if (isSaving()) {
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+          } @else {
+            <mat-icon name="check" />
+          }
+          @if (!isSaving()) {
+            <span>{{ saveLabel() }}</span>
+          }
+        </button>
+      </div>
     </div>
+    @if (showForm()) {
+      <div class="editor-tabs" role="tablist" aria-label="Product sections">
+        @for (item of tabs(); track item.id; let i = $index) {
+          <button
+            type="button"
+            role="tab"
+            class="editor-tab"
+            [id]="'editor-tab-' + item.id"
+            [attr.aria-selected]="tab() === item.id"
+            [attr.aria-controls]="'editor-panel-' + item.id"
+            [attr.tabindex]="tab() === item.id ? 0 : -1"
+            (click)="tab.set(item.id)"
+            (keydown)="onTabKeydown($event, i)"
+          >
+            <mat-icon [name]="item.icon" size="xl" />
+            <span>{{ item.label }}</span>
+            @if (item.count !== null) {
+              <span class="editor-tab__count">{{ item.count }}</span>
+            }
+            @if (item.alert !== null) {
+              <span class="editor-tab__alert" [attr.aria-label]="item.alert + ' to look at'">{{
+                item.alert
+              }}</span>
+            }
+          </button>
+        }
+      </div>
+    }
   </header>
 
   @if (formError()) {
-    <p class="surface-card p-3 w-full font-body-sm" role="alert">{{ formError() }}</p>
+    <p class="surface-card editor-card font-body-sm" role="alert">{{ formError() }}</p>
   }
 
   @if (editorResource.error(); as loadFailure) {
-    <p class="surface-card p-5 w-full font-body-md" role="alert">{{ loadMessage(loadFailure) }}</p>
+    <p class="surface-card editor-card font-body-md" role="alert">{{ loadMessage(loadFailure) }}</p>
   } @else if (!showForm()) {
     <div class="w-full elements-start-col gap-4" aria-hidden="true">
       <app-skeleton class="h-44 w-full" />
@@ -44,220 +74,621 @@
     </div>
   } @else {
     @if (detailsDiffer()) {
-      <p class="surface-card p-3 w-full font-body-sm" role="status">
+      <p class="surface-card editor-card font-body-sm" role="status">
         Some colours had different details. Saving uses what you see here.
       </p>
     }
 
-    <form
-      id="product-editor-form"
-      class="product-editor-grid"
-      novalidate
-      autocomplete="off"
-      (submit)="save($event)"
-    >
-      <section
-        class="product-editor__product surface-card p-5 w-full elements-start-col gap-4"
-        aria-labelledby="product-basics"
+    <form id="product-editor-form" class="w-full" novalidate autocomplete="off" (submit)="save($event)">
+      <!-- ============ PRODUCT ============ -->
+      <div
+        id="editor-panel-product"
+        role="tabpanel"
+        aria-labelledby="editor-tab-product"
+        class="editor-stack"
+        [hidden]="tab() !== 'product'"
       >
-        <div class="elements-start-col gap-1">
-          <h2 id="product-basics" class="font-title-md font-bold!">Product</h2>
-          <p class="font-body-sm text-on-surface-variant">Shared by every colour</p>
-        </div>
-        <app-text-input [formField]="editForm.name" label="Name" />
-        <app-text-input [formField]="editForm.summary" label="Short summary" />
-        <p
-          class="font-body-sm"
-          [class.text-error]="summaryCount() > summaryWords"
-          [class.text-on-surface-variant]="summaryCount() <= summaryWords"
-        >
-          {{ summaryHint() }}
-        </p>
-        <app-text-field-input [formField]="editForm.description" label="Description" [minRows]="3" />
-        <p class="font-body-sm text-on-surface-variant">
-          One or two sentences. Shown on the product page under the price. Leave a blank line between
-          paragraphs.
-        </p>
-        <app-text-field-input [formField]="editForm.details" label="Details" [minRows]="5" />
-        <p class="font-body-sm text-on-surface-variant">
-          One fact per line, such as "63% cotton, 37% polyester" or "Shape: Diamond". Shown as Materials or
-          Specifications. Up to 20 lines.
-        </p>
-      </section>
+        <section class="surface-card editor-card" aria-labelledby="product-where">
+          <div class="w-full elements-between items-start! gap-3">
+            <div class="elements-start-col gap-1">
+              <h2 id="product-where" class="font-title-md font-bold!">Where Shoppers See It</h2>
+              <p class="font-body-sm text-on-surface-variant">
+                Changes as you type. Each dashed line matches a box below.
+              </p>
+            </div>
+            <span class="max-sm:hidden flex-none">
+              <button matButton="outlined" type="button" (click)="tab.set('preview')">
+                <mat-icon name="visibility" />
+                <span>See the Full Page</span>
+              </button>
+            </span>
+          </div>
+          @if (productCard(); as card) {
+            <div class="editor-see-grid">
+              <div class="editor-see-card">
+                <span class="editor-kicker">Shop card</span>
+                <app-editor-shop-card inert class="w-full" [card]="card" [marked]="true" />
+              </div>
+              @if (productPage(); as page) {
+                <div class="elements-start-col gap-2 min-w-0 w-full">
+                  <span class="editor-kicker">Product page</span>
+                  <div class="editor-see-page" inert>
+                    <app-editor-store-page [page]="page" [compact]="true" [marked]="true" />
+                  </div>
+                </div>
+              }
+              <ul class="editor-see-legend list-none m-0">
+                <li class="elements-start items-start! gap-2.5">
+                  <span class="editor-key editor-mark" aria-hidden="true"></span>
+                  <span
+                    ><b class="font-bold!">Name</b> on the Shop card, the product page, the bag and
+                    search</span
+                  >
+                </li>
+                <li class="elements-start items-start! gap-2.5">
+                  <span class="editor-key editor-mark--light" aria-hidden="true"></span>
+                  @if (summaryOnCard()) {
+                    <span
+                      ><b class="font-bold!">Short summary</b> under the name on the card, in the bag and
+                      search</span
+                    >
+                  } @else {
+                    <span
+                      ><b class="font-bold!">Short summary</b> in the bag and search. The card shows the
+                      gender and category instead, because Gender is set.</span
+                    >
+                  }
+                </li>
+                <li class="elements-start items-start! gap-2.5">
+                  <span class="editor-key editor-mark--dotted" aria-hidden="true"></span>
+                  <span><b class="font-bold!">Description</b> under the price on the product page</span>
+                </li>
+                <li class="elements-start items-start! gap-2.5">
+                  <span class="editor-key editor-mark--dotted-light" aria-hidden="true"></span>
+                  <span
+                    ><b class="font-bold!">Details</b> in {{ productPage()?.detailsTitle }}, below the
+                    photos</span
+                  >
+                </li>
+              </ul>
+            </div>
+          } @else {
+            <p class="font-body-sm text-on-surface-variant">
+              Add the first colour in Colours &amp; Photos to see the card and the product page here.
+            </p>
+          }
+        </section>
 
-      <div class="product-editor__extras" aria-label="Sizes, tags and offers" role="group">
-        <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-sizes">
-          <h2 id="product-sizes" class="font-title-md font-bold!">Sizes</h2>
-          <div class="flex flex-wrap gap-2" role="group" aria-label="Sizes">
-            @for (label of sizeChoices(); track label) {
+        <section class="surface-card editor-card" aria-labelledby="product-basics">
+          <div class="elements-start-col gap-1">
+            <h2 id="product-basics" class="font-title-md font-bold!">Product</h2>
+            <p class="font-body-sm text-on-surface-variant">Shared by every colour</p>
+          </div>
+          <div class="editor-form-grid">
+            <div class="elements-start-col gap-1 min-w-0 w-full">
+              <app-text-input class="w-full" [formField]="editForm.name" label="Name" />
+              <p class="editor-hint text-on-surface-variant">
+                <span class="editor-key editor-mark" aria-hidden="true"></span>
+                On the card, the product page, the bag and search.
+              </p>
+            </div>
+            <div class="elements-start-col gap-1 min-w-0 w-full">
+              <app-text-input class="w-full" [formField]="editForm.summary" label="Short summary" />
+              <p
+                class="editor-hint"
+                [class.text-error]="summaryCount() > summaryWords"
+                [class.text-on-surface-variant]="summaryCount() <= summaryWords"
+              >
+                <span class="editor-key editor-mark--light" aria-hidden="true"></span>
+                {{ summaryHint() }}
+              </p>
+            </div>
+            <div class="elements-start-col gap-1 min-w-0 w-full">
+              <app-text-field-input
+                class="w-full"
+                [formField]="editForm.description"
+                label="Description"
+                [minRows]="6"
+              />
+              <p class="editor-hint text-on-surface-variant">
+                <span class="editor-key editor-mark--dotted" aria-hidden="true"></span>
+                One or two sentences. Shown on the product page under the price. Leave a blank line between
+                paragraphs.
+              </p>
+            </div>
+            <div class="elements-start-col gap-1 min-w-0 w-full">
+              <app-text-field-input
+                class="w-full"
+                [formField]="editForm.details"
+                label="Details"
+                [minRows]="6"
+              />
+              <p class="editor-hint text-on-surface-variant">
+                <span class="editor-key editor-mark--dotted-light" aria-hidden="true"></span>
+                One fact per line, such as "63% cotton, 37% polyester" or "Shape: Diamond". Up to 20 lines.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ============ COLOURS & PHOTOS ============ -->
+      <div
+        id="editor-panel-colours"
+        role="tabpanel"
+        aria-labelledby="editor-tab-colours"
+        class="editor-stack"
+        [hidden]="tab() !== 'colours'"
+      >
+        <section class="surface-card editor-card" aria-labelledby="product-colours">
+          <div class="w-full elements-between gap-3">
+            <div class="elements-start-col gap-1">
+              <h2 id="product-colours" class="font-title-md font-bold!">Colours</h2>
+              <p class="font-body-sm text-on-surface-variant">Each colour has its own photos and stock.</p>
+            </div>
+            @if (canAddColour()) {
+              <span class="sm:hidden flex-none">
+                <button
+                  matButton="outlined"
+                  type="button"
+                  [attr.aria-expanded]="picking()"
+                  [disabled]="photosBusy()"
+                  (click)="togglePicking()"
+                >
+                  <mat-icon name="add" />
+                  <span>{{ addColourLabel() }}</span>
+                </button>
+              </span>
+            }
+          </div>
+
+          <div class="editor-colour-row" role="group" aria-label="Colours of this product">
+            @for (colour of colours(); track colour.productId) {
               <button
                 type="button"
-                class="toggle-pill"
-                [attr.aria-pressed]="hasSize(label)"
-                (click)="toggleSize(label)"
+                class="colour-tab"
+                [class.colour-tab--active]="$index === activeIndex()"
+                [class.colour-tab--off]="!isOffered(colour)"
+                [attr.aria-pressed]="$index === activeIndex()"
+                [disabled]="photosBusy() && $index !== activeIndex()"
+                (click)="selectColour($index)"
               >
-                <span>{{ label }}</span>
+                <span class="elements-center gap-2 font-label-lg font-bold!">
+                  <app-color-swatch
+                    class="size-3.5"
+                    [colorId]="colour.colors[0] ?? null"
+                    [swatch]="colourSwatch(colour)"
+                  />
+                  {{ colourName(colour) }}
+                </span>
+                <span class="font-label-sm text-on-surface-variant">{{ tabLine(colour) }}</span>
+              </button>
+            }
+            @if (canAddColour()) {
+              <button
+                type="button"
+                class="editor-colour-add max-sm:hidden!"
+                [attr.aria-expanded]="picking()"
+                [disabled]="photosBusy()"
+                (click)="togglePicking()"
+              >
+                <mat-icon name="add" size="xl" />
+                <span>{{ addColourLabel() }}</span>
               </button>
             }
           </div>
-          <label class="font-label-md w-full" for="product-size-input">Add another size</label>
-          <div class="elements-center gap-2 w-full">
-            <input
-              id="product-size-input"
-              type="text"
-              class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-              placeholder="T2 (M)"
-              [value]="sizeInput()"
-              (input)="onSizeInput($event)"
-              (keydown)="onSizeKeydown($event)"
-            />
-            <button matButton="outlined" type="button" (click)="addPendingSize()">
-              <span>Add</span>
-            </button>
-          </div>
-          @if (sizeError()) {
-            <p class="font-body-sm" role="alert">{{ sizeError() }}</p>
+          @if (!canAddColour()) {
+            <p class="font-body-sm text-on-surface-variant">
+              A product can have up to {{ maxColours }} colours.
+            </p>
           }
-          <p class="font-body-sm text-on-surface-variant">
-            Every colour gets these sizes. Stock is set per colour.
-          </p>
-        </section>
 
-        <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-extras">
-          <h2 id="product-extras" class="font-title-md font-bold!">Tags and badges</h2>
-          <div class="w-full elements-start-col gap-2">
-            <label class="font-label-md" for="product-tags-input">Tags</label>
-            <div class="elements-center gap-2 w-full">
-              <input
-                id="product-tags-input"
-                type="text"
-                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-                placeholder="summer-drop, clearance"
-                [value]="tagInput()"
-                (input)="onTagInput($event)"
-                (keydown)="onTagKeydown($event)"
-              />
-              <button matButton="outlined" type="button" (click)="addPendingTag()">
-                <span>Add</span>
-              </button>
-            </div>
-            @if (tagError()) {
-              <p class="font-body-sm" role="alert">{{ tagError() }}</p>
-            }
-            @if (tags().length > 0) {
-              <div class="flex flex-wrap gap-1.5">
-                @for (tag of tags(); track tag) {
-                  <span
-                    class="border-shape border border-outline-variant bg-surface-container px-2.5 py-1 elements-center gap-1 font-label-sm"
+          @if (picking() && canAddColour()) {
+            <div class="w-full elements-start-col gap-2 border-shape border border-outline-variant p-4">
+              <p class="font-body-sm text-on-surface-variant">
+                Pick a colour. It uses the product name, descriptions, sizes and price. Add its photos and
+                stock.
+              </p>
+              <div class="flex flex-wrap gap-2" role="group" aria-label="Colour to add">
+                @for (color of paletteChoices(); track color.id) {
+                  <button
+                    type="button"
+                    class="toggle-pill"
+                    [disabled]="photosBusy()"
+                    (click)="addColour(color.id)"
                   >
-                    <span>{{ tag }}</span>
-                    <button
-                      type="button"
-                      class="elements-center cursor-pointer"
-                      [attr.aria-label]="'Remove tag ' + tag"
-                      (click)="removeTag(tag)"
-                    >
-                      <mat-icon name="close" />
-                    </button>
-                  </span>
+                    <app-color-swatch class="size-3" [colorId]="color.id" [swatch]="color.swatch" />
+                    <span>{{ color.label }}</span>
+                  </button>
                 }
               </div>
-            }
-          </div>
-
-          <div class="w-full elements-start-col gap-2">
-            <span class="font-label-md">Marketing badge</span>
-            <div class="w-full elements-start-col gap-0">
-              <mat-form-field class="w-full" subscriptSizing="dynamic">
-                <mat-label>Badge</mat-label>
-                <mat-select
-                  [value]="marketingBadgeKind()"
-                  (selectionChange)="onMarketingBadgeKindChange($event.value)"
-                >
-                  @for (option of marketingBadgeKinds; track option.id) {
-                    <mat-option [value]="option.id">{{ option.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field class="w-full" subscriptSizing="dynamic">
-                <mat-label>Style</mat-label>
-                <mat-select
-                  [value]="marketingBadgeStyle()"
-                  [disabled]="!marketingBadgeKind()"
-                  (selectionChange)="onMarketingBadgeStyleChange($event.value)"
-                >
-                  @for (option of marketingBadgeStyles; track option.id) {
-                    <mat-option [value]="option.id">{{ option.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
             </div>
-          </div>
-
-          <div class="w-full elements-start-col gap-2">
-            <span class="font-label-md">New arrival</span>
-            <mat-checkbox [checked]="newArrivalChecked()" (change)="onNewArrivalToggle($event.checked)">
-              Show in New Arrivals
-            </mat-checkbox>
-            @if (newArrivalChecked()) {
-              <label class="elements-start-col gap-1.5 w-full">
-                <span class="font-label-sm">Ends on</span>
-                <input
-                  type="date"
-                  class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
-                  [value]="newArrivalUntilInput()"
-                  (change)="onNewArrivalDateChange($event)"
-                />
-              </label>
-              @if (newArrivalCountdown(); as countdown) {
-                <p class="font-body-sm text-on-surface-variant" role="status">{{ countdown }}</p>
-              }
-              @if (newArrivalError()) {
-                <p class="font-body-sm" role="alert">{{ newArrivalError() }}</p>
-              }
-            }
-          </div>
-        </section>
-
-        <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-offers">
-          <div class="w-full elements-between gap-2">
-            <h2 id="product-offers" class="font-title-md font-bold!">Offers</h2>
-            <a routerLink="/admin/offers" class="font-label-md underline">Open Offers</a>
-          </div>
-          @for (offer of offerRows(); track offer.id) {
-            <div class="w-full elements-between gap-2">
-              <span class="font-body-md">{{ offer.title }}</span>
-              <span class="font-body-sm text-on-surface-variant text-right">{{ offer.scope }}</span>
-            </div>
-          } @empty {
-            <p class="font-body-sm text-on-surface-variant">No running offer covers this product.</p>
           }
-        </section>
 
-        <section class="surface-card p-5 w-full elements-start-col gap-3" aria-labelledby="product-shoppers">
-          <h2 id="product-shoppers" class="font-title-md font-bold!">What shoppers see</h2>
-          @for (colour of colours(); track colour.productId) {
-            <div class="w-full elements-between gap-2">
-              <span class="elements-center gap-2 font-body-md">
-                <app-color-swatch
-                  class="size-3"
-                  [colorId]="colour.colors[0] ?? null"
-                  [swatch]="colourSwatch(colour)"
-                />
-                {{ colourName(colour) }}
-              </span>
-              <span class="font-body-sm" [class.text-on-surface-variant]="!isOffered(colour)">{{
-                shopperLine(colour)
-              }}</span>
+          @if (activeColour(); as colour) {
+            <div class="editor-colour-panel">
+              <div class="w-full elements-between flex-wrap gap-2">
+                <div class="elements-start-col gap-0.5 min-w-0">
+                  <h3 class="elements-center gap-2 font-title-md font-bold!">
+                    <app-color-swatch
+                      class="size-4"
+                      [colorId]="colour.colors[0] ?? null"
+                      [swatch]="colourSwatch(colour)"
+                    />
+                    {{ activeName() }}
+                  </h3>
+                  @if (colour.slug) {
+                    <p class="font-body-sm text-on-surface-variant break-all">/product/{{ colour.slug }}</p>
+                  } @else {
+                    <p class="font-body-sm text-on-surface-variant">
+                      New colour. Its web address is made when you save.
+                    </p>
+                  }
+                </div>
+                <span class="editor-status" [class.editor-status--off]="!isOffered(colour)">
+                  {{ shopperLine(colour) }}
+                </span>
+              </div>
+
+              <app-image-gallery-editor
+                class="w-full"
+                layout="tiles"
+                spot="product"
+                [folder]="photoFolder()"
+                [images]="colour.images"
+                [maxImages]="8"
+                title="Photos"
+                subtitle="Drag a photo to move it. The first one is what shoppers see first."
+                [defaultAlt]="model().name + ' ' + activeName()"
+                (imagesChange)="setActiveImages($event)"
+                (uploaded)="registerUpload($event)"
+                (busyChange)="photosBusy.set($event)"
+              />
+
+              <div class="w-full elements-start-col gap-3">
+                <div class="w-full elements-between gap-2">
+                  <span class="font-label-lg font-bold!">Stock by size</span>
+                  <span class="font-body-sm">Total {{ total(colour) }}</span>
+                </div>
+                @if (sizes().length === 0) {
+                  <label class="elements-start-col gap-1 font-label-md" for="colour-flat-stock">
+                    Stock
+                    <input
+                      id="colour-flat-stock"
+                      class="stock-box"
+                      [class.stock-box--zero]="isZero(colour.flatStock)"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="off"
+                      [attr.aria-invalid]="stockError(colour.flatStock) ? 'true' : null"
+                      [value]="colour.flatStock"
+                      (input)="onFlatStock($event)"
+                    />
+                  </label>
+                  @if (stockError(colour.flatStock); as message) {
+                    <p class="font-body-sm" role="alert">{{ message }}</p>
+                  }
+                  <p class="font-body-sm text-on-surface-variant">
+                    This product has no sizes. Turn sizes on under Sizes.
+                  </p>
+                } @else {
+                  <div class="flex flex-wrap gap-3 w-full">
+                    @for (size of sizes(); track size.key) {
+                      <div class="elements-start-col gap-1">
+                        @if (isMade(colour, size)) {
+                          <label class="elements-start-col gap-1 font-label-md" [for]="'stock-' + size.key">
+                            {{ size.label }}
+                            <input
+                              [id]="'stock-' + size.key"
+                              class="stock-box"
+                              [class.stock-box--zero]="isZero(stockValue(colour, size))"
+                              type="text"
+                              inputmode="numeric"
+                              autocomplete="off"
+                              [attr.aria-label]="activeName() + ' size ' + size.label + ' stock'"
+                              [attr.aria-invalid]="stockError(stockValue(colour, size)) ? 'true' : null"
+                              [value]="stockValue(colour, size)"
+                              (input)="onStock(size, $event)"
+                            />
+                          </label>
+                        } @else {
+                          <span class="font-label-md">{{ size.label }}</span>
+                          <span class="stock-box stock-box--off font-body-sm">Not made</span>
+                        }
+                        <button
+                          type="button"
+                          class="font-label-sm underline cursor-pointer self-start"
+                          [attr.aria-label]="
+                            (isMade(colour, size) ? 'Not made in ' : 'Make it in ') + size.label
+                          "
+                          (click)="toggleMade(size)"
+                        >
+                          {{ isMade(colour, size) ? 'Not Made' : 'Make It' }}
+                        </button>
+                      </div>
+                    }
+                  </div>
+                  @for (size of sizes(); track size.key) {
+                    @if (isMade(colour, size) && stockError(stockValue(colour, size)); as message) {
+                      <p class="font-body-sm" role="alert">{{ size.label }}: {{ message }}</p>
+                    }
+                  }
+                  <p class="font-body-sm text-on-surface-variant">
+                    At 0, shoppers see the size crossed out (sold out). "Not made" hides the size for this
+                    colour only. A colour at 0 in every size is hidden.
+                  </p>
+                }
+              </div>
+
+              <div class="w-full elements-start-col gap-3">
+                <mat-checkbox [checked]="colour.ownPrice" (change)="toggleOwnPrice($event.checked)">
+                  Different price for {{ activeName() }}
+                </mat-checkbox>
+                @if (colour.ownPrice) {
+                  <div class="flex flex-wrap gap-4">
+                    <label class="elements-start-col gap-1 font-label-md" for="colour-price">
+                      Selling price for {{ activeName() }} (EGP)
+                      <input
+                        id="colour-price"
+                        class="stock-box w-32!"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        [attr.aria-invalid]="ownPriceError(colour) ? 'true' : null"
+                        [value]="colour.price"
+                        (input)="onColourPrice('price', $event)"
+                      />
+                    </label>
+                    <label class="elements-start-col gap-1 font-label-md" for="colour-compare">
+                      Price before discount (EGP)
+                      <input
+                        id="colour-compare"
+                        class="stock-box w-32!"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        placeholder="None"
+                        [attr.aria-invalid]="ownCompareError(colour) ? 'true' : null"
+                        [value]="colour.compareAtPrice"
+                        (input)="onColourPrice('compareAtPrice', $event)"
+                      />
+                    </label>
+                  </div>
+                  @if (ownPriceError(colour) || ownCompareError(colour); as message) {
+                    <p class="font-body-sm" role="alert">{{ message }}</p>
+                  }
+                } @else {
+                  <p class="font-body-sm text-on-surface-variant">
+                    Uses the product price:
+                    {{ sharedPrice() === null ? 'EGP —' : (sharedPrice() | egpPrice) }}.
+                  </p>
+                }
+              </div>
+
+              <div class="editor-colour-foot">
+                <button matButton="outlined" type="button" (click)="toggleHidden()">
+                  <mat-icon [name]="colour.published ? 'visibility_off' : 'visibility'" />
+                  <span>{{ colour.published ? 'Hide This Colour' : 'Show This Colour' }}</span>
+                </button>
+                @if (colour.version !== null) {
+                  <button
+                    matButton="text"
+                    theme="error"
+                    type="button"
+                    [disabled]="isSaving() || isDeleting()"
+                    [attr.aria-label]="isDeleting() ? 'Deleting…' : 'Delete ' + activeName()"
+                    (click)="deleteActiveColour()"
+                  >
+                    @if (isDeleting()) {
+                      <mat-progress-spinner mode="indeterminate" diameter="18" />
+                    } @else {
+                      <mat-icon name="delete" />
+                    }
+                    @if (!isDeleting()) {
+                      <span>{{ colours().length > 1 ? 'Delete This Colour' : 'Delete Product' }}</span>
+                    }
+                  </button>
+                }
+              </div>
             </div>
-          } @empty {
-            <p class="font-body-sm text-on-surface-variant">Nothing yet. Add the first colour.</p>
+          } @else {
+            <p class="font-body-sm text-on-surface-variant">
+              Add the first colour to give it photos and stock.
+            </p>
           }
         </section>
       </div>
 
-      <aside class="product-editor__side" aria-label="Price and organise">
-        <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-price">
+      <!-- ============ SIZES & TAGS ============ -->
+      <div
+        id="editor-panel-sizes"
+        role="tabpanel"
+        aria-labelledby="editor-tab-sizes"
+        class="editor-form-grid gap-3! @[40rem]:gap-6!"
+        [hidden]="tab() !== 'sizes'"
+      >
+        <div class="editor-stack">
+          <section class="surface-card editor-card" aria-labelledby="product-sizes">
+            <h2 id="product-sizes" class="font-title-md font-bold!">Sizes</h2>
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Sizes">
+              @for (label of sizeChoices(); track label) {
+                <button
+                  type="button"
+                  class="toggle-pill"
+                  [attr.aria-pressed]="hasSize(label)"
+                  (click)="toggleSize(label)"
+                >
+                  <span>{{ label }}</span>
+                </button>
+              }
+            </div>
+            <label class="font-label-md w-full" for="product-size-input">Add another size</label>
+            <div class="elements-center gap-2 w-full">
+              <input
+                id="product-size-input"
+                type="text"
+                class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                placeholder="T2 (M)"
+                [value]="sizeInput()"
+                (input)="onSizeInput($event)"
+                (keydown)="onSizeKeydown($event)"
+              />
+              <button matButton="outlined" type="button" (click)="addPendingSize()">
+                <span>Add</span>
+              </button>
+            </div>
+            @if (sizeError()) {
+              <p class="font-body-sm" role="alert">{{ sizeError() }}</p>
+            }
+            <p class="font-body-sm text-on-surface-variant">
+              Every colour gets these sizes. Stock is set per colour.
+            </p>
+          </section>
+
+          <section class="surface-card editor-card" aria-labelledby="product-offers">
+            <div class="w-full elements-between gap-2">
+              <h2 id="product-offers" class="font-title-md font-bold!">Offers</h2>
+              <a routerLink="/admin/offers" class="font-label-md underline">Open Offers</a>
+            </div>
+            @for (offer of offerRows(); track offer.id) {
+              <div class="w-full elements-between gap-2">
+                <span class="font-body-md">{{ offer.title }}</span>
+                <span class="font-body-sm text-on-surface-variant text-right">{{ offer.scope }}</span>
+              </div>
+            } @empty {
+              <p class="font-body-sm text-on-surface-variant">No running offer covers this product.</p>
+            }
+          </section>
+        </div>
+        <div class="editor-stack">
+          <section class="surface-card editor-card" aria-labelledby="product-extras">
+            <h2 id="product-extras" class="font-title-md font-bold!">Tags and badges</h2>
+            <div class="w-full elements-start-col gap-2">
+              <label class="font-label-md" for="product-tags-input">Tags</label>
+              <div class="elements-center gap-2 w-full">
+                <input
+                  id="product-tags-input"
+                  type="text"
+                  class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                  placeholder="summer-drop, clearance"
+                  [value]="tagInput()"
+                  (input)="onTagInput($event)"
+                  (keydown)="onTagKeydown($event)"
+                />
+                <button matButton="outlined" type="button" (click)="addPendingTag()">
+                  <span>Add</span>
+                </button>
+              </div>
+              @if (tagError()) {
+                <p class="font-body-sm" role="alert">{{ tagError() }}</p>
+              }
+              @if (tags().length > 0) {
+                <div class="flex flex-wrap gap-1.5">
+                  @for (tag of tags(); track tag) {
+                    <span
+                      class="border-shape border border-outline-variant bg-surface-container px-2.5 py-1 elements-center gap-1 font-label-sm"
+                    >
+                      <span>{{ tag }}</span>
+                      <button
+                        type="button"
+                        class="elements-center cursor-pointer"
+                        [attr.aria-label]="'Remove tag ' + tag"
+                        (click)="removeTag(tag)"
+                      >
+                        <mat-icon name="close" />
+                      </button>
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="w-full elements-start-col gap-2">
+              <span class="font-label-md">Marketing badge</span>
+              <div class="w-full elements-start-col gap-0">
+                <mat-form-field class="w-full" subscriptSizing="dynamic">
+                  <mat-label>Badge</mat-label>
+                  <mat-select
+                    [value]="marketingBadgeKind()"
+                    (selectionChange)="onMarketingBadgeKindChange($event.value)"
+                  >
+                    @for (option of marketingBadgeKinds; track option.id) {
+                      <mat-option [value]="option.id">{{ option.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field class="w-full" subscriptSizing="dynamic">
+                  <mat-label>Style</mat-label>
+                  <mat-select
+                    [value]="marketingBadgeStyle()"
+                    [disabled]="!marketingBadgeKind()"
+                    (selectionChange)="onMarketingBadgeStyleChange($event.value)"
+                  >
+                    @for (option of marketingBadgeStyles; track option.id) {
+                      <mat-option [value]="option.id">{{ option.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
+            </div>
+
+            <div class="w-full elements-start-col gap-2">
+              <span class="font-label-md">New arrival</span>
+              <mat-checkbox [checked]="newArrivalChecked()" (change)="onNewArrivalToggle($event.checked)">
+                Show in New Arrivals
+              </mat-checkbox>
+              @if (newArrivalChecked()) {
+                <label class="elements-start-col gap-1.5 w-full">
+                  <span class="font-label-sm">Ends on</span>
+                  <input
+                    type="date"
+                    class="border-shape border border-outline bg-surface px-3 py-2 font-body-md w-full"
+                    [value]="newArrivalUntilInput()"
+                    (change)="onNewArrivalDateChange($event)"
+                  />
+                </label>
+                @if (newArrivalCountdown(); as countdown) {
+                  <p class="font-body-sm text-on-surface-variant" role="status">{{ countdown }}</p>
+                }
+                @if (newArrivalError()) {
+                  <p class="font-body-sm" role="alert">{{ newArrivalError() }}</p>
+                }
+              }
+            </div>
+          </section>
+
+          <section class="surface-card editor-card" aria-labelledby="product-shoppers">
+            <h2 id="product-shoppers" class="font-title-md font-bold!">What shoppers see</h2>
+            @for (colour of colours(); track colour.productId) {
+              <div class="w-full elements-between gap-2">
+                <span class="elements-center gap-2 font-body-md">
+                  <app-color-swatch
+                    class="size-3"
+                    [colorId]="colour.colors[0] ?? null"
+                    [swatch]="colourSwatch(colour)"
+                  />
+                  {{ colourName(colour) }}
+                </span>
+                <span class="font-body-sm" [class.text-on-surface-variant]="!isOffered(colour)">{{
+                  shopperLine(colour)
+                }}</span>
+              </div>
+            } @empty {
+              <p class="font-body-sm text-on-surface-variant">Nothing yet. Add the first colour.</p>
+            }
+          </section>
+        </div>
+      </div>
+
+      <!-- ============ PRICE & ORGANISE ============ -->
+      <div
+        id="editor-panel-price"
+        role="tabpanel"
+        aria-labelledby="editor-tab-price"
+        class="editor-form-grid"
+        [hidden]="tab() !== 'price'"
+      >
+        <section class="surface-card editor-card" aria-labelledby="product-price">
           <h2 id="product-price" class="font-title-md font-bold!">Price</h2>
           <app-text-input
             [formField]="editForm.price"
@@ -288,7 +719,7 @@
           }
         </section>
 
-        <section class="surface-card p-5 w-full elements-start-col gap-4" aria-labelledby="product-organise">
+        <section class="surface-card editor-card" aria-labelledby="product-organise">
           <h2 id="product-organise" class="font-title-md font-bold!">Organise</h2>
           <app-select-input
             [formField]="editForm.type"
@@ -370,265 +801,177 @@
             }
           </div>
         </section>
-      </aside>
+      </div>
+    </form>
 
-      <section
-        class="product-editor__colours surface-card p-5 w-full elements-start-col gap-4"
-        aria-labelledby="product-colours"
-      >
-        <div class="elements-start-col gap-1">
-          <h2 id="product-colours" class="font-title-md font-bold!">Colours</h2>
-          <p class="font-body-sm text-on-surface-variant">
-            Each colour has its own photos and stock, and can have its own price.
-          </p>
-        </div>
-
-        <div class="flex flex-wrap gap-2 w-full" role="group" aria-label="Colours of this product">
-          @for (colour of colours(); track colour.productId) {
-            <button
-              type="button"
-              class="colour-tab"
-              [class.colour-tab--active]="$index === activeIndex()"
-              [class.colour-tab--off]="!isOffered(colour)"
-              [attr.aria-pressed]="$index === activeIndex()"
-              [disabled]="photosBusy() && $index !== activeIndex()"
-              (click)="selectColour($index)"
-            >
-              <span class="elements-center gap-2 font-label-lg font-bold!">
-                <app-color-swatch
-                  class="size-3.5"
-                  [colorId]="colour.colors[0] ?? null"
-                  [swatch]="colourSwatch(colour)"
-                />
-                {{ colourName(colour) }}
-              </span>
-              <span class="font-label-sm text-on-surface-variant">{{ tabLine(colour) }}</span>
-            </button>
-          }
-          @if (canAddColour()) {
-            <button
-              matButton="outlined"
-              type="button"
-              [attr.aria-expanded]="picking()"
-              [disabled]="photosBusy()"
-              (click)="togglePicking()"
-            >
-              <mat-icon name="add" />
-              <span>{{ addColourLabel() }}</span>
-            </button>
-          } @else {
-            <p class="font-body-sm text-on-surface-variant self-center">
-              A product can have up to {{ maxColours }} colours.
-            </p>
-          }
-        </div>
-
-        @if (picking() && canAddColour()) {
-          <div class="w-full elements-start-col gap-2 border-shape border border-outline-variant p-4">
-            <p class="font-body-sm text-on-surface-variant">
-              Pick a colour. It uses the product name, descriptions, sizes and price. Add its photos and
-              stock.
-            </p>
-            <div class="flex flex-wrap gap-2" role="group" aria-label="Colour to add">
-              @for (color of paletteChoices(); track color.id) {
+    <!-- ============ PREVIEW ============ -->
+    <div
+      id="editor-panel-preview"
+      role="tabpanel"
+      aria-labelledby="editor-tab-preview"
+      class="editor-stack"
+      [hidden]="tab() !== 'preview'"
+    >
+      @if (tab() === 'preview') {
+        @if (previewPage(); as page) {
+          <div class="editor-preview-tools">
+            <div class="editor-chip-row" role="group" aria-label="Colour to preview">
+              @for (chip of previewChips(); track chip.index) {
                 <button
                   type="button"
-                  class="toggle-pill"
-                  [disabled]="photosBusy()"
-                  (click)="addColour(color.id)"
+                  class="editor-chip"
+                  [class.editor-chip--hidden]="chip.hidden"
+                  [attr.aria-pressed]="chip.index === previewColour()"
+                  (click)="pickPreviewColour(chip.index)"
                 >
-                  <app-color-swatch class="size-3" [colorId]="color.id" [swatch]="color.swatch" />
-                  <span>{{ color.label }}</span>
+                  <app-color-swatch class="size-3.5" [colorId]="chip.colorId" [swatch]="chip.swatch" />
+                  {{ chip.hidden ? chip.label + ' (hidden)' : chip.label }}
                 </button>
               }
+            </div>
+            <div class="elements-start flex-wrap gap-3">
+              <div class="elements-center gap-3 max-sm:hidden!">
+                <span class="font-label-lg font-bold!" id="editor-see-on">See it on</span>
+                <div class="editor-seg" role="group" aria-labelledby="editor-see-on">
+                  <button
+                    type="button"
+                    [attr.aria-pressed]="previewDevice() === 'computer'"
+                    (click)="previewDevice.set('computer')"
+                  >
+                    Computer
+                  </button>
+                  <button
+                    type="button"
+                    [attr.aria-pressed]="previewDevice() === 'phone'"
+                    (click)="previewDevice.set('phone')"
+                  >
+                    Phone
+                  </button>
+                </div>
+              </div>
+              <mat-checkbox [checked]="showHiddenColours()" (change)="showHiddenColours.set($event.checked)">
+                Show hidden colours
+              </mat-checkbox>
             </div>
           </div>
-        }
 
-        @if (activeColour(); as colour) {
-          <div class="w-full elements-start-col gap-5 border-shape border border-outline-variant p-4">
-            <div class="w-full elements-between flex-wrap gap-2">
-              <div class="elements-start-col gap-0.5">
-                <h3 class="elements-center gap-2 font-title-md font-bold!">
-                  <app-color-swatch
-                    class="size-4"
-                    [colorId]="colour.colors[0] ?? null"
-                    [swatch]="colourSwatch(colour)"
-                  />
-                  {{ activeName() }}
-                </h3>
-                @if (colour.slug) {
-                  <p class="font-body-sm text-on-surface-variant">/product/{{ colour.slug }}</p>
-                } @else {
-                  <p class="font-body-sm text-on-surface-variant">
-                    New colour. Its web address is made when you save.
-                  </p>
-                }
-              </div>
-              <div class="elements-start flex-wrap gap-2">
-                <button matButton="outlined" type="button" (click)="toggleHidden()">
-                  <mat-icon [name]="colour.published ? 'visibility_off' : 'visibility'" />
-                  <span>{{ colour.published ? 'Hide This Colour' : 'Show This Colour' }}</span>
-                </button>
-                @if (colour.version !== null) {
-                  <button
-                    matButton="text"
-                    theme="error"
-                    type="button"
-                    [disabled]="isSaving() || isDeleting()"
-                    [attr.aria-label]="isDeleting() ? 'Deleting…' : 'Delete ' + activeName()"
-                    (click)="deleteActiveColour()"
-                  >
-                    @if (isDeleting()) {
-                      <mat-progress-spinner mode="indeterminate" diameter="18" />
-                    } @else {
-                      <span>{{ colours().length > 1 ? 'Delete This Colour' : 'Delete Product' }}</span>
-                    }
-                  </button>
-                }
+          @if (checksToLookAt() > 0) {
+            <a href="#editor-checks" class="editor-alert-bar sm:hidden!">
+              <mat-icon name="warning" iconColor="warning" size="xl" />
+              <span
+                ><b class="font-bold!"
+                  >{{ checksToLookAt() }} {{ checksToLookAt() === 1 ? 'thing' : 'things' }} to look at</b
+                >
+                before saving</span
+              >
+            </a>
+          }
+
+          <div
+            class="editor-preview-grid"
+            [class.editor-preview-grid--computer]="previewDevice() === 'computer'"
+          >
+            <div class="editor-area-frame">
+              @if (previewDevice() === 'computer') {
+                <div class="editor-browser max-sm:hidden!">
+                  <div class="editor-browser__bar" aria-hidden="true">
+                    <span class="editor-browser__url">atteyastore.com/product/{{ page.slug }}</span>
+                    <span class="editor-browser__tag">Not saved yet</span>
+                  </div>
+                  <div inert>
+                    <app-editor-store-page [page]="page" device="computer" />
+                  </div>
+                </div>
+              }
+              <div
+                [class]="previewDevice() === 'computer' ? 'editor-phone sm:hidden!' : 'editor-phone'"
+                inert
+              >
+                <app-editor-store-page [page]="page" device="phone" />
               </div>
             </div>
 
-            <app-image-gallery-editor
-              class="w-full"
-              spot="product"
-              [folder]="photoFolder()"
-              [images]="colour.images"
-              [maxImages]="8"
-              title="Photos"
-              subtitle="Add up to 8 photos. Drag to reorder — the first photo is the one shoppers see first."
-              [defaultAlt]="model().name + ' ' + activeName()"
-              (imagesChange)="setActiveImages($event)"
-              (uploaded)="registerUpload($event)"
-              (busyChange)="photosBusy.set($event)"
-            />
-
-            <div class="w-full elements-start-col gap-3">
-              <div class="w-full elements-between gap-2">
-                <span class="font-label-lg font-bold!">Stock by size</span>
-                <span class="font-body-sm">Total {{ total(colour) }}</span>
+            <section class="surface-card editor-card editor-area-shop" aria-labelledby="editor-in-shop">
+              <div class="w-full elements-between flex-wrap items-baseline! gap-2">
+                <h2 id="editor-in-shop" class="font-label-lg font-bold!">In the Shop</h2>
+                <span class="font-body-sm text-on-surface-variant"
+                  >Faded cards stand in for other products</span
+                >
               </div>
-              @if (sizes().length === 0) {
-                <label class="elements-start-col gap-1 font-label-md" for="colour-flat-stock">
-                  Stock
-                  <input
-                    id="colour-flat-stock"
-                    class="stock-box"
-                    [class.stock-box--zero]="isZero(colour.flatStock)"
-                    type="text"
-                    inputmode="numeric"
-                    autocomplete="off"
-                    [attr.aria-invalid]="stockError(colour.flatStock) ? 'true' : null"
-                    [value]="colour.flatStock"
-                    (input)="onFlatStock($event)"
-                  />
-                </label>
-                @if (stockError(colour.flatStock); as message) {
-                  <p class="font-body-sm" role="alert">{{ message }}</p>
+              <div class="w-full elements-between gap-2 pb-2.5 border-b border-outline-variant">
+                <span class="font-title-md font-bold!">{{ page.crumbs.at(-1) }}</span>
+                <span class="editor-kicker">Shop</span>
+              </div>
+              <div class="editor-shop-grid" inert>
+                @if (previewCard(); as card) {
+                  <div class="editor-mark">
+                    <app-editor-shop-card [card]="card" />
+                  </div>
                 }
-                <p class="font-body-sm text-on-surface-variant">
-                  This product has no sizes. Turn sizes on under Sizes.
-                </p>
-              } @else {
-                <div class="flex flex-wrap gap-3 w-full">
-                  @for (size of sizes(); track size.key) {
-                    <div class="elements-start-col gap-1">
-                      @if (isMade(colour, size)) {
-                        <label class="elements-start-col gap-1 font-label-md" [for]="'stock-' + size.key">
-                          {{ size.label }}
-                          <input
-                            [id]="'stock-' + size.key"
-                            class="stock-box"
-                            [class.stock-box--zero]="isZero(stockValue(colour, size))"
-                            type="text"
-                            inputmode="numeric"
-                            autocomplete="off"
-                            [attr.aria-label]="activeName() + ' size ' + size.label + ' stock'"
-                            [attr.aria-invalid]="stockError(stockValue(colour, size)) ? 'true' : null"
-                            [value]="stockValue(colour, size)"
-                            (input)="onStock(size, $event)"
-                          />
-                        </label>
-                      } @else {
-                        <span class="font-label-md">{{ size.label }}</span>
-                        <span class="stock-box stock-box--off font-body-sm">Not made</span>
-                      }
-                      <button
-                        type="button"
-                        class="font-label-sm underline cursor-pointer self-start"
-                        [attr.aria-label]="
-                          (isMade(colour, size) ? 'Not made in ' : 'Make it in ') + size.label
-                        "
-                        (click)="toggleMade(size)"
-                      >
-                        {{ isMade(colour, size) ? 'Not Made' : 'Make It' }}
-                      </button>
+                @for (other of otherCards; track other) {
+                  <div class="editor-shop-other" aria-hidden="true">
+                    <div class="w-full aspect-4/5 bg-surface-container"></div>
+                    <div class="elements-start gap-2 pt-1">
+                      <span class="size-8 editor-shop-bar"></span>
+                      <span class="size-8 editor-shop-bar"></span>
                     </div>
-                  }
-                </div>
-                @for (size of sizes(); track size.key) {
-                  @if (isMade(colour, size) && stockError(stockValue(colour, size)); as message) {
-                    <p class="font-body-sm" role="alert">{{ size.label }}: {{ message }}</p>
-                  }
+                    <span class="h-3 w-4/5 editor-shop-bar"></span>
+                    <span class="h-2.5 w-1/2 editor-shop-bar"></span>
+                    <span class="h-3 w-1/3 editor-shop-bar"></span>
+                  </div>
                 }
-                <p class="font-body-sm text-on-surface-variant">
-                  At 0, shoppers see the size crossed out (sold out). "Not made" hides the size for this
-                  colour only. A colour at 0 in every size is hidden.
-                </p>
-              }
-            </div>
+              </div>
+            </section>
 
-            <div class="w-full elements-start-col gap-3">
-              <mat-checkbox [checked]="colour.ownPrice" (change)="toggleOwnPrice($event.checked)">
-                Different price for {{ activeName() }}
-              </mat-checkbox>
-              @if (colour.ownPrice) {
-                <div class="flex flex-wrap gap-4">
-                  <label class="elements-start-col gap-1 font-label-md" for="colour-price">
-                    Selling price for {{ activeName() }} (EGP)
-                    <input
-                      id="colour-price"
-                      class="stock-box w-32!"
-                      type="text"
-                      inputmode="numeric"
-                      autocomplete="off"
-                      [attr.aria-invalid]="ownPriceError(colour) ? 'true' : null"
-                      [value]="colour.price"
-                      (input)="onColourPrice('price', $event)"
-                    />
-                  </label>
-                  <label class="elements-start-col gap-1 font-label-md" for="colour-compare">
-                    Price before discount (EGP)
-                    <input
-                      id="colour-compare"
-                      class="stock-box w-32!"
-                      type="text"
-                      inputmode="numeric"
-                      autocomplete="off"
-                      placeholder="None"
-                      [attr.aria-invalid]="ownCompareError(colour) ? 'true' : null"
-                      [value]="colour.compareAtPrice"
-                      (input)="onColourPrice('compareAtPrice', $event)"
-                    />
-                  </label>
-                </div>
-                @if (ownPriceError(colour) || ownCompareError(colour); as message) {
-                  <p class="font-body-sm" role="alert">{{ message }}</p>
+            <section
+              id="editor-checks"
+              class="surface-card editor-card editor-area-check"
+              aria-labelledby="editor-checks-title"
+            >
+              <div class="w-full elements-between gap-2">
+                <h2 id="editor-checks-title" class="font-title-sm font-bold!">Check Before Saving</h2>
+                @if (checksToLookAt() > 0) {
+                  <span class="editor-tab__count">{{ checksToLookAt() }} to look at</span>
                 }
-              } @else {
-                <p class="font-body-sm text-on-surface-variant">
-                  Uses the product price:
-                  {{ sharedPrice() === null ? 'EGP —' : (sharedPrice() | egpPrice) }}.
-                </p>
-              }
-            </div>
+              </div>
+              <ul class="w-full elements-start-col gap-3 list-none m-0 p-0">
+                @for (check of checks(); track check.id) {
+                  <li class="editor-check">
+                    @switch (check.tone) {
+                      @case ('ok') {
+                        <mat-icon name="check_circle" iconColor="success" size="xl" />
+                      }
+                      @case ('warn') {
+                        <mat-icon name="warning" iconColor="warning" size="xl" />
+                      }
+                      @default {
+                        <mat-icon name="info" size="xl" />
+                      }
+                    }
+                    <span class="elements-start-col gap-0.5 min-w-0">
+                      <b class="font-bold!">{{ check.title }}</b>
+                      <span class="text-on-surface-variant">{{ check.text }}</span>
+                      @if (check.action; as action) {
+                        <button
+                          type="button"
+                          class="font-label-md font-bold! underline underline-offset-2 cursor-pointer pt-0.5"
+                          (click)="openColour(action.colourIndex)"
+                        >
+                          {{ action.label }}
+                        </button>
+                      }
+                    </span>
+                  </li>
+                }
+              </ul>
+            </section>
           </div>
         } @else {
-          <p class="font-body-sm text-on-surface-variant">
-            Add the first colour to give it photos and stock.
+          <p class="surface-card editor-card font-body-md">
+            Add the first colour in Colours &amp; Photos to preview the product.
           </p>
         }
-      </section>
-    </form>
+      }
+    </div>
   }
 </div>
