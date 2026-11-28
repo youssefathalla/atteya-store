@@ -1,92 +1,269 @@
 @layer components {
   /*
-   * Admin product editor layout. The page keeps one order (Product, then Sizes / Tags and badges /
-   * Offers / What shoppers see, then Price and Organise, then Colours) and places it by the admin
-   * <main> width (it is an @container, so the sidebar counts), never leaving a gap under a short card:
-   * phone: one column in that order;
-   * tablet (40rem+): two newspaper columns (CSS columns, not grid rows, so each card sits right under
-   * the one above it), Colours across both underneath;
-   * desktop (64rem+): three columns, Product then Colours | the four small cards | Price and Organise;
-   * Product is about twice as wide as each of the others.
+   * Admin product editor (ATS-393): one tab at a time (Product, Colours & Photos, Sizes & Tags,
+   * Price & Organise, Preview) under a sticky header with Save. The page root is the `editor`
+   * container, so every layout below follows the editor's own width (the admin sidebar counts):
+   * phone below 40rem, tablet from 40rem, computer from 64rem. Swipe rows never show a scroll bar.
    */
-  .product-editor-grid {
-    @apply grid w-full gap-6 items-start;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'product' 'extras' 'side' 'colours';
+  .product-editor {
+    container: editor / inline-size;
+  }
 
-    > .product-editor__product {
-      grid-area: product;
-    }
+  .editor-no-scrollbar,
+  .editor-tabs,
+  .editor-colour-row,
+  .editor-chip-row,
+  .editor-shop-grid,
+  .gallery-tiles {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 
-    > .product-editor__extras,
-    > .product-editor__side {
-      @apply w-full min-w-0 elements-start-col gap-6;
-    }
-
-    > .product-editor__extras {
-      grid-area: extras;
-    }
-
-    > .product-editor__side {
-      grid-area: side;
-    }
-
-    > .product-editor__colours {
-      grid-area: colours;
-    }
-
-    @container (min-width: 40rem) {
-      @apply block;
-      columns: 2;
-      column-gap: 1.5rem;
-
-      > .product-editor__extras,
-      > .product-editor__side {
-        display: contents;
-      }
-
-      > .product-editor__product,
-      > .product-editor__extras > section,
-      > .product-editor__side > section {
-        @apply mb-6;
-        break-inside: avoid;
-      }
-
-      > .product-editor__colours {
-        column-span: all;
-      }
-    }
-
-    @container (min-width: 64rem) {
-      @apply grid;
-      columns: auto;
-      grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr) minmax(20rem, 1fr);
-      grid-template-rows: auto 1fr;
-      grid-template-areas: 'product extras side' 'colours extras side';
-
-      > .product-editor__extras,
-      > .product-editor__side {
-        display: flex;
-      }
-
-      > .product-editor__product,
-      > .product-editor__extras > section,
-      > .product-editor__side > section {
-        @apply mb-0;
-      }
+    &::-webkit-scrollbar {
+      display: none;
     }
   }
 
-  /* Admin product editor (ATS-205): one tab per colour; the open one has a 2px black border. */
+  /* Sticky header: name, Cancel and Save, then the tab bar along its bottom edge. */
+  .editor-head {
+    @apply p-4 pb-0;
+
+    @container editor not (min-width: 40rem) {
+      @apply border-x-0;
+    }
+
+    @container editor (min-width: 40rem) {
+      @apply p-5 pb-0;
+    }
+  }
+
+  .editor-head__actions {
+    @apply w-full grid grid-cols-[auto_minmax(0,1fr)] gap-2;
+
+    @container editor (min-width: 40rem) {
+      @apply w-auto flex items-center;
+    }
+  }
+
+  /* Tab bar along the bottom of the sticky header. */
+  .editor-tabs {
+    @apply flex self-stretch gap-1 -mx-4 px-2 border-t border-outline-variant overflow-x-auto whitespace-nowrap;
+
+    @container editor (min-width: 40rem) {
+      @apply gap-0.5 -mx-5 px-3;
+    }
+
+    @container editor (min-width: 64rem) {
+      @apply gap-2;
+    }
+  }
+
+  .editor-tab {
+    @apply flex-none elements-center gap-2 h-12 px-2.5 font-label-lg cursor-pointer text-on-surface-variant border-b-[3px] border-transparent transition-colors;
+
+    @container editor (min-width: 40rem) {
+      @apply h-13 px-3;
+    }
+
+    @container editor (min-width: 64rem) {
+      @apply px-3.5;
+    }
+
+    &:hover {
+      @apply text-primary;
+    }
+
+    &[aria-selected='true'] {
+      @apply text-primary border-primary font-bold!;
+    }
+
+    &:focus-visible {
+      @apply outline-2 -outline-offset-2 outline-primary;
+    }
+  }
+
+  .editor-tab__count {
+    @apply px-1.5 border-shape bg-surface-container font-label-sm font-bold!;
+  }
+
+  .editor-tab__alert {
+    @apply px-1.5 border-shape bg-warning text-on-warning font-label-sm font-bold!;
+  }
+
+  /* Cards: full width on a phone (no side borders), like the store's phone pages. */
+  .editor-card {
+    @apply w-full min-w-0 p-4 elements-start-col gap-4;
+
+    @container editor not (min-width: 40rem) {
+      @apply border-x-0;
+    }
+
+    @container editor (min-width: 40rem) {
+      @apply p-6;
+    }
+  }
+
+  .editor-stack {
+    @apply w-full elements-start-col gap-3;
+
+    @container editor (min-width: 40rem) {
+      @apply gap-6;
+    }
+  }
+
+  /* Product tab, row 1: Shop card | product page | key (computer); card | page, key below (tablet). */
+  .editor-see-grid {
+    @apply grid w-full gap-5 items-start;
+    grid-template-columns: minmax(0, 1fr);
+
+    @container editor (min-width: 40rem) {
+      @apply gap-7;
+      grid-template-columns: 16rem minmax(0, 1fr);
+    }
+
+    @container editor (min-width: 64rem) {
+      grid-template-columns: 18rem minmax(0, 1.4fr) minmax(0, 1fr);
+    }
+  }
+
+  .editor-see-card {
+    @apply w-[88%] mx-auto elements-start-col gap-2 min-w-0;
+
+    @container editor (min-width: 40rem) {
+      @apply w-full mx-0;
+    }
+  }
+
+  .editor-see-page {
+    @apply w-full border border-outline-variant border-shape p-4;
+  }
+
+  .editor-see-legend {
+    @apply w-full grid gap-3 pt-4 border-t border-outline-variant font-body-sm;
+
+    @container editor (min-width: 40rem) {
+      @apply col-span-full grid-cols-2 gap-x-6;
+    }
+
+    @container editor (min-width: 64rem) {
+      @apply col-span-1 grid-cols-1 border-t-0 pt-6.5;
+    }
+  }
+
+  .editor-kicker {
+    @apply font-label-sm font-mono uppercase tracking-wider text-on-surface-variant;
+  }
+
+  /* Dashed and dotted lines that tie a box to the spot shoppers see it. */
+  .editor-mark {
+    outline: 2px dashed var(--mat-sys-primary);
+    outline-offset: 3px;
+  }
+
+  .editor-mark--light {
+    outline: 2px dashed var(--mat-sys-outline);
+    outline-offset: 3px;
+  }
+
+  .editor-mark--dotted {
+    outline: 2px dotted var(--mat-sys-primary);
+    outline-offset: 3px;
+  }
+
+  .editor-mark--dotted-light {
+    outline: 2px dotted var(--mat-sys-outline);
+    outline-offset: 3px;
+  }
+
+  .editor-key {
+    @apply inline-block size-3.5 flex-none mt-0.5;
+  }
+
+  /* The note under a Product tab field, lined up with the text inside the field. */
+  .editor-hint {
+    @apply font-body-sm elements-start items-start! gap-2 px-4;
+  }
+
+  /* Product tab, row 2 and the Sizes & Tags / Price & Organise tabs: two columns from 40rem. */
+  .editor-form-grid {
+    @apply grid w-full gap-x-6 gap-y-5 items-start;
+    grid-template-columns: minmax(0, 1fr);
+
+    @container editor (min-width: 40rem) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* Colour row: a swipe row on a phone, 3 across on a tablet, 6 on a computer; Add Colour ends it. */
+  .editor-colour-row {
+    @apply flex w-full gap-2 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 scroll-px-4 pb-1;
+    width: calc(100% + 2rem);
+
+    > * {
+      @apply flex-none w-40 snap-start;
+    }
+
+    @container editor (min-width: 40rem) {
+      @apply grid mx-0 px-0 pb-0 overflow-visible;
+      width: 100%;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+
+      > * {
+        @apply w-auto;
+      }
+    }
+
+    @container editor (min-width: 64rem) {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+  }
+
+  /* One tab per colour; the open one has a 2px black border. */
   .colour-tab {
-    @apply border-shape border border-outline-variant bg-surface px-3 py-2 elements-start-col gap-0.5 cursor-pointer text-left min-w-36;
+    @apply border-shape border border-outline-variant bg-surface px-3 py-2 elements-start-col gap-0.5 cursor-pointer text-left min-w-0;
 
     &.colour-tab--active {
-      @apply border-2 border-primary;
+      @apply border-2 border-primary px-[0.6875rem] py-[0.4375rem];
     }
 
     &.colour-tab--off {
       @apply opacity-60;
+    }
+
+    &:disabled {
+      @apply cursor-not-allowed;
+    }
+  }
+
+  .editor-colour-add {
+    @apply min-h-14 elements-center gap-2 px-3 border border-dashed border-primary border-shape bg-surface font-label-lg cursor-pointer;
+
+    &:disabled {
+      @apply cursor-not-allowed opacity-40;
+    }
+  }
+
+  .editor-colour-panel {
+    @apply w-full elements-start-col gap-6 border border-outline-variant border-shape p-3.5;
+
+    @container editor (min-width: 40rem) {
+      @apply p-5;
+    }
+  }
+
+  /* Hide and Delete at the bottom of the colour, away from the photo buttons. */
+  .editor-colour-foot {
+    @apply w-full elements-start-col gap-2 pt-4 border-t border-outline-variant;
+
+    @container editor (min-width: 40rem) {
+      @apply flex-row justify-between items-center;
+    }
+  }
+
+  .editor-status {
+    @apply px-2.5 py-0.5 border-shape font-label-sm font-bold! bg-success text-on-success;
+
+    &.editor-status--off {
+      @apply bg-surface-container text-on-surface-variant;
     }
   }
 
@@ -102,5 +279,329 @@
     &.stock-box--off {
       @apply bg-surface-container text-on-surface-variant;
     }
+  }
+
+  /* ── Preview tab ───────────────────────────────────────────────────── */
+
+  .editor-preview-tools {
+    @apply w-full elements-start-col gap-3;
+
+    @container editor not (min-width: 40rem) {
+      @apply px-4;
+    }
+
+    @container editor (min-width: 64rem) {
+      @apply flex-row flex-wrap justify-between items-center;
+    }
+  }
+
+  .editor-chip-row {
+    @apply flex flex-wrap gap-1.5 max-w-full;
+
+    @container editor not (min-width: 40rem) {
+      @apply flex-nowrap overflow-x-auto;
+    }
+  }
+
+  .editor-chip {
+    @apply flex-none inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant border-shape bg-surface font-label-md whitespace-nowrap cursor-pointer;
+
+    &[aria-pressed='true'] {
+      @apply border-2 border-primary px-[0.5625rem] py-[0.3125rem] font-bold!;
+    }
+
+    &.editor-chip--hidden {
+      @apply border-dashed border-outline text-on-surface-variant;
+    }
+  }
+
+  .editor-seg {
+    @apply inline-flex border border-primary border-shape overflow-hidden;
+
+    > button {
+      @apply h-9 px-3.5 font-label-lg cursor-pointer bg-surface;
+    }
+
+    > button[aria-pressed='true'] {
+      @apply bg-primary text-on-primary;
+    }
+  }
+
+  .editor-alert-bar {
+    @apply mx-4 px-3 py-2.5 elements-start gap-2 border border-warning border-shape font-body-sm no-underline;
+  }
+
+  /*
+   * Preview layout. Phone: page, In the Shop, list. Tablet: the phone page on the left, the list and
+   * In the Shop on the right. Computer: the page with In the Shop under it, the list on the right.
+   * On a computer-sized preview the page takes the full width of a tablet.
+   */
+  .editor-preview-grid {
+    @apply grid w-full gap-3 items-start;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'frame' 'shop' 'check';
+
+    > * {
+      @apply min-w-0;
+    }
+
+    @container editor (min-width: 40rem) {
+      @apply gap-6;
+      grid-template-columns: 24.6875rem minmax(0, 1fr);
+      grid-template-rows: auto 1fr;
+      grid-template-areas: 'frame check' 'frame shop';
+
+      &.editor-preview-grid--computer {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: auto;
+        grid-template-areas: 'frame frame' 'check shop';
+      }
+    }
+
+    @container editor (min-width: 64rem) {
+      grid-template-columns: 24.6875rem minmax(0, 1fr) 19rem;
+      grid-template-rows: auto;
+      grid-template-areas: 'frame shop check';
+
+      &.editor-preview-grid--computer {
+        grid-template-columns: minmax(0, 1fr) 19rem;
+        grid-template-rows: auto 1fr;
+        grid-template-areas: 'frame check' 'shop check';
+      }
+    }
+  }
+
+  .editor-area-frame {
+    grid-area: frame;
+  }
+
+  .editor-area-shop {
+    grid-area: shop;
+  }
+
+  .editor-area-check {
+    grid-area: check;
+  }
+
+  /* Browser window around the computer page. */
+  .editor-browser {
+    @apply w-full overflow-hidden border border-outline-variant border-shape bg-surface shadow-mat-2;
+  }
+
+  .editor-browser__bar {
+    @apply h-10 elements-start gap-3 px-3 bg-surface-container border-b border-outline-variant;
+  }
+
+  .editor-browser__url {
+    @apply flex-1 min-w-0 h-6.5 elements-start px-2.5 bg-surface border-shape font-label-sm text-on-surface-variant truncate;
+  }
+
+  .editor-browser__tag {
+    @apply flex-none px-2 py-0.5 border-shape bg-primary text-on-primary font-label-sm font-bold!;
+  }
+
+  /*
+   * Phone around the phone page on a tablet or computer. The rounded corners draw the phone itself
+   * (an illustration, not a page element), so they don't use the 2px store shape.
+   */
+  .editor-phone {
+    @apply w-full overflow-hidden bg-surface;
+    max-width: 23.4375rem;
+    border: 10px solid var(--mat-sys-inverse-surface);
+    border-radius: 2.375rem;
+
+    @container editor not (min-width: 40rem) {
+      @apply max-w-none border-x-0 border-y border-outline-variant;
+      border-width: 1px 0;
+      border-radius: 0;
+    }
+  }
+
+  /* In the Shop: a swipe row of cards about 90% wide on a phone, a grid from 40rem. */
+  .editor-shop-grid {
+    @apply flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 scroll-px-4 py-1.5;
+    width: calc(100% + 2rem);
+
+    > * {
+      @apply flex-none w-[88%] snap-start;
+    }
+
+    @container editor (min-width: 40rem) {
+      @apply grid grid-cols-2 gap-3.5 mx-0 p-1.5 overflow-visible;
+      width: 100%;
+
+      > * {
+        @apply w-auto;
+      }
+    }
+  }
+
+  .editor-preview-grid--computer .editor-shop-grid {
+    @container editor (min-width: 64rem) {
+      @apply grid-cols-4 gap-4;
+    }
+  }
+
+  .editor-shop-other {
+    @apply elements-start-col justify-start! gap-2 opacity-60;
+  }
+
+  .editor-shop-bar {
+    @apply border-shape bg-surface-container-high;
+  }
+
+  .editor-check {
+    @apply w-full elements-start gap-2.5 pt-3 border-t border-outline-variant font-body-sm;
+  }
+
+  /* ── Store page drawn by app-editor-store-page ─────────────────────── */
+
+  .editor-store {
+    @apply w-full bg-surface;
+  }
+
+  .editor-store__nav {
+    @apply h-14 elements-between gap-4 px-6 border-b border-outline-variant;
+  }
+
+  .editor-store__links {
+    @apply elements-center gap-5;
+  }
+
+  .editor-store__body {
+    @apply grid items-start gap-x-8 gap-y-6 p-6;
+    grid-template-columns: minmax(0, 1fr) 17.5rem;
+    grid-template-areas: 'gallery details' 'sections details';
+  }
+
+  .editor-store__gallery {
+    grid-area: gallery;
+  }
+
+  .editor-store__details {
+    grid-area: details;
+    @apply elements-start-col gap-4 min-w-0;
+  }
+
+  .editor-store__sections {
+    grid-area: sections;
+  }
+
+  .editor-store__photos {
+    @apply flex w-full gap-2;
+  }
+
+  /* Same frame as the store gallery, sized by the preview instead of the window. */
+  .editor-store__slide {
+    @apply flex-1 min-w-0;
+    width: auto;
+    max-height: none;
+  }
+
+  .editor-store__counter {
+    @apply elements-center gap-2 pt-3;
+  }
+
+  .editor-store--phone {
+    .editor-store__nav {
+      @apply h-12 px-4;
+    }
+
+    .editor-store__body {
+      @apply flex flex-col items-stretch gap-4 p-0 pb-5;
+    }
+
+    .editor-store__details,
+    .editor-store__sections {
+      @apply px-4;
+    }
+  }
+
+  .editor-store--compact {
+    @apply bg-transparent;
+
+    .editor-store__body {
+      @apply flex flex-col items-stretch gap-4 p-0;
+    }
+
+    .editor-store__details {
+      @apply gap-2.5;
+    }
+
+    .pdp-section:last-child {
+      @apply border-b-0;
+    }
+  }
+
+  /* ── Photo tiles (app-image-gallery-editor, layout="tiles") ────────── */
+
+  .gallery-tiles {
+    @apply flex w-full gap-2.5 overflow-x-auto snap-x snap-mandatory -mx-3.5 px-3.5 scroll-px-3.5 pb-1;
+    width: calc(100% + 1.75rem);
+
+    > * {
+      @apply flex-none w-[72%] snap-start;
+    }
+
+    @container (min-width: 40rem) {
+      @apply grid grid-cols-3 gap-4 mx-0 px-0 pb-0 overflow-visible;
+      width: 100%;
+
+      > * {
+        @apply w-auto;
+      }
+    }
+
+    @container (min-width: 64rem) {
+      @apply grid-cols-5;
+    }
+  }
+
+  .gallery-tile {
+    @apply elements-start-col justify-start! gap-2 min-w-0;
+  }
+
+  .gallery-tile__frame {
+    @apply relative w-full overflow-hidden border border-outline-variant border-shape bg-surface-container cursor-grab;
+
+    &.gallery-tile__frame--main {
+      @apply border-2 border-primary;
+    }
+  }
+
+  .gallery-tile__badge {
+    @apply absolute top-2 left-2 px-2 py-0.5 border-shape bg-surface font-label-sm font-bold!;
+
+    &.gallery-tile__badge--main {
+      @apply bg-primary text-on-primary;
+    }
+  }
+
+  .gallery-tile__menu {
+    @apply absolute top-1 right-1 border-shape bg-surface/90;
+  }
+
+  .gallery-tile__add {
+    @apply w-full elements-center-col gap-1.5 p-3 text-center border border-dashed border-primary border-shape bg-surface-container-low cursor-pointer;
+
+    &:disabled {
+      @apply cursor-wait;
+    }
+  }
+
+  .gallery-tile__link {
+    @apply elements-start gap-1.5 py-1.5 font-label-lg underline underline-offset-2 cursor-pointer;
+
+    &:disabled {
+      @apply cursor-wait opacity-60;
+    }
+  }
+}
+
+/* On a phone the admin page keeps 1rem at each side; the editor goes edge to edge, like the store. */
+@media (width < 40rem) {
+  .product-editor {
+    margin-inline: -1rem;
+    width: calc(100% + 2rem);
   }
 }

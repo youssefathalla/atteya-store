@@ -1,0 +1,74 @@
+@let c = card();
+<div class="product-card__media-wrap">
+  <div class="product-card__media">
+    @if (c.photo; as photo) {
+      <img
+        [ngSrc]="imagePath(photo.path)"
+        [appImageFallback]="photo.path"
+        [alt]="photo.alt"
+        fill
+        [sizes]="sizes()"
+        class="product-card__photo"
+      />
+    } @else {
+      <span class="absolute inset-0 elements-center-col gap-1 font-label-md text-on-surface-variant">
+        <mat-icon name="add_photo_alternate" size="3xl" />
+        No photo yet
+      </span>
+    }
+  </div>
+  <span class="product-card__favorite" aria-hidden="true">
+    <mat-icon name="favorite" weight="400" type="outline" />
+  </span>
+</div>
+
+@if (c.swatches.length > 0) {
+  <div class="product-card__swatches">
+    <div class="product-card__swatch-row">
+      @for (swatch of c.swatches; track swatch.key) {
+        <span
+          class="product-card__swatch bg-surface-container-low"
+          [class.product-card__swatch--selected]="swatch.selected"
+          [attr.title]="swatch.label"
+        >
+          @if (swatch.path) {
+            <img
+              [ngSrc]="imagePath(swatch.path)"
+              [appImageFallback]="swatch.path"
+              alt=""
+              width="40"
+              height="40"
+              class="product-card__swatch-img"
+            />
+          }
+        </span>
+      }
+    </div>
+  </div>
+}
+
+<div class="product-card__info">
+  @if (c.badge; as badge) {
+    <span class="product-card__badge" [class.product-card__badge--boxed]="badge.boxed">{{
+      badge.label
+    }}</span>
+  }
+  <p class="product-card__name" [class.editor-mark]="marked()" [attr.title]="c.name">{{ c.name }}</p>
+  @if (c.secondLine) {
+    <p class="product-card__desc" [class.editor-mark--light]="marked() && c.secondLineIsSummary">
+      {{ c.secondLine }}
+    </p>
+  }
+  <div class="product-card__price elements-center flex-wrap gap-1.5">
+    @if (c.price === null) {
+      <span class="font-body-md">EGP —</span>
+    } @else {
+      <span [class]="c.before !== null ? 'font-body-md font-bold!' : 'font-body-md'">{{
+        c.price | egpPrice
+      }}</span>
+      @if (c.before !== null) {
+        <span class="font-body-sm text-on-surface-variant line-through">{{ c.before | egpPrice }}</span>
+      }
+    }
+  </div>
+</div>

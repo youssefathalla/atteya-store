@@ -1,9 +1,11 @@
 import { isPlatformBrowser } from '@angular/common';
 import {
+  afterNextRender,
   Component,
   computed,
   effect,
   inject,
+  Injector,
   input,
   OnInit,
   PLATFORM_ID,
@@ -61,6 +63,9 @@ import { SharedIconModule } from '@shared/ui/mat-icon';
 import { SkeletonComponent } from '@shared/ui/skeleton';
 import type { ImageFolderPath } from '@shared/utils/image';
 import { OffersAdminService } from '../offers-manager/services/offers-admin.service';
+import { EditorShopCardComponent } from './components/editor-shop-card/editor-shop-card.component';
+import { EditorStorePageComponent } from './components/editor-store-page/editor-store-page.component';
+import type { EditorTab, PreviewDevice } from './models/editor-preview.model';
 import type {
   ColourDraft,
   ModelSizeDraft,
@@ -69,6 +74,13 @@ import type {
 } from './models/product-admin.model';
 import { ProductsAdminService } from './services/products-admin.service';
 import { ProductsDialogService } from './services/products-dialog.service';
+import {
+  buildCardView,
+  buildChecks,
+  buildPageView,
+  buildPreviewChips,
+  type PreviewSource,
+} from './utils/editor-preview.utils';
 import { importActionError } from './utils/import-error';
 import {
   buildBrandOptions,
@@ -157,6 +169,8 @@ const GENDER_OPTIONS: readonly { readonly id: '' | ProductGenderId; readonly lab
     EgpPricePipe,
     SharedIconModule,
     SkeletonComponent,
+    EditorShopCardComponent,
+    EditorStorePageComponent,
   ],
   templateUrl: './product-editor.page.html',
 })
@@ -173,6 +187,7 @@ export class ProductEditorPageComponent implements OnInit {
   readonly #platformId = inject(PLATFORM_ID);
   readonly #playerList = inject(PlayerListService);
   readonly #tracker = new StorageAssetTracker();
+  readonly #injector = inject(Injector);
 
   readonly #productTypes = inject(ProductTypesService);
   /** Types from Categories & Brands → Types (ATS-388), plus this product's own if it was removed there. */
@@ -221,6 +236,13 @@ export class ProductEditorPageComponent implements OnInit {
   readonly newArrivalError = signal('');
   readonly detailsDiffer = signal(false);
   readonly offerRows = signal<readonly OfferRow[]>([]);
+  /** The open tab (ATS-393). Every tab stays on the page while hidden, so nothing typed is lost. */
+  readonly tab = signal<EditorTab>('product');
+  /** Colour the Preview tab shows; null follows the colour open in Colours & Photos. */
+  readonly previewIndex = signal<number | null>(null);
+  readonly previewDevice = signal<PreviewDevice>('computer');
+  /** Preview the store as if hidden colours were shown too. */
+  readonly showHiddenColours = signal(false);
   readonly #saveTried = signal(false);
   readonly #ready = signal(false);
   readonly #reloadTick = signal(0);
@@ -333,6 +355,77 @@ export class ProductEditorPageComponent implements OnInit {
     return newArrivalCountdownLabel(untilMs);
   });
 
+  /** The unsaved form as the store previews read it. */
+  readonly #previewSource = computed((): PreviewSource => {
+    const fields = this.model();
+    const loaded = this.editorResource.value();
+    const prices = this.pricePreview();
+    const kind = this.marketingBadgeKind();
+    return {
+      name: collapseSpaces(asText(fields.name)),
+      summary: asText(fields.summary),
+      description: asText(fields.description),
+      details: asText(fields.details),
+      gender: fields.gender,
+      categoryId: fields.categoryId,
+      brandId: fields.brandId,
+      categories: loaded?.categories ?? [],
+      brands: loaded?.brands ?? [],
+      price: prices?.price ?? null,
+      before: prices?.before ?? null,
+      sizes: this.sizes(),
+      colours: this.colours(),
+      badge: kind
+        ? { label: MARKETING_BADGE_LABELS[kind], boxed: this.marketingBadgeStyle() === 'boxed' }
+        : null,
+    };
+  });
+  /** Product tab: the open colour's Shop card and product page. */
+  readonly productCard = computed(() => buildCardView(this.#previewSource(), this.activeIndex(), false));
+  readonly productPage = computed(() => buildPageView(this.#previewSource(), this.activeIndex(), false));
+  /** The card's second line is the gender and category when Gender is set, not the summary. */
+  readonly summaryOnCard = computed(() => !this.model().gender);
+  readonly previewColour = computed(() => {
+    const picked = this.previewIndex();
+    const count = this.colours().length;
+    if (picked !== null && picked < count) return picked;
+    return Math.min(this.activeIndex(), Math.max(0, count - 1));
+  });
+  readonly previewChips = computed(() => buildPreviewChips(this.#previewSource()));
+  readonly previewCard = computed(() =>
+    buildCardView(this.#previewSource(), this.previewColour(), this.showHiddenColours()),
+  );
+  readonly previewPage = computed(() =>
+    buildPageView(this.#previewSource(), this.previewColour(), this.showHiddenColours()),
+  );
+  readonly checks = computed(() => buildChecks(this.#previewSource()));
+  readonly checksToLookAt = computed(() => this.checks().filter((check) => check.tone === 'warn').length);
+  /** Grey cards beside this one in In the Shop. */
+  readonly otherCards = [0, 1, 2] as const;
+  readonly tabs = computed(() => {
+    const colours = this.colours().length;
+    const alerts = this.checksToLookAt();
+    return [
+      { id: 'product', label: 'Product', icon: 'edit_document', count: null, alert: null },
+      {
+        id: 'colours',
+        label: 'Colours & Photos',
+        icon: 'palette',
+        count: colours > 0 ? colours : null,
+        alert: null,
+      },
+      { id: 'sizes', label: 'Sizes & Tags', icon: 'label', count: null, alert: null },
+      { id: 'price', label: 'Price & Organise', icon: 'payments', count: null, alert: null },
+      { id: 'preview', label: 'Preview', icon: 'visibility', count: null, alert: alerts > 0 ? alerts : null },
+    ] as const satisfies readonly {
+      id: EditorTab;
+      label: string;
+      icon: string;
+      count: number | null;
+      alert: number | null;
+    }[];
+  });
+
   readonly editForm = form(this.model, (path) => {
     validate(path.name, ({ value }) => {
       const name = collapseSpaces(asText(value()));
@@ -431,6 +524,13 @@ export class ProductEditorPageComponent implements OnInit {
       });
     });
 
+    // The Preview tab starts on the screen the admin is using: a computer page on a wide window.
+    afterNextRender({
+      read: () => {
+        if (!window.matchMedia('(min-width: 80rem)').matches) this.previewDevice.set('phone');
+      },
+    });
+
     effect(() => {
       if (!isPlatformBrowser(this.#platformId)) return;
       if (this.editorResource.status() !== 'resolved') return;
@@ -449,6 +549,35 @@ export class ProductEditorPageComponent implements OnInit {
         this.#ready.set(true);
       });
     });
+  }
+
+  /** Arrow keys move along the tab bar (ARIA tabs pattern); the tab opens as it gets focus. */
+  onTabKeydown(event: KeyboardEvent, index: number): void {
+    const tabs = this.tabs();
+    let next = -1;
+    if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    if (next < 0) return;
+    event.preventDefault();
+    const id = tabs[next]!.id;
+    this.tab.set(id);
+    afterNextRender(
+      { write: () => document.getElementById(`editor-tab-${id}`)?.focus() },
+      { injector: this.#injector },
+    );
+  }
+
+  /** Opens a colour in Colours & Photos (from a Check Before Saving link). */
+  openColour(index: number): void {
+    this.selectColour(index);
+    this.tab.set('colours');
+    if (isPlatformBrowser(this.#platformId)) window.scrollTo({ top: 0 });
+  }
+
+  pickPreviewColour(index: number): void {
+    this.previewIndex.set(index);
   }
 
   ngOnInit(): void {
@@ -850,18 +979,31 @@ export class ProductEditorPageComponent implements OnInit {
     this.#saveTried.set(true);
     if (this.tagInput().trim()) {
       this.addPendingTag();
-      if (this.tagError()) return;
+      if (this.tagError()) {
+        this.tab.set('sizes');
+        return;
+      }
     }
     if (this.sizeInput().trim()) {
       this.addPendingSize();
-      if (this.sizeError()) return;
+      if (this.sizeError()) {
+        this.tab.set('sizes');
+        return;
+      }
     }
     this.formError.set(this.#blockers());
-    if (this.formError() && isPlatformBrowser(this.#platformId)) {
-      // aria-invalid is painted after this signal write.
-      requestAnimationFrame(() => {
-        document.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
-      });
+    const problemTab = this.#problemTab();
+    if (problemTab) this.tab.set(problemTab);
+    if (problemTab && isPlatformBrowser(this.#platformId)) {
+      // aria-invalid is painted, and the tab shown, after these signal writes.
+      afterNextRender(
+        {
+          write: () => {
+            document.querySelector<HTMLElement>(`#editor-panel-${problemTab} [aria-invalid="true"]`)?.focus();
+          },
+        },
+        { injector: this.#injector },
+      );
     }
     await submit(this.editForm, async () => {
       if (this.formError()) return;
@@ -894,6 +1036,7 @@ export class ProductEditorPageComponent implements OnInit {
     this.playerError.set('');
     this.newArrivalError.set('');
     this.picking.set(false);
+    this.previewIndex.set(null);
 
     if (!anchor) {
       const fields = emptyFields(this.#productTypes.types());
@@ -967,6 +1110,43 @@ export class ProductEditorPageComponent implements OnInit {
     this.detailsDiffer.set(sharedDetailsDiffer(products));
     this.offerRows.set(offerRowsFor(value.offers, products));
     this.#savedImagePaths.set(products.flatMap((product) => product.images.map((image) => image.path)));
+  }
+
+  /**
+   * The tab to open after a blocked save. A field with its own message comes first (the
+   * banner above the tabs still shows any other problem), then the tab the banner is about.
+   */
+  #problemTab(): EditorTab | null {
+    const fields = this.editForm;
+    if (
+      fields.name().invalid() ||
+      fields.summary().invalid() ||
+      fields.description().invalid() ||
+      fields.details().invalid()
+    ) {
+      return 'product';
+    }
+    if (
+      fields.categoryId().invalid() ||
+      fields.brandId().invalid() ||
+      fields.price().invalid() ||
+      fields.compareAtPrice().invalid()
+    ) {
+      return 'price';
+    }
+    const message = this.formError();
+    if (!message) return null;
+    if (this.colours().length === 0) return 'colours';
+    if (
+      message === this.sizeError() ||
+      message === this.tagError() ||
+      message === this.newArrivalError() ||
+      message.includes('New arrival')
+    ) {
+      return 'sizes';
+    }
+    if (message === this.weightError()) return 'price';
+    return 'colours';
   }
 
   #blockers(): string {
